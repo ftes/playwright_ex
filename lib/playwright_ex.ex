@@ -14,7 +14,7 @@ defmodule PlaywrightEx do
   ## Getting started
   1. Add dependency
           # mix.exs
-          {:phoenix_test_playwright, "~> 0.4", only: :test, runtime: false}
+          {:phoenix_test_playwright, "~> 0.4"}
 
   2. Install playwright and browser
           npm --prefix assets i -D playwright

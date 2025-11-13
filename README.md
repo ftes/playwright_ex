@@ -11,7 +11,7 @@ Automate browsers like Chromium, Firefox, Safari and Edge.
 Helpful for web scraping and agentic AI.
 
 > [!WARNING]
-> *Experimental*
+> **Experimental**
 >
 > This is an early stage, experimental, version.
 > The API is subject to change.
