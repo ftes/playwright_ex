@@ -1,5 +1,7 @@
 defmodule PlaywrightEx.Supervisor do
-  @moduledoc false
+  @moduledoc """
+  Playwright connection supervision tree.
+  """
 
   use Supervisor
 
