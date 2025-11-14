@@ -37,7 +37,7 @@ defmodule PlaywrightEx do
   ## References:
   - Code extracted from [phoenix_test_playwright](https://hexdocs.pm/phoenix_test_playwright).
   - Inspired by [playwright-elixir](https://hexdocs.pm/playwright).
-  - Officia playwright node.js [client docs](https://playwright.dev/docs/intro).
+  - Official playwright node.js [client docs](https://playwright.dev/docs/intro).
 
 
   ## Comparison to playwright-elixir
