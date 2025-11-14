@@ -24,7 +24,6 @@ defmodule PlaywrightEx do
 
   4. Use it
           browser_id = PlaywrightEx.launch_browser(:chromium)
-          on_exit(fn -> Browser.close(browser_id) end)
           {:ok, context_id} = Browser.new_context(browser_id)
 
           {:ok, page_id} = BrowserContext.new_page(context_id)
