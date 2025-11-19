@@ -8,19 +8,18 @@ defmodule PlaywrightEx.Dialog do
   - https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/dialog.ts
   """
 
-  import PlaywrightEx.Connection, only: [post: 1]
-
-  alias PlaywrightEx.Result
+  import PlaywrightEx.Connection, only: [post: 2]
+  import PlaywrightEx.Result, only: [from_response: 2]
 
   def accept(dialog_id, opts \\ []) do
-    [guid: dialog_id, method: :accept, params: Map.new(opts)]
-    |> post()
-    |> Result.from_response(& &1)
+    %{guid: dialog_id, method: :accept, params: Map.new(opts)}
+    |> post(opts[:timeout])
+    |> from_response(& &1)
   end
 
   def dismiss(dialog_id, opts \\ []) do
-    [guid: dialog_id, method: :dismiss, params: Map.new(opts)]
-    |> post()
-    |> Result.from_response(& &1)
+    %{guid: dialog_id, method: :dismiss, params: Map.new(opts)}
+    |> post(opts[:timeout])
+    |> from_response(& &1)
   end
 end

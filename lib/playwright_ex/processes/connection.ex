@@ -9,13 +9,12 @@ defmodule PlaywrightEx.Connection do
   """
   @behaviour :gen_statem
 
-  alias PlaywrightEx.Config
   alias PlaywrightEx.PortServer
 
   @timeout_grace_factor 1.5
   @min_genserver_timeout to_timeout(second: 1)
 
-  defstruct config: [],
+  defstruct config: %{js_logger: nil},
             initializers: %{},
             guid_subscribers: %{},
             posts_in_flight: %{}
@@ -23,28 +22,16 @@ defmodule PlaywrightEx.Connection do
   @name __MODULE__
 
   @doc false
-  def child_spec(config) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, config}}
+  def child_spec(opts) do
+    %{id: __MODULE__, start: {__MODULE__, :start_link, opts}}
   end
 
   @doc false
-  def start_link(config) do
-    config = Config.validate!(config)
-    :gen_statem.start_link({:local, @name}, __MODULE__, config, timeout: config[:timeout])
-  end
+  def start_link(opts) do
+    opts = Keyword.validate!(opts, [:timeout, js_logger: nil])
+    timeout = Keyword.fetch!(opts, :timeout)
 
-  @doc """
-  Launch a browser and return its `guid`.
-  """
-  def launch_browser(type, opts) do
-    types = initializer("Playwright")
-    type_id = Map.fetch!(types, type).guid
-    params = opts |> Map.new() |> Map.put(:timeout, timeout)
-
-    case post(guid: type_id, method: :launch, params: params) do
-      %{result: %{browser: %{guid: guid}}} -> guid
-      %{error: %{error: %{name: "TimeoutError"} = error}} -> raise launch_timeout_error_msg(type, error)
-    end
+    :gen_statem.start_link({:local, @name}, __MODULE__, Map.new(opts), timeout: timeout)
   end
 
   @doc """
@@ -63,10 +50,11 @@ defmodule PlaywrightEx.Connection do
   Post a message and await the response.
   Wait for an additional grace period after the playwright timeout.
   """
-  def post(%{params: %{timeout: timeout}} = msg) do
+  def post(%{guid: _, method: _} = msg, timeout) when is_integer(timeout) do
     msg =
       msg
       |> Enum.into(%{params: %{}, metadata: %{}})
+      |> put_in([:params, :timeout], timeout)
       |> Map.put_new_lazy(:id, fn -> System.unique_integer([:positive, :monotonic]) end)
 
     call_timeout = max(@min_genserver_timeout, round(timeout * @timeout_grace_factor))
@@ -77,17 +65,23 @@ defmodule PlaywrightEx.Connection do
   @doc """
   Get the initializer data for a channel.
   """
-  def initializer(guid) do
+  def initializer!(guid) do
     :gen_statem.call(@name, {:initializer, guid})
   end
+
+  # Internal
 
   @impl :gen_statem
   def callback_mode, do: :state_functions
 
   @impl :gen_statem
-  def init(config) do
-    msg = %{guid: "", params: %{sdk_language: :javascript}, method: :initialize, metadata: %{}}
-    PortServer.post(msg)
+  def init(%{js_logger: _, timeout: timeout} = config) do
+    PortServer.post(%{
+      guid: "",
+      method: :initialize,
+      params: %{sdk_language: :javascript, timeout: timeout},
+      metadata: %{}
+    })
 
     {:ok, :pending, %__MODULE__{config: config}}
   end
@@ -114,16 +108,16 @@ defmodule PlaywrightEx.Connection do
     {:keep_state, update_in(data.guid_subscribers[guid], &[recipient | &1 || []])}
   end
 
-  def started(:cast, {:msg, %{method: :page_error} = msg}, _data) do
-    if module = config[:js_logger] do
+  def started(:cast, {:msg, %{method: :page_error} = msg}, data) do
+    if module = data.config.js_logger do
       module.log(:error, msg.params.error, msg)
     end
 
     :keep_state_and_data
   end
 
-  def started(:cast, {:msg, %{method: :console} = msg}, _data) do
-    if module = config[:js_logger] do
+  def started(:cast, {:msg, %{method: :console} = msg}, data) do
+    if module = data.config.js_logger do
       level = log_level_from_js(msg[:params][:type])
       module.log(level, msg.params.text, msg)
     end
@@ -162,27 +156,6 @@ defmodule PlaywrightEx.Connection do
   end
 
   defp notify_subscribers(data, _msg), do: data
-
-  defp launch_timeout_error_msg(type, error) do
-    %{stack: stack, message: message} = error
-
-    """
-    Timed out while launching the Playwright browser, #{String.capitalize("#{type}")}. #{message}
-
-    You may need to increase the :browser_launch_timeout option in config/test.exs:
-
-        config :phoenix_test,
-          playwright: [
-            browser_launch_timeout: 10_000,
-            # other Playwright options...
-          ],
-          # other phoenix_test options...
-
-    Playwright backtrace:
-
-    #{stack}
-    """
-  end
 
   defp log_level_from_js("error"), do: :error
   defp log_level_from_js("debug"), do: :debug

@@ -8,24 +8,22 @@ defmodule PlaywrightEx.Browser do
   - https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/browser.ts
   """
 
-  import PlaywrightEx.Connection, only: [post: 1]
+  import PlaywrightEx.Connection, only: [post: 2]
+  import PlaywrightEx.Result, only: [from_response: 2]
 
-  @doc """
-  Start a new browser context and return its `guid`.
-  """
   def new_context(browser_id, opts \\ []) do
     params = Map.new(opts)
 
-    [guid: browser_id, method: :new_context, params: params]
-    |> post()
-    |> PlaywrightEx.Result.from_response(& &1.result.context.guid)
+    %{guid: browser_id, method: :new_context, params: params}
+    |> post(opts[:timeout])
+    |> from_response(& &1.result.context.guid)
   end
 
   def close(browser_id, opts \\ []) do
     params = Map.new(opts)
 
-    [guid: browser_id, method: :close, params: params]
-    |> post()
-    |> PlaywrightEx.Result.from_response(& &1)
+    %{guid: browser_id, method: :close, params: params}
+    |> post(opts[:timeout])
+    |> from_response(& &1)
   end
 end

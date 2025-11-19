@@ -1,0 +1,1 @@
+- add opts to all playwright api functions, always allow timeout
