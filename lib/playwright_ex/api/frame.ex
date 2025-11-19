@@ -41,10 +41,9 @@ defmodule PlaywrightEx.Frame do
   end
 
   def press(frame_id, selector, key, opts \\ []) do
-    opts = Keyword.validate!(opts, delay: 0)
-    params = %{selector: selector, key: key}
-    params = Enum.into(opts, params)
-    timeout = (params[:timeout] || Config.global(:timeout)) + params.delay
+    opts = Keyword.validate!(opts, [:timeout, :delay])
+    params = Enum.into(opts, %{delay: 0, selector: selector, key: key})
+    timeout = timeout + params.delay
 
     [guid: frame_id, method: :press, params: params]
     |> post(timeout)
@@ -53,8 +52,7 @@ defmodule PlaywrightEx.Frame do
 
   def type(frame_id, selector, text, opts \\ []) do
     opts = Keyword.validate!(opts, delay: 0)
-    params = %{selector: selector, text: text}
-    params = Enum.into(opts, params)
+    params = Enum.into(opts, %{delay: 0, selector: selector, text: text})
     timeout = (params[:timeout] || Config.global(:timeout)) + params.delay * String.length(text)
 
     [guid: frame_id, method: :type, params: params]
