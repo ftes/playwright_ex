@@ -47,6 +47,8 @@ defmodule PlaywrightEx do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Connection
 
+  @type guid :: String.t()
+
   @doc """
   Launch a browser.
   """
