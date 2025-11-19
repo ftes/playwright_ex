@@ -68,14 +68,6 @@ defmodule PlaywrightEx.Config do
     |> NimbleOptions.validate!(@schema)
   end
 
-  def global do
-    :playwright_ex
-    |> Application.get_all_env()
-    |> NimbleOptions.validate!(@schema)
-  end
-
-  def global(key), do: Keyword.fetch!(global(), key)
-
   def __validate_runner__(runner) do
     if executable = System.find_executable(runner) do
       {:ok, executable}

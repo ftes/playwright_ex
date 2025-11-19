@@ -15,20 +15,22 @@ defmodule PlaywrightEx.Connection do
   @timeout_grace_factor 1.5
   @min_genserver_timeout to_timeout(second: 1)
 
-  defstruct initializers: %{},
+  defstruct config: [],
+            initializers: %{},
             guid_subscribers: %{},
             posts_in_flight: %{}
 
   @name __MODULE__
 
   @doc false
-  def child_spec([]) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, []}}
+  def child_spec(config) do
+    %{id: __MODULE__, start: {__MODULE__, :start_link, config}}
   end
 
   @doc false
-  def start_link do
-    :gen_statem.start_link({:local, @name}, __MODULE__, :no_init_arg, timeout: Config.global(:timeout))
+  def start_link(config) do
+    config = Config.validate!(config)
+    :gen_statem.start_link({:local, @name}, __MODULE__, config, timeout: config[:timeout])
   end
 
   @doc """
@@ -37,7 +39,6 @@ defmodule PlaywrightEx.Connection do
   def launch_browser(type, opts) do
     types = initializer("Playwright")
     type_id = Map.fetch!(types, type).guid
-    timeout = opts[:browser_launch_timeout] || opts[:timeout] || Config.global(:browser_launch_timeout)
     params = opts |> Map.new() |> Map.put(:timeout, timeout)
 
     case post(guid: type_id, method: :launch, params: params) do
@@ -62,14 +63,13 @@ defmodule PlaywrightEx.Connection do
   Post a message and await the response.
   Wait for an additional grace period after the playwright timeout.
   """
-  def post(msg, timeout \\ nil) do
+  def post(%{params: %{timeout: timeout}} = msg) do
     msg =
       msg
       |> Enum.into(%{params: %{}, metadata: %{}})
-      |> update_in(~w(params timeout)a, &(&1 || timeout || Config.global(:timeout)))
       |> Map.put_new_lazy(:id, fn -> System.unique_integer([:positive, :monotonic]) end)
 
-    call_timeout = max(@min_genserver_timeout, round(msg.params.timeout * @timeout_grace_factor))
+    call_timeout = max(@min_genserver_timeout, round(timeout * @timeout_grace_factor))
 
     :gen_statem.call(@name, {:post, msg}, call_timeout)
   end
@@ -85,11 +85,11 @@ defmodule PlaywrightEx.Connection do
   def callback_mode, do: :state_functions
 
   @impl :gen_statem
-  def init(:no_init_arg) do
+  def init(config) do
     msg = %{guid: "", params: %{sdk_language: :javascript}, method: :initialize, metadata: %{}}
     PortServer.post(msg)
 
-    {:ok, :pending, %__MODULE__{}}
+    {:ok, :pending, %__MODULE__{config: config}}
   end
 
   @doc false
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Connection do
   end
 
   def started(:cast, {:msg, %{method: :page_error} = msg}, _data) do
-    if module = Config.global(:js_logger) do
+    if module = config[:js_logger] do
       module.log(:error, msg.params.error, msg)
     end
 
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Connection do
   end
 
   def started(:cast, {:msg, %{method: :console} = msg}, _data) do
-    if module = Config.global(:js_logger) do
+    if module = config[:js_logger] do
       level = log_level_from_js(msg[:params][:type])
       module.log(level, msg.params.text, msg)
     end

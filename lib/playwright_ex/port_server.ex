@@ -19,7 +19,8 @@ defmodule PlaywrightEx.PortServer do
   alias PlaywrightEx.Connection
   alias PlaywrightEx.Serialization
 
-  defstruct port: nil,
+  defstruct config: [],
+            port: nil,
             remaining: 0,
             buffer: ""
 
@@ -28,8 +29,9 @@ defmodule PlaywrightEx.PortServer do
   @doc """
   Start the PortServer and link it to the connection process.
   """
-  def start_link(connection_pid) do
-    GenServer.start_link(__MODULE__, connection_pid, name: @name)
+  def start_link(config) do
+    config = Config.validate!(config)
+    GenServer.start_link(__MODULE__, config, name: @name)
   end
 
   @doc """
@@ -40,12 +42,12 @@ defmodule PlaywrightEx.PortServer do
   end
 
   @impl GenServer
-  def init(_connection_pid) do
+  def init(config) do
     port =
-      Port.open({:spawn_executable, Config.global(:runner)}, [
+      Port.open({:spawn_executable, config[:runner]}, [
         :binary,
         args: ["playwright", "run-driver"],
-        cd: Config.global(:assets_dir)
+        cd: config[:assets_dir]
       ])
 
     {:ok, %__MODULE__{port: port}}
