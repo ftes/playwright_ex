@@ -1,5 +1,6 @@
 defmodule PlaywrightEx.Channel do
   @moduledoc false
+
   def timeout_opt, do: [type: :timeout, required: true, doc: "Maximum time for the operation (milliseconds)."]
 
   # set to true to find unknown flags during local development

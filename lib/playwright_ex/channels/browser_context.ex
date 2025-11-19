@@ -24,7 +24,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @schema schema
   @type new_page_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec new_page(PlaywrightEx.guid(), [new_page_opt() | {Keyword.key(), any()}]) ::
+  @spec new_page(PlaywrightEx.guid(), [new_page_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid(), main_frame: %{guid: PlaywrightEx.guid()}}} | {:error, any()}
   def new_page(context_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -54,7 +54,8 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @schema schema
   @type add_cookies_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec add_cookies(PlaywrightEx.guid(), [add_cookies_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec add_cookies(PlaywrightEx.guid(), [add_cookies_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
   def add_cookies(context_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -93,7 +94,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @schema schema
   @type clear_cookies_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec clear_cookies(PlaywrightEx.guid(), [clear_cookies_opt() | {Keyword.key(), any()}]) ::
+  @spec clear_cookies(PlaywrightEx.guid(), [clear_cookies_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def clear_cookies(context_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -134,7 +135,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @schema schema
   @type register_selector_engine_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec register_selector_engine(PlaywrightEx.guid(), [register_selector_engine_opt() | {Keyword.key(), any()}]) ::
+  @spec register_selector_engine(PlaywrightEx.guid(), [register_selector_engine_opt() | PlaywrightEx.unknown_opt()]) ::
           :ok | {:error, any()}
   def register_selector_engine(context_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -165,7 +166,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @schema schema
   @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec close(PlaywrightEx.guid(), [close_opt() | {Keyword.key(), any()}]) :: :ok | {:error, any()}
+  @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: :ok | {:error, any()}
   def close(browser_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 

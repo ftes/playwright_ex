@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Tracing do
   """
   @schema schema
   @type start_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec tracing_start(PlaywrightEx.guid(), [start_opt() | {Keyword.key(), any()}]) ::
+  @spec tracing_start(PlaywrightEx.guid(), [start_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def tracing_start(tracing_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -71,7 +71,7 @@ defmodule PlaywrightEx.Tracing do
   """
   @schema schema
   @type start_chunk_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec tracing_start_chunk(PlaywrightEx.guid(), [start_chunk_opt() | {Keyword.key(), any()}]) ::
+  @spec tracing_start_chunk(PlaywrightEx.guid(), [start_chunk_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def tracing_start_chunk(tracing_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Tracing do
   """
   @schema schema
   @type stop_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec tracing_stop(PlaywrightEx.guid(), [stop_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec tracing_stop(PlaywrightEx.guid(), [stop_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def tracing_stop(tracing_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Tracing do
   """
   @schema schema
   @type stop_chunk_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec tracing_stop_chunk(PlaywrightEx.guid(), [stop_chunk_opt() | {Keyword.key(), any()}]) ::
+  @spec tracing_stop_chunk(PlaywrightEx.guid(), [stop_chunk_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid(), absolute_path: Path.t()}} | {:error, any()}
   def tracing_stop_chunk(tracing_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)

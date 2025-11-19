@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Page do
   """
   @schema schema
   @type update_subscription_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec update_subscription(PlaywrightEx.guid(), [update_subscription_opt() | {Keyword.key(), any()}]) ::
+  @spec update_subscription(PlaywrightEx.guid(), [update_subscription_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def update_subscription(page_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Page do
   """
   @schema schema
   @type screenshot_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec screenshot(PlaywrightEx.guid(), [screenshot_opt() | {Keyword.key(), any()}]) ::
+  @spec screenshot(PlaywrightEx.guid(), [screenshot_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, binary()} | {:error, any()}
   def screenshot(page_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)

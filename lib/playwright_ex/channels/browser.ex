@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Browser do
   """
   @schema schema
   @type new_context_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec new_context(PlaywrightEx.guid(), [new_context_opt() | {Keyword.key(), any()}]) ::
+  @spec new_context(PlaywrightEx.guid(), [new_context_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid(), tracing: %{guid: PlaywrightEx.guid()}}} | {:error, any()}
   def new_context(browser_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Browser do
   """
   @schema schema
   @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec close(PlaywrightEx.guid(), [close_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def close(browser_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 

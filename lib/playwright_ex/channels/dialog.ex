@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Dialog do
   """
   @schema schema
   @type accept_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec accept(PlaywrightEx.guid(), [accept_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec accept(PlaywrightEx.guid(), [accept_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def accept(dialog_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Dialog do
   """
   @schema schema
   @type dismiss_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec dismiss(PlaywrightEx.guid(), [dismiss_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec dismiss(PlaywrightEx.guid(), [dismiss_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def dismiss(dialog_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 

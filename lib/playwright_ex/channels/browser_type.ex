@@ -44,7 +44,7 @@ defmodule PlaywrightEx.BrowserType do
   """
   @schema schema
   @type launch_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec launch(PlaywrightEx.guid(), [launch_opt() | {Keyword.key(), any()}]) ::
+  @spec launch(PlaywrightEx.guid(), [launch_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid()}} | {:error, any()}
   def launch(type_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -53,4 +53,7 @@ defmodule PlaywrightEx.BrowserType do
     |> Connection.send(timeout)
     |> ChannelResponse.unwrap_create(:browser)
   end
+
+  @doc false
+  def launch_opts_schema, do: @schema
 end

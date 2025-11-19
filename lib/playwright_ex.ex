@@ -48,10 +48,15 @@ defmodule PlaywrightEx do
   alias PlaywrightEx.Connection
 
   @type guid :: String.t()
+  @type unknown_opt :: {Keyword.key(), Keyword.value()}
 
   @doc """
-  Launch a browser.
+  Launches a new browser instance.
+
+  ## Options
+  #{NimbleOptions.docs(BrowserType.launch_opts_schema())}
   """
+  @spec launch_browser(atom(), [[BrowserType.launch_opt() | unknown_opt()]]) :: {:ok, %{guid: guid()}} | {:error, any()}
   def launch_browser(type, opts) do
     type_id = "Playwright" |> Connection.initializer!() |> Map.fetch!(type) |> Map.fetch!(:guid)
     BrowserType.launch(type_id, opts)
@@ -61,6 +66,7 @@ defmodule PlaywrightEx do
   Subscribe to playwright responses concerning a resource, identified by its `guid`, or its descendants.
   Messages in the format `{:playwright_msg, %{} = msg}` will be sent to `pid`.
   """
+  @spec subscribe(pid(), guid()) :: :ok
   defdelegate subscribe(pid \\ self(), guid), to: Connection
 
   @doc """
@@ -69,5 +75,6 @@ defmodule PlaywrightEx do
   Don't use this! Prefer `Channels` functions.
   If a function is missing, consider [opening a PR](https://github.com/ftes/playwright_ex/pulls) to add it.
   """
+  @spec send(%{guid: guid(), method: atom()}, timeout()) :: %{result: map()} | %{error: map()}
   defdelegate send(msg, timeout), to: Connection
 end

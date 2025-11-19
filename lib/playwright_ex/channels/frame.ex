@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type goto_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec goto(PlaywrightEx.guid(), [goto_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec goto(PlaywrightEx.guid(), [goto_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def goto(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type url_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec url(PlaywrightEx.guid(), [url_opt() | {Keyword.key(), any()}]) :: {:ok, String.t()} | {:error, any()}
+  @spec url(PlaywrightEx.guid(), [url_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, String.t()} | {:error, any()}
   def url(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type evaluate_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec evaluate(PlaywrightEx.guid(), [evaluate_opt() | {Keyword.key(), any()}]) ::
+  @spec evaluate(PlaywrightEx.guid(), [evaluate_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def evaluate(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type press_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec press(PlaywrightEx.guid(), [press_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec press(PlaywrightEx.guid(), [press_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def press(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -199,7 +199,7 @@ defmodule PlaywrightEx.Frame do
   @doc deprecated: "Use `fill/2` or `press/2` instead"
   @schema schema
   @type type_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec type(PlaywrightEx.guid(), [type_opt() | {Keyword.key(), any()}]) ::
+  @spec type(PlaywrightEx.guid(), [type_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def type(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type title_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec title(PlaywrightEx.guid(), [title_opt() | {Keyword.key(), any()}]) ::
+  @spec title(PlaywrightEx.guid(), [title_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, String.t()} | {:error, any()}
   def title(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -258,7 +258,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type expect_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec expect(PlaywrightEx.guid(), [expect_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec expect(PlaywrightEx.guid(), [expect_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def expect(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -287,7 +287,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type wait_for_selector_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec wait_for_selector(PlaywrightEx.guid(), [wait_for_selector_opt() | {Keyword.key(), any()}]) ::
+  @spec wait_for_selector(PlaywrightEx.guid(), [wait_for_selector_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def wait_for_selector(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -319,7 +319,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type inner_html_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec inner_html(PlaywrightEx.guid(), [inner_html_opt() | {Keyword.key(), any()}]) ::
+  @spec inner_html(PlaywrightEx.guid(), [inner_html_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, String.t()} | {:error, any()}
   def inner_html(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -342,7 +342,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type content_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec content(PlaywrightEx.guid(), [content_opt() | {Keyword.key(), any()}]) ::
+  @spec content(PlaywrightEx.guid(), [content_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, String.t()} | {:error, any()}
   def content(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -386,7 +386,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type fill_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec fill(PlaywrightEx.guid(), [fill_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec fill(PlaywrightEx.guid(), [fill_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def fill(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -434,7 +434,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type select_option_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec select_option(PlaywrightEx.guid(), [select_option_opt() | {Keyword.key(), any()}]) ::
+  @spec select_option(PlaywrightEx.guid(), [select_option_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def select_option(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -482,7 +482,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type check_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec check(PlaywrightEx.guid(), [check_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec check(PlaywrightEx.guid(), [check_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def check(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -516,7 +516,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type uncheck_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec uncheck(PlaywrightEx.guid(), [uncheck_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec uncheck(PlaywrightEx.guid(), [uncheck_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def uncheck(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -563,7 +563,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type set_input_files_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec set_input_files(PlaywrightEx.guid(), [set_input_files_opt() | {Keyword.key(), any()}]) ::
+  @spec set_input_files(PlaywrightEx.guid(), [set_input_files_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def set_input_files(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
@@ -606,7 +606,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type click_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec click(PlaywrightEx.guid(), [click_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec click(PlaywrightEx.guid(), [click_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def click(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -635,7 +635,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type blur_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec blur(PlaywrightEx.guid(), [blur_opt() | {Keyword.key(), any()}]) :: {:ok, any()} | {:error, any()}
+  @spec blur(PlaywrightEx.guid(), [blur_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def blur(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
@@ -684,7 +684,7 @@ defmodule PlaywrightEx.Frame do
   """
   @schema schema
   @type drag_and_drop_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec drag_and_drop(PlaywrightEx.guid(), [drag_and_drop_opt() | {Keyword.key(), any()}]) ::
+  @spec drag_and_drop(PlaywrightEx.guid(), [drag_and_drop_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def drag_and_drop(frame_id, opts \\ []) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
