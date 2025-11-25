@@ -16,7 +16,7 @@ defmodule PlaywrightEx do
           {:playwright_ex, "~> 0.2"}
 
   2. Install playwright and browser
-          npm --prefix assets i -D playwright
+          npm --prefix assets i playwright
           npm --prefix assets exec -- playwright install chromium --with-deps
 
   3. Start connection (or add to supervision tree)
