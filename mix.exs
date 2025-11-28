@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
   @source_url "https://github.com/ftes/playwright_ex"
   @description """
   Elixir client for the Playwright node.js driver.
