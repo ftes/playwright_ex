@@ -4,7 +4,7 @@ defmodule PlaywrightEx.MixProject do
   @version "0.2.0"
   @source_url "https://github.com/ftes/playwright_ex"
   @description """
-  Elixir client for the Playwright node.js server.
+  Elixir client for the Playwright node.js driver.
   """
 
   def project do

@@ -1,6 +1,6 @@
 defmodule PlaywrightEx do
   @moduledoc """
-  Elixir client for the Playwright node.js server.
+  Elixir client for the Playwright node.js driver.
 
   Automate browsers like Chromium, Firefox, Safari and Edge.
   Helpful for web scraping and agentic AI.
