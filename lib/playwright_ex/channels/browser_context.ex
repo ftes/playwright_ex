@@ -67,6 +67,37 @@ defmodule PlaywrightEx.BrowserContext do
   schema =
     NimbleOptions.new!(
       timeout: PlaywrightEx.Channel.timeout_opt(),
+      urls: [
+        type: {:list, :string},
+        default: [],
+        doc: "If specified, returns cookies for the given URLs."
+      ]
+    )
+
+  @doc """
+  Returns cookies from this browser context.
+
+  Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-cookies
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type cookies_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec cookies(PlaywrightEx.guid(), [cookies_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, [map()]} | {:error, any()}
+  def cookies(context_id, opts \\ []) do
+    {timeout, opts} =
+      opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+
+    %{guid: context_id, method: :cookies, params: Map.new(opts)}
+    |> Connection.send(timeout)
+    |> ChannelResponse.unwrap(& &1.cookies)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      timeout: PlaywrightEx.Channel.timeout_opt(),
       domain: [
         type: :any,
         required: false,
