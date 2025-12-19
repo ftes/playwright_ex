@@ -623,6 +623,63 @@ defmodule PlaywrightEx.Frame do
         type: :string,
         required: true,
         doc: "A selector to search for an element."
+      ],
+      strict: [
+        type: :boolean,
+        default: true,
+        doc: "When true, the call requires selector to resolve to a single element."
+      ]
+    )
+
+  @doc """
+  Hovers over an element matching selector.
+
+  This method is discouraged in favor of using locator-based `locator.hover()` instead.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-hover
+
+  ## Example
+
+      # Hover before manual drag (see https://playwright.dev/docs/input#dragging-manually)
+      {:ok, _} = Frame.hover(frame_id, selector: "#item-to-be-dragged", timeout: 5000)
+
+      # Get element position
+      {:ok, box} = Frame.evaluate(frame_id,
+        expression: "() => {
+          const el = document.querySelector('#item-to-be-dragged');
+          const box = el.getBoundingClientRect();
+          return { x: box.x, y: box.y };
+        }",
+        is_function: true,
+        timeout: 5000
+      )
+
+      # Drag 200px to the right
+      {:ok, _} = Page.mouse_down(page_id, timeout: 5000)
+      {:ok, _} = Page.mouse_move(page_id, x: box["x"] + 200, y: box["y"], timeout: 5000)
+      {:ok, _} = Page.mouse_up(page_id, timeout: 5000)
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type hover_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec hover(PlaywrightEx.guid(), [hover_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
+  def hover(frame_id, opts \\ []) do
+    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+
+    %{guid: frame_id, method: :hover, params: Map.new(opts)}
+    |> Connection.send(timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      selector: [
+        type: :string,
+        required: true,
+        doc: "A selector to search for an element."
       ]
     )
 
