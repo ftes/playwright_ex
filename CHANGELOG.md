@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Mouse API: `PlaywrightEx.Page.mouse_move/2`, `mouse_down/2`, `mouse_up/2` for low-level mouse control
 - Frame API: `PlaywrightEx.Frame.hover/2` for hovering over elements (supports manual drag operations)
 
+### Fixed
+- Serialization of args given to `PlaywrightEx.Frame.evaluate/2`
+
 ## [0.2.1] 2025-11-28
 ### Changed
 - Suppress node.js errors on termination
