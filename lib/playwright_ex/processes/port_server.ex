@@ -13,6 +13,8 @@ defmodule PlaywrightEx.PortServer do
   - Handles sending messages to Playwright via `Port.command/2`
   - Serializes message terms <-> JSON (underscore_case <-> camelCase, atom <-> string)
   """
+  @behaviour PlaywrightEx.Transport
+
   use GenServer
 
   alias PlaywrightEx.Connection
@@ -35,6 +37,7 @@ defmodule PlaywrightEx.PortServer do
   @doc """
   Post a message to Playwright via the Port.
   """
+  @impl PlaywrightEx.Transport
   def post(msg) do
     GenServer.cast(@name, {:post, msg})
   end
