@@ -9,6 +9,8 @@ defmodule PlaywrightEx.Connection do
   """
   @behaviour :gen_statem
 
+  require Logger
+
   import Kernel, except: [send: 2]
 
   @timeout_grace_factor 1.5
@@ -88,10 +90,14 @@ defmodule PlaywrightEx.Connection do
 
   @doc false
   def pending(:cast, {:msg, %{method: :__create__, params: %{guid: "Playwright"}} = msg}, data) do
+    Logger.debug("PlaywrightEx.Connection received Playwright __create__, transitioning to :started")
     {:next_state, :started, handle_create(data, msg)}
   end
 
-  def pending(:cast, _msg, _data), do: {:keep_state_and_data, [:postpone]}
+  def pending(:cast, {:msg, msg}, _data) do
+    Logger.debug("PlaywrightEx.Connection (pending) postponing message: #{inspect(msg.method)}")
+    {:keep_state_and_data, [:postpone]}
+  end
   def pending({:call, _from}, _msg, _data), do: {:keep_state_and_data, [:postpone]}
 
   @doc false

@@ -36,6 +36,7 @@ defmodule PlaywrightEx.WebSocketClient do
     opts = Keyword.validate!(opts, [:ws_endpoint])
     ws_endpoint = Keyword.fetch!(opts, :ws_endpoint)
 
+    Logger.debug("PlaywrightEx.WebSocketClient connecting to: #{ws_endpoint}")
     WebSockex.start_link(ws_endpoint, __MODULE__, %__MODULE__{ws_endpoint: ws_endpoint}, name: @name)
   end
 
@@ -45,6 +46,7 @@ defmodule PlaywrightEx.WebSocketClient do
   @impl PlaywrightEx.Transport
   def post(msg) do
     frame = to_json(msg)
+    Logger.debug("PlaywrightEx.WebSocketClient sending: #{String.slice(frame, 0, 200)}...")
     WebSockex.send_frame(@name, {:text, frame})
   end
 
@@ -58,9 +60,11 @@ defmodule PlaywrightEx.WebSocketClient do
 
   @impl WebSockex
   def handle_frame({:text, frame}, state) do
-    frame
-    |> from_json()
-    |> Connection.handle_playwright_msg()
+    Logger.debug("PlaywrightEx.WebSocketClient received: #{String.slice(frame, 0, 200)}...")
+
+    msg = from_json(frame)
+
+    Connection.handle_playwright_msg(msg)
 
     {:ok, state}
   end

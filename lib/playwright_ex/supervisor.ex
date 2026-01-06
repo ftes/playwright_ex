@@ -17,6 +17,8 @@ defmodule PlaywrightEx.Supervisor do
 
   use Supervisor
 
+  require Logger
+
   alias PlaywrightEx.Connection
   alias PlaywrightEx.PortServer
   alias PlaywrightEx.WebSocketClient
@@ -33,6 +35,8 @@ defmodule PlaywrightEx.Supervisor do
   @impl true
   def init(config) do
     {transport_child, transport_module} = transport_child_spec(config)
+
+    Logger.debug("PlaywrightEx.Supervisor starting with transport: #{inspect(transport_module)}")
 
     children = [
       transport_child,
