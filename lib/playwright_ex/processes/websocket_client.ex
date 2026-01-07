@@ -25,10 +25,13 @@ defmodule PlaywrightEx.WebSocketClient do
   @max_retries 30
   @retry_interval 1_000
 
-  defstruct [:ws_endpoint, retries: 0]
+  defstruct [:ws_endpoint]
 
   @doc """
   Start the WebSocket client and connect to the Playwright server.
+
+  Blocks until connected or max retries exhausted. This ensures the supervisor
+  doesn't proceed to start dependent services until the connection is ready.
 
   ## Options
 
@@ -39,14 +42,29 @@ defmodule PlaywrightEx.WebSocketClient do
     ws_endpoint = Keyword.fetch!(opts, :ws_endpoint)
 
     Logger.debug("PlaywrightEx.WebSocketClient connecting to: #{ws_endpoint}")
+    connect_with_retry(ws_endpoint, 0)
+  end
 
-    WebSockex.start_link(
-      ws_endpoint,
-      __MODULE__,
-      %__MODULE__{ws_endpoint: ws_endpoint},
-      name: @name,
-      handle_initial_conn_failure: true
-    )
+  defp connect_with_retry(ws_endpoint, retries) do
+    case WebSockex.start_link(ws_endpoint, __MODULE__, %__MODULE__{ws_endpoint: ws_endpoint}, name: @name) do
+      {:ok, pid} ->
+        {:ok, pid}
+
+      {:error, %WebSockex.ConnError{} = error} when retries < @max_retries ->
+        Logger.warning(
+          "PlaywrightEx.WebSocketClient connection failed (attempt #{retries + 1}/#{@max_retries}): #{inspect(error)}. Retrying in #{@retry_interval}ms..."
+        )
+
+        Process.sleep(@retry_interval)
+        connect_with_retry(ws_endpoint, retries + 1)
+
+      {:error, error} ->
+        Logger.error(
+          "PlaywrightEx.WebSocketClient failed to connect to #{ws_endpoint} after #{retries + 1} attempts: #{inspect(error)}"
+        )
+
+        {:error, error}
+    end
   end
 
   @doc """
@@ -86,25 +104,9 @@ defmodule PlaywrightEx.WebSocketClient do
   end
 
   @impl WebSockex
-  def handle_initial_conn_failure(failure, state) do
-    if state.retries < @max_retries do
-      Logger.warning(
-        "PlaywrightEx.WebSocketClient connection failed (attempt #{state.retries + 1}/#{@max_retries}): #{inspect(failure)}. Retrying in #{@retry_interval}ms..."
-      )
-
-      Process.sleep(@retry_interval)
-      {:reconnect, %{state | retries: state.retries + 1}}
-    else
-      # Exit with error after exhausting retries - this will crash the supervisor
-      # which is the desired behavior so the user knows the connection failed
-      raise "PlaywrightEx.WebSocketClient failed to connect to #{state.ws_endpoint} after #{@max_retries} attempts: #{inspect(failure)}"
-    end
-  end
-
-  @impl WebSockex
   def handle_disconnect(%{reason: reason}, state) do
     Logger.error("PlaywrightEx.WebSocketClient disconnected: #{inspect(reason)}")
-    {:reconnect, %{state | retries: 0}}
+    {:reconnect, state}
   end
 
   @impl WebSockex
