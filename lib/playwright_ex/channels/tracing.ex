@@ -132,4 +132,95 @@ defmodule PlaywrightEx.Tracing do
     |> Connection.send(timeout)
     |> ChannelResponse.unwrap_create(:artifact)
   end
+
+  @group_schema NimbleOptions.new!(
+                  timeout: PlaywrightEx.Channel.timeout_opt(),
+                  name: [
+                    type: :string,
+                    required: true,
+                    doc: "Name of the group to appear in trace viewer"
+                  ],
+                  location: [
+                    type: :non_empty_keyword_list,
+                    required: false,
+                    keys: [
+                      file: [
+                        type: :string,
+                        required: true,
+                        doc: "File path for the source location"
+                      ],
+                      line: [
+                        type: :integer,
+                        required: true,
+                        doc: "Line number in the source file"
+                      ],
+                      column: [
+                        type: :integer,
+                        required: false,
+                        doc: "Column number in the source file"
+                      ]
+                    ],
+                    doc: "Source location metadata for the trace group"
+                  ]
+                )
+
+  @doc """
+  Wraps a function call in a named trace group.
+
+  Automatically starts a trace group before executing the function and ends it after,
+  ensuring proper cleanup even if the function raises an exception.
+
+  ## Options
+  #{NimbleOptions.docs(@group_schema)}
+
+  ## Examples
+
+      Tracing.group(browser_context.tracing.guid, [name: "Login Flow"], fn ->
+        Page.fill(page_id, "#email", "user@example.com")
+        Page.fill(page_id, "#password", "secret")
+        Page.click(page_id, "button[type=submit]")
+      end)
+
+      # Custom location for trace viewer navigation
+      Tracing.group(browser_context.tracing.guid,
+        [name: "Login Flow", location: [file: "/absolute/path/to/test.exs", line: 42]],
+        fn ->
+          # assertion logic
+        end)
+
+      # Groups can be nested
+      Tracing.group(browser_context.tracing.guid, [name: "User Workflow"], fn ->
+        Tracing.group(browser_context.tracing.guid, [name: "Login"], fn ->
+          # login actions
+        end)
+
+        Tracing.group(browser_context.tracing.guid, [name: "Dashboard"], fn ->
+          # dashboard actions
+        end)
+      end)
+
+  """
+  @type group_opt :: unquote(NimbleOptions.option_typespec(@group_schema))
+  @spec group(PlaywrightEx.guid(), [group_opt() | PlaywrightEx.unknown_opt()], (-> result)) :: result
+        when result: any()
+  def group(tracing_id, opts \\ [], func) do
+    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@group_schema) |> Keyword.pop!(:timeout)
+
+    # Convert keyword list to map, and convert nested location keyword list to map if present
+    params =
+      Map.new(opts, fn {k, v} -> if k == :location, do: {k, Map.new(v)}, else: {k, v} end)
+
+    {:ok, _} =
+      %{guid: tracing_id, method: :tracingGroup, params: params}
+      |> Connection.send(timeout)
+      |> ChannelResponse.unwrap(& &1)
+
+    try do
+      func.()
+    after
+      %{guid: tracing_id, method: :tracingGroupEnd, params: %{}}
+      |> Connection.send(timeout)
+      |> ChannelResponse.unwrap(& &1)
+    end
+  end
 end

@@ -6,7 +6,7 @@ defmodule PlaywrightExTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Selector
-  alias PlaywrightEx.Tracing
+  alias PlaywrightEx.TraceHelper
 
   doctest PlaywrightEx
 
@@ -18,7 +18,7 @@ defmodule PlaywrightExTest do
     on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
 
     {:ok, context} = Browser.new_context(browser.guid, timeout: @timeout)
-    if !System.get_env("CI"), do: on_exit_open_trace(context.tracing.guid, tmp_dir)
+    if !System.get_env("CI"), do: TraceHelper.on_exit_open_trace(context.tracing.guid, tmp_dir, @timeout)
 
     {:ok, %{main_frame: frame}} = BrowserContext.new_page(context.guid, timeout: @timeout)
     {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
@@ -36,7 +36,7 @@ defmodule PlaywrightExTest do
     on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
 
     {:ok, context} = Browser.new_context(browser.guid, timeout: @timeout)
-    if !System.get_env("CI"), do: on_exit_open_trace(context.tracing.guid, tmp_dir)
+    if !System.get_env("CI"), do: TraceHelper.on_exit_open_trace(context.tracing.guid, tmp_dir, @timeout)
 
     {:ok, page} = BrowserContext.new_page(context.guid, timeout: @timeout)
     frame = page.main_frame
@@ -76,7 +76,7 @@ defmodule PlaywrightExTest do
     on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
 
     {:ok, context} = Browser.new_context(browser.guid, timeout: @timeout)
-    if !System.get_env("CI"), do: on_exit_open_trace(context.tracing.guid, tmp_dir)
+    if !System.get_env("CI"), do: TraceHelper.on_exit_open_trace(context.tracing.guid, tmp_dir, @timeout)
 
     {:ok, page} = BrowserContext.new_page(context.guid, timeout: @timeout)
     frame = page.main_frame
@@ -150,23 +150,5 @@ defmodule PlaywrightExTest do
     opts = [selector: selector, is_not: invert?, expression: "to.be.visible", timeout: @timeout]
     {:ok, result} = Frame.expect(frame_id, opts)
     assert result != invert?, "expected#{if invert?, do: " not"} to find #{selector}"
-  end
-
-  defp on_exit_open_trace(tracing_id, tmp_dir) do
-    {:ok, _} = Tracing.tracing_start(tracing_id, screenshots: true, snapshots: true, sources: true, timeout: @timeout)
-    {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: @timeout)
-
-    on_exit(fn ->
-      {:ok, zip_file} = Tracing.tracing_stop_chunk(tracing_id, timeout: @timeout)
-      {:ok, _} = Tracing.tracing_stop(tracing_id, timeout: @timeout)
-
-      trace_file = Path.join(tmp_dir, "trace.zip")
-      File.cp!(zip_file.absolute_path, trace_file)
-
-      spawn(fn ->
-        executable = :playwright_ex |> Application.fetch_env!(:executable) |> Path.expand()
-        System.cmd(executable, ["show-trace", trace_file])
-      end)
-    end)
   end
 end
