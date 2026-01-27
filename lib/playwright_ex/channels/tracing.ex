@@ -168,6 +168,8 @@ defmodule PlaywrightEx.Tracing do
   @doc """
   Wraps a function call in a named trace group.
 
+  Reference: https://playwright.dev/docs/api/class-tracing#tracing-group
+
   Automatically starts a trace group before executing the function and ends it after,
   ensuring proper cleanup even if the function raises an exception.
 
