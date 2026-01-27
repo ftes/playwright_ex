@@ -211,14 +211,14 @@ defmodule PlaywrightEx.Tracing do
       Map.new(opts, fn {k, v} -> if k == :location, do: {k, Map.new(v)}, else: {k, v} end)
 
     {:ok, _} =
-      %{guid: tracing_id, method: :tracingGroup, params: params}
+      %{guid: tracing_id, method: :tracing_group, params: params}
       |> Connection.send(timeout)
       |> ChannelResponse.unwrap(& &1)
 
     try do
       func.()
     after
-      %{guid: tracing_id, method: :tracingGroupEnd, params: %{}}
+      %{guid: tracing_id, method: :tracing_group_end, params: %{}}
       |> Connection.send(timeout)
       |> ChannelResponse.unwrap(& &1)
     end
