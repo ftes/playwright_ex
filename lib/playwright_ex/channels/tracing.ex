@@ -133,36 +133,37 @@ defmodule PlaywrightEx.Tracing do
     |> ChannelResponse.unwrap_create(:artifact)
   end
 
-  @group_schema NimbleOptions.new!(
-                  timeout: PlaywrightEx.Channel.timeout_opt(),
-                  name: [
-                    type: :string,
-                    required: true,
-                    doc: "Name of the group to appear in trace viewer"
-                  ],
-                  location: [
-                    type: :non_empty_keyword_list,
-                    required: false,
-                    keys: [
-                      file: [
-                        type: :string,
-                        required: true,
-                        doc: "File path for the source location"
-                      ],
-                      line: [
-                        type: :integer,
-                        required: true,
-                        doc: "Line number in the source file"
-                      ],
-                      column: [
-                        type: :integer,
-                        required: false,
-                        doc: "Column number in the source file"
-                      ]
-                    ],
-                    doc: "Source location metadata for the trace group"
-                  ]
-                )
+  schema =
+    NimbleOptions.new!(
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      name: [
+        type: :string,
+        required: true,
+        doc: "Name of the group to appear in trace viewer"
+      ],
+      location: [
+        type: :non_empty_keyword_list,
+        required: false,
+        keys: [
+          file: [
+            type: :string,
+            required: true,
+            doc: "File path for the source location"
+          ],
+          line: [
+            type: :integer,
+            required: true,
+            doc: "Line number in the source file"
+          ],
+          column: [
+            type: :integer,
+            required: false,
+            doc: "Column number in the source file"
+          ]
+        ],
+        doc: "Source location metadata for the trace group"
+      ]
+    )
 
   @doc """
   Wraps a function call in a named trace group.
@@ -171,10 +172,9 @@ defmodule PlaywrightEx.Tracing do
   ensuring proper cleanup even if the function raises an exception.
 
   ## Options
-  #{NimbleOptions.docs(@group_schema)}
+  #{NimbleOptions.docs(schema)}
 
   ## Examples
-
       Tracing.group(browser_context.tracing.guid, [name: "Login Flow"], fn ->
         Page.fill(page_id, "#email", "user@example.com")
         Page.fill(page_id, "#password", "secret")
@@ -200,11 +200,12 @@ defmodule PlaywrightEx.Tracing do
       end)
 
   """
-  @type group_opt :: unquote(NimbleOptions.option_typespec(@group_schema))
+  @schema schema
+  @type group_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec group(PlaywrightEx.guid(), [group_opt() | PlaywrightEx.unknown_opt()], (-> result)) :: result
         when result: any()
-  def group(tracing_id, opts \\ [], func) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@group_schema) |> Keyword.pop!(:timeout)
+  def group(tracing_id, opts \\ [], fun) do
+    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
     # Convert keyword list to map, and convert nested location keyword list to map if present
     params =
@@ -216,7 +217,7 @@ defmodule PlaywrightEx.Tracing do
       |> ChannelResponse.unwrap(& &1)
 
     try do
-      func.()
+      fun.()
     after
       %{guid: tracing_id, method: :tracing_group_end, params: %{}}
       |> Connection.send(timeout)
