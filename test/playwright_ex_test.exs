@@ -11,16 +11,23 @@ defmodule PlaywrightExTest do
   doctest PlaywrightEx
 
   @timeout Application.compile_env(:playwright_ex, :timeout)
+  @open_trace_viewer_for_manual_inspection false
+  @moduletag tmp_dir: @open_trace_viewer_for_manual_inspection
 
-  @tag :tmp_dir
-  test "visit elixir-lang.org, then assert and navigate", %{tmp_dir: tmp_dir} do
+  setup context do
     {:ok, browser} = PlaywrightEx.launch_browser(:chromium, timeout: @timeout)
+    {:ok, browser_context} = Browser.new_context(browser.guid, timeout: @timeout)
+    {:ok, page} = BrowserContext.new_page(browser_context.guid, timeout: @timeout)
     on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
 
-    {:ok, context} = Browser.new_context(browser.guid, timeout: @timeout)
-    if !System.get_env("CI"), do: TraceHelper.on_exit_open_trace(context.tracing.guid, tmp_dir, @timeout)
+    if @open_trace_viewer_for_manual_inspection do
+      TraceHelper.on_exit_open_trace(browser_context.tracing.guid, context.tmp_dir, @timeout)
+    end
 
-    {:ok, %{main_frame: frame}} = BrowserContext.new_page(context.guid, timeout: @timeout)
+    [page: page, frame: page.main_frame]
+  end
+
+  test "visit elixir-lang.org, then assert and navigate", %{frame: frame} do
     {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
 
     assert_has(frame.guid, Selector.role("heading", "Elixir is a dynamic, functional language"))
@@ -30,17 +37,7 @@ defmodule PlaywrightExTest do
     assert_has(frame.guid, Selector.link("macOS"))
   end
 
-  @tag :tmp_dir
-  test "mouse API: move, down, up", %{tmp_dir: tmp_dir} do
-    {:ok, browser} = PlaywrightEx.launch_browser(:chromium, timeout: @timeout)
-    on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
-
-    {:ok, context} = Browser.new_context(browser.guid, timeout: @timeout)
-    if !System.get_env("CI"), do: TraceHelper.on_exit_open_trace(context.tracing.guid, tmp_dir, @timeout)
-
-    {:ok, page} = BrowserContext.new_page(context.guid, timeout: @timeout)
-    frame = page.main_frame
-
+  test "mouse API: move, down, up", %{page: page, frame: frame} do
     # Navigate to a page with a clickable link
     {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
 
@@ -70,17 +67,7 @@ defmodule PlaywrightExTest do
     assert_has(frame.guid, Selector.link("By Operating System"))
   end
 
-  @tag :tmp_dir
-  test "hover and manual drag with range slider", %{tmp_dir: tmp_dir} do
-    {:ok, browser} = PlaywrightEx.launch_browser(:chromium, timeout: @timeout)
-    on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
-
-    {:ok, context} = Browser.new_context(browser.guid, timeout: @timeout)
-    if !System.get_env("CI"), do: TraceHelper.on_exit_open_trace(context.tracing.guid, tmp_dir, @timeout)
-
-    {:ok, page} = BrowserContext.new_page(context.guid, timeout: @timeout)
-    frame = page.main_frame
-
+  test "hover and manual drag with range slider", %{page: page, frame: frame} do
     # Navigate to a blank page and create a range slider
     {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
 
@@ -150,5 +137,23 @@ defmodule PlaywrightExTest do
     opts = [selector: selector, is_not: invert?, expression: "to.be.visible", timeout: @timeout]
     {:ok, result} = Frame.expect(frame_id, opts)
     assert result != invert?, "expected#{if invert?, do: " not"} to find #{selector}"
+  end
+
+  def on_exit_open_trace(tracing_id, tmp_dir, timeout) do
+    {:ok, _} = Tracing.tracing_start(tracing_id, screenshots: true, snapshots: true, sources: true, timeout: timeout)
+    {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: timeout)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      {:ok, zip_file} = Tracing.tracing_stop_chunk(tracing_id, timeout: timeout)
+      {:ok, _} = Tracing.tracing_stop(tracing_id, timeout: timeout)
+
+      trace_file = Path.join(tmp_dir, "trace.zip")
+      File.cp!(zip_file.absolute_path, trace_file)
+
+      spawn(fn ->
+        executable = :playwright_ex |> Application.fetch_env!(:executable) |> Path.expand()
+        System.cmd(executable, ["show-trace", trace_file])
+      end)
+    end)
   end
 end
