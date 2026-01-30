@@ -1,19 +1,11 @@
 defmodule PlaywrightEx.TracingTest do
-  use ExUnit.Case, async: true
+  use PlaywrightExCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Tracing
 
-  @timeout Application.compile_env(:playwright_ex, :timeout)
-
-  setup do
-    {:ok, browser} = PlaywrightEx.launch_browser(:chromium, timeout: @timeout)
-    {:ok, browser_context} = Browser.new_context(browser.guid, timeout: @timeout)
-    {:ok, page} = BrowserContext.new_page(browser_context.guid, timeout: @timeout)
-    on_exit(fn -> Browser.close(browser.guid, timeout: @timeout) end)
-    [tracing_id: browser_context.tracing.guid, frame: page.main_frame]
+  setup context do
+    [tracing_id: context.browser_context.tracing.guid]
   end
 
   describe "group/3" do
