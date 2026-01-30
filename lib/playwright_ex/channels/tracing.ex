@@ -206,7 +206,7 @@ defmodule PlaywrightEx.Tracing do
   @type group_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec group(PlaywrightEx.guid(), [group_opt() | PlaywrightEx.unknown_opt()], (-> result)) :: result
         when result: any()
-  def group(tracing_id, opts \\ [], fun) do
+  def group(tracing_id, opts, fun) do
     {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
 
     # Convert keyword list to map, and convert nested location keyword list to map if present
