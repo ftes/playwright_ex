@@ -44,6 +44,16 @@ defmodule PlaywrightEx.Supervisor do
   end
 
   defp transport_child_spec(%{ws_endpoint: ws_endpoint}) when is_binary(ws_endpoint) do
+    unless Code.ensure_loaded?(WebSockex) do
+      raise """
+      WebSocket transport requires the :websockex dependency.
+
+      Add it to your mix.exs:
+
+          {:websockex, "~> 0.4"}
+      """
+    end
+
     # WebSocket transport
     {{WebSocketClient, ws_endpoint: ws_endpoint}, WebSocketClient}
   end
