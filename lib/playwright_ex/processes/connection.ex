@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Connection do
   @moduledoc """
   Stateful, `:gen_statem` based connection to a Playwright node.js server.
-  The connection is established via `PlaywrightEx.PortServer`.
+  The connection is established via a transport (`PlaywrightEx.PortServer` or `PlaywrightEx.WebSocketClient`).
 
   States:
   - `:pending`: Initial state, waiting for Playwright initialization. Post calls are postponed.
@@ -11,12 +11,10 @@ defmodule PlaywrightEx.Connection do
 
   import Kernel, except: [send: 2]
 
-  alias PlaywrightEx.PortServer
-
   @timeout_grace_factor 1.5
   @min_genserver_timeout to_timeout(second: 1)
 
-  defstruct config: %{js_logger: nil},
+  defstruct config: %{js_logger: nil, transport: nil},
             initializers: %{},
             guid_subscribers: %{},
             pending_response: %{}
@@ -30,7 +28,7 @@ defmodule PlaywrightEx.Connection do
 
   @doc false
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:timeout, js_logger: nil])
+    opts = Keyword.validate!(opts, [:timeout, :transport, js_logger: nil])
     timeout = Keyword.fetch!(opts, :timeout)
 
     :gen_statem.start_link({:local, @name}, __MODULE__, Map.new(opts), timeout: timeout)
@@ -77,8 +75,8 @@ defmodule PlaywrightEx.Connection do
   def callback_mode, do: :state_functions
 
   @impl :gen_statem
-  def init(%{js_logger: _, timeout: timeout} = config) do
-    PortServer.post(%{
+  def init(%{js_logger: _, timeout: timeout, transport: transport} = config) do
+    transport.post(%{
       guid: "",
       method: :initialize,
       params: %{sdk_language: :javascript, timeout: timeout},
@@ -93,12 +91,12 @@ defmodule PlaywrightEx.Connection do
     {:next_state, :started, handle_create(data, msg)}
   end
 
-  def pending(:cast, _msg, _data), do: {:keep_state_and_data, [:postpone]}
+  def pending(:cast, {:msg, _msg}, _data), do: {:keep_state_and_data, [:postpone]}
   def pending({:call, _from}, _msg, _data), do: {:keep_state_and_data, [:postpone]}
 
   @doc false
   def started({:call, from}, {:send, msg}, data) do
-    PortServer.post(msg)
+    data.config.transport.post(msg)
     {:keep_state, put_in(data.pending_response[msg.id], from)}
   end
 

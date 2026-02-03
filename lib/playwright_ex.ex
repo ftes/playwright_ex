@@ -50,15 +50,26 @@ defmodule PlaywrightEx do
   @type unknown_opt :: {Keyword.key(), Keyword.value()}
 
   @doc """
-  Launches a new browser instance.
+  Launches a new browser instance, or returns the pre-launched browser when
+  connected to a remote Playwright server.
 
   ## Options
   #{NimbleOptions.docs(BrowserType.launch_opts_schema())}
   """
   @spec launch_browser(atom(), [BrowserType.launch_opt() | unknown_opt()]) :: {:ok, %{guid: guid()}} | {:error, any()}
   def launch_browser(type, opts) do
-    type_id = "Playwright" |> Connection.initializer!() |> Map.fetch!(type) |> Map.fetch!(:guid)
-    BrowserType.launch(type_id, opts)
+    playwright_init = Connection.initializer!("Playwright")
+
+    case playwright_init do
+      %{pre_launched_browser: %{guid: browser_guid}} ->
+        # Remote server provides a pre-launched browser
+        browser_init = Connection.initializer!(browser_guid)
+        {:ok, Map.put(browser_init, :guid, browser_guid)}
+
+      _ ->
+        type_id = playwright_init |> Map.fetch!(type) |> Map.fetch!(:guid)
+        BrowserType.launch(type_id, opts)
+    end
   end
 
   @doc """
