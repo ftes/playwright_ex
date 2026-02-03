@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Connection do
   @moduledoc """
   Stateful, `:gen_statem` based connection to a Playwright node.js server.
-  The connection is established via a transport (`PlaywrightEx.PortServer` or `PlaywrightEx.WebSocketClient`).
+  The connection is established via a transport (`PlaywrightEx.PortTransport` or `PlaywrightEx.WebSocketTransport`).
 
   States:
   - `:pending`: Initial state, waiting for Playwright initialization. Post calls are postponed.
@@ -91,7 +91,7 @@ defmodule PlaywrightEx.Connection do
     {:next_state, :started, handle_create(data, msg)}
   end
 
-  def pending(:cast, {:msg, _msg}, _data), do: {:keep_state_and_data, [:postpone]}
+  def pending(:cast, _msg, _data), do: {:keep_state_and_data, [:postpone]}
   def pending({:call, _from}, _msg, _data), do: {:keep_state_and_data, [:postpone]}
 
   @doc false

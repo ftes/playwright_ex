@@ -18,15 +18,14 @@ defmodule PlaywrightEx.Supervisor do
   use Supervisor
 
   alias PlaywrightEx.Connection
-  alias PlaywrightEx.PortServer
-  alias PlaywrightEx.WebSocketClient
+  alias PlaywrightEx.PortTransport
+  alias PlaywrightEx.WebSocketTransport
 
   def start_link(opts \\ []) do
     opts =
       opts
       |> Keyword.drop(~w(tests)a)
       |> Keyword.validate!([:timeout, :ws_endpoint, :fail_on_unknown_opts, executable: "playwright", js_logger: nil])
-      |> maybe_validate_executable!()
 
     Supervisor.start_link(__MODULE__, Map.new(opts), name: __MODULE__)
   end
@@ -55,39 +54,24 @@ defmodule PlaywrightEx.Supervisor do
     end
 
     # WebSocket transport
-    {{WebSocketClient, ws_endpoint: ws_endpoint}, WebSocketClient}
+    {{WebSocketTransport, ws_endpoint: ws_endpoint}, WebSocketTransport}
   end
 
   defp transport_child_spec(%{executable: executable}) do
-    # Local Port transport (default)
-    {{PortServer, executable: executable}, PortServer}
+    executable = validate_executable!(executable)
+    {{PortTransport, executable: executable}, PortTransport}
   end
 
-  defp maybe_validate_executable!(opts) do
-    if Keyword.has_key?(opts, :ws_endpoint) do
-      # WebSocket mode - no executable needed
-      opts
-    else
-      # Port mode - validate executable
-      validate_executable!(opts)
+  defp validate_executable!(executable) do
+    cond do
+      path = System.find_executable(executable) -> path
+      File.exists?(executable) -> executable
+      true ->
+        raise """
+        Playwright executable not found.
+        Ensure `playwright` executable is on `$PATH` or pass `executable` option
+        'assets/node_modules/playwright/cli.js' or similar.
+        """
     end
-  end
-
-  defp validate_executable!(opts) do
-    error_msg = """
-    Playwright executable not found.
-    Ensure `playwright` executable is on `$PATH` or pass `executable` option
-    'assets/node_modules/playwright/cli.js' or similar.
-    """
-
-    Keyword.update!(
-      opts,
-      :executable,
-      &cond do
-        path = System.find_executable(&1) -> path
-        File.exists?(&1) -> &1
-        true -> raise error_msg
-      end
-    )
   end
 end

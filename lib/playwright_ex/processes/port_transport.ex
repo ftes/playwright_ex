@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.PortServer do
+defmodule PlaywrightEx.PortTransport do
   @moduledoc """
   GenServer that owns the Erlang Port to Playwright node.js server and handles message framing.
 
@@ -27,7 +27,7 @@ defmodule PlaywrightEx.PortServer do
   @name __MODULE__
 
   @doc """
-  Start the PortServer and link it to the connection process.
+  Start the PortTransport and link it to the connection process.
   """
   def start_link(opts) do
     opts = Keyword.validate!(opts, [:executable])

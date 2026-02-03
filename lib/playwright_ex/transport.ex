@@ -8,8 +8,8 @@ defmodule PlaywrightEx.Transport do
   - Forwarding received messages to the Connection process
 
   Two implementations are provided:
-  - `PlaywrightEx.PortServer` - Local Node.js driver via Erlang Port
-  - `PlaywrightEx.WebSocketClient` - Remote server via WebSocket
+  - `PlaywrightEx.PortTransport` - Local Node.js driver via Erlang Port
+  - `PlaywrightEx.WebSocketTransport` - Remote server via WebSocket
   """
 
   @doc """

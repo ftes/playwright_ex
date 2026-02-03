@@ -1,8 +1,8 @@
-defmodule PlaywrightEx.WebSocketClient do
+defmodule PlaywrightEx.WebSocketTransport do
   @moduledoc """
   WebSocket-based transport for connecting to a remote Playwright server.
 
-  Unlike `PlaywrightEx.PortServer` which spawns a local Node.js process via Erlang Port,
+  Unlike `PlaywrightEx.PortTransport` which spawns a local Node.js process via Erlang Port,
   this module connects to an existing Playwright server via WebSocket.
 
   This is useful for:
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.WebSocketClient do
   @impl WebSockex
   def terminate(_reason, _state), do: :ok
 
-  # JSON Serialization (same as PortServer)
+  # JSON Serialization (same as PortTransport)
 
   defp to_json(msg) do
     msg
