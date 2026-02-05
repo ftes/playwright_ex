@@ -19,6 +19,8 @@ defmodule PlaywrightEx.WebSocketTransport do
   alias PlaywrightEx.Connection
   alias PlaywrightEx.Serialization
 
+  require Logger
+
   @name __MODULE__
   @max_retries 30
   @retry_interval 1_000
@@ -73,6 +75,7 @@ defmodule PlaywrightEx.WebSocketTransport do
   def handle_frame({:text, frame}, state) do
     frame
     |> from_json()
+    |> tap(&log_unknown_browser_error/1)
     |> Connection.handle_playwright_msg()
 
     {:ok, state}
@@ -102,4 +105,14 @@ defmodule PlaywrightEx.WebSocketTransport do
     |> Serialization.deep_key_underscore()
     |> Map.update(:method, nil, &Serialization.underscore/1)
   end
+
+  defp log_unknown_browser_error(%{error: %{error: %{message: "Cannot read properties of undefined (reading 'launch')"}}}) do
+    Logger.error("""
+    Failed to launch browser.
+    Ensure you have passed a valid browser as `ws_endpoint` query param,
+    e.g. `ws://localhost:3000?browser=chromium`.
+    """)
+  end
+
+  defp log_unknown_browser_error(_), do: :ok
 end
