@@ -12,7 +12,10 @@ defmodule PlaywrightEx.BrowserContext do
   alias PlaywrightEx.Connection
 
   schema =
-    NimbleOptions.new!(timeout: PlaywrightEx.Channel.timeout_opt())
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
 
   @doc """
   Creates a new page in the browser context.
@@ -27,15 +30,17 @@ defmodule PlaywrightEx.BrowserContext do
   @spec new_page(PlaywrightEx.guid(), [new_page_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid(), main_frame: %{guid: PlaywrightEx.guid()}}} | {:error, any()}
   def new_page(context_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: context_id, method: :new_page, params: Map.new(opts)}
-    |> Connection.send(timeout)
-    |> ChannelResponse.unwrap_create(:page)
+    connection
+    |> Connection.send(%{guid: context_id, method: :new_page, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap_create(:page, connection)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       cookies: [
         type: {:list, :any},
@@ -57,15 +62,17 @@ defmodule PlaywrightEx.BrowserContext do
   @spec add_cookies(PlaywrightEx.guid(), [add_cookies_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def add_cookies(context_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: context_id, method: :add_cookies, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: context_id, method: :add_cookies, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       urls: [
         type: {:list, :string},
@@ -87,16 +94,17 @@ defmodule PlaywrightEx.BrowserContext do
   @spec cookies(PlaywrightEx.guid(), [cookies_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, [map()]} | {:error, any()}
   def cookies(context_id, opts \\ []) do
-    {timeout, opts} =
-      opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: context_id, method: :cookies, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: context_id, method: :cookies, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.cookies)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       domain: [
         type: :any,
@@ -128,15 +136,17 @@ defmodule PlaywrightEx.BrowserContext do
   @spec clear_cookies(PlaywrightEx.guid(), [clear_cookies_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def clear_cookies(context_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: context_id, method: :clear_cookies, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: context_id, method: :clear_cookies, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector_engine: [
         type: :non_empty_keyword_list,
@@ -169,16 +179,18 @@ defmodule PlaywrightEx.BrowserContext do
   @spec register_selector_engine(PlaywrightEx.guid(), [register_selector_engine_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def register_selector_engine(context_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
     params = opts |> Map.new() |> Map.update!(:selector_engine, &Map.new/1)
 
-    %{guid: context_id, method: :register_selector_engine, params: params}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: context_id, method: :register_selector_engine, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       reason: [
         type: :string,
@@ -199,10 +211,11 @@ defmodule PlaywrightEx.BrowserContext do
   @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def close(browser_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: browser_id, method: :close, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: browser_id, method: :close, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end

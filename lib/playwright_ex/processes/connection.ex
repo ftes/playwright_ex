@@ -16,12 +16,10 @@ defmodule PlaywrightEx.Connection do
   @timeout_grace_factor 1.5
   @min_genserver_timeout to_timeout(second: 1)
 
-  defstruct config: %{js_logger: nil},
+  defstruct config: %{js_logger: nil, port_server_name: nil},
             initializers: %{},
             guid_subscribers: %{},
             pending_response: %{}
-
-  @name __MODULE__
 
   @doc false
   def child_spec(opts) do
@@ -30,29 +28,30 @@ defmodule PlaywrightEx.Connection do
 
   @doc false
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:timeout, js_logger: nil])
+    opts = Keyword.validate!(opts, [:timeout, :name, :port_server_name, js_logger: nil])
     timeout = Keyword.fetch!(opts, :timeout)
+    name = Keyword.fetch!(opts, :name)
 
-    :gen_statem.start_link({:local, @name}, __MODULE__, Map.new(opts), timeout: timeout)
+    :gen_statem.start_link({:local, name}, __MODULE__, Map.new(opts), timeout: timeout)
   end
 
   @doc """
   Subscribe to messages for a guid and its descendants.
   """
-  def subscribe(pid \\ self(), guid) do
-    :gen_statem.cast(@name, {:subscribe, pid, guid})
+  def subscribe(name, pid \\ self(), guid) do
+    :gen_statem.cast(name, {:subscribe, pid, guid})
   end
 
   @doc false
-  def handle_playwright_msg(msg) do
-    :gen_statem.cast(@name, {:msg, msg})
+  def handle_playwright_msg(name, msg) do
+    :gen_statem.cast(name, {:playwright_msg, msg})
   end
 
   @doc """
   Post a message and await the response.
   Wait for an additional grace period after the playwright timeout.
   """
-  def send(%{guid: _, method: _} = msg, timeout) when is_integer(timeout) do
+  def send(name, %{guid: _, method: _} = msg, timeout) when is_integer(timeout) do
     msg =
       msg
       |> Enum.into(%{params: %{}, metadata: %{}})
@@ -61,14 +60,14 @@ defmodule PlaywrightEx.Connection do
 
     call_timeout = max(@min_genserver_timeout, round(timeout * @timeout_grace_factor))
 
-    :gen_statem.call(@name, {:send, msg}, call_timeout)
+    :gen_statem.call(name, {:send, msg}, call_timeout)
   end
 
   @doc """
   Get the initializer data for a channel.
   """
-  def initializer!(guid) do
-    :gen_statem.call(@name, {:initializer, guid})
+  def initializer!(name, guid) do
+    :gen_statem.call(name, {:initializer, guid})
   end
 
   # Internal
@@ -77,8 +76,10 @@ defmodule PlaywrightEx.Connection do
   def callback_mode, do: :state_functions
 
   @impl :gen_statem
-  def init(%{js_logger: _, timeout: timeout} = config) do
-    PortServer.post(%{
+  def init(config) do
+    %{timeout: timeout, port_server_name: port_server_name} = config
+
+    PortServer.post(port_server_name, %{
       guid: "",
       method: :initialize,
       params: %{sdk_language: :javascript, timeout: timeout},
@@ -89,7 +90,7 @@ defmodule PlaywrightEx.Connection do
   end
 
   @doc false
-  def pending(:cast, {:msg, %{method: :__create__, params: %{guid: "Playwright"}} = msg}, data) do
+  def pending(:cast, {:playwright_msg, %{method: :__create__, params: %{guid: "Playwright"}} = msg}, data) do
     {:next_state, :started, handle_create(data, msg)}
   end
 
@@ -98,7 +99,7 @@ defmodule PlaywrightEx.Connection do
 
   @doc false
   def started({:call, from}, {:send, msg}, data) do
-    PortServer.post(msg)
+    PortServer.post(data.config.port_server_name, msg)
     {:keep_state, put_in(data.pending_response[msg.id], from)}
   end
 
@@ -110,7 +111,7 @@ defmodule PlaywrightEx.Connection do
     {:keep_state, update_in(data.guid_subscribers[guid], &[recipient | &1 || []])}
   end
 
-  def started(:cast, {:msg, %{method: :page_error} = msg}, data) do
+  def started(:cast, {:playwright_msg, %{method: :page_error} = msg}, data) do
     if module = data.config.js_logger do
       module.log(:error, msg.params.error, msg)
     end
@@ -118,7 +119,7 @@ defmodule PlaywrightEx.Connection do
     :keep_state_and_data
   end
 
-  def started(:cast, {:msg, %{method: :console} = msg}, data) do
+  def started(:cast, {:playwright_msg, %{method: :console} = msg}, data) do
     if module = data.config.js_logger do
       level = log_level_from_js(msg[:params][:type])
       module.log(level, msg.params.text, msg)
@@ -127,14 +128,14 @@ defmodule PlaywrightEx.Connection do
     :keep_state_and_data
   end
 
-  def started(:cast, {:msg, msg}, data) when is_map_key(data.pending_response, msg.id) do
+  def started(:cast, {:playwright_msg, msg}, data) when is_map_key(data.pending_response, msg.id) do
     {from, pending_response} = Map.pop(data.pending_response, msg.id)
     :gen_statem.reply(from, msg)
 
     {:keep_state, %{data | pending_response: pending_response}}
   end
 
-  def started(:cast, {:msg, msg}, data) do
+  def started(:cast, {:playwright_msg, msg}, data) do
     {:keep_state, data |> handle_create(msg) |> handle_dispose(msg) |> notify_subscribers(msg)}
   end
 

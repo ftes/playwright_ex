@@ -8,11 +8,11 @@ defmodule PlaywrightEx.ChannelResponse do
   def unwrap(%{result: result}, fun) when is_function(fun, 1), do: {:ok, fun.(result)}
   def unwrap(other, fun) when is_function(fun, 1), do: {:ok, other}
 
-  @spec unwrap_create(any(), atom()) :: {:ok, any()} | {:error, any()}
-  def unwrap_create(value, resource_name) when is_atom(resource_name) do
+  @spec unwrap_create(any(), atom(), GenServer.name()) :: {:ok, any()} | {:error, any()}
+  def unwrap_create(value, resource_name, connection) when is_atom(resource_name) do
     unwrap(value, fn result ->
       resource = Map.fetch!(result, resource_name)
-      Map.merge(resource, Connection.initializer!(resource.guid))
+      Map.merge(resource, Connection.initializer!(connection, resource.guid))
     end)
   end
 end

@@ -20,29 +20,32 @@ defmodule PlaywrightEx.PortServer do
 
   defstruct port: nil,
             remaining: 0,
-            buffer: ""
+            buffer: "",
+            connection_name: Connection
 
-  @name __MODULE__
+  @default_name __MODULE__
 
   @doc """
   Start the PortServer and link it to the connection process.
   """
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:executable])
-    GenServer.start_link(__MODULE__, Map.new(opts), name: @name)
+    opts = Keyword.validate!(opts, [:executable, :name, :connection_name])
+    name = Keyword.get(opts, :name, @default_name)
+    GenServer.start_link(__MODULE__, Map.new(opts), name: name)
   end
 
   @doc """
   Post a message to Playwright via the Port.
   """
-  def post(msg) do
-    GenServer.cast(@name, {:post, msg})
+  def post(name, msg) do
+    GenServer.cast(name, {:post, msg})
   end
 
   @impl GenServer
-  def init(%{executable: executable}) do
+  def init(%{executable: executable} = opts) do
     port = Port.open({:spawn_executable, executable}, [:binary, :stderr_to_stdout, args: ["run-driver"]])
-    {:ok, %__MODULE__{port: port}}
+    connection_name = Map.get(opts, :connection_name, Connection)
+    {:ok, %__MODULE__{port: port, connection_name: connection_name}}
   end
 
   @impl GenServer
@@ -60,7 +63,7 @@ defmodule PlaywrightEx.PortServer do
     {remaining, buffer, frames} = parse(data, state.remaining, state.buffer, [])
 
     for frame <- frames do
-      frame |> from_json() |> Connection.handle_playwright_msg()
+      Connection.handle_playwright_msg(state.connection_name, from_json(frame))
     end
 
     {:noreply, %{state | buffer: buffer, remaining: remaining}}

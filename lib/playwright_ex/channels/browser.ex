@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Browser do
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       accept_downloads: [
         type: :boolean,
@@ -82,15 +83,17 @@ defmodule PlaywrightEx.Browser do
   @spec new_context(PlaywrightEx.guid(), [new_context_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid(), tracing: %{guid: PlaywrightEx.guid()}}} | {:error, any()}
   def new_context(browser_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: browser_id, method: :new_context, params: Map.new(opts)}
-    |> Connection.send(timeout)
-    |> ChannelResponse.unwrap_create(:context)
+    connection
+    |> Connection.send(%{guid: browser_id, method: :new_context, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap_create(:context, connection)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       reason: [
         type: :string,
@@ -110,10 +113,11 @@ defmodule PlaywrightEx.Browser do
   @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def close(browser_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: browser_id, method: :close, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: browser_id, method: :close, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end

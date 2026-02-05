@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Page do
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       event: [type: :atom, required: true],
       enabled: [type: :boolean, default: true]
@@ -31,15 +32,17 @@ defmodule PlaywrightEx.Page do
   @spec update_subscription(PlaywrightEx.guid(), [update_subscription_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def update_subscription(page_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: page_id, method: :update_subscription, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: page_id, method: :update_subscription, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       full_page: [
         type: :boolean,
@@ -66,15 +69,17 @@ defmodule PlaywrightEx.Page do
   @spec screenshot(PlaywrightEx.guid(), [screenshot_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, binary()} | {:error, any()}
   def screenshot(page_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: page_id, method: :screenshot, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: page_id, method: :screenshot, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.binary)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       x: [
         type: {:or, [:integer, :float]},
@@ -119,15 +124,17 @@ defmodule PlaywrightEx.Page do
   @spec mouse_move(PlaywrightEx.guid(), [mouse_move_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def mouse_move(page_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: page_id, method: :mouseMove, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: page_id, method: :mouseMove, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       button: [
         type: {:in, [:left, :right, :middle]},
@@ -157,15 +164,17 @@ defmodule PlaywrightEx.Page do
   @spec mouse_down(PlaywrightEx.guid(), [mouse_down_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def mouse_down(page_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: page_id, method: :mouseDown, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: page_id, method: :mouseDown, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       button: [
         type: {:in, [:left, :right, :middle]},
@@ -193,10 +202,11 @@ defmodule PlaywrightEx.Page do
   @spec mouse_up(PlaywrightEx.guid(), [mouse_up_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def mouse_up(page_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: page_id, method: :mouseUp, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: page_id, method: :mouseUp, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end
