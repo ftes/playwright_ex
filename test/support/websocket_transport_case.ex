@@ -25,7 +25,12 @@ defmodule WebsocketTransportCase do
 
   # Use a longer timeout for websocket tests since container operations are slower
   @timeout 30_000
-  @playwright_version "1.58.0"
+
+  @playwright_version "assets/node_modules/playwright/package.json"
+                      |> File.read!()
+                      |> JSON.decode!()
+                      |> Map.fetch!("version")
+
   @playwright_image "mcr.microsoft.com/playwright:v#{@playwright_version}-noble"
 
   using(_opts) do
