@@ -26,9 +26,6 @@ defmodule PlaywrightEx.Supervisor do
   alias PlaywrightEx.PortTransport
   alias PlaywrightEx.WebSocketTransport
 
-  @doc """
-  Returns the connection process name for a given supervisor name.
-  """
   def connection_name(supervisor_name \\ __MODULE__) do
     Module.concat(supervisor_name, "Connection")
   end
