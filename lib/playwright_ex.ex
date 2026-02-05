@@ -31,6 +31,12 @@ defmodule PlaywrightEx do
           {:ok, _} = Frame.goto(frame.guid, "https://elixir-lang.org/", timeout: 1000)
           {:ok, _} = Frame.click(frame.guid, Selector.link("Install"), timeout: 1000)
 
+  ## Transports
+  By default, PlaywrightEx launches a local playwright driver.
+  This is typically installed via `npm` or `bun`.
+
+  Alternatively, PlaywrightEx can connect to a remote playwright server.
+  See `PlaywrightEx.Supervisor` for further information.
 
   ## References:
   - Code extracted from [phoenix_test_playwright](https://hexdocs.pm/phoenix_test_playwright).
