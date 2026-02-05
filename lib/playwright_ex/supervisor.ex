@@ -8,6 +8,9 @@ defmodule PlaywrightEx.Supervisor do
 
   ## Options
 
+  - `:name` - Optional name for this supervisor instance. Defaults to `PlaywrightEx.Supervisor`.
+    Use this to run multiple independent Playwright connections (e.g., one with PortTransport,
+    another with WebSocketTransport). The name is used to derive child process names.
   - `:ws_endpoint` - WebSocket URL (e.g., "ws://localhost:3000/ws?browser=chromium").
     If provided, uses WebSocket transport. Otherwise uses local Port.
     If no browser param is provided, `chromium` is used by default.
@@ -23,28 +26,49 @@ defmodule PlaywrightEx.Supervisor do
   alias PlaywrightEx.PortTransport
   alias PlaywrightEx.WebSocketTransport
 
+  @doc """
+  Returns the connection process name for a given supervisor name.
+  """
+  def connection_name(supervisor_name \\ __MODULE__) do
+    Module.concat(supervisor_name, "Connection")
+  end
+
   def start_link(opts \\ []) do
     opts =
-      opts
-      |> Keyword.drop(~w(tests)a)
-      |> Keyword.validate!([:timeout, :ws_endpoint, :fail_on_unknown_opts, executable: "playwright", js_logger: nil])
+      Keyword.validate!(opts, [
+        :timeout,
+        :ws_endpoint,
+        :fail_on_unknown_opts,
+        executable: "playwright",
+        js_logger: nil,
+        name: __MODULE__
+      ])
 
-    Supervisor.start_link(__MODULE__, Map.new(opts), name: __MODULE__)
+    Supervisor.start_link(__MODULE__, Map.new(opts), name: opts[:name])
   end
 
   @impl true
   def init(config) do
-    {transport_child, transport_module} = transport_child_spec(config)
+    connection_name = connection_name(config.name)
+    {transport_child, transport} = transport_child_spec(config, connection_name)
 
     children = [
       transport_child,
-      {Connection, [[timeout: config.timeout, js_logger: config.js_logger, transport: transport_module]]}
+      {Connection,
+       [
+         [
+           name: connection_name,
+           timeout: config.timeout,
+           js_logger: config.js_logger,
+           transport: transport
+         ]
+       ]}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)
   end
 
-  defp transport_child_spec(%{ws_endpoint: ws_endpoint}) when is_binary(ws_endpoint) do
+  defp transport_child_spec(%{ws_endpoint: ws_endpoint, name: name}, connection_name) when is_binary(ws_endpoint) do
     ws_endpoint = add_new_query(ws_endpoint, %{"browser" => "chromium"})
 
     if !Code.ensure_loaded?(WebSockex) do
@@ -57,13 +81,22 @@ defmodule PlaywrightEx.Supervisor do
       """
     end
 
+    transport_name = Module.concat(name, "WebSocketTransport")
+
     # WebSocket transport
-    {{WebSocketTransport, ws_endpoint: ws_endpoint}, WebSocketTransport}
+    child_spec =
+      {WebSocketTransport, ws_endpoint: ws_endpoint, name: transport_name, connection_name: connection_name}
+
+    {child_spec, {WebSocketTransport, transport_name}}
   end
 
-  defp transport_child_spec(%{executable: executable}) do
+  defp transport_child_spec(%{executable: executable, name: name}, connection_name) do
     executable = validate_executable!(executable)
-    {{PortTransport, executable: executable}, PortTransport}
+
+    transport_name = Module.concat(name, "PortTransport")
+
+    child_spec = {PortTransport, executable: executable, name: transport_name, connection_name: connection_name}
+    {child_spec, {PortTransport, transport_name}}
   end
 
   defp validate_executable!(executable) do

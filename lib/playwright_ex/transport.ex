@@ -16,5 +16,5 @@ defmodule PlaywrightEx.Transport do
   Send a message to the Playwright server.
   The message will be JSON-encoded with camelCase keys.
   """
-  @callback post(msg :: map()) :: :ok
+  @callback post(name :: GenServer.name(), msg :: map()) :: :ok
 end

@@ -15,6 +15,7 @@ defmodule PlaywrightEx.BrowserType do
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       channel: [
         type: :string,
@@ -47,11 +48,12 @@ defmodule PlaywrightEx.BrowserType do
   @spec launch(PlaywrightEx.guid(), [launch_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid()}} | {:error, any()}
   def launch(type_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: type_id, method: :launch, params: Map.new(opts)}
-    |> Connection.send(timeout)
-    |> ChannelResponse.unwrap_create(:browser)
+    connection
+    |> Connection.send(%{guid: type_id, method: :launch, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap_create(:browser, connection)
   end
 
   @doc false

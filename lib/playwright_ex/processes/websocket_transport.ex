@@ -11,6 +11,12 @@ defmodule PlaywrightEx.WebSocketTransport do
   - Connecting to remote/shared Playwright instances
 
   Message format: JSON (no binary framing - WebSocket handles framing)
+
+  Run server via docker:
+  ```bash
+  docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.58.0-noble \
+    npx -y playwright@1.58.0 run-server --port 3000 --host 0.0.0.0
+  ```
   """
   @behaviour PlaywrightEx.Transport
 
@@ -21,11 +27,11 @@ defmodule PlaywrightEx.WebSocketTransport do
 
   require Logger
 
-  @name __MODULE__
+  @default_name __MODULE__
   @max_retries 30
   @retry_interval 1_000
 
-  defstruct [:ws_endpoint]
+  defstruct [:ws_endpoint, connection_name: Connection]
 
   @doc """
   Start the WebSocket client and connect to the Playwright server.
@@ -36,34 +42,37 @@ defmodule PlaywrightEx.WebSocketTransport do
   ## Options
 
   - `:ws_endpoint` - Required. The WebSocket URL to connect to (e.g., "ws://localhost:3000/ws")
+  - `:name` - Optional. Process name for this transport. Defaults to `PlaywrightEx.WebSocketTransport`.
+  - `:connection_name` - Optional. Name of the Connection process to forward messages to.
   """
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:ws_endpoint])
+    opts = Keyword.validate!(opts, [:ws_endpoint, :name, :connection_name])
     ws_endpoint = Keyword.fetch!(opts, :ws_endpoint)
-    connect_with_retry(ws_endpoint, 0)
+    name = Keyword.get(opts, :name, @default_name)
+    connection_name = Keyword.get(opts, :connection_name, Connection)
+    connect_with_retry(ws_endpoint, name, connection_name, 0)
   end
 
-  defp connect_with_retry(ws_endpoint, retries) do
-    case WebSockex.start_link(ws_endpoint, __MODULE__, %__MODULE__{ws_endpoint: ws_endpoint}, name: @name) do
+  defp connect_with_retry(ws_endpoint, name, connection_name, retries) do
+    state = %__MODULE__{ws_endpoint: ws_endpoint, connection_name: connection_name}
+
+    case WebSockex.start_link(ws_endpoint, __MODULE__, state, name: name) do
       {:ok, pid} ->
         {:ok, pid}
 
       {:error, %WebSockex.ConnError{}} when retries < @max_retries ->
         Process.sleep(@retry_interval)
-        connect_with_retry(ws_endpoint, retries + 1)
+        connect_with_retry(ws_endpoint, name, connection_name, retries + 1)
 
       {:error, error} ->
         {:error, error}
     end
   end
 
-  @doc """
-  Post a message to the Playwright server via WebSocket.
-  """
   @impl PlaywrightEx.Transport
-  def post(msg) do
+  def post(name \\ @default_name, msg) do
     frame = to_json(msg)
-    WebSockex.send_frame(@name, {:text, frame})
+    WebSockex.send_frame(name, {:text, frame})
   end
 
   # WebSockex Callbacks
@@ -73,10 +82,8 @@ defmodule PlaywrightEx.WebSocketTransport do
 
   @impl WebSockex
   def handle_frame({:text, frame}, state) do
-    frame
-    |> from_json()
-    |> tap(&log_unknown_browser_error/1)
-    |> Connection.handle_playwright_msg()
+    msg = frame |> from_json() |> tap(&log_unknown_browser_error/1)
+    Connection.handle_playwright_msg(state.connection_name, msg)
 
     {:ok, state}
   end

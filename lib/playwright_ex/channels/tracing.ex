@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Tracing do
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       title: [
         type: :string,
@@ -45,15 +46,17 @@ defmodule PlaywrightEx.Tracing do
   @spec tracing_start(PlaywrightEx.guid(), [start_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def tracing_start(tracing_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: tracing_id, method: :tracing_start, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: tracing_id, method: :tracing_start, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       title: [
         type: :string,
@@ -74,15 +77,19 @@ defmodule PlaywrightEx.Tracing do
   @spec tracing_start_chunk(PlaywrightEx.guid(), [start_chunk_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def tracing_start_chunk(tracing_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: tracing_id, method: :tracing_start_chunk, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: tracing_id, method: :tracing_start_chunk, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
-    NimbleOptions.new!(timeout: PlaywrightEx.Channel.timeout_opt())
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
 
   @doc """
   Stops tracing.
@@ -96,15 +103,17 @@ defmodule PlaywrightEx.Tracing do
   @type stop_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec tracing_stop(PlaywrightEx.guid(), [stop_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def tracing_stop(tracing_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: tracing_id, method: :tracing_stop, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: tracing_id, method: :tracing_stop, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       mode: [
         type: :atom,
@@ -126,15 +135,17 @@ defmodule PlaywrightEx.Tracing do
   @spec tracing_stop_chunk(PlaywrightEx.guid(), [stop_chunk_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, %{guid: PlaywrightEx.guid(), absolute_path: Path.t()}} | {:error, any()}
   def tracing_stop_chunk(tracing_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: tracing_id, method: :tracing_stop_chunk, params: Map.new(opts)}
-    |> Connection.send(timeout)
-    |> ChannelResponse.unwrap_create(:artifact)
+    connection
+    |> Connection.send(%{guid: tracing_id, method: :tracing_stop_chunk, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap_create(:artifact, connection)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       name: [
         type: :string,
@@ -207,22 +218,23 @@ defmodule PlaywrightEx.Tracing do
   @spec group(PlaywrightEx.guid(), [group_opt() | PlaywrightEx.unknown_opt()], (-> result)) :: result
         when result: any()
   def group(tracing_id, opts, fun) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     # Convert keyword list to map, and convert nested location keyword list to map if present
     params =
       Map.new(opts, fn {k, v} -> if k == :location, do: {k, Map.new(v)}, else: {k, v} end)
 
     {:ok, _} =
-      %{guid: tracing_id, method: :tracing_group, params: params}
-      |> Connection.send(timeout)
+      connection
+      |> Connection.send(%{guid: tracing_id, method: :tracing_group, params: params}, timeout)
       |> ChannelResponse.unwrap(& &1)
 
     try do
       fun.()
     after
-      %{guid: tracing_id, method: :tracing_group_end, params: %{}}
-      |> Connection.send(timeout)
+      connection
+      |> Connection.send(%{guid: tracing_id, method: :tracing_group_end, params: %{}}, timeout)
       |> ChannelResponse.unwrap(& &1)
     end
   end

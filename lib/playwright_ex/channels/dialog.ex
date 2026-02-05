@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Dialog do
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       prompt_text: [
         type: :string,
@@ -34,15 +35,19 @@ defmodule PlaywrightEx.Dialog do
   @type accept_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec accept(PlaywrightEx.guid(), [accept_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def accept(dialog_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: dialog_id, method: :accept, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: dialog_id, method: :accept, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
-    NimbleOptions.new!(timeout: PlaywrightEx.Channel.timeout_opt())
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
 
   @doc """
   Returns when the dialog has been dismissed.
@@ -56,10 +61,11 @@ defmodule PlaywrightEx.Dialog do
   @type dismiss_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec dismiss(PlaywrightEx.guid(), [dismiss_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def dismiss(dialog_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: dialog_id, method: :dismiss, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: dialog_id, method: :dismiss, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end

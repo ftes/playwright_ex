@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Frame do
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       url: [
         type: :string,
@@ -46,15 +47,19 @@ defmodule PlaywrightEx.Frame do
   @type goto_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec goto(PlaywrightEx.guid(), [goto_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def goto(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :goto, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :goto, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
-    NimbleOptions.new!(timeout: PlaywrightEx.Channel.timeout_opt())
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
 
   @doc """
   Returns the frame's URL.
@@ -68,15 +73,17 @@ defmodule PlaywrightEx.Frame do
   @type url_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec url(PlaywrightEx.guid(), [url_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, String.t()} | {:error, any()}
   def url(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :url, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :url, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.value)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       expression: [
         type: :string,
@@ -115,20 +122,22 @@ defmodule PlaywrightEx.Frame do
   @spec evaluate(PlaywrightEx.guid(), [evaluate_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def evaluate(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     params =
       opts
       |> Map.new()
       |> Map.update!(:arg, &Serialization.serialize_arg/1)
 
-    %{guid: frame_id, method: :evaluate_expression, params: params}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :evaluate_expression, params: params}, timeout)
     |> ChannelResponse.unwrap(&Serialization.deserialize_arg(&1.value))
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -161,15 +170,17 @@ defmodule PlaywrightEx.Frame do
   @type press_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec press(PlaywrightEx.guid(), [press_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def press(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :press, params: Map.new(opts)}
-    |> Connection.send(timeout + opts[:delay])
+    connection
+    |> Connection.send(%{guid: frame_id, method: :press, params: Map.new(opts)}, timeout + opts[:delay])
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -202,15 +213,22 @@ defmodule PlaywrightEx.Frame do
   @spec type(PlaywrightEx.guid(), [type_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def type(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :type, params: Map.new(opts)}
-    |> Connection.send(timeout + opts[:delay] * String.length(opts[:text]))
+    connection
+    |> Connection.send(
+      %{guid: frame_id, method: :type, params: Map.new(opts)},
+      timeout + opts[:delay] * String.length(opts[:text])
+    )
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
-    NimbleOptions.new!(timeout: PlaywrightEx.Channel.timeout_opt())
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
 
   @doc """
   Returns the page title.
@@ -225,15 +243,17 @@ defmodule PlaywrightEx.Frame do
   @spec title(PlaywrightEx.guid(), [title_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, String.t()} | {:error, any()}
   def title(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :title, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :title, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.value)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       is_not: [
         type: :boolean,
@@ -261,15 +281,17 @@ defmodule PlaywrightEx.Frame do
   @type expect_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec expect(PlaywrightEx.guid(), [expect_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def expect(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :expect, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :expect, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.matches)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [type: :string, required: true]
     )
@@ -291,15 +313,17 @@ defmodule PlaywrightEx.Frame do
   @spec wait_for_selector(PlaywrightEx.guid(), [wait_for_selector_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def wait_for_selector(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :wait_for_selector, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :wait_for_selector, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.element)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -323,15 +347,19 @@ defmodule PlaywrightEx.Frame do
   @spec inner_html(PlaywrightEx.guid(), [inner_html_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, String.t()} | {:error, any()}
   def inner_html(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :inner_html, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :inner_html, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.value)
   end
 
   schema =
-    NimbleOptions.new!(timeout: PlaywrightEx.Channel.timeout_opt())
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
 
   @doc """
   Gets the full HTML contents of the frame, including the doctype.
@@ -346,15 +374,17 @@ defmodule PlaywrightEx.Frame do
   @spec content(PlaywrightEx.guid(), [content_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, String.t()} | {:error, any()}
   def content(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :content, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :content, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1.value)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -389,15 +419,17 @@ defmodule PlaywrightEx.Frame do
   @type fill_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec fill(PlaywrightEx.guid(), [fill_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def fill(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :fill, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :fill, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -438,15 +470,17 @@ defmodule PlaywrightEx.Frame do
   @spec select_option(PlaywrightEx.guid(), [select_option_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def select_option(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :select_option, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :select_option, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -485,15 +519,17 @@ defmodule PlaywrightEx.Frame do
   @type check_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec check(PlaywrightEx.guid(), [check_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def check(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :check, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :check, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -519,15 +555,17 @@ defmodule PlaywrightEx.Frame do
   @type uncheck_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec uncheck(PlaywrightEx.guid(), [uncheck_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def uncheck(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :uncheck, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :uncheck, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -567,15 +605,17 @@ defmodule PlaywrightEx.Frame do
   @spec set_input_files(PlaywrightEx.guid(), [set_input_files_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def set_input_files(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :set_input_files, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :set_input_files, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -609,15 +649,17 @@ defmodule PlaywrightEx.Frame do
   @type click_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec click(PlaywrightEx.guid(), [click_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def click(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :click, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :click, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -666,15 +708,17 @@ defmodule PlaywrightEx.Frame do
   @type hover_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec hover(PlaywrightEx.guid(), [hover_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def hover(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :hover, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :hover, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       selector: [
         type: :string,
@@ -695,15 +739,17 @@ defmodule PlaywrightEx.Frame do
   @type blur_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec blur(PlaywrightEx.guid(), [blur_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def blur(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :blur, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :blur, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
     NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       source: [
         type: :string,
@@ -745,10 +791,11 @@ defmodule PlaywrightEx.Frame do
   @spec drag_and_drop(PlaywrightEx.guid(), [drag_and_drop_opt() | PlaywrightEx.unknown_opt()]) ::
           {:ok, any()} | {:error, any()}
   def drag_and_drop(frame_id, opts \\ []) do
-    {timeout, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:timeout)
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    %{guid: frame_id, method: :drag_and_drop, params: Map.new(opts)}
-    |> Connection.send(timeout)
+    connection
+    |> Connection.send(%{guid: frame_id, method: :drag_and_drop, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end
