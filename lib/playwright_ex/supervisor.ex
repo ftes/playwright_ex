@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Supervisor do
 
   ## Options
 
-  - `:ws_endpoint` - WebSocket URL (e.g., "ws://localhost:3000/ws").
+  - `:ws_endpoint` - WebSocket URL (e.g., "ws://localhost:3000/ws?browser=chromium").
     If provided, uses WebSocket transport. Otherwise uses local Port.
   - `:executable` - Path to playwright CLI (only for Port transport)
   - `:timeout` - Connection timeout
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Supervisor do
   end
 
   defp transport_child_spec(%{ws_endpoint: ws_endpoint}) when is_binary(ws_endpoint) do
-    unless Code.ensure_loaded?(WebSockex) do
+    if !Code.ensure_loaded?(WebSockex) do
       raise """
       WebSocket transport requires the :websockex dependency.
 
@@ -64,8 +64,12 @@ defmodule PlaywrightEx.Supervisor do
 
   defp validate_executable!(executable) do
     cond do
-      path = System.find_executable(executable) -> path
-      File.exists?(executable) -> executable
+      path = System.find_executable(executable) ->
+        path
+
+      File.exists?(executable) ->
+        executable
+
       true ->
         raise """
         Playwright executable not found.
