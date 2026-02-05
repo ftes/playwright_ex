@@ -43,6 +43,8 @@ defmodule PlaywrightEx.Supervisor do
   end
 
   defp transport_child_spec(%{ws_endpoint: ws_endpoint}) when is_binary(ws_endpoint) do
+    ws_endpoint = add_new_query(ws_endpoint, %{"browser" => "chromium"})
+
     if !Code.ensure_loaded?(WebSockex) do
       raise """
       WebSocket transport requires the :websockex dependency.
@@ -77,5 +79,12 @@ defmodule PlaywrightEx.Supervisor do
         'assets/node_modules/playwright/cli.js' or similar.
         """
     end
+  end
+
+  defp add_new_query(url, default_params) when is_binary(url) and is_map(default_params) do
+    uri = URI.parse(url)
+    existing_params = URI.decode_query(uri.query || "")
+    merged_params = Map.merge(default_params, existing_params)
+    URI.to_string(%{uri | query: URI.encode_query(merged_params)})
   end
 end
