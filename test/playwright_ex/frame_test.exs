@@ -96,4 +96,55 @@ defmodule PlaywrightEx.FrameTest do
       assert String.to_integer(final_value) > 0
     end
   end
+
+  describe "set_input_files" do
+    test "can upload files", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      {:ok, _} =
+        Frame.evaluate(frame.guid,
+          expression: """
+          () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.id = 'file-input';
+            document.body.appendChild(input);
+          }
+          """,
+          is_function: true,
+          timeout: @timeout
+        )
+
+      tmp_path = Path.join(System.tmp_dir!(), "playwright-test-upload-#{System.unique_integer([:positive])}.txt")
+      File.write!(tmp_path, "hello from elixir")
+
+      try do
+        {:ok, _} =
+          Frame.set_input_files(frame.guid,
+            selector: "#file-input",
+            local_paths: [tmp_path],
+            timeout: @timeout
+          )
+
+        {:ok, file_name} =
+          Frame.evaluate(frame.guid,
+            expression: "() => document.getElementById('file-input').files[0].name",
+            is_function: true,
+            timeout: @timeout
+          )
+
+        {:ok, file_content} =
+          Frame.evaluate(frame.guid,
+            expression: "() => document.getElementById('file-input').files[0].text()",
+            is_function: true,
+            timeout: @timeout
+          )
+
+        assert file_name == Path.basename(tmp_path)
+        assert file_content == "hello from elixir"
+      after
+        File.rm(tmp_path)
+      end
+    end
+  end
 end

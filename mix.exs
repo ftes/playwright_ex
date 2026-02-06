@@ -66,7 +66,8 @@ defmodule PlaywrightEx.MixProject do
         format: :test,
         setup: :test,
         check: :test,
-        "assets.setup": :test
+        "assets.setup": :test,
+        "test.websocket": :test
       ]
     ]
   end

@@ -20,7 +20,7 @@ env:
 
 jobs:
   build:
-    name: Build and test
+    name: Build and lint
     runs-on: ubuntu-latest
 
     steps:
@@ -54,9 +54,30 @@ jobs:
           path: priv/plts
       - name: Run Dialyzer
         run: mix dialyzer --format github --format dialyxir
-      - name: Install JS dependencies
-        run: npm ci --prefix assets
-      - name: Further setup
+
+  test:
+    name: Test (${{ matrix.transport }})
+    runs-on: ubuntu-latest
+    needs: build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        transport: [port, websocket]
+        include:
+          - transport: port
+            mix_task: test
+          - transport: websocket
+            mix_task: test.websocket
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup languages
+        uses: jdx/mise-action@v2
+      - name: Install dependencies
+        run: mix do deps.get, deps.compile
+      - name: Install JS dependencies and browsers
+        if: matrix.transport == 'port'
         run: mix setup
       - name: Run tests
-        run: mix test --warnings-as-errors
+        run: mix ${{ matrix.mix_task }} --warnings-as-errors
