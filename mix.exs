@@ -102,6 +102,7 @@ defmodule PlaywrightEx.MixProject do
         "cmd npm install --prefix assets",
         "cmd npm exec --prefix assets playwright -- install chromium --with-deps --only-shell"
       ],
+      "test.websocket": "playwright_ex.test.websocket",
       check: [
         "format --check-formatted",
         "credo",
