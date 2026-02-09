@@ -42,7 +42,7 @@ if Code.ensure_loaded?(WebSockex) do
 
     ## Options
 
-    - `:ws_endpoint` - Required. The WebSocket URL to connect to (e.g., "ws://localhost:3000/ws")
+    - `:ws_endpoint` - Required. The WebSocket URL to connect to (e.g. `ws://localhost:3000`)
     - `:name` - Optional. Process name for this transport. Defaults to `PlaywrightEx.WebSocketTransport`.
     - `:connection_name` - Optional. Name of the Connection process to forward messages to.
     """

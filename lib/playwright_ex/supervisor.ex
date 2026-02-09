@@ -7,16 +7,15 @@ defmodule PlaywrightEx.Supervisor do
   - WebSocket: Connects to remote Playwright server
 
   ## Options
-
-  - `:name` - Optional name for this supervisor instance. Defaults to `PlaywrightEx.Supervisor`.
-    Use this to run multiple independent Playwright connections (e.g., one with PortTransport,
-    another with WebSocketTransport). The name is used to derive child process names.
-  - `:ws_endpoint` - WebSocket URL (e.g., "ws://localhost:3000/ws?browser=chromium").
+  - `:ws_endpoint` - WebSocket URL (e.g. `ws://localhost:3000?browser=chromium`).
     If provided, uses WebSocket transport. Otherwise uses local Port.
     If no browser param is provided, `chromium` is used by default.
   - `:executable` - Path to playwright CLI (only for Port transport)
   - `:timeout` - Connection timeout
   - `:js_logger` - Module for logging JS console messages
+  - `:name` - Optional name for this supervisor instance. Defaults to `PlaywrightEx.Supervisor`.
+    Use this to run multiple independent Playwright connections (e.g., one with PortTransport,
+    another with WebSocketTransport). The name is used to derive child process names.
 
   ## Limitations of WebSocket connection to remote server
   - Single browser type - only the one you set via `ws_endpoint` (the browser type passed to `PlaywrightEx.launch_browser/2` is ignored)
