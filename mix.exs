@@ -56,7 +56,7 @@ defmodule PlaywrightEx.MixProject do
     [
       licenses: ["MIT"],
       links: %{"Github" => @source_url},
-      exclude_patterns: ~w(assets/node_modules priv/static/assets)
+      exclude_patterns: ~w(assets/node_modules priv/static/assets priv/plts)
     ]
   end
 
