@@ -199,6 +199,26 @@ defmodule PlaywrightEx.BrowserContext do
       ]
     )
 
+  @doc """
+  Closes the browser context.
+
+  Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-close
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
+  def close(browser_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: browser_id, method: :close, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
   schema =
     NimbleOptions.new!(
       timeout: PlaywrightEx.Channel.timeout_opt(),
@@ -232,26 +252,6 @@ defmodule PlaywrightEx.BrowserContext do
 
     %{guid: context_id, method: :addInitScript, params: Map.new(opts)}
     |> Connection.send(timeout)
-    |> ChannelResponse.unwrap(& &1)
-  end
-
-  @doc """
-  Closes the browser context.
-
-  Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-close
-
-  ## Options
-  #{NimbleOptions.docs(schema)}
-  """
-  @schema schema
-  @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
-  def close(browser_id, opts \\ []) do
-    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
-    {timeout, opts} = Keyword.pop!(opts, :timeout)
-
-    connection
-    |> Connection.send(%{guid: browser_id, method: :close, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end
