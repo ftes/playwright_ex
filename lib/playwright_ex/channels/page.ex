@@ -223,11 +223,11 @@ defmodule PlaywrightEx.Page do
   @doc """
   Adds a script which would be evaluated in one of the following scenarios:
 
-  - Whenever a page is created in the browser context or is navigated.
-  - Whenever a child frame is attached or navigated in any page in the browser context. In this case, the script is evaluated in the context of the newly attached frame.
+  - Whenever the page is navigated.
+  - Whenever the child frame is attached or navigated. In this case, the script is evaluated in the context of the newly attached frame.
 
   The script is evaluated after the document was created but before any of its scripts were run.
-  This is useful to amend the JavaScript environment, e.g. to seed Math.random.
+  This is useful to amend the JavaScript environment, e.g. to seed `Math.random`.
 
   Reference: https://playwright.dev/docs/api/class-page#page-add-init-script
 
