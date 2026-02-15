@@ -240,6 +240,12 @@ defmodule PlaywrightEx.BrowserContext do
 
   Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script
 
+  > ### Script Execution Order Is Not Defined {: .info}
+  >
+  > The order of evaluation of multiple scripts installed via
+  > `PlaywrightEx.BrowserContext.add_init_script/2` and
+  > `PlaywrightEx.Page.add_init_script/2` is not defined.
+
   ## Options
   #{NimbleOptions.docs(schema)}
   """
