@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Page do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
-      content: [
+      source: [
         type: :string,
         required: true,
         doc: "Raw JavaScript code to be evaluated in all pages before any scripts run."
