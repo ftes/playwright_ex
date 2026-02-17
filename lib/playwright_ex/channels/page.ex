@@ -209,4 +209,48 @@ defmodule PlaywrightEx.Page do
     |> Connection.send(%{guid: page_id, method: :mouseUp, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      content: [
+        type: :string,
+        required: true,
+        doc: "Raw JavaScript code to be evaluated in all pages before any scripts run."
+      ]
+    )
+
+  @doc """
+  Adds a script which would be evaluated in one of the following scenarios:
+
+  - Whenever the page is navigated.
+  - Whenever the child frame is attached or navigated. In this case, the script is evaluated in the context of the newly attached frame.
+
+  The script is evaluated after the document was created but before any of its scripts were run.
+  This is useful to amend the JavaScript environment, e.g. to seed `Math.random`.
+
+  Reference: https://playwright.dev/docs/api/class-page#page-add-init-script
+
+  > ### Script Execution Order Is Not Defined {: .info}
+  >
+  > The order of evaluation of multiple scripts installed via
+  > `PlaywrightEx.BrowserContext.add_init_script/2` and
+  > `PlaywrightEx.Page.add_init_script/2` is not defined.
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type add_init_script_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec add_init_script(PlaywrightEx.guid(), [add_init_script_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def add_init_script(context_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :addInitScript, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
 end
