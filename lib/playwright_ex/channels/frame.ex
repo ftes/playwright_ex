@@ -293,7 +293,17 @@ defmodule PlaywrightEx.Frame do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
-      selector: [type: :string, required: true]
+      selector: [type: :string, required: true, doc: "A selector to search for an element."],
+      state: [
+        type: {:in, ["attached", "detached", "visible", "hidden"]},
+        default: "visible",
+        doc: ~s{State to wait for: "attached", "detached", "visible" (default), or "hidden".}
+      ],
+      strict: [
+        type: :boolean,
+        default: true,
+        doc: "When true, the call requires selector to resolve to a single element."
+      ]
     )
 
   @doc """
@@ -318,7 +328,7 @@ defmodule PlaywrightEx.Frame do
 
     connection
     |> Connection.send(%{guid: frame_id, method: :wait_for_selector, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap(& &1.element)
+    |> ChannelResponse.unwrap(&Map.get(&1, :element))
   end
 
   schema =
@@ -816,6 +826,384 @@ defmodule PlaywrightEx.Frame do
 
     connection
     |> Connection.send(%{guid: frame_id, method: :drag_and_drop, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      selector: [
+        type: :string,
+        required: true,
+        doc: "A selector to search for an element."
+      ],
+      strict: [
+        type: :boolean,
+        default: true,
+        doc: "When true, the call requires selector to resolve to a single element."
+      ]
+    )
+
+  @doc """
+  Returns whether the element matching the selector is visible.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-is-visible
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type is_visible_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec is_visible(PlaywrightEx.guid(), [is_visible_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, boolean()} | {:error, any()}
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_visible(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :is_visible, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Returns whether the checkbox or radio element matching the selector is checked.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-is-checked
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type is_checked_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec is_checked(PlaywrightEx.guid(), [is_checked_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, boolean()} | {:error, any()}
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_checked(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :is_checked, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Returns whether the element matching the selector is disabled.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-is-disabled
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type is_disabled_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec is_disabled(PlaywrightEx.guid(), [is_disabled_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, boolean()} | {:error, any()}
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_disabled(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :is_disabled, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Returns whether the element matching the selector is enabled.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-is-enabled
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type is_enabled_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec is_enabled(PlaywrightEx.guid(), [is_enabled_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, boolean()} | {:error, any()}
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_enabled(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :is_enabled, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Returns whether the element matching the selector is editable.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-is-editable
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type is_editable_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec is_editable(PlaywrightEx.guid(), [is_editable_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, boolean()} | {:error, any()}
+  # credo:disable-for-next-line Credo.Check.Readability.PredicateFunctionNames
+  def is_editable(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :is_editable, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      selector: [
+        type: :string,
+        required: true,
+        doc: "A selector to search for an element."
+      ],
+      name: [
+        type: :string,
+        required: true,
+        doc: "Attribute name to get the value for."
+      ],
+      strict: [
+        type: :boolean,
+        default: true,
+        doc: "When true, the call requires selector to resolve to a single element."
+      ]
+    )
+
+  @doc """
+  Returns the element attribute value for the matching element.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-get-attribute
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type get_attribute_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec get_attribute(PlaywrightEx.guid(), [get_attribute_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, String.t() | nil} | {:error, any()}
+  def get_attribute(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :get_attribute, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(&Map.get(&1, :value))
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      selector: [
+        type: :string,
+        required: true,
+        doc: "A selector to search for an element."
+      ],
+      strict: [
+        type: :boolean,
+        default: true,
+        doc: "When true, the call requires selector to resolve to a single element."
+      ]
+    )
+
+  @doc """
+  Returns the value for the matching `<input>`, `<textarea>`, or `<select>` element.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-input-value
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type input_value_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec input_value(PlaywrightEx.guid(), [input_value_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, String.t()} | {:error, any()}
+  def input_value(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :input_value, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Returns `element.textContent` for the matching element.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-text-content
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type text_content_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec text_content(PlaywrightEx.guid(), [text_content_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, String.t() | nil} | {:error, any()}
+  def text_content(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :text_content, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Returns `element.innerText` for the matching element.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-inner-text
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type inner_text_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec inner_text(PlaywrightEx.guid(), [inner_text_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, String.t()} | {:error, any()}
+  def inner_text(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :inner_text, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.value)
+  end
+
+  @doc """
+  Focuses the matching element.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-focus
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type focus_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec focus(PlaywrightEx.guid(), [focus_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def focus(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :focus, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      selector: [
+        type: :string,
+        required: true,
+        doc: "A selector to search for an element."
+      ],
+      type: [
+        type: :string,
+        required: true,
+        doc: ~s(DOM event type: `"click"`, `"mousedown"`, etc.)
+      ],
+      event_init: [
+        type: :any,
+        default: nil,
+        doc: "Optional event-specific initialization properties."
+      ],
+      strict: [
+        type: :boolean,
+        default: true,
+        doc: "When true, the call requires selector to resolve to a single element."
+      ]
+    )
+
+  @doc """
+  Dispatches a DOM event on the matching element.
+
+  The event is composed from the given `type` and optional `event_init` properties. Events are composed,
+  not triggered, meaning event listeners are dispatched and any default actions can be prevented.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-dispatch-event
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type dispatch_event_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec dispatch_event(PlaywrightEx.guid(), [dispatch_event_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def dispatch_event(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    params =
+      opts
+      |> Map.new()
+      |> Map.update(:event_init, Serialization.serialize_arg(nil), &Serialization.serialize_arg/1)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :dispatch_event, params: params}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      expression: [
+        type: :string,
+        required: true,
+        doc: "JavaScript expression to evaluate."
+      ],
+      is_function: [
+        type: :boolean,
+        default: false,
+        doc: "Whether the expression is a function."
+      ],
+      arg: [
+        type: :any,
+        default: nil,
+        doc: "Optional argument to pass to the function."
+      ],
+      polling: [
+        type: {:or, [:pos_integer, :string]},
+        default: "raf",
+        doc: "Polling interval in ms, or `\"raf\"` for requestAnimationFrame."
+      ]
+    )
+
+  @doc """
+  Waits for the provided JavaScript expression to return a truthy value.
+
+  Returns a JSHandle for the expression's return value once it becomes truthy. If the expression throws
+  during evaluation, the method will keep retrying until it either succeeds or the timeout is reached.
+
+  Reference: https://playwright.dev/docs/api/class-frame#frame-wait-for-function
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type wait_for_function_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec wait_for_function(PlaywrightEx.guid(), [wait_for_function_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def wait_for_function(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    params =
+      opts
+      |> Map.new()
+      |> Map.update!(:arg, &Serialization.serialize_arg/1)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :wait_for_function, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end

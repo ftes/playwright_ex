@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
+## [Unreleased]
+### Added
+- `PlaywrightEx.Frame`: `is_visible/2`, `is_checked/2`, `is_disabled/2`, `is_enabled/2`, `is_editable/2`, `get_attribute/2`, `input_value/2`, `text_content/2`, `inner_text/2`, `focus/2`, `dispatch_event/2`, `wait_for_function/2`. #22, [@oliver-kriska]
+- `PlaywrightEx.Frame.wait_for_selector/2`: `state` and `strict` options. #22, [@oliver-kriska]
+### Fixed
+- `PlaywrightEx.Frame.wait_for_selector/2`: crash when `state` is `"hidden"` or `"detached"` (result has no element). #22
+
 ## [0.4.0] 2026-02-09
 ### Added
 - Support remote Playwright server via websocket. Commit [63fc6eb], [@carsoncall]
@@ -47,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 [@nathanl]: https://github.com/nathanl
 [@carsoncall]: https://github.com/carsoncall
+[@oliver-kriska]: https://github.com/oliver-kriska
 
 [530e362]: https://github.com/ftes/playwright_ex/commit/530e36
 [fecf965]: https://github.com/ftes/playwright_ex/commit/fecf965
