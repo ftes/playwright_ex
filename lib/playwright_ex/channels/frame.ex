@@ -1206,4 +1206,143 @@ defmodule PlaywrightEx.Frame do
     |> Connection.send(%{guid: frame_id, method: :wait_for_function, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      url: [
+        type: :string,
+        required: true,
+        doc:
+          "URL string to wait for. Supports glob patterns with `*` (matches any characters except `/`) and `**` (matches any characters including `/`). Without wildcards, performs an exact match."
+      ]
+    )
+
+  @doc """
+  Waits for the frame to navigate to a URL matching the given pattern.
+
+  This is a convenience wrapper around `wait_for_function/2` that polls `window.location.href`
+  until it matches the given URL pattern. For same-origin navigations (SPA route changes,
+  same-domain redirects), this works reliably. Cross-origin navigations may cause the polling
+  context to be destroyed.
+
+  The URL parameter supports glob patterns:
+  - `*` matches any characters except `/`
+  - `**` matches any characters including `/`
+  - Without wildcards, performs an exact URL match
+
+  > ### Differs from Playwright Node.js {: .info}
+  >
+  > Playwright's `waitForURL` uses event-based navigation tracking and works across
+  > cross-origin navigations. This implementation polls via `wait_for_function/2` and
+  > is limited to same-origin navigations where the JavaScript context is preserved.
+
+  Inspired by: https://playwright.dev/docs/api/class-frame#frame-wait-for-url
+
+  ## Examples
+
+      # Wait for exact URL
+      Frame.wait_for_url(frame_id, url: "https://example.com/dashboard", timeout: 5000)
+
+      # Wait for URL matching a glob pattern
+      Frame.wait_for_url(frame_id, url: "**/login", timeout: 5000)
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type wait_for_url_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec wait_for_url(PlaywrightEx.guid(), [wait_for_url_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def wait_for_url(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    {url_pattern, _opts} = Keyword.pop!(opts, :url)
+
+    expression = """
+    (pattern) => {
+      const url = window.location.href;
+      if (!pattern.includes('*')) return url === pattern;
+      const escapeRegex = (s) => s.replace(/[.+?^${}()|[\\]\\\\]/g, '\\\\$&');
+      const re = pattern.split('**').map(part =>
+        part.split('*').map(escapeRegex).join('[^/]*')
+      ).join('.*');
+      return new RegExp('^' + re + '$').test(url);
+    }
+    """
+
+    wait_for_function(frame_id,
+      connection: connection,
+      expression: expression,
+      is_function: true,
+      arg: url_pattern,
+      timeout: timeout
+    )
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      state: [
+        type: {:in, ["domcontentloaded", "load", "networkidle"]},
+        default: "load",
+        doc: ~s{Load state to wait for: "domcontentloaded", "load" (default), or "networkidle".}
+      ]
+    )
+
+  @doc """
+  Waits for the required load state to be reached.
+
+  This is a convenience wrapper around `wait_for_function/2` that polls `document.readyState`
+  until the requested load state is reached.
+
+  > ### `"networkidle"` limitation {: .warning}
+  >
+  > The `"networkidle"` state is **not truly supported** — it falls back to checking
+  > `document.readyState === "complete"`, which does not wait for pending network requests
+  > to settle. Playwright's true network idle detection requires event-based tracking that
+  > is not available through this method.
+
+  Supported states:
+  - `"load"` (default) — waits for `document.readyState` to be `"complete"`
+  - `"domcontentloaded"` — waits for `document.readyState` to be `"interactive"` or `"complete"`
+  - `"networkidle"` — approximation only, checks `document.readyState === "complete"`
+
+  Inspired by: https://playwright.dev/docs/api/class-frame#frame-wait-for-load-state
+
+  ## Examples
+
+      Frame.wait_for_load_state(frame_id, state: "load", timeout: 5000)
+      Frame.wait_for_load_state(frame_id, state: "domcontentloaded", timeout: 5000)
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type wait_for_load_state_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec wait_for_load_state(PlaywrightEx.guid(), [wait_for_load_state_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def wait_for_load_state(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    {state, _opts} = Keyword.pop!(opts, :state)
+
+    expression = """
+    (state) => {
+      if (state === 'load' || state === 'networkidle') return document.readyState === 'complete';
+      if (state === 'domcontentloaded') return document.readyState === 'interactive' || document.readyState === 'complete';
+      return false;
+    }
+    """
+
+    wait_for_function(frame_id,
+      connection: connection,
+      expression: expression,
+      is_function: true,
+      arg: state,
+      timeout: timeout
+    )
+  end
 end

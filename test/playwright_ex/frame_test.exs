@@ -291,6 +291,134 @@ defmodule PlaywrightEx.FrameTest do
     end
   end
 
+  describe "wait_for_url/2" do
+    test "waits for exact URL match after navigation", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      # Set up a delayed navigation via JS
+      eval(frame.guid, """
+      () => {
+        setTimeout(() => { window.location.href = 'about:blank#target'; }, 100);
+      }
+      """)
+
+      assert {:ok, _} = Frame.wait_for_url(frame.guid, url: "about:blank#target", timeout: @timeout)
+      {:ok, url} = eval(frame.guid, "() => window.location.href")
+      assert url == "about:blank#target"
+    end
+
+    test "resolves immediately if URL already matches", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, _} = Frame.wait_for_url(frame.guid, url: "about:blank", timeout: @timeout)
+    end
+
+    test "supports glob pattern with **", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      eval(frame.guid, """
+      () => {
+        setTimeout(() => { window.location.hash = '#/dashboard/settings'; }, 100);
+      }
+      """)
+
+      assert {:ok, _} = Frame.wait_for_url(frame.guid, url: "**settings", timeout: @timeout)
+    end
+
+    test "supports single * glob that does not cross path separators", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      eval(frame.guid, """
+      () => {
+        setTimeout(() => { window.location.hash = '#/users/42/profile'; }, 100);
+      }
+      """)
+
+      # * should match "42" (single segment) but not cross /
+      assert {:ok, _} =
+               Frame.wait_for_url(frame.guid, url: "about:blank#/users/*/profile", timeout: @timeout)
+    end
+
+    test "handles URLs with regex special characters", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      eval(frame.guid, """
+      () => {
+        setTimeout(() => { window.location.hash = '#/search?q=foo+bar&page=1'; }, 100);
+      }
+      """)
+
+      # Characters like ?, +, & should be treated as literals, not regex operators
+      assert {:ok, _} =
+               Frame.wait_for_url(frame.guid,
+                 url: "about:blank#/search?q=foo+bar&page=1",
+                 timeout: @timeout
+               )
+    end
+
+    test "returns error on timeout when URL never matches", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      # Short timeout to quickly verify error handling without slowing the suite
+      assert {:error, _} =
+               Frame.wait_for_url(frame.guid, url: "https://will-never-match.example", timeout: 500)
+    end
+  end
+
+  describe "wait_for_load_state/2" do
+    test "resolves when page is fully loaded", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, _} = Frame.wait_for_load_state(frame.guid, state: "load", timeout: @timeout)
+
+      {:ok, ready} = eval(frame.guid, "() => document.readyState")
+      assert ready == "complete"
+    end
+
+    test "resolves for domcontentloaded state", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, _} = Frame.wait_for_load_state(frame.guid, state: "domcontentloaded", timeout: @timeout)
+
+      {:ok, ready} = eval(frame.guid, "() => document.readyState")
+      assert ready in ["interactive", "complete"]
+    end
+
+    test "networkidle falls back to complete state", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, _} = Frame.wait_for_load_state(frame.guid, state: "networkidle", timeout: @timeout)
+
+      {:ok, ready} = eval(frame.guid, "() => document.readyState")
+      assert ready == "complete"
+    end
+
+    test "defaults to load state", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, _} = Frame.wait_for_load_state(frame.guid, timeout: @timeout)
+    end
+
+    test "actually waits for readyState transition", %{frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      # Override document.readyState to simulate a loading page, then
+      # transition to "complete" after a delay to prove waiting works.
+      eval(frame.guid, """
+      () => {
+        let fake = 'loading';
+        Object.defineProperty(document, 'readyState', {
+          get() { return fake; },
+          configurable: true
+        });
+        setTimeout(() => { fake = 'complete'; }, 200);
+      }
+      """)
+
+      assert {:ok, _} = Frame.wait_for_load_state(frame.guid, state: "load", timeout: @timeout)
+
+      # Restore real readyState by removing the override
+      eval(frame.guid, """
+      () => { delete document.readyState; }
+      """)
+    end
+  end
+
   describe "set_input_files" do
     test "can upload files", %{frame: frame} do
       {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
