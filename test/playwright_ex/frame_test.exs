@@ -97,203 +97,178 @@ defmodule PlaywrightEx.FrameTest do
     end
   end
 
-  describe "state queries" do
-    setup %{frame: frame} do
-      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+  describe "is_visible/2" do
+    test "returns true/false based on visibility", %{frame: frame} do
+      set_html(frame.guid, """
+      <div id="visible">Visible</div>
+      <div id="hidden" style="display:none">Hidden</div>
+      """)
 
-      {:ok, _} =
-        Frame.evaluate(frame.guid,
-          expression: """
-          () => {
-            document.body.innerHTML = `
-              <div id="visible">Visible</div>
-              <div id="hidden" style="display:none">Hidden</div>
-              <input id="checkbox" type="checkbox" checked />
-              <input id="unchecked" type="checkbox" />
-              <button id="disabled-btn" disabled>Disabled</button>
-              <button id="enabled-btn">Enabled</button>
-              <input id="editable" type="text" value="editable" />
-              <input id="readonly" type="text" readonly value="readonly" />
-            `;
-          }
-          """,
-          is_function: true,
-          timeout: @timeout
-        )
-
-      :ok
-    end
-
-    test "is_visible/2 returns true for visible element", %{frame: frame} do
       assert {:ok, true} = Frame.is_visible(frame.guid, selector: "#visible", timeout: @timeout)
-    end
-
-    test "is_visible/2 returns false for hidden element", %{frame: frame} do
       assert {:ok, false} = Frame.is_visible(frame.guid, selector: "#hidden", timeout: @timeout)
     end
+  end
 
-    test "is_checked/2 returns true for checked checkbox", %{frame: frame} do
-      assert {:ok, true} = Frame.is_checked(frame.guid, selector: "#checkbox", timeout: @timeout)
-    end
+  describe "is_checked/2" do
+    test "returns true/false based on checked state", %{frame: frame} do
+      set_html(frame.guid, """
+      <input id="checked" type="checkbox" checked />
+      <input id="unchecked" type="checkbox" />
+      """)
 
-    test "is_checked/2 returns false for unchecked checkbox", %{frame: frame} do
+      assert {:ok, true} = Frame.is_checked(frame.guid, selector: "#checked", timeout: @timeout)
       assert {:ok, false} = Frame.is_checked(frame.guid, selector: "#unchecked", timeout: @timeout)
     end
+  end
 
-    test "is_disabled/2 returns true for disabled element", %{frame: frame} do
-      assert {:ok, true} = Frame.is_disabled(frame.guid, selector: "#disabled-btn", timeout: @timeout)
+  describe "is_disabled/2" do
+    test "returns true/false based on disabled state", %{frame: frame} do
+      set_html(frame.guid, """
+      <button id="disabled" disabled>Disabled</button>
+      <button id="enabled">Enabled</button>
+      """)
+
+      assert {:ok, true} = Frame.is_disabled(frame.guid, selector: "#disabled", timeout: @timeout)
+      assert {:ok, false} = Frame.is_disabled(frame.guid, selector: "#enabled", timeout: @timeout)
     end
+  end
 
-    test "is_disabled/2 returns false for enabled element", %{frame: frame} do
-      assert {:ok, false} = Frame.is_disabled(frame.guid, selector: "#enabled-btn", timeout: @timeout)
+  describe "is_enabled/2" do
+    test "returns true/false based on enabled state", %{frame: frame} do
+      set_html(frame.guid, """
+      <button id="enabled">Enabled</button>
+      <button id="disabled" disabled>Disabled</button>
+      """)
+
+      assert {:ok, true} = Frame.is_enabled(frame.guid, selector: "#enabled", timeout: @timeout)
+      assert {:ok, false} = Frame.is_enabled(frame.guid, selector: "#disabled", timeout: @timeout)
     end
+  end
 
-    test "is_enabled/2 returns true for enabled element", %{frame: frame} do
-      assert {:ok, true} = Frame.is_enabled(frame.guid, selector: "#enabled-btn", timeout: @timeout)
-    end
+  describe "is_editable/2" do
+    test "returns true/false based on editable state", %{frame: frame} do
+      set_html(frame.guid, """
+      <input id="editable" type="text" />
+      <input id="readonly" type="text" readonly />
+      """)
 
-    test "is_enabled/2 returns false for disabled element", %{frame: frame} do
-      assert {:ok, false} = Frame.is_enabled(frame.guid, selector: "#disabled-btn", timeout: @timeout)
-    end
-
-    test "is_editable/2 returns true for editable input", %{frame: frame} do
       assert {:ok, true} = Frame.is_editable(frame.guid, selector: "#editable", timeout: @timeout)
-    end
-
-    test "is_editable/2 returns false for readonly input", %{frame: frame} do
       assert {:ok, false} = Frame.is_editable(frame.guid, selector: "#readonly", timeout: @timeout)
     end
   end
 
-  describe "value and attribute queries" do
+  describe "get_attribute/2" do
     setup %{frame: frame} do
-      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
-
-      {:ok, _} =
-        Frame.evaluate(frame.guid,
-          expression: """
-          () => {
-            document.body.innerHTML = `
-              <input id="text-input" type="text" value="hello" data-testid="input-1" />
-              <select id="my-select"><option value="a" selected>Option A</option></select>
-              <div id="text-div">Some text content</div>
-              <div id="inner-div"><span>Inner</span> text</div>
-            `;
-          }
-          """,
-          is_function: true,
-          timeout: @timeout
-        )
-
-      :ok
+      set_html(frame.guid, ~s(<input id="el" type="text" data-testid="input-1" />))
     end
 
-    test "get_attribute/2 returns attribute value", %{frame: frame} do
-      assert {:ok, "text"} = Frame.get_attribute(frame.guid, selector: "#text-input", name: "type", timeout: @timeout)
+    test "returns attribute value", %{frame: frame} do
+      assert {:ok, "text"} = Frame.get_attribute(frame.guid, selector: "#el", name: "type", timeout: @timeout)
+      assert {:ok, "input-1"} = Frame.get_attribute(frame.guid, selector: "#el", name: "data-testid", timeout: @timeout)
     end
 
-    test "get_attribute/2 returns data attribute", %{frame: frame} do
-      assert {:ok, "input-1"} =
-               Frame.get_attribute(frame.guid, selector: "#text-input", name: "data-testid", timeout: @timeout)
+    test "returns nil for missing attribute", %{frame: frame} do
+      assert {:ok, nil} = Frame.get_attribute(frame.guid, selector: "#el", name: "data-nonexistent", timeout: @timeout)
     end
+  end
 
-    test "get_attribute/2 returns nil for missing attribute", %{frame: frame} do
-      assert {:ok, nil} =
-               Frame.get_attribute(frame.guid, selector: "#text-input", name: "data-nonexistent", timeout: @timeout)
+  describe "input_value/2" do
+    test "returns value for input and select", %{frame: frame} do
+      set_html(frame.guid, """
+      <input id="input" type="text" value="hello" />
+      <select id="select"><option value="a" selected>A</option></select>
+      """)
+
+      assert {:ok, "hello"} = Frame.input_value(frame.guid, selector: "#input", timeout: @timeout)
+      assert {:ok, "a"} = Frame.input_value(frame.guid, selector: "#select", timeout: @timeout)
     end
+  end
 
-    test "input_value/2 returns input value", %{frame: frame} do
-      assert {:ok, "hello"} = Frame.input_value(frame.guid, selector: "#text-input", timeout: @timeout)
+  describe "text_content/2" do
+    test "returns text content", %{frame: frame} do
+      set_html(frame.guid, ~s(<div id="el">Some text content</div>))
+      assert {:ok, "Some text content"} = Frame.text_content(frame.guid, selector: "#el", timeout: @timeout)
     end
+  end
 
-    test "input_value/2 returns select value", %{frame: frame} do
-      assert {:ok, "a"} = Frame.input_value(frame.guid, selector: "#my-select", timeout: @timeout)
-    end
-
-    test "text_content/2 returns text content", %{frame: frame} do
-      assert {:ok, "Some text content"} = Frame.text_content(frame.guid, selector: "#text-div", timeout: @timeout)
-    end
-
-    test "inner_text/2 returns inner text", %{frame: frame} do
-      assert {:ok, text} = Frame.inner_text(frame.guid, selector: "#inner-div", timeout: @timeout)
+  describe "inner_text/2" do
+    test "returns inner text", %{frame: frame} do
+      set_html(frame.guid, ~s(<div id="el"><span>Inner</span> text</div>))
+      assert {:ok, text} = Frame.inner_text(frame.guid, selector: "#el", timeout: @timeout)
       assert text =~ "Inner"
     end
   end
 
-  describe "focus" do
-    test "focus/2 focuses an element", %{frame: frame} do
-      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
-
-      {:ok, _} =
-        Frame.evaluate(frame.guid,
-          expression: """
-          () => {
-            document.body.innerHTML = '<input id="my-input" type="text" />';
-          }
-          """,
-          is_function: true,
-          timeout: @timeout
-        )
-
+  describe "focus/2" do
+    test "focuses an element", %{frame: frame} do
+      set_html(frame.guid, ~s(<input id="my-input" type="text" />))
       assert {:ok, _} = Frame.focus(frame.guid, selector: "#my-input", timeout: @timeout)
-
-      {:ok, focused_id} =
-        Frame.evaluate(frame.guid,
-          expression: "() => document.activeElement.id",
-          is_function: true,
-          timeout: @timeout
-        )
-
-      assert focused_id == "my-input"
+      assert {:ok, "my-input"} = eval(frame.guid, "() => document.activeElement.id")
     end
   end
 
-  describe "dispatch_event" do
-    test "dispatch_event/2 dispatches a click event", %{frame: frame} do
-      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+  describe "dispatch_event/2" do
+    setup %{frame: frame} do
+      set_html(frame.guid, ~s(<div id="target">Click me</div>))
 
-      {:ok, _} =
-        Frame.evaluate(frame.guid,
-          expression: """
-          () => {
-            document.body.innerHTML = '<div id="target">Click me</div>';
-            window.__clicked = false;
-            document.getElementById('target').addEventListener('click', () => { window.__clicked = true; });
-          }
-          """,
-          is_function: true,
-          timeout: @timeout
-        )
+      eval(frame.guid, """
+      () => {
+        window.__clicked = false;
+        window.__detail = null;
+        document.getElementById('target').addEventListener('click', (e) => {
+          window.__clicked = true;
+          window.__detail = e.detail;
+        });
+      }
+      """)
+
+      :ok
+    end
+
+    test "dispatches a click event", %{frame: frame} do
+      assert {:ok, _} = Frame.dispatch_event(frame.guid, selector: "#target", type: "click", timeout: @timeout)
+      assert {:ok, true} = eval(frame.guid, "() => window.__clicked")
+    end
+
+    test "passes event_init properties", %{frame: frame} do
+      assert {:ok, _} =
+               Frame.dispatch_event(frame.guid,
+                 selector: "#target",
+                 type: "click",
+                 event_init: %{"detail" => 42},
+                 timeout: @timeout
+               )
+
+      assert {:ok, 42} = eval(frame.guid, "() => window.__detail")
+    end
+  end
+
+  describe "wait_for_selector/2" do
+    test "waits for hidden state, returns nil", %{frame: frame} do
+      set_html(frame.guid, ~s(<div id="el" style="display:none">Hidden</div>))
+
+      assert {:ok, nil} =
+               Frame.wait_for_selector(frame.guid, selector: "#el", state: "hidden", timeout: @timeout)
+    end
+
+    test "waits for attached state", %{frame: frame} do
+      set_html(frame.guid, ~s(<div id="el">Attached</div>))
 
       assert {:ok, _} =
-               Frame.dispatch_event(frame.guid, selector: "#target", type: "click", timeout: @timeout)
-
-      {:ok, clicked} =
-        Frame.evaluate(frame.guid,
-          expression: "() => window.__clicked",
-          is_function: true,
-          timeout: @timeout
-        )
-
-      assert clicked == true
+               Frame.wait_for_selector(frame.guid, selector: "#el", state: "attached", timeout: @timeout)
     end
   end
 
-  describe "wait_for_function" do
-    test "wait_for_function/2 resolves when expression becomes truthy", %{frame: frame} do
-      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+  describe "wait_for_function/2" do
+    test "resolves when expression becomes truthy", %{frame: frame} do
+      set_html(frame.guid, "")
 
-      {:ok, _} =
-        Frame.evaluate(frame.guid,
-          expression: """
-          () => {
-            window.__ready = false;
-            setTimeout(() => { window.__ready = true; }, 100);
-          }
-          """,
-          is_function: true,
-          timeout: @timeout
-        )
+      eval(frame.guid, """
+      () => {
+        window.__ready = false;
+        setTimeout(() => { window.__ready = true; }, 100);
+      }
+      """)
 
       assert {:ok, %{handle: %{guid: _}}} =
                Frame.wait_for_function(frame.guid,
@@ -303,15 +278,9 @@ defmodule PlaywrightEx.FrameTest do
                )
     end
 
-    test "wait_for_function/2 returns a handle for the expression value", %{frame: frame} do
-      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
-
-      {:ok, _} =
-        Frame.evaluate(frame.guid,
-          expression: "() => { window.__counter = 42; }",
-          is_function: true,
-          timeout: @timeout
-        )
+    test "returns a handle for the expression value", %{frame: frame} do
+      set_html(frame.guid, "")
+      eval(frame.guid, "() => { window.__counter = 42; }")
 
       assert {:ok, %{handle: %{guid: _}}} =
                Frame.wait_for_function(frame.guid,

@@ -328,7 +328,7 @@ defmodule PlaywrightEx.Frame do
 
     connection
     |> Connection.send(%{guid: frame_id, method: :wait_for_selector, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap(& &1.element)
+    |> ChannelResponse.unwrap(&Map.get(&1, :element))
   end
 
   schema =
