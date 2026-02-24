@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `PlaywrightEx.Frame.wait_for_selector/2`: `state` and `strict` options. #22, [@oliver-kriska]
 ### Fixed
 - `PlaywrightEx.Frame.wait_for_selector/2`: crash when `state` is `"hidden"` or `"detached"` (result has no element). #22
+- `PlaywrightEx.BrowserContext.add_init_script/2` and `PlaywrightEx.Page.add_init_script/2`: use `source` parameter name required by Playwright protocol (instead of `content`).
 
 ## [0.4.0] 2026-02-09
 ### Added
