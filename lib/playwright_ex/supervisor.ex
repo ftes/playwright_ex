@@ -24,8 +24,8 @@ defmodule PlaywrightEx.Supervisor do
   use Supervisor
 
   alias PlaywrightEx.Connection
-  alias PlaywrightEx.FrameEventRecorder
   alias PlaywrightEx.PortTransport
+  alias PlaywrightEx.Resource
   alias PlaywrightEx.WebSocketTransport
 
   @doc """
@@ -53,27 +53,27 @@ defmodule PlaywrightEx.Supervisor do
   def init(config) do
     connection_name = connection_name(config.name)
     pg_scope = pg_scope_name(config.name)
-    frame_event_recorder_registry = FrameEventRecorder.registry_name(connection_name)
-    frame_event_recorder_supervisor = FrameEventRecorder.supervisor_name(connection_name)
     {transport_child, transport} = transport_child_spec(config, connection_name)
     pg_child = %{id: pg_scope, start: {:pg, :start_link, [pg_scope]}}
 
-    children = [
-      transport_child,
-      pg_child,
-      {Registry, keys: :unique, name: frame_event_recorder_registry},
-      {DynamicSupervisor, strategy: :one_for_one, name: frame_event_recorder_supervisor},
-      {Connection,
-       [
-         [
-           name: connection_name,
-           timeout: config.timeout,
-           js_logger: config.js_logger,
-           transport: transport,
-           pg_scope: pg_scope
-         ]
-       ]}
-    ]
+    children =
+      [
+        transport_child,
+        pg_child
+        | Resource.children(connection_name)
+      ] ++
+        [
+          {Connection,
+           [
+             [
+               name: connection_name,
+               timeout: config.timeout,
+               js_logger: config.js_logger,
+               transport: transport,
+               pg_scope: pg_scope
+             ]
+           ]}
+        ]
 
     Supervisor.init(children, strategy: :rest_for_one)
   end

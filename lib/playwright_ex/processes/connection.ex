@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Connection do
 
   import Kernel, except: [send: 2]
 
-  alias PlaywrightEx.FrameEventRecorder
+  alias PlaywrightEx.Resource
 
   @timeout_grace_factor 1.5
   @min_genserver_timeout to_timeout(second: 1)
@@ -41,11 +41,21 @@ defmodule PlaywrightEx.Connection do
     :gen_statem.cast(name, {:subscribe, pid, guid})
   end
 
+  @doc false
+  def subscribe_sync(name, pid \\ self(), guid) do
+    :gen_statem.call(name, {:subscribe, pid, guid})
+  end
+
   @doc """
   Unsubscribe from messages for a guid.
   """
   def unsubscribe(name, pid \\ self(), guid) do
     :gen_statem.cast(name, {:unsubscribe, pid, guid})
+  end
+
+  @doc false
+  def unsubscribe_sync(name, pid \\ self(), guid) do
+    :gen_statem.call(name, {:unsubscribe, pid, guid})
   end
 
   @doc false
@@ -83,6 +93,11 @@ defmodule PlaywrightEx.Connection do
     :gen_statem.call(name, :remote?)
   end
 
+  @doc false
+  def pg_scope(name) do
+    :gen_statem.call(name, :pg_scope)
+  end
+
   # Internal
 
   @impl :gen_statem
@@ -108,7 +123,7 @@ defmodule PlaywrightEx.Connection do
 
   @doc false
   def pending(:cast, {:playwright_msg, %{method: :__create__, params: %{guid: "Playwright"}} = msg}, data) do
-    {:next_state, :started, handle_create(data, msg)}
+    {:next_state, :started, cache_initializer(data, msg)}
   end
 
   def pending(:cast, _msg, _data), do: {:keep_state_and_data, [:postpone]}
@@ -129,20 +144,27 @@ defmodule PlaywrightEx.Connection do
     {:keep_state_and_data, [{:reply, from, transport_module != PlaywrightEx.PortTransport}]}
   end
 
+  def started({:call, from}, :pg_scope, data) do
+    {:keep_state_and_data, [{:reply, from, data.config.pg_scope}]}
+  end
+
+  def started({:call, from}, {:subscribe, recipient, guid}, data) do
+    join_subscriber(data, recipient, guid)
+    {:keep_state_and_data, [{:reply, from, :ok}]}
+  end
+
+  def started({:call, from}, {:unsubscribe, recipient, guid}, data) do
+    leave_subscriber(data, recipient, guid)
+    {:keep_state_and_data, [{:reply, from, :ok}]}
+  end
+
   def started(:cast, {:subscribe, recipient, guid}, data) do
-    group = pg_group(guid)
-
-    if recipient in :pg.get_members(data.config.pg_scope, group) do
-      :ok
-    else
-      :ok = :pg.join(data.config.pg_scope, group, recipient)
-    end
-
+    join_subscriber(data, recipient, guid)
     :keep_state_and_data
   end
 
   def started(:cast, {:unsubscribe, recipient, guid}, data) do
-    _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
+    leave_subscriber(data, recipient, guid)
     :keep_state_and_data
   end
 
@@ -151,7 +173,7 @@ defmodule PlaywrightEx.Connection do
       module.log(:error, msg.params.error, msg)
     end
 
-    :keep_state_and_data
+    {:keep_state, notify_subscribers(data, msg)}
   end
 
   def started(:cast, {:playwright_msg, %{method: :console} = msg}, data) do
@@ -160,7 +182,7 @@ defmodule PlaywrightEx.Connection do
       module.log(level, msg.params.text, msg)
     end
 
-    :keep_state_and_data
+    {:keep_state, notify_subscribers(data, msg)}
   end
 
   def started(:cast, {:playwright_msg, msg}, data) when is_map_key(data.pending_response, msg.id) do
@@ -171,38 +193,29 @@ defmodule PlaywrightEx.Connection do
   end
 
   def started(:cast, {:playwright_msg, msg}, data) do
-    {:keep_state,
-     data |> handle_create(msg) |> maybe_start_frame_event_recorder(msg) |> notify_subscribers(msg) |> handle_dispose(msg)}
+    data = cache_initializer(data, msg)
+    resource_context = %{connection: data.config.name, pg_scope: data.config.pg_scope}
+    Enum.each(Resource.modules(), & &1.maybe_start(resource_context, msg))
+    data = notify_subscribers(data, msg)
+
+    {:keep_state, release_disposed_guid(data, msg)}
   end
 
-  defp handle_create(data, %{method: :__create__} = msg) do
+  defp cache_initializer(data, %{method: :__create__} = msg) do
     put_in(data.initializers[msg.params.guid], msg.params.initializer)
   end
 
-  defp handle_create(data, _msg), do: data
+  defp cache_initializer(data, _msg), do: data
 
-  defp maybe_start_frame_event_recorder(data, %{
-         method: :__create__,
-         params: %{guid: guid, initializer: %{url: _url, load_states: _load_states} = initializer}
-       }) do
-    _ = FrameEventRecorder.ensure_started(data.config.name, guid, initializer)
-    data
-  end
+  defp release_disposed_guid(data, %{method: :__dispose__} = msg) do
+    Enum.each(Resource.modules(), & &1.maybe_stop(data.config.name, msg.guid))
 
-  defp maybe_start_frame_event_recorder(data, %{method: :__create__}) do
-    data
-  end
-
-  defp maybe_start_frame_event_recorder(data, _msg), do: data
-
-  defp handle_dispose(data, %{method: :__dispose__} = msg) do
     data
     |> Map.update!(:initializers, &Map.delete(&1, msg.guid))
-    |> stop_disposed_frame_event_recorder(msg.guid)
     |> clear_disposed_guid_subscribers(msg.guid)
   end
 
-  defp handle_dispose(data, _msg), do: data
+  defp release_disposed_guid(data, _msg), do: data
 
   defp notify_subscribers(data, %{guid: guid} = msg) do
     for pid <- :pg.get_members(data.config.pg_scope, pg_group(guid)) do
@@ -226,9 +239,18 @@ defmodule PlaywrightEx.Connection do
     data
   end
 
-  defp stop_disposed_frame_event_recorder(data, guid) do
-    _ = FrameEventRecorder.terminate_frame(data.config.name, guid)
-    data
+  defp join_subscriber(data, recipient, guid) do
+    group = pg_group(guid)
+
+    if recipient in :pg.get_members(data.config.pg_scope, group) do
+      :ok
+    else
+      :ok = :pg.join(data.config.pg_scope, group, recipient)
+    end
+  end
+
+  defp leave_subscriber(data, recipient, guid) do
+    _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
   end
 
   defp log_level_from_js("error"), do: :error
