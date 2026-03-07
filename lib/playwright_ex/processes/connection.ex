@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Connection do
 
   import Kernel, except: [send: 2]
 
-  alias PlaywrightEx.Resource.Frame, as: FrameResource
+  alias PlaywrightEx.Resource
 
   @timeout_grace_factor 1.5
   @min_genserver_timeout to_timeout(second: 1)
@@ -41,11 +41,21 @@ defmodule PlaywrightEx.Connection do
     :gen_statem.cast(name, {:subscribe, pid, guid})
   end
 
+  @doc false
+  def subscribe_sync(name, pid \\ self(), guid) do
+    :gen_statem.call(name, {:subscribe, pid, guid})
+  end
+
   @doc """
   Unsubscribe from messages for a guid.
   """
   def unsubscribe(name, pid \\ self(), guid) do
     :gen_statem.cast(name, {:unsubscribe, pid, guid})
+  end
+
+  @doc false
+  def unsubscribe_sync(name, pid \\ self(), guid) do
+    :gen_statem.call(name, {:unsubscribe, pid, guid})
   end
 
   @doc false
@@ -81,6 +91,11 @@ defmodule PlaywrightEx.Connection do
   """
   def remote?(name) do
     :gen_statem.call(name, :remote?)
+  end
+
+  @doc false
+  def pg_scope(name) do
+    :gen_statem.call(name, :pg_scope)
   end
 
   # Internal
@@ -129,20 +144,27 @@ defmodule PlaywrightEx.Connection do
     {:keep_state_and_data, [{:reply, from, transport_module != PlaywrightEx.PortTransport}]}
   end
 
+  def started({:call, from}, :pg_scope, data) do
+    {:keep_state_and_data, [{:reply, from, data.config.pg_scope}]}
+  end
+
+  def started({:call, from}, {:subscribe, recipient, guid}, data) do
+    join_subscriber(data, recipient, guid)
+    {:keep_state_and_data, [{:reply, from, :ok}]}
+  end
+
+  def started({:call, from}, {:unsubscribe, recipient, guid}, data) do
+    leave_subscriber(data, recipient, guid)
+    {:keep_state_and_data, [{:reply, from, :ok}]}
+  end
+
   def started(:cast, {:subscribe, recipient, guid}, data) do
-    group = pg_group(guid)
-
-    if recipient in :pg.get_members(data.config.pg_scope, group) do
-      :ok
-    else
-      :ok = :pg.join(data.config.pg_scope, group, recipient)
-    end
-
+    join_subscriber(data, recipient, guid)
     :keep_state_and_data
   end
 
   def started(:cast, {:unsubscribe, recipient, guid}, data) do
-    _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
+    leave_subscriber(data, recipient, guid)
     :keep_state_and_data
   end
 
@@ -151,7 +173,7 @@ defmodule PlaywrightEx.Connection do
       module.log(:error, msg.params.error, msg)
     end
 
-    :keep_state_and_data
+    {:keep_state, notify_subscribers(data, msg)}
   end
 
   def started(:cast, {:playwright_msg, %{method: :console} = msg}, data) do
@@ -160,7 +182,7 @@ defmodule PlaywrightEx.Connection do
       module.log(level, msg.params.text, msg)
     end
 
-    :keep_state_and_data
+    {:keep_state, notify_subscribers(data, msg)}
   end
 
   def started(:cast, {:playwright_msg, msg}, data) when is_map_key(data.pending_response, msg.id) do
@@ -172,7 +194,8 @@ defmodule PlaywrightEx.Connection do
 
   def started(:cast, {:playwright_msg, msg}, data) do
     data = cache_initializer(data, msg)
-    _ = FrameResource.maybe_start(data.config.name, msg)
+    resource_context = %{connection: data.config.name, pg_scope: data.config.pg_scope}
+    Enum.each(Resource.modules(), & &1.maybe_start(resource_context, msg))
     data = notify_subscribers(data, msg)
 
     {:keep_state, release_disposed_guid(data, msg)}
@@ -185,7 +208,7 @@ defmodule PlaywrightEx.Connection do
   defp cache_initializer(data, _msg), do: data
 
   defp release_disposed_guid(data, %{method: :__dispose__} = msg) do
-    _ = FrameResource.maybe_stop(data.config.name, msg.guid)
+    Enum.each(Resource.modules(), & &1.maybe_stop(data.config.name, msg.guid))
 
     data
     |> Map.update!(:initializers, &Map.delete(&1, msg.guid))
@@ -214,6 +237,20 @@ defmodule PlaywrightEx.Connection do
     end
 
     data
+  end
+
+  defp join_subscriber(data, recipient, guid) do
+    group = pg_group(guid)
+
+    if recipient in :pg.get_members(data.config.pg_scope, group) do
+      :ok
+    else
+      :ok = :pg.join(data.config.pg_scope, group, recipient)
+    end
+  end
+
+  defp leave_subscriber(data, recipient, guid) do
+    _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
   end
 
   defp log_level_from_js("error"), do: :error

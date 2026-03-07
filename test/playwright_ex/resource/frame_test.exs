@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Resource.FrameTest do
 
   alias PlaywrightEx.Connection
   alias PlaywrightEx.Resource.Frame
+  alias PlaywrightEx.Resource.Page
 
   defmodule DummyTransport do
     @moduledoc false
@@ -102,6 +103,26 @@ defmodule PlaywrightEx.Resource.FrameTest do
     assert {:error, %{message: "Navigation failed because page was closed!"}} = Task.await(task, 1_000)
   end
 
+  test "info and events expose generic resource state" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame_id,
+      method: :navigated,
+      params: %{url: "about:blank#event"}
+    })
+
+    assert_eventually(fn ->
+      match?(
+        %{id: ^frame_id, status: :open, page_id: "page-1", url: "about:blank#event"},
+        Frame.info(connection, frame_id)
+      )
+    end)
+
+    assert [%{method: :__create__}, %{method: :navigated}] = Frame.events(connection, frame_id, 10)
+    assert %{} = Frame.child_resources(connection, frame_id)
+  end
+
   defp start_connection_with_frame! do
     connection = String.to_atom("frame_resource_connection_#{System.unique_integer([:positive])}")
     scope = String.to_atom("frame_resource_scope_#{System.unique_integer([:positive])}")
@@ -109,6 +130,8 @@ defmodule PlaywrightEx.Resource.FrameTest do
     page_id = "page-1"
 
     {:ok, _} = :pg.start_link(scope)
+    {:ok, _} = Registry.start_link(keys: :unique, name: Page.registry_name(connection))
+    {:ok, _} = DynamicSupervisor.start_link(strategy: :one_for_one, name: Page.supervisor_name(connection))
     {:ok, _} = Registry.start_link(keys: :unique, name: Frame.registry_name(connection))
     {:ok, _} = DynamicSupervisor.start_link(strategy: :one_for_one, name: Frame.supervisor_name(connection))
 
