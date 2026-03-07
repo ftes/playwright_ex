@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.FrameWaiter do
+defmodule PlaywrightEx.Resource.Frame.Waiter do
   @moduledoc false
 
   @type url_matcher :: (String.t() -> boolean())

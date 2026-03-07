@@ -1,9 +1,9 @@
-defmodule PlaywrightEx.FrameEventRecorder do
+defmodule PlaywrightEx.Resource.Frame do
   @moduledoc false
   use GenServer
 
   alias PlaywrightEx.Connection
-  alias PlaywrightEx.FrameWaiter
+  alias PlaywrightEx.Resource.Frame.Waiter
 
   @waiter_grace_ms 100
   @frame_detached_error "Navigating frame was detached!"
@@ -21,19 +21,19 @@ defmodule PlaywrightEx.FrameEventRecorder do
   @typep url_matcher :: (String.t() -> boolean())
   @typep initializer :: map()
 
-  @spec wait_for_load_state(atom(), PlaywrightEx.guid(), wait_state(), timeout()) ::
+  @spec await_load_state(atom(), PlaywrightEx.guid(), wait_state(), timeout()) ::
           {:ok, nil} | {:error, map()}
-  def wait_for_load_state(connection, frame_id, wait_state, timeout) do
+  def await_load_state(connection, frame_id, wait_state, timeout) do
     with {:ok, pid} <- ensure_started(connection, frame_id) do
-      call_waiter(pid, {:wait_for_load_state, wait_state, timeout}, timeout)
+      call_waiter(pid, {:await_load_state, wait_state, timeout}, timeout)
     end
   end
 
-  @spec wait_for_url(atom(), PlaywrightEx.guid(), url_matcher(), wait_state(), timeout()) ::
+  @spec await_url(atom(), PlaywrightEx.guid(), url_matcher(), wait_state(), timeout()) ::
           {:ok, nil} | {:error, map()}
-  def wait_for_url(connection, frame_id, url_matcher, wait_state, timeout) do
+  def await_url(connection, frame_id, url_matcher, wait_state, timeout) do
     with {:ok, pid} <- ensure_started(connection, frame_id) do
-      call_waiter(pid, {:wait_for_url, url_matcher, wait_state, timeout}, timeout)
+      call_waiter(pid, {:await_url, url_matcher, wait_state, timeout}, timeout)
     end
   end
 
@@ -44,15 +44,36 @@ defmodule PlaywrightEx.FrameEventRecorder do
         {:ok, pid}
 
       :not_found ->
-        start_recorder(connection, frame_id, initializer)
+        start_resource(connection, frame_id, initializer)
     end
   end
 
+  @spec maybe_start(atom(), map()) :: :ok
+  def maybe_start(connection, %{
+        method: :__create__,
+        params: %{guid: guid, initializer: %{url: _url, load_states: _load_states} = initializer}
+      }) do
+    _ = ensure_started(connection, guid, initializer)
+    :ok
+  end
+
+  def maybe_start(_connection, _msg), do: :ok
+
+  @spec maybe_stop(atom(), PlaywrightEx.guid()) :: :ok
+  def maybe_stop(connection, frame_id) do
+    case lookup(connection, frame_id) do
+      {:ok, pid} -> Process.exit(pid, :normal)
+      :not_found -> :ok
+    end
+
+    :ok
+  end
+
   @spec registry_name(atom()) :: atom()
-  def registry_name(connection), do: Module.concat(connection, "FrameEventRecorderRegistry")
+  def registry_name(connection), do: Module.concat(connection, "FrameResourceRegistry")
 
   @spec supervisor_name(atom()) :: atom()
-  def supervisor_name(connection), do: Module.concat(connection, "FrameEventRecorderSupervisor")
+  def supervisor_name(connection), do: Module.concat(connection, "FrameResourceSupervisor")
 
   def child_spec(%{connection: connection, frame_id: frame_id} = opts) do
     %{
@@ -80,24 +101,31 @@ defmodule PlaywrightEx.FrameEventRecorder do
       frame_id: frame_id,
       page_id: page_id,
       url: frame_initializer[:url] || "",
-      load_states: FrameWaiter.normalize_load_states(frame_initializer[:load_states])
+      load_states: Waiter.normalize_load_states(frame_initializer[:load_states])
     }
 
     {:ok, state}
   end
 
   @impl true
-  def handle_call({:wait_for_load_state, wait_state, timeout}, from, state) do
-    add_waiter(state, from, FrameWaiter.new_load_state_waiter(wait_state), timeout)
+  def terminate(_reason, state) do
+    Connection.unsubscribe(state.connection, self(), state.frame_id)
+    maybe_unsubscribe_page(state.connection, state.page_id)
+    :ok
   end
 
-  def handle_call({:wait_for_url, url_matcher, wait_state, timeout}, from, state) do
-    add_waiter(state, from, FrameWaiter.new_url_waiter(url_matcher, wait_state), timeout)
+  @impl true
+  def handle_call({:await_load_state, wait_state, timeout}, from, state) do
+    add_waiter(state, from, Waiter.new_load_state_waiter(wait_state), timeout)
+  end
+
+  def handle_call({:await_url, url_matcher, wait_state, timeout}, from, state) do
+    add_waiter(state, from, Waiter.new_url_waiter(url_matcher, wait_state), timeout)
   end
 
   @impl true
   def handle_info({:playwright_msg, %{guid: frame_id, method: :loadstate, params: params}}, %{frame_id: frame_id} = state) do
-    state = %{state | load_states: FrameWaiter.update_load_states(state.load_states, params)}
+    state = %{state | load_states: Waiter.update_load_states(state.load_states, params)}
     {:noreply, process_waiters(state)}
   end
 
@@ -165,29 +193,18 @@ defmodule PlaywrightEx.FrameEventRecorder do
     ArgumentError -> :not_found
   end
 
-  @spec terminate_frame(atom(), PlaywrightEx.guid()) :: :ok
-  def terminate_frame(connection, frame_id) do
-    case lookup(connection, frame_id) do
-      {:ok, pid} -> Process.exit(pid, :normal)
-      :not_found -> :ok
-    end
-
-    :ok
-  end
-
-  defp start_recorder(connection, frame_id, initializer) do
+  defp start_resource(connection, frame_id, initializer) do
     child_opts = maybe_put_initializer(%{connection: connection, frame_id: frame_id}, initializer)
-
     child_spec = {__MODULE__, child_opts}
 
     case DynamicSupervisor.start_child(supervisor_name(connection), child_spec) do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:ok, pid}
-      {:error, reason} -> {:error, %{message: "Failed to start frame event recorder: #{inspect(reason)}"}}
+      {:error, reason} -> {:error, %{message: "Failed to start frame resource: #{inspect(reason)}"}}
     end
   catch
     :exit, reason ->
-      {:error, %{message: "Failed to start frame event recorder: #{Exception.format_exit(reason)}"}}
+      {:error, %{message: "Failed to start frame resource: #{Exception.format_exit(reason)}"}}
   end
 
   defp call_waiter(pid, request, timeout) do
@@ -224,7 +241,7 @@ defmodule PlaywrightEx.FrameEventRecorder do
   defp classify_call_waiter_exit_reason(reason), do: {nil, Exception.format_exit(reason)}
 
   defp add_waiter(state, from, waiter, timeout) do
-    case FrameWaiter.evaluate(waiter, %{url: state.url, load_states: state.load_states}) do
+    case Waiter.evaluate(waiter, %{url: state.url, load_states: state.load_states}) do
       {:done, reply} ->
         {:reply, reply, state}
 
@@ -244,7 +261,7 @@ defmodule PlaywrightEx.FrameEventRecorder do
 
     {waiters, replies} =
       Enum.reduce(state.waiters, {%{}, []}, fn {waiter_ref, waiter_entry}, {acc_waiters, acc_replies} ->
-        case FrameWaiter.evaluate(waiter_entry.waiter, frame_state) do
+        case Waiter.evaluate(waiter_entry.waiter, frame_state) do
           {:done, reply} ->
             {acc_waiters, [{waiter_entry, reply} | acc_replies]}
 
@@ -287,6 +304,12 @@ defmodule PlaywrightEx.FrameEventRecorder do
 
   defp maybe_subscribe_page(connection, page_id) do
     Connection.subscribe(connection, self(), page_id)
+  end
+
+  defp maybe_unsubscribe_page(_connection, nil), do: :ok
+
+  defp maybe_unsubscribe_page(connection, page_id) do
+    Connection.unsubscribe(connection, self(), page_id)
   end
 
   defp url_waiter?({:url, _url_matcher, _wait_state, _phase}), do: true

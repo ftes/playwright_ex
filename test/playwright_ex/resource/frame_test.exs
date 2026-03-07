@@ -1,8 +1,8 @@
-defmodule PlaywrightEx.FrameEventRecorderTest do
+defmodule PlaywrightEx.Resource.FrameTest do
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.Connection
-  alias PlaywrightEx.FrameEventRecorder
+  alias PlaywrightEx.Resource.Frame
 
   defmodule DummyTransport do
     @moduledoc false
@@ -12,27 +12,27 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
     def post(_name, _msg), do: :ok
   end
 
-  test "starts one recorder per {connection, frame}" do
+  test "starts one resource per {connection, frame}" do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
 
     assert_eventually(fn ->
       match?(
         [{_pid, _}],
-        Registry.lookup(FrameEventRecorder.registry_name(connection), frame_id)
+        Registry.lookup(Frame.registry_name(connection), frame_id)
       )
     end)
 
-    assert {:ok, pid1} = FrameEventRecorder.ensure_started(connection, frame_id)
-    assert {:ok, pid2} = FrameEventRecorder.ensure_started(connection, frame_id)
+    assert {:ok, pid1} = Frame.ensure_started(connection, frame_id)
+    assert {:ok, pid2} = Frame.ensure_started(connection, frame_id)
     assert pid1 == pid2
   end
 
-  test "wait_for_url waits for navigated + loadstate events" do
+  test "await_url waits for navigated + loadstate events" do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
 
     task =
       Task.async(fn ->
-        FrameEventRecorder.wait_for_url(
+        Frame.await_url(
           connection,
           frame_id,
           &(&1 == "about:blank#done"),
@@ -50,15 +50,15 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
 
   test "waiters fail when frame is disposed" do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
-    recorder = recorder_pid!(connection, frame_id)
+    frame_resource = frame_resource_pid!(connection, frame_id)
 
     task =
       Task.async(fn ->
-        FrameEventRecorder.wait_for_url(connection, frame_id, &(&1 == "about:blank#never"), "load", 500)
+        Frame.await_url(connection, frame_id, &(&1 == "about:blank#never"), "load", 500)
       end)
 
     assert_eventually(fn ->
-      map_size(:sys.get_state(recorder).waiters) == 1
+      map_size(:sys.get_state(frame_resource).waiters) == 1
     end)
 
     Connection.handle_playwright_msg(connection, %{method: :__dispose__, guid: frame_id})
@@ -68,15 +68,15 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
 
   test "waiters fail fast when page crashes" do
     %{connection: connection, frame_id: frame_id, page_id: page_id} = start_connection_with_frame!()
-    recorder = recorder_pid!(connection, frame_id)
+    frame_resource = frame_resource_pid!(connection, frame_id)
 
     task =
       Task.async(fn ->
-        FrameEventRecorder.wait_for_url(connection, frame_id, &(&1 == "about:blank#never"), "load", 500)
+        Frame.await_url(connection, frame_id, &(&1 == "about:blank#never"), "load", 500)
       end)
 
     assert_eventually(fn ->
-      map_size(:sys.get_state(recorder).waiters) == 1
+      map_size(:sys.get_state(frame_resource).waiters) == 1
     end)
 
     Connection.handle_playwright_msg(connection, %{guid: page_id, method: :crash, params: %{}})
@@ -86,15 +86,15 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
 
   test "waiters fail fast when page is closed" do
     %{connection: connection, frame_id: frame_id, page_id: page_id} = start_connection_with_frame!()
-    recorder = recorder_pid!(connection, frame_id)
+    frame_resource = frame_resource_pid!(connection, frame_id)
 
     task =
       Task.async(fn ->
-        FrameEventRecorder.wait_for_url(connection, frame_id, &(&1 == "about:blank#never"), "load", 500)
+        Frame.await_url(connection, frame_id, &(&1 == "about:blank#never"), "load", 500)
       end)
 
     assert_eventually(fn ->
-      map_size(:sys.get_state(recorder).waiters) == 1
+      map_size(:sys.get_state(frame_resource).waiters) == 1
     end)
 
     Connection.handle_playwright_msg(connection, %{method: :__dispose__, guid: page_id})
@@ -103,19 +103,14 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
   end
 
   defp start_connection_with_frame! do
-    connection = String.to_atom("recorder_connection_#{System.unique_integer([:positive])}")
-    scope = String.to_atom("recorder_scope_#{System.unique_integer([:positive])}")
+    connection = String.to_atom("frame_resource_connection_#{System.unique_integer([:positive])}")
+    scope = String.to_atom("frame_resource_scope_#{System.unique_integer([:positive])}")
     frame_id = "frame-1"
     page_id = "page-1"
 
     {:ok, _} = :pg.start_link(scope)
-    {:ok, _} = Registry.start_link(keys: :unique, name: FrameEventRecorder.registry_name(connection))
-
-    {:ok, _} =
-      DynamicSupervisor.start_link(
-        strategy: :one_for_one,
-        name: FrameEventRecorder.supervisor_name(connection)
-      )
+    {:ok, _} = Registry.start_link(keys: :unique, name: Frame.registry_name(connection))
+    {:ok, _} = DynamicSupervisor.start_link(strategy: :one_for_one, name: Frame.supervisor_name(connection))
 
     {:ok, _pid} =
       Connection.start_link(
@@ -161,8 +156,8 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
     :exit, _reason -> :error
   end
 
-  defp recorder_pid!(connection, frame_id) do
-    [{pid, _}] = Registry.lookup(FrameEventRecorder.registry_name(connection), frame_id)
+  defp frame_resource_pid!(connection, frame_id) do
+    [{pid, _}] = Registry.lookup(Frame.registry_name(connection), frame_id)
     pid
   end
 

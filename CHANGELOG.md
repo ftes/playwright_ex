@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `PlaywrightEx.Frame.wait_for_selector/2`: `state` and `strict` options. #22, [@oliver-kriska]
 - `PlaywrightEx.unsubscribe/2` and connection-level unsubscribe support.
 - `PlaywrightEx.Frame.wait_for_load_state/2` and `PlaywrightEx.Frame.wait_for_url/2` with event-based navigation waiting.
-- Per-frame event recorder process to keep waiter subscriptions continuous across waits.
+- Per-frame resource process to keep navigation state and waiter subscriptions continuous across waits.
 - `PlaywrightEx.Page.expect_url/2` for explicit URL expectations on pages.
 - Regex support in argument serialization/deserialization using protocol-native `{r: %{p, f}}` values.
 - `PlaywrightEx.Page.reload/2` to reload current page.

@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Frame do
 
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
-  alias PlaywrightEx.FrameEventRecorder
+  alias PlaywrightEx.Resource.Frame, as: FrameResource
   alias PlaywrightEx.Serialization
 
   schema =
@@ -1244,7 +1244,7 @@ defmodule PlaywrightEx.Frame do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
     wait_state = opts |> Keyword.fetch!(:state) |> normalize_wait_state()
 
-    FrameEventRecorder.wait_for_load_state(connection, frame_id, wait_state, timeout)
+    FrameResource.await_load_state(connection, frame_id, wait_state, timeout)
   end
 
   schema =
@@ -1291,7 +1291,7 @@ defmodule PlaywrightEx.Frame do
     wait_state = opts |> Keyword.fetch!(:wait_until) |> normalize_wait_state()
     url_matcher = opts |> Keyword.fetch!(:url) |> build_url_matcher()
 
-    FrameEventRecorder.wait_for_url(connection, frame_id, url_matcher, wait_state, timeout)
+    FrameResource.await_url(connection, frame_id, url_matcher, wait_state, timeout)
   end
 
   defp normalize_wait_state(state) when is_atom(state), do: normalize_wait_state(Atom.to_string(state))
