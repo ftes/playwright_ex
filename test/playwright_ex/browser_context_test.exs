@@ -18,4 +18,17 @@ defmodule PlaywrightEx.BrowserContextTest do
       assert {:ok, "ok"} = eval(page.main_frame.guid, "() => window.__browser_context_add_init_script")
     end
   end
+
+  describe "clock_fast_forward/2" do
+    test "advances Date.now after installing the clock", %{browser_context: browser_context, frame: frame} do
+      assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, before_now} = eval(frame.guid, "() => Date.now()")
+
+      assert {:ok, _} = BrowserContext.clock_install(browser_context.guid, timeout: @timeout)
+      assert {:ok, _} = BrowserContext.clock_fast_forward(browser_context.guid, ticks: 60_001, timeout: @timeout)
+
+      assert {:ok, after_now} = eval(frame.guid, "() => Date.now()")
+      assert after_now >= before_now + 60_001
+    end
+  end
 end
