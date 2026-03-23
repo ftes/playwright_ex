@@ -1,8 +1,21 @@
 defmodule PlaywrightEx.PageTest do
   use PlaywrightExCase, async: true
 
+  alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
+
+  describe "bring_to_front/2" do
+    test "activates pages without protocol errors", %{browser_context: browser_context, page: page} do
+      {:ok, second_page} = BrowserContext.new_page(browser_context.guid, timeout: @timeout)
+
+      assert {:ok, _} = Frame.goto(page.main_frame.guid, url: "about:blank", timeout: @timeout)
+      assert {:ok, _} = Frame.goto(second_page.main_frame.guid, url: "about:blank", timeout: @timeout)
+
+      assert {:ok, _} = Page.bring_to_front(page.guid, timeout: @timeout)
+      assert {:ok, _} = Page.bring_to_front(second_page.guid, timeout: @timeout)
+    end
+  end
 
   describe "add_init_script/2" do
     test "applies script on navigation", %{page: page, frame: frame} do

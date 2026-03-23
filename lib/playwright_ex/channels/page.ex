@@ -77,6 +77,35 @@ defmodule PlaywrightEx.Page do
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
+
+  @doc """
+  Brings page to front (activates tab).
+
+  Reference: https://playwright.dev/docs/api/class-page#page-bring-to-front
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type bring_to_front_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec bring_to_front(PlaywrightEx.guid(), [bring_to_front_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def bring_to_front(page_id, opts \\ []) do
+    {connection, opts} =
+      opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: page_id, method: :bring_to_front, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       full_page: [
         type: :boolean,

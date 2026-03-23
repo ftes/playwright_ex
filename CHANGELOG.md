@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `PlaywrightEx.Page.expect_url/2` for explicit URL expectations on pages.
 - Regex support in argument serialization/deserialization using protocol-native `{r: %{p, f}}` values.
 - `PlaywrightEx.Page.reload/2` to reload current page.
+- `PlaywrightEx.Page.bring_to_front/2` to activate a page tab. #29
 ### Fixed
 - `PlaywrightEx.Frame.wait_for_selector/2`: crash when `state` is `"hidden"` or `"detached"` (result has no element). #22
 - `PlaywrightEx.BrowserContext.add_init_script/2` and `PlaywrightEx.Page.add_init_script/2`: use `source` parameter name required by Playwright protocol (instead of `content`).
