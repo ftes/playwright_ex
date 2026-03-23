@@ -267,16 +267,17 @@ defmodule PlaywrightEx.BrowserContext do
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       time: [
-        type: {:or, [:non_neg_integer, :string]},
+        type: {:or, [:non_neg_integer, :string, {:struct, DateTime}]},
         required: false,
-        doc: "Optional base time to install, as milliseconds since epoch or a string accepted by Playwright."
+        doc:
+          "Optional base time to install, as milliseconds since epoch, an ISO8601 datetime, or a string accepted by Playwright."
       ]
     )
 
   @doc """
-  Installs Playwright's browser-context clock support.
+  Install fake implementations for the other time-related functions (e.g. `clock_fast_forward/2`).
 
-  Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/clock.ts
+  Reference: https://playwright.dev/docs/api/class-clock#clock-install
 
   ## Options
   #{NimbleOptions.docs(schema)}
@@ -295,6 +296,7 @@ defmodule PlaywrightEx.BrowserContext do
         nil -> %{}
         time when is_integer(time) -> %{time_number: time}
         time when is_binary(time) -> %{time_string: time}
+        %DateTime{} = time -> %{time_string: DateTime.to_iso8601(time)}
       end
 
     connection
@@ -309,14 +311,14 @@ defmodule PlaywrightEx.BrowserContext do
       ticks: [
         type: {:or, [:non_neg_integer, :string]},
         required: true,
-        doc: "Time to advance, in milliseconds or in Playwright's `mm:ss` / `hh:mm:ss` string format."
+        doc: "Time to advance, in milliseconds or in `ss` / `mm:ss` / `hh:mm:ss` string format."
       ]
     )
 
   @doc """
-  Fast forwards the browser context clock.
+  Advance the clock by jumping forward in time. Only fires due timers at most once. This is equivalent to user closing the laptop lid for a while and reopening it later, after given time..
 
-  Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/clock.ts
+  Reference: https://playwright.dev/docs/api/class-clock#clock-fast-forward
 
   ## Options
   #{NimbleOptions.docs(schema)}
