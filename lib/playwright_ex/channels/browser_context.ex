@@ -261,4 +261,86 @@ defmodule PlaywrightEx.BrowserContext do
     |> Connection.send(%{guid: context_id, method: :addInitScript, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      time: [
+        type: {:or, [:non_neg_integer, :string]},
+        required: false,
+        doc: "Optional base time to install, as milliseconds since epoch or a string accepted by Playwright."
+      ]
+    )
+
+  @doc """
+  Installs Playwright's browser-context clock support.
+
+  Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/clock.ts
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type clock_install_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec clock_install(PlaywrightEx.guid(), [clock_install_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def clock_install(context_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    {time, opts} = Keyword.pop(opts, :time)
+
+    params =
+      case time do
+        nil -> %{}
+        time when is_integer(time) -> %{time_number: time}
+        time when is_binary(time) -> %{time_string: time}
+      end
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :clock_install, params: Map.merge(params, Map.new(opts))}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      ticks: [
+        type: {:or, [:non_neg_integer, :string]},
+        required: true,
+        doc: "Time to advance, in milliseconds or in Playwright's `mm:ss` / `hh:mm:ss` string format."
+      ]
+    )
+
+  @doc """
+  Fast forwards the browser context clock.
+
+  Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/clock.ts
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type clock_fast_forward_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec clock_fast_forward(PlaywrightEx.guid(), [clock_fast_forward_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def clock_fast_forward(context_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    {ticks, opts} = Keyword.pop!(opts, :ticks)
+
+    params =
+      case ticks do
+        ticks when is_integer(ticks) -> %{ticks_number: ticks}
+        ticks when is_binary(ticks) -> %{ticks_string: ticks}
+      end
+
+    connection
+    |> Connection.send(
+      %{guid: context_id, method: :clock_fast_forward, params: Map.merge(params, Map.new(opts))},
+      timeout
+    )
+    |> ChannelResponse.unwrap(& &1)
+  end
 end
