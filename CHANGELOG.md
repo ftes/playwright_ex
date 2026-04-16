@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Regex support in argument serialization/deserialization using protocol-native `{r: %{p, f}}` values.
 - `PlaywrightEx.Page.reload/2` to reload current page.
 - `PlaywrightEx.Page.bring_to_front/2` to activate a page tab. #29
+- `PlaywrightEx.Page`: `expect_download/2` and `await_download/1`, `PlaywrightEx.Download`, and `PlaywrightEx.DownloadWaiter` to support file downloads. [@tylerhunt]
 ### Fixed
 - `PlaywrightEx.Frame.wait_for_selector/2`: crash when `state` is `"hidden"` or `"detached"` (result has no element). #22
 - `PlaywrightEx.BrowserContext.add_init_script/2` and `PlaywrightEx.Page.add_init_script/2`: use `source` parameter name required by Playwright protocol (instead of `content`).
@@ -65,6 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [@nathanl]: https://github.com/nathanl
 [@carsoncall]: https://github.com/carsoncall
 [@oliver-kriska]: https://github.com/oliver-kriska
+[@tylerhunt]: https://github.com/tylerhunt
 
 [530e362]: https://github.com/ftes/playwright_ex/commit/530e36
 [fecf965]: https://github.com/ftes/playwright_ex/commit/fecf965

@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page do
 
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
+  alias PlaywrightEx.DownloadWaiter
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Serialization
 
@@ -377,6 +378,55 @@ defmodule PlaywrightEx.Page do
     connection
     |> Connection.send(%{guid: context_id, method: :addInitScript, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
+
+  @doc group: :composed
+  @doc """
+  Starts listening for a download event on the page.
+
+  Must be called **before** the action that triggers the download. Returns a
+  reference that can be passed to `await_download/1` after triggering the
+  download action.
+
+  Reference: https://playwright.dev/docs/api/class-page#page-wait-for-event-event-download
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type expect_download_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec expect_download(PlaywrightEx.guid(), [expect_download_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, pid()} | {:error, any()}
+  def expect_download(page_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, _opts} = Keyword.pop!(opts, :timeout)
+
+    DownloadWaiter.start(connection, page_id, timeout)
+  end
+
+  @doc group: :composed
+  @doc """
+  Waits for a download to complete and returns the local file path.
+
+  Pass the reference returned by `expect_download/2`. Blocks until the download
+  finishes or the timeout (set in `expect_download/2`) elapses.
+
+  ## Example
+
+      {:ok, download_ref} = Page.expect_download(page_id, timeout: 30_000)
+      {:ok, _} = Frame.click(frame_id, selector: "a#export", timeout: 5_000)
+      {:ok, path} = Page.await_download(download_ref)
+      {:ok, content} = File.read(path)
+  """
+  @spec await_download(pid()) :: {:ok, String.t()} | {:error, map()}
+  def await_download(download_ref) do
+    DownloadWaiter.await(download_ref)
   end
 
   defp main_frame_id!(connection, page_id) do
