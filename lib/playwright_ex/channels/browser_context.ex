@@ -209,12 +209,12 @@ defmodule PlaywrightEx.BrowserContext do
   @schema schema
   @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
-  def close(browser_id, opts \\ []) do
+  def close(context_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: browser_id, method: :close, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: context_id, method: :close, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 

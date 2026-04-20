@@ -58,32 +58,6 @@ defmodule PlaywrightEx.Frame do
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
-      timeout: PlaywrightEx.Channel.timeout_opt()
-    )
-
-  @doc """
-  Returns the frame's URL.
-
-  Reference: https://playwright.dev/docs/api/class-frame#frame-url
-
-  ## Options
-  #{NimbleOptions.docs(schema)}
-  """
-  @schema schema
-  @type url_opt :: unquote(NimbleOptions.option_typespec(schema))
-  @spec url(PlaywrightEx.guid(), [url_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, String.t()} | {:error, any()}
-  def url(frame_id, opts \\ []) do
-    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
-    {timeout, opts} = Keyword.pop!(opts, :timeout)
-
-    connection
-    |> Connection.send(%{guid: frame_id, method: :url, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap(& &1.value)
-  end
-
-  schema =
-    NimbleOptions.new!(
-      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       expression: [
         type: :string,
