@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Serialization do
 
   def camelize(:inner_html), do: "innerHTML"
   def camelize(:base_url), do: "baseURL"
+  def camelize(:ignore_https_errors), do: "ignoreHTTPSErrors"
   def camelize(input), do: input |> to_string() |> camelize(:lower)
   def underscore(string), do: string |> Macro.underscore() |> String.to_atom()
 
