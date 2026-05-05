@@ -92,7 +92,7 @@ defmodule PlaywrightEx.MixProject do
               "PlaywrightEx.#{file |> Path.basename(".ex") |> Macro.camelize()}"
             end
           end,
-        Other: [PlaywrightEx.JsLogger, PlaywrightEx.Supervisor]
+        Other: [PlaywrightEx.Artifact, PlaywrightEx.JsLogger, PlaywrightEx.Supervisor]
       ]
     ]
   end
