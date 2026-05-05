@@ -64,8 +64,31 @@ defmodule PlaywrightEx.Browser do
         doc: "Specific user agent to use in this context."
       ],
       viewport: [
-        type: :any,
-        doc: "Sets a consistent viewport for each page. Map with `:width` and `:height`, or `nil` to disable."
+        type:
+          {:or,
+           [
+             nil,
+             map: [
+               width: [
+                 type: :pos_integer,
+                 required: true,
+                 doc: "Page width in CSS pixels."
+               ],
+               height: [
+                 type: :pos_integer,
+                 required: true,
+                 doc: "Page height in CSS pixels."
+               ]
+             ]
+           ]},
+        type_spec:
+          quote(
+            do:
+              nil
+              | %{width: pos_integer(), height: pos_integer()}
+          ),
+        type_doc: "`nil | %{width: pos_integer(), height: pos_integer()}`",
+        doc: "Sets a consistent viewport for each page. Set to `nil` to disable consistent viewport emulation."
       ]
     )
 
@@ -84,10 +107,23 @@ defmodule PlaywrightEx.Browser do
   def new_context(browser_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    opts = prepare_new_context_opts(opts)
 
     connection
     |> Connection.send(%{guid: browser_id, method: :new_context, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap_create(:context, connection)
+  end
+
+  defp prepare_new_context_opts(opts) do
+    case Keyword.fetch(opts, :viewport) do
+      {:ok, nil} ->
+        opts
+        |> Keyword.delete(:viewport)
+        |> Keyword.put(:no_default_viewport, true)
+
+      _ ->
+        opts
+    end
   end
 
   schema =
