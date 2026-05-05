@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Tracing do
   Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/tracing.ts
   """
 
+  alias PlaywrightEx.Artifact
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
 
@@ -156,49 +157,10 @@ defmodule PlaywrightEx.Tracing do
   defp download_artifact(artifact, connection, timeout) do
     path = Path.join(System.tmp_dir!(), "playwright-trace-#{System.unique_integer([:positive])}.zip")
 
-    with {:ok, %{stream: %{guid: stream_guid}}} <-
-           connection
-           |> Connection.send(%{guid: artifact.guid, method: :save_as_stream, params: %{}}, timeout)
-           |> ChannelResponse.unwrap(& &1),
-         :ok <- stream_to_file(connection, stream_guid, timeout, path),
-         {:ok, _} <- close_stream(connection, stream_guid, timeout),
-         {:ok, _} <- delete_artifact(connection, artifact.guid, timeout) do
+    with :ok <- Artifact.save_as(artifact.guid, path, connection: connection, timeout: timeout),
+         {:ok, _} <- Artifact.delete(artifact.guid, connection: connection, timeout: timeout) do
       {:ok, %{artifact | absolute_path: path}}
     end
-  end
-
-  defp stream_to_file(connection, stream_guid, timeout, path) do
-    File.open!(path, [:write, :binary], fn file ->
-      read_stream_to_file(connection, stream_guid, timeout, file)
-    end)
-  end
-
-  defp read_stream_to_file(connection, stream_guid, timeout, file) do
-    case connection
-         |> Connection.send(%{guid: stream_guid, method: :read, params: %{size: 1024 * 1024}}, timeout)
-         |> ChannelResponse.unwrap(& &1) do
-      {:ok, %{binary: ""}} ->
-        :ok
-
-      {:ok, %{binary: chunk}} ->
-        IO.binwrite(file, Base.decode64!(chunk))
-        read_stream_to_file(connection, stream_guid, timeout, file)
-
-      {:error, _} = error ->
-        error
-    end
-  end
-
-  defp close_stream(connection, stream_guid, timeout) do
-    connection
-    |> Connection.send(%{guid: stream_guid, method: :close, params: %{}}, timeout)
-    |> ChannelResponse.unwrap(& &1)
-  end
-
-  defp delete_artifact(connection, artifact_guid, timeout) do
-    connection
-    |> Connection.send(%{guid: artifact_guid, method: :delete, params: %{}}, timeout)
-    |> ChannelResponse.unwrap(& &1)
   end
 
   schema =
