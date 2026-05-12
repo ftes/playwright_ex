@@ -7,6 +7,35 @@ defmodule PlaywrightEx.FrameTest do
 
   doctest PlaywrightEx
 
+  describe "goto/2" do
+    test "navigates with default options", %{frame: frame} do
+      assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+    end
+
+    for wait_until <- ["load", "domcontentloaded", "networkidle", "commit"] do
+      @tag wait_until: wait_until
+      test "accepts `wait_until: #{inspect(wait_until)}`", %{frame: frame, wait_until: wait_until} do
+        assert {:ok, _} =
+                 Frame.goto(frame.guid, url: "about:blank", wait_until: wait_until, timeout: @timeout)
+      end
+    end
+
+    test "raises on invalid wait_until", %{frame: frame} do
+      assert_raise NimbleOptions.ValidationError, ~r/wait_until/, fn ->
+        Frame.goto(frame.guid, url: "about:blank", wait_until: "bogus", timeout: @timeout)
+      end
+    end
+
+    test "referer option sets the Referer header on the navigation request", %{frame: frame} do
+      referer = "https://example.com/"
+
+      {:ok, _} =
+        Frame.goto(frame.guid, url: "https://elixir-lang.org/", referer: referer, timeout: @timeout)
+
+      assert {:ok, ^referer} = Frame.evaluate(frame.guid, expression: "document.referrer", timeout: @timeout)
+    end
+  end
+
   describe "mouse move" do
     test "move, down, up", %{page: page, frame: frame} do
       # Navigate to a page with a clickable link
