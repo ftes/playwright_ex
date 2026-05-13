@@ -21,6 +21,22 @@ defmodule PlaywrightEx.Frame do
         required: true,
         doc:
           "The destination URL, including scheme (e.g., `https://`) or a relative path (`base_url` was passed to `PlaywrightEx.Browser.new_context/2`)."
+      ],
+      referer: [
+        type: :string,
+        doc:
+          "Referer header value. If provided, takes preference over the referer header set via the `extra_http_headers` option to `PlaywrightEx.Browser.new_context/2`."
+      ],
+      wait_until: [
+        type: {:in, ["load", "domcontentloaded", "networkidle", "commit"]},
+        default: "load",
+        doc: """
+        When to consider the operation succeeded. One of:
+        - `"load"` (default) — fires when the `load` event is fired.
+        - `"domcontentloaded"` — fires when the `DOMContentLoaded` event is fired.
+        - `"networkidle"` — **discouraged** — fires when there are no network connections for at least 500 ms. Rely on web assertions instead for testing readiness.
+        - `"commit"` — fires when the network response is received and the document has started loading.
+        """
       ]
     )
 
