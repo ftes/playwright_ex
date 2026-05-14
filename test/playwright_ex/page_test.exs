@@ -31,6 +31,15 @@ defmodule PlaywrightEx.PageTest do
     end
   end
 
+    describe "close/2" do
+    test "Close page", %{page: page, frame: _frame} do
+      assert {:ok, _} =
+               Page.close(page.guid,
+                 timeout: @timeout
+               )
+    end
+  end
+
   describe "expect_url/2" do
     test "matches current URL with string expectation", %{page: page, frame: frame} do
       {:ok, _} = Frame.goto(frame.guid, url: "about:blank#current", timeout: @timeout)

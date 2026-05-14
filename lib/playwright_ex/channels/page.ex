@@ -379,6 +379,38 @@ defmodule PlaywrightEx.Page do
     |> ChannelResponse.unwrap(& &1)
   end
 
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      reason: [
+        type: :string,
+        required: false,
+        doc: "The reason to be reported to the operations interrupted by the page closure."
+      ]
+    )
+
+  @doc """
+  Closes the page.
+
+  Reference: https://playwright.dev/docs/api/class-page#page-close
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type close_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec close(PlaywrightEx.guid(), [close_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
+  def close(page_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: page_id, method: :close, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(fn _ -> :ok end)
+  end
+
+
   defp main_frame_id!(connection, page_id) do
     page_initializer = Connection.initializer!(connection, page_id)
     page_initializer.main_frame.guid
