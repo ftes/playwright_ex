@@ -24,20 +24,15 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
           nixfmt
-          beam27Packages.erlang # ← add this
+          beam27Packages.erlang
           beam27Packages.elixir
-          beam27Packages.elixir-ls # ← use beam27-specific elixir-ls
+          beam27Packages.elixir-ls
           nodejs
           yarn
-          postgresql
-          process-compose
           inotify-tools
-          tailwindcss_4
           tree
           chromedriver
           google-chrome
-          playwright-driver
-          playwright-driver.browsers
           playwright-test
         ];
 
