@@ -385,7 +385,6 @@ defmodule PlaywrightEx.Page do
       timeout: PlaywrightEx.Channel.timeout_opt(),
       reason: [
         type: :string,
-        required: false,
         doc: "The reason to be reported to the operations interrupted by the page closure."
       ]
     )
