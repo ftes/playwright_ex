@@ -33,10 +33,7 @@ defmodule PlaywrightEx.PageTest do
 
   describe "close/2" do
     test "Close page", %{page: page, frame: _frame} do
-      assert {:ok, _} =
-               Page.close(page.guid,
-                 timeout: @timeout
-               )
+      assert {:ok, _} = Page.close(page.guid, timeout: @timeout)
     end
   end
 
