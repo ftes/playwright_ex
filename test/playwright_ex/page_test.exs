@@ -37,6 +37,65 @@ defmodule PlaywrightEx.PageTest do
     end
   end
 
+  # 1×1 red pixel PNG — used as a baseline guaranteed to differ from any full-page screenshot
+  @one_by_one_png "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+  describe "expect_screenshot/2" do
+    test "returns base64-encoded PNG in capture-only mode", %{page: page, frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      # "iVBORw0K" is the base64 encoding of the 6-byte PNG magic header
+      assert {:ok, <<"iVBORw0K", _::binary>>} =
+               Page.expect_screenshot(page.guid, timeout: @timeout)
+    end
+
+    test "succeeds when actual matches baseline", %{page: page, frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      {:ok, baseline} = Page.expect_screenshot(page.guid, timeout: @timeout)
+
+      assert {:ok, _} = Page.expect_screenshot(page.guid, expected: baseline, timeout: @timeout)
+    end
+
+    test "returns error when actual does not match baseline", %{page: page, frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      assert {:error,
+              %{
+                timed_out: false,
+                error_message:
+                  "Expected an image 1px by 1px, received 1280px by 720px. 1 pixels (ratio 0.01 of all image pixels) are different.",
+                log: _,
+                diff: _,
+                actual: _
+              }} =
+               Page.expect_screenshot(page.guid, expected: @one_by_one_png, timeout: @timeout)
+    end
+
+    test "clips screenshot to element bounding box", %{page: page, frame: frame} do
+      :ok = set_html(frame.guid, "<div id='target' style='width:100px;height:50px;background:blue'></div>")
+      {:ok, box} = eval(frame.guid, "() => document.getElementById('target').getBoundingClientRect().toJSON()")
+
+      clip = %{x: box["x"], y: box["y"], width: box["width"], height: box["height"]}
+
+      assert {:ok, <<"iVBORw0K", _::binary>>} =
+               Page.expect_screenshot(page.guid, clip: clip, timeout: @timeout)
+    end
+
+    test "accepts full_page option", %{page: page, frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      assert {:ok, <<"iVBORw0K", _::binary>>} =
+               Page.expect_screenshot(page.guid, full_page: true, timeout: @timeout)
+    end
+
+    test "is_not: true succeeds when screenshots differ", %{page: page, frame: frame} do
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      assert {:ok, _} =
+               Page.expect_screenshot(page.guid, expected: @one_by_one_png, is_not: true, timeout: @timeout)
+    end
+  end
+
   describe "expect_url/2" do
     test "matches current URL with string expectation", %{page: page, frame: frame} do
       {:ok, _} = Frame.goto(frame.guid, url: "about:blank#current", timeout: @timeout)
