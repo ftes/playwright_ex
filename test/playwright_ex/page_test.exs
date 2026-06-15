@@ -38,7 +38,7 @@ defmodule PlaywrightEx.PageTest do
   end
 
   # 1×1 red pixel PNG — used as a baseline guaranteed to differ from any full-page screenshot
-  @one_by_one_png "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  @one_by_one_png "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5z8AAAAAA//+FDQv1AAAABklEQVQDAAMRAQSnRfifAAAAAElFTkSuQmCC"
 
   describe "expect_screenshot/2" do
     test "returns base64-encoded PNG in capture-only mode", %{page: page, frame: frame} do
@@ -79,6 +79,17 @@ defmodule PlaywrightEx.PageTest do
 
       assert {:ok, <<"iVBORw0K", _::binary>>} =
                Page.expect_screenshot(page.guid, clip: clip, timeout: @timeout)
+    end
+
+    test "scopes screenshot to locator", %{page: page, frame: frame} do
+      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:#FF0000'></div>")
+
+      assert {:ok, nil} =
+               Page.expect_screenshot(page.guid,
+                 locator: %{frame: %{guid: frame.guid}, selector: "#target"},
+                 expected: @one_by_one_png,
+                 timeout: @timeout
+               )
     end
 
     test "accepts full_page option", %{page: page, frame: frame} do

@@ -420,12 +420,13 @@ defmodule PlaywrightEx.Page do
       max_diff_pixel_ratio: [type: :float, doc: "Max ratio (0-1) of differing pixels."],
       threshold: [type: :float, doc: "Per-pixel color distance tolerance (0-1)."],
       full_page: [type: :boolean, doc: "Capture the full scrollable page."],
+      locator: [type: :map, doc: "Scope the assertion to a sub-element: `%{frame: %{guid: frame_guid}, selector: string}`."],
       clip: [type: :map, doc: "`%{x: float, y: float, width: float, height: float}`"],
       omit_background: [type: :boolean, doc: "Transparent background (PNG only)."],
       caret: [type: {:in, ["hide", "initial"]}],
       animations: [type: {:in, ["disabled", "allow"]}],
       scale: [type: {:in, ["css", "device"]}],
-      mask: [type: :any, doc: "List of `%{frame: guid_string, selector: string}`."],
+      mask: [type: :any, doc: "List of `%{frame: %{guid: frame_guid}, selector: string}`."],
       mask_color: [type: :string, doc: "Colour for masked areas."],
       style: [type: :string, doc: "CSS to apply before screenshotting."]
     )
