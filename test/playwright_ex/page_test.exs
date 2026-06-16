@@ -37,7 +37,7 @@ defmodule PlaywrightEx.PageTest do
     end
   end
 
-  # 1×1 red pixel PNG — used as a baseline guaranteed to differ from any full-page screenshot
+  # 1×1 red pixel PNG
   @one_by_one_png "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5z8AAAAAA//+FDQv1AAAABklEQVQDAAMRAQSnRfifAAAAAElFTkSuQmCC"
 
   describe "expect_screenshot/2" do
@@ -72,13 +72,13 @@ defmodule PlaywrightEx.PageTest do
     end
 
     test "clips screenshot to element bounding box", %{page: page, frame: frame} do
-      :ok = set_html(frame.guid, "<div id='target' style='width:100px;height:50px;background:blue'></div>")
+      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:#FF0000'></div>")
       {:ok, box} = eval(frame.guid, "() => document.getElementById('target').getBoundingClientRect().toJSON()")
 
       clip = %{x: box["x"], y: box["y"], width: box["width"], height: box["height"]}
 
-      assert {:ok, <<"iVBORw0K", _::binary>>} =
-               Page.expect_screenshot(page.guid, clip: clip, timeout: @timeout)
+      assert {:ok, nil} =
+               Page.expect_screenshot(page.guid, clip: clip, expected: @one_by_one_png, timeout: @timeout)
     end
 
     test "scopes screenshot to locator", %{page: page, frame: frame} do

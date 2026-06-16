@@ -415,12 +415,15 @@ defmodule PlaywrightEx.Page do
       timeout: PlaywrightEx.Channel.timeout_opt(),
       is_not: [type: :boolean, default: false],
       expected: [type: :any, doc: "Baseline PNG binary. `nil` = capture-only mode."],
-      comparator: [type: :string],
+      comparator: [type: {:in, ["pixelmatch", "ssim-cie94"]}, default: "pixelmatch"],
       max_diff_pixels: [type: :integer, doc: "Max absolute pixel count allowed to differ."],
       max_diff_pixel_ratio: [type: :float, doc: "Max ratio (0-1) of differing pixels."],
       threshold: [type: :float, doc: "Per-pixel color distance tolerance (0-1)."],
       full_page: [type: :boolean, doc: "Capture the full scrollable page."],
-      locator: [type: :map, doc: "Scope the assertion to a sub-element: `%{frame: %{guid: frame_guid}, selector: string}`."],
+      locator: [
+        type: :map,
+        doc: "Scope the assertion to a sub-element: `%{frame: %{guid: frame_guid}, selector: string}`."
+      ],
       clip: [type: :map, doc: "`%{x: float, y: float, width: float, height: float}`"],
       omit_background: [type: :boolean, doc: "Transparent background (PNG only)."],
       caret: [type: {:in, ["hide", "initial"]}],
@@ -454,7 +457,7 @@ defmodule PlaywrightEx.Page do
     |> Connection.send(%{guid: page_id, method: :expectScreenshot, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
     |> case do
-      {:ok, result} when is_map_key(result, :error_message) -> {:error, result}
+      {:ok, %{error_message: _} = result} -> {:error, result}
       {:ok, result} -> {:ok, result[:actual]}
       {:error, _} = error -> error
     end
