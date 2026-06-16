@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
+## [Unreleased]
+### Fixed
+- Support the Playwright 1.61 `Frame.expect` wire contract. 1.61 stopped
+  returning `%{matches: boolean}` and now signals the assertion outcome by
+  success-vs-error: a non-match returns a protocol error carrying
+  `error_details`. `Frame.expect/2` now yields a plain `{:ok, boolean}` under
+  both 1.60 and 1.61, so `phoenix_test_playwright`'s `assert_has`/`refute_has`
+  keep working. `PlaywrightEx.Serialization.deserialize_arg/1` also raises a
+  descriptive error on unknown serialized shapes instead of a bare
+  `CaseClauseError`. [@oliver-kriska]
+
 ## [0.6.1] 2026-06-16
 ### Added
 - Accept all supported options to `Frame.goto`. Commit [8e96071], #49, [@s3cur3]

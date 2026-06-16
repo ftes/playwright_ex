@@ -273,10 +273,11 @@ defmodule PlaywrightEx.Frame do
   def expect(frame_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    is_not = Keyword.get(opts, :is_not, false)
 
     connection
     |> Connection.send(%{guid: frame_id, method: :expect, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap(& &1.matches)
+    |> ChannelResponse.unwrap_expect(is_not)
   end
 
   schema =

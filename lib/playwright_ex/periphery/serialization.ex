@@ -71,6 +71,11 @@ defmodule PlaywrightEx.Serialization do
 
       %{ref: _} ->
         :ref_not_resolved
+
+      other ->
+        raise ArgumentError,
+              "PlaywrightEx.Serialization.deserialize_arg/1: unsupported serialized value shape " <>
+                "(Playwright protocol drift?): #{inspect(other, limit: 20)}"
     end
   end
 
