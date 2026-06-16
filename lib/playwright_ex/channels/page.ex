@@ -409,6 +409,60 @@ defmodule PlaywrightEx.Page do
     |> ChannelResponse.unwrap(fn _ -> :ok end)
   end
 
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      is_not: [type: :boolean, default: false],
+      expected: [type: :any, doc: "Baseline PNG binary. `nil` = capture-only mode."],
+      comparator: [type: {:in, ["pixelmatch", "ssim-cie94"]}, default: "pixelmatch"],
+      max_diff_pixels: [type: :integer, doc: "Max absolute pixel count allowed to differ."],
+      max_diff_pixel_ratio: [type: :float, doc: "Max ratio (0-1) of differing pixels."],
+      threshold: [type: :float, doc: "Per-pixel color distance tolerance (0-1)."],
+      full_page: [type: :boolean, doc: "Capture the full scrollable page."],
+      locator: [
+        type: :map,
+        doc: "Scope the assertion to a sub-element: `%{frame: %{guid: frame_guid}, selector: string}`."
+      ],
+      clip: [type: :map, doc: "`%{x: float, y: float, width: float, height: float}`"],
+      omit_background: [type: :boolean, doc: "Transparent background (PNG only)."],
+      caret: [type: {:in, ["hide", "initial"]}],
+      animations: [type: {:in, ["disabled", "allow"]}],
+      scale: [type: {:in, ["css", "device"]}],
+      mask: [type: :any, doc: "List of `%{frame: %{guid: frame_guid}, selector: string}`."],
+      mask_color: [type: :string, doc: "Colour for masked areas."],
+      style: [type: :string, doc: "CSS to apply before screenshotting."]
+    )
+
+  @doc """
+  Asserts that a screenshot of the page matches the provided baseline.
+
+  Pass `expected: nil` (or omit it) for capture-only mode — the server takes a screenshot
+  and returns the PNG bytes without performing any comparison.
+
+  Reference: https://playwright.dev/docs/api/class-pageassertions#page-assertions-to-have-screenshot-1
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type expect_screenshot_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec expect_screenshot(PlaywrightEx.guid(), [expect_screenshot_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, binary() | nil} | {:error, any()}
+  def expect_screenshot(page_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: page_id, method: :expectScreenshot, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+    |> case do
+      {:ok, %{error_message: _} = result} -> {:error, result}
+      {:ok, result} -> {:ok, result[:actual]}
+      {:error, _} = error -> error
+    end
+  end
+
   defp main_frame_id!(connection, page_id) do
     page_initializer = Connection.initializer!(connection, page_id)
     page_initializer.main_frame.guid
