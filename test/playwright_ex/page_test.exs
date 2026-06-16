@@ -62,7 +62,7 @@ defmodule PlaywrightEx.PageTest do
       assert {:error,
               %{
                 timed_out: false,
-                error_message:
+                custom_error_message:
                   "Expected an image 1px by 1px, received 1280px by 720px. 1 pixels (ratio 0.01 of all image pixels) are different.",
                 log: _,
                 diff: _,

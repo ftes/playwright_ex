@@ -455,13 +455,16 @@ defmodule PlaywrightEx.Page do
 
     connection
     |> Connection.send(%{guid: page_id, method: :expectScreenshot, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap(& &1)
-    |> case do
-      {:ok, %{error_message: _} = result} -> {:error, result}
-      {:ok, result} -> {:ok, result[:actual]}
-      {:error, _} = error -> error
-    end
+    |> unwrap_expect()
   end
+
+  # Playwright >= 1.61.0
+  defp unwrap_expect(%{error_details: details}), do: {:error, details}
+  # Playwright < 1.61.0
+  defp unwrap_expect(%{result: %{error_message: msg} = result}), do: {:error, Map.put(result, :custom_error_message, msg)}
+
+  defp unwrap_expect(%{result: result}), do: {:ok, result[:actual]}
+  defp unwrap_expect(result), do: {:ok, result}
 
   defp main_frame_id!(connection, page_id) do
     page_initializer = Connection.initializer!(connection, page_id)
