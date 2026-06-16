@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-## [Unreleased]
+## [0.6.1] 2026-06-16
+### Added
+- Accept all supported options to `Frame.goto`. Commit [8e96071], #49, [@s3cur3]
+- `Page.expect_screenshot/2`. Commit [929b90e], #56, [@Wigny]
+
+### Fixed
+- Handle `viewport: nil` to disable default viewport. Commit [8139523], #46
 
 ## [0.6.0] 2026-05-05
 ### Added
@@ -81,6 +87,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [@oliver-kriska]: https://github.com/oliver-kriska
 [@probably-not]: https://github.com/probably-not
 [@wjrtz]: https://github.com/wjrtz
+[@s3cur3]: https://github.com/s3cur3
+[@Wigny]: https://github.com/Wigny
 
 [530e362]: https://github.com/ftes/playwright_ex/commit/530e36
 [fecf965]: https://github.com/ftes/playwright_ex/commit/fecf965
@@ -100,3 +108,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [0095f7f]: https://github.com/ftes/playwright_ex/commit/0095f7f
 [80f28be]: https://github.com/ftes/playwright_ex/commit/80f28be
 [8178f7c]: https://github.com/ftes/playwright_ex/commit/8178f7c
+[8e96071]: https://github.com/ftes/playwright_ex/commit/8e96071
+[929b90e]: https://github.com/ftes/playwright_ex/commit/929b90e
+[8139523]: https://github.com/ftes/playwright_ex/commit/8139523
