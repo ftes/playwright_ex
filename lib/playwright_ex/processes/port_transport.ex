@@ -85,7 +85,7 @@ defmodule PlaywrightEx.PortTransport do
   end
 
   defp parse(<<data::binary>>, remaining, buffer, frames) when byte_size(data) > remaining do
-    <<frame::size(remaining)-binary, tail::binary>> = data
+    <<frame::size(^remaining)-binary, tail::binary>> = data
     parse(tail, 0, "", frames ++ [buffer <> frame])
   end
 
