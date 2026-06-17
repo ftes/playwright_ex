@@ -448,7 +448,7 @@ defmodule PlaywrightEx.Page do
   @schema schema
   @type expect_screenshot_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec expect_screenshot(PlaywrightEx.guid(), [expect_screenshot_opt() | PlaywrightEx.unknown_opt()]) ::
-          {:ok, binary() | nil} | {:error, any()}
+          {:ok, binary() | nil} | {:error, {map(), map()}} | {:error, any()}
   def expect_screenshot(page_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
@@ -458,7 +458,6 @@ defmodule PlaywrightEx.Page do
     |> ChannelResponse.unwrap(& &1[:actual])
     |> case do
       {:ok, result} -> {:ok, result}
-      {:error, %{details: details}} -> {:error, details}
       {:error, error} -> {:error, error}
     end
   end

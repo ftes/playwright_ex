@@ -4,7 +4,7 @@ defmodule PlaywrightEx.ChannelResponse do
   alias PlaywrightEx.Connection
 
   @spec unwrap(any(), (any() -> result)) :: {:ok, result} | {:error, any()} when result: any()
-  def unwrap(%{error: %{} = error, error_details: details}, _), do: {:error, Map.put(error, :details, details)}
+  def unwrap(%{error: %{} = error, error_details: details}, _), do: {:error, {error, details}}
   def unwrap(%{error: error}, _), do: {:error, error}
   def unwrap(%{result: result}, fun) when is_function(fun, 1), do: {:ok, fun.(result)}
   def unwrap(other, fun) when is_function(fun, 1), do: {:ok, other}

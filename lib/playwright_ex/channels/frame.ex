@@ -281,7 +281,7 @@ defmodule PlaywrightEx.Frame do
     |> matches?(is_not)
   end
 
-  defp matches?({:error, %{details: _}}, is_not), do: {:ok, is_not}
+  defp matches?({:error, {%{error: %{name: "ExpectError"}}, %{timed_out: true}}}, is_not), do: {:ok, is_not}
   defp matches?({:error, error}, _is_not), do: {:error, error}
   defp matches?({:ok, _}, is_not), do: {:ok, not is_not}
 
