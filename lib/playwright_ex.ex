@@ -100,4 +100,7 @@ defmodule PlaywrightEx do
     opts = NimbleOptions.validate!(opts, @send_schema)
     Connection.send(opts[:connection], msg, opts[:timeout])
   end
+
+  @doc false
+  def recommended_min_version, do: "1.61.0"
 end

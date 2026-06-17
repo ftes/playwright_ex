@@ -33,6 +33,7 @@ defmodule PlaywrightEx.PortTransport do
   def start_link(opts) do
     opts = Keyword.validate!(opts, [:executable, :name, :connection_name, env: %{}])
     name = Keyword.get(opts, :name, @default_name)
+    check_version(opts[:executable])
     GenServer.start_link(__MODULE__, Map.new(opts), name: name)
   end
 
@@ -105,5 +106,15 @@ defmodule PlaywrightEx.PortTransport do
     |> JSON.decode!()
     |> Serialization.deep_key_underscore()
     |> Map.update(:method, nil, &Serialization.underscore/1)
+  end
+
+  defp check_version(executable) do
+    {"Version " <> version, 0} = executable |> Path.expand() |> System.cmd(~w(--version))
+    version = version |> String.trim() |> Version.parse!()
+    recommended = PlaywrightEx.recommended_min_version()
+
+    if Version.compare(version, recommended) == :lt do
+      IO.warn("Playwright version #{version} is below recommended #{recommended}")
+    end
   end
 end
