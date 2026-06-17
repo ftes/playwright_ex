@@ -37,8 +37,9 @@ defmodule PlaywrightEx.PageTest do
     end
   end
 
-  # 1×1 red pixel PNG
-  @one_by_one_png "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5z8AAAAAA//+FDQv1AAAABklEQVQDAAMRAQSnRfifAAAAAElFTkSuQmCC"
+  @red "FF0000"
+  @green "00FF00"
+  @red_px_png "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5z8AAAAAA//+FDQv1AAAABklEQVQDAAMRAQSnRfifAAAAAElFTkSuQmCC"
 
   describe "expect_screenshot/2" do
     test "returns base64-encoded PNG in capture-only mode", %{page: page, frame: frame} do
@@ -68,26 +69,39 @@ defmodule PlaywrightEx.PageTest do
                 diff: _,
                 actual: _
               }} =
-               Page.expect_screenshot(page.guid, expected: @one_by_one_png, timeout: @timeout)
+               Page.expect_screenshot(page.guid, expected: @red_px_png, timeout: @timeout)
     end
 
     test "clips screenshot to element bounding box", %{page: page, frame: frame} do
-      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:#FF0000'></div>")
+      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:##{@red}'></div>")
       {:ok, box} = eval(frame.guid, "() => document.getElementById('target').getBoundingClientRect().toJSON()")
 
       clip = %{x: box["x"], y: box["y"], width: box["width"], height: box["height"]}
 
       assert {:ok, nil} =
-               Page.expect_screenshot(page.guid, clip: clip, expected: @one_by_one_png, timeout: @timeout)
+               Page.expect_screenshot(page.guid, clip: clip, expected: @red_px_png, timeout: @timeout)
     end
 
     test "scopes screenshot to locator", %{page: page, frame: frame} do
-      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:#FF0000'></div>")
+      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:##{@red}'></div>")
 
       assert {:ok, nil} =
                Page.expect_screenshot(page.guid,
                  locator: %{frame: %{guid: frame.guid}, selector: "#target"},
-                 expected: @one_by_one_png,
+                 expected: @red_px_png,
+                 timeout: @timeout
+               )
+    end
+
+    test "masks area", %{page: page, frame: frame} do
+      :ok = set_html(frame.guid, "<div id='target' style='width:1px;height:1px;background:#{@green}'></div>")
+
+      assert {:ok, nil} =
+               Page.expect_screenshot(page.guid,
+                 mask: [%{frame: %{guid: frame.guid}, selector: "#target"}],
+                 mask_color: @red,
+                 locator: %{frame: %{guid: frame.guid}, selector: "#target"},
+                 expected: @red_px_png,
                  timeout: @timeout
                )
     end
@@ -103,7 +117,7 @@ defmodule PlaywrightEx.PageTest do
       {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
 
       assert {:ok, _} =
-               Page.expect_screenshot(page.guid, expected: @one_by_one_png, is_not: true, timeout: @timeout)
+               Page.expect_screenshot(page.guid, expected: @red_px_png, is_not: true, timeout: @timeout)
     end
   end
 
