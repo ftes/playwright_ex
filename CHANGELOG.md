@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
+## [0.7.1] 2026-06-19
+### Added
+- Warn about playwright version < 1.61.0 (port transport only). Commit [cd9e98e]
+
 ## [0.7.0] 2026-06-16
 ### Fixed
 - Support the Playwright 1.61 `Frame.expect` wire contract. 1.61 stopped
@@ -123,3 +127,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [929b90e]: https://github.com/ftes/playwright_ex/commit/929b90e
 [8139523]: https://github.com/ftes/playwright_ex/commit/8139523
 [d6d9ddc]: https://github.com/ftes/playwright_ex/commit/d6d9ddc
+[cd9e98e]: https://github.com/ftes/playwright_ex/commit/cd9e98e
