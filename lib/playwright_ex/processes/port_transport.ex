@@ -44,7 +44,14 @@ defmodule PlaywrightEx.PortTransport do
   @impl GenServer
   def init(%{executable: executable, env: env} = opts) do
     env = Enum.map(env, fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
-    port = Port.open({:spawn_executable, executable}, [:binary, args: ["run-driver"], env: env])
+    {command, args} = executable_command(executable, ["run-driver"])
+
+    port =
+      Port.open(
+        {:spawn_executable, String.to_charlist(command)},
+        [:binary, args: args, env: env]
+      )
+
     connection_name = Map.get(opts, :connection_name, Connection)
     {:ok, %__MODULE__{port: port, connection_name: connection_name}}
   end
@@ -96,12 +103,22 @@ defmodule PlaywrightEx.PortTransport do
   end
 
   defp check_version(executable) do
-    {"Version " <> version, 0} = executable |> Path.expand() |> System.cmd(~w(--version))
+    {command, args} = executable_command(Path.expand(executable), ["--version"])
+    {"Version " <> version, 0} = System.cmd(command, args)
     version = version |> String.trim() |> Version.parse!()
     minimum = PlaywrightEx.minimum_supported_version()
 
     if Version.compare(version, minimum) == :lt do
       raise "Unsupported Playwright version #{version}; PlaywrightEx requires version #{minimum} or newer"
+    end
+  end
+
+  defp executable_command(executable, args) do
+    if String.downcase(Path.extname(executable)) == ".js" do
+      node = System.find_executable("node") || raise "Node.js executable not found on PATH"
+      {node, [executable | args]}
+    else
+      {executable, args}
     end
   end
 end
