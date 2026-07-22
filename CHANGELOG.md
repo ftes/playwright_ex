@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 ### Fixed
-- Launch JavaScript Playwright CLI files through Node, including on Windows.
+- Launch JavaScript Playwright CLI files through Node on Windows or when `PLAYWRIGHT_NODEJS_PATH` is configured, while preserving shebang execution on Unix.
 
 ## [0.7.1] 2026-06-19
 ### Added
