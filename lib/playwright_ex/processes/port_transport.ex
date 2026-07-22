@@ -33,7 +33,7 @@ defmodule PlaywrightEx.PortTransport do
   def start_link(opts) do
     opts = Keyword.validate!(opts, [:executable, :name, :connection_name, env: %{}])
     name = Keyword.get(opts, :name, @default_name)
-    check_version(opts[:executable])
+    check_version(opts[:executable], opts[:env])
     GenServer.start_link(__MODULE__, Map.new(opts), name: name)
   end
 
@@ -44,8 +44,15 @@ defmodule PlaywrightEx.PortTransport do
 
   @impl GenServer
   def init(%{executable: executable, env: env} = opts) do
+    {command, args} = executable_command(executable, ["run-driver"], env)
     env = Enum.map(env, fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
-    port = Port.open({:spawn_executable, executable}, [:binary, :stderr_to_stdout, args: ["run-driver"], env: env])
+
+    port =
+      Port.open(
+        {:spawn_executable, String.to_charlist(command)},
+        [:binary, :stderr_to_stdout, args: args, env: env]
+      )
+
     connection_name = Map.get(opts, :connection_name, Connection)
     {:ok, %__MODULE__{port: port, connection_name: connection_name}}
   end
@@ -108,13 +115,36 @@ defmodule PlaywrightEx.PortTransport do
     |> Map.update(:method, nil, &Serialization.underscore/1)
   end
 
-  defp check_version(executable) do
-    {"Version " <> version, 0} = executable |> Path.expand() |> System.cmd(~w(--version))
+  defp check_version(executable, env) do
+    {command, args} = executable_command(Path.expand(executable), ["--version"], env)
+    {"Version " <> version, 0} = System.cmd(command, args)
     version = version |> String.trim() |> Version.parse!()
     recommended = PlaywrightEx.recommended_min_version()
 
     if Version.compare(version, recommended) == :lt do
       IO.warn("Playwright version #{version} is below recommended #{recommended}")
     end
+  end
+
+  defp executable_command(executable, args, env) do
+    if javascript_file?(executable) and (windows?() or not is_nil(node_override(env))) do
+      {node_executable!(env), [executable | args]}
+    else
+      {executable, args}
+    end
+  end
+
+  defp javascript_file?(executable), do: String.downcase(Path.extname(executable)) == ".js"
+
+  defp windows?, do: :os.type() == {:win32, :nt}
+
+  defp node_executable!(env) do
+    node_override(env) ||
+      System.find_executable("node") ||
+      raise "Node.js executable not found; set PLAYWRIGHT_NODEJS_PATH or add node to PATH"
+  end
+
+  defp node_override(env) do
+    Map.get(env, "PLAYWRIGHT_NODEJS_PATH") || System.get_env("PLAYWRIGHT_NODEJS_PATH")
   end
 end
