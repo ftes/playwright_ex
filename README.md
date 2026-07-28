@@ -37,6 +37,27 @@ Freddy.
         {:ok, _} = Frame.goto(frame.guid, "https://elixir-lang.org/", timeout: 1000)
         {:ok, _} = Frame.click(frame.guid, Selector.link("Install"), timeout: 1000)
 
+## Alternative Launch Methods
+
+Launch with a persistent context:
+Instead of a standard browser, you can launch a persistent context which retains cookies and local storage across sessions using a specified user data directory.
+
+        {:ok, context} = PlaywrightEx.launch_persistent_context(:chromium,
+          user_data_dir: "/path/to/user/data",
+          timeout: 1000
+        )
+
+        {:ok, page} = PlaywrightEx.BrowserContext.new_page(context.guid, timeout: 1000)
+        {:ok, _} = PlaywrightEx.Frame.goto(page.main_frame.guid, "https://elixir-lang.org/", timeout: 1000)
+
+Connect to an existing browser via CDP:
+If you have a browser already running with remote debugging enabled, you can connect to it directly via the Chrome DevTools Protocol (CDP).
+
+        {:ok, browser} = PlaywrightEx.connect_over_cdp(:chromium,
+          endpoint_url: "ws://localhost:9222",
+          timeout: 1000
+        )
+
 ## Remove server via Websocket
 By default, PlaywrightEx launches a local playwright driver.
 This is typically installed via `npm` or `bun`.

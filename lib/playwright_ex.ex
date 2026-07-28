@@ -40,6 +40,46 @@ defmodule PlaywrightEx do
     end
   end
 
+  @doc """
+  Launches a browser and opens a persistent context using the given user data directory.
+
+  ## Options
+
+  #{NimbleOptions.docs(BrowserType.launch_persistent_context_opts_schema())}
+  """
+  @spec launch_persistent_context(atom(), [BrowserType.launch_persistent_context_opt() | unknown_opt()]) ::
+          {:ok, %{guid: guid(), tracing: %{guid: guid()}}} | {:error, any()}
+  def launch_persistent_context(type, opts) do
+    {connection, opts} =
+      opts
+      |> PlaywrightEx.Channel.validate_known!(BrowserType.launch_persistent_context_opts_schema())
+      |> Keyword.pop!(:connection)
+
+    playwright_init = Connection.initializer!(connection, "Playwright")
+    type_id = playwright_init |> Map.fetch!(type) |> Map.fetch!(:guid)
+    BrowserType.launch_persistent_context(type_id, opts ++ [connection: connection])
+  end
+
+  @doc """
+  Connects to an existing browser instance using the Chrome DevTools Protocol endpoint.
+
+  ## Options
+
+  #{NimbleOptions.docs(BrowserType.connect_over_cdp_opts_schema())}
+  """
+  @spec connect_over_cdp(atom(), [BrowserType.connect_over_cdp_opt() | unknown_opt()]) ::
+          {:ok, %{guid: guid()}} | {:error, any()}
+  def connect_over_cdp(type, opts) do
+    {connection, opts} =
+      opts
+      |> PlaywrightEx.Channel.validate_known!(BrowserType.connect_over_cdp_opts_schema())
+      |> Keyword.pop!(:connection)
+
+    playwright_init = Connection.initializer!(connection, "Playwright")
+    type_id = playwright_init |> Map.fetch!(type) |> Map.fetch!(:guid)
+    BrowserType.connect_over_cdp(type_id, opts ++ [connection: connection])
+  end
+
   subscribe_schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
