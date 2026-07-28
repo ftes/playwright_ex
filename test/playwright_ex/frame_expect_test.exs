@@ -43,6 +43,20 @@ defmodule PlaywrightEx.FrameExpectTest do
                )
     end
 
+    test "non-timeout ExpectError remains an error", %{frame: frame} do
+      set_html(frame.guid, ~s(<div class="duplicate"></div><div class="duplicate"></div>))
+
+      assert {:error, {%{error: %{name: "ExpectError"}}, details}} =
+               Frame.expect(frame.guid,
+                 selector: ".duplicate",
+                 expression: "to.be.visible",
+                 timeout: @timeout
+               )
+
+      refute details[:timed_out]
+      assert details.custom_error_message =~ "strict mode violation"
+    end
+
     test "assert_has finds a present element", %{frame: frame} do
       assert_has(frame.guid, "#present")
     end
