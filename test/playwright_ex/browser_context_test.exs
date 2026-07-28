@@ -25,49 +25,54 @@ defmodule PlaywrightEx.BrowserContextTest do
       expected_now = DateTime.to_unix(datetime, :millisecond)
 
       assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+      install_started_at = System.monotonic_time(:millisecond)
       assert {:ok, _} = BrowserContext.clock_install(browser_context.guid, time: datetime, timeout: @timeout)
       assert {:ok, installed_now} = eval(frame.guid, "() => Date.now()")
-      assert installed_now in (expected_now - 100)..(expected_now + 100)
+      install_elapsed = System.monotonic_time(:millisecond) - install_started_at
+      assert installed_now in expected_now..(expected_now + install_elapsed + 100)
 
+      fast_forward_started_at = System.monotonic_time(:millisecond)
       assert {:ok, _} = BrowserContext.clock_fast_forward(browser_context.guid, ticks: 60_001, timeout: @timeout)
-
       assert {:ok, advanced_now} = eval(frame.guid, "() => Date.now()")
-      assert advanced_now in (expected_now + 60_001)..(expected_now + 60_101)
+      fast_forward_elapsed = System.monotonic_time(:millisecond) - fast_forward_started_at
+      assert advanced_now in (installed_now + 60_001)..(installed_now + 60_001 + fast_forward_elapsed + 100)
     end
   end
 
   describe "clock_fast_forward/2" do
     test "advances Date.now after installing the clock", %{browser_context: browser_context, frame: frame} do
       assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
-      assert {:ok, before_now} = eval(frame.guid, "() => Date.now()")
-
       assert {:ok, _} = BrowserContext.clock_install(browser_context.guid, timeout: @timeout)
+      started_at = System.monotonic_time(:millisecond)
+      assert {:ok, installed_now} = eval(frame.guid, "() => Date.now()")
       assert {:ok, _} = BrowserContext.clock_fast_forward(browser_context.guid, ticks: 60_001, timeout: @timeout)
-
       assert {:ok, after_now} = eval(frame.guid, "() => Date.now()")
-      assert after_now in (before_now + 60_001)..(before_now + 60_101)
+      elapsed = System.monotonic_time(:millisecond) - started_at
+      assert after_now in (installed_now + 60_001)..(installed_now + 60_001 + elapsed + 100)
     end
 
     test "starts the clock near zero without installing first", %{browser_context: browser_context, frame: frame} do
       assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
       assert {:ok, before_now} = eval(frame.guid, "() => Date.now()")
 
+      started_at = System.monotonic_time(:millisecond)
       assert {:ok, _} = BrowserContext.clock_fast_forward(browser_context.guid, ticks: 60_001, timeout: @timeout)
-
       assert {:ok, after_now} = eval(frame.guid, "() => Date.now()")
+      elapsed = System.monotonic_time(:millisecond) - started_at
       assert before_now > 1_000_000
-      assert after_now in 60_001..60_101
+      assert after_now in 60_001..(60_001 + elapsed + 100)
     end
 
     test "accepts string ticks", %{browser_context: browser_context, frame: frame} do
       assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
       assert {:ok, before_now} = eval(frame.guid, "() => Date.now()")
 
+      started_at = System.monotonic_time(:millisecond)
       assert {:ok, _} = BrowserContext.clock_fast_forward(browser_context.guid, ticks: "01:01", timeout: @timeout)
-
       assert {:ok, after_now} = eval(frame.guid, "() => Date.now()")
+      elapsed = System.monotonic_time(:millisecond) - started_at
       assert before_now > 1_000_000
-      assert after_now in 61_000..61_100
+      assert after_now in 61_000..(61_000 + elapsed + 100)
     end
   end
 end
