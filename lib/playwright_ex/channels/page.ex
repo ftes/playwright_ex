@@ -448,23 +448,19 @@ defmodule PlaywrightEx.Page do
   @schema schema
   @type expect_screenshot_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec expect_screenshot(PlaywrightEx.guid(), [expect_screenshot_opt() | PlaywrightEx.unknown_opt()]) ::
-          {:ok, binary() | nil} | {:error, any()}
+          {:ok, binary() | nil} | {:error, {map(), map()}} | {:error, any()}
   def expect_screenshot(page_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
     |> Connection.send(%{guid: page_id, method: :expectScreenshot, params: Map.new(opts)}, timeout)
-    |> unwrap_expect()
+    |> ChannelResponse.unwrap(& &1[:actual])
+    |> case do
+      {:ok, result} -> {:ok, result}
+      {:error, error} -> {:error, error}
+    end
   end
-
-  # Playwright >= 1.61.0
-  defp unwrap_expect(%{error_details: details}), do: {:error, details}
-  # Playwright < 1.61.0
-  defp unwrap_expect(%{result: %{error_message: msg} = result}), do: {:error, Map.put(result, :custom_error_message, msg)}
-
-  defp unwrap_expect(%{result: result}), do: {:ok, result[:actual]}
-  defp unwrap_expect(result), do: {:ok, result}
 
   defp main_frame_id!(connection, page_id) do
     page_initializer = Connection.initializer!(connection, page_id)
