@@ -13,13 +13,13 @@ defmodule PlaywrightEx.TracingTest do
       start_tracing(tracing_id)
 
       Tracing.group(tracing_id, [name: "Outer Group", timeout: @timeout], fn ->
-        {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
+        {:ok, _} = Frame.goto(frame.guid, url: "about:blank#outer", timeout: @timeout)
 
         Tracing.group(
           tracing_id,
           [name: "Inner Group with location", location: [file: __ENV__.file, line: 30], timeout: @timeout],
           fn ->
-            {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/blog/", timeout: @timeout)
+            {:ok, _} = Frame.goto(frame.guid, url: "about:blank#inner", timeout: @timeout)
           end
         )
       end)
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.TracingTest do
 
       result =
         Tracing.group(tracing_id, [name: "Wrapped Navigation", timeout: @timeout], fn ->
-          {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
+          {:ok, _} = Frame.goto(frame.guid, url: "about:blank#wrapped", timeout: @timeout)
           :success
         end)
 
@@ -49,7 +49,7 @@ defmodule PlaywrightEx.TracingTest do
 
       assert_raise RuntimeError, "intentional error", fn ->
         Tracing.group(tracing_id, [name: "Error Group", timeout: @timeout], fn ->
-          {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
+          {:ok, _} = Frame.goto(frame.guid, url: "about:blank#error", timeout: @timeout)
           raise "intentional error"
         end)
       end
