@@ -1,0 +1,54 @@
+when:
+  - event: ["push", "manual"]
+    branch: ["main"]
+  - event: ["pull_request"]
+    branch: ["main"]
+
+engine: microvm
+image: nixos
+
+# Keep Playwright's npm package and Nix-provided browsers compatible.
+registry:
+  nixpkgs: github:nixos/nixpkgs/753cc8a3a87467296ddd1fa93f0cc3e81120ee46
+
+dependencies:
+  - beam29Packages.elixir_1_20
+  - beam29Packages.erlang
+  - nodejs_26
+  - playwright-driver.browsers
+
+virtualisation:
+  docker: true
+
+environment:
+  MIX_ENV: "test"
+  PW_TIMEOUT: "15000"
+  PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: "true"
+
+steps:
+  - name: "Install dependencies"
+    command: |
+      set -euo pipefail
+      mix local.hex --force
+      mix local.rebar --force
+      mix deps.get
+      mix deps.compile
+      npm ci --prefix assets
+
+  - name: "Check formatting"
+    command: mix format --check-formatted
+
+  - name: "Check Credo"
+    command: mix credo
+
+  - name: "Compile without warnings"
+    command: mix compile --warnings-as-errors
+
+  - name: "Test port transport"
+    command: |
+      set -euo pipefail
+      browsers_path="$(nix build --no-link --print-out-paths nixpkgs#playwright-driver.browsers)"
+      PLAYWRIGHT_BROWSERS_PATH="$browsers_path" mix test --warnings-as-errors --max-cases 1
+
+  - name: "Test websocket transport"
+    command: mix test.websocket --warnings-as-errors --max-cases 1
