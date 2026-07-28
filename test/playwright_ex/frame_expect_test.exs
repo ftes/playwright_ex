@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.FrameExpectTest do
   @moduledoc """
-  End-to-end coverage for `Frame.expect/2`, which must return the same
-  `{:ok, boolean}` under both the 1.60 and 1.61 driver wire contracts.
+  End-to-end coverage for `Frame.expect/2` under the current Playwright
+  driver wire contract.
   """
   use PlaywrightExCase, async: true
 
@@ -12,7 +12,7 @@ defmodule PlaywrightEx.FrameExpectTest do
     :ok
   end
 
-  describe "expect/2 visibility (driver-version agnostic)" do
+  describe "expect/2 visibility" do
     test "present element, is_not: false -> matches true", %{frame: frame} do
       assert {:ok, true} =
                Frame.expect(frame.guid,

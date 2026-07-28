@@ -8,7 +8,33 @@ defmodule PlaywrightEx.ConnectionTest do
     @behaviour PlaywrightEx.Transport
 
     @impl PlaywrightEx.Transport
+    def post(recipient, msg) when is_pid(recipient) do
+      send(recipient, {:transport_post, msg})
+      :ok
+    end
+
     def post(_name, _msg), do: :ok
+  end
+
+  test "sends command timeouts in metadata" do
+    name = start_connection!(self())
+
+    assert_receive {:transport_post,
+                    %{method: :initialize, params: %{sdk_language: :javascript}, metadata: %{timeout: 1_000}}}
+
+    task =
+      Task.async(fn ->
+        Connection.send(
+          name,
+          %{guid: "guid-0", method: :expect, params: %{selector: "#missing", timeout: 50}},
+          50
+        )
+      end)
+
+    assert_receive {:transport_post, %{id: id, params: %{selector: "#missing"}, metadata: %{timeout: 50}}}
+
+    Connection.handle_playwright_msg(name, %{id: id, result: %{}})
+    assert %{id: ^id, result: %{}} = Task.await(task)
   end
 
   test "deduplicates subscribers per guid" do
@@ -67,7 +93,7 @@ defmodule PlaywrightEx.ConnectionTest do
     refute_receive {:playwright_msg, %{guid: "guid-4"}}
   end
 
-  defp start_connection! do
+  defp start_connection!(transport_name \\ :dummy) do
     name = String.to_atom("connection_test_#{System.unique_integer([:positive])}")
     scope = String.to_atom("connection_test_scope_#{System.unique_integer([:positive])}")
     {:ok, _} = :pg.start_link(scope)
@@ -76,7 +102,7 @@ defmodule PlaywrightEx.ConnectionTest do
       Connection.start_link(
         name: name,
         timeout: 1_000,
-        transport: {DummyTransport, :dummy},
+        transport: {DummyTransport, transport_name},
         js_logger: nil,
         pg_scope: scope
       )
