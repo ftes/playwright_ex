@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.FrameExpectTest do
   @moduledoc """
-  End-to-end coverage for `Frame.expect/2`, which must return the same
-  `{:ok, boolean}` under both the 1.60 and 1.61 driver wire contracts.
+  End-to-end coverage for `Frame.expect/2` under the current Playwright
+  driver wire contract.
   """
   use PlaywrightExCase, async: true
 
@@ -12,7 +12,7 @@ defmodule PlaywrightEx.FrameExpectTest do
     :ok
   end
 
-  describe "expect/2 visibility (driver-version agnostic)" do
+  describe "expect/2 visibility" do
     test "present element, is_not: false -> matches true", %{frame: frame} do
       assert {:ok, true} =
                Frame.expect(frame.guid,
@@ -41,6 +41,20 @@ defmodule PlaywrightEx.FrameExpectTest do
                  is_not: true,
                  timeout: @timeout
                )
+    end
+
+    test "non-timeout ExpectError remains an error", %{frame: frame} do
+      set_html(frame.guid, ~s(<div class="duplicate"></div><div class="duplicate"></div>))
+
+      assert {:error, {%{error: %{name: "ExpectError"}}, details}} =
+               Frame.expect(frame.guid,
+                 selector: ".duplicate",
+                 expression: "to.be.visible",
+                 timeout: @timeout
+               )
+
+      refute details[:timed_out]
+      assert details.custom_error_message =~ "strict mode violation"
     end
 
     test "assert_has finds a present element", %{frame: frame} do

@@ -61,14 +61,15 @@ defmodule PlaywrightEx.PageTest do
       {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
 
       assert {:error,
-              %{
-                timed_out: false,
-                custom_error_message:
-                  "Expected an image 1px by 1px, received 1280px by 720px. 1 pixels (ratio 0.01 of all image pixels) are different.",
-                log: _,
-                diff: _,
-                actual: _
-              }} =
+              {_,
+               %{
+                 timed_out: false,
+                 custom_error_message:
+                   "Expected an image 1px by 1px, received 1280px by 720px. 1 pixels (ratio 0.01 of all image pixels) are different.",
+                 log: _,
+                 diff: _,
+                 actual: _
+               }}} =
                Page.expect_screenshot(page.guid, expected: @red_px_png, timeout: @timeout)
     end
 

@@ -26,11 +26,15 @@ defmodule PlaywrightEx.FrameTest do
       end
     end
 
-    test "referer option sets the Referer header on the navigation request", %{frame: frame} do
+    test "referer option sets document.referrer for the navigation", %{frame: frame} do
       referer = "https://example.com/"
 
       {:ok, _} =
-        Frame.goto(frame.guid, url: "https://elixir-lang.org/", referer: referer, timeout: @timeout)
+        Frame.goto(frame.guid,
+          url: "data:text/html,<main>fixture</main>",
+          referer: referer,
+          timeout: @timeout
+        )
 
       assert {:ok, ^referer} = Frame.evaluate(frame.guid, expression: "document.referrer", timeout: @timeout)
     end
@@ -38,15 +42,28 @@ defmodule PlaywrightEx.FrameTest do
 
   describe "mouse move" do
     test "move, down, up", %{page: page, frame: frame} do
-      # Navigate to a page with a clickable link
-      {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
+      set_html(
+        frame.guid,
+        """
+        <style>
+          #install { display: none; }
+          #install:target { display: block; }
+        </style>
+        <a href="#install">Install</a>
+        <section id="install">
+          <a href="#operating-systems">By Operating System</a>
+        </section>
+        """
+      )
+
+      refute_has(frame.guid, Selector.link("By Operating System"))
 
       # Get the bounding box of the link and calculate its center's coordinates
       {:ok, result} =
         Frame.evaluate(frame.guid,
           expression: """
           () => {
-            const el = document.querySelector('a[href="/install.html"]');
+            const el = document.querySelector('a[href="#install"]');
             const box = el.getBoundingClientRect();
             return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
           }
@@ -63,7 +80,7 @@ defmodule PlaywrightEx.FrameTest do
       {:ok, _} = Page.mouse_down(page.guid, timeout: @timeout)
       {:ok, _} = Page.mouse_up(page.guid, timeout: @timeout)
 
-      # Verify navigation to install page
+      # Verify the click revealed the target section
       assert_has(frame.guid, Selector.link("By Operating System"))
     end
 

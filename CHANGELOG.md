@@ -5,9 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-## Unreleased
+## [Unreleased]
+### Changed
+- Require Playwright 1.62 or newer. Command timeouts are now sent as protocol
+  metadata, matching the Playwright 1.62 driver contract. The bundled
+  development dependency is updated to 1.62, and the local port transport warns
+  when an older driver is detected.
+- Preserve both the protocol error and `error_details` in
+  `Page.expect_screenshot/2` errors as `{:error, {error, error_details}}`. #58
+
 ### Fixed
 - Launch JavaScript Playwright CLI files through Node on Windows or when `PLAYWRIGHT_NODEJS_PATH` is configured, while preserving shebang execution on Unix.
+
+### Removed
+- Support for the Playwright 1.60 expectation response format. #58
 
 ## [0.7.1] 2026-06-19
 ### Added

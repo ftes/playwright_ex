@@ -61,7 +61,8 @@ defmodule PlaywrightEx.Connection do
     msg =
       msg
       |> Enum.into(%{params: %{}, metadata: %{}})
-      |> put_in([:params, :timeout], timeout)
+      |> update_in([:params], &Map.delete(&1, :timeout))
+      |> put_in([:metadata, :timeout], timeout)
       |> Map.put_new_lazy(:id, fn -> System.unique_integer([:positive, :monotonic]) end)
 
     call_timeout = max(@min_genserver_timeout, round(timeout * @timeout_grace_factor))
@@ -95,8 +96,8 @@ defmodule PlaywrightEx.Connection do
     post(transport, %{
       guid: "",
       method: :initialize,
-      params: %{sdk_language: :javascript, timeout: timeout},
-      metadata: %{}
+      params: %{sdk_language: :javascript},
+      metadata: %{timeout: timeout}
     })
 
     {:ok, :pending, %__MODULE__{config: config}}

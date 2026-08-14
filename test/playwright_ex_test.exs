@@ -18,10 +18,23 @@ defmodule PlaywrightExTest do
     :ok
   end
 
-  test "visit elixir-lang.org, then assert and navigate", %{frame: frame} do
-    {:ok, _} = Frame.goto(frame.guid, url: "https://elixir-lang.org/", timeout: @timeout)
+  test "assert and navigate a fixture page", %{frame: frame} do
+    set_html(
+      frame.guid,
+      """
+      <style>
+        #install { display: none; }
+        #install:target { display: block; }
+      </style>
+      <h1>Playwright Ex is a browser automation client</h1>
+      <a href="#install">Install</a>
+      <section id="install">
+        <a href="#macos">macOS</a>
+      </section>
+      """
+    )
 
-    assert_has(frame.guid, Selector.role("heading", "Elixir is a dynamic, functional language"))
+    assert_has(frame.guid, Selector.role("heading", "Playwright Ex is a browser automation client"))
     refute_has(frame.guid, Selector.role("heading", "I made this up"))
 
     {:ok, _} = Frame.click(frame.guid, selector: Selector.link("Install"), timeout: @timeout)
