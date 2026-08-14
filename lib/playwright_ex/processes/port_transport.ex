@@ -31,7 +31,11 @@ defmodule PlaywrightEx.PortTransport do
   Start the PortTransport and link it to the connection process.
   """
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:executable, :name, :connection_name, env: %{}])
+    opts =
+      opts
+      |> Keyword.validate!([:executable, :name, :connection_name, env: %{}])
+      |> Keyword.update!(:executable, &Path.expand/1)
+
     name = Keyword.get(opts, :name, @default_name)
     check_version(opts[:executable], opts[:env])
     GenServer.start_link(__MODULE__, Map.new(opts), name: name)
@@ -116,7 +120,7 @@ defmodule PlaywrightEx.PortTransport do
   end
 
   defp check_version(executable, env) do
-    {command, args} = executable_command(Path.expand(executable), ["--version"], env)
+    {command, args} = executable_command(executable, ["--version"], env)
     {"Version " <> version, 0} = System.cmd(command, args)
     version = version |> String.trim() |> Version.parse!()
     recommended = PlaywrightEx.recommended_min_version()
