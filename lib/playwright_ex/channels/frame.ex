@@ -277,8 +277,15 @@ defmodule PlaywrightEx.Frame do
 
     connection
     |> Connection.send(%{guid: frame_id, method: :expect, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap_expect(is_not)
+    |> ChannelResponse.unwrap(& &1)
+    |> matches?(is_not)
   end
+
+  # Only a timed-out ExpectError represents a boolean non-match. Non-timeout
+  # ExpectErrors, such as strict-selector violations, must remain errors.
+  defp matches?({:error, {%{error: %{name: "ExpectError"}}, %{timed_out: true}}}, is_not), do: {:ok, is_not}
+  defp matches?({:error, error}, _is_not), do: {:error, error}
+  defp matches?({:ok, _}, is_not), do: {:ok, not is_not}
 
   schema =
     NimbleOptions.new!(

@@ -102,5 +102,5 @@ defmodule PlaywrightEx do
   end
 
   @doc false
-  def recommended_min_version, do: "1.61.0"
+  def recommended_min_version, do: "1.62.0"
 end
