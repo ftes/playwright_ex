@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-## [Unreleased]
+## [0.8.0] 2026-08-27
 ### Changed
 - Require Playwright 1.62 or newer. Command timeouts are now sent as protocol
   metadata, matching the Playwright 1.62 driver contract. The bundled
@@ -28,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   success-vs-error: a non-match returns a protocol error carrying
   `error_details`. `Frame.expect/2` now yields a plain `{:ok, boolean}` under
   both 1.60 and 1.61, so `phoenix_test_playwright`'s `assert_has`/`refute_has`
-  keep working. `PlaywrightEx.Serialization.deserialize_arg/1` also raises a
+  keep working. `Serialization.deserialize_arg/1` also raises a
   descriptive error on unknown serialized shapes instead of a bare
   `CaseClauseError`. Commit [d6d9ddc], #57, [@oliver-kriska]
 
