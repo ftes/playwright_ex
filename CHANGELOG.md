@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
+## [Unreleased]
+### Added
+- `PlaywrightEx.FilePayload` for typed in-memory file uploads.
+  `Frame.set_input_files/2` and the new `ElementHandle.set_input_files/2` accept
+  paths or payloads, with the latter supporting handles from file chooser
+  events. Empty selections clear inputs for both local and remote connections.
+  #80
+
 ## [0.8.0] 2026-08-27
 ### Changed
 - Require Playwright 1.62 or newer. Command timeouts are now sent as protocol
