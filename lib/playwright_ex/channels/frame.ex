@@ -573,33 +573,29 @@ defmodule PlaywrightEx.Frame do
 
   schema =
     NimbleOptions.new!(
-      connection: PlaywrightEx.Channel.connection_opt(),
-      timeout: PlaywrightEx.Channel.timeout_opt(),
-      selector: [
-        type: :string,
-        required: true,
-        doc: "A selector to search for an element."
-      ],
-      local_paths: [
-        type: :any,
-        required: true,
-        doc:
-          "File path(s) to set. Can be a string or a list of strings. Relative paths are resolved relative to the current working directory."
-      ],
-      strict: [
-        type: :boolean,
-        default: true,
-        doc: "When true, the call requires selector to resolve to a single element."
-      ]
+      [
+        connection: PlaywrightEx.Channel.connection_opt(),
+        timeout: PlaywrightEx.Channel.timeout_opt(),
+        selector: [
+          type: :string,
+          required: true,
+          doc: "A selector to search for an element."
+        ],
+        strict: [
+          type: :boolean,
+          default: true,
+          doc: "When true, the call requires selector to resolve to a single element."
+        ]
+      ] ++ PlaywrightEx.FileInput.selection_schema()
     )
 
   @doc """
-  Sets the value of the file input to these file paths or files.
+  Sets the value of the file input to local file paths or in-memory payloads.
 
   This method expects selector to point to an input element. However, if the element is inside
-  the `<label>` element that has an associated control, targets the control instead. If some of
-  the file paths are relative paths, then they are resolved relative to the current working directory.
-  For empty array, clears the selected files.
+  the `<label>` element that has an associated control, targets the control instead. Pass either
+  `:local_paths` or `:payloads`. If some of the file paths are relative paths, then they are resolved
+  relative to the current working directory. An empty list clears the selected files.
 
   Note: This method is discouraged. Use locator-based `locator.setInputFiles()` instead.
 
@@ -616,29 +612,11 @@ defmodule PlaywrightEx.Frame do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
-    params = opts |> Map.new() |> maybe_convert_to_payloads(connection)
+    params = opts |> PlaywrightEx.FileInput.prepare(connection) |> Map.new()
 
     connection
     |> Connection.send(%{guid: frame_id, method: :set_input_files, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
-  end
-
-  defp maybe_convert_to_payloads(%{local_paths: local_paths} = params, connection) do
-    if Connection.remote?(connection) do
-      paths = local_paths |> List.wrap() |> Enum.map(&Path.expand/1)
-
-      payloads =
-        Enum.map(paths, fn path ->
-          %{
-            name: Path.basename(path),
-            buffer: path |> File.read!() |> Base.encode64()
-          }
-        end)
-
-      params |> Map.delete(:local_paths) |> Map.put(:payloads, payloads)
-    else
-      params
-    end
   end
 
   schema =
