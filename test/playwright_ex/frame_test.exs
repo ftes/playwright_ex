@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.FrameTest do
   use PlaywrightExCase, async: true
 
+  alias PlaywrightEx.FilePayload
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Selector
@@ -455,6 +456,84 @@ defmodule PlaywrightEx.FrameTest do
         assert file_content == "hello from elixir"
       after
         File.rm(tmp_path)
+      end
+    end
+
+    test "can upload an in-memory payload without changing its bytes", %{frame: frame} do
+      :ok = set_html(frame.guid, "<input id='file-input' type='file'>")
+      bytes = <<0, 1, 127, 128, 255>>
+
+      assert {:ok, _} =
+               Frame.set_input_files(frame.guid,
+                 selector: "#file-input",
+                 payloads: %FilePayload{
+                   name: "generated.bin",
+                   mime_type: "application/octet-stream",
+                   buffer: bytes
+                 },
+                 timeout: @timeout
+               )
+
+      assert {:ok,
+              %{
+                "name" => "generated.bin",
+                "type" => "application/octet-stream",
+                "bytes" => [0, 1, 127, 128, 255]
+              }} =
+               eval(frame.guid, """
+               async () => {
+                 const file = document.getElementById('file-input').files[0];
+                 return {
+                   name: file.name,
+                   type: file.type,
+                   bytes: Array.from(new Uint8Array(await file.arrayBuffer()))
+                 };
+               }
+               """)
+    end
+
+    test "an empty local path list clears selected files", %{frame: frame} do
+      :ok = set_html(frame.guid, "<input id='file-input' type='file'>")
+
+      assert {:ok, _} =
+               Frame.set_input_files(frame.guid,
+                 selector: "#file-input",
+                 payloads: %FilePayload{name: "generated.txt", buffer: "contents"},
+                 timeout: @timeout
+               )
+
+      assert {:ok, _} =
+               Frame.set_input_files(frame.guid,
+                 selector: "#file-input",
+                 local_paths: [],
+                 timeout: @timeout
+               )
+
+      assert {:ok, 0} = eval(frame.guid, "() => document.getElementById('file-input').files.length")
+    end
+
+    test "requires exactly one file source", %{frame: frame} do
+      assert_raise ArgumentError, ~r/expected either :local_paths or :payloads$/, fn ->
+        Frame.set_input_files(frame.guid, selector: "#file-input", timeout: @timeout)
+      end
+
+      assert_raise ArgumentError, ~r/got both/, fn ->
+        Frame.set_input_files(frame.guid,
+          selector: "#file-input",
+          local_paths: [],
+          payloads: [],
+          timeout: @timeout
+        )
+      end
+    end
+
+    test "validates in-memory payload fields", %{frame: frame} do
+      assert_raise ArgumentError, ~r/with binary :name and :buffer/, fn ->
+        Frame.set_input_files(frame.guid,
+          selector: "#file-input",
+          payloads: %FilePayload{name: "invalid.txt", buffer: :not_binary},
+          timeout: @timeout
+        )
       end
     end
   end
