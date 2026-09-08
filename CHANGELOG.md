@@ -13,8 +13,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   events. Empty selections clear inputs for both local and remote connections.
   #80
 - Playwright 1.63 APIs for structured ARIA snapshots, OPFS storage-state
-  snapshots, browser-context `dialog_closed` events, visible-only selectors,
-  and selectors that search across descendant frames.
+  snapshots, visible-only selectors, and selectors that search across
+  descendant frames.
+- `BrowserContext.update_subscription/2` for context-level console, dialog,
+  request, and response events, including Playwright 1.63's `dialog_closed`
+  event.
+- Additional Playwright 1.63 `BrowserType.launch/2` options for browser
+  arguments, default-argument controls, environment variables, proxies, signal
+  handling, artifact paths, Chromium sandboxing, Firefox preferences, and the
+  CDP port.
 
 ### Changed
 - Require Playwright 1.63 or newer. The local port transport now raises for an
@@ -29,10 +36,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Align every implemented channel operation with the Playwright 1.63 wire
-  contract, including browser context enums and HTTP headers, browser launch
-  environment and signal fields, cookie filters and SameSite values, storage
-  state credentials, frame selection and polling, subscription events, and all
-  tracing stop modes.
+  contract, including browser context enums and HTTP headers, cookie filters
+  and SameSite values, storage state credentials, frame polling, subscription
+  events, and all tracing stop modes.
+- Make `Frame.select_option/2` accept a string, option map, element handle, or
+  heterogeneous list of those inputs, and return the selected values as a list.
 - Correlate the root `initialize` request, track `__create__`/`__adopt__`
   ownership, recursively dispose child channels, and associate frame waiters
   with their page from `Page.mainFrame`. Console and page-error events are now
