@@ -12,6 +12,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   paths or payloads, with the latter supporting handles from file chooser
   events. Empty selections clear inputs for both local and remote connections.
   #80
+- Playwright 1.63 APIs for structured ARIA snapshots, OPFS storage-state
+  snapshots, browser-context `dialog_closed` events, visible-only selectors,
+  and selectors that search across descendant frames.
+
+### Changed
+- Require Playwright 1.63 or newer. The local port transport now raises for an
+  older driver instead of warning. HTTP credentials are serialized using the
+  new array wire format while the public API continues to accept one credential
+  map or a list.
+- Map the public tracing snapshot and screenshot options to Playwright 1.63's
+  `snapshotDom`, `snapshotAria`, `snapshotScreen`, and `screencast` wire fields.
 
 ## [0.8.0] 2026-08-27
 ### Changed

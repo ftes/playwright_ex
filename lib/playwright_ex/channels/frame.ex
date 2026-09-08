@@ -16,6 +16,49 @@ defmodule PlaywrightEx.Frame do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
+      mode: [
+        type: {:in, [:ai, :default]},
+        doc: "Snapshot representation mode."
+      ],
+      selector: [
+        type: :string,
+        doc: "Optional selector that scopes the snapshot."
+      ],
+      depth: [
+        type: :non_neg_integer,
+        doc: "Maximum depth of the returned accessibility tree."
+      ],
+      boxes: [
+        type: :boolean,
+        doc: "Whether to include element bounding boxes."
+      ]
+    )
+
+  @doc """
+  Returns an ARIA snapshot as structured JSON data.
+
+  Reference: https://playwright.dev/docs/api/class-page#page-aria-snapshot-json
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type aria_snapshot_json_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec aria_snapshot_json(PlaywrightEx.guid(), [aria_snapshot_json_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def aria_snapshot_json(frame_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: frame_id, method: :aria_snapshot_json, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(&Map.fetch!(&1, :snapshot))
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
       url: [
         type: :string,
         required: true,

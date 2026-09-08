@@ -15,8 +15,8 @@ if Code.ensure_loaded?(WebSockex) do
 
     Run server via docker:
     ```bash
-    docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.58.0-noble \
-      npx -y playwright@1.58.0 run-server --port 3000 --host 0.0.0.0
+    docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.63.0-noble \
+      npx -y playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
     ```
     """
     @behaviour PlaywrightEx.Transport

@@ -154,6 +154,37 @@ defmodule PlaywrightEx.FrameTest do
       assert {:ok, true} = Frame.is_visible(frame.guid, selector: "#visible", timeout: @timeout)
       assert {:ok, false} = Frame.is_visible(frame.guid, selector: "#hidden", timeout: @timeout)
     end
+
+    test "visible selector filters hidden matches", %{frame: frame} do
+      set_html(frame.guid, """
+      <button class="item" style="display:none">Hidden</button>
+      <button class="item">Visible</button>
+      """)
+
+      selector = ".item" |> Selector.css() |> Selector.visible()
+
+      assert {:ok, "Visible"} = Frame.inner_text(frame.guid, selector: selector, timeout: @timeout)
+    end
+  end
+
+  describe "aria_snapshot_json/2" do
+    test "returns a structured accessibility snapshot", %{frame: frame} do
+      set_html(frame.guid, "<main><button>Save changes</button></main>")
+
+      assert {:ok, snapshot} = Frame.aria_snapshot_json(frame.guid, mode: :default, boxes: true, timeout: @timeout)
+      assert is_list(snapshot)
+      assert inspect(snapshot) =~ "Save changes"
+    end
+  end
+
+  describe "cross-frame selectors" do
+    test "finds an element in any descendant frame", %{frame: frame} do
+      set_html(frame.guid, ~s(<iframe srcdoc="<button>Inside frame</button>"></iframe>))
+      selector = Selector.any_frame(Selector.button("Inside frame"))
+
+      assert {:ok, _} = Frame.wait_for_selector(frame.guid, selector: selector, timeout: @timeout)
+      assert {:ok, "Inside frame"} = Frame.inner_text(frame.guid, selector: selector, timeout: @timeout)
+    end
   end
 
   describe "is_checked/2" do

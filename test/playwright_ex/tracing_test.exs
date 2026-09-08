@@ -8,6 +8,31 @@ defmodule PlaywrightEx.TracingTest do
     [tracing_id: context.browser_context.tracing.guid]
   end
 
+  describe "tracing_start/2" do
+    test "captures Playwright 1.63 DOM, ARIA, screen, and screencast snapshots", %{
+      tracing_id: tracing_id,
+      frame: frame
+    } do
+      {:ok, _} =
+        Tracing.tracing_start(tracing_id,
+          snapshots: %{dom: true, aria: true, screen: true},
+          screenshots: true,
+          timeout: @timeout
+        )
+
+      {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: @timeout)
+      set_html(frame.guid, "<button>Trace me</button>")
+      {:ok, _} = Frame.click(frame.guid, selector: "button", timeout: @timeout)
+
+      trace = stop_tracing(tracing_id)
+
+      assert trace =~ ~s("type":"frame-snapshot")
+      assert trace =~ ~s("type":"aria-snapshot")
+      assert trace =~ ~s("type":"screenshot")
+      assert trace =~ ~s("type":"screencast-frame")
+    end
+  end
+
   describe "group/3" do
     test "writes name and location with nesting", %{tracing_id: tracing_id, frame: frame} do
       start_tracing(tracing_id)

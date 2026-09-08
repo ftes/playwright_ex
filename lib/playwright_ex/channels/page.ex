@@ -35,9 +35,10 @@ defmodule PlaywrightEx.Page do
   def update_subscription(page_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    params = opts |> Map.new() |> Map.update!(:event, &Serialization.camelize/1)
 
     connection
-    |> Connection.send(%{guid: page_id, method: :update_subscription, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: page_id, method: :update_subscription, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 

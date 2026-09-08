@@ -15,21 +15,30 @@ defmodule PlaywrightEx.Tracing do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
-      title: [
+      name: [
         type: :string,
-        doc: "Trace name to be shown in the Trace Viewer."
+        doc: "Trace name used for the generated trace files."
       ],
       screenshots: [
         type: :boolean,
-        doc: "Whether to capture screenshots during tracing"
+        doc: "Whether to capture a screencast during tracing."
       ],
       snapshots: [
-        type: :boolean,
-        doc: "Captures DOM snapshots and records network activity"
-      ],
-      sources: [
-        type: :boolean,
-        doc: "Whether to include source files for trace actions"
+        type: {:or, [:boolean, :map, :keyword_list]},
+        type_spec:
+          quote(
+            do:
+              boolean()
+              | %{
+                  optional(:dom) => boolean(),
+                  optional(:aria) => boolean(),
+                  optional(:screen) => boolean()
+                }
+              | keyword(boolean())
+          ),
+        type_doc: "`boolean | %{optional(:dom | :aria | :screen) => boolean} | keyword(boolean)`",
+        doc:
+          "Snapshot capture settings. A boolean controls DOM snapshots; a map or keyword list can configure `:dom`, `:aria`, and `:screen` separately."
       ]
     )
 
@@ -48,11 +57,40 @@ defmodule PlaywrightEx.Tracing do
   def tracing_start(tracing_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    params = tracing_start_params(opts)
 
     connection
-    |> Connection.send(%{guid: tracing_id, method: :tracing_start, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: tracing_id, method: :tracing_start, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  defp tracing_start_params(opts) do
+    {snapshots, opts} = Keyword.pop(opts, :snapshots)
+    {screenshots, opts} = Keyword.pop(opts, :screenshots)
+
+    opts
+    |> maybe_put(:screencast, screenshots)
+    |> put_snapshot_options(snapshots)
+    |> Map.new()
+  end
+
+  defp put_snapshot_options(opts, snapshots) when is_boolean(snapshots) do
+    Keyword.put(opts, :snapshot_dom, snapshots)
+  end
+
+  defp put_snapshot_options(opts, snapshots) when is_map(snapshots) or is_list(snapshots) do
+    Enum.reduce(snapshots, opts, fn
+      {:dom, value}, acc when is_boolean(value) -> Keyword.put(acc, :snapshot_dom, value)
+      {:aria, value}, acc when is_boolean(value) -> Keyword.put(acc, :snapshot_aria, value)
+      {:screen, value}, acc when is_boolean(value) -> Keyword.put(acc, :snapshot_screen, value)
+      option, _acc -> raise ArgumentError, "invalid tracing snapshot option: #{inspect(option)}"
+    end)
+  end
+
+  defp put_snapshot_options(opts, nil), do: opts
+
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 
   schema =
     NimbleOptions.new!(
