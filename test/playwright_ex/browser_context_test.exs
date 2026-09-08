@@ -78,14 +78,30 @@ defmodule PlaywrightEx.BrowserContextTest do
   end
 
   describe "storage_state/2" do
-    test "accepts Playwright 1.63 OPFS storage snapshots", %{browser_context: browser_context} do
-      assert {:ok, %{cookies: [], origins: []}} =
+    test "restores and captures Playwright 1.63 OPFS storage snapshots", %{browser_context: browser_context} do
+      origin = "https://playwright.example"
+
+      opfs = [
+        %{path: "nested", type: "directory"},
+        %{path: "nested/state.txt", type: "file", base64: Base.encode64("persisted state")}
+      ]
+
+      assert {:ok, _} =
+               BrowserContext.set_storage_state(browser_context.guid,
+                 origins: [%{origin: origin, local_storage: [], opfs: opfs}],
+                 credentials: [],
+                 timeout: @timeout
+               )
+
+      assert {:ok, %{cookies: [], credentials: [], origins: [stored_origin]}} =
                BrowserContext.storage_state(browser_context.guid,
                  indexedDB: true,
                  opfs: true,
                  credentials: true,
                  timeout: @timeout
                )
+
+      assert %{origin: ^origin, local_storage: [], indexed_db: [], opfs: ^opfs} = stored_origin
     end
   end
 

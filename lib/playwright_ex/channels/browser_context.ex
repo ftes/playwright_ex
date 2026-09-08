@@ -447,6 +447,10 @@ defmodule PlaywrightEx.BrowserContext do
         List of origins and their local storage to set as the current local storage data on the context.
         Defaults to an empty list to clear all local storage on the context.
         """
+      ],
+      credentials: [
+        type: {:list, :map},
+        doc: "List of virtual WebAuthn credentials to restore into the context."
       ]
     )
 
@@ -455,7 +459,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   Origin entries may contain local storage, IndexedDB, and `opfs` entries. Each
   OPFS entry has a path, a `"file"` or `"directory"` type, and optional base64
-  content for files.
+  content for files. The storage state may also contain virtual WebAuthn
+  `credentials`.
 
   Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-set-storage-state
 

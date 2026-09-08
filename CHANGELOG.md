@@ -24,6 +24,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Map the public tracing snapshot and screenshot options to Playwright 1.63's
   `snapshotDom`, `snapshotAria`, `snapshotScreen`, and `screencast` wire fields.
 
+### Fixed
+- Allow `BrowserContext.set_storage_state/2` to restore virtual WebAuthn
+  credentials, and cover OPFS state capture and restoration with a round-trip
+  regression test.
+
 ## [0.8.0] 2026-08-27
 ### Changed
 - Require Playwright 1.62 or newer. Command timeouts are now sent as protocol
