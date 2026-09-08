@@ -40,8 +40,27 @@ defmodule PlaywrightEx.Browser do
         doc: "An object containing additional HTTP headers to be sent with every request."
       ],
       http_credentials: [
-        type: :any,
-        doc: "Credentials for HTTP authentication. Map with `:username` and `:password`."
+        type: {:or, [:map, {:list, :map}]},
+        type_spec:
+          quote(
+            do:
+              %{
+                required(:username) => String.t(),
+                required(:password) => String.t(),
+                optional(:origin) => String.t(),
+                optional(:send) => :always | :unauthorized
+              }
+              | [
+                  %{
+                    required(:username) => String.t(),
+                    required(:password) => String.t(),
+                    optional(:origin) => String.t(),
+                    optional(:send) => :always | :unauthorized
+                  }
+                ]
+          ),
+        type_doc: "`http_credential | [http_credential]`",
+        doc: "Credentials for HTTP authentication. A credential map or a list of maps with `:username` and `:password`."
       ],
       ignore_https_errors: [
         type: :boolean,
@@ -115,11 +134,28 @@ defmodule PlaywrightEx.Browser do
   end
 
   defp prepare_new_context_opts(opts) do
-    case Keyword.fetch(opts, :viewport) do
-      {:ok, nil} ->
-        opts
-        |> Keyword.delete(:viewport)
-        |> Keyword.put(:no_default_viewport, true)
+    opts
+    |> prepare_viewport()
+    |> prepare_http_credentials()
+  end
+
+  defp prepare_viewport(opts) do
+    if Keyword.get(opts, :viewport) == nil and Keyword.has_key?(opts, :viewport) do
+      opts
+      |> Keyword.delete(:viewport)
+      |> Keyword.put(:no_default_viewport, true)
+    else
+      opts
+    end
+  end
+
+  defp prepare_http_credentials(opts) do
+    case Keyword.fetch(opts, :http_credentials) do
+      {:ok, credentials} when is_map(credentials) ->
+        Keyword.put(opts, :http_credentials, [credentials])
+
+      {:ok, []} ->
+        Keyword.delete(opts, :http_credentials)
 
       _ ->
         opts

@@ -2,6 +2,7 @@ defmodule PlaywrightEx.BrowserContextTest do
   use PlaywrightExCase, async: true
 
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Dialog
   alias PlaywrightEx.Frame
 
   describe "add_init_script/2" do
@@ -73,6 +74,61 @@ defmodule PlaywrightEx.BrowserContextTest do
       elapsed = System.monotonic_time(:millisecond) - started_at
       assert before_now > 1_000_000
       assert after_now in 61_000..(61_000 + elapsed + 100)
+    end
+  end
+
+  describe "storage_state/2" do
+    test "accepts Playwright 1.63 OPFS storage snapshots", %{browser_context: browser_context} do
+      assert {:ok, %{cookies: [], origins: []}} =
+               BrowserContext.storage_state(browser_context.guid,
+                 indexedDB: true,
+                 opfs: true,
+                 credentials: true,
+                 timeout: @timeout
+               )
+    end
+  end
+
+  describe "dialog_closed events" do
+    test "subscribes on the browser context", %{browser_context: browser_context, frame: frame} do
+      :ok = PlaywrightEx.subscribe(browser_context.guid)
+
+      on_exit(fn ->
+        PlaywrightEx.unsubscribe(browser_context.guid)
+      end)
+
+      assert {:ok, _} =
+               BrowserContext.update_subscription(browser_context.guid,
+                 event: :dialog,
+                 timeout: @timeout
+               )
+
+      assert {:ok, _} =
+               BrowserContext.update_subscription(browser_context.guid,
+                 event: :dialog_closed,
+                 timeout: @timeout
+               )
+
+      evaluation = Task.async(fn -> eval(frame.guid, "() => alert('closed')") end)
+
+      assert_receive {:playwright_msg,
+                      %{
+                        guid: context_id,
+                        method: :dialog,
+                        params: %{dialog: %{guid: dialog_id}}
+                      }}
+
+      assert context_id == browser_context.guid
+      assert {:ok, _} = Dialog.accept(dialog_id, timeout: @timeout)
+
+      assert_receive {:playwright_msg,
+                      %{
+                        guid: ^context_id,
+                        method: :dialog_closed,
+                        params: %{dialog: %{guid: ^dialog_id}}
+                      }}
+
+      assert {:ok, nil} = Task.await(evaluation)
     end
   end
 end

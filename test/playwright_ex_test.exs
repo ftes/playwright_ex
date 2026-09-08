@@ -42,7 +42,13 @@ defmodule PlaywrightExTest do
   end
 
   def on_exit_open_trace(tracing_id, tmp_dir, timeout) do
-    {:ok, _} = Tracing.tracing_start(tracing_id, screenshots: true, snapshots: true, sources: true, timeout: timeout)
+    {:ok, _} =
+      Tracing.tracing_start(tracing_id,
+        screenshots: true,
+        snapshots: %{dom: true, aria: true, screen: true},
+        timeout: timeout
+      )
+
     {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: timeout)
 
     ExUnit.Callbacks.on_exit(fn ->

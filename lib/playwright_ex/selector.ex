@@ -39,6 +39,26 @@ defmodule PlaywrightEx.Selector do
   @spec has(t(), t()) :: t()
   def has(left, right), do: concat(left, "internal:has=#{JSON.encode!(right)}")
 
+  @doc """
+  Restricts a selector to visible or hidden elements.
+
+  This is the selector-building equivalent of Playwright 1.63's
+  `locator.visible()` API.
+  """
+  @spec visible(t()) :: t()
+  @spec visible(t(), boolean()) :: t()
+  def visible(selector, visible? \\ true), do: concat(selector, "visible=#{visible?}")
+
+  @doc """
+  Searches for a selector in any frame below the current frame.
+
+  This is the selector-building equivalent of calling Playwright 1.63's
+  `frameLocator()` without an iframe selector.
+  """
+  @spec any_frame(t()) :: t()
+  def any_frame(:none), do: :none
+  def any_frame(selector), do: concat("internal:control=any-frame", selector)
+
   @spec text(nil | String.t()) :: t()
   @spec text(nil | String.t(), exact_opts) :: t()
   def text(text, opts \\ [])

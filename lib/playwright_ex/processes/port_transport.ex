@@ -111,10 +111,10 @@ defmodule PlaywrightEx.PortTransport do
   defp check_version(executable) do
     {"Version " <> version, 0} = executable |> Path.expand() |> System.cmd(~w(--version))
     version = version |> String.trim() |> Version.parse!()
-    recommended = PlaywrightEx.recommended_min_version()
+    minimum = PlaywrightEx.minimum_supported_version()
 
-    if Version.compare(version, recommended) == :lt do
-      IO.warn("Playwright version #{version} is below recommended #{recommended}")
+    if Version.compare(version, minimum) == :lt do
+      raise "Unsupported Playwright version #{version}; PlaywrightEx requires version #{minimum} or newer"
     end
   end
 end

@@ -21,7 +21,7 @@ Freddy.
         # mix.exs
         {:playwright_ex, "~> 0.6"}
 
-2. Ensure `playwright` is installed (executable in `$PATH` or installed via `npm`)
+2. Ensure Playwright 1.63 or newer is installed (executable in `$PATH` or installed via `npm`)
 
 3. Start connection (or add to supervision tree)
         # if installed via npm or similar add `executable: "assets/node_modules/playwright/cli.js"`
@@ -37,7 +37,7 @@ Freddy.
         {:ok, _} = Frame.goto(frame.guid, "https://elixir-lang.org/", timeout: 1000)
         {:ok, _} = Frame.click(frame.guid, Selector.link("Install"), timeout: 1000)
 
-## Remove server via Websocket
+## Remote server via WebSocket
 By default, PlaywrightEx launches a local playwright driver.
 This is typically installed via `npm` or `bun`.
 
@@ -48,8 +48,8 @@ Alternatively, PlaywrightEx can connect to a remote playwright server:
 
   ```
   docker run -p 3000:3000 --rm --init -it \\
-    mcr.microsoft.com/playwright:v1.58.0-noble \\
-    npx -y playwright@1.58.0 run-server --port 3000 --host 0.0.0.0
+    mcr.microsoft.com/playwright:v1.63.0-noble \\
+    npx -y playwright@1.63.0 run-server --port 3000 --host 0.0.0.0
   ```
 
       {:ok, _} = PlaywrightEx.Supervisor.start_link(

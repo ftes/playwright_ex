@@ -9,6 +9,40 @@ defmodule PlaywrightEx.BrowserContext do
 
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
+  alias PlaywrightEx.Serialization
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      event: [type: :atom, required: true],
+      enabled: [type: :boolean, default: true]
+    )
+
+  @doc """
+  Updates the subscription for browser-context events.
+
+  Playwright 1.63 adds the `:dialog_closed` event, emitted after a JavaScript
+  dialog is accepted, dismissed, or otherwise closed.
+
+  Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/browserContext.ts
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type update_subscription_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec update_subscription(PlaywrightEx.guid(), [update_subscription_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def update_subscription(context_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    params = opts |> Map.new() |> Map.update!(:event, &Serialization.camelize/1)
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :update_subscription, params: params}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
 
   schema =
     NimbleOptions.new!(
@@ -357,11 +391,24 @@ defmodule PlaywrightEx.BrowserContext do
         Set to true to include IndexedDB in the storage state snapshot.
         If your application uses IndexedDB to store authentication tokens, like Firebase Authentication, enable this.
         """
+      ],
+      opfs: [
+        type: :boolean,
+        default: false,
+        doc: "Set to true to include the origin private file system in the storage state snapshot."
+      ],
+      credentials: [
+        type: :boolean,
+        default: false,
+        doc: "Set to true to include virtual WebAuthn credentials in the storage state snapshot."
       ]
     )
 
   @doc """
-  Returns storage state for this browser context, contains current cookies, local storage snapshot and IndexedDB snapshot.
+  Returns storage state for this browser context, including cookies and origin storage.
+
+  Origin storage can include local storage, IndexedDB, the origin private file
+  system, and virtual WebAuthn credentials according to the selected options.
 
   Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state
 
@@ -371,7 +418,7 @@ defmodule PlaywrightEx.BrowserContext do
   @schema schema
   @type storage_state_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec storage_state(PlaywrightEx.guid(), [storage_state_opt() | PlaywrightEx.unknown_opt()]) ::
-          {:ok, [map()]} | {:error, any()}
+          {:ok, map()} | {:error, any()}
   def storage_state(context_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
@@ -404,7 +451,11 @@ defmodule PlaywrightEx.BrowserContext do
     )
 
   @doc """
-  Clears the existing cookies, local storage and IndexedDB entries for all origins and sets the new storage state.
+  Clears the existing cookies and origin storage, then sets the new storage state.
+
+  Origin entries may contain local storage, IndexedDB, and `opfs` entries. Each
+  OPFS entry has a path, a `"file"` or `"directory"` type, and optional base64
+  content for files.
 
   Reference: https://playwright.dev/docs/api/class-browsercontext#browser-context-set-storage-state
 
