@@ -5,55 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-## [Unreleased]
+## [0.9.0] 2026-09-08
 ### Added
-- `PlaywrightEx.FilePayload` for typed in-memory file uploads.
-  `Frame.set_input_files/2` and the new `ElementHandle.set_input_files/2` accept
-  paths or payloads, with the latter supporting handles from file chooser
-  events. Empty selections clear inputs for both local and remote connections.
-  #80
-- Playwright 1.63 APIs for structured ARIA snapshots, OPFS storage-state
-  snapshots, visible-only selectors, and selectors that search across
-  descendant frames.
-- `BrowserContext.update_subscription/2` for context-level console, dialog,
-  request, and response events, including Playwright 1.63's `dialog_closed`
-  event.
-- Additional Playwright 1.63 `BrowserType.launch/2` options for browser
-  arguments, default-argument controls, environment variables, proxies, signal
-  handling, artifact paths, Chromium sandboxing, Firefox preferences, and the
-  CDP port.
+- Typed local and `PlaywrightEx.FilePayload` in-memory uploads through
+  `Frame.set_input_files/2` and the new `ElementHandle.set_input_files/2`,
+  including file-chooser handles and empty selections. #80
+- Playwright 1.63 APIs for structured ARIA snapshots, OPFS and WebAuthn storage
+  state, browser-context event subscriptions (including `dialog_closed`),
+  visible and cross-frame selectors, and expanded browser launch options.
 
 ### Changed
-- Require Playwright 1.63 or newer. The local port transport now raises for an
-  older driver instead of warning. HTTP credentials are serialized using the
-  new array wire format while the public API continues to accept one credential
-  map or a list.
-- Map the public tracing snapshot and screenshot options to Playwright 1.63's
-  `snapshotDom`, `snapshotAria`, `snapshotScreen`, and `screencast` wire fields.
-- Use Playwright 1.63 as the sole protocol baseline. Remote connections now
-  advertise that version during the WebSocket handshake and restart the full
-  connection state after a disconnect instead of reusing stale channel state.
+- Require Playwright 1.63 or newer and use it as the sole protocol baseline.
+  Older local drivers are rejected, and remote connections advertise 1.63 and
+  reset their protocol state after disconnects.
+- Adopt Playwright 1.63's HTTP-credential and tracing wire formats while
+  retaining the existing map-or-list public credential API.
 
 ### Fixed
-- Align every implemented channel operation with the Playwright 1.63 wire
-  contract, including browser context enums and HTTP headers, cookie filters
-  and SameSite values, storage state credentials, frame polling, subscription
-  events, and all tracing stop modes.
-- Make `Frame.select_option/2` accept a string, option map, element handle, or
-  heterogeneous list of those inputs, and return the selected values as a list.
-- Correlate the root `initialize` request, track `__create__`/`__adopt__`
-  ownership, recursively dispose child channels, and associate frame waiters
-  with their page from `Page.mainFrame`. Console and page-error events are now
-  both logged and delivered to subscribers.
-- Support all Playwright 1.63 serialized-value variants, preserve opaque JSON
-  keys, and avoid creating atoms from untrusted protocol keys.
-- Handle omitted void results and protocol call logs, buffer fragmented port
-  frame headers correctly, keep Node stderr out of protocol framing, and close
-  remote artifact streams after read failures.
-
-- Allow `BrowserContext.set_storage_state/2` to restore virtual WebAuthn
-  credentials, and cover OPFS and credential state capture and restoration with
-  round-trip regression tests.
+- Align channel options, events, and results with Playwright 1.63, including
+  headers, enums, cookies, frame polling and selection, subscriptions, tracing
+  modes, void results, and protocol logs.
+- Correct channel lifecycle tracking across initialization, creation, adoption,
+  disposal, and page/frame ownership; console and page errors now reach
+  subscribers.
+- Support every Playwright 1.63 serialized-value variant without altering
+  opaque JSON keys or creating atoms from untrusted data.
+- Harden port framing, stderr isolation, and remote artifact cleanup.
 
 ## [0.8.0] 2026-08-27
 ### Changed
