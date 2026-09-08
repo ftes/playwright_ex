@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Tracing do
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       mode: [
-        type: :atom,
+        type: {:in, [:archive, :discard, :entries]},
         doc: "Mode for stopping the chunk",
         default: :archive
       ]
@@ -171,17 +171,30 @@ defmodule PlaywrightEx.Tracing do
   @schema schema
   @type stop_chunk_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec tracing_stop_chunk(PlaywrightEx.guid(), [stop_chunk_opt() | PlaywrightEx.unknown_opt()]) ::
-          {:ok, %{guid: PlaywrightEx.guid(), absolute_path: Path.t()}} | {:error, any()}
+          {:ok, %{guid: PlaywrightEx.guid(), absolute_path: Path.t()} | [map()] | nil} | {:error, any()}
   def tracing_stop_chunk(tracing_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    mode = Keyword.fetch!(opts, :mode)
 
-    with {:ok, artifact} <-
+    with {:ok, result} <-
            connection
            |> Connection.send(%{guid: tracing_id, method: :tracing_stop_chunk, params: Map.new(opts)}, timeout)
-           |> ChannelResponse.unwrap_create(:artifact, connection) do
-      maybe_download_artifact(connection, artifact, timeout)
+           |> ChannelResponse.unwrap(& &1) do
+      handle_stop_chunk_result(mode, result, connection, timeout)
     end
+  end
+
+  defp handle_stop_chunk_result(:discard, _result, _connection, _timeout), do: {:ok, nil}
+  defp handle_stop_chunk_result(:entries, result, _connection, _timeout), do: {:ok, Map.get(result, :entries, [])}
+  defp handle_stop_chunk_result(:archive, %{artifact: nil}, _connection, _timeout), do: {:ok, nil}
+
+  defp handle_stop_chunk_result(:archive, result, _connection, _timeout) when not is_map_key(result, :artifact),
+    do: {:ok, nil}
+
+  defp handle_stop_chunk_result(:archive, %{artifact: artifact}, connection, timeout) do
+    artifact = Map.merge(artifact, Connection.initializer!(connection, artifact.guid))
+    maybe_download_artifact(connection, artifact, timeout)
   end
 
   defp maybe_download_artifact(connection, artifact, timeout) do

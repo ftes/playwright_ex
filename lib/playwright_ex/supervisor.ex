@@ -107,7 +107,9 @@ defmodule PlaywrightEx.Supervisor do
 
     transport_name = Module.concat(name, "PortTransport")
 
-    child_spec = {PortTransport, executable: executable, name: transport_name, connection_name: connection_name, env: env}
+    child_spec =
+      {PortTransport, executable: executable, name: transport_name, connection_name: connection_name, env: env}
+
     {child_spec, {PortTransport, transport_name}}
   end
 

@@ -367,6 +367,76 @@ defmodule PlaywrightEx.FrameTest do
                  timeout: @timeout
                )
     end
+
+    test "maps a numeric polling option to pollingInterval", %{frame: frame} do
+      set_html(frame.guid, "")
+
+      eval(frame.guid, """
+      () => {
+        window.__polled = false;
+        setTimeout(() => { window.__polled = true; }, 50);
+      }
+      """)
+
+      assert {:ok, %{handle: %{guid: _}}} =
+               Frame.wait_for_function(frame.guid,
+                 expression: "() => window.__polled",
+                 is_function: true,
+                 polling: 20,
+                 timeout: @timeout
+               )
+    end
+  end
+
+  describe "select_option/2" do
+    setup %{frame: frame} do
+      set_html(
+        frame.guid,
+        """
+        <select id="choice" multiple>
+          <option id="alpha" value="a">Alpha</option>
+          <option id="beta" value="b">Beta</option>
+          <option id="gamma" value="c">Gamma</option>
+        </select>
+        """
+      )
+
+      :ok
+    end
+
+    test "normalizes scalar strings and returns selected values", %{frame: frame} do
+      assert {:ok, ["a"]} =
+               Frame.select_option(frame.guid, selector: "#choice", options: "a", timeout: @timeout)
+    end
+
+    test "normalizes option maps and element handles", %{frame: frame} do
+      assert {:ok, ["b"]} =
+               Frame.select_option(frame.guid,
+                 selector: "#choice",
+                 options: %{label: "Beta"},
+                 timeout: @timeout
+               )
+
+      assert {:ok, element} = Frame.wait_for_selector(frame.guid, selector: "#alpha", timeout: @timeout)
+
+      assert {:ok, ["a"]} =
+               Frame.select_option(frame.guid,
+                 selector: "#choice",
+                 options: element,
+                 timeout: @timeout
+               )
+    end
+
+    test "accepts element handles, strings, and descriptors together", %{frame: frame} do
+      assert {:ok, element} = Frame.wait_for_selector(frame.guid, selector: "#alpha", timeout: @timeout)
+
+      assert {:ok, ["a", "b", "c"]} =
+               Frame.select_option(frame.guid,
+                 selector: "#choice",
+                 options: [element, "b", %{label: "Gamma"}],
+                 timeout: @timeout
+               )
+    end
   end
 
   describe "wait_for_load_state/2" do

@@ -57,7 +57,12 @@ if Code.ensure_loaded?(WebSockex) do
     defp connect_with_retry(ws_endpoint, name, connection_name, retries) do
       state = %__MODULE__{ws_endpoint: ws_endpoint, connection_name: connection_name}
 
-      case WebSockex.start_link(ws_endpoint, __MODULE__, state, name: name) do
+      user_agent = "Playwright/#{PlaywrightEx.minimum_supported_version()}"
+
+      case WebSockex.start_link(ws_endpoint, __MODULE__, state,
+             name: name,
+             extra_headers: [{"User-Agent", user_agent}]
+           ) do
         {:ok, pid} ->
           {:ok, pid}
 
@@ -93,7 +98,7 @@ if Code.ensure_loaded?(WebSockex) do
     def handle_frame({:binary, _data}, state), do: {:ok, state}
 
     @impl WebSockex
-    def handle_disconnect(_status, state), do: {:reconnect, state}
+    def handle_disconnect(_status, state), do: {:ok, state}
 
     @impl WebSockex
     def terminate(_reason, _state), do: :ok
