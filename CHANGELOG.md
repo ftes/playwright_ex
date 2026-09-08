@@ -26,8 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Allow `BrowserContext.set_storage_state/2` to restore virtual WebAuthn
-  credentials, and cover OPFS state capture and restoration with a round-trip
-  regression test.
+  credentials, and cover OPFS and credential state capture and restoration with
+  round-trip regression tests.
 
 ## [0.8.0] 2026-08-27
 ### Changed

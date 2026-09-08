@@ -103,6 +103,30 @@ defmodule PlaywrightEx.BrowserContextTest do
 
       assert %{origin: ^origin, local_storage: [], indexed_db: [], opfs: ^opfs} = stored_origin
     end
+
+    test "restores and captures virtual WebAuthn credentials", %{browser_context: browser_context} do
+      credential = %{
+        id: "Y3JlZGVudGlhbC1pZA",
+        rp_id: "playwright.example",
+        user_handle: "dXNlci1oYW5kbGU",
+        private_key:
+          "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgd7APaIOC9SaWeXcnLaJvUwOtVFRIJEtAn7_XRNca-iehRANCAAR_QQZB2zOOZQEFMYs7F3fzikNpyFXuoNPyyqiJrhEpRrH4DgSS0IofC3rz5UiguK1yHJ_bh-hhSHA1lEQQO57j",
+        public_key:
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEf0EGQdszjmUBBTGLOxd384pDachV7qDT8sqoia4RKUax-A4EktCKHwt68-VIoLitchyf24foYUhwNZREEDue4w"
+      }
+
+      assert {:ok, _} =
+               BrowserContext.set_storage_state(browser_context.guid,
+                 credentials: [credential],
+                 timeout: @timeout
+               )
+
+      assert {:ok, %{credentials: [^credential]}} =
+               BrowserContext.storage_state(browser_context.guid,
+                 credentials: true,
+                 timeout: @timeout
+               )
+    end
   end
 
   describe "dialog_closed events" do
