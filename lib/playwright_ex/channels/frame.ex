@@ -523,11 +523,45 @@ defmodule PlaywrightEx.Frame do
   def select_option(frame_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    {values, opts} = Keyword.pop!(opts, :options)
+    opts = Keyword.merge(opts, normalize_select_options(values))
 
     connection
     |> Connection.send(%{guid: frame_id, method: :select_option, params: Map.new(opts)}, timeout)
-    |> ChannelResponse.unwrap(& &1)
+    |> ChannelResponse.unwrap(& &1.values)
   end
+
+  defp normalize_select_options(nil), do: []
+  defp normalize_select_options([]), do: []
+
+  defp normalize_select_options(value) when not is_list(value) do
+    normalize_select_options([value])
+  end
+
+  defp normalize_select_options(values) do
+    {elements, options} =
+      Enum.reduce(values, {[], []}, fn
+        %{guid: guid} = element, {elements, options} when is_binary(guid) ->
+          {[element | elements], options}
+
+        value, {elements, options} when is_binary(value) ->
+          {elements, [%{value_or_label: value} | options]}
+
+        %{} = option, {elements, options} ->
+          {elements, [option | options]}
+
+        value, _acc ->
+          raise ArgumentError,
+                "expected each select option to be a string, descriptor map, or element handle, got: #{inspect(value)}"
+      end)
+
+    []
+    |> maybe_put_select_values(:elements, Enum.reverse(elements))
+    |> maybe_put_select_values(:options, Enum.reverse(options))
+  end
+
+  defp maybe_put_select_values(opts, _key, []), do: opts
+  defp maybe_put_select_values(opts, key, values), do: Keyword.put(opts, key, values)
 
   schema =
     NimbleOptions.new!(
@@ -1191,7 +1225,7 @@ defmodule PlaywrightEx.Frame do
         doc: "Optional argument to pass to the function."
       ],
       polling: [
-        type: {:or, [:pos_integer, :string]},
+        type: {:or, [:pos_integer, {:in, ["raf"]}]},
         default: "raf",
         doc: "Polling interval in ms, or `\"raf\"` for requestAnimationFrame."
       ]
@@ -1215,9 +1249,11 @@ defmodule PlaywrightEx.Frame do
   def wait_for_function(frame_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    {polling, opts} = Keyword.pop!(opts, :polling)
 
     params =
       opts
+      |> maybe_put_polling_interval(polling)
       |> Map.new()
       |> Map.update!(:arg, &Serialization.serialize_arg/1)
 
@@ -1225,6 +1261,11 @@ defmodule PlaywrightEx.Frame do
     |> Connection.send(%{guid: frame_id, method: :wait_for_function, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  defp maybe_put_polling_interval(opts, "raf"), do: opts
+
+  defp maybe_put_polling_interval(opts, interval) when is_integer(interval),
+    do: Keyword.put(opts, :polling_interval, interval)
 
   schema =
     NimbleOptions.new!(

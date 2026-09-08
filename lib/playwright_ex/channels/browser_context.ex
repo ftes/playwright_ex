@@ -15,7 +15,10 @@ defmodule PlaywrightEx.BrowserContext do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
-      event: [type: :atom, required: true],
+      event: [
+        type: {:in, [:console, :dialog, :dialog_closed, :request, :response, :request_finished, :request_failed]},
+        required: true
+      ],
       enabled: [type: :boolean, default: true]
     )
 
@@ -97,11 +100,24 @@ defmodule PlaywrightEx.BrowserContext do
   def add_cookies(context_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    opts = Keyword.update!(opts, :cookies, &Enum.map(&1, fn cookie -> normalize_cookie(cookie) end))
 
     connection
     |> Connection.send(%{guid: context_id, method: :add_cookies, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  defp normalize_cookie(%{} = cookie) do
+    case Map.fetch(cookie, :same_site) do
+      {:ok, value} -> Map.put(cookie, :same_site, normalize_same_site(value))
+      :error -> cookie
+    end
+  end
+
+  defp normalize_same_site(value) when value in [:strict, "strict"], do: "Strict"
+  defp normalize_same_site(value) when value in [:lax, "lax"], do: "Lax"
+  defp normalize_same_site(value) when value in [:none, "none"], do: "None"
+  defp normalize_same_site(value), do: value
 
   schema =
     NimbleOptions.new!(
@@ -140,17 +156,17 @@ defmodule PlaywrightEx.BrowserContext do
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       domain: [
-        type: :any,
+        type: {:or, [:string, {:struct, Regex}]},
         required: false,
         doc: "Only removes cookies with the given domain."
       ],
       name: [
-        type: :any,
+        type: {:or, [:string, {:struct, Regex}]},
         required: false,
         doc: "Only removes cookies with the given name."
       ],
       path: [
-        type: :any,
+        type: {:or, [:string, {:struct, Regex}]},
         required: false,
         doc: "Only removes cookies with the given path."
       ]
@@ -171,11 +187,31 @@ defmodule PlaywrightEx.BrowserContext do
   def clear_cookies(context_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    opts = Enum.reduce([:name, :domain, :path], opts, &prepare_cookie_filter/2)
 
     connection
     |> Connection.send(%{guid: context_id, method: :clear_cookies, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  defp prepare_cookie_filter(field, opts) do
+    case Keyword.fetch(opts, field) do
+      {:ok, %Regex{source: source, opts: regex_opts}} ->
+        {source_field, flags_field} = cookie_regex_fields(field)
+
+        opts
+        |> Keyword.delete(field)
+        |> Keyword.put(source_field, source)
+        |> Keyword.put(flags_field, Serialization.regex_flags_for_protocol(regex_opts))
+
+      _ ->
+        opts
+    end
+  end
+
+  defp cookie_regex_fields(:name), do: {:name_regex_source, :name_regex_flags}
+  defp cookie_regex_fields(:domain), do: {:domain_regex_source, :domain_regex_flags}
+  defp cookie_regex_fields(:path), do: {:path_regex_source, :path_regex_flags}
 
   schema =
     NimbleOptions.new!(
@@ -292,7 +328,7 @@ defmodule PlaywrightEx.BrowserContext do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: context_id, method: :addInitScript, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: context_id, method: :add_init_script, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
@@ -384,7 +420,7 @@ defmodule PlaywrightEx.BrowserContext do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
-      indexedDB: [
+      indexed_db: [
         type: :boolean,
         default: false,
         doc: """
@@ -476,7 +512,7 @@ defmodule PlaywrightEx.BrowserContext do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: context_id, method: :set_storage_state, params: %{storageState: Map.new(opts)}}, timeout)
+    |> Connection.send(%{guid: context_id, method: :set_storage_state, params: %{storage_state: Map.new(opts)}}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 end

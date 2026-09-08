@@ -93,6 +93,95 @@ defmodule PlaywrightEx.SerializationTest do
                  Serialization.regex_flags_for_protocol(value.opts)
       end
     end
+
+    test "round-trips Playwright 1.63 date, URL, and bigint values" do
+      datetime = ~U[2026-09-08 12:34:56Z]
+
+      for value <- [datetime, URI.parse("https://example.com/a?b=c"), 9_007_199_254_740_992] do
+        serialized = Serialization.serialize_arg(value)
+        assert Serialization.deserialize_arg(serialized.value) == value
+      end
+    end
+
+    test "deserializes special numeric and typed-array values" do
+      assert :nan = Serialization.deserialize_arg(%{v: "NaN"})
+      assert :infinity = Serialization.deserialize_arg(%{v: "Infinity"})
+      assert :negative_infinity = Serialization.deserialize_arg(%{v: "-Infinity"})
+      assert :negative_zero = Serialization.deserialize_arg(%{v: "-0"})
+
+      assert %{type: :uint8, data: <<0, 1, 255>>} =
+               Serialization.deserialize_arg(%{ta: %{k: "ui8", b: Base.encode64(<<0, 1, 255>>)}})
+
+      for value <- [:nan, :infinity, :negative_infinity, :negative_zero, %{type: :uint8, data: <<0, 1, 255>>}] do
+        serialized = Serialization.serialize_arg(value)
+        assert Serialization.deserialize_arg(serialized.value) == value
+      end
+    end
+
+    test "deserializes JavaScript errors, handles, and functions" do
+      assert %{name: "TypeError", message: "bad", stack: "stack"} =
+               Serialization.deserialize_arg(%{e: %{n: "TypeError", m: "bad", s: "stack"}})
+
+      assert {:handle, 2} = Serialization.deserialize_arg(%{h: 2})
+      assert {:function, "fn@1"} = Serialization.deserialize_arg(%{fn: "fn@1"})
+
+      for value <- [{:handle, 2}, {:function, "fn@1"}] do
+        serialized = Serialization.serialize_arg(value)
+        assert Serialization.deserialize_arg(serialized.value) == value
+      end
+    end
+
+    test "resolves non-cyclic references and reports cyclic references" do
+      assert ["value", "value"] =
+               Serialization.deserialize_arg(%{a: [%{s: "value", id: 1}, %{ref: 1}]})
+
+      assert [{:circular_reference, 1}] =
+               Serialization.deserialize_arg(%{a: [%{ref: 1}], id: 1})
+    end
+  end
+
+  describe "wire key conversion" do
+    test "preserves arbitrary JSON keys and does not intern unknown protocol keys" do
+      unknown = "unknown_#{System.unique_integer([:positive])}"
+      nested_unknown = "nested_#{System.unique_integer([:positive])}"
+
+      assert %{^unknown => %{^nested_unknown => true}} =
+               Serialization.deep_key_underscore(%{unknown => %{nested_unknown => true}})
+
+      refute is_atom(hd(Map.keys(Serialization.deep_key_underscore(%{unknown => true}))))
+
+      assert %{"alreadyCamel" => %{"snake_key" => true}} =
+               Serialization.deep_key_camelize(%{"alreadyCamel" => %{"snake_key" => true}})
+    end
+
+    test "preserves expression arguments and structured snapshots as opaque JSON" do
+      assert %{"expressionArg" => %{:snake_key => %{"nested_key" => true}}} =
+               Serialization.deep_key_camelize(%{expression_arg: %{snake_key: %{"nested_key" => true}}})
+
+      assert %{snapshot: %{"role_key" => %{"nested_key" => true}}} =
+               Serialization.deep_key_underscore(%{"snapshot" => %{"role_key" => %{"nested_key" => true}}})
+    end
+
+    test "preserves IndexedDB key and value payloads" do
+      payload = %{
+        "keyEncoded" => "encoded-key",
+        "valueEncoded" => "encoded-value",
+        "key" => %{"user_key" => 1},
+        "value" => %{"user_value" => 2}
+      }
+
+      assert %{
+               key_encoded: "encoded-key",
+               value_encoded: "encoded-value",
+               key: %{"user_key" => 1},
+               value: %{"user_value" => 2}
+             } = Serialization.deep_key_underscore(payload)
+    end
+  end
+
+  test "extracts messages from serialized errors" do
+    assert "boom" = Serialization.serialized_error_message(%{error: %{message: "boom"}})
+    assert "boom" = Serialization.serialized_error_message(%{value: %{s: "boom"}})
   end
 
   describe "regex_flags_for_protocol/1" do

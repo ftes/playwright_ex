@@ -23,8 +23,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   map or a list.
 - Map the public tracing snapshot and screenshot options to Playwright 1.63's
   `snapshotDom`, `snapshotAria`, `snapshotScreen`, and `screencast` wire fields.
+- Use Playwright 1.63 as the sole protocol baseline. Remote connections now
+  advertise that version during the WebSocket handshake and restart the full
+  connection state after a disconnect instead of reusing stale channel state.
 
 ### Fixed
+- Align every implemented channel operation with the Playwright 1.63 wire
+  contract, including browser context enums and HTTP headers, browser launch
+  environment and signal fields, cookie filters and SameSite values, storage
+  state credentials, frame selection and polling, subscription events, and all
+  tracing stop modes.
+- Correlate the root `initialize` request, track `__create__`/`__adopt__`
+  ownership, recursively dispose child channels, and associate frame waiters
+  with their page from `Page.mainFrame`. Console and page-error events are now
+  both logged and delivered to subscribers.
+- Support all Playwright 1.63 serialized-value variants, preserve opaque JSON
+  keys, and avoid creating atoms from untrusted protocol keys.
+- Handle omitted void results and protocol call logs, buffer fragmented port
+  frame headers correctly, keep Node stderr out of protocol framing, and close
+  remote artifact streams after read failures.
+
 - Allow `BrowserContext.set_storage_state/2` to restore virtual WebAuthn
   credentials, and cover OPFS and credential state capture and restoration with
   round-trip regression tests.

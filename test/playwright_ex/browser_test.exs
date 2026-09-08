@@ -34,5 +34,28 @@ defmodule PlaywrightEx.BrowserTest do
                  timeout: @timeout
                )
     end
+
+    test "normalizes Playwright 1.63 context enums, headers, and acronym casing", %{browser: browser} do
+      assert {:ok, _} =
+               Browser.new_context(browser.guid,
+                 accept_downloads: false,
+                 bypass_csp: true,
+                 color_scheme: :no_preference,
+                 extra_http_headers: %{"x-playwright-ex" => "1"},
+                 timeout: @timeout
+               )
+
+      assert {:ok, _} =
+               Browser.new_context(browser.guid,
+                 color_scheme: :null,
+                 timeout: @timeout
+               )
+
+      assert {:ok, _} =
+               Browser.new_context(browser.guid,
+                 color_scheme: :no_override,
+                 timeout: @timeout
+               )
+    end
   end
 end

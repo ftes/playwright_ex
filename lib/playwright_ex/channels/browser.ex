@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Browser do
         doc: "Toggles bypassing page's Content-Security-Policy. Defaults to `false`."
       ],
       color_scheme: [
-        type: {:in, [:light, :dark, :no_preference, :null]},
+        type: {:in, [:light, :dark, :no_preference, :no_override, :null]},
         doc: "Emulates `'prefers-colors-scheme'` media feature. Defaults to `:light`."
       ],
       device_scale_factor: [
@@ -36,7 +36,14 @@ defmodule PlaywrightEx.Browser do
         doc: "Specify device scale factor (can be thought of as dpr). Defaults to `1`."
       ],
       extra_http_headers: [
-        type: :any,
+        type: {:or, [{:map, {:or, [:atom, :string]}, :any}, {:list, :map}]},
+        type_spec:
+          quote(
+            do:
+              %{optional(String.t()) => String.t()}
+              | [%{required(:name) => String.t(), required(:value) => String.t()}]
+          ),
+        type_doc: "`%{header => value} | [%{name: header, value: value}]`",
         doc: "An object containing additional HTTP headers to be sent with every request."
       ],
       http_credentials: [
@@ -137,6 +144,9 @@ defmodule PlaywrightEx.Browser do
     opts
     |> prepare_viewport()
     |> prepare_http_credentials()
+    |> prepare_accept_downloads()
+    |> prepare_color_scheme()
+    |> prepare_extra_http_headers()
   end
 
   defp prepare_viewport(opts) do
@@ -156,6 +166,34 @@ defmodule PlaywrightEx.Browser do
 
       {:ok, []} ->
         Keyword.delete(opts, :http_credentials)
+
+      _ ->
+        opts
+    end
+  end
+
+  defp prepare_accept_downloads(opts) do
+    case Keyword.fetch(opts, :accept_downloads) do
+      {:ok, true} -> Keyword.put(opts, :accept_downloads, "accept")
+      {:ok, false} -> Keyword.put(opts, :accept_downloads, "deny")
+      :error -> opts
+    end
+  end
+
+  defp prepare_color_scheme(opts) do
+    case Keyword.fetch(opts, :color_scheme) do
+      {:ok, :no_preference} -> Keyword.put(opts, :color_scheme, "no-preference")
+      {:ok, value} when value in [:null, :no_override] -> Keyword.put(opts, :color_scheme, "no-override")
+      :error -> opts
+      _ -> opts
+    end
+  end
+
+  defp prepare_extra_http_headers(opts) do
+    case Keyword.fetch(opts, :extra_http_headers) do
+      {:ok, headers} when is_map(headers) ->
+        normalized = Enum.map(headers, fn {name, value} -> %{name: to_string(name), value: to_string(value)} end)
+        Keyword.put(opts, :extra_http_headers, normalized)
 
       _ ->
         opts

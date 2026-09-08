@@ -24,7 +24,7 @@ defmodule PlaywrightEx.ElementHandleTest do
 
     assert {:ok, _} =
              Page.update_subscription(page.guid,
-               event: :fileChooser,
+               event: :file_chooser,
                enabled: true,
                timeout: @timeout
              )

@@ -126,24 +126,36 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
         pg_scope: scope
       )
 
-    Connection.handle_playwright_msg(connection, %{method: :__create__, params: %{guid: "Playwright", initializer: %{}}})
+    {:pending, data} = :sys.get_state(connection)
+    Connection.handle_playwright_msg(connection, %{id: data.initialization.id, result: %{}})
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: "",
+      method: :__create__,
+      params: %{type: "Playwright", guid: "Playwright", initializer: %{}}
+    })
 
     assert_eventually(fn ->
       match?({:started, _}, :sys.get_state(connection))
     end)
 
     Connection.handle_playwright_msg(connection, %{
+      guid: "context-1",
       method: :__create__,
-      params: %{guid: page_id, initializer: %{main_frame: %{guid: frame_id}}}
+      params: %{
+        type: "Frame",
+        guid: frame_id,
+        initializer: %{url: "about:blank", load_states: ["commit"]}
+      }
     })
 
     Connection.handle_playwright_msg(connection, %{
+      guid: "context-1",
       method: :__create__,
-      params: %{
-        guid: frame_id,
-        initializer: %{url: "about:blank", load_states: ["commit"], page: %{guid: page_id}}
-      }
+      params: %{type: "Page", guid: page_id, initializer: %{main_frame: %{guid: frame_id}}}
     })
+
+    Connection.handle_playwright_msg(connection, %{guid: page_id, method: :__adopt__, params: %{guid: frame_id}})
 
     assert_eventually(fn ->
       case safe_initializer(connection, frame_id) do

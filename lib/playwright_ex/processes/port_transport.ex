@@ -21,7 +21,6 @@ defmodule PlaywrightEx.PortTransport do
   alias PlaywrightEx.Serialization
 
   defstruct port: nil,
-            remaining: 0,
             buffer: "",
             connection_name: Connection
 
@@ -45,7 +44,7 @@ defmodule PlaywrightEx.PortTransport do
   @impl GenServer
   def init(%{executable: executable, env: env} = opts) do
     env = Enum.map(env, fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
-    port = Port.open({:spawn_executable, executable}, [:binary, :stderr_to_stdout, args: ["run-driver"], env: env])
+    port = Port.open({:spawn_executable, executable}, [:binary, args: ["run-driver"], env: env])
     connection_name = Map.get(opts, :connection_name, Connection)
     {:ok, %__MODULE__{port: port, connection_name: connection_name}}
   end
@@ -62,36 +61,24 @@ defmodule PlaywrightEx.PortTransport do
 
   @impl GenServer
   def handle_info({port, {:data, data}}, %{port: port} = state) do
-    {remaining, buffer, frames} = parse(data, state.remaining, state.buffer, [])
+    {buffer, frames} = parse_frames(state.buffer <> data, [])
 
     for frame <- frames do
       Connection.handle_playwright_msg(state.connection_name, from_json(frame))
     end
 
-    {:noreply, %{state | buffer: buffer, remaining: remaining}}
+    {:noreply, %{state | buffer: buffer}}
   end
 
-  defp parse(data, remaining, buffer, frames)
+  defp parse_frames(buffer, frames) when byte_size(buffer) < 4, do: {buffer, Enum.reverse(frames)}
 
-  defp parse(<<head::unsigned-little-integer-size(32)>>, 0, "", frames) do
-    {head, "", frames}
-  end
-
-  defp parse(<<head::unsigned-little-integer-size(32), data::binary>>, 0, "", frames) do
-    parse(data, head, "", frames)
-  end
-
-  defp parse(<<data::binary>>, remaining, buffer, frames) when byte_size(data) == remaining do
-    {0, "", frames ++ [buffer <> data]}
-  end
-
-  defp parse(<<data::binary>>, remaining, buffer, frames) when byte_size(data) > remaining do
-    <<frame::size(^remaining)-binary, tail::binary>> = data
-    parse(tail, 0, "", frames ++ [buffer <> frame])
-  end
-
-  defp parse(<<data::binary>>, remaining, buffer, frames) when byte_size(data) < remaining do
-    {remaining - byte_size(data), buffer <> data, frames}
+  defp parse_frames(<<length::unsigned-little-integer-size(32), payload::binary>> = buffer, frames) do
+    if byte_size(payload) < length do
+      {buffer, Enum.reverse(frames)}
+    else
+      <<frame::binary-size(^length), tail::binary>> = payload
+      parse_frames(tail, [frame | frames])
+    end
   end
 
   defp to_json(msg) do

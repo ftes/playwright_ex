@@ -95,7 +95,7 @@ defmodule PlaywrightEx.BrowserContextTest do
 
       assert {:ok, %{cookies: [], credentials: [], origins: [stored_origin]}} =
                BrowserContext.storage_state(browser_context.guid,
-                 indexedDB: true,
+                 indexed_db: true,
                  opfs: true,
                  credentials: true,
                  timeout: @timeout
@@ -124,6 +124,44 @@ defmodule PlaywrightEx.BrowserContextTest do
       assert {:ok, %{credentials: [^credential]}} =
                BrowserContext.storage_state(browser_context.guid,
                  credentials: true,
+                 timeout: @timeout
+               )
+    end
+
+    test "restores the Playwright 1.63 credentials field", %{browser_context: browser_context} do
+      assert {:ok, _} =
+               BrowserContext.set_storage_state(browser_context.guid,
+                 cookies: [],
+                 origins: [],
+                 credentials: [],
+                 timeout: @timeout
+               )
+    end
+  end
+
+  describe "cookies" do
+    test "normalizes SameSite and regex clear filters", %{browser_context: browser_context} do
+      assert {:ok, _} =
+               BrowserContext.add_cookies(browser_context.guid,
+                 cookies: [%{name: "session", value: "1", url: "https://example.com", same_site: :lax}],
+                 timeout: @timeout
+               )
+
+      assert {:ok, [%{name: "session", same_site: "Lax"}]} =
+               BrowserContext.cookies(browser_context.guid,
+                 urls: ["https://example.com"],
+                 timeout: @timeout
+               )
+
+      assert {:ok, _} =
+               BrowserContext.clear_cookies(browser_context.guid,
+                 name: ~r/^sess/i,
+                 timeout: @timeout
+               )
+
+      assert {:ok, []} =
+               BrowserContext.cookies(browser_context.guid,
+                 urls: ["https://example.com"],
                  timeout: @timeout
                )
     end

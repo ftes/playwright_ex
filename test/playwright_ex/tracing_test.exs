@@ -33,6 +33,23 @@ defmodule PlaywrightEx.TracingTest do
     end
   end
 
+  describe "tracing_stop_chunk/2 modes" do
+    test "handles discard results without an artifact", %{tracing_id: tracing_id} do
+      {:ok, _} = Tracing.tracing_start(tracing_id, timeout: @timeout)
+      {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: @timeout)
+      assert {:ok, nil} = Tracing.tracing_stop_chunk(tracing_id, mode: :discard, timeout: @timeout)
+      assert {:ok, _} = Tracing.tracing_stop(tracing_id, timeout: @timeout)
+    end
+
+    test "returns entries in entries mode", %{tracing_id: tracing_id} do
+      {:ok, _} = Tracing.tracing_start(tracing_id, timeout: @timeout)
+      {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: @timeout)
+      assert {:ok, entries} = Tracing.tracing_stop_chunk(tracing_id, mode: :entries, timeout: @timeout)
+      assert is_list(entries)
+      assert {:ok, _} = Tracing.tracing_stop(tracing_id, timeout: @timeout)
+    end
+  end
+
   describe "group/3" do
     test "writes name and location with nesting", %{tracing_id: tracing_id, frame: frame} do
       start_tracing(tracing_id)

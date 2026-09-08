@@ -16,7 +16,12 @@ defmodule PlaywrightEx.Page do
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
-      event: [type: :atom, required: true],
+      event: [
+        type:
+          {:in,
+           [:console, :dialog, :dialog_closed, :file_chooser, :request, :response, :request_finished, :request_failed]},
+        required: true
+      ],
       enabled: [type: :boolean, default: true]
     )
 
@@ -121,7 +126,7 @@ defmodule PlaywrightEx.Page do
     )
 
   @doc """
-  Returns a screenshot of the page as binary data.
+  Returns the screenshot as a base64-encoded binary string.
 
   Reference: https://playwright.dev/docs/api/class-page#page-screenshot
 
@@ -192,7 +197,7 @@ defmodule PlaywrightEx.Page do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: page_id, method: :mouseMove, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: page_id, method: :mouse_move, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
@@ -232,7 +237,7 @@ defmodule PlaywrightEx.Page do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: page_id, method: :mouseDown, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: page_id, method: :mouse_down, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
@@ -270,7 +275,7 @@ defmodule PlaywrightEx.Page do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: page_id, method: :mouseUp, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: page_id, method: :mouse_up, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
@@ -376,7 +381,7 @@ defmodule PlaywrightEx.Page do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: context_id, method: :addInitScript, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: context_id, method: :add_init_script, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
 
@@ -415,7 +420,7 @@ defmodule PlaywrightEx.Page do
       connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       is_not: [type: :boolean, default: false],
-      expected: [type: :any, doc: "Baseline PNG binary. `nil` = capture-only mode."],
+      expected: [type: :any, doc: "Base64-encoded baseline image. `nil` = capture-only mode."],
       comparator: [type: {:in, ["pixelmatch", "ssim-cie94"]}, default: "pixelmatch"],
       max_diff_pixels: [type: :integer, doc: "Max absolute pixel count allowed to differ."],
       max_diff_pixel_ratio: [type: :float, doc: "Max ratio (0-1) of differing pixels."],
@@ -453,9 +458,10 @@ defmodule PlaywrightEx.Page do
   def expect_screenshot(page_id, opts \\ []) do
     {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
+    opts = if Keyword.get(opts, :expected) == nil, do: Keyword.delete(opts, :expected), else: opts
 
     connection
-    |> Connection.send(%{guid: page_id, method: :expectScreenshot, params: Map.new(opts)}, timeout)
+    |> Connection.send(%{guid: page_id, method: :expect_screenshot, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1[:actual])
     |> case do
       {:ok, result} -> {:ok, result}

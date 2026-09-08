@@ -48,6 +48,18 @@ defmodule PlaywrightEx.FrameEventRecorder do
     end
   end
 
+  @spec attach_page(atom(), PlaywrightEx.guid(), PlaywrightEx.guid()) :: {:ok, pid()} | :not_found
+  def attach_page(connection, frame_id, page_id) do
+    case lookup(connection, frame_id) do
+      {:ok, pid} ->
+        GenServer.cast(pid, {:attach_page, page_id})
+        {:ok, pid}
+
+      :not_found ->
+        :not_found
+    end
+  end
+
   @spec registry_name(atom()) :: atom()
   def registry_name(connection), do: Module.concat(connection, "FrameEventRecorderRegistry")
 
@@ -70,20 +82,29 @@ defmodule PlaywrightEx.FrameEventRecorder do
   @impl true
   def init(%{connection: connection, frame_id: frame_id} = opts) do
     frame_initializer = Map.get(opts, :initializer) || Connection.initializer!(connection, frame_id)
-    page_id = extract_page_id(frame_initializer)
 
     Connection.subscribe(connection, self(), frame_id)
-    maybe_subscribe_page(connection, page_id)
 
     state = %__MODULE__{
       connection: connection,
       frame_id: frame_id,
-      page_id: page_id,
       url: frame_initializer[:url] || "",
       load_states: FrameWaiter.normalize_load_states(frame_initializer[:load_states])
     }
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_cast({:attach_page, page_id}, %{page_id: page_id} = state), do: {:noreply, state}
+
+  def handle_cast({:attach_page, page_id}, state) do
+    {:noreply, %{state | page_id: page_id}}
+  end
+
+  def handle_cast(:dispose, state) do
+    state = fail_waiters(state, fn _waiter -> true end, {:error, %{message: @frame_detached_error}})
+    {:stop, {:shutdown, :frame_detached}, state}
   end
 
   @impl true
@@ -168,7 +189,7 @@ defmodule PlaywrightEx.FrameEventRecorder do
   @spec terminate_frame(atom(), PlaywrightEx.guid()) :: :ok
   def terminate_frame(connection, frame_id) do
     case lookup(connection, frame_id) do
-      {:ok, pid} -> Process.exit(pid, :normal)
+      {:ok, pid} -> GenServer.cast(pid, :dispose)
       :not_found -> :ok
     end
 
@@ -278,16 +299,6 @@ defmodule PlaywrightEx.FrameEventRecorder do
 
   defp maybe_put_initializer(opts, initializer) when is_map(initializer), do: Map.put(opts, :initializer, initializer)
   defp maybe_put_initializer(opts, _initializer), do: opts
-
-  defp extract_page_id(%{page: %{guid: guid}}) when is_binary(guid), do: guid
-  defp extract_page_id(%{page: guid}) when is_binary(guid), do: guid
-  defp extract_page_id(_initializer), do: nil
-
-  defp maybe_subscribe_page(_connection, nil), do: :ok
-
-  defp maybe_subscribe_page(connection, page_id) do
-    Connection.subscribe(connection, self(), page_id)
-  end
 
   defp url_waiter?({:url, _url_matcher, _wait_state, _phase}), do: true
   defp url_waiter?(_waiter), do: false

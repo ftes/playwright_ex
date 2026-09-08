@@ -71,10 +71,28 @@ defmodule PlaywrightEx.Artifact do
     with {:ok, %{stream: %{guid: stream_guid}}} <-
            connection
            |> Connection.send(%{guid: artifact_guid, method: :save_as_stream, params: %{}}, timeout)
-           |> ChannelResponse.unwrap(& &1),
-         :ok <- stream_to_file(connection, stream_guid, timeout, path),
-         {:ok, _} <- close_stream(connection, stream_guid, timeout) do
-      :ok
+           |> ChannelResponse.unwrap(& &1) do
+      stream_result = stream_to_file_and_close(connection, stream_guid, timeout, path)
+      stream_result
+    end
+  end
+
+  defp stream_to_file_and_close(connection, stream_guid, timeout, path) do
+    stream_result =
+      try do
+        stream_to_file(connection, stream_guid, timeout, path)
+      catch
+        kind, reason ->
+          _ = close_stream(connection, stream_guid, timeout)
+          :erlang.raise(kind, reason, __STACKTRACE__)
+      end
+
+    close_result = close_stream(connection, stream_guid, timeout)
+
+    case {stream_result, close_result} do
+      {:ok, {:ok, _}} -> :ok
+      {{:error, _} = error, _close_result} -> error
+      {:ok, {:error, _} = error} -> error
     end
   end
 

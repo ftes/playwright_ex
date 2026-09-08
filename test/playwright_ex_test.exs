@@ -41,6 +41,19 @@ defmodule PlaywrightExTest do
     assert_has(frame.guid, Selector.link("macOS"))
   end
 
+  test "launches with Playwright 1.63 environment and signal fields" do
+    assert {:ok, browser} =
+             PlaywrightEx.launch_browser(:chromium,
+               env: %{"PLAYWRIGHT_EX_PROTOCOL_TEST" => "1"},
+               handle_sigint: false,
+               handle_sigterm: false,
+               handle_sighup: false,
+               timeout: @timeout
+             )
+
+    assert {:ok, _} = PlaywrightEx.Browser.close(browser.guid, timeout: @timeout)
+  end
+
   def on_exit_open_trace(tracing_id, tmp_dir, timeout) do
     {:ok, _} =
       Tracing.tracing_start(tracing_id,
