@@ -25,6 +25,10 @@ defmodule PlaywrightEx.BrowserContext do
   @doc """
   Updates the subscription for browser-context events.
 
+  Explicit enabling keeps the subscription active until explicitly disabled.
+  Disabling releases that explicit subscription; active `PlaywrightEx.EventWaiter`
+  listeners keep their subscription until they finish or are canceled.
+
   Playwright 1.63 adds the `:dialog_closed` event, emitted after a JavaScript
   dialog is accepted, dismissed, or otherwise closed.
 

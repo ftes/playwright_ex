@@ -25,7 +25,9 @@ defmodule PlaywrightEx.Connection do
             frame_pages: %{},
             frame_states: %{},
             initialization: nil,
-            pending_response: %{}
+            pending_response: %{},
+            subscriptions: %{},
+            subscription_monitors: %{}
 
   @doc false
   def child_spec(opts) do
@@ -51,6 +53,11 @@ defmodule PlaywrightEx.Connection do
   @doc false
   def subscribe_sync(name, pid, guid) do
     call(name, {:subscribe, pid, guid}, 5_000)
+  end
+
+  @doc false
+  def subscribe_event(name, pid, guid, event) do
+    call(name, {:subscribe_event, pid, guid, event}, 5_000)
   end
 
   @doc false
@@ -193,6 +200,15 @@ defmodule PlaywrightEx.Connection do
   def pending({:call, _from}, _msg, _data), do: {:keep_state_and_data, [:postpone]}
 
   @doc false
+  def started({:call, from}, {:send, %{method: :update_subscription} = msg}, data)
+      when is_map_key(data.initializers, msg.guid) do
+    key = {msg.guid, Serialization.camelize(msg.params.event)}
+    data = update_subscription_owner(data, key, :explicit, msg.params.enabled)
+    msg = put_in(msg.params.enabled, Map.has_key?(data.subscriptions, key))
+    post(data.config.transport, msg)
+    {:keep_state, put_in(data.pending_response[msg.id], from)}
+  end
+
   def started({:call, from}, {:send, msg}, data) do
     post(data.config.transport, msg)
     {:keep_state, put_in(data.pending_response[msg.id], from)}
@@ -226,6 +242,25 @@ defmodule PlaywrightEx.Connection do
           {:error, %{reason: :disposed, message: "Unknown or disposed Playwright channel #{inspect(guid)}"}}}
        ]}
     end
+  end
+
+  def started({:call, from}, {:subscribe_event, recipient, guid, event}, data) do
+    if Map.has_key?(data.initializers, guid) do
+      data = data |> subscribe_recipient(recipient, guid) |> subscribe_event_recipient(recipient, guid, event)
+      {:keep_state, data, [{:reply, from, :ok}]}
+    else
+      {:keep_state_and_data,
+       [
+         {:reply, from,
+          {:error, %{reason: :disposed, message: "Unknown or disposed Playwright channel #{inspect(guid)}"}}}
+       ]}
+    end
+  end
+
+  def started(:info, {:DOWN, ref, :process, _pid, _reason}, data) do
+    {key, monitors} = Map.pop(data.subscription_monitors, ref)
+    data = %{data | subscription_monitors: monitors}
+    {:keep_state, release_event_subscription(data, key, ref)}
   end
 
   def started({:call, from}, {:frame_state, frame_id}, data) do
@@ -499,6 +534,7 @@ defmodule PlaywrightEx.Connection do
     |> Map.update!(:frame_pages, &Map.delete(&1, guid))
     |> Map.update!(:frame_states, &Map.delete(&1, guid))
     |> clear_disposed_guid_subscribers(guid)
+    |> clear_event_subscriptions(guid)
   end
 
   defp notify_guid_subscribers(data, guid, msg) do
@@ -519,6 +555,71 @@ defmodule PlaywrightEx.Connection do
     end
 
     data
+  end
+
+  # Like ChannelOwner in Playwright JS, order subscription updates before the
+  # triggering command without awaiting their acknowledgements. The transport
+  # preserves command order; errors during channel teardown can be ignored.
+  defp subscribe_event_recipient(data, recipient, guid, event) do
+    if managed_event?(data.types[guid], event) do
+      key = {guid, Serialization.camelize(event)}
+      ref = Process.monitor(recipient)
+      was_enabled? = Map.has_key?(data.subscriptions, key)
+      data = update_subscription_owner(data, key, ref, true)
+      data = put_in(data.subscription_monitors[ref], key)
+      if !was_enabled?, do: post_subscription(data, key, true)
+      data
+    else
+      data
+    end
+  end
+
+  defp managed_event?(type, event) when type in ["Page", "BrowserContext"] do
+    event in [:console, :dialog, :dialog_closed, :request, :response, :request_finished, :request_failed] or
+      (type == "Page" and event == :file_chooser)
+  end
+
+  defp managed_event?(_type, _event), do: false
+
+  defp update_subscription_owner(data, key, owner, enabled?) do
+    owners = Map.get(data.subscriptions, key, MapSet.new())
+    owners = if enabled?, do: MapSet.put(owners, owner), else: MapSet.delete(owners, owner)
+
+    subscriptions =
+      if MapSet.size(owners) == 0,
+        do: Map.delete(data.subscriptions, key),
+        else: Map.put(data.subscriptions, key, owners)
+
+    %{data | subscriptions: subscriptions}
+  end
+
+  defp release_event_subscription(data, nil, _ref), do: data
+
+  defp release_event_subscription(data, key, ref) do
+    data = update_subscription_owner(data, key, ref, false)
+    if !Map.has_key?(data.subscriptions, key), do: post_subscription(data, key, false)
+    data
+  end
+
+  defp post_subscription(data, {guid, event}, enabled) do
+    post(data.config.transport, %{
+      id: System.unique_integer([:positive, :monotonic]),
+      guid: guid,
+      method: :update_subscription,
+      params: %{event: event, enabled: enabled},
+      metadata: %{timeout: 0}
+    })
+  end
+
+  defp clear_event_subscriptions(data, guid) do
+    {removed, kept} = Enum.split_with(data.subscription_monitors, fn {_ref, {id, _event}} -> id == guid end)
+    Enum.each(removed, fn {ref, _key} -> Process.demonitor(ref, [:flush]) end)
+
+    %{
+      data
+      | subscription_monitors: Map.new(kept),
+        subscriptions: Map.reject(data.subscriptions, fn {{id, _event}, _owners} -> id == guid end)
+    }
   end
 
   defp maybe_log_protocol_message(%{config: %{js_logger: module}}, %{method: :page_error} = msg)

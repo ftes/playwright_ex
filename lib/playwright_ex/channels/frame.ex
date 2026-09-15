@@ -39,6 +39,30 @@ defmodule PlaywrightEx.Frame do
     with {:ok, state} <- Connection.frame_state(connection, frame_id), do: {:ok, state.document_request}
   end
 
+  @doc group: :composed
+  @doc """
+  Reads the frame's recorded URL, document request, and document identity atomically.
+
+  `document_ref` is a client-generated reference, not a Playwright server ID.
+  A successful new-document navigation replaces it, including reloads and
+  requestless documents. Same-document navigation preserves it.
+
+  This reads cached state without waiting for navigation. It does not keep the
+  document alive or prevent later browser commands from seeing another document.
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @type snapshot :: %{url: String.t(), document_request: %{guid: PlaywrightEx.guid()} | nil, document_ref: reference()}
+  @spec snapshot(PlaywrightEx.guid(), [document_request_opt()]) :: {:ok, snapshot()} | {:error, map()}
+  def snapshot(frame_id, opts \\ []) do
+    connection = opts |> NimbleOptions.validate!(@schema) |> Keyword.fetch!(:connection)
+
+    with {:ok, state} <- Connection.frame_state(connection, frame_id) do
+      {:ok, Map.take(state, [:url, :document_request, :document_ref])}
+    end
+  end
+
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),

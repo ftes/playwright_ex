@@ -30,6 +30,10 @@ defmodule PlaywrightEx.Page do
   @doc """
   Updates the subscription for page events.
 
+  Explicit enabling keeps the subscription active until explicitly disabled.
+  Disabling releases that explicit subscription; active `PlaywrightEx.EventWaiter`
+  listeners keep their subscription until they finish or are canceled.
+
   Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/client/page.ts
 
   ## Options
@@ -471,9 +475,18 @@ defmodule PlaywrightEx.Page do
     end
   end
 
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      predicate: [type: {:fun, 1}, doc: "Filter applied to downloads. The first truthy result accepts the download."]
+    )
+
   @doc group: :composed
   @doc """
   Arms a download listener before the action that triggers it.
+
+  Accepts only `:timeout`, `:connection`, and `:predicate`.
 
   Returns a handle for `await_download/1`. Pass a required `:timeout` in
   milliseconds (`0` means no waiting; `:infinity` disables the timeout) and an
@@ -495,9 +508,13 @@ defmodule PlaywrightEx.Page do
         PlaywrightEx.EventWaiter.cancel(pending)
       end
   """
-  @spec expect_download(PlaywrightEx.guid(), [EventWaiter.opt() | PlaywrightEx.unknown_opt()]) ::
+  @schema schema
+  @type expect_download_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec expect_download(PlaywrightEx.guid(), [expect_download_opt()]) ::
           {:ok, EventWaiter.t()} | {:error, EventWaiter.error()}
   def expect_download(page_id, opts \\ []) do
+    opts = NimbleOptions.validate!(opts, @schema)
+
     opts =
       case Keyword.get(opts, :predicate) do
         predicate when is_function(predicate, 1) ->

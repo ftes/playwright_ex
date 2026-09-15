@@ -10,6 +10,11 @@ defmodule PlaywrightEx.EventWaiterTest do
     @behaviour PlaywrightEx.Transport
 
     @impl true
+    def post(owner, %{method: :update_subscription} = message) do
+      send(owner, {:subscription_post, message})
+      :ok
+    end
+
     def post(_name, _message), do: :ok
   end
 
@@ -19,7 +24,7 @@ defmodule PlaywrightEx.EventWaiterTest do
     start_supervised!(%{id: scope, start: {:pg, :start_link, [scope]}})
 
     pid =
-      start_supervised!({Connection, [[name: name, timeout: 1000, transport: {DummyTransport, nil}, pg_scope: scope]]})
+      start_supervised!({Connection, [[name: name, timeout: 1000, transport: {DummyTransport, self()}, pg_scope: scope]]})
 
     {:pending, data} = :sys.get_state(pid)
     Connection.handle_playwright_msg(name, %{id: data.initialization.id, result: %{}})
@@ -164,6 +169,14 @@ defmodule PlaywrightEx.EventWaiterTest do
 
     assert_raise NimbleOptions.ValidationError, fn ->
       Page.expect_download("page", connection: connection, timeout: 1000, predicate: :invalid)
+    end
+  end
+
+  test "download waiters reject raw event transforms and subscription overrides", %{connection: connection} do
+    for option <- [transform: fn _ -> "metadata" end, subscription: :console] do
+      assert_raise NimbleOptions.ValidationError, ~r/unknown options/, fn ->
+        Page.expect_download("page", [connection: connection, timeout: 1000] ++ [option])
+      end
     end
   end
 
@@ -334,6 +347,158 @@ defmodule PlaywrightEx.EventWaiterTest do
     assert download.url == "https://example.test/report"
     assert download.page_id == "page"
     assert download.artifact_guid == "report"
+  end
+
+  test "a transform runs once on capture before await, without changing predicate semantics", %{connection: connection} do
+    owner = self()
+
+    {:ok, waiter} =
+      EventWaiter.arm("page", :download,
+        connection: connection,
+        timeout: 1_000,
+        predicate: &(&1.params.suggested_filename == "wanted.txt"),
+        transform: fn raw ->
+          send(owner, {:transformed, self()})
+          raw.params.suggested_filename
+        end
+      )
+
+    for name <- ["skip", "wanted", "later"], do: Connection.handle_playwright_msg(connection, download(name))
+    assert_receive {:transformed, task_pid}
+    assert task_pid == waiter.task.pid
+    refute_receive {:transformed, _}
+    assert {:ok, "wanted.txt"} = EventWaiter.await(waiter)
+  end
+
+  test "unexpected transform failures propagate and release their subscription", %{connection: connection} do
+    ExUnit.CaptureLog.capture_log(fn ->
+      Process.flag(:trap_exit, true)
+
+      {:ok, waiter} =
+        EventWaiter.arm("page", :console,
+          connection: connection,
+          timeout: 1000,
+          transform: fn _ -> raise "transform failed" end
+        )
+
+      task_pid = waiter.task.pid
+      assert_receive {:subscription_post, %{params: %{enabled: true}}}
+      Connection.handle_playwright_msg(connection, %{guid: "page", method: :console, params: %{}})
+      assert_receive {:EXIT, ^task_pid, {%RuntimeError{message: "transform failed"}, _stack}}
+      assert catch_exit(EventWaiter.await(waiter))
+      assert_receive {:subscription_post, %{params: %{enabled: false}}}
+    end)
+  end
+
+  test "capture timeout does not cut short a transform", %{connection: connection} do
+    owner = self()
+
+    {:ok, waiter} =
+      EventWaiter.arm("page", :download,
+        connection: connection,
+        timeout: 100,
+        transform: fn _ ->
+          send(owner, :captured)
+          receive do: (:finish -> nil)
+        end
+      )
+
+    Connection.handle_playwright_msg(connection, download("wanted"))
+    assert_receive :captured
+    Process.sleep(120)
+    send(waiter.task.pid, :finish)
+    assert {:ok, nil} = EventWaiter.await(waiter)
+  end
+
+  test "first listener enables before arm returns; only the last listener disables", %{connection: connection} do
+    {:ok, first} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+    assert_receive {:subscription_post, %{id: id, params: %{event: "console", enabled: true}}}
+    # Like Playwright JS, arming does not await the subscription acknowledgement.
+    {:ok, second} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+    EventWaiter.cancel(first)
+    refute_receive {:subscription_post, _}
+    Connection.handle_playwright_msg(connection, %{id: id, result: %{}})
+    Connection.handle_playwright_msg(connection, %{guid: "page", method: :console, params: %{text: "hello"}})
+    assert {:ok, %{params: %{text: "hello"}}} = EventWaiter.await(second)
+    assert_receive {:subscription_post, %{params: %{event: "console", enabled: false}}}
+  end
+
+  test "explicit subscriptions and managed listeners own their subscriptions independently", %{connection: connection} do
+    update_explicit(connection, true, true)
+    {:ok, waiter} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+    refute_receive {:subscription_post, _}
+    update_explicit(connection, false, true)
+    EventWaiter.cancel(waiter)
+    assert_receive {:subscription_post, %{params: %{event: "console", enabled: false}}}
+
+    {:ok, waiter} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+    assert_receive {:subscription_post, %{params: %{event: "console", enabled: true}}}
+    update_explicit(connection, true, true)
+    EventWaiter.cancel(waiter)
+    refute_receive {:subscription_post, _}
+    update_explicit(connection, false, false)
+  end
+
+  test "opt-in event ownership is per channel and event", %{connection: connection} do
+    create(connection, "context", "BrowserContext")
+    {:ok, console} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+    {:ok, response} = EventWaiter.arm("page", :response, connection: connection, timeout: :infinity)
+    {:ok, context} = EventWaiter.arm("context", :response, connection: connection, timeout: :infinity)
+
+    for {guid, event} <- [{"page", "console"}, {"page", "response"}, {"context", "response"}] do
+      assert_receive {:subscription_post, %{guid: ^guid, params: %{event: ^event, enabled: true}}}
+    end
+
+    EventWaiter.cancel(response)
+    assert_receive {:subscription_post, %{guid: "page", params: %{event: "response", enabled: false}}}
+    refute_receive {:subscription_post, _}
+    EventWaiter.cancel(console)
+    EventWaiter.cancel(context)
+  end
+
+  for reason <- [:normal, :shutdown] do
+    test "owner exit #{reason} releases managed events", %{connection: connection} do
+      owner =
+        spawn(fn ->
+          {:ok, _} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+          receive do: (:finish -> exit(unquote(reason)))
+        end)
+
+      assert_receive {:subscription_post, %{params: %{enabled: true}}}
+      send(owner, :finish)
+      assert_receive {:subscription_post, %{params: %{enabled: false}}}
+    end
+  end
+
+  test "timeouts release managed subscriptions", %{connection: connection} do
+    for timeout <- [0, 10] do
+      {:ok, waiter} = EventWaiter.arm("page", :console, connection: connection, timeout: timeout)
+      assert {:error, %{reason: :timeout}} = EventWaiter.await(waiter)
+      assert_receive {:subscription_post, %{params: %{enabled: true}}}
+      assert_receive {:subscription_post, %{params: %{enabled: false}}}
+    end
+  end
+
+  test "disposal clears managed and explicit ownership without sending to a disposed channel", %{connection: connection} do
+    update_explicit(connection, true, true)
+    {:ok, waiter} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+    Connection.handle_playwright_msg(connection, %{guid: "page", method: :__dispose__, params: %{}})
+    assert {:error, %{reason: :__dispose__}} = EventWaiter.await(waiter)
+    {:started, state} = :sys.get_state(connection)
+    assert state.subscriptions == %{}
+    assert state.subscription_monitors == %{}
+    refute_receive {:subscription_post, _}
+  end
+
+  defp update_explicit(connection, enabled, wire_enabled) do
+    task =
+      Task.async(fn ->
+        Page.update_subscription("page", connection: connection, event: :console, enabled: enabled, timeout: 1000)
+      end)
+
+    assert_receive {:subscription_post, %{id: id, params: %{event: "console", enabled: ^wire_enabled}}}
+    Connection.handle_playwright_msg(connection, %{id: id, result: %{}})
+    assert {:ok, _} = Task.await(task)
   end
 
   defp create(connection, guid, type) do

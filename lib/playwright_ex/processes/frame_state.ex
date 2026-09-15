@@ -1,10 +1,11 @@
 defmodule PlaywrightEx.FrameState do
   @moduledoc false
 
-  defstruct url: "", load_states: MapSet.new(), document_request: nil
+  defstruct url: "", load_states: MapSet.new(), document_request: nil, document_ref: nil
 
   @type t :: %__MODULE__{
           url: String.t(),
+          document_ref: reference(),
           load_states: MapSet.t(String.t()),
           document_request: %{guid: PlaywrightEx.guid()} | nil
         }
@@ -12,6 +13,7 @@ defmodule PlaywrightEx.FrameState do
   def new(initializer) do
     %__MODULE__{
       url: initializer[:url] || "",
+      document_ref: make_ref(),
       load_states: MapSet.new(List.wrap(initializer[:load_states]), &to_string/1)
     }
   end
@@ -30,7 +32,7 @@ defmodule PlaywrightEx.FrameState do
 
     case params do
       %{new_document: document} ->
-        %{state | load_states: MapSet.new(["commit"]), document_request: document[:request]}
+        %{state | load_states: MapSet.new(["commit"]), document_request: document[:request], document_ref: make_ref()}
 
       _same_document ->
         state

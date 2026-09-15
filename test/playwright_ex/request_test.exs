@@ -66,6 +66,33 @@ defmodule PlaywrightEx.RequestTest do
     assert {:ok, nil} = Frame.document_request(frame.guid)
   end
 
+  test "snapshots pair URLs with document requests across reloads and requestless documents", %{frame: frame} do
+    snapshots =
+      for status <- [201, 202] do
+        navigation = navigate(frame, "/reload")
+        %{route: route} = routed_request()
+        fulfill(route, status)
+        assert {:ok, _} = Task.await(navigation)
+        {:ok, snapshot} = Frame.snapshot(frame.guid)
+        assert snapshot.url == "https://request.test/reload"
+        snapshot
+      end
+
+    [first, second] = snapshots
+    refute first.document_ref == second.document_ref
+    refute first.document_request == second.document_request
+
+    assert {:ok, _} = eval(frame.guid, "() => history.replaceState({}, '', '/patched')")
+    assert {:ok, patched} = Frame.snapshot(frame.guid)
+    assert patched == %{second | url: "https://request.test/patched"}
+
+    assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+    assert {:ok, blank} = Frame.snapshot(frame.guid)
+    assert blank.url == "about:blank"
+    assert blank.document_request == nil
+    refute blank.document_ref == patched.document_ref
+  end
+
   test "waits for a pending response and returns HTTP error responses", %{frame: frame, connection: connection} do
     navigation = navigate(frame, "/pending")
     %{route: route, request: request} = routed_request()

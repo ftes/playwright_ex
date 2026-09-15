@@ -6,7 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
 ## [Unreleased]
+### Fixed
+- Download waiters validate their own options, excluding raw event transforms and
+  subscription overrides to preserve the `Download` result.
+
 ### Added
+- `Frame.snapshot/2` for an atomic read of the cached URL, document request, and
+  client-generated document identity.
+- Optional `EventWaiter` transforms that run on capture inside the waiting task.
+- Managed opt-in event subscriptions: the first waiter enables an event and the
+  last releases it. Explicit channel subscriptions remain active independently.
 - `Frame.document_request/2` to read the committed document's request without
   event subscriptions, preserving it across same-document navigation.
 - `Request.response/2` to retrieve a request's response without subscribing to

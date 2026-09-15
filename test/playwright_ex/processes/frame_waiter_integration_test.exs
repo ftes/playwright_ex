@@ -62,6 +62,60 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
     assert subscribers(connection, frame_id) == []
   end
 
+  test "snapshots preserve document identity until a successful new-document commit" do
+    %{connection: connection, frame_id: frame} = start_connection_with_frame!()
+    {:ok, initial} = Frame.snapshot(frame, connection: connection)
+    assert is_reference(initial.document_ref)
+    assert initial.document_request == nil
+
+    request = %{guid: "request"}
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame,
+      method: :navigated,
+      params: %{url: "https://example.test/first", new_document: %{request: request}}
+    })
+
+    {:ok, committed} = Frame.snapshot(frame, connection: connection)
+    assert committed.document_ref != initial.document_ref
+    assert committed.document_request == request
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame,
+      method: :navigated,
+      params: %{url: "https://example.test/failed", error: "aborted", new_document: %{}}
+    })
+
+    assert {:ok, ^committed} = Frame.snapshot(frame, connection: connection)
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame,
+      method: :navigated,
+      params: %{url: "https://example.test/renamed"}
+    })
+
+    {:ok, renamed} = Frame.snapshot(frame, connection: connection)
+    assert renamed == %{committed | url: "https://example.test/renamed"}
+
+    for url <- [renamed.url, "about:blank", "about:blank"] do
+      {:ok, before} = Frame.snapshot(frame, connection: connection)
+
+      Connection.handle_playwright_msg(connection, %{
+        guid: frame,
+        method: :navigated,
+        params: %{url: url, new_document: %{}}
+      })
+
+      {:ok, after_commit} = Frame.snapshot(frame, connection: connection)
+      assert after_commit.url == url
+      assert after_commit.document_request == nil
+      refute after_commit.document_ref == before.document_ref
+    end
+
+    Connection.handle_playwright_msg(connection, %{guid: frame, method: :__dispose__, params: %{}})
+    assert {:error, %{message: "Navigating frame was detached!"}} = Frame.snapshot(frame, connection: connection)
+  end
+
   test "document requests remain associated with their frame" do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
     create_frame(connection, "popup-frame", "context-1")
@@ -82,6 +136,7 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
     stop_supervised!(Connection)
     assert {:error, %{reason: :connection_closed}} = Frame.document_request(frame_id, connection: connection)
+    assert {:error, %{reason: :connection_closed}} = Frame.snapshot(frame_id, connection: connection)
   end
 
   test "records frame state before any caller waits" do
@@ -415,6 +470,7 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
       assert {:error, %{message: ^expected}} = FrameWaiter.wait_for_load_state(connection, other_frame, "load", 0)
       assert subscribers(connection, other_frame) == []
       assert {:error, %{message: ^expected}} = Frame.document_request(other_frame, connection: connection)
+      assert {:error, %{message: ^expected}} = Frame.snapshot(other_frame, connection: connection)
 
       Connection.handle_playwright_msg(connection, %{guid: other_frame, method: :loadstate, params: %{add: "load"}})
       _ = :sys.get_state(connection)

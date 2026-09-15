@@ -14,8 +14,16 @@ defmodule PlaywrightEx.EventWaiter do
   skips an event. Keep predicates quick and nonblocking.
 
   Events are matched by channel GUID and message `method`. Unrelated events
-  are discarded without extending the timeout. Enable opt-in protocol events
-  through the relevant channel API before arming a listener.
+  are discarded without extending the timeout. Opt-in Page and BrowserContext
+  events are enabled before arming returns and released when the task exits.
+  Routing stays at the protocol level: console and network messages arrive on
+  the BrowserContext channel, with the page identified in their parameters.
+
+  An optional `:transform` runs in the task when the predicate accepts an event,
+  without waiting for `await/1`. It can capture metadata or handle a dialog while
+  the owner's action is blocked. Its return value becomes the successful result.
+  The event timeout covers capture, not the transform; give browser commands
+  inside it their own timeout. Unexpected callback failures propagate.
   """
 
   alias PlaywrightEx.Connection
@@ -26,7 +34,7 @@ defmodule PlaywrightEx.EventWaiter do
 
   @opaque t :: %__MODULE__{task: Task.t(), connection: GenServer.name()}
   @type error :: %{reason: atom(), message: String.t()}
-  @type result :: {:ok, map()} | {:error, error()}
+  @type result :: {:ok, term()} | {:error, error()}
 
   schema =
     NimbleOptions.new!(
@@ -37,7 +45,15 @@ defmodule PlaywrightEx.EventWaiter do
           :doc,
           "Time to capture an event in milliseconds. `0` means no waiting; `:infinity` disables the timeout."
         ),
-      predicate: [type: {:fun, 1}, doc: "Filter applied to raw event maps. The first truthy result accepts the event."]
+      predicate: [type: {:fun, 1}, doc: "Filter applied to raw event maps. The first truthy result accepts the event."],
+      transform: [type: {:fun, 1}, doc: "Maps the accepted raw event to the result, inside the waiting task."],
+      subscription: [
+        type:
+          {:in,
+           [:console, :dialog, :dialog_closed, :file_chooser, :request, :response, :request_finished, :request_failed]},
+        doc:
+          "Opt-in event to enable when it differs from the raw message method, e.g. `:dialog` for a Dialog `:__create__`."
+      ]
     )
 
   @schema schema
@@ -92,19 +108,24 @@ defmodule PlaywrightEx.EventWaiter do
   defp start_task(connection_pid, connection, guid, event, opts) do
     owner = self()
     timeout = Keyword.fetch!(opts, :timeout)
-    predicate = Keyword.get(opts, :predicate, fn _ -> true end)
+
+    callbacks = {
+      Keyword.get(opts, :predicate, fn _ -> true end),
+      Keyword.get(opts, :transform, &Function.identity/1)
+    }
+
     deadline = Timeout.deadline(timeout)
 
     task =
       Task.async(fn ->
         # A monitor also covers normal owner exit, which a link does not.
         refs = {Process.monitor(owner), Process.monitor(connection_pid)}
-        wait_event(guid, event, predicate, timeout, deadline, refs)
+        wait_event(guid, event, callbacks, timeout, deadline, refs)
       end)
 
     pending = %__MODULE__{task: task, connection: connection}
 
-    case Connection.subscribe_sync(connection_pid, task.pid, guid) do
+    case Connection.subscribe_event(connection_pid, task.pid, guid, Keyword.get(opts, :subscription, event)) do
       :ok ->
         {:ok, pending}
 
@@ -114,27 +135,29 @@ defmodule PlaywrightEx.EventWaiter do
     end
   end
 
-  defp wait_event(guid, event, predicate, timeout, deadline, refs) do
+  defp wait_event(guid, event, callbacks, timeout, deadline, refs) do
     case Timeout.remaining(deadline) do
       0 -> timeout_error(timeout)
-      remaining -> receive_event(guid, event, predicate, timeout, deadline, refs, remaining)
+      remaining -> receive_event(guid, event, callbacks, timeout, deadline, refs, remaining)
     end
   end
 
-  defp receive_event(guid, event, predicate, timeout, deadline, {owner_ref, connection_ref} = refs, remaining) do
+  defp receive_event(guid, event, callbacks, timeout, deadline, {owner_ref, connection_ref} = refs, remaining) do
+    {predicate, transform} = callbacks
+
     receive do
       {:playwright_msg, %{guid: ^guid, method: ^event} = message} ->
         cond do
           Timeout.remaining(deadline) == 0 -> timeout_error(timeout)
-          predicate.(message) -> {:ok, message}
-          true -> wait_event(guid, event, predicate, timeout, deadline, refs)
+          predicate.(message) -> {:ok, transform.(message)}
+          true -> wait_event(guid, event, callbacks, timeout, deadline, refs)
         end
 
       {:playwright_msg, %{guid: ^guid, method: method}} when method in [:close, :crash, :__dispose__] ->
         error(method, "Playwright channel #{inspect(guid)} emitted #{method} before #{event}")
 
       {:playwright_msg, %{guid: ^guid}} ->
-        wait_event(guid, event, predicate, timeout, deadline, refs)
+        wait_event(guid, event, callbacks, timeout, deadline, refs)
 
       {:DOWN, ^connection_ref, :process, _, _} ->
         error(:connection_closed, "Playwright connection closed")

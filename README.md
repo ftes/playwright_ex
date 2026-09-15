@@ -90,6 +90,14 @@ current committed document. Same-document navigation preserves it; a new
 navigation replaces it with the committed request, including after redirects.
 The result is `nil` when no request was recorded.
 
+`Frame.snapshot/2` returns the recorded URL, document request, and a client-generated
+`document_ref` in one read. The reference changes on new documents, including
+reloads, and remains stable across same-document navigation.
+
+`EventWaiter` automatically enables opt-in Page and BrowserContext events while
+waiting. Predicates filter raw events; an optional `:transform` maps the accepted
+event inside the task, for example to save metadata before the channel closes.
+
 ## Downloads
 
 Arm the listener, trigger the download, then await its event. Use `after` to
