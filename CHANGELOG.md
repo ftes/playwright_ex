@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
 ## [Unreleased]
+
+## [1.0.0] 2026-09-15
 ### Added
 - Download handles with browser-provided filename and URL, reusable through
   `Download.from_event/2`, `Download.save_as/3`, and explicit `Download.delete/2`.

@@ -19,7 +19,7 @@ Freddy.
 ## Getting started
 1. Add dependency
         # mix.exs
-        {:playwright_ex, "~> 0.6"}
+        {:playwright_ex, "~> 1.0"}
 
 2. Ensure Playwright 1.63 or newer is installed (executable in `$PATH` or installed via `npm`)
 
