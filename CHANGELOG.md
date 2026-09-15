@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   predicate bugs propagate instead of being converted to ordinary error results.
 
 ### Fixed
+- Discard unrelated protocol events from event waiters without extending their
+  deadline, preventing mailbox growth while waiting on busy channels.
 - Support `:infinity` in frame URL/load-state waits and keyboard actions without
   timeout arithmetic errors. Keyboard delays cannot extend a zero timeout.
 - Artifact saves share one timeout across stream reads, clean up failed

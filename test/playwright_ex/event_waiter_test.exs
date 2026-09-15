@@ -60,6 +60,68 @@ defmodule PlaywrightEx.EventWaiterTest do
     assert {:error, %{reason: :timeout}} = EventWaiter.await(pending)
   end
 
+  test "infinite waiters drain unrelated events without affecting other subscribers", %{
+    connection: connection,
+    scope: scope
+  } do
+    parent = self()
+
+    predicate = fn event ->
+      if event.params.suggested_filename == "barrier.txt" do
+        send(parent, Process.info(self(), :message_queue_len))
+        false
+      else
+        true
+      end
+    end
+
+    {:ok, pending} = EventWaiter.arm("page", :download, connection: connection, timeout: :infinity, predicate: predicate)
+    [pid] = :pg.get_members(scope, {:guid, "page"})
+    {:ok, console} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+
+    for index <- 1..100 do
+      Connection.handle_playwright_msg(connection, %{guid: "page", method: :console, params: %{index: index}})
+    end
+
+    # The connection sends the barrier after every console event to the same task.
+    Connection.handle_playwright_msg(connection, download("barrier"))
+    assert_receive {:message_queue_len, 0}, 1000
+    assert Process.alive?(pid)
+    assert {:ok, %{method: :console, params: %{index: 1}}} = EventWaiter.await(console)
+
+    Connection.handle_playwright_msg(connection, download("wanted"))
+    assert {:ok, %{params: %{suggested_filename: "wanted.txt"}}} = EventWaiter.await(pending)
+  end
+
+  test "queued unrelated events cannot postpone an expired deadline", %{connection: connection, scope: scope} do
+    parent = self()
+
+    predicate = fn _event ->
+      send(parent, :evaluating)
+
+      receive do
+        :continue -> false
+      end
+    end
+
+    {:ok, pending} = EventWaiter.arm("page", :download, connection: connection, timeout: 1000, predicate: predicate)
+    [pid] = :pg.get_members(scope, {:guid, "page"})
+    Connection.handle_playwright_msg(connection, download("skip"))
+    assert_receive :evaluating, 1000
+
+    for index <- 1..100 do
+      Connection.handle_playwright_msg(connection, %{guid: "page", method: :console, params: %{index: index}})
+    end
+
+    Connection.handle_playwright_msg(connection, %{guid: "page", method: :close, params: %{}})
+    _ = :sys.get_state(connection)
+    Process.sleep(1050)
+    send(pid, :continue)
+
+    assert {:error, %{reason: :timeout}} = EventWaiter.await(pending)
+    await_unsubscribed(connection, scope)
+  end
+
   test "a queued event cannot revive an expired deadline", %{connection: connection, scope: scope} do
     {:ok, pending} = EventWaiter.arm("page", :download, connection: connection, timeout: 100)
     [pid] = :pg.get_members(scope, {:guid, "page"})

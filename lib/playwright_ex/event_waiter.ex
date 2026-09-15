@@ -13,8 +13,9 @@ defmodule PlaywrightEx.EventWaiter do
   An optional `:predicate` filters raw event maps. Returning `false` or `nil`
   skips an event. Keep predicates quick and nonblocking.
 
-  Events are matched by channel GUID and message `method`. Enable opt-in
-  protocol events through the relevant channel API before arming a listener.
+  Events are matched by channel GUID and message `method`. Unrelated events
+  are discarded without extending the timeout. Enable opt-in protocol events
+  through the relevant channel API before arming a listener.
   """
 
   alias PlaywrightEx.Connection
@@ -113,7 +114,14 @@ defmodule PlaywrightEx.EventWaiter do
     end
   end
 
-  defp wait_event(guid, event, predicate, timeout, deadline, {owner_ref, connection_ref} = refs) do
+  defp wait_event(guid, event, predicate, timeout, deadline, refs) do
+    case Timeout.remaining(deadline) do
+      0 -> timeout_error(timeout)
+      remaining -> receive_event(guid, event, predicate, timeout, deadline, refs, remaining)
+    end
+  end
+
+  defp receive_event(guid, event, predicate, timeout, deadline, {owner_ref, connection_ref} = refs, remaining) do
     receive do
       {:playwright_msg, %{guid: ^guid, method: ^event} = message} ->
         cond do
@@ -125,13 +133,16 @@ defmodule PlaywrightEx.EventWaiter do
       {:playwright_msg, %{guid: ^guid, method: method}} when method in [:close, :crash, :__dispose__] ->
         error(method, "Playwright channel #{inspect(guid)} emitted #{method} before #{event}")
 
+      {:playwright_msg, %{guid: ^guid}} ->
+        wait_event(guid, event, predicate, timeout, deadline, refs)
+
       {:DOWN, ^connection_ref, :process, _, _} ->
         error(:connection_closed, "Playwright connection closed")
 
       {:DOWN, ^owner_ref, :process, _, _} ->
         exit(:normal)
     after
-      Timeout.remaining(deadline) -> timeout_error(timeout)
+      remaining -> timeout_error(timeout)
     end
   end
 
