@@ -80,7 +80,7 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
 
   test "document lookup returns connection errors at the boundary" do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
-    :gen_statem.stop(connection)
+    stop_supervised!(Connection)
     assert {:error, %{reason: :connection_closed}} = Frame.document_request(frame_id, connection: connection)
   end
 
