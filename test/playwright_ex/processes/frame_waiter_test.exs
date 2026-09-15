@@ -31,15 +31,4 @@ defmodule PlaywrightEx.FrameWaiterTest do
     waiter = FrameWaiter.new_url_waiter(fn _url -> exit(:unexpected) end, "load")
     assert catch_exit(FrameWaiter.evaluate(waiter, frame_state)) == :unexpected
   end
-
-  test "update_load_states adds and removes states without aliases" do
-    load_states =
-      MapSet.new()
-      |> FrameWaiter.update_load_states(%{add: "networkidle"})
-      |> FrameWaiter.update_load_states(%{add: :load})
-      |> FrameWaiter.update_load_states(%{remove: "networkidle"})
-
-    assert MapSet.member?(load_states, "load")
-    refute MapSet.member?(load_states, "networkidle")
-  end
 end

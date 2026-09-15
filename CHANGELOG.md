@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Frame URL/load-state waits use a separate task for each caller. The connection
+  caches current frame state; per-frame recorder processes are removed. Public
+  results stay synchronous, and URL predicate errors affect only that caller.
+
+### Fixed
+- Clean up abandoned frame waits when callers exit and discard recorded frame
+  state when the connection closes.
+
 ## [0.10.0] 2026-09-15
 ### Added
 - Download handles with browser-provided filename and URL, reusable through

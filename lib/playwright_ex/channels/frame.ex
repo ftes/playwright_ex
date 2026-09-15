@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Frame do
 
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
-  alias PlaywrightEx.FrameEventRecorder
+  alias PlaywrightEx.FrameWaiter
   alias PlaywrightEx.Serialization
   alias PlaywrightEx.Timeout
 
@@ -1283,12 +1283,9 @@ defmodule PlaywrightEx.Frame do
   @doc """
   Waits for the frame to reach the requested load state.
 
-  This uses a navigation-event model:
-  - listens for frame/page lifecycle events (`:loadstate`, `:navigated`, close/crash/dispose),
-  - resolves when `state` is reached for the tracked frame.
-
-  This is event-based waiting, not JavaScript polling. It does not repeatedly evaluate
-  `document.readyState` in page context, so it remains valid across navigations and document changes.
+  Returns immediately if the recorded load state already satisfies the wait.
+  Otherwise, waits for frame/page lifecycle events. Recorded state is updated
+  across navigations and document changes.
 
   Reference: https://playwright.dev/docs/api/class-frame#frame-wait-for-load-state
 
@@ -1304,7 +1301,7 @@ defmodule PlaywrightEx.Frame do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
     wait_state = opts |> Keyword.fetch!(:state) |> normalize_wait_state()
 
-    FrameEventRecorder.wait_for_load_state(connection, frame_id, wait_state, timeout)
+    FrameWaiter.wait_for_load_state(connection, frame_id, wait_state, timeout)
   end
 
   schema =
@@ -1334,9 +1331,9 @@ defmodule PlaywrightEx.Frame do
   - URL and lifecycle state are tracked from protocol navigation/load events.
 
   This does not poll `window.location.href` in page JavaScript. It remains robust when
-  document/context is replaced during navigation. Function matchers run in the frame
-  recorder process; keep them quick and nonblocking. Unexpected matcher errors
-  terminate that recorder and propagate to callers waiting on it.
+  document/context is replaced during navigation. Function matchers run in a separate
+  task for each wait; keep them quick and nonblocking. Unexpected matcher errors
+  propagate to that wait's caller without affecting other waits.
 
   Reference: https://playwright.dev/docs/api/class-frame#frame-wait-for-url
 
@@ -1353,7 +1350,7 @@ defmodule PlaywrightEx.Frame do
     wait_state = opts |> Keyword.fetch!(:wait_until) |> normalize_wait_state()
     url_matcher = opts |> Keyword.fetch!(:url) |> build_url_matcher()
 
-    FrameEventRecorder.wait_for_url(connection, frame_id, url_matcher, wait_state, timeout)
+    FrameWaiter.wait_for_url(connection, frame_id, url_matcher, wait_state, timeout)
   end
 
   defp normalize_wait_state(state) when is_atom(state), do: normalize_wait_state(Atom.to_string(state))

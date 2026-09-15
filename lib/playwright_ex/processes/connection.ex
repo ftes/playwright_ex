@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Connection do
 
   import Kernel, except: [send: 2]
 
-  alias PlaywrightEx.FrameEventRecorder
+  alias PlaywrightEx.FrameState
   alias PlaywrightEx.Serialization
 
   @timeout_grace_factor 1.5
@@ -23,6 +23,7 @@ defmodule PlaywrightEx.Connection do
             parents: %{},
             children: %{},
             frame_pages: %{},
+            frame_states: %{},
             initialization: nil,
             pending_response: %{}
 
@@ -50,6 +51,13 @@ defmodule PlaywrightEx.Connection do
   @doc false
   def subscribe_sync(name, pid, guid) do
     call(name, {:subscribe, pid, guid}, 5_000)
+  end
+
+  # The snapshot and subscription share one connection turn. Subsequent state
+  # updates are sent by this process, preserving their order after the snapshot.
+  @doc false
+  def subscribe_frame(name, pid, frame_id) do
+    call(name, {:subscribe_frame, pid, frame_id}, 5_000)
   end
 
   @doc """
@@ -217,6 +225,23 @@ defmodule PlaywrightEx.Connection do
     end
   end
 
+  def started({:call, from}, {:subscribe_frame, recipient, frame_id}, data) do
+    reply =
+      case Map.get(data.frame_states, frame_id) do
+        %FrameState{} = state ->
+          :ok = :pg.join(data.config.pg_scope, frame_group(frame_id), recipient)
+          {:ok, state}
+
+        {:error, _} = error ->
+          error
+
+        nil ->
+          FrameState.error(:frame_detached)
+      end
+
+    {:keep_state_and_data, [{:reply, from, reply}]}
+  end
+
   def started(:cast, {:unsubscribe, recipient, guid}, data) do
     _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
     :keep_state_and_data
@@ -251,21 +276,52 @@ defmodule PlaywrightEx.Connection do
 
   defp handle_adopt(data, _msg), do: data
 
-  defp maybe_start_frame_event_recorder(data, %{
+  defp record_frame_state(data, %{
          method: :__create__,
-         params: %{guid: guid, initializer: %{url: _url, load_states: _load_states} = initializer}
+         params: %{guid: guid, initializer: %{url: _, load_states: _} = initializer}
        }) do
-    case FrameEventRecorder.ensure_started(data.config.name, guid, initializer) do
-      {:ok, pid} -> subscribe_recipient(data, pid, guid)
-      {:error, _reason} -> data
-    end
+    put_in(data.frame_states[guid], FrameState.new(initializer))
   end
 
-  defp maybe_start_frame_event_recorder(data, %{method: :__create__}) do
+  defp record_frame_state(data, %{guid: guid, method: :navigated, params: %{error: error}}) when is_binary(error) do
+    broadcast(data, frame_group(guid), {:frame_navigation_error, guid, error})
     data
   end
 
-  defp maybe_start_frame_event_recorder(data, _msg), do: data
+  defp record_frame_state(data, %{guid: guid, method: method, params: params}) when method in [:loadstate, :navigated] do
+    case data.frame_states[guid] do
+      %FrameState{} = state ->
+        state = FrameState.update(state, method, params)
+        broadcast(data, frame_group(guid), {:frame_state, guid, {:ok, state}})
+        put_in(data.frame_states[guid], state)
+
+      _closed_or_unknown ->
+        data
+    end
+  end
+
+  defp record_frame_state(data, %{guid: page_id, method: method}) when method in [:close, :crash] do
+    reason = if method == :crash, do: :page_crashed, else: :page_closed
+
+    Enum.reduce(data.frame_pages, data, fn
+      {frame_id, ^page_id}, data -> close_frame(data, frame_id, reason)
+      _, data -> data
+    end)
+  end
+
+  defp record_frame_state(data, _msg), do: data
+
+  defp close_frame(data, frame_id, reason) do
+    case data.frame_states[frame_id] do
+      %FrameState{} ->
+        error = FrameState.error(reason)
+        broadcast(data, frame_group(frame_id), {:frame_state, frame_id, error})
+        put_in(data.frame_states[frame_id], error)
+
+      _closed_or_unknown ->
+        data
+    end
+  end
 
   defp maybe_associate_frame_with_page(data, %{method: :__create__, params: %{guid: guid, type: "Page"} = params}) do
     case params.initializer do
@@ -299,6 +355,14 @@ defmodule PlaywrightEx.Connection do
 
   defp handle_dispose(data, %{method: :__dispose__} = msg) do
     disposed_guids = collect_descendants(data.children, msg.guid)
+    disposed = MapSet.new(disposed_guids)
+
+    data =
+      Enum.reduce(data.frame_pages, data, fn {frame_id, page_id}, data ->
+        if MapSet.member?(disposed, page_id), do: close_frame(data, frame_id, :page_closed), else: data
+      end)
+
+    data = Enum.reduce(disposed_guids, data, &close_frame(&2, &1, :frame_detached))
 
     Enum.each(tl(disposed_guids), fn guid ->
       notify_guid_subscribers(data, guid, %{guid: guid, method: :__dispose__, params: %{}})
@@ -317,19 +381,14 @@ defmodule PlaywrightEx.Connection do
   defp notify_subscribers(data, _msg), do: data
 
   defp pg_group(guid), do: {:guid, guid}
+  defp frame_group(guid), do: {:frame, guid}
 
   defp clear_disposed_guid_subscribers(data, guid) do
-    group = pg_group(guid)
-
-    for pid <- :pg.get_local_members(data.config.pg_scope, group) do
+    for group <- [pg_group(guid), frame_group(guid)],
+        pid <- :pg.get_local_members(data.config.pg_scope, group) do
       _ = :pg.leave(data.config.pg_scope, group, pid)
     end
 
-    data
-  end
-
-  defp stop_disposed_frame_event_recorder(data, guid) do
-    _ = FrameEventRecorder.terminate_frame(data.config.name, guid)
     data
   end
 
@@ -343,7 +402,7 @@ defmodule PlaywrightEx.Connection do
     data
     |> handle_create(msg)
     |> handle_adopt(msg)
-    |> maybe_start_frame_event_recorder(msg)
+    |> record_frame_state(msg)
     |> maybe_associate_frame_with_page(msg)
     |> notify_subscribers(msg)
     |> handle_dispose(msg)
@@ -396,18 +455,6 @@ defmodule PlaywrightEx.Connection do
   end
 
   defp associate_frame_with_page(data, frame_guid, page_guid) do
-    old_page_guid = data.frame_pages[frame_guid]
-
-    data =
-      case FrameEventRecorder.attach_page(data.config.name, frame_guid, page_guid) do
-        {:ok, pid} ->
-          maybe_unsubscribe_recipient(data, pid, old_page_guid, page_guid)
-          subscribe_recipient(data, pid, page_guid)
-
-        :not_found ->
-          data
-      end
-
     data = put_in(data.frame_pages[frame_guid], page_guid)
 
     data.children
@@ -442,13 +489,17 @@ defmodule PlaywrightEx.Connection do
     |> Map.update!(:parents, &Map.delete(&1, guid))
     |> Map.update!(:children, &(&1 |> remove_child(parent_guid, guid) |> Map.delete(guid)))
     |> Map.update!(:frame_pages, &Map.delete(&1, guid))
-    |> stop_disposed_frame_event_recorder(guid)
+    |> Map.update!(:frame_states, &Map.delete(&1, guid))
     |> clear_disposed_guid_subscribers(guid)
   end
 
   defp notify_guid_subscribers(data, guid, msg) do
-    for pid <- :pg.get_members(data.config.pg_scope, pg_group(guid)) do
-      Kernel.send(pid, {:playwright_msg, msg})
+    broadcast(data, pg_group(guid), {:playwright_msg, msg})
+  end
+
+  defp broadcast(data, group, message) do
+    for pid <- :pg.get_members(data.config.pg_scope, group) do
+      Kernel.send(pid, message)
     end
   end
 
@@ -460,14 +511,6 @@ defmodule PlaywrightEx.Connection do
     end
 
     data
-  end
-
-  defp maybe_unsubscribe_recipient(_data, _recipient, nil, _new_guid), do: :ok
-  defp maybe_unsubscribe_recipient(_data, _recipient, guid, guid), do: :ok
-
-  defp maybe_unsubscribe_recipient(data, recipient, old_guid, _new_guid) do
-    _ = :pg.leave(data.config.pg_scope, pg_group(old_guid), recipient)
-    :ok
   end
 
   defp maybe_log_protocol_message(%{config: %{js_logger: module}}, %{method: :page_error} = msg)

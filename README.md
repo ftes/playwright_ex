@@ -61,6 +61,9 @@ Alternatively, PlaywrightEx can connect to a remote playwright server:
 Most channel functions are thin protocol wrappers.
 In ExDoc, composed helpers are grouped under `Client-Composed Functions`.
 
+Frame URL/load-state waits return synchronously and check recorded state first.
+URL predicate errors propagate to that wait's caller without affecting other waits.
+
 ## Timeouts
 
 Pass a `:timeout` for each operation: a positive number of milliseconds,
