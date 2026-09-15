@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
 ## [Unreleased]
+### Added
+- `Request.response/2` to retrieve a request's response without subscribing to
+  response events, returning `nil` when the request fails without a response.
 
 ### Changed
 - Frame URL/load-state waits use a separate task for each caller. The connection

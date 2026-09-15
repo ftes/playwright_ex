@@ -72,6 +72,19 @@ Pass a `:timeout` for each operation: a positive number of milliseconds,
 With `0`, browser commands time out without being sent. Frame URL/load-state
 waits check the current recorded state once.
 
+## Request responses
+
+Retrieve the response for a known request without subscribing to response events:
+
+```elixir
+{:ok, response} = PlaywrightEx.Request.response(request.guid, timeout: 1_000)
+```
+
+The result is a response handle (`%{guid: response_id}`), or `nil` if the request
+fails without a response. Read its metadata with
+`PlaywrightEx.Connection.initializer!(connection, response_id)`.
+Each request in a redirect chain has its own response.
+
 ## Downloads
 
 Arm the listener, trigger the download, then await its event. Use `after` to
