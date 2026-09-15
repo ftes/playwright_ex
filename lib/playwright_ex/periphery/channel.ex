@@ -1,7 +1,12 @@
 defmodule PlaywrightEx.Channel do
   @moduledoc false
 
-  def timeout_opt, do: [type: :timeout, required: true, doc: "Maximum time for the operation (milliseconds)."]
+  def timeout_opt,
+    do: [
+      type: :timeout,
+      required: true,
+      doc: "Operation timeout in milliseconds. `0` means no waiting; `:infinity` disables the timeout."
+    ]
 
   def connection_opt,
     do: [

@@ -207,54 +207,43 @@ defmodule PlaywrightEx.FrameEventRecorder do
       {:error, reason} -> {:error, %{message: "Failed to start frame event recorder: #{inspect(reason)}"}}
     end
   catch
-    :exit, reason ->
-      {:error, %{message: "Failed to start frame event recorder: #{Exception.format_exit(reason)}"}}
+    :exit, {:noproc, _} ->
+      {:error, %{reason: :connection_closed, message: "Playwright connection is not running"}}
   end
 
   defp call_waiter(pid, request, timeout) do
-    GenServer.call(pid, request, timeout + @waiter_grace_ms)
+    GenServer.call(pid, request, call_timeout(timeout))
   catch
-    :exit, {:timeout, _} ->
+    :exit, {:timeout, {GenServer, :call, _}} ->
       timeout_error(timeout)
 
-    :exit, reason ->
-      call_waiter_exit_reason(reason)
+    :exit, {{:shutdown, :frame_detached}, {GenServer, :call, _}} ->
+      {:error, %{message: @frame_detached_error}}
+
+    :exit, {{:shutdown, :page_closed}, {GenServer, :call, _}} ->
+      {:error, %{message: @page_closed_error}}
+
+    :exit, {{:shutdown, :page_crashed}, {GenServer, :call, _}} ->
+      {:error, %{message: @page_crashed_error}}
+
+    :exit, {reason, {GenServer, :call, _}} when reason in [:normal, :noproc, :shutdown] ->
+      {:error, %{message: @page_closed_error}}
   end
 
-  defp call_waiter_exit_reason(reason) do
-    case classify_call_waiter_exit_reason(reason) do
-      {nil, message} -> {:error, %{message: message}}
-      {reason_atom, message} -> {:error, %{message: message, reason: reason_atom}}
-    end
-  end
-
-  defp classify_call_waiter_exit_reason({:shutdown, :frame_detached}), do: {:frame_detached, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({{:shutdown, :frame_detached}, _}), do: {:frame_detached, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({:shutdown, :page_closed}), do: {:page_closed, @page_closed_error}
-  defp classify_call_waiter_exit_reason({{:shutdown, :page_closed}, _}), do: {:page_closed, @page_closed_error}
-  defp classify_call_waiter_exit_reason({:shutdown, :page_crashed}), do: {:page_crashed, @page_crashed_error}
-  defp classify_call_waiter_exit_reason({{:shutdown, :page_crashed}, _}), do: {:page_crashed, @page_crashed_error}
-  defp classify_call_waiter_exit_reason(:normal), do: {:normal, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({:shutdown, :normal}), do: {:normal, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({{:shutdown, :normal}, _}), do: {:normal, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({:normal, _}), do: {:normal, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({{:normal, _}, _}), do: {:normal, @frame_detached_error}
-  defp classify_call_waiter_exit_reason({:shutdown, reason}) when is_atom(reason), do: {reason, @page_closed_error}
-  defp classify_call_waiter_exit_reason({{:shutdown, reason}, _}) when is_atom(reason), do: {reason, @page_closed_error}
-  defp classify_call_waiter_exit_reason({:noproc, _}), do: {:noproc, @page_closed_error}
-  defp classify_call_waiter_exit_reason(reason), do: {nil, Exception.format_exit(reason)}
+  defp call_timeout(:infinity), do: :infinity
+  defp call_timeout(timeout), do: timeout + @waiter_grace_ms
 
   defp add_waiter(state, from, waiter, timeout) do
     case FrameWaiter.evaluate(waiter, %{url: state.url, load_states: state.load_states}) do
       {:done, reply} ->
         {:reply, reply, state}
 
-      {:error, reply} ->
-        {:reply, reply, state}
+      {:update, _waiter} when timeout == 0 ->
+        {:reply, timeout_error(0), state}
 
       {:update, waiter} ->
         waiter_ref = make_ref()
-        timer_ref = Process.send_after(self(), {:waiter_timeout, waiter_ref, timeout}, timeout)
+        timer_ref = start_timer(waiter_ref, timeout)
         waiter_entry = %{waiter: waiter, from: from, timer_ref: timer_ref}
         {:noreply, put_in(state.waiters[waiter_ref], waiter_entry)}
     end
@@ -267,9 +256,6 @@ defmodule PlaywrightEx.FrameEventRecorder do
       Enum.reduce(state.waiters, {%{}, []}, fn {waiter_ref, waiter_entry}, {acc_waiters, acc_replies} ->
         case FrameWaiter.evaluate(waiter_entry.waiter, frame_state) do
           {:done, reply} ->
-            {acc_waiters, [{waiter_entry, reply} | acc_replies]}
-
-          {:error, reply} ->
             {acc_waiters, [{waiter_entry, reply} | acc_replies]}
 
           {:update, waiter} ->
@@ -304,6 +290,9 @@ defmodule PlaywrightEx.FrameEventRecorder do
   defp url_waiter?(_waiter), do: false
 
   defp via(connection, frame_id), do: {:via, Registry, {registry_name(connection), frame_id}}
+
+  defp start_timer(_waiter_ref, :infinity), do: nil
+  defp start_timer(waiter_ref, timeout), do: Process.send_after(self(), {:waiter_timeout, waiter_ref, timeout}, timeout)
 
   defp cancel_timer(nil), do: :ok
   defp cancel_timer(timer_ref), do: _ = Process.cancel_timer(timer_ref, async: true, info: false)

@@ -48,6 +48,58 @@ defmodule PlaywrightEx.FrameEventRecorderTest do
     assert {:ok, nil} = Task.await(task, 1_000)
   end
 
+  test "infinity waits without scheduling a timer" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+    recorder = recorder_pid!(connection, frame_id)
+
+    load = Task.async(fn -> FrameEventRecorder.wait_for_load_state(connection, frame_id, "load", :infinity) end)
+
+    url =
+      Task.async(fn ->
+        FrameEventRecorder.wait_for_url(connection, frame_id, &(&1 == "about:blank#done"), "load", :infinity)
+      end)
+
+    assert_eventually(fn -> map_size(:sys.get_state(recorder).waiters) == 2 end)
+    assert Enum.all?(:sys.get_state(recorder).waiters, fn {_ref, waiter} -> is_nil(waiter.timer_ref) end)
+
+    Connection.handle_playwright_msg(connection, %{guid: frame_id, method: :navigated, params: %{url: "about:blank#done"}})
+
+    Connection.handle_playwright_msg(connection, %{guid: frame_id, method: :loadstate, params: %{add: "load"}})
+    assert {:ok, nil} = Task.await(load)
+    assert {:ok, nil} = Task.await(url)
+    assert :sys.get_state(recorder).waiters == %{}
+  end
+
+  test "zero checks cached state without registering a waiter" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+    assert {:ok, nil} = FrameEventRecorder.wait_for_load_state(connection, frame_id, "commit", 0)
+    assert {:ok, nil} = FrameEventRecorder.wait_for_url(connection, frame_id, &(&1 == "about:blank"), "commit", 0)
+
+    assert {:error, %{message: "Timeout 0ms exceeded."}} =
+             FrameEventRecorder.wait_for_load_state(connection, frame_id, "load", 0)
+
+    assert {:error, %{message: "Timeout 0ms exceeded."}} =
+             FrameEventRecorder.wait_for_url(connection, frame_id, &(&1 == "missing"), "commit", 0)
+
+    assert :sys.get_state(recorder_pid!(connection, frame_id)).waiters == %{}
+  end
+
+  @tag capture_log: true
+  test "URL predicate bugs propagate through the recorder boundary" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+
+    assert {{%RuntimeError{message: "predicate bug"}, [_ | _]}, {GenServer, :call, _}} =
+             catch_exit(
+               FrameEventRecorder.wait_for_url(
+                 connection,
+                 frame_id,
+                 fn _ -> raise "predicate bug" end,
+                 "commit",
+                 :infinity
+               )
+             )
+  end
+
   test "waiters fail when frame is disposed" do
     %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
     recorder = recorder_pid!(connection, frame_id)

@@ -61,6 +61,59 @@ Alternatively, PlaywrightEx can connect to a remote playwright server:
 Most channel functions are thin protocol wrappers.
 In ExDoc, composed helpers are grouped under `Client-Composed Functions`.
 
+## Timeouts
+
+Pass a `:timeout` for each operation: a positive number of milliseconds,
+`0` for no waiting, or `:infinity` to disable the timeout.
+
+With `0`, browser commands time out without being sent. Frame URL/load-state
+waits check the current recorded state once.
+
+## Downloads
+
+Arm the listener, trigger the download, then await its event. Use `after` to
+release the listener if the action fails:
+
+```elixir
+alias PlaywrightEx.{Download, EventWaiter, Frame, Page}
+
+{:ok, pending} = Page.expect_download(page.guid, timeout: 1_000)
+
+try do
+  {:ok, _} = Frame.click(frame.guid, selector: "a#export", timeout: 1_000)
+  {:ok, download} = Page.await_download(pending)
+
+  download.suggested_filename # e.g. "report.csv"
+  download.url
+  :ok = Download.save_as(download, "downloads/report.csv", timeout: 5_000)
+after
+  EventWaiter.cancel(pending)
+end
+```
+
+The event means the download has **started**. `Download.save_as/3` waits for
+completion, works locally and over WebSocket, and preserves the source artifact.
+It creates parent directories and preserves an existing destination if saving fails.
+You own saved files. The browser deletes its source artifacts when the context
+closes; use `Download.delete/2` to delete a source earlier.
+
+Event capture, the triggering action, and saving each have their own timeout.
+The event timeout starts when arming begins and is not restarted by awaiting
+later or skipping events. The save timeout covers the whole transfer.
+
+Use an optional predicate when an action produces several downloads, or to
+select a filename or URL among unrelated downloads:
+
+```elixir
+{:ok, pending} = Page.expect_download(page.guid,
+  timeout: 1_000,
+  predicate: &(&1.suggested_filename == "report.csv")
+)
+```
+
+The predicate receives a `Download`. Keep it quick and nonblocking; exceptions
+propagate to the calling process.
+
 ## References
 - Code extracted from [phoenix_test_playwright](https://hexdocs.pm/phoenix_test_playwright).
 - Inspired by [playwright-elixir](https://hexdocs.pm/playwright).

@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Frame do
   alias PlaywrightEx.Connection
   alias PlaywrightEx.FrameEventRecorder
   alias PlaywrightEx.Serialization
+  alias PlaywrightEx.Timeout
 
   schema =
     NimbleOptions.new!(
@@ -207,7 +208,7 @@ defmodule PlaywrightEx.Frame do
     {timeout, opts} = Keyword.pop!(opts, :timeout)
 
     connection
-    |> Connection.send(%{guid: frame_id, method: :press, params: Map.new(opts)}, timeout + opts[:delay])
+    |> Connection.send(%{guid: frame_id, method: :press, params: Map.new(opts)}, Timeout.add(timeout, opts[:delay]))
     |> ChannelResponse.unwrap(& &1)
   end
 
@@ -252,7 +253,7 @@ defmodule PlaywrightEx.Frame do
     connection
     |> Connection.send(
       %{guid: frame_id, method: :type, params: Map.new(opts)},
-      timeout + opts[:delay] * String.length(opts[:text])
+      Timeout.add(timeout, opts[:delay] * String.length(opts[:text]))
     )
     |> ChannelResponse.unwrap(& &1)
   end
@@ -590,7 +591,7 @@ defmodule PlaywrightEx.Frame do
   If the element is already checked, the method returns immediately without further action.
   Developers can bypass actionability checks using the `force` option. The method throws an error
   if the matched element is not a checkbox or radio input. A `TimeoutError` is thrown if operations
-  don't complete within the specified timeout period. Zero timeout disables timeout restrictions.
+  don't complete within the specified timeout period. `0` times out immediately; `:infinity` disables the timeout.
 
   This method is discouraged in favor of using the locator-based `locator.check()` approach, which
   aligns with modern Playwright testing practices focusing on locators rather than direct selector-based actions.
@@ -1333,7 +1334,9 @@ defmodule PlaywrightEx.Frame do
   - URL and lifecycle state are tracked from protocol navigation/load events.
 
   This does not poll `window.location.href` in page JavaScript. It remains robust when
-  document/context is replaced during navigation.
+  document/context is replaced during navigation. Function matchers run in the frame
+  recorder process; keep them quick and nonblocking. Unexpected matcher errors
+  terminate that recorder and propagate to callers waiting on it.
 
   Reference: https://playwright.dev/docs/api/class-frame#frame-wait-for-url
 

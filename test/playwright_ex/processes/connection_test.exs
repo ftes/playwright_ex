@@ -69,6 +69,99 @@ defmodule PlaywrightEx.ConnectionTest do
     assert %{id: ^id, result: %{}} = Task.await(task)
   end
 
+  test "zero times out without posting a command" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+    assert %{error: %{reason: :timeout}} = Connection.send(name, %{guid: "frame", method: :click}, 0)
+    refute_receive {:transport_post, _}
+  end
+
+  test "infinity is translated only at the protocol boundary" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+    task = Task.async(fn -> Connection.send(name, %{guid: "frame", method: :click}, :infinity) end)
+    assert_receive {:transport_post, %{id: id, metadata: %{timeout: 0}}}
+    assert Task.yield(task, 20) == nil
+    Connection.handle_playwright_msg(name, %{id: id, result: %{}})
+    assert %{result: %{}} = Task.await(task)
+  end
+
+  test "keyboard delays preserve zero and infinity and pad finite timeouts" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+
+    for {method, args, finite_timeout} <- [{:press, [key: "a"], 120}, {:type, [text: "ab"], 140}] do
+      opts = [connection: name, selector: "input", delay: 20] ++ args
+      assert {:error, %{reason: :timeout}} = apply(PlaywrightEx.Frame, method, ["frame", [timeout: 0] ++ opts])
+      refute_receive {:transport_post, _}
+
+      for {timeout, wire_timeout} <- [{:infinity, 0}, {100, finite_timeout}] do
+        task = Task.async(fn -> apply(PlaywrightEx.Frame, method, ["frame", [timeout: timeout] ++ opts]) end)
+        assert_receive {:transport_post, %{id: id, method: ^method, metadata: %{timeout: ^wire_timeout}}}
+        Connection.handle_playwright_msg(name, %{id: id, result: %{}})
+        assert {:ok, _} = Task.await(task)
+      end
+    end
+  end
+
+  test "stopping a connection resolves its pending call" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+    task = Task.async(fn -> Connection.send(name, %{guid: "frame", method: :click}, :infinity) end)
+    assert_receive {:transport_post, %{method: :click}}
+    :ok = :gen_statem.stop(name)
+    assert %{error: %{reason: :connection_closed}} = Task.await(task)
+  end
+
+  test "supervisor shutdown resolves a pending connection call" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+    task = Task.async(fn -> Connection.send(name, %{guid: "frame", method: :click}, :infinity) end)
+    assert_receive {:transport_post, %{method: :click}}
+    assert :ok = stop_supervised(name)
+    assert %{error: %{reason: :connection_closed}} = Task.await(task)
+  end
+
+  test "calls to a stopped connection return errors" do
+    name = start_connection!()
+    pid = Process.whereis(name)
+    assert :ok = stop_supervised(name)
+    assert %{error: %{reason: :connection_closed}} = Connection.send(pid, %{guid: "frame", method: :click}, 100)
+    assert {:error, %{reason: :connection_closed}} = Connection.fetch_transport(pid)
+  end
+
+  test "transport lookup is tagged and the legacy predicate stays boolean" do
+    name = start_connection!()
+    assert {:ok, DummyTransport} = Connection.fetch_transport(name)
+    assert Connection.remote?(name) == true
+  end
+
+  test "unexpected process exits propagate" do
+    for reason <- [:unexpected_bug, {:shutdown, :unhandled_reason}] do
+      pid = spawn(fn -> receive do: ({:"$gen_call", _, _} -> exit(reason)) end)
+
+      assert {^reason, {:gen_statem, :call, _}} =
+               catch_exit(Connection.send(pid, %{guid: "frame", method: :click}, 100))
+    end
+  end
+
+  test "a missing reply returns a timeout error" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+    assert %{error: %{reason: :timeout}} = Connection.send(name, %{guid: "frame", method: :click}, 1)
+    assert_receive {:transport_post, %{id: id}}
+    Connection.handle_playwright_msg(name, %{id: id, result: %{}})
+    _ = :sys.get_state(name)
+    refute_receive {_reference, _reply}
+  end
+
+  test "initialization uses the same timeout translation" do
+    assert {:ok, :pending, _} = Connection.init(%{timeout: :infinity, transport: {DummyTransport, self()}})
+    assert_receive {:transport_post, %{method: :initialize, metadata: %{timeout: 0}}}
+    assert {:stop, :timeout} = Connection.init(%{timeout: 0})
+    refute_receive {:transport_post, _}
+  end
+
   test "deduplicates subscribers per guid" do
     name = start_connection!()
 
@@ -202,14 +295,15 @@ defmodule PlaywrightEx.ConnectionTest do
     scope = String.to_atom("connection_test_scope_#{System.unique_integer([:positive])}")
     {:ok, _} = :pg.start_link(scope)
 
-    {:ok, _pid} =
-      Connection.start_link(
-        name: name,
-        timeout: 1_000,
-        transport: {DummyTransport, transport_name},
-        js_logger: js_logger,
-        pg_scope: scope
-      )
+    opts = [
+      name: name,
+      timeout: 1_000,
+      transport: {DummyTransport, transport_name},
+      js_logger: js_logger,
+      pg_scope: scope
+    ]
+
+    start_supervised!(%{id: name, start: {Connection, :start_link, [opts]}, restart: :temporary})
 
     name
   end

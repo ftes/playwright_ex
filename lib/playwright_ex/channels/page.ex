@@ -9,6 +9,8 @@ defmodule PlaywrightEx.Page do
 
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
+  alias PlaywrightEx.Download
+  alias PlaywrightEx.EventWaiter
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Serialization
 
@@ -466,6 +468,62 @@ defmodule PlaywrightEx.Page do
     |> case do
       {:ok, result} -> {:ok, result}
       {:error, error} -> {:error, error}
+    end
+  end
+
+  @doc group: :composed
+  @doc """
+  Arms a download listener before the action that triggers it.
+
+  Returns a handle for `await_download/1`. Pass a required `:timeout` in
+  milliseconds (`0` means no waiting; `:infinity` disables the timeout) and an
+  optional `:connection`. The deadline bounds event capture, not file transfer.
+  Await once, from the process that armed the listener. Cancel with
+  `PlaywrightEx.EventWaiter.cancel/1` if you abandon the action.
+
+  An optional `:predicate` receives a `PlaywrightEx.Download` and accepts the
+  first download for which it returns a truthy value, for example
+  `predicate: &(&1.suggested_filename == "report.csv")`. It runs in the task;
+  keep it quick and nonblocking. Rejected downloads do not restart the timeout.
+
+      {:ok, pending} = Page.expect_download(page_id, timeout: 1_000)
+      try do
+        {:ok, _} = Frame.click(frame_id, selector: "a#export", timeout: 1_000)
+        {:ok, download} = Page.await_download(pending)
+        :ok = Download.save_as(download, "report.csv", timeout: 5_000)
+      after
+        PlaywrightEx.EventWaiter.cancel(pending)
+      end
+  """
+  @spec expect_download(PlaywrightEx.guid(), [EventWaiter.opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, EventWaiter.t()} | {:error, EventWaiter.error()}
+  def expect_download(page_id, opts \\ []) do
+    opts =
+      case Keyword.get(opts, :predicate) do
+        predicate when is_function(predicate, 1) ->
+          connection_opts = Keyword.take(opts, [:connection])
+          Keyword.put(opts, :predicate, fn event -> predicate.(Download.from_event(event, connection_opts)) end)
+
+        _ ->
+          opts
+      end
+
+    EventWaiter.arm(page_id, :download, opts)
+  end
+
+  @doc group: :composed
+  @doc """
+  Consumes the download event captured by `expect_download/2`.
+
+  Returns metadata as soon as downloading starts. Use `Download.save_as/3` to
+  wait for completion and copy the contents. The original event deadline is
+  retained even if awaiting begins after the action finishes. Like `Task.await/2`,
+  call this once, from the process that called `expect_download/2`.
+  """
+  @spec await_download(EventWaiter.t()) :: {:ok, Download.t()} | {:error, EventWaiter.error()}
+  def await_download(pending) do
+    with {:ok, event} <- EventWaiter.await(pending) do
+      {:ok, Download.from_event(event, connection: EventWaiter.connection(pending))}
     end
   end
 

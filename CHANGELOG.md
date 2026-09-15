@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
+## [Unreleased]
+### Added
+- Download handles with browser-provided filename and URL, reusable through
+  `Download.from_event/2`, `Download.save_as/3`, and explicit `Download.delete/2`.
+- `Page.expect_download/2` and `Page.await_download/1` for explicit
+  arm/action/await download capture, with an optional predicate on download metadata.
+- `EventWaiter.arm/3`, `await/1`, and `cancel/1` for one-shot protocol events,
+  using linked tasks and ref-tagged replies, with synchronous registration,
+  one deadline from arming, optional event predicates, and owner/connection
+  lifecycle handling. `:infinity` disables the event timeout.
+
+### Changed
+- **Breaking:** `timeout: 0` now means no waiting throughout the client. Protocol
+  commands time out without being sent; frame URL/load-state waits check cached
+  state once. Replace `timeout: 0` with `timeout: :infinity` where unlimited
+  waiting was intended.
+- Missing connections, normal stops, supervisor shutdowns, and response timeouts
+  return error results at the connection boundary. Other process exits and URL
+  predicate bugs propagate instead of being converted to ordinary error results.
+
+### Fixed
+- Support `:infinity` in frame URL/load-state waits and keyboard actions without
+  timeout arithmetic errors. Keyboard delays cannot extend a zero timeout.
+- Artifact saves share one timeout across stream reads, clean up failed
+  transfers, create parent directories, and preserve existing destinations on
+  failure. Stream cleanup runs in an `after` block and preserves the transfer
+  result. Saving leaves the source artifact available to other readers.
+- Support `:infinity` command timeouts using Playwright's zero-timeout wire value.
+
 ## [0.9.0] 2026-09-08
 ### Added
 - Typed local and `PlaywrightEx.FilePayload` in-memory uploads through

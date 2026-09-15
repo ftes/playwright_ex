@@ -47,6 +47,11 @@ defmodule PlaywrightEx.Connection do
     :gen_statem.cast(name, {:subscribe, pid, guid})
   end
 
+  @doc false
+  def subscribe_sync(name, pid, guid) do
+    call(name, {:subscribe, pid, guid}, 5_000)
+  end
+
   @doc """
   Unsubscribe from messages for a guid.
   """
@@ -61,19 +66,29 @@ defmodule PlaywrightEx.Connection do
 
   @doc """
   Post a message and await the response.
-  Wait for an additional grace period after the playwright timeout.
+  Finite positive timeouts allow a response grace period. `:infinity` waits
+  indefinitely; `0` returns a timeout without posting a command. Expected call
+  timeouts and connection shutdowns return protocol-shaped errors. Unexpected
+  process failures propagate to the caller.
   """
-  def send(name, %{guid: _, method: _} = msg, timeout) when is_integer(timeout) do
+  def send(_name, %{guid: _, method: _}, 0), do: %{error: %{reason: :timeout, message: "Timeout 0ms exceeded."}}
+
+  def send(name, %{guid: _, method: _} = msg, timeout)
+      when (is_integer(timeout) and timeout > 0) or timeout == :infinity do
     msg =
       msg
       |> Enum.into(%{params: %{}, metadata: %{}})
       |> update_in([:params], &Map.delete(&1, :timeout))
-      |> put_in([:metadata, :timeout], timeout)
+      |> put_in([:metadata, :timeout], wire_timeout(timeout))
       |> Map.put_new_lazy(:id, fn -> System.unique_integer([:positive, :monotonic]) end)
 
-    call_timeout = max(@min_genserver_timeout, round(timeout * @timeout_grace_factor))
+    call_timeout =
+      if timeout == :infinity, do: :infinity, else: max(@min_genserver_timeout, round(timeout * @timeout_grace_factor))
 
-    :gen_statem.call(name, {:send, msg}, call_timeout)
+    case call(name, {:send, msg}, call_timeout) do
+      {:error, error} -> %{error: error}
+      response -> response
+    end
   end
 
   @doc """
@@ -96,12 +111,32 @@ defmodule PlaywrightEx.Connection do
     :gen_statem.call(name, :remote?)
   end
 
+  @doc false
+  @spec fetch_transport(GenServer.name()) :: {:ok, module()} | {:error, map()}
+  def fetch_transport(name), do: call(name, :transport, 5_000)
+
+  # Normalize only expected failures at the process boundary.
+  defp call(name, request, timeout) do
+    :gen_statem.call(name, request, timeout)
+  catch
+    :exit, {:timeout, {:gen_statem, :call, _}} ->
+      {:error, %{reason: :timeout, message: "Playwright connection response timed out"}}
+
+    :exit, {reason, {:gen_statem, :call, _}} when reason in [:noproc, :normal, :shutdown] ->
+      {:error, %{reason: :connection_closed, message: "Playwright connection closed"}}
+  end
+
+  defp wire_timeout(:infinity), do: 0
+  defp wire_timeout(timeout), do: timeout
+
   # Internal
 
   @impl :gen_statem
   def callback_mode, do: :state_functions
 
   @impl :gen_statem
+  def init(%{timeout: 0}), do: {:stop, :timeout}
+
   def init(config) do
     %{timeout: timeout, transport: transport} = config
     initialization_id = System.unique_integer([:positive, :monotonic])
@@ -111,7 +146,7 @@ defmodule PlaywrightEx.Connection do
       guid: "",
       method: :initialize,
       params: %{sdk_language: :javascript},
-      metadata: %{timeout: timeout}
+      metadata: %{timeout: wire_timeout(timeout)}
     })
 
     initialization = %{id: initialization_id, acknowledged?: false, playwright_created?: false}
@@ -156,6 +191,11 @@ defmodule PlaywrightEx.Connection do
     {:keep_state_and_data, [{:reply, from, Map.fetch(data.initializers, guid)}]}
   end
 
+  def started({:call, from}, :transport, data) do
+    {transport_module, _} = data.config.transport
+    {:keep_state_and_data, [{:reply, from, {:ok, transport_module}}]}
+  end
+
   def started({:call, from}, :remote?, data) do
     {transport_module, _} = data.config.transport
     {:keep_state_and_data, [{:reply, from, transport_module != PlaywrightEx.PortTransport}]}
@@ -163,6 +203,18 @@ defmodule PlaywrightEx.Connection do
 
   def started(:cast, {:subscribe, recipient, guid}, data) do
     {:keep_state, subscribe_recipient(data, recipient, guid)}
+  end
+
+  def started({:call, from}, {:subscribe, recipient, guid}, data) do
+    if Map.has_key?(data.initializers, guid) do
+      {:keep_state, subscribe_recipient(data, recipient, guid), [{:reply, from, :ok}]}
+    else
+      {:keep_state_and_data,
+       [
+         {:reply, from,
+          {:error, %{reason: :disposed, message: "Unknown or disposed Playwright channel #{inspect(guid)}"}}}
+       ]}
+    end
   end
 
   def started(:cast, {:unsubscribe, recipient, guid}, data) do

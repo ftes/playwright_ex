@@ -29,7 +29,7 @@ defmodule PlaywrightEx.FrameWaiter do
   end
 
   @spec evaluate(waiter(), %{url: String.t(), load_states: MapSet.t(String.t())}) ::
-          {:done, {:ok, nil}} | {:update, waiter()} | {:error, {:error, %{message: String.t()}}}
+          {:done, {:ok, nil}} | {:update, waiter()}
   def evaluate({:load_state, wait_state} = waiter, frame_state) do
     if load_state_reached?(frame_state.load_states, wait_state) do
       {:done, {:ok, nil}}
@@ -39,15 +39,10 @@ defmodule PlaywrightEx.FrameWaiter do
   end
 
   def evaluate({:url, url_matcher, wait_state, :waiting_for_url} = waiter, frame_state) do
-    case match_url(url_matcher, frame_state.url) do
-      {:ok, true} ->
-        evaluate({:url, url_matcher, wait_state, :waiting_for_load_state}, frame_state)
-
-      {:ok, false} ->
-        {:update, waiter}
-
-      {:error, reason} ->
-        {:error, {:error, %{message: reason}}}
+    if url_matcher.(frame_state.url) do
+      evaluate({:url, url_matcher, wait_state, :waiting_for_load_state}, frame_state)
+    else
+      {:update, waiter}
     end
   end
 
@@ -57,15 +52,6 @@ defmodule PlaywrightEx.FrameWaiter do
     else
       {:update, waiter}
     end
-  end
-
-  defp match_url(url_matcher, url) do
-    {:ok, url_matcher.(url)}
-  rescue
-    error -> {:error, Exception.message(error)}
-  catch
-    kind, reason ->
-      {:error, Exception.format(kind, reason, __STACKTRACE__)}
   end
 
   defp load_state_reached?(_load_states, "commit"), do: true
