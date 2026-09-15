@@ -75,6 +75,21 @@ defmodule PlaywrightEx.ArtifactTest do
     assert File.ls!(Path.dirname(path)) == ["result"]
   end
 
+  for remote <- [false, true] do
+    test "#{if remote, do: "remote saves", else: "local copies"} replace existing destinations", %{tmp_dir: dir} do
+      source = Path.join(dir, "source")
+      target = Path.join(dir, "target")
+      File.write!(source, "hello world")
+      File.write!(target, "original destination, longer than the new contents")
+      connection = start_supervised!({ProtocolConnection, remote: unquote(remote), source: source})
+
+      assert :ok = Artifact.save_as("artifact", target, connection: connection, timeout: 1000)
+      assert File.read!(target) == "hello world"
+      assert File.read!(source) == "hello world"
+      assert Enum.sort(File.ls!(dir)) == ["source", "target"]
+    end
+  end
+
   test "read errors close streams and preserve the existing destination", %{tmp_dir: dir} do
     connection = start_supervised!({ProtocolConnection, fail: :read})
     path = Path.join(dir, "result")
@@ -86,10 +101,11 @@ defmodule PlaywrightEx.ArtifactTest do
   end
 
   test "slow cleanup failures preserve the transfer result", %{tmp_dir: dir} do
+    # Allow file I/O under CI load, while making cleanup outlast the transfer timeout.
     for fail <- [nil, :read] do
-      connection = start_supervised!({ProtocolConnection, fail: fail, close_error: true, close_delay: 150}, id: fail)
+      connection = start_supervised!({ProtocolConnection, fail: fail, close_error: true, close_delay: 1100}, id: fail)
       path = Path.join(dir, "result-#{inspect(fail)}")
-      result = Artifact.save_as("artifact", path, connection: connection, timeout: 100)
+      result = Artifact.save_as("artifact", path, connection: connection, timeout: 1000)
 
       if fail do
         assert {:error, %{message: "read failed"}} = result
@@ -124,10 +140,10 @@ defmodule PlaywrightEx.ArtifactTest do
   end
 
   test "all reads share one deadline and a late response cannot commit the file", %{tmp_dir: dir} do
-    connection = start_supervised!({ProtocolConnection, delay: 40, chunks: ["one", "two", "three", ""]})
+    connection = start_supervised!({ProtocolConnection, delay: 400, chunks: ["one", "two", "three", ""]})
     path = Path.join(dir, "result")
     File.write!(path, "original")
-    assert {:error, %{reason: :timeout}} = Artifact.save_as("artifact", path, connection: connection, timeout: 100)
+    assert {:error, %{reason: :timeout}} = Artifact.save_as("artifact", path, connection: connection, timeout: 1000)
     assert File.read!(path) == "original"
     calls = GenServer.call(connection, :calls)
     timeouts = for %{method: :read, metadata: %{timeout: timeout}} <- calls, do: timeout
