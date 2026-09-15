@@ -1,9 +1,13 @@
 defmodule PlaywrightEx.FrameState do
   @moduledoc false
 
-  defstruct url: "", load_states: MapSet.new()
+  defstruct url: "", load_states: MapSet.new(), document_request: nil
 
-  @type t :: %__MODULE__{url: String.t(), load_states: MapSet.t(String.t())}
+  @type t :: %__MODULE__{
+          url: String.t(),
+          load_states: MapSet.t(String.t()),
+          document_request: %{guid: PlaywrightEx.guid()} | nil
+        }
 
   def new(initializer) do
     %__MODULE__{
@@ -22,8 +26,15 @@ defmodule PlaywrightEx.FrameState do
   end
 
   def update(state, :navigated, params) do
-    load_states = if Map.has_key?(params, :new_document), do: MapSet.new(["commit"]), else: state.load_states
-    %{state | url: params[:url] || state.url, load_states: load_states}
+    state = %{state | url: params[:url] || state.url}
+
+    case params do
+      %{new_document: document} ->
+        %{state | load_states: MapSet.new(["commit"]), document_request: document[:request]}
+
+      _same_document ->
+        state
+    end
   end
 
   def error(:frame_detached), do: {:error, %{message: "Navigating frame was detached!"}}

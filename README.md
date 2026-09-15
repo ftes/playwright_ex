@@ -85,6 +85,11 @@ fails without a response. Read its metadata with
 `PlaywrightEx.Connection.initializer!(connection, response_id)`.
 Each request in a redirect chain has its own response.
 
+Use `PlaywrightEx.Frame.document_request/2` to read the request for the frame's
+current committed document. Same-document navigation preserves it; a new
+navigation replaces it with the committed request, including after redirects.
+The result is `nil` when no request was recorded.
+
 ## Downloads
 
 Arm the listener, trigger the download, then await its event. Use `after` to

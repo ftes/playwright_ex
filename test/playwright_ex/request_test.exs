@@ -39,6 +39,33 @@ defmodule PlaywrightEx.RequestTest do
     assert %{status: 201, url: "https://request.test/first"} = Connection.initializer!(connection, response.guid)
   end
 
+  test "frame document requests follow commits and survive history changes", %{frame: frame, connection: connection} do
+    assert {:ok, nil} = Frame.document_request(frame.guid)
+    first_navigation = navigate(frame, "/first")
+    %{route: first_route} = routed_request()
+    fulfill(first_route, 201)
+    assert {:ok, _} = Task.await(first_navigation)
+    assert {:ok, first_request} = Frame.document_request(frame.guid)
+    assert %{url: "https://request.test/first"} = Connection.initializer!(connection, first_request.guid)
+
+    assert {:ok, _} = eval(frame.guid, "() => history.pushState({}, '', '#fragment')")
+    assert {:ok, _} = eval(frame.guid, "() => history.replaceState({}, '', '/renamed')")
+    assert {:ok, ^first_request} = Frame.document_request(frame.guid)
+
+    next_navigation = navigate(frame, "/second")
+    %{route: next_route} = routed_request()
+    assert {:ok, ^first_request} = Frame.document_request(frame.guid)
+    fulfill(next_route, 503)
+    assert {:ok, _} = Task.await(next_navigation)
+    assert {:ok, next_request} = Frame.document_request(frame.guid)
+    refute next_request == first_request
+    assert {:ok, response} = Request.response(next_request.guid, timeout: @timeout)
+    assert %{status: 503} = Connection.initializer!(connection, response.guid)
+
+    assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+    assert {:ok, nil} = Frame.document_request(frame.guid)
+  end
+
   test "waits for a pending response and returns HTTP error responses", %{frame: frame, connection: connection} do
     navigation = navigate(frame, "/pending")
     %{route: route, request: request} = routed_request()

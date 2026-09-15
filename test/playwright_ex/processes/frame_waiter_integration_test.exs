@@ -2,6 +2,7 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.Connection
+  alias PlaywrightEx.Frame
   alias PlaywrightEx.FrameWaiter
 
   defmodule DummyTransport do
@@ -10,6 +11,77 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
 
     @impl PlaywrightEx.Transport
     def post(_name, _msg), do: :ok
+  end
+
+  test "document lookup retains the committed request until a new document commits" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+    assert {:ok, nil} = Frame.document_request(frame_id, connection: connection)
+    request = %{guid: "committed-request"}
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame_id,
+      method: :navigated,
+      params: %{url: "https://example.test/first", new_document: %{request: request}}
+    })
+
+    assert {:ok, ^request} = Frame.document_request(frame_id, connection: Process.whereis(connection))
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: "context-1",
+      method: :request,
+      params: %{request: %{guid: "pending-request"}}
+    })
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame_id,
+      method: :navigated,
+      params: %{
+        url: "https://example.test/failed",
+        new_document: %{request: %{guid: "pending-request"}},
+        error: "aborted"
+      }
+    })
+
+    assert {:ok, ^request} = Frame.document_request(frame_id, connection: connection)
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame_id,
+      method: :navigated,
+      params: %{url: "https://example.test/first#fragment"}
+    })
+
+    assert {:ok, ^request} = Frame.document_request(frame_id, connection: connection)
+
+    Connection.handle_playwright_msg(connection, %{
+      guid: frame_id,
+      method: :navigated,
+      params: %{url: "about:blank", new_document: %{}}
+    })
+
+    assert {:ok, nil} = Frame.document_request(frame_id, connection: connection)
+    assert subscribers(connection, frame_id) == []
+  end
+
+  test "document requests remain associated with their frame" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+    create_frame(connection, "popup-frame", "context-1")
+
+    for frame <- [frame_id, "popup-frame"] do
+      Connection.handle_playwright_msg(connection, %{
+        guid: frame,
+        method: :navigated,
+        params: %{url: "https://example.test/", new_document: %{request: %{guid: "request-#{frame}"}}}
+      })
+    end
+
+    assert {:ok, %{guid: "request-frame-1"}} = Frame.document_request(frame_id, connection: connection)
+    assert {:ok, %{guid: "request-popup-frame"}} = Frame.document_request("popup-frame", connection: connection)
+  end
+
+  test "document lookup returns connection errors at the boundary" do
+    %{connection: connection, frame_id: frame_id} = start_connection_with_frame!()
+    :gen_statem.stop(connection)
+    assert {:error, %{reason: :connection_closed}} = Frame.document_request(frame_id, connection: connection)
   end
 
   test "records frame state before any caller waits" do
@@ -342,6 +414,7 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
 
       assert {:error, %{message: ^expected}} = FrameWaiter.wait_for_load_state(connection, other_frame, "load", 0)
       assert subscribers(connection, other_frame) == []
+      assert {:error, %{message: ^expected}} = Frame.document_request(other_frame, connection: connection)
 
       Connection.handle_playwright_msg(connection, %{guid: other_frame, method: :loadstate, params: %{add: "load"}})
       _ = :sys.get_state(connection)
@@ -380,6 +453,10 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
     assert {:error, %{message: "Navigation failed because page was closed!"}} = Task.await(task)
     assert frame_state(connection, frame_id) == nil
     assert frame_state(connection, "child-frame") == nil
+
+    assert {:error, %{message: "Navigating frame was detached!"}} =
+             Frame.document_request("child-frame", connection: connection)
+
     assert subscribers(connection, "child-frame") == []
 
     assert {:error, %{message: "Navigating frame was detached!"}} =
@@ -395,6 +472,10 @@ defmodule PlaywrightEx.FrameWaiterIntegrationTest do
     assert {:error, %{message: "Navigating frame was detached!"}} = Task.await(task)
     assert frame_state(connection, frame_id) == nil
     assert frame_state(connection, "child-frame") == nil
+
+    assert {:error, %{message: "Navigating frame was detached!"}} =
+             Frame.document_request("child-frame", connection: connection)
+
     assert Connection.initializer!(connection, page_id).main_frame.guid == frame_id
   end
 

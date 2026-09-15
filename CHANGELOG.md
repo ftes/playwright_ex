@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 ### Added
+- `Frame.document_request/2` to read the committed document's request without
+  event subscriptions, preserving it across same-document navigation.
 - `Request.response/2` to retrieve a request's response without subscribing to
   response events, returning `nil` when the request fails without a response.
 

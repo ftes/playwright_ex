@@ -13,6 +13,32 @@ defmodule PlaywrightEx.Frame do
   alias PlaywrightEx.Serialization
   alias PlaywrightEx.Timeout
 
+  schema = NimbleOptions.new!(connection: PlaywrightEx.Channel.connection_opt())
+
+  @doc group: :composed
+  @doc """
+  Returns `{:ok, %{guid: request_id}}` for the frame's recorded document request.
+
+  Reads the current committed document without waiting for navigation. Same-document
+  navigation preserves the request; a new document replaces it. Returns `{:ok, nil}`
+  when no request was recorded, such as for `about:blank`.
+
+  Use `PlaywrightEx.Request.response/2` to retrieve its response. Network event
+  subscriptions are not required.
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type document_request_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec document_request(PlaywrightEx.guid(), [document_request_opt()]) ::
+          {:ok, %{guid: PlaywrightEx.guid()} | nil} | {:error, map()}
+  def document_request(frame_id, opts \\ []) do
+    connection = opts |> NimbleOptions.validate!(@schema) |> Keyword.fetch!(:connection)
+
+    with {:ok, state} <- Connection.frame_state(connection, frame_id), do: {:ok, state.document_request}
+  end
+
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),

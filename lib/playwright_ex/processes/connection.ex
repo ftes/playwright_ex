@@ -53,6 +53,9 @@ defmodule PlaywrightEx.Connection do
     call(name, {:subscribe, pid, guid}, 5_000)
   end
 
+  @doc false
+  def frame_state(name, frame_id), do: call(name, {:frame_state, frame_id}, 5_000)
+
   # The snapshot and subscription share one connection turn. Subsequent state
   # updates are sent by this process, preserving their order after the snapshot.
   @doc false
@@ -225,18 +228,15 @@ defmodule PlaywrightEx.Connection do
     end
   end
 
+  def started({:call, from}, {:frame_state, frame_id}, data) do
+    {:keep_state_and_data, [{:reply, from, fetch_frame_state(data, frame_id)}]}
+  end
+
   def started({:call, from}, {:subscribe_frame, recipient, frame_id}, data) do
     reply =
-      case Map.get(data.frame_states, frame_id) do
-        %FrameState{} = state ->
-          :ok = :pg.join(data.config.pg_scope, frame_group(frame_id), recipient)
-          {:ok, state}
-
-        {:error, _} = error ->
-          error
-
-        nil ->
-          FrameState.error(:frame_detached)
+      with {:ok, state} <- fetch_frame_state(data, frame_id) do
+        :ok = :pg.join(data.config.pg_scope, frame_group(frame_id), recipient)
+        {:ok, state}
       end
 
     {:keep_state_and_data, [{:reply, from, reply}]}
@@ -275,6 +275,14 @@ defmodule PlaywrightEx.Connection do
   end
 
   defp handle_adopt(data, _msg), do: data
+
+  defp fetch_frame_state(data, frame_id) do
+    case Map.get(data.frame_states, frame_id) do
+      %FrameState{} = state -> {:ok, state}
+      {:error, _} = error -> error
+      nil -> FrameState.error(:frame_detached)
+    end
+  end
 
   defp record_frame_state(data, %{
          method: :__create__,
