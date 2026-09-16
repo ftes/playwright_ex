@@ -65,4 +65,27 @@ defmodule PlaywrightEx.FrameExpectTest do
       refute_has(frame.guid, "#missing")
     end
   end
+
+  test "expect_result preserves assertion diagnostics without changing expect", %{frame: frame} do
+    assert {:error, {error, details}} =
+             Frame.expect_result(frame.guid,
+               selector: "#present",
+               expression: "to.have.count",
+               expected_number: 2,
+               timeout: @timeout
+             )
+
+    assert details.received.value == 1
+    assert details.timed_out
+    assert is_list(error.log)
+    assert error.error.name == "ExpectError"
+
+    assert {:ok, _} =
+             Frame.expect_result(frame.guid,
+               selector: "#present",
+               expression: "to.have.count",
+               expected_number: 1,
+               timeout: @timeout
+             )
+  end
 end

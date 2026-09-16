@@ -11,6 +11,7 @@ defmodule PlaywrightEx.ElementHandle do
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
   alias PlaywrightEx.FileInput
+  alias PlaywrightEx.Serialization
 
   schema =
     NimbleOptions.new!(
@@ -45,4 +46,63 @@ defmodule PlaywrightEx.ElementHandle do
     |> Connection.send(%{guid: element_id, method: :set_input_files, params: params}, timeout)
     |> ChannelResponse.unwrap(& &1)
   end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      expression: [type: :string, required: true],
+      is_function: [type: :boolean, default: false],
+      arg: [type: :any, default: nil]
+    )
+
+  @doc """
+  Evaluates an expression on this element. A function receives the element and
+  the optional `:arg`. Returns the deserialized value or the original protocol error.
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type evaluate_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec evaluate(PlaywrightEx.guid(), [evaluate_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
+  def evaluate(element_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    params = opts |> Map.new() |> Map.update!(:arg, &Serialization.serialize_arg/1)
+
+    connection
+    |> Connection.send(%{guid: element_id, method: :evaluate_expression, params: params}, timeout)
+    |> ChannelResponse.unwrap(&Serialization.deserialize_arg(&1.value))
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
+
+  @doc """
+  Releases this handle's browser reference. Already-closed targets are treated as
+  successfully disposed; other errors are preserved.
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type dispose_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec dispose(PlaywrightEx.guid(), [dispose_opt()]) :: {:ok, any()} | {:error, any()}
+  def dispose(element_id, opts \\ []) do
+    opts = NimbleOptions.validate!(opts, @schema)
+    connection = Keyword.fetch!(opts, :connection)
+    timeout = Keyword.fetch!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: element_id, method: :dispose, params: %{}}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+    |> disposed_result()
+  end
+
+  defp disposed_result({:error, %{error: %{name: "TargetClosedError"}}}), do: {:ok, %{}}
+  defp disposed_result(result), do: result
 end

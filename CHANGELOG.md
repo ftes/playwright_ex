@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Add `Locator.evaluate/2`, with strict lazy resolution under the locator timeout, unlimited JavaScript evaluation and disposal, and Playwright JS cleanup error precedence.
+- Add `ElementHandle.evaluate/2` and `dispose/2`.
+- Add `Frame.expect_result/2` to retain assertion diagnostics; `expect/2` keeps its boolean behavior.
+
 ## [0.11.0] 2026-09-15
 ### Added
 - `Frame.snapshot/2` for an atomic read of the cached URL, document request, and

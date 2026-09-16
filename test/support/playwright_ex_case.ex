@@ -47,7 +47,6 @@ defmodule PlaywrightExCase do
 
   def assert_expect(frame_id, selector, invert: invert?) do
     opts = [selector: selector, is_not: invert?, expression: "to.be.visible", timeout: @timeout]
-    {:ok, result} = PlaywrightEx.Frame.expect(frame_id, opts)
-    assert result != invert?, "expected#{if invert?, do: " not"} to find #{selector}"
+    assert {:ok, _} = PlaywrightEx.Frame.expect_result(frame_id, opts)
   end
 end

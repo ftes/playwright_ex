@@ -69,6 +69,69 @@ defmodule PlaywrightEx.ConnectionTest do
     assert %{id: ^id, result: %{}} = Task.await(task)
   end
 
+  test "locator disposal is unlimited and preserves JS error precedence" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+    evaluation_error = %{error: %{name: "Error", message: "evaluation failed"}}
+    disposal_error = %{error: %{name: "Error", message: "disposal failed"}}
+    closed_error = %{error: %{name: "TargetClosedError", message: "closed"}}
+
+    for {evaluation, disposal, expected} <- [
+          {%{result: %{value: %{s: "done"}}}, %{result: %{}}, {:ok, "done"}},
+          {%{error: evaluation_error}, %{result: %{}}, {:error, evaluation_error}},
+          {%{error: evaluation_error}, %{error: closed_error}, {:error, evaluation_error}},
+          {%{result: %{value: %{s: "done"}}}, %{error: closed_error}, {:ok, "done"}},
+          {%{result: %{value: %{s: "done"}}}, %{error: disposal_error}, {:error, disposal_error}},
+          {%{error: evaluation_error}, %{error: disposal_error}, {:error, disposal_error}}
+        ] do
+      task =
+        Task.async(fn ->
+          PlaywrightEx.Locator.evaluate("frame",
+            connection: name,
+            selector: "button",
+            expression: "element => element.tagName",
+            is_function: true,
+            timeout: 500
+          )
+        end)
+
+      assert_receive {:transport_post, %{id: resolve_id, method: :wait_for_selector}}
+      Connection.handle_playwright_msg(name, %{id: resolve_id, result: %{element: %{guid: "element"}}})
+      assert_receive {:transport_post, %{id: evaluate_id, method: :evaluate_expression, metadata: %{timeout: 0}}}
+      Connection.handle_playwright_msg(name, Map.put(evaluation, :id, evaluate_id))
+      assert_receive {:transport_post, %{id: dispose_id, guid: "element", method: :dispose, metadata: %{timeout: 0}}}
+      Connection.handle_playwright_msg(name, Map.put(disposal, :id, dispose_id))
+      assert Task.await(task) == expected
+    end
+  end
+
+  test "locator disposes its handle before reraising a local evaluation exception" do
+    name = start_connection!(self())
+    assert_receive {:transport_post, %{method: :initialize}}
+
+    task =
+      Task.async(fn ->
+        assert_raise ArgumentError, ~r/unsupported serialized value shape/, fn ->
+          PlaywrightEx.Locator.evaluate("frame",
+            connection: name,
+            selector: "button",
+            expression: "element => element.tagName",
+            is_function: true,
+            timeout: 500
+          )
+        end
+      end)
+
+    assert_receive {:transport_post, %{id: resolve_id, method: :wait_for_selector}}
+    Connection.handle_playwright_msg(name, %{id: resolve_id, result: %{element: %{guid: "element"}}})
+    assert_receive {:transport_post, %{id: evaluate_id, method: :evaluate_expression}}
+    Connection.handle_playwright_msg(name, %{id: evaluate_id, result: %{value: %{unsupported: true}}})
+    assert_receive {:transport_post, %{id: dispose_id, method: :dispose}}
+    assert Task.yield(task, 20) == nil
+    Connection.handle_playwright_msg(name, %{id: dispose_id, result: %{}})
+    assert %ArgumentError{} = Task.await(task)
+  end
+
   test "zero times out without posting a command" do
     name = start_connection!(self())
     assert_receive {:transport_post, %{method: :initialize}}

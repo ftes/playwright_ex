@@ -365,15 +365,41 @@ defmodule PlaywrightEx.Frame do
   @type expect_opt :: unquote(NimbleOptions.option_typespec(schema))
   @spec expect(PlaywrightEx.guid(), [expect_opt() | PlaywrightEx.unknown_opt()]) :: {:ok, any()} | {:error, any()}
   def expect(frame_id, opts \\ []) do
-    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    opts = PlaywrightEx.Channel.validate_known!(opts, @schema)
+    frame_id |> expect_result_validated(opts) |> matches?(Keyword.fetch!(opts, :is_not))
+  end
+
+  @doc """
+  Executes a frame expectation without reducing its diagnostics to a boolean.
+
+  Returns the success result or error from the expectation channel, decoding
+  the received value into an Elixir term.
+  Assertion errors retain their structured received value, timeout status,
+  custom error message, and call log. `expect/2` remains the boolean convenience API.
+
+  Accepts the same options as `expect/2`.
+  """
+  @spec expect_result(PlaywrightEx.guid(), [expect_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, map()} | {:error, any()}
+  def expect_result(frame_id, opts \\ []) do
+    expect_result_validated(frame_id, PlaywrightEx.Channel.validate_known!(opts, @schema))
+  end
+
+  defp expect_result_validated(frame_id, opts) do
+    {connection, opts} = Keyword.pop!(opts, :connection)
     {timeout, opts} = Keyword.pop!(opts, :timeout)
-    is_not = Keyword.get(opts, :is_not, false)
 
     connection
     |> Connection.send(%{guid: frame_id, method: :expect, params: Map.new(opts)}, timeout)
     |> ChannelResponse.unwrap(& &1)
-    |> matches?(is_not)
+    |> deserialize_expect_result()
   end
+
+  defp deserialize_expect_result({:error, {error, %{received: %{value: value}} = details}}) do
+    {:error, {error, put_in(details, [:received, :value], Serialization.deserialize_arg(value))}}
+  end
+
+  defp deserialize_expect_result(result), do: result
 
   # Only a timed-out ExpectError represents a boolean non-match. Non-timeout
   # ExpectErrors, such as strict-selector violations, must remain errors.
