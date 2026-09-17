@@ -37,6 +37,33 @@ Freddy.
         {:ok, _} = Frame.goto(frame.guid, "https://elixir-lang.org/", timeout: 1000)
         {:ok, _} = Frame.click(frame.guid, Selector.link("Install"), timeout: 1000)
 
+## Local driver executable and runtime
+
+The `executable` option identifies the Playwright CLI or an executable wrapper.
+For an npm or Bun installation, point it at `node_modules/playwright/cli.js`.
+Installing Playwright with Bun does not select Bun as the runtime for the driver.
+
+On Windows, JavaScript CLI files run through `node` from `PATH` by default. On Unix,
+the CLI's shebang is honored; the standard Playwright CLI uses `#!/usr/bin/env node`.
+
+To choose an interpreter for a `.js` CLI, set the `PLAYWRIGHT_NODEJS_PATH`
+environment variable before starting your application. Its value can be an
+executable name on `PATH` or a full executable path. For example, to select Bun
+from a Unix shell:
+
+```sh
+PLAYWRIGHT_NODEJS_PATH=bun mix test
+```
+
+This applies on both Windows and Unix, and is used for version checks and driver
+startup. Alternative runtimes must support the installed Playwright driver;
+Bun compatibility is not tested by this project. Unix executable wrappers and
+custom shebangs continue to work when no interpreter override is configured.
+
+Optionally, pass `env: %{"PLAYWRIGHT_NODEJS_PATH" => "bun"}` to
+`PlaywrightEx.Supervisor.start_link/1` to override the environment variable for one
+connection.
+
 ## Remote server via WebSocket
 By default, PlaywrightEx launches a local playwright driver.
 This is typically installed via `npm` or `bun`.
