@@ -127,7 +127,7 @@ defmodule PlaywrightEx.PortTransport do
 
   defp javascript_file?(executable), do: String.downcase(Path.extname(executable)) == ".js"
 
-  defp windows?, do: :os.type() == {:win32, :nt}
+  defp windows?, do: match?({:win32, _}, :os.type())
 
   defp node_executable!(env) do
     node = node_override(env) || "node"
