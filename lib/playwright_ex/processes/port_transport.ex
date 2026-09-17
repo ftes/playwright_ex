@@ -108,7 +108,7 @@ defmodule PlaywrightEx.PortTransport do
 
   defp check_version(executable, env) do
     {command, args} = executable_command(executable, ["--version"], env)
-    {"Version " <> version, 0} = System.cmd(command, args)
+    {"Version " <> version, 0} = System.cmd(command, args, env: Map.to_list(env))
     version = version |> String.trim() |> Version.parse!()
     minimum = PlaywrightEx.minimum_supported_version()
 
@@ -130,9 +130,12 @@ defmodule PlaywrightEx.PortTransport do
   defp windows?, do: :os.type() == {:win32, :nt}
 
   defp node_executable!(env) do
-    node_override(env) ||
-      System.find_executable("node") ||
-      raise "Node.js executable not found; set PLAYWRIGHT_NODEJS_PATH or add node to PATH"
+    node = node_override(env) || "node"
+
+    case System.find_executable(node) do
+      nil -> raise "Node.js executable #{inspect(node)} not found; set PLAYWRIGHT_NODEJS_PATH or add node to PATH"
+      executable -> Path.expand(executable)
+    end
   end
 
   defp node_override(env) do
