@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore `js_logger: false` as an alias for `nil` to disable JavaScript logging.
+  Console messages and page errors no longer crash the connection with `false`.
+
 ## [0.12.0] 2026-09-16
 
 ### Added

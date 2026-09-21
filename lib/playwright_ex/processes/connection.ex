@@ -623,11 +623,12 @@ defmodule PlaywrightEx.Connection do
   end
 
   defp maybe_log_protocol_message(%{config: %{js_logger: module}}, %{method: :page_error} = msg)
-       when not is_nil(module) do
+       when module not in [nil, false] do
     module.log(:error, Serialization.serialized_error_message(msg.params.error), msg)
   end
 
-  defp maybe_log_protocol_message(%{config: %{js_logger: module}}, %{method: :console} = msg) when not is_nil(module) do
+  defp maybe_log_protocol_message(%{config: %{js_logger: module}}, %{method: :console} = msg)
+       when module not in [nil, false] do
     module.log(log_level_from_js(msg.params[:type]), msg.params[:text], msg)
   end
 
