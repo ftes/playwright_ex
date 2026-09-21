@@ -13,7 +13,8 @@ defmodule PlaywrightEx.Supervisor do
   - `:executable` - Path to playwright CLI (only for Port transport)
   - `:env` - A `%{String.t() => String.t()}` map of environment variables to set for the browser instance (only for Port transport).
   - `:timeout` - Connection timeout
-  - `:js_logger` - Module for logging JS console messages
+  - `:js_logger` - Module for logging JS console messages and page errors.
+    Set to `nil` (default) or `false` to disable logging.
   - `:name` - Optional name for this supervisor instance. Defaults to `PlaywrightEx.Supervisor`.
     Use this to run multiple independent Playwright connections (e.g., one with PortTransport,
     another with WebSocketTransport). The name is used to derive child process names.

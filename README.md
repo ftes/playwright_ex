@@ -37,6 +37,13 @@ Freddy.
         {:ok, _} = Frame.goto(frame.guid, "https://elixir-lang.org/", timeout: 1000)
         {:ok, _} = Frame.click(frame.guid, Selector.link("Install"), timeout: 1000)
 
+## JavaScript logging
+
+Pass a module implementing `PlaywrightEx.JsLogger` as the `:js_logger` supervisor
+option to log browser console messages and uncaught JavaScript errors.
+Both `nil` (the default) and `false` disable logging without affecting event
+delivery to subscribers.
+
 ## Remote server via WebSocket
 By default, PlaywrightEx launches a local playwright driver.
 This is typically installed via `npm` or `bun`.
