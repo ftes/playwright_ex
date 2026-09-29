@@ -40,9 +40,9 @@ defmodule PlaywrightEx.MixProject do
   defp deps do
     [
       {:nimble_options, "~> 1.1"},
-      {:websockex, "~> 0.4", optional: true},
+      {:websockex, ">= 0.4.0 and < 1.0.0", optional: true},
       {:testcontainers, "~> 2.0", only: :test},
-      {:ex_doc, "~> 0.39", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:styler, "~> 1.3", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
