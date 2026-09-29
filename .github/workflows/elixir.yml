@@ -24,11 +24,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup languages
-        uses: jdx/mise-action@v4.3.0
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       - name: Install dependencies
-        run: mix do deps.get, deps.compile
+        run: mix "do" deps.get, deps.compile
       - name: Check Formatting
         run: mix format --check-formatted
       - name: Check Credo
@@ -37,7 +37,7 @@ jobs:
         run: mix compile --warnings-as-errors
       - name: Restore Dialyzer PLT cache
         id: plt_cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           key: plt-${{ runner.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: plt-${{ runner.os }}-${{ hashFiles('.tool-versions') }}
@@ -47,7 +47,7 @@ jobs:
         run: mix dialyzer --plt
       - name: Save PLT cache
         id: plt_cache_save
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         if: steps.plt_cache.outputs.cache-hit != 'true'
         with:
           key: plt-${{ runner.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
@@ -71,11 +71,11 @@ jobs:
             mix_task: test.websocket
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup languages
-        uses: jdx/mise-action@v4.3.0
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       - name: Install dependencies
-        run: mix do deps.get, deps.compile
+        run: mix "do" deps.get, deps.compile
       - name: Install JS dependencies and browsers
         if: matrix.transport == 'port'
         run: mix setup
