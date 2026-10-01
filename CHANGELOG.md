@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.0] 2026-10-01
+
 ### Added
 
 - `Connection.unsubscribe_sync/3` removes channel delivery and managed event
