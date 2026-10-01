@@ -19,6 +19,13 @@ defmodule PlaywrightEx.EventWaiter do
   Routing stays at the protocol level: console and network messages arrive on
   the BrowserContext channel, with the page identified in their parameters.
 
+  To observe navigation of any frame in a page, arm the page GUID with
+  `:frame_navigated`. This client-composed event has parameters
+  `%{frame: %{guid: frame_guid}, url: url}` and covers main frames and existing
+  or newly created child frames, including same-document navigation. Failed
+  navigations and load-state changes do not produce this event. The frame's
+  cached state is updated before delivery; navigation does not imply page load.
+
   An optional `:transform` runs in the task when the predicate accepts an event,
   without waiting for `await/1`. It can capture metadata or handle a dialog while
   the owner's action is blocked. Its return value becomes the successful result.

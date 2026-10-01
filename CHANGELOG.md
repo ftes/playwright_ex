@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Connection.unsubscribe_sync/3` removes channel delivery and managed event
+  ownership before returning. Both synchronous and asynchronous removal leave
+  other recipients and explicit subscriptions intact.
+- Page `:frame_navigated` events cover main and child frames, including frames
+  created after registration, through existing subscriptions and `EventWaiter`.
+
 ## [0.12.1] 2026-09-21
 
 ### Fixed

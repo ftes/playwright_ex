@@ -490,6 +490,68 @@ defmodule PlaywrightEx.EventWaiterTest do
     refute_receive {:subscription_post, _}
   end
 
+  test "synchronous removal releases a live recipient's subscriptions and is idempotent", %{
+    connection: connection,
+    scope: scope
+  } do
+    for event <- [:console, :dialog] do
+      assert :ok = Connection.subscribe_event(connection, self(), "page", event)
+      assert_receive {:subscription_post, %{params: %{enabled: true}}}
+    end
+
+    assert :ok = Connection.unsubscribe_sync(connection, self(), "page")
+    assert [] = :pg.get_members(scope, {:guid, "page"})
+
+    for event <- ["console", "dialog"] do
+      assert_receive {:subscription_post, %{params: %{event: ^event, enabled: false}}}
+    end
+
+    {:started, state} = :sys.get_state(connection)
+    assert state.subscription_monitors == %{}
+    assert state.subscriptions == %{}
+    assert :ok = Connection.unsubscribe_sync(connection, self(), "page")
+    refute_receive {:subscription_post, _}
+    Connection.handle_playwright_msg(connection, download("removed"))
+    refute_receive {:playwright_msg, _}
+
+    assert :ok = Connection.subscribe_event(connection, self(), "page", :dialog)
+    assert_receive {:subscription_post, %{params: %{event: "dialog", enabled: true}}}
+    Connection.handle_playwright_msg(connection, %{guid: "page", method: :__dispose__, params: %{}})
+    assert :ok = Connection.unsubscribe_sync(connection, self(), "page")
+    refute_receive {:subscription_post, _}
+  end
+
+  test "removal preserves other recipients, channels, and explicit ownership", %{connection: connection} do
+    create(connection, "context", "BrowserContext")
+    update_explicit(connection, true, true)
+    assert :ok = Connection.subscribe_event(connection, self(), "page", :console)
+    assert :ok = Connection.subscribe_event(connection, self(), "context", :response)
+    assert_receive {:subscription_post, %{guid: "context", params: %{enabled: true}}}
+    {:ok, waiter} = EventWaiter.arm("page", :console, connection: connection, timeout: :infinity)
+
+    assert :ok = Connection.unsubscribe_sync(connection, self(), "page")
+    refute_receive {:subscription_post, _}
+    Connection.handle_playwright_msg(connection, %{guid: "page", method: :console, params: %{text: "retained"}})
+    assert {:ok, %{params: %{text: "retained"}}} = EventWaiter.await(waiter)
+    refute_receive {:subscription_post, _}
+    update_explicit(connection, false, false)
+
+    assert :ok = Connection.unsubscribe_sync(connection, self(), "context")
+    assert_receive {:subscription_post, %{guid: "context", params: %{event: "response", enabled: false}}}
+  end
+
+  test "asynchronous removal also releases duplicate managed registrations", %{connection: connection} do
+    assert :ok = Connection.subscribe_event(connection, self(), "page", :console)
+    assert :ok = Connection.subscribe_event(connection, self(), "page", :console)
+    assert_receive {:subscription_post, %{params: %{enabled: true}}}
+    Connection.unsubscribe(connection, self(), "page")
+    assert_receive {:subscription_post, %{params: %{enabled: false}}}
+    refute_receive {:subscription_post, _}
+    {:started, state} = :sys.get_state(connection)
+    assert state.subscription_monitors == %{}
+    assert state.subscriptions == %{}
+  end
+
   defp update_explicit(connection, enabled, wire_enabled) do
     task =
       Task.async(fn ->

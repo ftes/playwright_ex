@@ -338,6 +338,70 @@ defmodule PlaywrightEx.ConnectionTest do
     assert_receive {:playwright_msg, ^page_error}
   end
 
+  test "page navigation events cover existing and future descendant frames only" do
+    name = start_connection!()
+    create_channel(name, "", "main", "Frame", %{url: "about:blank", load_states: []})
+    create_channel(name, "", "page", "Page", %{main_frame: %{guid: "main"}})
+    create_channel(name, "main", "child", "Frame", %{url: "about:blank", load_states: []})
+    create_channel(name, "", "other-main", "Frame", %{url: "about:blank", load_states: []})
+    create_channel(name, "", "other-page", "Page", %{main_frame: %{guid: "other-main"}})
+    assert :ok = Connection.subscribe_event(name, self(), "page", :frame_navigated)
+
+    for frame <- ["main", "child"] do
+      navigate_frame(name, frame, "https://example.test/#{frame}")
+
+      assert_receive {:playwright_msg,
+                      %{guid: "page", method: :frame_navigated, params: %{frame: %{guid: ^frame}, url: url}}}
+
+      assert {:ok, %{url: ^url}} = Connection.frame_state(name, frame)
+    end
+
+    # There is deliberately no per-frame registration between creation and navigation.
+    create_channel(name, "child", "grandchild", "Frame", %{url: "about:blank", load_states: []})
+    navigate_frame(name, "grandchild", "https://example.test/nested")
+    assert_receive {:playwright_msg, %{method: :frame_navigated, params: %{frame: %{guid: "grandchild"}}}}
+    navigate_frame(name, "other-main", "https://example.test/other")
+    refute_receive {:playwright_msg, %{method: :frame_navigated}}
+
+    # Adoption changes routing without changing subscriptions.
+    Connection.handle_playwright_msg(name, %{guid: "other-main", method: :__adopt__, params: %{guid: "child"}})
+    navigate_frame(name, "grandchild", "https://example.test/moved")
+    refute_receive {:playwright_msg, %{method: :frame_navigated}}
+  end
+
+  test "page navigation events exclude failed navigation, load changes, and closed frames" do
+    name = start_connection!()
+    create_channel(name, "", "main", "Frame", %{url: "about:blank", load_states: []})
+    create_channel(name, "", "page", "Page", %{main_frame: %{guid: "main"}})
+    assert :ok = Connection.subscribe_event(name, self(), "page", :frame_navigated)
+
+    Connection.handle_playwright_msg(name, %{guid: "main", method: :navigated, params: %{url: "bad", error: "failed"}})
+    Connection.handle_playwright_msg(name, %{guid: "main", method: :loadstate, params: %{add: "load"}})
+    refute_receive {:playwright_msg, %{method: :frame_navigated}}
+
+    navigate_frame(name, "main", "about:blank#same-document")
+    assert_receive {:playwright_msg, %{method: :frame_navigated, params: %{url: "about:blank#same-document"}}}
+
+    Connection.handle_playwright_msg(name, %{guid: "page", method: :close, params: %{}})
+    navigate_frame(name, "main", "https://example.test/late")
+    refute_receive {:playwright_msg, %{method: :frame_navigated}}
+    Connection.handle_playwright_msg(name, %{guid: "page", method: :__dispose__, params: %{}})
+    navigate_frame(name, "main", "https://example.test/disposed")
+    refute_receive {:playwright_msg, %{method: :frame_navigated}}
+  end
+
+  defp create_channel(connection, parent, guid, type, initializer) do
+    Connection.handle_playwright_msg(connection, %{
+      guid: parent,
+      method: :__create__,
+      params: %{guid: guid, type: type, initializer: initializer}
+    })
+  end
+
+  defp navigate_frame(connection, guid, url) do
+    Connection.handle_playwright_msg(connection, %{guid: guid, method: :navigated, params: %{url: url}})
+  end
+
   defp start_connection!(transport_name \\ :dummy, js_logger \\ nil) do
     name = start_uninitialized_connection!(transport_name, js_logger)
     {:pending, data} = :sys.get_state(name)
