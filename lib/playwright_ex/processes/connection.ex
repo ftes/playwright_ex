@@ -71,10 +71,26 @@ defmodule PlaywrightEx.Connection do
   end
 
   @doc """
-  Unsubscribe from messages for a guid.
+  Unsubscribe from messages and managed event ownership for a guid.
+  Use `unsubscribe_sync/3` when removal must finish before the next action.
   """
   def unsubscribe(name, pid \\ self(), guid) do
     :gen_statem.cast(name, {:unsubscribe, pid, guid})
+  end
+
+  @doc """
+  Unsubscribes a recipient from a channel before returning.
+
+  Also releases all managed event subscriptions acquired by this recipient for
+  this GUID. Other recipients and explicit `update_subscription` owners remain
+  active. Browser subscription updates are posted before returning, ordered
+  before subsequent commands; their acknowledgements are not awaited.
+
+  Already delivered messages remain in the recipient's mailbox. Removal is
+  idempotent, including after channel disposal.
+  """
+  def unsubscribe_sync(name, pid, guid) do
+    call(name, {:unsubscribe, pid, guid}, 5_000)
   end
 
   @doc false
@@ -258,8 +274,9 @@ defmodule PlaywrightEx.Connection do
   end
 
   def started(:info, {:DOWN, ref, :process, _pid, _reason}, data) do
-    {key, monitors} = Map.pop(data.subscription_monitors, ref)
+    {subscription, monitors} = Map.pop(data.subscription_monitors, ref)
     data = %{data | subscription_monitors: monitors}
+    key = if subscription, do: elem(subscription, 0)
     {:keep_state, release_event_subscription(data, key, ref)}
   end
 
@@ -278,8 +295,11 @@ defmodule PlaywrightEx.Connection do
   end
 
   def started(:cast, {:unsubscribe, recipient, guid}, data) do
-    _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
-    :keep_state_and_data
+    {:keep_state, unsubscribe_recipient(data, recipient, guid)}
+  end
+
+  def started({:call, from}, {:unsubscribe, recipient, guid}, data) do
+    {:keep_state, unsubscribe_recipient(data, recipient, guid), [{:reply, from, :ok}]}
   end
 
   def started(:cast, {:playwright_msg, msg}, data) when is_map_key(data.pending_response, msg.id) do
@@ -418,10 +438,30 @@ defmodule PlaywrightEx.Connection do
 
   defp notify_subscribers(data, %{guid: guid} = msg) do
     notify_guid_subscribers(data, guid, msg)
+    notify_page_frame_navigation(data, msg)
     data
   end
 
   defp notify_subscribers(data, _msg), do: data
+
+  defp notify_page_frame_navigation(data, %{guid: frame, method: :navigated, params: params}) do
+    # Failed navigation does not produce Playwright's page "framenavigated" event.
+    # Association is maintained by channel creation/adoption before routing, so
+    # even a newly created child frame's first navigation reaches page listeners.
+    case {params[:error], data.frame_states[frame], data.frame_pages[frame]} do
+      {nil, %FrameState{}, page} when not is_nil(page) ->
+        notify_guid_subscribers(data, page, %{
+          guid: page,
+          method: :frame_navigated,
+          params: %{frame: %{guid: frame}, url: params.url}
+        })
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp notify_page_frame_navigation(_data, _msg), do: :ok
 
   defp pg_group(guid), do: {:guid, guid}
   defp frame_group(guid), do: {:frame, guid}
@@ -557,6 +597,20 @@ defmodule PlaywrightEx.Connection do
     data
   end
 
+  defp unsubscribe_recipient(data, recipient, guid) do
+    _ = :pg.leave(data.config.pg_scope, pg_group(guid), recipient)
+
+    {removed, kept} =
+      Enum.split_with(data.subscription_monitors, fn {_ref, {{id, _event}, pid}} ->
+        id == guid and pid == recipient
+      end)
+
+    Enum.reduce(removed, %{data | subscription_monitors: Map.new(kept)}, fn {ref, {key, _pid}}, data ->
+      Process.demonitor(ref, [:flush])
+      release_event_subscription(data, key, ref)
+    end)
+  end
+
   # Like ChannelOwner in Playwright JS, order subscription updates before the
   # triggering command without awaiting their acknowledgements. The transport
   # preserves command order; errors during channel teardown can be ignored.
@@ -566,7 +620,7 @@ defmodule PlaywrightEx.Connection do
       ref = Process.monitor(recipient)
       was_enabled? = Map.has_key?(data.subscriptions, key)
       data = update_subscription_owner(data, key, ref, true)
-      data = put_in(data.subscription_monitors[ref], key)
+      data = put_in(data.subscription_monitors[ref], {key, recipient})
       if !was_enabled?, do: post_subscription(data, key, true)
       data
     else
@@ -612,7 +666,7 @@ defmodule PlaywrightEx.Connection do
   end
 
   defp clear_event_subscriptions(data, guid) do
-    {removed, kept} = Enum.split_with(data.subscription_monitors, fn {_ref, {id, _event}} -> id == guid end)
+    {removed, kept} = Enum.split_with(data.subscription_monitors, fn {_ref, {{id, _event}, _recipient}} -> id == guid end)
     Enum.each(removed, fn {ref, _key} -> Process.demonitor(ref, [:flush]) end)
 
     %{
