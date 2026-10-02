@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.0] 2026-10-02
+
 ### Added
 
 - Page/context request routing with one driver-matched glob handler per target,
@@ -14,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Route.fulfill/2` with binary, JSON, and local-file bodies, plus `abort/2`,
   `continue/2`, and removal that cancels active callbacks. Isolated error messages
   are available with `on_error: :message`.
+- Optional `:mime` dependency enables content-type inference for file fulfillment;
+  without it, files default to `application/octet-stream`.
 - `Browser.new_context/2` accepts `service_workers: "block"` for routing tests.
 
 ## [0.13.0] 2026-10-01
