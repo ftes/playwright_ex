@@ -67,6 +67,8 @@ Alternatively, PlaywrightEx can connect to a remote playwright server:
 ## API Layers
 Most channel functions are thin protocol wrappers.
 In ExDoc, composed helpers are grouped under `Client-Composed Functions`.
+For request mocking, see `Page.route/4`, `BrowserContext.route/4`, and `Route`
+for usage examples, supported options, and callback lifecycle.
 
 Frame URL/load-state waits return synchronously and check recorded state first.
 URL predicate errors propagate to that wait's caller without affecting other waits.

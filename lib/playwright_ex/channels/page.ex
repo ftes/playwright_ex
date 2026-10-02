@@ -14,6 +14,91 @@ defmodule PlaywrightEx.Page do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Serialization
 
+  @doc group: :composed
+  @doc """
+  Registers one handler for a driver-matched URL glob. A second registration
+  returns `{:error, %{reason: :route_already_registered}}`; remove it first.
+  Globs support `*`, `**`, `{a,b}`, and backslash escapes; `?` is literal.
+  Matching and base-URL resolution are delegated to Playwright.
+
+  Requires `:timeout`; accepts `:connection` and `on_error: :raise | :message`.
+  Registration is ready before returning. Callbacks run independently and
+  receive `(route, request)`, where request is a metadata map with `:guid`,
+  `:url`, `:method`, and `:headers`. Resolve the route inside the callback with
+  `PlaywrightEx.Route.fulfill/2`, `PlaywrightEx.Route.abort/2`, or
+  `PlaywrightEx.Route.continue/2`, before returning.
+
+  By default callback failures propagate through an OTP link to the registering
+  process (failing an ExUnit test). With `on_error: :message`, failures instead
+  send `{:playwright_route_error, %{guid: guid, matcher: glob, reason: reason}}`.
+  Unresolved failed requests are aborted. Registration ends when its owner,
+  target, or connection exits; active callbacks are canceled on teardown.
+
+  Matching page routes precede context routes; continue goes straight to the
+  network. Context routes cover popup initial requests. Service Workers may
+  bypass routing; use `service_workers: "block"` when creating the context.
+  Routing disables HTTP caching. Handler chains, fallback, regexes, times, and
+  wait/ignore-errors removal modes are not supported.
+
+  `:timeout` bounds driver operations, not the lifetime of the callback. Methods
+  return `{:ok, result}` or `{:error, reason}`; pattern match on success inside
+  callbacks so operation errors also fail the registering process.
+
+  ## Example
+
+  Replace a third-party script while loading the real application page. Assume
+  `page` is returned by `PlaywrightEx.BrowserContext.new_page/2` and `connection`
+  is the connection name or pid used to create it:
+
+      alias PlaywrightEx.{Frame, Page, Route}
+
+      opts = [connection: connection, timeout: 5_000]
+      {:ok, _} = Page.route(page.guid, "**/forms/js.php/**", fn route, _request ->
+        {:ok, _} = Route.fulfill(route, path: "test/fixtures/formstack_stub.js")
+      end, opts)
+
+      try do
+        {:ok, _} = Frame.goto(page.main_frame.guid,
+          Keyword.put(opts, :url, "http://localhost:4000/form"))
+        # Exercise and assert the application's submission flow here.
+      after
+        {:ok, _} = Page.unroute_all(page.guid, opts)
+      end
+
+  The route inherits `connection` and `timeout`. Its callback can fulfill the
+  script while the registering process is blocked in navigation.
+  """
+  def route(guid, glob, callback, opts \\ []), do: PlaywrightEx.Routing.register(guid, glob, callback, opts)
+
+  @doc group: :composed
+  @doc """
+  Removes the handler if its glob and optional callback match. Active callbacks
+  are canceled and unresolved requests aborted. Requires `:timeout`; accepts
+  `:connection`. This cancellation policy differs from Playwright.js unroute.
+
+  Remove by glob, or retain the callback function to require an identity match:
+
+      {:ok, _} = Page.unroute(page.guid, "**/api/profile", timeout: 5_000)
+
+      callback = fn route, _request ->
+        {:ok, _} = PlaywrightEx.Route.fulfill(route, json: %{name: "Ada"})
+      end
+      {:ok, _} = Page.route(page.guid, "**/api/profile", callback, timeout: 5_000)
+      {:ok, _} = Page.unroute(page.guid, "**/api/profile", callback, timeout: 5_000)
+  """
+  def unroute(guid, matcher, callback \\ nil, opts \\ [])
+  def unroute(guid, matcher, opts, []) when is_list(opts), do: PlaywrightEx.Routing.unregister(guid, matcher, nil, opts)
+  def unroute(guid, matcher, callback, opts), do: PlaywrightEx.Routing.unregister(guid, matcher, callback, opts)
+
+  @doc group: :composed
+  @doc """
+  Removes the handler and cancels active callbacks. Options: required `:timeout`,
+  optional `:connection`. No handler is a successful no-op.
+
+      {:ok, _} = Page.unroute_all(page.guid, connection: connection, timeout: 5_000)
+  """
+  def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.unregister(guid, :all, nil, opts)
+
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
