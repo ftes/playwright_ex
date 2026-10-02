@@ -410,6 +410,39 @@ defmodule PlaywrightEx.ConnectionTest do
     assert_receive {:DOWN, ^ref, :process, ^handler, :normal}
   end
 
+  test "failed route removal preserves workers, subscriptions, and the registration timeout" do
+    name = start_connection!(self())
+    worker = spawn(fn -> receive do: (:stop -> :ok) end)
+    on_exit(fn -> Process.exit(worker, :kill) end)
+
+    state = %{
+      connection: name,
+      guid: "page",
+      glob: "**/*",
+      callback: fn _, _ -> :ok end,
+      timeout: 5_000,
+      installed: true,
+      workers: %{worker => %{guid: "route", scopes: ["page", "route"]}},
+      subscriptions: MapSet.new(["page", "route"])
+    }
+
+    removal = Task.async(fn -> PlaywrightEx.Routing.handle_call({:unregister, :all, nil, 10}, nil, state) end)
+
+    assert_receive {:transport_post,
+                    %{
+                      id: id,
+                      method: :set_network_interception_patterns,
+                      params: %{patterns: []},
+                      metadata: %{timeout: 10}
+                    }}
+
+    error = %{error: %{name: "TimeoutError", message: "removal timed out"}}
+    Connection.handle_playwright_msg(name, %{id: id, error: error})
+    assert {:reply, {:error, ^error}, ^state} = Task.await(removal)
+    assert Process.alive?(worker)
+    refute_receive {:transport_post, %{method: :abort}}
+  end
+
   defp create_channel(connection, parent, guid, type, initializer) do
     Connection.handle_playwright_msg(connection, %{
       guid: parent,

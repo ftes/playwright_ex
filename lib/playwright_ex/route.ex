@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Route do
 
     {body, default_type} = build_fulfillment_body(opts)
     headers = normalize_headers(Keyword.fetch!(opts, :headers))
-    content_type = opts[:content_type] || default_type
+    content_type = opts[:content_type] || (!List.keymember?(headers, "content-type", 0) && default_type)
 
     headers =
       if content_type,

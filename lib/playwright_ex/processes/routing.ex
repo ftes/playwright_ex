@@ -61,15 +61,12 @@ defmodule PlaywrightEx.Routing do
     cond do
       timeout == 0 -> {:reply, {:error, %{reason: :timeout}}, state}
       matcher not in [:all, state.glob] || callback not in [nil, state.callback] -> {:reply, {:ok, %{}}, state}
-      true -> unregister_handler(%{state | timeout: timeout})
+      true -> unregister_handler(state, timeout)
     end
   end
 
-  defp unregister_handler(state) do
-    Enum.each(state.workers, &cancel_worker(state, &1))
-    state = release_unused_subscriptions(%{state | workers: %{}})
-
-    case send_command(state, state.guid, :set_network_interception_patterns, %{patterns: []}) do
+  defp unregister_handler(state, timeout) do
+    case send_command(%{state | timeout: timeout}, state.guid, :set_network_interception_patterns, %{patterns: []}) do
       {:ok, _} = result -> {:stop, :normal, result, %{state | installed: false}}
       error -> {:reply, error, state}
     end

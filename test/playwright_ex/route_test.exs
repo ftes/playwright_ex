@@ -369,13 +369,35 @@ defmodule PlaywrightEx.RouteTest do
     callback = fn route, request ->
       opts =
         case URI.parse(request.url).path do
-          "/json" -> [json: %{ok: true}]
-          "/null" -> [json: nil]
-          "/false" -> [json: false]
-          "/custom" -> [json: %{ok: true}, content_type: "application/custom+json"]
-          "/script" -> [path: script]
-          "/bytes" -> [path: bytes]
-          _ -> [body: "<p>fixture</p>", content_type: "text/html"]
+          "/json" ->
+            [json: %{ok: true}]
+
+          "/null" ->
+            [json: nil]
+
+          "/false" ->
+            [json: false]
+
+          "/custom" ->
+            [json: %{ok: true}, content_type: "application/custom+json"]
+
+          "/header-json" ->
+            [json: %{ok: true}, headers: %{"Content-Type" => "application/vnd.api+json"}]
+
+          "/header-file" ->
+            [path: script, headers: [{"Content-Type", "text/plain"}]]
+
+          "/override" ->
+            [json: false, headers: %{"Content-Type" => "text/plain"}, content_type: "application/custom+json"]
+
+          "/script" ->
+            [path: script]
+
+          "/bytes" ->
+            [path: bytes]
+
+          _ ->
+            [body: "<p>fixture</p>", content_type: "text/html"]
         end
 
       {:ok, _} = Route.fulfill(route, opts)
@@ -388,7 +410,7 @@ defmodule PlaywrightEx.RouteTest do
     assert {:ok, results} =
              eval(
                frame.guid,
-               "async () => Promise.all(['/json','/null','/false','/custom','/script','/bytes'].map(async path => { const r = await fetch(path); return [r.headers.get('content-type'), Array.from(new Uint8Array(await r.arrayBuffer()))]; }))"
+               "async () => Promise.all(['/json','/null','/false','/custom','/header-json','/header-file','/override','/script','/bytes'].map(async path => { const r = await fetch(path); return [r.headers.get('content-type'), Array.from(new Uint8Array(await r.arrayBuffer()))]; }))"
              )
 
     assert results ==
@@ -398,6 +420,9 @@ defmodule PlaywrightEx.RouteTest do
                  {"application/json", "null"},
                  {"application/json", "false"},
                  {"application/custom+json", ~s({"ok":true})},
+                 {"application/vnd.api+json", ~s({"ok":true})},
+                 {"text/plain", "window.stubLoaded = true;"},
+                 {"application/custom+json", "false"},
                  {MIME.from_path(script), "window.stubLoaded = true;"},
                  {"application/octet-stream", <<0, 255>>}
                ],
