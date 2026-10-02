@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Clear request interception after a timed-out installation, including queued requests.
+- Skip route callbacks when a required subscription fails and release partial subscriptions.
+
 ## [0.14.0] 2026-10-02
 
 ### Added

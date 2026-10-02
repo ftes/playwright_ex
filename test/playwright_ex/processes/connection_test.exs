@@ -513,6 +513,43 @@ defmodule PlaywrightEx.ConnectionTest do
     end
   end
 
+  test "timed-out route installation clears potentially installed interception before unsubscribing" do
+    name = start_connection!(self())
+    create_channel(name, "Playwright", "page", "Page", %{})
+
+    config = %{
+      connection: name,
+      guid: "page",
+      glob: "**/*",
+      callback: fn _, _ -> flunk("callback ran") end,
+      owner: self(),
+      on_error: :raise,
+      timeout: 1
+    }
+
+    {:ok, handler} = Connection.start_route_handler(name, "page", config)
+    ref = Process.monitor(handler)
+    install = Task.async(fn -> GenServer.call(handler, :install, 5_000) end)
+
+    assert_receive {:transport_post,
+                    %{id: install_id, method: :set_network_interception_patterns, params: %{patterns: [_]}}}
+
+    # Withhold the acknowledgement until the client times out. The driver may
+    # already have applied the patterns and paused a matching request.
+    Connection.handle_playwright_msg(name, %{guid: "page", method: :route, params: %{route: %{guid: "queued-route"}}})
+
+    assert_receive {:transport_post,
+                    %{id: clear_id, method: :set_network_interception_patterns, params: %{patterns: []}}},
+                   2_000
+
+    Connection.handle_playwright_msg(name, %{id: install_id, result: %{}})
+    Connection.handle_playwright_msg(name, %{id: clear_id, result: %{}})
+    assert_receive {:transport_post, %{id: abort_id, guid: "queued-route", method: :abort}}
+    Connection.handle_playwright_msg(name, %{id: abort_id, result: %{}})
+    assert {:error, %{reason: :timeout}} = Task.await(install)
+    assert_receive {:DOWN, ^ref, :process, ^handler, :normal}
+  end
+
   defp create_channel(connection, parent, guid, type, initializer) do
     Connection.handle_playwright_msg(connection, %{
       guid: parent,
