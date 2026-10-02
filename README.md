@@ -131,8 +131,16 @@ Route handles inherit the connection and timeout supplied at registration.
 Matchers accept full-URL Playwright globs (`*`, `**`, `{a,b}`, backslash escapes)
 or Elixir regular expressions. `?` is literal. Relative URL/base-URL resolution,
 URL predicates, and URLPattern are deferred. `Route.fulfill/2` accepts `:status`,
-`:headers`, `:content_type`, and binary `:body`; `:json`, `:path`, and `:response`
-are deferred. Encode JSON or read local files into `:body` yourself.
+`:headers`, `:content_type`, and one of binary `:body`, `:json`, or local `:path`.
+JSON is encoded automatically with an `application/json` content type. File
+content types are inferred from the extension; `:content_type` overrides the
+default. Files are read on the Elixir host, even with a remote browser.
+`:response` remains deferred.
+
+```elixir
+Route.fulfill(route, json: %{ok: true})
+Route.fulfill(route, path: "test/fixtures/formstack_stub.js")
+```
 
 `Page.unroute(page.guid, matcher, timeout: 5_000)` removes a match; supply the
 callback as a third argument to remove only that registration.

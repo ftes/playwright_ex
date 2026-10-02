@@ -20,8 +20,16 @@ defmodule PlaywrightEx.Route do
   Options: `:status` (default 200), `:headers` (map or list of name/value pairs),
   `:content_type`, and `:body` (binary, default empty). Binary bodies are encoded
   internally, including non-UTF-8 data. Header names are case insensitive.
-  `:json`, `:path`, and `:response` are deferred; encode JSON or read a file into
-  `:body` yourself. Protocol-only options such as `:is_base64` are not accepted.
+  Alternatively, supply `:json` (encoded with `JSON.encode!/1`, including `nil`
+  and `false`) or `:path` (read from this Elixir host, including with remote
+  browsers). These three body sources are mutually exclusive. JSON defaults to
+  `application/json`; files infer content type from their extension, falling
+  back to `application/octet-stream`. `:content_type` overrides these defaults.
+  An unreadable file raises `File.Error`; unsupported JSON values raise an
+  encoding error. Neither consumes the route handle.
+
+  `:response` is deferred. Protocol-only options such as `:is_base64` are not
+  accepted.
   """
   def fulfill(%__MODULE__{} = route, opts \\ []) do
     opts =
@@ -29,12 +37,15 @@ defmodule PlaywrightEx.Route do
         status: [type: :pos_integer, default: 200],
         headers: [type: :any, default: %{}],
         content_type: [type: :string],
-        body: [type: :string, default: ""]
+        body: [type: :string],
+        json: [type: :any],
+        path: [type: :string]
       )
 
+    {body, default_type} = fulfillment_body(opts)
     headers = headers(Keyword.fetch!(opts, :headers))
-    headers = if opts[:content_type], do: Map.put(headers, "content-type", opts[:content_type]), else: headers
-    body = Keyword.fetch!(opts, :body)
+    content_type = opts[:content_type] || default_type
+    headers = if content_type, do: Map.put(headers, "content-type", content_type), else: headers
 
     headers =
       if byte_size(body) > 0, do: Map.put_new(headers, "content-length", to_string(byte_size(body))), else: headers
@@ -45,6 +56,16 @@ defmodule PlaywrightEx.Route do
       %{status: opts[:status], headers: header_array(headers), body: Base.encode64(body), is_base64: true},
       opts
     )
+  end
+
+  defp fulfillment_body(opts) do
+    case Keyword.take(opts, [:body, :json, :path]) do
+      [] -> {"", nil}
+      [body: body] -> {body, nil}
+      [json: value] -> {JSON.encode!(value), "application/json"}
+      [path: path] -> {File.read!(path), MIME.from_path(path)}
+      _ -> raise ArgumentError, "specify only one of :body, :json, or :path"
+    end
   end
 
   @doc "Aborts the request. `:error_code` defaults to `\"failed\"` (Playwright network error code)."

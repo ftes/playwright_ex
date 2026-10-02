@@ -475,6 +475,76 @@ defmodule PlaywrightEx.RouteTest do
     refute MapSet.member?(state.subscriptions, page.guid)
   end
 
+  @tag :tmp_dir
+  test "fulfill supports JSON values and local files with inferred or explicit content type", %{
+    page: page,
+    frame: frame,
+    tmp_dir: tmp_dir
+  } do
+    script = Path.join(tmp_dir, "stub.js")
+    File.write!(script, "window.stubLoaded = true;")
+    bytes = Path.join(tmp_dir, "fixture.unknown-extension")
+    File.write!(bytes, <<0, 255>>)
+
+    callback = fn route, request ->
+      opts =
+        case URI.parse(request.url).path do
+          "/json" -> [json: %{ok: true}]
+          "/null" -> [json: nil]
+          "/false" -> [json: false]
+          "/custom" -> [json: %{ok: true}, content_type: "application/custom+json"]
+          "/script" -> [path: script]
+          "/bytes" -> [path: bytes]
+          _ -> [body: "<p>fixture</p>", content_type: "text/html"]
+        end
+
+      {:ok, _} = Route.fulfill(route, opts)
+    end
+
+    assert {:ok, _} = Page.route(page.guid, "**/*", callback, timeout: @timeout)
+
+    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
+
+    assert {:ok, results} =
+             eval(
+               frame.guid,
+               "async () => Promise.all(['/json','/null','/false','/custom','/script','/bytes'].map(async path => { const r = await fetch(path); return [r.headers.get('content-type'), Array.from(new Uint8Array(await r.arrayBuffer()))]; }))"
+             )
+
+    assert results ==
+             Enum.map(
+               [
+                 {"application/json", ~s({"ok":true})},
+                 {"application/json", "null"},
+                 {"application/json", "false"},
+                 {"application/custom+json", ~s({"ok":true})},
+                 {MIME.from_path(script), "window.stubLoaded = true;"},
+                 {"application/octet-stream", <<0, 255>>}
+               ],
+               fn {type, body} -> [type, :binary.bin_to_list(body)] end
+             )
+  end
+
+  test "fulfill rejects conflicting sources and file/JSON errors without consuming the handle", %{
+    page: page,
+    frame: frame
+  } do
+    callback = fn route, _ ->
+      for opts <- [[body: "", json: nil], [body: "", path: "missing"], [json: false, path: "missing"]] do
+        assert_raise ArgumentError, fn -> Route.fulfill(route, opts) end
+      end
+
+      assert_raise File.Error, fn -> Route.fulfill(route, path: "/nonexistent-playwright-ex/fixture.js") end
+      assert_raise Protocol.UndefinedError, fn -> Route.fulfill(route, json: self()) end
+      {:ok, _} = Route.fulfill(route, json: %{recovered: true})
+    end
+
+    assert {:ok, _} = Page.route(page.guid, "**/*", callback, timeout: @timeout)
+
+    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
+    assert {:ok, ~s({"recovered":true})} = eval(frame.guid, "() => document.body.textContent")
+  end
+
   @tag skip:
          if(Application.compile_env(:playwright_ex, :ws_endpoint),
            do: "loopback server is local to the driver host",
