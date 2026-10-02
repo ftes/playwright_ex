@@ -48,12 +48,18 @@ defmodule PlaywrightEx.Routing do
 
   @impl true
   def handle_call(:install, _from, state) do
-    with :ok <- Connection.subscribe_sync(state.connection, self(), state.guid),
-         {:ok, _} <-
-           send_command(state, state.guid, :set_network_interception_patterns, %{patterns: [%{glob: state.glob}]}) do
-      {:reply, {:ok, %{}}, %{state | installed: true, subscriptions: MapSet.new([state.guid])}}
-    else
-      error -> {:stop, :normal, error, %{state | subscriptions: MapSet.new([state.guid])}}
+    case Connection.subscribe_sync(state.connection, self(), state.guid) do
+      :ok ->
+        # A posted command may take effect even when its acknowledgement times out.
+        state = %{state | installed: state.timeout != 0, subscriptions: MapSet.new([state.guid])}
+
+        case send_command(state, state.guid, :set_network_interception_patterns, %{patterns: [%{glob: state.glob}]}) do
+          {:ok, _} = result -> {:reply, result, state}
+          error -> {:stop, :normal, error, state}
+        end
+
+      error ->
+        {:stop, :normal, error, state}
     end
   end
 
@@ -81,10 +87,17 @@ defmodule PlaywrightEx.Routing do
     request = Map.merge(Connection.initializer!(state.connection, request_id.guid), request_id)
     scopes = if request[:frame], do: Connection.route_ancestors(state.connection, request.frame.guid), else: [state.guid]
     scopes = [guid | scopes] ++ if(request[:frame], do: [request.frame.guid], else: [])
-    state = Enum.reduce(scopes, state, &subscribe/2)
-    config = Map.take(state, [:connection, :timeout, :callback])
-    pid = spawn_link(fn -> run_callback(config, guid, request) end)
-    {:noreply, put_in(state.workers[pid], %{guid: guid, scopes: scopes})}
+
+    case Enum.reduce_while(scopes, {:ok, state}, &subscribe/2) do
+      {:ok, state} ->
+        config = Map.take(state, [:connection, :timeout, :callback])
+        pid = spawn_link(fn -> run_callback(config, guid, request) end)
+        {:noreply, put_in(state.workers[pid], %{guid: guid, scopes: scopes})}
+
+      {:error, state} ->
+        send_command(state, guid, :abort, %{error_code: "aborted"})
+        {:noreply, release_unused_subscriptions(state)}
+    end
   rescue
     ArgumentError -> {:noreply, state}
   catch
@@ -177,12 +190,14 @@ defmodule PlaywrightEx.Routing do
     send_command(state, worker.guid, :abort, %{error_code: "aborted"})
   end
 
-  defp subscribe(guid, state) do
+  defp subscribe(guid, {:ok, state}) do
     if MapSet.member?(state.subscriptions, guid) do
-      state
+      {:cont, {:ok, state}}
     else
-      Connection.subscribe_sync(state.connection, self(), guid)
-      %{state | subscriptions: MapSet.put(state.subscriptions, guid)}
+      case Connection.subscribe_sync(state.connection, self(), guid) do
+        :ok -> {:cont, {:ok, %{state | subscriptions: MapSet.put(state.subscriptions, guid)}}}
+        {:error, _} -> {:halt, {:error, state}}
+      end
     end
   end
 
