@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Page/context request routing with glob and regex matchers, invocation limits,
+  newest-first/page-first precedence, and monitored callbacks.
+- `Route.fulfill/2`, `abort/2`, `continue/2`, and `fallback/2`, plus handler removal
+  with explicit handling of running callbacks and structured failure messages.
+- `Browser.new_context/2` accepts `service_workers: "block"` for routing tests.
+
 ## [0.13.0] 2026-10-01
 
 ### Added

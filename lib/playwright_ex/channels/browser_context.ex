@@ -11,6 +11,56 @@ defmodule PlaywrightEx.BrowserContext do
   alias PlaywrightEx.Connection
   alias PlaywrightEx.Serialization
 
+  @doc group: :composed
+  @doc """
+  Registers a request handler. See `PlaywrightEx.Route` for response operations.
+
+  `matcher` is a full-URL glob (`*` excludes `/`, `**` includes `/`, `{a,b}`
+  alternatives, backslash escapes; `?` is literal) or an Elixir `Regex`.
+  Regex matching uses Elixir semantics. Relative/base-URL resolution, URL
+  predicates, and URLPattern are not supported. Newest matching handlers run
+  first; page handlers precede context handlers. `:times` limits invocations.
+
+  Requires `:timeout`; accepts `:connection`. Registration is ready on return.
+  The callback receives `(route, request)` in a separate monitored process.
+  Request is a metadata map including `:guid`, `:url`, `:method`, and `:headers`.
+  It must resolve the route, or the request remains paused. Callback failures
+  abort unresolved requests and send `{:playwright_route_error, %{guid: guid,
+  matcher: matcher, reason: reason}}` to the registering process. The reason
+  includes exception kind, value, and stacktrace, or a process exit reason.
+
+  Context routes cover popup initial requests; page routes cannot. Service
+  Worker requests may bypass routing (set `service_workers: "block"` when
+  creating the context). Enabling routing disables HTTP caching. Handlers and
+  callbacks are cleaned up on target/connection closure.
+  """
+  def route(guid, matcher, callback, opts \\ []), do: PlaywrightEx.Routing.register(guid, matcher, callback, opts)
+
+  @doc group: :composed
+  @doc """
+  Removes handlers for the same matcher, optionally only the supplied callback.
+  Requires `:timeout`; accepts `:connection`. Already running callbacks continue
+  and their failures are still reported. Use `unroute_all/2` to wait or suppress
+  errors. Pass `nil` as callback to remove every handler for the matcher.
+  """
+  def unroute(guid, matcher, callback \\ nil, opts \\ [])
+  def unroute(guid, matcher, opts, []) when is_list(opts), do: PlaywrightEx.Routing.remove(guid, matcher, nil, opts)
+  def unroute(guid, matcher, callback, opts), do: PlaywrightEx.Routing.remove(guid, matcher, callback, opts)
+
+  @doc group: :composed
+  @doc """
+  Removes all handlers. Requires `:timeout`; accepts `:connection` and `:behavior`:
+
+  * `:default` returns without waiting; running callback errors are reported.
+  * `:wait` waits for callbacks already running to finish, with no callback
+    deadline. Do not call from a callback on this target (it would await itself).
+  * `:ignore_errors` returns immediately and suppresses subsequent errors from
+    those callbacks. Unresolved failed requests are still aborted.
+
+  Removal does not cancel callbacks or resolve otherwise paused requests.
+  """
+  def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.remove_all(guid, opts)
+
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),

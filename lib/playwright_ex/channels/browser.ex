@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Browser do
       base_url: [
         type: :string,
         doc:
-          "When using `Page.goto/3`, `Page.route/3`, `Page.wait_for_url/3`, etc., it takes the base URL into consideration."
+          "Base URL for server-side navigation and URL resolution. Client-side route matchers still require full URLs or globs."
       ],
       bypass_csp: [
         type: :boolean,
@@ -84,6 +84,10 @@ defmodule PlaywrightEx.Browser do
       locale: [
         type: :string,
         doc: "Specify user locale, for example `en-GB`, `de-DE`, etc."
+      ],
+      service_workers: [
+        type: {:in, ["allow", "block"]},
+        doc: "Whether to allow Service Workers. Use `\"block\"` for deterministic request routing."
       ],
       user_agent: [
         type: :string,

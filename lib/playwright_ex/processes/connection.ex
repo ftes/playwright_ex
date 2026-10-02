@@ -18,6 +18,7 @@ defmodule PlaywrightEx.Connection do
   @min_genserver_timeout to_timeout(second: 1)
 
   defstruct config: %{js_logger: nil, transport: {nil, nil}},
+            routing: nil,
             initializers: %{},
             types: %{},
             parents: %{},
@@ -149,6 +150,12 @@ defmodule PlaywrightEx.Connection do
   @spec fetch_transport(GenServer.name()) :: {:ok, module()} | {:error, map()}
   def fetch_transport(name), do: call(name, :transport, 5_000)
 
+  @doc false
+  def routing(name), do: call(name, :routing, 5_000)
+
+  @doc false
+  def routing_scopes(name, guid), do: :gen_statem.call(name, {:routing_scopes, guid})
+
   # Normalize only expected failures at the process boundary.
   defp call(name, request, timeout) do
     :gen_statem.call(name, request, timeout)
@@ -234,6 +241,19 @@ defmodule PlaywrightEx.Connection do
     {:keep_state_and_data, [{:reply, from, Map.fetch(data.initializers, guid)}]}
   end
 
+  def started({:call, from}, :routing, %{routing: nil} = data) do
+    {:ok, router} = PlaywrightEx.Routing.start(self())
+    {:keep_state, %{data | routing: router}, [{:reply, from, {:ok, router}}]}
+  end
+
+  def started({:call, from}, :routing, data) do
+    {:keep_state_and_data, [{:reply, from, {:ok, data.routing}}]}
+  end
+
+  def started({:call, from}, {:routing_scopes, guid}, data) do
+    {:keep_state_and_data, [{:reply, from, routing_ancestors(data, guid)}]}
+  end
+
   def started({:call, from}, :transport, data) do
     {transport_module, _} = data.config.transport
     {:keep_state_and_data, [{:reply, from, {:ok, transport_module}}]}
@@ -312,6 +332,13 @@ defmodule PlaywrightEx.Connection do
   def started(:cast, {:playwright_msg, msg}, data) do
     maybe_log_protocol_message(data, msg)
     {:keep_state, handle_protocol_message(data, msg)}
+  end
+
+  defp routing_ancestors(_data, nil), do: []
+
+  defp routing_ancestors(data, guid) do
+    scopes = routing_ancestors(data, data.parents[guid])
+    if data.types[guid] in ["Page", "BrowserContext"], do: [guid | scopes], else: scopes
   end
 
   defp handle_create(data, %{method: :__create__} = msg) do

@@ -390,6 +390,19 @@ defmodule PlaywrightEx.ConnectionTest do
     refute_receive {:playwright_msg, %{method: :frame_navigated}}
   end
 
+  test "routing coordinator is shared by connection name and pid and stops on connection loss" do
+    name = start_connection!(self())
+    pid = Process.whereis(name)
+    assert {:ok, router} = Connection.routing(name)
+    assert {:ok, ^router} = Connection.routing(pid)
+    ref = Process.monitor(router)
+    create_channel(name, "", "context", "BrowserContext", %{})
+    create_channel(name, "context", "page", "Page", %{})
+    assert Connection.routing_scopes(name, "page") == ["page", "context"]
+    :ok = stop_supervised(name)
+    assert_receive {:DOWN, ^ref, :process, ^router, :normal}
+  end
+
   defp create_channel(connection, parent, guid, type, initializer) do
     Connection.handle_playwright_msg(connection, %{
       guid: parent,

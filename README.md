@@ -105,6 +105,54 @@ reloads, and remains stable across same-document navigation.
 waiting. Predicates filter raw events; an optional `:transform` maps the accepted
 event inside the task, for example to save metadata before the channel closes.
 
+## Request routing
+
+Replace external resources while keeping real script tags and application code:
+
+```elixir
+alias PlaywrightEx.{Page, Route}
+
+{:ok, _} = Page.route(page.guid, "**/forms/js.php/**", fn route, _request ->
+  Route.fulfill(route,
+    content_type: "application/javascript",
+    body: "window.Formstack = { submit: () => 'acknowledged' };"
+  )
+end, connection: connection, timeout: 5_000)
+
+# Navigate normally; callbacks run independently of the navigating process.
+```
+
+Use `BrowserContext.route/4` to cover all pages, including popup initial requests.
+Handlers run newest first, with page routes ahead of context routes.
+`Route.fallback/2` tries the next match; `Route.continue/2` goes straight to the
+network. `Route.abort/2` cancels the request. `:times` limits handler invocations.
+Route handles inherit the connection and timeout supplied at registration.
+
+Matchers accept full-URL Playwright globs (`*`, `**`, `{a,b}`, backslash escapes)
+or Elixir regular expressions. `?` is literal. Relative URL/base-URL resolution,
+URL predicates, and URLPattern are deferred. `Route.fulfill/2` accepts `:status`,
+`:headers`, `:content_type`, and binary `:body`; `:json`, `:path`, and `:response`
+are deferred. Encode JSON or read local files into `:body` yourself.
+
+`Page.unroute(page.guid, matcher, timeout: 5_000)` removes a match; supply the
+callback as a third argument to remove only that registration.
+`Page.unroute_all(page.guid, behavior: :wait, timeout: 5_000)` removes all matches
+and waits for callbacks already running. Context equivalents have the same API.
+The default behavior returns immediately; `:ignore_errors` also suppresses errors
+from already running callbacks. Removal leaves existing requests paused until
+resolved, retaining driver interception as necessary; new requests skip removed
+handlers. `:wait` has no callback deadline and must not be called from a callback
+on that target.
+
+Callbacks must resolve each request. Exceptions/exits abort unresolved requests
+and send `{:playwright_route_error, %{guid: guid, matcher: matcher, reason: reason}}`
+to the registering process. Handle that message in your test or application.
+Closing the target or connection stops its callbacks and releases registrations.
+
+Routing disables HTTP caching. Service Workers can bypass interception; pass
+`service_workers: "block"` to `Browser.new_context/2` when testing such resources.
+See the [Playwright routing documentation](https://playwright.dev/docs/api/class-page#page-route).
+
 ## Downloads
 
 Arm the listener, trigger the download, then await its event. Use `after` to
