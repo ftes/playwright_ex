@@ -443,6 +443,76 @@ defmodule PlaywrightEx.ConnectionTest do
     refute_receive {:transport_post, %{method: :abort}}
   end
 
+  test "route events queued during removal are aborted before the handler exits" do
+    name = start_connection!(self())
+    create_channel(name, "Playwright", "page", "Page", %{})
+    owner = self()
+
+    config = %{
+      connection: name,
+      guid: "page",
+      glob: "**/*",
+      callback: fn _, _ -> send(owner, :callback) end,
+      owner: owner,
+      on_error: :raise,
+      timeout: 1_000
+    }
+
+    {:ok, handler} = Connection.start_route_handler(name, "page", config)
+    ref = Process.monitor(handler)
+    install = Task.async(fn -> GenServer.call(handler, :install) end)
+    assert_receive {:transport_post, %{id: id, method: :set_network_interception_patterns}}
+    Connection.handle_playwright_msg(name, %{id: id, result: %{}})
+    assert {:ok, _} = Task.await(install)
+
+    removal = Task.async(fn -> GenServer.call(handler, {:unregister, :all, nil, 1_000}) end)
+    assert_receive {:transport_post, %{id: id, method: :set_network_interception_patterns, params: %{patterns: []}}}
+    Connection.handle_playwright_msg(name, %{guid: "page", method: :route, params: %{route: %{guid: "queued-route"}}})
+    Connection.handle_playwright_msg(name, %{id: id, result: %{}})
+    assert_receive {:transport_post, %{id: abort_id, guid: "queued-route", method: :abort}}
+    Connection.handle_playwright_msg(name, %{id: abort_id, result: %{}})
+    assert {:ok, _} = Task.await(removal)
+    assert_receive {:DOWN, ^ref, :process, ^handler, :normal}
+    refute_receive :callback
+  end
+
+  test "connection closure during any route lookup stops the linked handler normally" do
+    for close_at <- 0..2 do
+      connection =
+        spawn(fn ->
+          serve = fn serve, step ->
+            receive do
+              {:"$gen_call", from, _request} ->
+                if step == close_at do
+                  exit(:normal)
+                else
+                  reply = if step == 0, do: %{request: %{guid: "request"}}, else: %{frame: %{guid: "frame"}}
+                  GenServer.reply(from, {:ok, reply})
+                  serve.(serve, step + 1)
+                end
+            end
+          end
+
+          serve.(serve, 0)
+        end)
+
+      config = %{
+        connection: connection,
+        guid: "page",
+        glob: "**/*",
+        callback: fn _, _ -> flunk("callback ran") end,
+        owner: self(),
+        on_error: :raise,
+        timeout: 1_000
+      }
+
+      {:ok, handler} = PlaywrightEx.Routing.start(config)
+      ref = Process.monitor(handler)
+      send(handler, {:playwright_msg, %{guid: "page", method: :route, params: %{route: %{guid: "route"}}}})
+      assert_receive {:DOWN, ^ref, :process, ^handler, :normal}, 1_000
+    end
+  end
+
   defp create_channel(connection, parent, guid, type, initializer) do
     Connection.handle_playwright_msg(connection, %{
       guid: parent,

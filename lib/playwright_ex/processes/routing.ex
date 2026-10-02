@@ -87,6 +87,9 @@ defmodule PlaywrightEx.Routing do
     {:noreply, put_in(state.workers[pid], %{guid: guid, scopes: scopes})}
   rescue
     ArgumentError -> {:noreply, state}
+  catch
+    :exit, {reason, {:gen_statem, :call, _}} when reason in [:noproc, :normal, :shutdown] ->
+      {:stop, :normal, state}
   end
 
   def handle_info({:playwright_msg, %{method: :frame_detached, params: %{frame: %{guid: guid}}}}, state) do
@@ -130,9 +133,23 @@ defmodule PlaywrightEx.Routing do
 
   @impl true
   def terminate(_reason, state) do
-    Enum.each(state.workers, &cancel_worker(state, &1))
     if state.installed, do: send_command(state, state.guid, :set_network_interception_patterns, %{patterns: []})
     Enum.each(state.subscriptions, &Connection.unsubscribe_sync(state.connection, self(), &1))
+    Enum.each(state.workers, &cancel_worker(state, &1))
+    abort_queued_routes(state)
+  end
+
+  # Synchronous unsubscribe is a barrier: previously delivered route events are
+  # now in this mailbox, and the connection will not deliver any more.
+  defp abort_queued_routes(state) do
+    receive do
+      {:playwright_msg, %{guid: guid, method: :route, params: %{route: %{guid: route_guid}}}}
+      when guid == state.guid ->
+        send_command(state, route_guid, :abort, %{error_code: "aborted"})
+        abort_queued_routes(state)
+    after
+      0 -> :ok
+    end
   end
 
   defp run_callback(state, guid, request) do
