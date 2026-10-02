@@ -403,11 +403,11 @@ defmodule PlaywrightEx.ConnectionTest do
       timeout: 1000
     }
 
-    assert {:ok, router} = Connection.routing(name, "page", config)
-    assert {:ok, ^router} = Connection.routing(Process.whereis(name), "page")
-    ref = Process.monitor(router)
+    assert {:ok, handler} = Connection.start_route_handler(name, "page", config)
+    assert {:ok, ^handler} = Connection.fetch_route_handler(Process.whereis(name), "page")
+    ref = Process.monitor(handler)
     :ok = stop_supervised(name)
-    assert_receive {:DOWN, ^ref, :process, ^router, :normal}
+    assert_receive {:DOWN, ^ref, :process, ^handler, :normal}
   end
 
   defp create_channel(connection, parent, guid, type, initializer) do

@@ -211,10 +211,10 @@ defmodule PlaywrightEx.RouteTest do
     assert {:error, %{reason: :route_already_registered}} =
              BrowserContext.route(context.guid, "**/*", fn _, _ -> :ok end, timeout: @timeout)
 
-    assert {:ok, router} = Connection.routing(PlaywrightEx.Supervisor.Connection, context.guid)
-    ref = Process.monitor(router)
+    assert {:ok, handler} = Connection.fetch_route_handler(PlaywrightEx.Supervisor.Connection, context.guid)
+    ref = Process.monitor(handler)
     assert {:ok, _} = BrowserContext.close(context.guid, timeout: @timeout)
-    assert_receive {:DOWN, ^ref, :process, ^router, :normal}, @timeout
+    assert_receive {:DOWN, ^ref, :process, ^handler, :normal}, @timeout
   end
 
   test "owner exit tears down registration and active callbacks", %{page: page, frame: frame} do
@@ -297,8 +297,8 @@ defmodule PlaywrightEx.RouteTest do
     end
 
     {:ok, _} = Page.route(page.guid, "**/*", callback, opts)
-    {:ok, router} = Connection.routing(connection, page.guid)
-    router_ref = Process.monitor(router)
+    {:ok, handler} = Connection.fetch_route_handler(connection, page.guid)
+    handler_ref = Process.monitor(handler)
 
     navigation =
       Task.async(fn -> Frame.goto(page.main_frame.guid, Keyword.put(opts, :url, "https://routing.invalid/")) end)
@@ -306,7 +306,7 @@ defmodule PlaywrightEx.RouteTest do
     assert_receive {:running, worker}, @timeout
     worker_ref = Process.monitor(worker)
     :ok = stop_supervised(PlaywrightEx.Supervisor)
-    assert_receive {:DOWN, ^router_ref, :process, ^router, :normal}, @timeout
+    assert_receive {:DOWN, ^handler_ref, :process, ^handler, :normal}, @timeout
     assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}, @timeout
     assert {:error, _} = Task.await(navigation)
   end
@@ -338,7 +338,7 @@ defmodule PlaywrightEx.RouteTest do
     end
 
     {:ok, _} = Page.route(page.guid, "**/pending", callback, timeout: @timeout)
-    {:ok, router} = Connection.routing(PlaywrightEx.Supervisor.Connection, page.guid)
+    {:ok, handler} = Connection.fetch_route_handler(PlaywrightEx.Supervisor.Connection, page.guid)
 
     assert {:ok, _} =
              eval(
@@ -350,7 +350,7 @@ defmodule PlaywrightEx.RouteTest do
     ref = Process.monitor(worker)
     assert {:ok, _} = eval(frame.guid, "() => document.querySelector('iframe').remove()")
     assert_receive {:DOWN, ^ref, :process, ^worker, :killed}, @timeout
-    state = :sys.get_state(router)
+    state = :sys.get_state(handler)
     assert state.workers == %{}
     assert state.subscriptions == MapSet.new([page.guid])
   end

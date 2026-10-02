@@ -67,8 +67,8 @@ defmodule PlaywrightEx.BrowserContext do
         connection: connection, timeout: 5_000)
   """
   def unroute(guid, matcher, callback \\ nil, opts \\ [])
-  def unroute(guid, matcher, opts, []) when is_list(opts), do: PlaywrightEx.Routing.remove(guid, matcher, nil, opts)
-  def unroute(guid, matcher, callback, opts), do: PlaywrightEx.Routing.remove(guid, matcher, callback, opts)
+  def unroute(guid, matcher, opts, []) when is_list(opts), do: PlaywrightEx.Routing.unregister(guid, matcher, nil, opts)
+  def unroute(guid, matcher, callback, opts), do: PlaywrightEx.Routing.unregister(guid, matcher, callback, opts)
 
   @doc group: :composed
   @doc """
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.BrowserContext do
       {:ok, _} = BrowserContext.unroute_all(context.guid,
         connection: connection, timeout: 5_000)
   """
-  def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.remove(guid, :all, nil, opts)
+  def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.unregister(guid, :all, nil, opts)
 
   schema =
     NimbleOptions.new!(

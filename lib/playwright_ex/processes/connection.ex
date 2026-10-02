@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Connection do
   @min_genserver_timeout to_timeout(second: 1)
 
   defstruct config: %{js_logger: nil, transport: {nil, nil}},
-            routing: %{},
+            route_handlers: %{},
             initializers: %{},
             types: %{},
             parents: %{},
@@ -151,10 +151,13 @@ defmodule PlaywrightEx.Connection do
   def fetch_transport(name), do: call(name, :transport, 5_000)
 
   @doc false
-  def routing(name, guid, config \\ nil), do: call(name, {:routing, guid, config}, 5_000)
+  def fetch_route_handler(name, guid), do: call(name, {:fetch_route_handler, guid}, 5_000)
 
   @doc false
-  def routing_scopes(name, guid), do: :gen_statem.call(name, {:routing_scopes, guid})
+  def start_route_handler(name, guid, config), do: call(name, {:start_route_handler, guid, config}, 5_000)
+
+  @doc false
+  def route_ancestors(name, guid), do: :gen_statem.call(name, {:route_ancestors, guid})
 
   # Normalize only expected failures at the process boundary.
   defp call(name, request, timeout) do
@@ -241,26 +244,25 @@ defmodule PlaywrightEx.Connection do
     {:keep_state_and_data, [{:reply, from, Map.fetch(data.initializers, guid)}]}
   end
 
-  def started({:call, from}, {:routing, guid, config}, data) do
-    pid = data.routing[guid]
-    alive? = pid && Process.alive?(pid)
+  def started({:call, from}, {:fetch_route_handler, guid}, data) do
+    pid = data.route_handlers[guid]
+    {:keep_state_and_data, [{:reply, from, {:ok, if(pid && Process.alive?(pid), do: pid)}}]}
+  end
 
-    cond do
-      is_nil(config) ->
-        {:keep_state_and_data, [{:reply, from, {:ok, if(alive?, do: pid)}}]}
+  def started({:call, from}, {:start_route_handler, guid, config}, data) do
+    pid = data.route_handlers[guid]
 
-      alive? ->
-        {:keep_state_and_data, [{:reply, from, {:error, %{reason: :route_already_registered}}}]}
-
-      true ->
-        {:ok, router} = PlaywrightEx.Routing.start(%{config | connection: self()})
-        Process.monitor(router)
-        {:keep_state, put_in(data.routing[guid], router), [{:reply, from, {:ok, router}}]}
+    if pid && Process.alive?(pid) do
+      {:keep_state_and_data, [{:reply, from, {:error, %{reason: :route_already_registered}}}]}
+    else
+      {:ok, handler} = PlaywrightEx.Routing.start(%{config | connection: self()})
+      Process.monitor(handler)
+      {:keep_state, put_in(data.route_handlers[guid], handler), [{:reply, from, {:ok, handler}}]}
     end
   end
 
-  def started({:call, from}, {:routing_scopes, guid}, data) do
-    {:keep_state_and_data, [{:reply, from, routing_ancestors(data, guid)}]}
+  def started({:call, from}, {:route_ancestors, guid}, data) do
+    {:keep_state_and_data, [{:reply, from, collect_route_ancestors(data, guid)}]}
   end
 
   def started({:call, from}, :transport, data) do
@@ -303,7 +305,7 @@ defmodule PlaywrightEx.Connection do
   end
 
   def started(:info, {:DOWN, ref, :process, pid, _reason}, data) do
-    data = %{data | routing: Map.reject(data.routing, fn {_, router} -> router == pid end)}
+    data = %{data | route_handlers: Map.reject(data.route_handlers, fn {_, handler} -> handler == pid end)}
     {subscription, monitors} = Map.pop(data.subscription_monitors, ref)
     data = %{data | subscription_monitors: monitors}
     key = if subscription, do: elem(subscription, 0)
@@ -344,10 +346,10 @@ defmodule PlaywrightEx.Connection do
     {:keep_state, handle_protocol_message(data, msg)}
   end
 
-  defp routing_ancestors(_data, nil), do: []
+  defp collect_route_ancestors(_data, nil), do: []
 
-  defp routing_ancestors(data, guid) do
-    scopes = routing_ancestors(data, data.parents[guid])
+  defp collect_route_ancestors(data, guid) do
+    scopes = collect_route_ancestors(data, data.parents[guid])
     if data.types[guid] in ["Page", "BrowserContext"], do: [guid | scopes], else: scopes
   end
 

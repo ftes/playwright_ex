@@ -67,8 +67,8 @@ defmodule PlaywrightEx.Route do
         path: [type: :string]
       )
 
-    {body, default_type} = fulfillment_body(opts)
-    headers = headers(Keyword.fetch!(opts, :headers))
+    {body, default_type} = build_fulfillment_body(opts)
+    headers = normalize_headers(Keyword.fetch!(opts, :headers))
     content_type = opts[:content_type] || default_type
 
     headers =
@@ -84,12 +84,12 @@ defmodule PlaywrightEx.Route do
     resolve(
       route,
       :fulfill,
-      %{status: opts[:status], headers: header_array(headers), body: Base.encode64(body), is_base64: true},
+      %{status: opts[:status], headers: serialize_headers(headers), body: Base.encode64(body), is_base64: true},
       opts
     )
   end
 
-  defp fulfillment_body(opts) do
+  defp build_fulfillment_body(opts) do
     case Keyword.take(opts, [:body, :json, :path]) do
       [] -> {"", nil}
       [body: body] -> {body, nil}
@@ -146,7 +146,9 @@ defmodule PlaywrightEx.Route do
     params = opts |> Keyword.take([:url, :method, :headers, :post_data]) |> Map.new()
 
     params =
-      if Map.has_key?(params, :headers), do: Map.update!(params, :headers, &header_array(headers(&1))), else: params
+      if Map.has_key?(params, :headers),
+        do: Map.update!(params, :headers, &serialize_headers(normalize_headers(&1))),
+        else: params
 
     params = if Map.has_key?(params, :post_data), do: Map.update!(params, :post_data, &Base.encode64/1), else: params
     resolve(route, :continue, Map.put(params, :is_fallback, false), opts)
@@ -183,6 +185,8 @@ defmodule PlaywrightEx.Route do
     end
   end
 
-  defp headers(values), do: Enum.map(values, fn {name, value} -> {String.downcase(to_string(name)), to_string(value)} end)
-  defp header_array(values), do: Enum.map(values, fn {name, value} -> %{name: name, value: value} end)
+  defp normalize_headers(values),
+    do: Enum.map(values, fn {name, value} -> {String.downcase(to_string(name)), to_string(value)} end)
+
+  defp serialize_headers(values), do: Enum.map(values, fn {name, value} -> %{name: name, value: value} end)
 end
