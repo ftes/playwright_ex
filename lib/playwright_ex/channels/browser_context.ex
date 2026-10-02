@@ -13,28 +13,46 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc group: :composed
   @doc """
-  Registers one handler for a driver-matched URL glob. A second registration
-  returns `{:error, %{reason: :route_already_registered}}`; remove it first.
-  Globs support `*`, `**`, `{a,b}`, and backslash escapes; `?` is literal.
-  Matching and base-URL resolution are delegated to Playwright.
+  Registers one URL-glob handler across the context, including popup initial
+  requests. Matching page handlers take precedence. The driver performs glob
+  matching and base-URL resolution. A second context registration returns
+  `{:error, %{reason: :route_already_registered}}`.
 
   Requires `:timeout`; accepts `:connection` and `on_error: :raise | :message`.
-  Registration is ready before returning. Callbacks run independently and
-  receive `(route, request)`, where request is a metadata map with `:guid`,
-  `:url`, `:method`, and `:headers`. Resolve the route inside the callback with
-  `PlaywrightEx.Route.fulfill/2`, `abort/2`, or `continue/2`, before returning.
+  See `PlaywrightEx.Page.route/4` for callback ownership, linked failure behavior,
+  cancellation, and the supported subset. Use `service_workers: "block"` when
+  creating the context if Service Workers might intercept requests.
 
-  By default callback failures propagate through an OTP link to the registering
-  process (failing an ExUnit test). With `on_error: :message`, failures instead
-  send `{:playwright_route_error, %{guid: guid, matcher: glob, reason: reason}}`.
-  Unresolved failed requests are aborted. Registration ends when its owner,
-  target, or connection exits; active callbacks are canceled on teardown.
+  ## Example
 
-  Matching page routes precede context routes; continue goes straight to the
-  network. Context routes cover popup initial requests. Service Workers may
-  bypass routing; use `service_workers: "block"` when creating the context.
-  Routing disables HTTP caching. Handler chains, fallback, regexes, times, and
-  wait/ignore-errors removal modes are not supported.
+  Use one callback to dispatch several mocked endpoints; continue other requests
+  directly to the network. Assume `context` was created on `connection`:
+
+      alias PlaywrightEx.{BrowserContext, Route}
+
+      {:ok, _} = BrowserContext.route(context.guid, "**/api/**", fn route, request ->
+        case {request.method, URI.parse(request.url).path} do
+          {"GET", "/api/profile"} ->
+            {:ok, _} = Route.fulfill(route, json: %{name: "Ada"})
+
+          {"POST", "/api/payment"} ->
+            {:ok, _} = Route.fulfill(route, status: 503, json: %{error: "unavailable"})
+
+          _ ->
+            {:ok, _} = Route.continue(route)
+        end
+      end, connection: connection, timeout: 5_000)
+
+  The registration belongs to the calling process. Keep that process alive while
+  using the context. For isolated application error handling, register with
+  `on_error: :message` and handle the resulting message in that same process:
+
+      receive do
+        {:playwright_route_error, %{reason: reason}} ->
+          IO.inspect(reason, label: "routing callback failed")
+      after
+        5_000 -> :no_routing_error
+      end
   """
   def route(guid, glob, callback, opts \\ []), do: PlaywrightEx.Routing.register(guid, glob, callback, opts)
 
@@ -43,13 +61,23 @@ defmodule PlaywrightEx.BrowserContext do
   Removes the handler if its glob and optional callback match. Active callbacks
   are canceled and unresolved requests aborted. Requires `:timeout`; accepts
   `:connection`. This cancellation policy differs from Playwright.js unroute.
+  See `PlaywrightEx.Page.unroute/4` for callback-specific removal.
+
+      {:ok, _} = BrowserContext.unroute(context.guid, "**/api/**",
+        connection: connection, timeout: 5_000)
   """
   def unroute(guid, matcher, callback \\ nil, opts \\ [])
   def unroute(guid, matcher, opts, []) when is_list(opts), do: PlaywrightEx.Routing.remove(guid, matcher, nil, opts)
   def unroute(guid, matcher, callback, opts), do: PlaywrightEx.Routing.remove(guid, matcher, callback, opts)
 
   @doc group: :composed
-  @doc "Removes the handler and cancels active callbacks. Options: required `:timeout`, optional `:connection`."
+  @doc """
+  Removes the context handler and cancels its active callbacks. Page registrations
+  are unaffected. Options: required `:timeout`, optional `:connection`.
+
+      {:ok, _} = BrowserContext.unroute_all(context.guid,
+        connection: connection, timeout: 5_000)
+  """
   def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.remove(guid, :all, nil, opts)
 
   schema =

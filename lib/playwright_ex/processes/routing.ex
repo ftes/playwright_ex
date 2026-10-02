@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Routing do
 
   defp remove_handler(state) do
     Enum.each(state.workers, &cancel(state, &1))
-    state = %{state | workers: %{}}
+    state = release_subscriptions(%{state | workers: %{}})
 
     case command(state, state.guid, :set_network_interception_patterns, %{patterns: []}) do
       {:ok, _} = result -> {:stop, :normal, result, %{state | installed: false}}
@@ -82,12 +82,17 @@ defmodule PlaywrightEx.Routing do
     request_id = Connection.initializer!(state.connection, guid).request
     request = Map.merge(Connection.initializer!(state.connection, request_id.guid), request_id)
     scopes = if request[:frame], do: Connection.routing_scopes(state.connection, request.frame.guid), else: [state.guid]
+    scopes = [guid | scopes] ++ if(request[:frame], do: [request.frame.guid], else: [])
     state = Enum.reduce(scopes, state, &subscribe/2)
     config = Map.take(state, [:connection, :timeout, :callback])
     pid = spawn_link(fn -> run_callback(config, guid, request) end)
     {:noreply, put_in(state.workers[pid], %{guid: guid, scopes: scopes})}
   rescue
     ArgumentError -> {:noreply, state}
+  end
+
+  def handle_info({:playwright_msg, %{method: :frame_detached, params: %{frame: %{guid: guid}}}}, state) do
+    handle_info({:playwright_msg, %{guid: guid, method: :__dispose__}}, state)
   end
 
   def handle_info({:playwright_msg, %{guid: guid, method: method}}, state)
@@ -98,7 +103,9 @@ defmodule PlaywrightEx.Routing do
       {closed, active} = Enum.split_with(state.workers, fn {_, worker} -> guid in worker.scopes end)
       Enum.each(closed, &cancel(state, &1))
       Connection.unsubscribe_sync(state.connection, self(), guid)
-      {:noreply, %{state | workers: Map.new(active), subscriptions: MapSet.delete(state.subscriptions, guid)}}
+
+      {:noreply,
+       release_subscriptions(%{state | workers: Map.new(active), subscriptions: MapSet.delete(state.subscriptions, guid)})}
     end
   end
 
@@ -107,7 +114,7 @@ defmodule PlaywrightEx.Routing do
 
   def handle_info({:EXIT, pid, reason}, state) do
     {worker, workers} = Map.pop(state.workers, pid)
-    state = %{state | workers: workers}
+    state = release_subscriptions(%{state | workers: workers})
 
     if worker && reason != :normal do
       command(state, worker.guid, :abort, %{error_code: "failed"})
@@ -158,6 +165,16 @@ defmodule PlaywrightEx.Routing do
       Connection.subscribe_sync(state.connection, self(), guid)
       %{state | subscriptions: MapSet.put(state.subscriptions, guid)}
     end
+  end
+
+  defp release_subscriptions(state) do
+    needed = MapSet.new([state.guid | Enum.flat_map(state.workers, fn {_, worker} -> worker.scopes end)])
+
+    state.subscriptions
+    |> MapSet.difference(needed)
+    |> Enum.each(&Connection.unsubscribe_sync(state.connection, self(), &1))
+
+    %{state | subscriptions: MapSet.intersection(state.subscriptions, needed)}
   end
 
   defp command(state, guid, method, params) do

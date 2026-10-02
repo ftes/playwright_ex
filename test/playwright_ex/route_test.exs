@@ -311,6 +311,50 @@ defmodule PlaywrightEx.RouteTest do
     assert {:error, _} = Task.await(navigation)
   end
 
+  test "fulfillment preserves repeated response headers", %{page: page, frame: frame, browser_context: context} do
+    callback = fn route, _ ->
+      {:ok, _} =
+        Route.fulfill(route,
+          headers: [{"Set-Cookie", "first=1; Path=/"}, {"set-cookie", "second=2; Path=/"}],
+          body: "cookies"
+        )
+    end
+
+    {:ok, _} = Page.route(page.guid, "**/*", callback, timeout: @timeout)
+    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
+    {:ok, cookies} = BrowserContext.cookies(context.guid, timeout: @timeout)
+    assert Enum.sort(Enum.map(cookies, &{&1.name, &1.value})) == [{"first", "1"}, {"second", "2"}]
+  end
+
+  test "detaching an iframe cancels its callback without closing the page", %{page: page, frame: frame} do
+    owner = self()
+
+    callback = fn _, _ ->
+      send(owner, {:running, self()})
+
+      receive do
+        :never -> :ok
+      end
+    end
+
+    {:ok, _} = Page.route(page.guid, "**/pending", callback, timeout: @timeout)
+    {:ok, router} = Connection.routing(PlaywrightEx.Supervisor.Connection, page.guid)
+
+    assert {:ok, _} =
+             eval(
+               frame.guid,
+               "() => { const f = document.createElement('iframe'); f.src = 'https://routing.invalid/pending'; document.body.append(f); }"
+             )
+
+    assert_receive {:running, worker}, @timeout
+    ref = Process.monitor(worker)
+    assert {:ok, _} = eval(frame.guid, "() => document.querySelector('iframe').remove()")
+    assert_receive {:DOWN, ^ref, :process, ^worker, :killed}, @timeout
+    state = :sys.get_state(router)
+    assert state.workers == %{}
+    assert state.subscriptions == MapSet.new([page.guid])
+  end
+
   @tag :tmp_dir
   test "fulfill supports JSON values and local files with inferred or explicit content type", %{
     page: page,
