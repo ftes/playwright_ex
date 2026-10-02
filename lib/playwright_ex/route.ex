@@ -13,6 +13,8 @@ defmodule PlaywrightEx.Route do
   alias PlaywrightEx.ChannelResponse
   alias PlaywrightEx.Connection
 
+  @compile {:no_warn_undefined, MIME}
+
   @opaque t :: %__MODULE__{guid: PlaywrightEx.guid(), owner: pid(), connection: GenServer.server(), timeout: timeout()}
   defstruct [:guid, :owner, :connection, :timeout]
 
@@ -26,8 +28,12 @@ defmodule PlaywrightEx.Route do
   Alternatively, supply `:json` (encoded with `JSON.encode!/1`, including `nil`
   and `false`) or `:path` (read from this Elixir host, including with remote
   browsers). These three body sources are mutually exclusive. JSON defaults to
-  `application/json`; files infer content type from their extension, falling
-  back to `application/octet-stream`. `:content_type` overrides these defaults.
+  `application/json`. Files infer content type from their extension when the
+  optional `:mime` dependency is installed; otherwise they use
+  `application/octet-stream` (also the fallback for unknown extensions). Add
+  `{:mime, "~> 2.0"}` to your dependencies to enable inference. Explicit
+  Content-Type headers take precedence over defaults; `:content_type` overrides
+  both.
   An unreadable file raises `File.Error`; unsupported JSON values raise an
   encoding error. Neither consumes the route handle.
 
@@ -94,9 +100,13 @@ defmodule PlaywrightEx.Route do
       [] -> {"", nil}
       [body: body] -> {body, nil}
       [json: value] -> {JSON.encode!(value), "application/json"}
-      [path: path] -> {File.read!(path), MIME.from_path(path)}
+      [path: path] -> {File.read!(path), infer_content_type(path)}
       _ -> raise ArgumentError, "specify only one of :body, :json, or :path"
     end
+  end
+
+  defp infer_content_type(path) do
+    if Code.ensure_loaded?(MIME), do: MIME.from_path(path), else: "application/octet-stream"
   end
 
   @doc """
