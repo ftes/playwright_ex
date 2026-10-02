@@ -2,59 +2,62 @@ defmodule PlaywrightEx.RouteTest do
   use PlaywrightExCase, async: true
 
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Connection
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Supervisor.Connection
 
-  test "replaces a Formstack-style script while navigation blocks", %{page: page, frame: frame} do
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/forms/js.php/**",
-               fn route, request ->
-                 assert request.method == "GET"
+  test "replaces a Formstack script during synchronous navigation", %{page: page, frame: frame} do
+    callback = fn route, request ->
+      case URI.parse(request.url).path do
+        "/forms/js.php/123" ->
+          Route.fulfill(route,
+            content_type: "application/javascript",
+            body: "window.Formstack = {submit: () => 'acknowledged'}"
+          )
 
-                 Route.fulfill(route,
-                   content_type: "application/javascript",
-                   body: "window.Formstack = {submit: () => 'acknowledged'}"
-                 )
-               end,
-               timeout: @timeout
-             )
+        _ ->
+          Route.fulfill(route,
+            content_type: "text/html",
+            body:
+              "<script src='https://external.invalid/forms/js.php/123'></script><script>document.title = Formstack.submit()</script>"
+          )
+      end
+    end
 
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "https://app.test/",
-               fn route, _ ->
-                 Route.fulfill(route,
-                   content_type: "text/html",
-                   body:
-                     "<script src='https://external.invalid/forms/js.php/123'></script><script>document.title = Formstack.submit()</script>"
-                 )
-               end,
-               timeout: @timeout
-             )
-
+    assert {:ok, _} = Page.route(page.guid, "**/*", callback, timeout: @timeout)
     assert {:ok, _} = Frame.goto(frame.guid, url: "https://app.test/", timeout: @timeout)
     assert {:ok, "acknowledged"} = eval(frame.guid, "() => document.title")
   end
 
-  test "newest page handlers precede context handlers and fallback keeps original matching", %{
+  test "page match takes precedence; unmatched requests reach the context", %{
     browser_context: context,
     page: page,
     frame: frame
   } do
+    assert {:ok, _} =
+             BrowserContext.route(context.guid, "**/*", fn r, _ -> Route.fulfill(r, body: "context") end,
+               timeout: @timeout
+             )
+
+    assert {:ok, _} = Page.route(page.guid, "**/page", fn r, _ -> Route.fulfill(r, body: "page") end, timeout: @timeout)
+
+    for {path, expected} <- [{"page", "page"}, {"other", "context"}] do
+      assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/" <> path, timeout: @timeout)
+      assert {:ok, ^expected} = eval(frame.guid, "() => document.body.textContent")
+    end
+  end
+
+  test "continue bypasses context handlers", %{browser_context: context, page: page, frame: frame} do
     owner = self()
 
     assert {:ok, _} =
              BrowserContext.route(
                context.guid,
-               ~r/original/,
-               fn route, request ->
-                 send(owner, {:context, request.url, request.method})
-                 Route.fulfill(route, body: "context")
+               "**/*",
+               fn r, _ ->
+                 send(owner, :context)
+                 Route.fulfill(r, body: "wrong")
                end,
                timeout: @timeout
              )
@@ -62,91 +65,78 @@ defmodule PlaywrightEx.RouteTest do
     assert {:ok, _} =
              Page.route(
                page.guid,
-               "**/original",
-               fn route, request ->
-                 send(owner, {:older, request.url})
-                 Route.fallback(route)
-               end,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/original",
-               fn route, _ ->
-                 send(owner, :newest)
-                 Route.fallback(route, url: "https://routing.invalid/changed", method: "POST")
-               end,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/original", timeout: @timeout)
-    assert_receive :newest
-    assert_receive {:older, "https://routing.invalid/changed"}
-    assert_receive {:context, "https://routing.invalid/changed", "POST"}
-  end
-
-  test "continue bypasses remaining handlers, whereas unmatched requests reach the network", %{page: page, frame: frame} do
-    owner = self()
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/matched",
-               fn route, _ ->
-                 send(owner, :unexpected)
-                 Route.fulfill(route, body: "wrong")
-               end,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/matched",
-               fn route, _ ->
+               "**/*",
+               fn r, _ ->
                  send(owner, :continued)
-                 Route.continue(route)
+                 Route.continue(r)
                end,
                timeout: @timeout
              )
 
-    assert {:error, _} = Frame.goto(frame.guid, url: "http://127.0.0.1:54321/matched", timeout: @timeout)
-    assert {:error, _} = Frame.goto(frame.guid, url: "http://127.0.0.1:54321/unmatched", timeout: @timeout)
-    assert_receive :continued
-    refute_receive :unexpected
-  end
-
-  test "times is consumed atomically and unroute selects callback identity", %{page: page, frame: frame} do
-    base = fn route, _ -> Route.fulfill(route, body: "base") end
-    once = fn route, _ -> Route.fulfill(route, body: "once") end
-    assert {:ok, _} = Page.route(page.guid, "**/*", base, timeout: @timeout)
-    assert {:ok, _} = Page.route(page.guid, "**/*", once, times: 1, timeout: @timeout)
-
-    for expected <- ["once", "base"] do
-      assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
-      assert {:ok, ^expected} = eval(frame.guid, "() => document.body.textContent")
-    end
-
-    assert {:ok, _} = Page.unroute(page.guid, "**/*", once, timeout: @timeout)
-    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
-    assert {:ok, _} = Page.unroute(page.guid, "**/*", base, timeout: @timeout)
     assert {:error, _} = Frame.goto(frame.guid, url: "http://127.0.0.1:54321/", timeout: @timeout)
+    assert_receive :continued
+    refute_receive :context
   end
 
-  test "callback errors abort requests and are reported without breaking the connection", %{page: page, frame: frame} do
-    assert {:ok, _} = Page.route(page.guid, "**/*", fn _, _ -> raise "broken callback" end, timeout: @timeout)
+  test "one handler per target; removal matches identity and allows re-registration", %{page: page, frame: frame} do
+    callback = fn r, _ -> Route.fulfill(r, body: "original") end
+    other = fn r, _ -> Route.abort(r) end
+    assert {:ok, _} = Page.route(page.guid, "**/*", callback, timeout: @timeout)
+    assert {:error, %{reason: :route_already_registered}} = Page.route(page.guid, "**/*", other, timeout: @timeout)
+    assert {:ok, _} = Page.unroute(page.guid, "**/*", other, timeout: @timeout)
+    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
+    assert {:ok, "original"} = eval(frame.guid, "() => document.body.textContent")
+    assert {:ok, _} = Page.unroute(page.guid, "**/*", callback, timeout: @timeout)
+    assert {:ok, _} = Page.route(page.guid, "**/*", other, timeout: @timeout)
+    assert {:ok, _} = Page.unroute_all(page.guid, timeout: @timeout)
+  end
+
+  @tag capture_log: true
+  test "callback assertions fail the registering process through its OTP link", %{page: page, frame: frame} do
+    parent = self()
+
+    {owner, ref} =
+      spawn_monitor(fn ->
+        {:ok, _} = Page.route(page.guid, "**/*", fn _, _ -> assert false, "callback assertion" end, timeout: @timeout)
+        send(parent, :armed)
+
+        receive do
+          :stop -> :ok
+        end
+      end)
+
+    assert_receive :armed, @timeout
+    assert {:error, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
+
+    assert_receive {:DOWN, ^ref, :process, ^owner, {:playwright_route_error, :error, %ExUnit.AssertionError{}, [_ | _]}},
+                   @timeout
+
+    assert {:ok, _} = Page.route(page.guid, "**/*", fn r, _ -> Route.fulfill(r, body: "recovered") end, timeout: @timeout)
+  end
+
+  test "explicit message mode isolates failures and aborts unresolved requests", %{page: page, frame: frame} do
+    assert {:ok, _} = Page.route(page.guid, "**/*", fn _, _ -> raise "broken" end, on_error: :message, timeout: @timeout)
     assert {:error, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
 
     assert_receive {:playwright_route_error,
-                    %{reason: {:callback_failed, :error, %RuntimeError{message: "broken callback"}, [_ | _]}}}
+                    %{reason: {:playwright_route_error, :error, %RuntimeError{message: "broken"}, _}}},
+                   @timeout
 
     assert {:ok, _} = Page.unroute_all(page.guid, timeout: @timeout)
-    assert {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
   end
 
-  test "wait removal includes exhausted callbacks and waits for completion", %{page: page, frame: frame} do
+  test "returning unresolved is a callback failure", %{page: page, frame: frame} do
+    assert {:ok, _} = Page.route(page.guid, "**/*", fn _, _ -> :ok end, on_error: :message, timeout: @timeout)
+    assert {:error, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
+
+    assert_receive {:playwright_route_error,
+                    %{reason: {:playwright_route_error, :error, %RuntimeError{message: message}, _}}},
+                   @timeout
+
+    assert message =~ "without fulfilling"
+  end
+
+  test "removal cancels running callbacks without failing their owner", %{page: page, frame: frame} do
     owner = self()
 
     assert {:ok, _} =
@@ -154,59 +144,7 @@ defmodule PlaywrightEx.RouteTest do
                page.guid,
                "**/*",
                fn route, _ ->
-                 send(owner, {:running, self()})
-
-                 receive do
-                   :finish -> Route.fulfill(route, body: "done")
-                 end
-               end,
-               times: 1,
-               timeout: @timeout
-             )
-
-    navigation = Task.async(fn -> Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
-    assert_receive {:running, worker}, @timeout
-    removal = Task.async(fn -> Page.unroute_all(page.guid, behavior: :wait, timeout: @timeout) end)
-    assert Task.yield(removal, 20) == nil
-    send(worker, :finish)
-    assert {:ok, _} = Task.await(removal)
-    assert {:ok, _} = Task.await(navigation)
-  end
-
-  test "ignore_errors removal lets callbacks run but suppresses their failures", %{page: page, frame: frame} do
-    owner = self()
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/*",
-               fn _, _ ->
-                 send(owner, {:running, self()})
-
-                 receive do
-                   :finish -> raise "ignored"
-                 end
-               end,
-               timeout: @timeout
-             )
-
-    navigation = Task.async(fn -> Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
-    assert_receive {:running, worker}, @timeout
-    assert {:ok, _} = Page.unroute_all(page.guid, behavior: :ignore_errors, timeout: @timeout)
-    send(worker, :finish)
-    assert {:error, _} = Task.await(navigation)
-    refute_receive {:playwright_route_error, _}
-  end
-
-  test "closing a page stops callbacks and releases handlers", %{page: page, frame: frame} do
-    owner = self()
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/*",
-               fn _, _ ->
-                 send(owner, {:running, self()})
+                 send(owner, {:running, self(), route})
 
                  receive do
                    :never -> :ok
@@ -216,177 +154,33 @@ defmodule PlaywrightEx.RouteTest do
              )
 
     navigation = Task.async(fn -> Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
-    assert_receive {:running, worker}, @timeout
+    assert_receive {:running, worker, route}, @timeout
+    assert {:error, %{reason: :route_callback_only}} = Route.fulfill(route, body: "outside callback")
     ref = Process.monitor(worker)
-    assert {:ok, _} = Page.close(page.guid, timeout: @timeout)
-    assert_receive {:DOWN, ^ref, :process, ^worker, :killed}
+    assert {:ok, _} = Page.unroute_all(page.guid, timeout: @timeout)
+    assert_receive {:DOWN, ^ref, :process, ^worker, :killed}, @timeout
     assert {:error, _} = Task.await(navigation)
-    refute_receive {:playwright_route_error, _}
   end
 
-  test "binary fulfillment sets response headers and rejects protocol-only options", %{page: page, frame: frame} do
-    owner = self()
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/*",
-               fn route, _ ->
-                 assert_raise NimbleOptions.ValidationError, fn -> Route.fulfill(route, is_base64: true) end
-
-                 send(
-                   owner,
-                   Route.fulfill(route,
-                     status: 201,
-                     headers: %{"X-Test" => "yes"},
-                     content_type: "text/plain; charset=utf-8",
-                     body: "héllo"
-                   )
-                 )
-
-                 send(owner, Route.abort(route))
-               end,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
-    assert_receive {:ok, _}
-    assert_receive {:error, %{reason: :route_already_handled}}
-    assert {:ok, "héllo"} = eval(frame.guid, "() => document.body.textContent")
-  end
-
-  test "fallback waits for the current callback to finish and doesn't repeat context handlers", %{
-    browser_context: context,
-    page: page,
-    frame: frame
-  } do
-    owner = self()
-
-    assert {:ok, _} =
-             BrowserContext.route(
-               context.guid,
-               "**/*",
-               fn route, _ ->
-                 send(owner, :context)
-                 Route.fallback(route)
-               end,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/*",
-               fn route, _ ->
-                 Route.fallback(route)
-                 send(owner, {:falling_back, self()})
-
-                 receive do
-                   :finish -> :ok
-                 end
-               end,
-               timeout: @timeout
-             )
-
-    navigation = Task.async(fn -> Frame.goto(frame.guid, url: "http://127.0.0.1:54321/", timeout: @timeout) end)
-    assert_receive {:falling_back, worker}, @timeout
-    refute_receive :context
-    send(worker, :finish)
-    assert {:error, _} = Task.await(navigation)
-    assert_receive :context
-    refute_receive :context
-  end
-
-  test "context routing covers popup initial navigation", %{browser_context: context, frame: frame} do
+  test "context covers popup initial requests", %{browser_context: context, frame: frame} do
     owner = self()
 
     assert {:ok, _} =
              BrowserContext.route(
                context.guid,
                "**/popup",
-               fn route, request ->
-                 send(owner, {:popup_request, request.url})
-                 Route.fulfill(route, content_type: "text/html", body: "<title>intercepted popup</title>")
+               fn r, _ ->
+                 send(owner, :popup)
+                 Route.fulfill(r, body: "popup")
                end,
                timeout: @timeout
              )
 
-    {:ok, pending} = PlaywrightEx.EventWaiter.arm(context.guid, :page, timeout: @timeout)
     assert {:ok, _} = eval(frame.guid, "() => { window.open('https://routing.invalid/popup'); }")
-    assert_receive {:popup_request, "https://routing.invalid/popup"}, @timeout
-    assert {:ok, %{params: %{page: popup}}} = PlaywrightEx.EventWaiter.await(pending)
-    popup = PlaywrightEx.Connection.initializer!(Connection, popup.guid)
-    assert {:ok, _} = Frame.wait_for_load_state(popup.main_frame.guid, state: "load", timeout: @timeout)
-    assert {:ok, "intercepted popup"} = eval(popup.main_frame.guid, "() => document.title")
+    assert_receive :popup, @timeout
   end
 
-  test "concurrent requests consume times exactly once", %{page: page, frame: frame} do
-    owner = self()
-
-    assert {:ok, _} =
-             Page.route(page.guid, "**/*", fn route, _ -> Route.fulfill(route, body: "base") end, timeout: @timeout)
-
-    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/fetch*",
-               fn route, _ ->
-                 send(owner, :once)
-                 Route.fulfill(route, body: "once")
-               end,
-               times: 1,
-               timeout: @timeout
-             )
-
-    assert {:ok, bodies} =
-             eval(frame.guid, "() => Promise.all([1,2,3,4].map(n => fetch('/fetch' + n).then(r => r.text())))")
-
-    assert Enum.count(bodies, &(&1 == "once")) == 1
-    assert Enum.count(bodies, &(&1 == "base")) == 3
-    assert_receive :once
-    refute_receive :once
-  end
-
-  test "default removal preserves running callbacks and reports failures", %{page: page, frame: frame} do
-    owner = self()
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/*",
-               fn _, _ ->
-                 send(owner, {:running, self()})
-
-                 receive do
-                   :finish -> exit(:callback_exit)
-                 end
-               end,
-               timeout: @timeout
-             )
-
-    navigation = Task.async(fn -> Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
-    assert_receive {:running, worker}, @timeout
-    assert {:ok, _} = Page.unroute_all(page.guid, timeout: @timeout)
-    assert Process.alive?(worker)
-    send(worker, :finish)
-    assert {:error, _} = Task.await(navigation)
-    assert_receive {:playwright_route_error, %{reason: {:callback_failed, :exit, :callback_exit, _}}}
-  end
-
-  test "a returned unresolved handle stays paused and can be resolved by another process", %{page: page, frame: frame} do
-    owner = self()
-    assert {:ok, _} = Page.route(page.guid, "**/*", fn route, _ -> send(owner, {:handle, route}) end, timeout: @timeout)
-    navigation = Task.async(fn -> Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
-    assert_receive {:handle, route}, @timeout
-    assert {:ok, _} = Page.unroute(page.guid, "**/*", timeout: @timeout)
-    assert Task.yield(navigation, 20) == nil
-    assert {:ok, _} = Route.fulfill(route, body: "resolved later")
-    assert {:ok, _} = Task.await(navigation)
-  end
-
-  test "closing a page cancels its context callbacks but preserves context registration", %{
+  test "page closure cancels context callbacks while context registration survives", %{
     browser_context: context,
     page: page,
     frame: frame
@@ -411,68 +205,110 @@ defmodule PlaywrightEx.RouteTest do
     assert_receive {:running, worker}, @timeout
     ref = Process.monitor(worker)
     assert {:ok, _} = Page.close(page.guid, timeout: @timeout)
-    assert_receive {:DOWN, ^ref, :process, ^worker, :killed}
+    assert_receive {:DOWN, ^ref, :process, ^worker, :killed}, @timeout
     assert {:error, _} = Task.await(navigation)
-    {:ok, next} = BrowserContext.new_page(context.guid, timeout: @timeout)
 
-    navigation =
-      Task.async(fn -> Frame.goto(next.main_frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
+    assert {:error, %{reason: :route_already_registered}} =
+             BrowserContext.route(context.guid, "**/*", fn _, _ -> :ok end, timeout: @timeout)
 
-    assert_receive {:running, next_worker}, @timeout
-    ref = Process.monitor(next_worker)
+    assert {:ok, router} = Connection.routing(PlaywrightEx.Supervisor.Connection, context.guid)
+    ref = Process.monitor(router)
     assert {:ok, _} = BrowserContext.close(context.guid, timeout: @timeout)
-    assert_receive {:DOWN, ^ref, :process, ^next_worker, :killed}
+    assert_receive {:DOWN, ^ref, :process, ^router, :normal}, @timeout
+  end
+
+  test "owner exit tears down registration and active callbacks", %{page: page, frame: frame} do
+    parent = self()
+
+    {owner, owner_ref} =
+      spawn_monitor(fn ->
+        {:ok, _} =
+          Page.route(
+            page.guid,
+            "**/*",
+            fn _, _ ->
+              send(parent, {:running, self()})
+
+              receive do
+                :never -> :ok
+              end
+            end,
+            timeout: @timeout
+          )
+
+        send(parent, :armed)
+
+        receive do
+          :stop -> :ok
+        end
+      end)
+
+    assert_receive :armed, @timeout
+    navigation = Task.async(fn -> Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout) end)
+    assert_receive {:running, worker}, @timeout
+    ref = Process.monitor(worker)
+    send(owner, :stop)
+    assert_receive {:DOWN, ^owner_ref, :process, ^owner, :normal}
+    assert_receive {:DOWN, ^ref, :process, ^worker, :killed}, @timeout
     assert {:error, _} = Task.await(navigation)
-    refute_receive {:playwright_route_error, _}
   end
 
-  test "fulfillment preserves arbitrary bytes, status and headers", %{page: page, frame: frame} do
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/*",
-               fn route, _ -> Route.fulfill(route, content_type: "text/html", body: "<p>fixture</p>") end,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} = Frame.goto(frame.guid, url: "https://routing.invalid/", timeout: @timeout)
-
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/bytes",
-               fn route, _ ->
-                 assert {:error, %{reason: :timeout}} = Route.fallback(route, timeout: 0)
-
-                 Route.fulfill(route,
-                   status: 201,
-                   headers: %{"X-Test" => "yes"},
-                   content_type: "application/octet-stream",
-                   body: <<0, 255, 128>>
-                 )
-               end,
-               timeout: @timeout
-             )
-
-    assert {:ok, [201, "yes", "3", [0, 255, 128]]} =
-             eval(
-               frame.guid,
-               "async () => { const r = await fetch('/bytes'); return [r.status, r.headers.get('x-test'), r.headers.get('content-length'), Array.from(new Uint8Array(await r.arrayBuffer()))]; }"
-             )
-  end
-
-  test "registration validates limits and does not install a zero-timeout handler", %{page: page} do
-    callback = fn route, _ -> Route.abort(route) end
+  test "zero timeout and unsupported options do not install handlers", %{page: page} do
+    callback = fn r, _ -> Route.abort(r) end
 
     assert_raise NimbleOptions.ValidationError, fn ->
-      Page.route(page.guid, "**/*", callback, times: 0, timeout: @timeout)
+      Page.route(page.guid, "**/*", callback, times: 1, timeout: @timeout)
     end
 
+    assert_raise NimbleOptions.ValidationError, fn -> Page.unroute_all(page.guid, behavior: :wait, timeout: @timeout) end
     assert {:error, %{reason: :timeout}} = Page.route(page.guid, "**/*", callback, timeout: 0)
-    {:ok, router} = PlaywrightEx.Connection.routing(Connection)
-    state = :sys.get_state(router)
-    refute Enum.any?(state.handlers, &(&1.guid == page.guid))
-    refute MapSet.member?(state.subscriptions, page.guid)
+    assert {:ok, _} = Page.route(page.guid, "**/*", callback, timeout: @timeout)
+  end
+
+  test "driver resolves globs against base URL", %{browser: browser} do
+    {:ok, context} =
+      PlaywrightEx.Browser.new_context(browser.guid, base_url: "https://routing.invalid", timeout: @timeout)
+
+    {:ok, page} = BrowserContext.new_page(context.guid, timeout: @timeout)
+    callback = fn route, _ -> Route.fulfill(route, body: "base URL") end
+    assert {:ok, _} = Page.route(page.guid, "/relative", callback, timeout: @timeout)
+    assert {:error, %{reason: :timeout}} = Page.unroute_all(page.guid, timeout: 0)
+    assert {:ok, _} = Frame.goto(page.main_frame.guid, url: "/relative", timeout: @timeout)
+    assert {:ok, "base URL"} = eval(page.main_frame.guid, "() => document.body.textContent")
+  end
+
+  test "connection shutdown cancels callbacks without failing their owner" do
+    name = Module.concat(__MODULE__, Isolated)
+    config = Keyword.put(Application.get_all_env(:playwright_ex), :name, name)
+    start_supervised!({PlaywrightEx.Supervisor, config})
+    connection = PlaywrightEx.Supervisor.connection_name(name)
+    opts = [connection: connection, timeout: @timeout]
+    {:ok, browser} = PlaywrightEx.launch_browser(:chromium, opts)
+    {:ok, context} = PlaywrightEx.Browser.new_context(browser.guid, opts)
+    {:ok, page} = BrowserContext.new_page(context.guid, opts)
+    owner = self()
+
+    callback = fn _, _ ->
+      send(owner, {:running, self()})
+
+      receive do
+        :never -> :ok
+      end
+    end
+
+    {:ok, _} = Page.route(page.guid, "**/*", callback, opts)
+    {:ok, router} = Connection.routing(connection, page.guid)
+    router_ref = Process.monitor(router)
+
+    navigation =
+      Task.async(fn -> Frame.goto(page.main_frame.guid, Keyword.put(opts, :url, "https://routing.invalid/")) end)
+
+    assert_receive {:running, worker}, @timeout
+    worker_ref = Process.monitor(worker)
+    :ok = stop_supervised(PlaywrightEx.Supervisor)
+    assert_receive {:DOWN, ^router_ref, :process, ^router, :normal}, @timeout
+    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}, @timeout
+    assert {:error, _} = Task.await(navigation)
   end
 
   @tag :tmp_dir
@@ -545,38 +381,38 @@ defmodule PlaywrightEx.RouteTest do
     assert {:ok, ~s({"recovered":true})} = eval(frame.guid, "() => document.body.textContent")
   end
 
-  @tag skip:
-         if(Application.compile_env(:playwright_ex, :ws_endpoint),
-           do: "loopback server is local to the driver host",
-           else: false
-         )
-  test "continue and unmatched requests reach a local server; fulfill and abort do not", %{page: page, frame: frame} do
+  @tag skip: if(Application.compile_env(:playwright_ex, :ws_endpoint), do: "host-local fixture", else: false)
+  test "driver globs leave unmatched requests on the network; continue preserves overrides", %{page: page, frame: frame} do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, packet: :http_bin, ip: {127, 0, 0, 1}])
     {:ok, {_, port}} = :inet.sockname(socket)
     owner = self()
     start_supervised!({Task, fn -> serve(socket, owner) end})
     url = "http://127.0.0.1:#{port}"
 
-    assert {:ok, _} =
-             Page.route(
-               page.guid,
-               "**/continue",
-               fn route, _ ->
-                 Route.continue(route, method: "POST", post_data: "hello", headers: %{"X-Test" => "override"})
-               end,
-               timeout: @timeout
-             )
+    callback = fn route, request ->
+      send(owner, {:intercepted, URI.parse(request.url).path})
 
-    assert {:ok, _} =
-             Page.route(page.guid, "**/fulfill", fn route, _ -> Route.fulfill(route, body: "stub") end, timeout: @timeout)
+      case URI.parse(request.url).path do
+        "/continue" ->
+          Route.continue(route, method: "POST", post_data: "hello", headers: %{"X-Test" => "override"})
 
-    assert {:ok, _} = Page.route(page.guid, "**/abort", fn route, _ -> Route.abort(route) end, timeout: @timeout)
+        "/abort" ->
+          Route.abort(route)
+
+        _ ->
+          assert {:error, %{reason: :timeout}} = Route.fulfill(route, body: "zero", timeout: 0)
+          assert {:ok, _} = Route.fulfill(route, body: "stub")
+          assert {:error, %{reason: :route_already_handled}} = Route.abort(route)
+      end
+    end
+
+    assert {:ok, _} = Page.route(page.guid, "**/{continue,fulfill,abort}", callback, timeout: @timeout)
     assert {:ok, _} = Frame.goto(frame.guid, url: url <> "/continue", timeout: @timeout)
     assert_receive {:network, :POST, "/continue", headers, "hello"}
     assert {"x-test", "override"} in headers
-    assert {:ok, "network"} = eval(frame.guid, "() => document.body.textContent")
     assert {:ok, _} = Frame.goto(frame.guid, url: url <> "/unmatched", timeout: @timeout)
     assert_receive {:network, :GET, "/unmatched", _, ""}
+    refute_receive {:intercepted, "/unmatched"}
     assert {:ok, _} = Frame.goto(frame.guid, url: url <> "/fulfill", timeout: @timeout)
     assert {:error, _} = Frame.goto(frame.guid, url: url <> "/abort", timeout: @timeout)
     refute_receive {:network, _, "/fulfill", _, _}

@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Connection do
   @min_genserver_timeout to_timeout(second: 1)
 
   defstruct config: %{js_logger: nil, transport: {nil, nil}},
-            routing: nil,
+            routing: %{},
             initializers: %{},
             types: %{},
             parents: %{},
@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Connection do
   def fetch_transport(name), do: call(name, :transport, 5_000)
 
   @doc false
-  def routing(name), do: call(name, :routing, 5_000)
+  def routing(name, guid, config \\ nil), do: call(name, {:routing, guid, config}, 5_000)
 
   @doc false
   def routing_scopes(name, guid), do: :gen_statem.call(name, {:routing_scopes, guid})
@@ -241,13 +241,22 @@ defmodule PlaywrightEx.Connection do
     {:keep_state_and_data, [{:reply, from, Map.fetch(data.initializers, guid)}]}
   end
 
-  def started({:call, from}, :routing, %{routing: nil} = data) do
-    {:ok, router} = PlaywrightEx.Routing.start(self())
-    {:keep_state, %{data | routing: router}, [{:reply, from, {:ok, router}}]}
-  end
+  def started({:call, from}, {:routing, guid, config}, data) do
+    pid = data.routing[guid]
+    alive? = pid && Process.alive?(pid)
 
-  def started({:call, from}, :routing, data) do
-    {:keep_state_and_data, [{:reply, from, {:ok, data.routing}}]}
+    cond do
+      is_nil(config) ->
+        {:keep_state_and_data, [{:reply, from, {:ok, if(alive?, do: pid)}}]}
+
+      alive? ->
+        {:keep_state_and_data, [{:reply, from, {:error, %{reason: :route_already_registered}}}]}
+
+      true ->
+        {:ok, router} = PlaywrightEx.Routing.start(%{config | connection: self()})
+        Process.monitor(router)
+        {:keep_state, put_in(data.routing[guid], router), [{:reply, from, {:ok, router}}]}
+    end
   end
 
   def started({:call, from}, {:routing_scopes, guid}, data) do
@@ -293,7 +302,8 @@ defmodule PlaywrightEx.Connection do
     end
   end
 
-  def started(:info, {:DOWN, ref, :process, _pid, _reason}, data) do
+  def started(:info, {:DOWN, ref, :process, pid, _reason}, data) do
+    data = %{data | routing: Map.reject(data.routing, fn {_, router} -> router == pid end)}
     {subscription, monitors} = Map.pop(data.subscription_monitors, ref)
     data = %{data | subscription_monitors: monitors}
     key = if subscription, do: elem(subscription, 0)

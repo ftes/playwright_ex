@@ -5,14 +5,16 @@ defmodule PlaywrightEx.Route do
 
   Handles carry their connection and registration timeout. Operations return
   `{:ok, result}` or `{:error, reason}` and accept `:connection` and `:timeout`
-  overrides. Each callback may resolve its handle once. Returning without
-  resolving it leaves the request paused until resolution or target closure.
+  overrides. Each callback must resolve its handle once, before returning.
+  Handles can only be used inside their callback process; returning without
+  resolution is a callback failure.
   """
 
-  alias PlaywrightEx.Routing
+  alias PlaywrightEx.ChannelResponse
+  alias PlaywrightEx.Connection
 
-  @opaque t :: %__MODULE__{router: pid(), token: reference(), connection: GenServer.server(), timeout: timeout()}
-  defstruct [:router, :token, :connection, :timeout]
+  @opaque t :: %__MODULE__{guid: PlaywrightEx.guid(), owner: pid(), connection: GenServer.server(), timeout: timeout()}
+  defstruct [:guid, :owner, :connection, :timeout]
 
   @doc """
   Serves a response without contacting the network.
@@ -82,17 +84,7 @@ defmodule PlaywrightEx.Route do
   headers (including Cookie) still apply. Headers carry over redirects; URL,
   method and body overrides apply only to the original request.
   """
-  def continue(%__MODULE__{} = route, opts \\ []), do: continue_or_fallback(route, :continue, opts)
-
-  @doc """
-  Tries the next matching handler, then the network if none remain.
-
-  Accepts the same overrides as `continue/2`. Subsequent callbacks see the
-  overrides in their request metadata, but matching uses the original URL.
-  """
-  def fallback(%__MODULE__{} = route, opts \\ []), do: continue_or_fallback(route, :fallback, opts)
-
-  defp continue_or_fallback(route, action, opts) do
+  def continue(%__MODULE__{} = route, opts \\ []) do
     opts =
       validate!(route, opts,
         url: [type: :string],
@@ -107,7 +99,7 @@ defmodule PlaywrightEx.Route do
       if Map.has_key?(params, :headers), do: Map.update!(params, :headers, &header_array(headers(&1))), else: params
 
     params = if Map.has_key?(params, :post_data), do: Map.update!(params, :post_data, &Base.encode64/1), else: params
-    resolve(route, action, params, opts)
+    resolve(route, :continue, Map.put(params, :is_fallback, false), opts)
   end
 
   defp validate!(route, opts, schema) do
@@ -123,7 +115,22 @@ defmodule PlaywrightEx.Route do
       raise ArgumentError, "route belongs to another connection"
     end
 
-    Routing.resolve(route, action, params, opts[:timeout])
+    cond do
+      route.owner != self() ->
+        {:error, %{reason: :route_callback_only}}
+
+      Process.get({__MODULE__, route.guid}) != false ->
+        {:error, %{reason: :route_already_handled}}
+
+      true ->
+        result =
+          opts[:connection]
+          |> Connection.send(%{guid: route.guid, method: action, params: params}, opts[:timeout])
+          |> ChannelResponse.unwrap(& &1)
+
+        if match?({:ok, _}, result), do: Process.put({__MODULE__, route.guid}, true)
+        result
+    end
   end
 
   defp headers(values), do: Map.new(values, fn {name, value} -> {String.downcase(to_string(name)), to_string(value)} end)

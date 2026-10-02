@@ -20,8 +20,7 @@ defmodule PlaywrightEx.Browser do
       ],
       base_url: [
         type: :string,
-        doc:
-          "Base URL for server-side navigation and URL resolution. Client-side route matchers still require full URLs or globs."
+        doc: "Base URL for server-side navigation and URL/glob resolution."
       ],
       bypass_csp: [
         type: :boolean,

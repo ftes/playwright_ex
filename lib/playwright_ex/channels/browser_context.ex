@@ -13,53 +13,44 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc group: :composed
   @doc """
-  Registers a request handler. See `PlaywrightEx.Route` for response operations.
+  Registers one handler for a driver-matched URL glob. A second registration
+  returns `{:error, %{reason: :route_already_registered}}`; remove it first.
+  Globs support `*`, `**`, `{a,b}`, and backslash escapes; `?` is literal.
+  Matching and base-URL resolution are delegated to Playwright.
 
-  `matcher` is a full-URL glob (`*` excludes `/`, `**` includes `/`, `{a,b}`
-  alternatives, backslash escapes; `?` is literal) or an Elixir `Regex`.
-  Regex matching uses Elixir semantics. Relative/base-URL resolution, URL
-  predicates, and URLPattern are not supported. Newest matching handlers run
-  first; page handlers precede context handlers. `:times` limits invocations.
+  Requires `:timeout`; accepts `:connection` and `on_error: :raise | :message`.
+  Registration is ready before returning. Callbacks run independently and
+  receive `(route, request)`, where request is a metadata map with `:guid`,
+  `:url`, `:method`, and `:headers`. Resolve the route inside the callback with
+  `PlaywrightEx.Route.fulfill/2`, `abort/2`, or `continue/2`, before returning.
 
-  Requires `:timeout`; accepts `:connection`. Registration is ready on return.
-  The callback receives `(route, request)` in a separate monitored process.
-  Request is a metadata map including `:guid`, `:url`, `:method`, and `:headers`.
-  It must resolve the route, or the request remains paused. Callback failures
-  abort unresolved requests and send `{:playwright_route_error, %{guid: guid,
-  matcher: matcher, reason: reason}}` to the registering process. The reason
-  includes exception kind, value, and stacktrace, or a process exit reason.
+  By default callback failures propagate through an OTP link to the registering
+  process (failing an ExUnit test). With `on_error: :message`, failures instead
+  send `{:playwright_route_error, %{guid: guid, matcher: glob, reason: reason}}`.
+  Unresolved failed requests are aborted. Registration ends when its owner,
+  target, or connection exits; active callbacks are canceled on teardown.
 
-  Context routes cover popup initial requests; page routes cannot. Service
-  Worker requests may bypass routing (set `service_workers: "block"` when
-  creating the context). Enabling routing disables HTTP caching. Handlers and
-  callbacks are cleaned up on target/connection closure.
+  Matching page routes precede context routes; continue goes straight to the
+  network. Context routes cover popup initial requests. Service Workers may
+  bypass routing; use `service_workers: "block"` when creating the context.
+  Routing disables HTTP caching. Handler chains, fallback, regexes, times, and
+  wait/ignore-errors removal modes are not supported.
   """
-  def route(guid, matcher, callback, opts \\ []), do: PlaywrightEx.Routing.register(guid, matcher, callback, opts)
+  def route(guid, glob, callback, opts \\ []), do: PlaywrightEx.Routing.register(guid, glob, callback, opts)
 
   @doc group: :composed
   @doc """
-  Removes handlers for the same matcher, optionally only the supplied callback.
-  Requires `:timeout`; accepts `:connection`. Already running callbacks continue
-  and their failures are still reported. Use `unroute_all/2` to wait or suppress
-  errors. Pass `nil` as callback to remove every handler for the matcher.
+  Removes the handler if its glob and optional callback match. Active callbacks
+  are canceled and unresolved requests aborted. Requires `:timeout`; accepts
+  `:connection`. This cancellation policy differs from Playwright.js unroute.
   """
   def unroute(guid, matcher, callback \\ nil, opts \\ [])
   def unroute(guid, matcher, opts, []) when is_list(opts), do: PlaywrightEx.Routing.remove(guid, matcher, nil, opts)
   def unroute(guid, matcher, callback, opts), do: PlaywrightEx.Routing.remove(guid, matcher, callback, opts)
 
   @doc group: :composed
-  @doc """
-  Removes all handlers. Requires `:timeout`; accepts `:connection` and `:behavior`:
-
-  * `:default` returns without waiting; running callback errors are reported.
-  * `:wait` waits for callbacks already running to finish, with no callback
-    deadline. Do not call from a callback on this target (it would await itself).
-  * `:ignore_errors` returns immediately and suppresses subsequent errors from
-    those callbacks. Unresolved failed requests are still aborted.
-
-  Removal does not cancel callbacks or resolve otherwise paused requests.
-  """
-  def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.remove_all(guid, opts)
+  @doc "Removes the handler and cancels active callbacks. Options: required `:timeout`, optional `:connection`."
+  def unroute_all(guid, opts \\ []), do: PlaywrightEx.Routing.remove(guid, :all, nil, opts)
 
   schema =
     NimbleOptions.new!(
