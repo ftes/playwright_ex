@@ -67,6 +67,8 @@ Alternatively, PlaywrightEx can connect to a remote playwright server:
 ## API Layers
 Most channel functions are thin protocol wrappers.
 In ExDoc, composed helpers are grouped under `Client-Composed Functions`.
+For request mocking, see `Page.route/4`, `BrowserContext.route/4`, and `Route`
+for usage examples, supported options, and callback lifecycle.
 
 Frame URL/load-state waits return synchronously and check recorded state first.
 URL predicate errors propagate to that wait's caller without affecting other waits.
@@ -104,68 +106,6 @@ reloads, and remains stable across same-document navigation.
 `EventWaiter` automatically enables opt-in Page and BrowserContext events while
 waiting. Predicates filter raw events; an optional `:transform` maps the accepted
 event inside the task, for example to save metadata before the channel closes.
-
-## Request routing
-
-Replace external resources while keeping real script tags and application code:
-
-```elixir
-alias PlaywrightEx.{Page, Route}
-
-{:ok, _} = Page.route(page.guid, "**/forms/js.php/**", fn route, _request ->
-  Route.fulfill(route,
-    content_type: "application/javascript",
-    body: "window.Formstack = { submit: () => 'acknowledged' };"
-  )
-end, connection: connection, timeout: 5_000)
-
-# Navigate normally; callbacks run independently of the navigating process.
-```
-
-Use `BrowserContext.route/4` to cover all pages, including popup initial requests.
-Each page or context supports **one active handler**. Registering another returns
-`{:error, %{reason: :route_already_registered}}`; remove the existing one first.
-Matching page handlers take precedence over context handlers. `Route.continue/2`
-goes straight to the network, bypassing context handlers. `Route.abort/2` cancels
-the request. Handles inherit the registration connection and timeout.
-
-The driver matches Playwright globs (`*`, `**`, `{a,b}`, backslash escapes), with
-its normal base-URL resolution. `?` is literal. Regexes, handler chains,
-`fallback`, `times`, and wait/ignore-errors removal modes are deferred.
-
-`Route.fulfill/2` accepts `:status`, `:headers`, `:content_type`, and one of binary
-`:body`, `:json`, or local `:path`. JSON is encoded automatically. Files infer
-content type from the extension and are read on the Elixir host, even with a
-remote browser. `:content_type` overrides the default. `:response` is deferred.
-
-```elixir
-Route.fulfill(route, json: %{ok: true})
-Route.fulfill(route, path: "test/fixtures/formstack_stub.js")
-```
-
-Resolve each request **inside its callback, before returning**. Returning without
-resolution is a failure. Callback exceptions/exits propagate through an OTP link
-to the registering process, normally failing an ExUnit test automatically. The
-connection and registrations owned by other processes remain unaffected. Pattern match
-on `{:ok, _}` inside callbacks to turn operation errors into callback failures.
-
-For an application that needs isolated error reporting, opt into
-`on_error: :message` at registration. Failures then abort the unresolved request
-and send `{:playwright_route_error, %{guid: guid, matcher: glob, reason: reason}}`
-to the registering process, while leaving the handler installed.
-
-`Page.unroute(page.guid, glob, timeout: 5_000)` removes a matching registration;
-an optional callback argument restricts removal to that function.
-`Page.unroute_all(page.guid, timeout: 5_000)` removes it unconditionally.
-Context equivalents work the same way. Removal **cancels active callbacks and
-aborts unresolved requests**, unlike Playwright.js's removal policies. Handles
-cannot be passed to other processes or retained after callbacks return.
-Registration and callbacks also end when their owner, target, or connection
-exits. Normal removal/closure does not fail the registering process.
-
-Routing disables HTTP caching. Service Workers can bypass interception; pass
-`service_workers: "block"` to `Browser.new_context/2` when testing such resources.
-See the [Playwright routing documentation](https://playwright.dev/docs/api/class-page#page-route).
 
 ## Downloads
 
