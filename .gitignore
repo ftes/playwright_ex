@@ -26,3 +26,4 @@ playwright_ex-*.tar
 /priv/plts/
 
 node_modules
+.claude/
