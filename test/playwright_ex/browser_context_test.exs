@@ -112,7 +112,8 @@ defmodule PlaywrightEx.BrowserContextTest do
         private_key:
           "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgd7APaIOC9SaWeXcnLaJvUwOtVFRIJEtAn7_XRNca-iehRANCAAR_QQZB2zOOZQEFMYs7F3fzikNpyFXuoNPyyqiJrhEpRrH4DgSS0IofC3rz5UiguK1yHJ_bh-hhSHA1lEQQO57j",
         public_key:
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEf0EGQdszjmUBBTGLOxd384pDachV7qDT8sqoia4RKUax-A4EktCKHwt68-VIoLitchyf24foYUhwNZREEDue4w"
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEf0EGQdszjmUBBTGLOxd384pDachV7qDT8sqoia4RKUax-A4EktCKHwt68-VIoLitchyf24foYUhwNZREEDue4w",
+        sign_count: 3
       }
 
       assert {:ok, _} =

@@ -559,7 +559,7 @@ defmodule PlaywrightEx.BrowserContext do
       ],
       credentials: [
         type: {:list, :map},
-        doc: "List of virtual WebAuthn credentials to restore into the context."
+        doc: "List of virtual WebAuthn credentials to restore into the context, including an optional `:sign_count`."
       ]
     )
 

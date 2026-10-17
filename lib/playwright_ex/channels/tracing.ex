@@ -23,6 +23,10 @@ defmodule PlaywrightEx.Tracing do
         type: :boolean,
         doc: "Whether to capture a screencast during tracing."
       ],
+      coverage: [
+        type: :boolean,
+        doc: "Whether to collect Istanbul coverage (`window.__coverage__`) from instrumented pages into the trace."
+      ],
       snapshots: [
         type: {:or, [:boolean, :map, :keyword_list]},
         type_spec:

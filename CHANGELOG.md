@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `Tracing.tracing_start/2` accepts `coverage: true` to collect Istanbul coverage into the trace.
+- Virtual WebAuthn credentials round-trip `sign_count` in storage state.
+
+### Changed
+- Require Playwright 1.64 or newer. Older local drivers are rejected, and remote
+  connections advertise 1.64. The bundled development dependency is 1.64.1.
+
 ### Fixed
 
 - Clear request interception after a timed-out installation, including queued requests.

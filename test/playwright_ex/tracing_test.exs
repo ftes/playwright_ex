@@ -31,6 +31,28 @@ defmodule PlaywrightEx.TracingTest do
       assert trace =~ ~s("type":"screenshot")
       assert trace =~ ~s("type":"screencast-frame")
     end
+
+    test "collects Istanbul coverage into the trace", %{tracing_id: tracing_id, frame: frame} do
+      {:ok, _} = Tracing.tracing_start(tracing_id, coverage: true, timeout: @timeout)
+      {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: @timeout)
+      {:ok, _} = Frame.goto(frame.guid, url: "about:blank", timeout: @timeout)
+
+      {:ok, _} =
+        eval(frame.guid, """
+        () => {
+          window.__coverage__ = {
+            "app.js": {path: "app.js", statementMap: {}, fnMap: {}, branchMap: {}, s: {"0": 2}, f: {}, b: {}}
+          };
+        }
+        """)
+
+      {:ok, zip_file} = Tracing.tracing_stop_chunk(tracing_id, timeout: @timeout)
+      {:ok, _} = Tracing.tracing_stop(tracing_id, timeout: @timeout)
+      {:ok, entries} = :zip.unzip(String.to_charlist(zip_file.absolute_path), [:memory])
+
+      assert [{_name, coverage}] = Enum.filter(entries, fn {name, _} -> to_string(name) =~ "coverage" end)
+      assert %{"app.js" => %{"s" => %{"0" => 2}}} = JSON.decode!(coverage)
+    end
   end
 
   describe "tracing_stop_chunk/2 modes" do
