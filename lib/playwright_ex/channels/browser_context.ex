@@ -492,6 +492,146 @@ defmodule PlaywrightEx.BrowserContext do
   schema =
     NimbleOptions.new!(
       connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
+
+  @doc """
+  Installs the virtual WebAuthn authenticator into the context.
+
+  It overrides `navigator.credentials.create()` and `navigator.credentials.get()` in all current
+  and future pages. Playwright recommends calling it before a page first uses them. Credentials
+  seeded with `credentials_create/3` reach a page only once the authenticator is installed.
+
+  Reference: https://playwright.dev/docs/api/class-credentials#credentials-install
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type credentials_install_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec credentials_install(PlaywrightEx.guid(), [credentials_install_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def credentials_install(context_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :credentials_install, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      id: [type: :string, doc: "Base64url-encoded credential id. Generated if omitted."],
+      user_handle: [type: :string, doc: "Base64url-encoded user handle. Generated if omitted."],
+      private_key: [
+        type: :string,
+        doc:
+          "Base64url-encoded PKCS#8 (DER) private key. Pass it with `:public_key`; if either is missing, both are generated."
+      ],
+      public_key: [
+        type: :string,
+        doc:
+          "Base64url-encoded SPKI (DER) public key. Pass it with `:private_key`; if either is missing, both are generated."
+      ],
+      sign_count: [
+        type: {:in, 0..4_294_967_295},
+        doc: "Initial signature counter. Each successful assertion increments it. Defaults to `0`."
+      ]
+    )
+
+  @doc """
+  Seeds a virtual WebAuthn credential for the relying party `rp_id` and returns it.
+
+  With no other options, generates an ECDSA P-256 key pair, a credential id and a user handle.
+  The credential is discoverable. To import a known credential, pass `:id`, `:user_handle`,
+  `:private_key` and `:public_key` together. The returned map carries the keys, so it can be stored
+  and seeded again.
+
+  Reference: https://playwright.dev/docs/api/class-credentials#credentials-create
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type credentials_create_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec credentials_create(PlaywrightEx.guid(), String.t(), [credentials_create_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, map()} | {:error, any()}
+  def credentials_create(context_id, rp_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    params = opts |> Map.new() |> Map.put(:rp_id, rp_id)
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :credentials_create, params: params}, timeout)
+    |> ChannelResponse.unwrap(& &1.credential)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt(),
+      id: [type: :string, doc: "Only return the credential with this base64url-encoded id."],
+      rp_id: [type: :string, doc: "Only return credentials for this relying party id."]
+    )
+
+  @doc """
+  Returns the credentials the virtual authenticator holds.
+
+  This includes credentials seeded with `credentials_create/3` and credentials a page registered
+  through `navigator.credentials.create()`.
+
+  Reference: https://playwright.dev/docs/api/class-credentials#credentials-get
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type credentials_get_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec credentials_get(PlaywrightEx.guid(), [credentials_get_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, [map()]} | {:error, any()}
+  def credentials_get(context_id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :credentials_get, params: Map.new(opts)}, timeout)
+    |> ChannelResponse.unwrap(& &1.credentials)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
+      timeout: PlaywrightEx.Channel.timeout_opt()
+    )
+
+  @doc """
+  Removes the credential with the base64url-encoded `id` from the virtual authenticator.
+
+  Reference: https://playwright.dev/docs/api/class-credentials#credentials-delete
+
+  ## Options
+  #{NimbleOptions.docs(schema)}
+  """
+  @schema schema
+  @type credentials_delete_opt :: unquote(NimbleOptions.option_typespec(schema))
+  @spec credentials_delete(PlaywrightEx.guid(), String.t(), [credentials_delete_opt() | PlaywrightEx.unknown_opt()]) ::
+          {:ok, any()} | {:error, any()}
+  def credentials_delete(context_id, id, opts \\ []) do
+    {connection, opts} = opts |> PlaywrightEx.Channel.validate_known!(@schema) |> Keyword.pop!(:connection)
+    {timeout, opts} = Keyword.pop!(opts, :timeout)
+    params = opts |> Map.new() |> Map.put(:id, id)
+
+    connection
+    |> Connection.send(%{guid: context_id, method: :credentials_delete, params: params}, timeout)
+    |> ChannelResponse.unwrap(& &1)
+  end
+
+  schema =
+    NimbleOptions.new!(
+      connection: PlaywrightEx.Channel.connection_opt(),
       timeout: PlaywrightEx.Channel.timeout_opt(),
       indexed_db: [
         type: :boolean,
