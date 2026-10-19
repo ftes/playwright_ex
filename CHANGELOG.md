@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `BrowserContext.credentials_install/2`, `credentials_create/3`, `credentials_get/2` and
+  `credentials_delete/3` wrap Playwright's virtual WebAuthn authenticator (`context.credentials`).
+
 ## [0.15.0] 2026-10-17
 
 ### Added
