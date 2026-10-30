@@ -4,6 +4,8 @@ defmodule PlaywrightEx.BrowserContextTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Dialog
   alias PlaywrightEx.Frame
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Route
 
   describe "add_init_script/2" do
     test "applies script to newly created pages", %{browser_context: browser_context} do
@@ -137,6 +139,103 @@ defmodule PlaywrightEx.BrowserContextTest do
                  credentials: [],
                  timeout: @timeout
                )
+    end
+  end
+
+  describe "credentials" do
+    @credential %{
+      id: "Y3JlZGVudGlhbC1pZA",
+      rp_id: "playwright.example",
+      user_handle: "dXNlci1oYW5kbGU",
+      private_key:
+        "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgd7APaIOC9SaWeXcnLaJvUwOtVFRIJEtAn7_XRNca-iehRANCAAR_QQZB2zOOZQEFMYs7F3fzikNpyFXuoNPyyqiJrhEpRrH4DgSS0IofC3rz5UiguK1yHJ_bh-hhSHA1lEQQO57j",
+      public_key:
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEf0EGQdszjmUBBTGLOxd384pDachV7qDT8sqoia4RKUax-A4EktCKHwt68-VIoLitchyf24foYUhwNZREEDue4w",
+      sign_count: 3
+    }
+
+    @register """
+    async () => {
+      const credential = await navigator.credentials.create({publicKey: {
+        challenge: new Uint8Array(16),
+        rp: {id: "playwright.example", name: "Example"},
+        user: {id: new Uint8Array(8), name: "ada", displayName: "Ada"},
+        pubKeyCredParams: [{type: "public-key", alg: -7}],
+        authenticatorSelection: {residentKey: "required"}
+      }})
+      return credential.type
+    }
+    """
+
+    test "create seeds a credential that get returns and delete removes", %{browser_context: browser_context} do
+      assert {:ok, %{id: id, rp_id: "playwright.example", sign_count: 0} = credential} =
+               BrowserContext.credentials_create(browser_context.guid, "playwright.example", timeout: @timeout)
+
+      assert {:ok, [^credential]} = BrowserContext.credentials_get(browser_context.guid, timeout: @timeout)
+      assert {:ok, [^credential]} = BrowserContext.credentials_get(browser_context.guid, id: id, timeout: @timeout)
+
+      assert {:ok, []} =
+               BrowserContext.credentials_get(browser_context.guid, rp_id: "other.example", timeout: @timeout)
+
+      assert {:ok, _} = BrowserContext.credentials_delete(browser_context.guid, id, timeout: @timeout)
+      assert {:ok, []} = BrowserContext.credentials_get(browser_context.guid, timeout: @timeout)
+    end
+
+    test "create imports a known credential", %{browser_context: browser_context} do
+      {rp_id, known} = Map.pop(@credential, :rp_id)
+
+      assert {:ok, @credential} =
+               BrowserContext.credentials_create(browser_context.guid, rp_id, Keyword.new(known) ++ [timeout: @timeout])
+    end
+
+    test "install answers the page's navigator.credentials.create", %{browser_context: browser_context} = context do
+      assert {:ok, _} = BrowserContext.credentials_install(browser_context.guid, timeout: @timeout)
+      serve_secure_page(context)
+
+      assert {:ok, "public-key"} = eval(context.frame.guid, @register)
+
+      assert {:ok, [%{rp_id: "playwright.example"}]} =
+               BrowserContext.credentials_get(browser_context.guid, timeout: @timeout)
+    end
+
+    test "install answers the page's navigator.credentials.get with a seeded credential", context do
+      %{browser_context: browser_context} = context
+      {rp_id, known} = Map.pop(@credential, :rp_id)
+
+      assert {:ok, _} =
+               BrowserContext.credentials_create(browser_context.guid, rp_id, Keyword.new(known) ++ [timeout: @timeout])
+
+      assert {:ok, _} = BrowserContext.credentials_install(browser_context.guid, timeout: @timeout)
+      serve_secure_page(context)
+
+      assert {:ok, "Y3JlZGVudGlhbC1pZA"} =
+               eval(context.frame.guid, """
+               async () => {
+                 const assertion = await navigator.credentials.get({publicKey: {
+                   challenge: new Uint8Array(16),
+                   rpId: "playwright.example"
+                 }})
+                 return assertion.id
+               }
+               """)
+
+      assert {:ok, [%{sign_count: 4}]} = BrowserContext.credentials_get(browser_context.guid, timeout: @timeout)
+    end
+
+    # Without an authenticator a headless ceremony never settles, so the test asks whether the
+    # function was replaced instead of waiting for it.
+    test "without install the page keeps the browser's own WebAuthn", context do
+      serve_secure_page(context)
+
+      assert {:ok, true} =
+               eval(context.frame.guid, "() => navigator.credentials.create.toString().includes('[native code]')")
+    end
+
+    # `navigator.credentials` exists only in a secure context, so the page needs an https origin.
+    defp serve_secure_page(%{page: page, frame: frame}) do
+      fulfill = fn route, _request -> Route.fulfill(route, content_type: "text/html", body: "<p>ok</p>") end
+      assert {:ok, _} = Page.route(page.guid, "**/*", fulfill, timeout: @timeout)
+      assert {:ok, _} = Frame.goto(frame.guid, url: "https://playwright.example/", timeout: @timeout)
     end
   end
 
