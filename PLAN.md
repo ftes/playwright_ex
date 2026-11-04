@@ -124,6 +124,8 @@ Conventions and the roll procedure: `PORTING.md`.
 
 ## Decisions
 
+Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
+
 - Versions mirror upstream major.minor from the breaking release on (`1.64.x` drives
   Playwright 1.64), the patch is ours, as in playwright-python. So upstream `since` is ours.
 - Locator rendering and URL globs via the driver's `LocalUtils.asLocatorDescription` and
