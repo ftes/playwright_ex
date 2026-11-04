@@ -198,3 +198,16 @@ Review: these shape the assertion API.
 - **Revisit**: nested-connection heap tables are never deleted (one ETS table per `connect`);
   `Playwright.errors` not exposed (the generator would mistype it).
 - Electron/Android are not in the JS api.json view at this pin; nothing to drop.
+
+## 2026-11-05: Which upstream specs to mirror
+
+- **Mirrored: every spec that exercises the client** (`tests/page`, `tests/library` incl.
+  `chromium/`, `firefox/`, `events/`), about 260 of 296 files.
+- **Not mirrored (they test driver internals or Node-only tooling, not the client)**:
+  `library/unit/*`, `library/inspector/*` (codegen UI), `trace-viewer`, `component-parser`,
+  `css-parser`, `locator-generator`, `locator-parser`, `role-utils`, `selector-generator`,
+  `snapshot-renderer`, `debug-controller`, `browser-server`/`browsertype-launch-server`
+  (`launchServer`, PLAN out of scope), `page/expect-builtins` and `matchers.misc` (jest generic
+  matchers, PLAN). Revisit `locator-generator` with PLAN "Then" item 4 (Elixir locator rendering).
+- **`expect.poll`/`toPass`** (test-runner features, not in api.json) become a poll helper in
+  `test/support/utils.ex` rather than library API.
