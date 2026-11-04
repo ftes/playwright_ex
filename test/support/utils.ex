@@ -211,4 +211,24 @@ defmodule PlaywrightEx.Utils do
   # `Page | Frame`: the facade module of a client handle.
   defp facade(PlaywrightEx.Client.Page), do: PlaywrightEx.Page
   defp facade(PlaywrightEx.Client.Frame), do: PlaywrightEx.Frame
+
+  @doc """
+  `expect.poll(fn).toX(...)` and `expect(async () => {...}).toPass()`: calls `assertion` until it
+  stops raising `ExUnit.AssertionError` and returns its result; after `timeout` ms (upstream's
+  default expect timeout, 5000) the last error is raised. Write `expect.poll(fn).toBe(x)` as
+  `to_pass(fn -> assert fun.() == x end)`.
+  """
+  def to_pass(assertion, timeout \\ 5000) do
+    to_pass(assertion, System.monotonic_time(:millisecond) + timeout, [100, 250, 500, 1000])
+  end
+
+  defp to_pass(assertion, deadline, intervals) do
+    assertion.()
+  rescue
+    error in ExUnit.AssertionError ->
+      [interval | rest] = intervals
+      if System.monotonic_time(:millisecond) + interval > deadline, do: reraise(error, __STACKTRACE__)
+      Process.sleep(interval)
+      to_pass(assertion, deadline, if(rest == [], do: [interval], else: rest))
+  end
 end
