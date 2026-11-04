@@ -211,7 +211,7 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `LongStandingScope`), with mirrored `page-goto`/`browsercontext-basic` specs and both launch
    specs. Done: `Locator`, `FrameLocator` and the selector methods of Frame/Page (`click`,
    `fill`, `text_content`, `get_by_*`, `$eval`, ...), with `locatorUtils` and mirrored
-   `locator-click`/`locator-list` specs. Not yet: routing,
+   `locator-click`/`locator-list`/`locator-convenience`/`locator-misc-1`/`page-check` specs. Not yet: routing,
    HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
    above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
    `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their
