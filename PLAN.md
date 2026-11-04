@@ -211,11 +211,10 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    and event payload shapes, links for class and event refs, notes as admonitions (`{: .info}`,
    from the `spec` AST), upstream "Added in" as `@doc since:` (versions are in sync, see
    Decisions), an "API" module group and an "Events" doc group, and the event list's broken
-   code blocks fixed. JS examples stay
-   until item 4 rewrites them. CI runs `mix docs --warnings-as-errors`. No NimbleOptions: its
-   validation can't do the conversion the schema already does (JS names, enum strings,
-   `:infinity`), and rendering docs and specs from our own schema is less work than mapping
-   api.json types onto its types.
+   code blocks fixed. JS examples stay until item 4 rewrites them. CI runs `mix docs
+   --warnings-as-errors`. No NimbleOptions: its validation can't do the conversion the schema
+   already does (JS names, enum strings, `:infinity`), and rendering docs and specs from our
+   own schema is less work than mapping api.json types onto its types.
 4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
    with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match
