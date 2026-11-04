@@ -3,8 +3,10 @@ defmodule PlaywrightEx.Client.Request do
   @moduledoc "Port of `Request` in `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Isomorphic.LongStandingScope
 
   def from(request) do
     request
@@ -140,7 +142,7 @@ defmodule PlaywrightEx.Client.Request do
       raise "Service Worker requests do not have an associated frame."
     end
 
-    frame = get(this, :_initializer).frame
+    frame = Frame.from(get(this, :_initializer).frame)
 
     if !get(frame, :_page) do
       raise Enum.join(
@@ -157,7 +159,7 @@ defmodule PlaywrightEx.Client.Request do
   end
 
   def _safe_page(this) do
-    frame = get(this, :_initializer)[:frame]
+    frame = Frame.from_nullable(get(this, :_initializer)[:frame])
     (frame && get(frame, :_page)) || nil
   end
 
@@ -231,5 +233,11 @@ defmodule PlaywrightEx.Client.Request do
     get(this, :_fallbackOverrides)
   end
 
-  # _targetClosedScope  -- not ported: LongStandingScope
+  def _target_closed_scope(this) do
+    service_worker = service_worker(this)
+    page = _safe_page(this)
+
+    (service_worker && get(service_worker, :_closedScope)) || (page && get(page, :_closedOrCrashedScope)) ||
+      LongStandingScope.new(this.baton)
+  end
 end

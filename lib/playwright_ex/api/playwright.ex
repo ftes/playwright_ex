@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Playwright do
   """
 
   @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
-  @opaque t :: %PlaywrightEx.Client.Playwright{}
+  @type t :: %PlaywrightEx.Client.Playwright{}
 
   @doc ~S"""
   This object can be used to launch or connect to Chromium, returning instances of `Browser`.
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Playwright do
   end
 
   @doc ~S"""
-  Returns a dictionary of devices to be used with `PlaywrightEx.Browser.new_context/2` or `Browser.newPage`.
+  Returns a dictionary of devices to be used with `PlaywrightEx.Browser.new_context/2` or `PlaywrightEx.Browser.new_page/2`.
 
   ```js
   const { webkit, devices } = require('playwright');

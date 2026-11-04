@@ -23,7 +23,7 @@ defmodule PlaywrightEx.BrowserType do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `BrowserType` handle. Compare handles with `==`, their fields are internal."
-  @opaque t :: %PlaywrightEx.Client.BrowserType{}
+  @type t :: %PlaywrightEx.Client.BrowserType{}
 
   @doc ~S"""
   A path where Playwright expects to find a bundled browser executable.

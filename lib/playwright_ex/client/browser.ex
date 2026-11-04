@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Client.Browser do
 
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.Page
 
   def from(browser) do
     browser
@@ -40,7 +41,16 @@ defmodule PlaywrightEx.Client.Browser do
     _inner_new_context(this, options, true)
   end
 
-  # _disconnectFromReusedContext  -- not ported: Page
+  def _disconnect_from_reused_context(this, reason) do
+    context = Enum.find(get(this, :_contexts), fn context -> get(context, :_forReuse) end)
+
+    if context do
+      # await this._instrumentation.runBeforeCloseBrowserContext(context);  -- not ported: instrumentation
+      for page <- BrowserContext.pages(context), do: Page._on_close(page)
+      BrowserContext._on_close(context)
+      channel_call(this, :disconnectFromReusedContext, %{reason: reason}, TimeoutSettings.k_no_timeout())
+    end
+  end
 
   def _inner_new_context(this, user_options, for_reuse) do
     # const options = this._browserType._playwright.selectors._withSelectorOptions(userOptions);  -- not ported: selectors
@@ -100,7 +110,19 @@ defmodule PlaywrightEx.Client.Browser do
   end
 
   # bind, unbind  -- not ported
-  # newPage  -- not ported: Page
+  def new_page(this, options \\ %{}) do
+    _wrap_api_call(
+      this,
+      fn _ ->
+        context = new_context(this, options)
+        page = BrowserContext.new_page(context)
+        put(page, :_ownedContext, context)
+        put(context, :_ownerPage, page)
+        page
+      end,
+      %{title: "Create page"}
+    )
+  end
 
   def is_connected(this) do
     get(this, :_isConnected)

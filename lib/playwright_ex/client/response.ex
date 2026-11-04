@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Client.Response do
 
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.Request
+  alias PlaywrightEx.Isomorphic.LongStandingScope
 
   def from(response) do
     response
@@ -81,7 +82,9 @@ defmodule PlaywrightEx.Client.Response do
     RawHeaders.get_all(_actual_headers(this), name)
   end
 
-  # finished  -- not ported: LongStandingScope
+  def finished(this) do
+    LongStandingScope.race(Request._target_closed_scope(request(this)), get(this, :_finishedPromise))
+  end
 
   def body(this) do
     channel_call(this, :body, %{}, TimeoutSettings.k_no_timeout()).binary

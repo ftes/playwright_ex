@@ -5,9 +5,18 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Page
 
-  @tag skip: "not ported: Page"
-  test "should reject all promises when browser is closed"
+  test "should reject all promises when browser is closed", %{browser_type: browser_type} do
+    browser = BrowserType.launch!(browser_type)
+    page = BrowserContext.new_page!(Browser.new_context!(browser))
+    never_resolves = Task.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end)
+    Page.evaluate!(page, "() => new Promise(f => window.builtins.setTimeout(f, 0))")
+    Browser.close!(browser)
+    {:error, error} = Task.await(never_resolves)
+    # WebKit under task-set -c 1 is giving browser, rest are giving target.
+    assert Exception.message(error) =~ " closed"
+  end
 
   # `{ userDataDir } as any`: the facade rejects options that are not in the API.
   test "should throw if userDataDir option is passed", %{browser_type: browser_type} do

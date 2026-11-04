@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Request do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Request` handle. Compare handles with `==`, their fields are internal."
-  @opaque t :: %PlaywrightEx.Client.Request{}
+  @type t :: %PlaywrightEx.Client.Request{}
 
   @doc ~S"""
   An object with all the request HTTP headers associated with this request. The header names are lower-cased.
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Request do
     console.log(`request ${request.url()} from a frame ${request.frame().url()}`);
   ```
   """
-  @spec frame(t()) :: term()
+  @spec frame(t()) :: PlaywrightEx.Frame.t()
   def frame(request) do
     PlaywrightEx.Client.Request.frame(request)
   end

@@ -18,7 +18,10 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.EventEmitter
+  alias PlaywrightEx.Client.Frame
+  alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.LocalUtils
+  alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Playwright
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
@@ -89,15 +92,15 @@ defmodule PlaywrightEx.Client.Connection do
         "Electron" => dummy,
         "ElectronApplication" => dummy,
         "ElementHandle" => dummy,
-        "Frame" => dummy,
-        "JSHandle" => dummy,
+        "Frame" => &Frame.new/4,
+        "JSHandle" => &JSHandle.new/4,
         "JsonPipe" => dummy,
         "LocalUtils" => fn parent, type, guid, init ->
           result = LocalUtils.new(parent, type, guid, init)
           if !get(this, :_localUtils), do: put(this, :_localUtils, result)
           result
         end,
-        "Page" => dummy,
+        "Page" => &Page.new/4,
         "Playwright" => &Playwright.new/4,
         "Request" => &Request.new/4,
         "Response" => &Response.new/4,

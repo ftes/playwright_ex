@@ -149,7 +149,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     body = """
     @typedoc "A `#{name}` handle. Compare handles with `==`, their fields are internal."
-    @opaque t :: #{struct_type(name)}
+    @type t :: #{struct_type(name)}
     #{event_type(events)}
 
     #{Enum.map_join(ported, "\n\n", &member_source(ctx, class, &1, receiver))}

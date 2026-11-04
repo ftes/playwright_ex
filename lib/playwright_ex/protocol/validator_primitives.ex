@@ -81,12 +81,14 @@ defmodule PlaywrightEx.Protocol.ValidatorPrimitives do
 
   def validate({:array, _scheme}, arg, path, _context), do: fail("#{path}: expected array, got #{type_of(arg)}")
 
+  # Not a `for` with `value = validate(...)` as a filter: a falsy match filters, so `false` would be dropped.
   def validate({:object, schemes}, arg, path, context) when is_map(arg) do
-    for {key, scheme} <- schemes,
-        value = validate(scheme, fetch(arg, key), if(path == "", do: "#{key}", else: "#{path}.#{key}"), context),
-        value != nil,
-        into: %{},
-        do: {key, value}
+    Enum.reduce(schemes, %{}, fn {key, scheme}, result ->
+      case validate(scheme, fetch(arg, key), if(path == "", do: "#{key}", else: "#{path}.#{key}"), context) do
+        nil -> result
+        value -> Map.put(result, key, value)
+      end
+    end)
   end
 
   def validate({:object, _schemes}, :null, path, _context), do: fail("#{path}: expected object, got null")

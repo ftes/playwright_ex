@@ -76,7 +76,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
         case get(item, "type") do
           "interface" -> interface(ctx, acc, name, item)
           "object" -> add_scheme(acc, name, object_type(ctx, get(item, "properties")))
-          "enum" -> add_scheme(acc, name, {:enum, get(item, "literals")})
+          "enum" -> add_scheme(acc, name, {:enum, literals(get(item, "literals"))})
           "mixin" -> acc
         end
       end)
@@ -200,7 +200,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
     scheme =
       cond do
         String.starts_with?(kind, "array") -> {:array, wrap(inline_type(ctx, get(type, "items")))}
-        String.starts_with?(kind, "enum") -> {:enum, get(type, "literals")}
+        String.starts_with?(kind, "enum") -> {:enum, literals(get(type, "literals"))}
         String.starts_with?(kind, "object") -> {:object, properties(ctx, get(type, "properties"))}
         true -> raise "Invalid item: #{inspect(type)}"
       end
@@ -289,4 +289,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
   defp get(_, _key), do: nil
 
   defp title_case(<<first::utf8, rest::binary>>), do: String.upcase(<<first::utf8>>) <> rest
+
+  # `'${literal}'` upstream: a YAML `null` literal is the string "null".
+  defp literals(literals), do: Enum.map(literals, &if(&1 == nil, do: "null", else: to_string(&1)))
 end

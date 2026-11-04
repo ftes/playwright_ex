@@ -9,11 +9,16 @@ defmodule PlaywrightEx.UpstreamCase do
       `browser` (launched once per module)
     * `server`, `https_server` (`PlaywrightEx.TestServer`, reset before each test),
       `asset` (`asset.("file-to-upload.txt")` is its path under upstream `tests/assets`)
+    * `context_factory` (`context_factory.(options)`; its contexts are closed after the test)
+    * `context`, `page` for tests tagged `:page` (`@moduletag :page` for `pageTest` specs):
+      upstream creates fixtures lazily, here a tag asks for them.
 
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
   """
   use ExUnit.CaseTemplate
 
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.TestServer
@@ -27,7 +32,8 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   setup_all %{module: module} do
-    start_supervised!({PlaywrightEx.Supervisor, name: module})
+    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...).
+    start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
     playwright = PlaywrightEx.playwright(module)
     browser_name = System.get_env("BROWSER", "chromium")
     browser_type = browser_type(playwright, browser_name)
@@ -60,6 +66,32 @@ defmodule PlaywrightEx.UpstreamCase do
     TestServer.reset(server)
     TestServer.reset(https_server)
     :ok
+  end
+
+  setup %{browser: browser} do
+    {:ok, contexts} = Agent.start(fn -> [] end)
+
+    context_factory = fn options ->
+      context = Browser.new_context!(browser, options)
+      Agent.update(contexts, &[context | &1])
+      context
+    end
+
+    on_exit(fn ->
+      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context)
+      Agent.stop(contexts)
+    end)
+
+    %{context_factory: context_factory}
+  end
+
+  setup %{context_factory: context_factory} = tags do
+    if tags[:page] do
+      context = context_factory.([])
+      %{context: context, page: BrowserContext.new_page!(context)}
+    else
+      :ok
+    end
   end
 
   defp browser_type(playwright, "chromium"), do: Playwright.chromium(playwright)

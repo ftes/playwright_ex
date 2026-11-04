@@ -3,14 +3,12 @@
 defmodule PlaywrightEx.Response do
   @moduledoc ~S"""
   `Response` class represents responses which are received by page.
-
-  Not ported yet: `finished`.
   """
 
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Response` handle. Compare handles with `==`, their fields are internal."
-  @opaque t :: %PlaywrightEx.Client.Response{}
+  @type t :: %PlaywrightEx.Client.Response{}
 
   @doc ~S"""
   An object with all the response HTTP headers associated with this response.
@@ -41,9 +39,23 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
+  Waits for this response to finish, returns always `null`.
+  """
+  @spec finished(t()) :: {:ok, nil | Exception.t()} | {:error, Exception.t()}
+  def finished(response) do
+    Facade.async("response.finished", response, fn -> PlaywrightEx.Client.Response.finished(response) end)
+  end
+
+  @doc "Like `finished/1`, but returns the value and raises on error."
+  @spec finished!(t()) :: nil | Exception.t()
+  def finished!(response) do
+    Facade.async!("response.finished", response, fn -> PlaywrightEx.Client.Response.finished(response) end)
+  end
+
+  @doc ~S"""
   Returns the `Frame` that initiated this response.
   """
-  @spec frame(t()) :: term()
+  @spec frame(t()) :: PlaywrightEx.Frame.t()
   def frame(response) do
     PlaywrightEx.Client.Response.frame(response)
   end

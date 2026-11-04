@@ -86,7 +86,7 @@ defmodule PlaywrightEx.BrowserContext do
       console.log(await newPage.evaluate('location.href'));
       ```
 
-                      **NOTE** Use `Page.waitForLoadState` to wait until the page gets to a particular state (you should not
+                      **NOTE** Use `PlaywrightEx.Page.wait_for_load_state/3` to wait until the page gets to a particular state (you should not
       need it in most cases).
     * `:page_close` - Emitted when a page in this context is closed. See also `Page.close` to receive events about a specific
       page.
@@ -114,13 +114,13 @@ defmodule PlaywrightEx.BrowserContext do
 
       Emitted when new service worker is created in the context.
 
-  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `newPage`, `removeAllListeners`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `serviceWorkers`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`, `waitForEvent`.
+  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `serviceWorkers`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`, `waitForEvent`.
   """
 
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `BrowserContext` handle. Compare handles with `==`, their fields are internal."
-  @opaque t :: %PlaywrightEx.Client.BrowserContext{}
+  @type t :: %PlaywrightEx.Client.BrowserContext{}
   @type event ::
           :background_page
           | :close
@@ -189,7 +189,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   Returns an empty list.
   """
-  @spec background_pages(t()) :: [term()]
+  @spec background_pages(t()) :: [PlaywrightEx.Page.t()]
   def background_pages(browser_context) do
     PlaywrightEx.Client.BrowserContext.background_pages(browser_context)
   end
@@ -389,9 +389,27 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc ~S"""
+  Creates a new page in the browser context.
+  """
+  @spec new_page(t()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
+  def new_page(browser_context) do
+    Facade.async("browserContext.newPage", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.new_page(browser_context)
+    end)
+  end
+
+  @doc "Like `new_page/1`, but returns the value and raises on error."
+  @spec new_page!(t()) :: PlaywrightEx.Page.t()
+  def new_page!(browser_context) do
+    Facade.async!("browserContext.newPage", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.new_page(browser_context)
+    end)
+  end
+
+  @doc ~S"""
   Returns all open pages in the context.
   """
-  @spec pages(t()) :: [term()]
+  @spec pages(t()) :: [PlaywrightEx.Page.t()]
   def pages(browser_context) do
     PlaywrightEx.Client.BrowserContext.pages(browser_context)
   end
@@ -400,14 +418,14 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc ~S"""
   This setting will change the default maximum navigation time for the following methods and related shortcuts:
-  - `Page.goBack`
-  - `Page.goForward`
-  - `Page.goto`
-  - `Page.reload`
-  - `Page.setContent`
+  - `PlaywrightEx.Page.go_back/2`
+  - `PlaywrightEx.Page.go_forward/2`
+  - `PlaywrightEx.Page.goto/3`
+  - `PlaywrightEx.Page.reload/2`
+  - `PlaywrightEx.Page.set_content/3`
   - `Page.waitForNavigation`
 
-  **NOTE** `Page.setDefaultNavigationTimeout` and `Page.setDefaultTimeout` take priority over
+  **NOTE** `PlaywrightEx.Page.set_default_navigation_timeout/2` and `PlaywrightEx.Page.set_default_timeout/2` take priority over
   `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`.
 
   ## Arguments
@@ -430,7 +448,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   This setting will change the default maximum time for all the methods accepting `timeout` option.
 
-  **NOTE** `Page.setDefaultNavigationTimeout`, `Page.setDefaultTimeout` and
+  **NOTE** `PlaywrightEx.Page.set_default_navigation_timeout/2`, `PlaywrightEx.Page.set_default_timeout/2` and
   `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2` take priority over
   `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -449,7 +467,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc ~S"""
   The extra HTTP headers will be sent with every request initiated by any page in the context. These headers are
-  merged with page-specific extra HTTP headers set with `Page.setExtraHTTPHeaders`. If page overrides a
+  merged with page-specific extra HTTP headers set with `PlaywrightEx.Page.set_extra_http_headers/2`. If page overrides a
   particular header, page-specific header value will be used instead of the browser context header value.
 
   **NOTE** `PlaywrightEx.BrowserContext.set_extra_http_headers/2` does not guarantee the order of headers in the outgoing

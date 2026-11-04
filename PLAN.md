@@ -53,8 +53,9 @@ a migration guide maps old calls to new ones.
 - Unknown options and enum values raise `ArgumentError` in both forms (programmer errors).
   Upstream tests that pass options `as any` assert that rejection instead.
 - `void` methods return `:ok` (`close/2`, `close!/2`). Handles stay the client structs
-  (no conversion at every boundary, one term per object), behind an opaque
-  `PlaywrightEx.Browser.t()` and inspected as `#PlaywrightEx.Browser<guid>`.
+  (no conversion at every boundary, one term per object), typed `PlaywrightEx.Browser.t()` and
+  inspected as `#PlaywrightEx.Browser<guid>`. Not `@opaque`: since OTP 28 opaques are nominal, so
+  a client function returning a typed struct violates the facade spec of another module.
 - Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`) and the
   callback form (`Page.expect_popup(page, fn -> ... end)`).
 
@@ -184,16 +185,15 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
 1. Done: generator for the `api.json` facade (`mix playwright_ex.gen.api`, phase 2). Callback
    forms (`expect_popup`) and matcher shapes land with the classes that need them.
 2. Core port (connection → page/frame/locator → network → matchers), then the remaining
-   classes, released as one breaking version with the migration guide. Next: a thin slice
+   classes, released as one breaking version with the migration guide. Done: the thin slice
    through BrowserContext → Page → Frame (`new_context`/`new_page`, `goto`, `url`, `title`,
-   `close`, the `:page` event, the `Request`/`Response` that `goto` needs), with mirrored
-   `page-goto`/`browsercontext-basic` specs and the two launch specs waiting on Page and
-   BrowserContext. Done so far: `Request`/`Response`/`RawHeaders` (network.ts, without
-   routing and `finished`), `BrowserContext` and `Browser.new_context` (without pages,
-   routing, bindings, tracing; `waitForEvent` waits for the promise handle above).
-   Release gate: "generate
-   all". Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
-   Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
+   `close`, the `:page` event, `evaluate`, `Request`/`Response`/`JSHandle` constructors,
+   `LongStandingScope`), with mirrored `page-goto`/`browsercontext-basic` specs and both launch
+   specs. Not yet: routing, HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/
+   `waitForNavigation` (promise handle above), selectors and locators, so their specs stay
+   skipped. Next: locators on Frame/Page. Release gate: "generate all". Out-of-scope classes
+   and members (`launchServer`, `connectOverCDP(transport)`, Electron/Android unless ported)
+   are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing
    impl is a compile warning and fails CI. Classes can switch one at a time once complete
    (a rules entry), so finished ones can't regress while the rest are ported.

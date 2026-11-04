@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   use PlaywrightEx.Client.ChannelOwner
 
   alias PlaywrightEx.Client.Network
+  alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Isomorphic.Headers
@@ -39,7 +40,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     # this._channel.on('bindingCall', ...)  -- not ported: BindingCall
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
-    # this._channel.on('page', ...)  -- not ported: Page
+    EventEmitter.on(_channel(this), "page", fn %{page: page} -> _on_page(this, Page.from(page)) end)
     # this._channel.on('route' | 'webSocketRoute', ...)  -- not ported: routing
     # this._channel.on('serviceWorker' | 'console' | 'pageError', ...)  -- not ported: Worker, ConsoleMessage, WebError
     # this._channel.on('dialog' | 'dialogClosed', ...)  -- not ported: Dialog
@@ -84,30 +85,35 @@ defmodule PlaywrightEx.Client.BrowserContext do
     end
   end
 
-  # _onPage  -- not ported: Page
+  defp _on_page(this, page) do
+    set_add(this, :_pages, page)
+    emit(this, Events.BrowserContext.page(), page)
+    opener = get(page, :_opener)
+    if opener && !Page.is_closed(opener), do: emit(opener, Events.Page.popup(), page)
+  end
 
   defp _on_request(this, request, page) do
     emit(this, Events.BrowserContext.request(), request)
-    if page, do: emit(page, Events.Page.request(), request)
+    if page = Page.from_nullable(page), do: emit(page, Events.Page.request(), request)
   end
 
   defp _on_response(this, response, page) do
     emit(this, Events.BrowserContext.response(), response)
-    if page, do: emit(page, Events.Page.response(), response)
+    if page = Page.from_nullable(page), do: emit(page, Events.Page.response(), response)
   end
 
   defp _on_request_failed(this, request, response_end_timing, failure_text, page) do
     put(request, :_failureText, failure_text || nil)
     Request._set_response_end_timing(request, response_end_timing)
     emit(this, Events.BrowserContext.request_failed(), request)
-    if page, do: emit(page, Events.Page.request_failed(), request)
+    if page = Page.from_nullable(page), do: emit(page, Events.Page.request_failed(), request)
   end
 
   defp _on_request_finished(this, params) do
     %{responseEndTiming: response_end_timing} = params
     request = Request.from(params.request)
     response = Response.from_nullable(params[:response])
-    page = params[:page]
+    page = Page.from_nullable(params[:page])
     Request._set_response_end_timing(request, response_end_timing)
     emit(this, Events.BrowserContext.request_finished(), request)
     if page, do: emit(page, Events.Page.request_finished(), request)
@@ -138,7 +144,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
     get(this, :_closingStatus) != "none"
   end
 
-  # newPage  -- not ported: Page
+  def new_page(this) do
+    if get(this, :_ownerPage), do: raise("Please use browser.newContext()")
+    Page.from(channel_call(this, :newPage, %{}, TimeoutSettings.k_no_timeout()).page)
+  end
 
   def cookies(this, urls \\ nil) do
     urls = if !urls, do: [], else: urls

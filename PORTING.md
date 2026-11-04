@@ -53,7 +53,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 | `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all` | `Promise.new/2`, `then_/2`, `catch_/2`, `race/2`, `all/2` |
 | `setTimeout` / `clearTimeout` | `Baton.set_timeout/3` / `Baton.clear_timeout/1` |
 | `currentZone().data(...)`, `.with(...).run(...)` | `Zones.data/1`, `Zones.with/3` |
-| `throw` / `try {} catch` / `instanceof` | `raise` / `rescue` / struct match (`Errors.is_playwright_error/1`) |
+| `throw` / `try {} catch` / `instanceof` | `raise` / `rescue` / struct match (`Errors.is_playwright_error/1`); `new Error(msg)` is `raise msg` (`RuntimeError`) |
 | `e.message = ...` | `e = Errors.rewrite_error_message(e, ...)` (exceptions are immutable) |
 | `undefined` / `null` | `nil` / `:null` |
 | `let x` reassigned inside a closure | a heap field, or restructure the closure to return the value |

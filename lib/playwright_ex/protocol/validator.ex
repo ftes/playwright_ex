@@ -2880,7 +2880,7 @@ defmodule PlaywrightEx.Protocol.Validator do
          n: {:optional, :float},
          b: {:optional, :boolean},
          s: {:optional, :string},
-         v: {:optional, {:enum, [nil, "undefined", "NaN", "Infinity", "-Infinity", "-0"]}},
+         v: {:optional, {:enum, ["null", "undefined", "NaN", "Infinity", "-Infinity", "-0"]}},
          d: {:optional, :string},
          u: {:optional, :string},
          bi: {:optional, :string},

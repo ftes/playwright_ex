@@ -7,6 +7,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       member, argument and option whose type refers to one of them (`logger: Logger`).
     * Drops JS-only members (`@dropped_members`).
     * Documents the Elixir forms of `timeout`.
+    * Page functions (`expression`, a `[function]|[string]` in JS) are JS source strings.
 
   Still to come with the classes they need: callback forms (`expect_popup`), the
   `to_have_screenshot` path rule.
@@ -33,9 +34,18 @@ defmodule Mix.PlaywrightEx.ApiRules do
   end
 
   defp member(member) do
-    args = for arg <- member["args"], keep?(arg["type"]), do: property(arg)
+    args = for arg <- member["args"], keep?(arg["type"]), do: arg |> expression() |> property()
     %{member | "args" => args}
   end
+
+  defp expression(%{"name" => "expression", "type" => %{"union" => union} = type} = arg) when is_list(union) do
+    case Enum.reject(union, &(&1["name"] == "function")) do
+      [single] -> %{arg | "type" => single}
+      rest -> %{arg | "type" => %{type | "union" => rest}}
+    end
+  end
+
+  defp expression(arg), do: arg
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "comment", @timeout_doc, &"#{&1}\n\n#{@timeout_doc}") |> type()
