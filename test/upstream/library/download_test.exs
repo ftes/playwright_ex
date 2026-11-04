@@ -604,7 +604,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     Page.close!(page)
   end
 
-  test ~s(should download even if there is no "attachment" value), %{browser: browser, server: server} do
+  test "should download even if there is no \"attachment\" value", %{browser: browser, server: server} do
     # Do not set the "attachment" value.
     TestServer.set_route(server, "/download", &send_attachment(&1, "Hello world", "filename=foo.txt"))
 
