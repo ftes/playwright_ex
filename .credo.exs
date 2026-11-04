@@ -11,6 +11,7 @@ upstream_shaped = ported ++ [~r"lib/playwright_ex/runtime/", ~r"lib/playwright_e
       checks: %{
         extra: [
           {Credo.Check.Readability.PredicateFunctionNames, files: %{excluded: ported}},
+          {Credo.Check.Refactor.NegatedConditionsWithElse, files: %{excluded: ported}},
           {Credo.Check.Refactor.MatchInCondition, files: %{excluded: ported}},
           {Credo.Check.Refactor.CyclomaticComplexity, files: %{excluded: upstream_shaped}},
           {Credo.Check.Refactor.Nesting, files: %{excluded: upstream_shaped}}
