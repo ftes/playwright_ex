@@ -100,10 +100,10 @@ defmodule PlaywrightEx.BrowserType do
       browser closes.
     * `:channel` - Browser distribution channel.
 
-      Use "chromium" to [opt in to new headless mode](../browsers.md#chromium-new-headless-mode).
+      Use "chromium" to [opt in to new headless mode](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
 
       Use "chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge", "msedge-beta", "msedge-dev", or
-      "msedge-canary" to use branded [Google Chrome and Microsoft Edge](../browsers.md#google-chrome--microsoft-edge).
+      "msedge-canary" to use branded [Google Chrome and Microsoft Edge](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge).
     * `:chromium_sandbox` - Enable Chromium sandboxing. Defaults to `false`.
     * `:downloads_path` - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and
       is deleted when browser is closed. In either case, the downloads are deleted when the browser context they were

@@ -6,7 +6,8 @@
 # PlaywrightEx
 
 Elixir client for Playwright, being rebuilt as a 1:1 port of the official JavaScript client.
-The public API is not there yet; see `PLAN.md`.
+The public API is generated from upstream's docs and so far covers `Playwright`, `BrowserType`
+and `Browser`; see `PLAN.md`.
 
 ## Contributing
 

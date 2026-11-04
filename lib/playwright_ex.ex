@@ -6,12 +6,15 @@ defmodule PlaywrightEx do
 
       {:ok, _} = PlaywrightEx.Supervisor.start_link()
       playwright = PlaywrightEx.playwright()
+      {:ok, browser} = PlaywrightEx.BrowserType.launch(PlaywrightEx.Playwright.chromium(playwright))
+      :ok = PlaywrightEx.Browser.close(browser)
 
-  The generated public API is not there yet; until then, `PlaywrightEx.Client.*` is the
-  ported client and `PlaywrightEx.Runtime.Api.call/3` the entry point for calls into it.
+  The public API (`PlaywrightEx.Playwright`, `PlaywrightEx.BrowserType`, ...) is generated from
+  upstream's docs by `mix playwright_ex.gen.api` and grows as `PlaywrightEx.Client.*` is ported.
   """
 
-  @doc "The root `Playwright` object of the driver started as `name`."
+  @doc "The root `PlaywrightEx.Playwright` object of the driver started as `name`."
+  @spec playwright(atom()) :: PlaywrightEx.Playwright.t()
   def playwright(name \\ __MODULE__),
     do: PlaywrightEx.OutOfProcess.playwright(PlaywrightEx.Supervisor.out_of_process(name))
 end

@@ -45,7 +45,14 @@ a migration guide maps old calls to new ones.
 - `on/3` returns the emitter and `off/3` takes the same fun, as in JS. The subscription
   update is sent before `on/3` returns.
 - The facade sets the API name for errors (`page.waitForURL`), validates options, carries
-  docs/specs and delegates to `Client.*`. A missing impl function is a compile warning.
+  docs/specs and delegates to `Client.*`. `mix playwright_ex.gen.api` emits the members the
+  client exports and lists the rest as not ported, so regenerate after porting a method
+  (`mix playwright_ex.parity` flags a stale facade). The facade calls the client directly: a
+  client function that disappears is a compile warning.
+- Unknown options and enum values raise `ArgumentError` in both forms (programmer errors).
+  Upstream tests that pass options `as any` assert that rejection instead.
+- `void` methods return `:ok` (`close/2`, `close!/2`). Handles stay the client structs
+  (`PlaywrightEx.Browser.t()` is `%PlaywrightEx.Client.Browser{}`).
 - Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`) and the
   callback form (`Page.expect_popup(page, fn -> ... end)`).
 
@@ -167,8 +174,8 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
 
 ## Then
 
-1. Generator for the `api.json` facade (`protocol.yml` channels, parity task and upstream test
-   infrastructure landed in phase 1).
+1. Done: generator for the `api.json` facade (`mix playwright_ex.gen.api`, phase 2). Callback
+   forms (`expect_popup`) and matcher shapes land with the classes that need them.
 2. Core port (connection → page/frame/locator → network → matchers), then the remaining
    classes, released as one breaking version with the migration guide.
 3. Later: Elixir syntax wherever the client produces the text. Locator descriptions and

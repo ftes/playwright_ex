@@ -444,6 +444,11 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       [_, kind, class, member] = Regex.run(~r/\[`(\w+): (\w+)\.(\w+)`\]/, link)
       link(ctx, kind, class, member)
     end)
+    |> String.replace(~r/\]\((\.\.\/|\.\/)?([\w\/-]+)\.md(#[\w-]*)?\)/, fn link ->
+      [_, rel, page | anchor] = Regex.run(~r/\]\((\.\.\/|\.\/)?([\w\/-]+)\.md(#[\w-]*)?\)/, link)
+      # Relative to docs/src/api/.
+      "](https://playwright.dev/docs/#{if rel == "../", do: page, else: "api/" <> page}#{anchor})"
+    end)
     |> String.replace(~r/\n{3,}/, "\n\n")
     |> String.trim()
   end
