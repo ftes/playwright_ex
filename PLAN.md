@@ -231,12 +231,9 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `to_be_ok`, `to_have_screenshot`), bindings/`exposeFunction`/`addInitScript`/Disposable/
    locator handlers, artifacts (Artifact, Stream, Download, Video, Screencast, Tracing). Done:
    Clock, Coverage, WebStorage, CDPSession, Selectors, Debugger, Credentials, WebMCP,
-   `launchPersistentContext`, `connect`, `connectOverCDP` (url). Not yet: routing,
-   HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
-   above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
-   `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their
-   specs stay skipped. Next: ElementHandle (unblocks `Locator.evaluate`, used by most specs),
-   then matchers. Release gate: "generate all".
+   `launchPersistentContext`, `connect`, `connectOverCDP` (url). In progress: remaining members (`removeAllListeners`,
+   `storageState`, `emulateMedia`, `requestGC`, `pause`, `pdf`), mirroring the remaining
+   upstream page/library specs (see DECISIONS "Which upstream specs to mirror"). Release gate: "generate all".
    Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
    Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing impl

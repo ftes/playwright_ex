@@ -211,3 +211,15 @@ Review: these shape the assertion API.
   matchers, PLAN). Revisit `locator-generator` with PLAN "Then" item 4 (Elixir locator rendering).
 - **`expect.poll`/`toPass`** (test-runner features, not in api.json) become a poll helper in
   `test/support/utils.ex` rather than library API.
+
+## 2026-11-05: Mirrored page specs (groups 1-4)
+
+- **Test-only conventions**: browser-conditional `it.fixme`/`it.skip` become `browser_name`
+  checks; upstream `test.fail` becomes a `refute`; JS `null` args are `:null` so error messages
+  match. Nested describes are flattened (`describe "a b"`), ExUnit has no nesting.
+- **`toMatchSnapshot`, `comparePNGs`, `decodeWebp`, JS test hooks, `AbortSignal`, `toImpl`**
+  stay skipped (test-runner or server internals). Revisit: a few screenshot tests are partly
+  portable.
+- **page-autowaiting-basic "waitForLoadState(load)"** skipped: upstream's expected ordering
+  depends on JS microtask depth (one extra `.then` hop), which Elixir tasks don't reproduce.
+  Not a lib bug. Revisit if the baton runtime should order continuations across processes.
