@@ -39,7 +39,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   *Since 1.34.* Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
 
-  The arguments passed into `console.log` and the page are available on the [`ConsoleMessage`](https://playwright.dev/docs/api/class-consolemessage) event handler argument.
+  The arguments passed into `console.log` and the page are available on the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) event handler argument.
 
   **Usage**
 
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ### `:dialog`
 
-  *Since 1.34.* Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept) or [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss) the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
+  *Since 1.34.* Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either `PlaywrightEx.Dialog.accept/2` or `PlaywrightEx.Dialog.dismiss/1` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
 
   **Usage**
 
@@ -71,7 +71,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ### `:dialog_closed`
 
-  *Since 1.63.* Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept), by [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the headed browser.
+  *Since 1.63.* Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by `PlaywrightEx.Dialog.accept/2`, by `PlaywrightEx.Dialog.dismiss/1`, or manually by the user in the headed browser.
 
   ### `:download`
 
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   Emitted when new service worker is created in the context.
 
-  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `serviceWorkers`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`, `waitForEvent`.
+  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`, `waitForEvent`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -567,6 +567,19 @@ defmodule PlaywrightEx.BrowserContext do
     PlaywrightEx.Client.BrowserContext.pages(browser_context)
   end
 
+  @doc since: "1.11"
+  @doc ~S"""
+  > #### Note {: .info}
+  >
+  > Service workers are only supported on Chromium-based browsers.
+
+  All existing service workers in the context.
+  """
+  @spec service_workers(t()) :: [PlaywrightEx.Worker.t()]
+  def service_workers(browser_context) do
+    PlaywrightEx.Client.BrowserContext.service_workers(browser_context)
+  end
+
   @set_default_navigation_timeout_timeout :timeout
 
   @doc since: "1.8"
@@ -808,9 +821,9 @@ defmodule PlaywrightEx.BrowserContext do
   @doc group: "Events"
   @spec on(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
-  @spec on(t(), :console, (term() -> term())) :: t()
-  @spec on(t(), :dialog, (term() -> term())) :: t()
-  @spec on(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec on(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
+  @spec on(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec on(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec on(t(), :download, (term() -> term())) :: t()
   @spec on(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -818,12 +831,12 @@ defmodule PlaywrightEx.BrowserContext do
   @spec on(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec on(t(), :web_error, (term() -> term())) :: t()
+  @spec on(t(), :web_error, (PlaywrightEx.WebError.t() -> term())) :: t()
   @spec on(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec on(t(), :service_worker, (term() -> term())) :: t()
+  @spec on(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def on(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.on(
@@ -836,9 +849,9 @@ defmodule PlaywrightEx.BrowserContext do
   @doc group: "Events"
   @spec once(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
-  @spec once(t(), :console, (term() -> term())) :: t()
-  @spec once(t(), :dialog, (term() -> term())) :: t()
-  @spec once(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec once(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
+  @spec once(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec once(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec once(t(), :download, (term() -> term())) :: t()
   @spec once(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -846,12 +859,12 @@ defmodule PlaywrightEx.BrowserContext do
   @spec once(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec once(t(), :web_error, (term() -> term())) :: t()
+  @spec once(t(), :web_error, (PlaywrightEx.WebError.t() -> term())) :: t()
   @spec once(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec once(t(), :service_worker, (term() -> term())) :: t()
+  @spec once(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def once(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.once(
@@ -864,9 +877,9 @@ defmodule PlaywrightEx.BrowserContext do
   @doc group: "Events"
   @spec add_listener(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
-  @spec add_listener(t(), :console, (term() -> term())) :: t()
-  @spec add_listener(t(), :dialog, (term() -> term())) :: t()
-  @spec add_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec add_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
+  @spec add_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec add_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec add_listener(t(), :download, (term() -> term())) :: t()
   @spec add_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -874,12 +887,12 @@ defmodule PlaywrightEx.BrowserContext do
   @spec add_listener(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec add_listener(t(), :web_error, (term() -> term())) :: t()
+  @spec add_listener(t(), :web_error, (PlaywrightEx.WebError.t() -> term())) :: t()
   @spec add_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec add_listener(t(), :service_worker, (term() -> term())) :: t()
+  @spec add_listener(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def add_listener(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.add_listener(
@@ -892,9 +905,9 @@ defmodule PlaywrightEx.BrowserContext do
   @doc group: "Events"
   @spec remove_listener(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
-  @spec remove_listener(t(), :console, (term() -> term())) :: t()
-  @spec remove_listener(t(), :dialog, (term() -> term())) :: t()
-  @spec remove_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec remove_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
+  @spec remove_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec remove_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec remove_listener(t(), :download, (term() -> term())) :: t()
   @spec remove_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -902,12 +915,12 @@ defmodule PlaywrightEx.BrowserContext do
   @spec remove_listener(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec remove_listener(t(), :web_error, (term() -> term())) :: t()
+  @spec remove_listener(t(), :web_error, (PlaywrightEx.WebError.t() -> term())) :: t()
   @spec remove_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec remove_listener(t(), :service_worker, (term() -> term())) :: t()
+  @spec remove_listener(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def remove_listener(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.remove_listener(
@@ -920,9 +933,9 @@ defmodule PlaywrightEx.BrowserContext do
   @doc group: "Events"
   @spec off(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
-  @spec off(t(), :console, (term() -> term())) :: t()
-  @spec off(t(), :dialog, (term() -> term())) :: t()
-  @spec off(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec off(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
+  @spec off(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec off(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec off(t(), :download, (term() -> term())) :: t()
   @spec off(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -930,12 +943,12 @@ defmodule PlaywrightEx.BrowserContext do
   @spec off(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec off(t(), :web_error, (term() -> term())) :: t()
+  @spec off(t(), :web_error, (PlaywrightEx.WebError.t() -> term())) :: t()
   @spec off(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec off(t(), :service_worker, (term() -> term())) :: t()
+  @spec off(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def off(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.off(
@@ -948,9 +961,9 @@ defmodule PlaywrightEx.BrowserContext do
   @doc group: "Events"
   @spec prepend_listener(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
-  @spec prepend_listener(t(), :console, (term() -> term())) :: t()
-  @spec prepend_listener(t(), :dialog, (term() -> term())) :: t()
-  @spec prepend_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec prepend_listener(t(), :download, (term() -> term())) :: t()
   @spec prepend_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -958,12 +971,12 @@ defmodule PlaywrightEx.BrowserContext do
   @spec prepend_listener(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec prepend_listener(t(), :web_error, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :web_error, (PlaywrightEx.WebError.t() -> term())) :: t()
   @spec prepend_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec prepend_listener(t(), :service_worker, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def prepend_listener(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.prepend_listener(

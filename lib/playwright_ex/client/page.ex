@@ -4,11 +4,16 @@ defmodule PlaywrightEx.Client.Page do
   use PlaywrightEx.Client.ChannelOwner
 
   alias PlaywrightEx.Client.BrowserContext
+  alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Frame
+  alias PlaywrightEx.Client.Keyboard
+  alias PlaywrightEx.Client.Mouse
   alias PlaywrightEx.Client.Network
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Client.Touchscreen
+  alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
 
@@ -36,8 +41,10 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_browserContext, parent)
     put(this, :_timeoutSettings, TimeoutSettings.new(get(parent, :_timeoutSettings)))
 
-    # this.keyboard / mouse / touchscreen = new ...(this);  -- not ported: input
+    put(this, :keyboard, Keyboard.new(this))
+    put(this, :mouse, Mouse.new(this))
     put(this, :request, get(parent, :request))
+    put(this, :touchscreen, Touchscreen.new(this))
     # this.clock = this._browserContext.clock;  -- not ported: Clock
     # this.localStorage / sessionStorage = new WebStorage(...);  -- not ported: WebStorage
 
@@ -69,7 +76,8 @@ defmodule PlaywrightEx.Client.Page do
       put(this, :_viewportSize, event[:viewportSize])
     end)
 
-    # this._channel.on('webSocket' | 'worker', ...)  -- not ported: WebSocket, Worker
+    # this._channel.on('webSocket', ...)  -- not ported: WebSocket
+    EventEmitter.on(_channel(this), "worker", fn %{worker: worker} -> _on_worker(this, Worker.from(worker)) end)
 
     # this.coverage = new Coverage(this._channel);  -- not ported: Coverage
 
@@ -95,6 +103,11 @@ defmodule PlaywrightEx.Client.Page do
     this
   end
 
+  # readonly properties
+  def keyboard(this), do: get(this, :keyboard)
+  def mouse(this), do: get(this, :mouse)
+  def touchscreen(this), do: get(this, :touchscreen)
+
   defp _on_frame_attached(this, frame) do
     put(frame, :_page, this)
     set_add(this, :_frames, frame)
@@ -113,7 +126,12 @@ defmodule PlaywrightEx.Client.Page do
 
   # _onRoute, _onWebSocketRoute  -- not ported: routing
   # _onBinding  -- not ported: BindingCall
-  # _onWorker  -- not ported: Worker
+
+  def _on_worker(this, worker) do
+    set_add(this, :_workers, worker)
+    put(worker, :_page, this)
+    emit(this, Events.Page.worker(), worker)
+  end
 
   def _on_close(this) do
     put(this, :_closed, true)
@@ -355,7 +373,27 @@ defmodule PlaywrightEx.Client.Page do
     Frame.fill(get(this, :_mainFrame), selector, value, options || %{})
   end
 
-  # clearConsoleMessages, consoleMessages, clearPageErrors, pageErrors  -- not ported: ConsoleMessage
+  def clear_console_messages(this) do
+    channel_call(this, :clearConsoleMessages, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def console_messages(this, options \\ nil) do
+    %{messages: messages} =
+      channel_call(this, :consoleMessages, %{filter: options[:filter]}, TimeoutSettings.k_no_timeout())
+
+    Enum.map(messages, &ConsoleMessage.new(&1, this, nil))
+  end
+
+  def clear_page_errors(this) do
+    channel_call(this, :clearPageErrors, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def page_errors(this, options \\ nil) do
+    %{errors: errors} = channel_call(this, :pageErrors, %{filter: options[:filter]}, TimeoutSettings.k_no_timeout())
+    Enum.map(errors, &Errors.parse_error/1)
+  end
 
   def locator(this, selector, options \\ nil) do
     Frame.locator(main_frame(this), selector, options)
@@ -486,7 +524,10 @@ defmodule PlaywrightEx.Client.Page do
     Enum.map(requests, &Request.from/1)
   end
 
-  # workers  -- not ported: Worker
+  def workers(this) do
+    get(this, :_workers)
+  end
+
   # pause, pdf, ariaSnapshot, ariaSnapshotJSON, _setDockTile  -- not ported
 end
 

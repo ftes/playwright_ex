@@ -3,10 +3,15 @@ defmodule PlaywrightEx.Client.BrowserContext do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.ConsoleMessage
+  alias PlaywrightEx.Client.Dialog
+  alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Network
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Client.WebError
+  alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
 
   def from(context) do
@@ -42,8 +47,72 @@ defmodule PlaywrightEx.Client.BrowserContext do
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
     EventEmitter.on(_channel(this), "page", fn %{page: page} -> _on_page(this, Page.from(page)) end)
     # this._channel.on('route' | 'webSocketRoute', ...)  -- not ported: routing
-    # this._channel.on('serviceWorker' | 'console' | 'pageError', ...)  -- not ported: Worker, ConsoleMessage, WebError
-    # this._channel.on('dialog' | 'dialogClosed', ...)  -- not ported: Dialog
+    EventEmitter.on(_channel(this), "serviceWorker", fn %{worker: worker} ->
+      service_worker = Worker.from(worker)
+      put(service_worker, :_context, this)
+      set_add(this, :_serviceWorkers, service_worker)
+      emit(this, Events.BrowserContext.service_worker(), service_worker)
+    end)
+
+    EventEmitter.on(_channel(this), "console", fn event ->
+      worker = Worker.from_nullable(event[:worker])
+      page = Page.from_nullable(event[:page])
+      console_message = ConsoleMessage.new(event, page, worker)
+      if worker, do: emit(worker, Events.Worker.console(), console_message)
+      if page, do: emit(page, Events.Page.console(), console_message)
+
+      if worker && set_has(this, :_serviceWorkers, worker) do
+        scope = _service_worker_scope(this, worker)
+
+        for page <- get(this, :_pages) do
+          if scope && String.starts_with?(Page.url(page), scope), do: emit(page, Events.Page.console(), console_message)
+        end
+      end
+
+      emit(this, Events.BrowserContext.console(), console_message)
+    end)
+
+    EventEmitter.on(_channel(this), "pageError", fn %{error: error, page: page, location: location} ->
+      page_object = Page.from(page)
+      parsed_error = Errors.parse_error(error)
+      emit(this, Events.BrowserContext.web_error(), WebError.new(page_object, parsed_error, location))
+      if page_object, do: emit(page_object, Events.Page.page_error(), parsed_error)
+    end)
+
+    EventEmitter.on(_channel(this), "dialog", fn %{dialog: dialog} ->
+      dialog_object = Dialog.from(dialog)
+      has_listeners = emit(this, Events.BrowserContext.dialog(), dialog_object)
+      page = Dialog.page(dialog_object)
+
+      has_listeners =
+        if page, do: emit(page, Events.Page.dialog(), dialog_object) || has_listeners, else: has_listeners
+
+      if !has_listeners do
+        # Although we do similar handling on the server side, we still need this logic
+        # on the client side due to a possible race condition between two async calls:
+        # a) removing "dialog" listener subscription (client->server)
+        # b) actual "dialog" event (server->client)
+        if Dialog.type(dialog_object) == "beforeunload",
+          do:
+            Promise.catch_(
+              Promise.async(fn -> channel_call(dialog, :accept, %{}, TimeoutSettings.k_no_timeout()) end),
+              fn _ -> nil end
+            ),
+          else:
+            Promise.catch_(
+              Promise.async(fn -> channel_call(dialog, :dismiss, %{}, TimeoutSettings.k_no_timeout()) end),
+              fn _ -> nil end
+            )
+      end
+    end)
+
+    EventEmitter.on(_channel(this), "dialogClosed", fn %{dialog: dialog} ->
+      dialog_object = Dialog.from(dialog)
+      emit(this, Events.BrowserContext.dialog_closed(), dialog_object)
+      page = Dialog.page(dialog_object)
+      if page, do: emit(page, Events.Page.dialog_closed(), dialog_object)
+    end)
+
     EventEmitter.on(_channel(this), "request", fn %{request: request} = event ->
       _on_request(this, Request.from(request), event[:page])
     end)
@@ -122,7 +191,16 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
   # _onRoute, _onWebSocketRoute  -- not ported: routing
   # _onBinding  -- not ported: BindingCall
-  # _serviceWorkerScope  -- not ported: Worker
+
+  defp _service_worker_scope(_this, service_worker) do
+    try do
+      # new URL('.', serviceWorker.url()).href
+      url = URI.to_string(URI.merge(URI.new!(Worker.url(service_worker)), "."))
+      if !String.ends_with?(url, "/"), do: url <> "/", else: url
+    rescue
+      _ -> nil
+    end
+  end
 
   def set_default_navigation_timeout(this, timeout) do
     TimeoutSettings.set_default_navigation_timeout(get(this, :_timeoutSettings), timeout)
@@ -222,7 +300,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
     []
   end
 
-  # serviceWorkers  -- not ported: Worker
+  def service_workers(this) do
+    get(this, :_serviceWorkers)
+  end
+
   # newCDPSession  -- not ported: CDPSession
 
   def _on_close(this) do

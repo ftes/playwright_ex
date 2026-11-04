@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page do
 
   Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
 
-  The arguments passed into `console.log` are available on the [`ConsoleMessage`](https://playwright.dev/docs/api/class-consolemessage) event handler argument.
+  The arguments passed into `console.log` are available on the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) event handler argument.
 
   **Usage**
 
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Page do
 
   ### `:dialog`
 
-  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept) or [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss) the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
+  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either `PlaywrightEx.Dialog.accept/2` or `PlaywrightEx.Dialog.dismiss/1` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
 
   **Usage**
 
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Page do
 
   ### `:dialog_closed`
 
-  *Since 1.63.* Emitted when a JavaScript dialog has been closed, either by [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept), by [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the headed browser.
+  *Since 1.63.* Emitted when a JavaScript dialog has been closed, either by `PlaywrightEx.Dialog.accept/2`, by `PlaywrightEx.Dialog.dismiss/1`, or manually by the user in the headed browser.
 
   ### `:dom_content_loaded`
 
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `addScriptTag`, `addStyleTag`, `coverage`, `emulateMedia`, `evaluateHandle`, `exposeBinding`, `exposeFunction`, `frame`, `requestGC`, `keyboard`, `clearConsoleMessages`, `clearPageErrors`, `localStorage`, `sessionStorage`, `consoleMessages`, `pageErrors`, `mouse`, `pause`, `pdf`, `$`, `$$`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `screenshot`, `setInputFiles`, `ariaSnapshot`, `ariaSnapshotJSON`, `touchscreen`, `unrouteAll`, `unroute`, `video`, `waitForEvent`, `waitForFunction`, `waitForNavigation`, `waitForRequest`, `waitForResponse`, `waitForSelector`, `waitForURL`, `webmcp`, `workers`.
+  Not ported yet: `clock`, `addInitScript`, `addScriptTag`, `addStyleTag`, `coverage`, `emulateMedia`, `evaluateHandle`, `exposeBinding`, `exposeFunction`, `frame`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `$`, `$$`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `screenshot`, `setInputFiles`, `ariaSnapshot`, `ariaSnapshotJSON`, `unrouteAll`, `unroute`, `video`, `waitForEvent`, `waitForFunction`, `waitForNavigation`, `waitForRequest`, `waitForResponse`, `waitForSelector`, `waitForURL`, `webmcp`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -432,7 +432,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `position`.
   1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -624,7 +624,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to double click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `position`.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
@@ -2076,7 +2076,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to hover over the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `position`.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
@@ -2509,6 +2509,104 @@ defmodule PlaywrightEx.Page do
     Facade.async!("page.isVisible", page, fn -> PlaywrightEx.Client.Page.is_visible(page, selector, options) end)
   end
 
+  @doc since: "1.8"
+  @doc ""
+  @spec keyboard(t()) :: PlaywrightEx.Keyboard.t()
+  def keyboard(page) do
+    PlaywrightEx.Client.Page.keyboard(page)
+  end
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Clears all stored console messages from this page. Subsequent calls to `PlaywrightEx.Page.console_messages/2` will only return messages logged after the clear.
+  """
+  @spec clear_console_messages(t()) :: :ok | {:error, Exception.t()}
+  def clear_console_messages(page) do
+    Facade.async_void("page.clearConsoleMessages", page, fn -> PlaywrightEx.Client.Page.clear_console_messages(page) end)
+  end
+
+  @doc since: "1.59"
+  @doc "Like `clear_console_messages/1`, but returns the value and raises on error."
+  @spec clear_console_messages!(t()) :: :ok
+  def clear_console_messages!(page) do
+    Facade.async_void!("page.clearConsoleMessages", page, fn ->
+      PlaywrightEx.Client.Page.clear_console_messages(page)
+    end)
+  end
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Clears all stored page errors from this page. Subsequent calls to `PlaywrightEx.Page.page_errors/2` will only return errors thrown after the clear.
+  """
+  @spec clear_page_errors(t()) :: :ok | {:error, Exception.t()}
+  def clear_page_errors(page) do
+    Facade.async_void("page.clearPageErrors", page, fn -> PlaywrightEx.Client.Page.clear_page_errors(page) end)
+  end
+
+  @doc since: "1.59"
+  @doc "Like `clear_page_errors/1`, but returns the value and raises on error."
+  @spec clear_page_errors!(t()) :: :ok
+  def clear_page_errors!(page) do
+    Facade.async_void!("page.clearPageErrors", page, fn -> PlaywrightEx.Client.Page.clear_page_errors(page) end)
+  end
+
+  @console_messages_options {:object,
+                             %{filter: {:filter, {:enum, %{all: "all", since_navigation: "since-navigation"}}}}}
+
+  @typedoc "Options of `console_messages`, see its docs."
+  @type console_messages_options ::
+          [filter: :all | :since_navigation] | %{optional(:filter) => :all | :since_navigation}
+
+  @doc since: "1.56"
+  @doc ~S"""
+  Returns up to (currently) 200 last console messages from this page. See [`Page.on(:console)`](PlaywrightEx.Page.html#module-console) for more details.
+
+  ## Options
+
+  * `:filter` - *Since 1.59.* Controls which messages are returned:
+  """
+  @spec console_messages(t(), console_messages_options()) ::
+          {:ok, [PlaywrightEx.ConsoleMessage.t()]} | {:error, Exception.t()}
+  def console_messages(page, options \\ []) do
+    options = Facade.options!(options, @console_messages_options, "page.consoleMessages")
+    Facade.async("page.consoleMessages", page, fn -> PlaywrightEx.Client.Page.console_messages(page, options) end)
+  end
+
+  @doc since: "1.56"
+  @doc "Like `console_messages/2`, but returns the value and raises on error."
+  @spec console_messages!(t(), console_messages_options()) :: [PlaywrightEx.ConsoleMessage.t()]
+  def console_messages!(page, options \\ []) do
+    options = Facade.options!(options, @console_messages_options, "page.consoleMessages")
+    Facade.async!("page.consoleMessages", page, fn -> PlaywrightEx.Client.Page.console_messages(page, options) end)
+  end
+
+  @page_errors_options {:object, %{filter: {:filter, {:enum, %{all: "all", since_navigation: "since-navigation"}}}}}
+
+  @typedoc "Options of `page_errors`, see its docs."
+  @type page_errors_options :: [filter: :all | :since_navigation] | %{optional(:filter) => :all | :since_navigation}
+
+  @doc since: "1.56"
+  @doc ~S"""
+  Returns up to (currently) 200 last page errors from this page. See [`Page.on(:page_error)`](PlaywrightEx.Page.html#module-page_error) for more details.
+
+  ## Options
+
+  * `:filter` - *Since 1.59.* Controls which errors are returned:
+  """
+  @spec page_errors(t(), page_errors_options()) :: {:ok, [Exception.t()]} | {:error, Exception.t()}
+  def page_errors(page, options \\ []) do
+    options = Facade.options!(options, @page_errors_options, "page.pageErrors")
+    Facade.async("page.pageErrors", page, fn -> PlaywrightEx.Client.Page.page_errors(page, options) end)
+  end
+
+  @doc since: "1.56"
+  @doc "Like `page_errors/2`, but returns the value and raises on error."
+  @spec page_errors!(t(), page_errors_options()) :: [Exception.t()]
+  def page_errors!(page, options \\ []) do
+    options = Facade.options!(options, @page_errors_options, "page.pageErrors")
+    Facade.async!("page.pageErrors", page, fn -> PlaywrightEx.Client.Page.page_errors(page, options) end)
+  end
+
   @locator_options {:object,
                     %{
                       has: {:has, nil},
@@ -2575,6 +2673,13 @@ defmodule PlaywrightEx.Page do
   end
 
   @doc since: "1.8"
+  @doc ""
+  @spec mouse(t()) :: PlaywrightEx.Mouse.t()
+  def mouse(page) do
+    PlaywrightEx.Client.Page.mouse(page)
+  end
+
+  @doc since: "1.8"
   @doc ~S"""
   Returns the opener for popup pages and `null` for others. If the opener has been closed already the returns `null`.
   """
@@ -2634,7 +2739,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Focuses the element, and then uses [`Keyboard.down`](https://playwright.dev/docs/api/class-keyboard#keyboard-down) and [`Keyboard.up`](https://playwright.dev/docs/api/class-keyboard#keyboard-up).
+  Focuses the element, and then uses `PlaywrightEx.Keyboard.down/2` and `PlaywrightEx.Keyboard.up/2`.
 
   `key` can specify the intended
   [keyboardEvent.key](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key) value or a single character to
@@ -2941,7 +3046,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked or unchecked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -3233,7 +3338,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.touchscreen`](https://playwright.dev/docs/api/class-page#page-touchscreen) to tap the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `position`.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
@@ -3345,6 +3450,13 @@ defmodule PlaywrightEx.Page do
     Facade.async!("page.title", page, fn -> PlaywrightEx.Client.Page.title(page) end)
   end
 
+  @doc since: "1.8"
+  @doc ""
+  @spec touchscreen(t()) :: PlaywrightEx.Touchscreen.t()
+  def touchscreen(page) do
+    PlaywrightEx.Client.Page.touchscreen(page)
+  end
+
   @type_options {:object,
                  %{
                    delay: {:delay, nil},
@@ -3370,7 +3482,7 @@ defmodule PlaywrightEx.Page do
   Sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text. `page.type` can be used to send
   fine-grained keyboard events. To fill values in form fields, use `PlaywrightEx.Page.fill/4`.
 
-  To press a special key, like `Control` or `ArrowDown`, use [`Keyboard.press`](https://playwright.dev/docs/api/class-keyboard#keyboard-press).
+  To press a special key, like `Control` or `ArrowDown`, use `PlaywrightEx.Keyboard.press/3`.
 
   **Usage**
 
@@ -3449,7 +3561,7 @@ defmodule PlaywrightEx.Page do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now unchecked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -3625,6 +3737,20 @@ defmodule PlaywrightEx.Page do
     Facade.async_void!("page.waitForTimeout", page, fn -> PlaywrightEx.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
+  @doc since: "1.8"
+  @doc ~S"""
+  This method returns all of the dedicated [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
+  associated with the page.
+
+  > #### Note {: .info}
+  >
+  > This does not contain ServiceWorkers
+  """
+  @spec workers(t()) :: [PlaywrightEx.Worker.t()]
+  def workers(page) do
+    PlaywrightEx.Client.Page.workers(page)
+  end
+
   @events %{
     close: "close",
     console: "console",
@@ -3651,10 +3777,10 @@ defmodule PlaywrightEx.Page do
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec on(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec on(t(), :console, (term() -> term())) :: t()
+  @spec on(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec on(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec on(t(), :dialog, (term() -> term())) :: t()
-  @spec on(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec on(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec on(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec on(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :download, (term() -> term())) :: t()
   @spec on(t(), :file_chooser, (term() -> term())) :: t()
@@ -3669,17 +3795,17 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec on(t(), :web_socket, (term() -> term())) :: t()
-  @spec on(t(), :worker, (term() -> term())) :: t()
+  @spec on(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def on(page, event, listener),
     do: PlaywrightEx.Client.Page.on(page, Facade.event!(event, @events, "page.on"), listener)
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
   @spec once(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec once(t(), :console, (term() -> term())) :: t()
+  @spec once(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec once(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec once(t(), :dialog, (term() -> term())) :: t()
-  @spec once(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec once(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec once(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec once(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :download, (term() -> term())) :: t()
   @spec once(t(), :file_chooser, (term() -> term())) :: t()
@@ -3694,17 +3820,17 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec once(t(), :web_socket, (term() -> term())) :: t()
-  @spec once(t(), :worker, (term() -> term())) :: t()
+  @spec once(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def once(page, event, listener),
     do: PlaywrightEx.Client.Page.once(page, Facade.event!(event, @events, "page.once"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec add_listener(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec add_listener(t(), :console, (term() -> term())) :: t()
+  @spec add_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec add_listener(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec add_listener(t(), :dialog, (term() -> term())) :: t()
-  @spec add_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec add_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec add_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec add_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :download, (term() -> term())) :: t()
   @spec add_listener(t(), :file_chooser, (term() -> term())) :: t()
@@ -3719,17 +3845,17 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec add_listener(t(), :web_socket, (term() -> term())) :: t()
-  @spec add_listener(t(), :worker, (term() -> term())) :: t()
+  @spec add_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def add_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.add_listener(page, Facade.event!(event, @events, "page.addListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec remove_listener(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec remove_listener(t(), :console, (term() -> term())) :: t()
+  @spec remove_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec remove_listener(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec remove_listener(t(), :dialog, (term() -> term())) :: t()
-  @spec remove_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec remove_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec remove_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec remove_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :download, (term() -> term())) :: t()
   @spec remove_listener(t(), :file_chooser, (term() -> term())) :: t()
@@ -3744,17 +3870,17 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :web_socket, (term() -> term())) :: t()
-  @spec remove_listener(t(), :worker, (term() -> term())) :: t()
+  @spec remove_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def remove_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.remove_listener(page, Facade.event!(event, @events, "page.removeListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec off(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec off(t(), :console, (term() -> term())) :: t()
+  @spec off(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec off(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec off(t(), :dialog, (term() -> term())) :: t()
-  @spec off(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec off(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec off(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec off(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :download, (term() -> term())) :: t()
   @spec off(t(), :file_chooser, (term() -> term())) :: t()
@@ -3769,17 +3895,17 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec off(t(), :web_socket, (term() -> term())) :: t()
-  @spec off(t(), :worker, (term() -> term())) :: t()
+  @spec off(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def off(page, event, listener),
     do: PlaywrightEx.Client.Page.off(page, Facade.event!(event, @events, "page.off"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec prepend_listener(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec prepend_listener(t(), :console, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec prepend_listener(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec prepend_listener(t(), :dialog, (term() -> term())) :: t()
-  @spec prepend_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec prepend_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :download, (term() -> term())) :: t()
   @spec prepend_listener(t(), :file_chooser, (term() -> term())) :: t()
@@ -3794,7 +3920,7 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :web_socket, (term() -> term())) :: t()
-  @spec prepend_listener(t(), :worker, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def prepend_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.prepend_listener(page, Facade.event!(event, @events, "page.prependListener"), listener)
 end

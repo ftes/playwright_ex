@@ -1,0 +1,107 @@
+defmodule PlaywrightEx.Client.Keyboard do
+  @upstream "packages/playwright-core/src/client/input.ts"
+  @moduledoc "Port of `#{@upstream}` (`class Keyboard`). No mutable state: a plain struct."
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
+
+  alias PlaywrightEx.Client.TimeoutSettings
+
+  defstruct [:_page]
+
+  def new(page) do
+    %__MODULE__{_page: page}
+  end
+
+  def down(this, key) do
+    channel_call(this._page, :keyboardDown, %{key: key}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def up(this, key) do
+    channel_call(this._page, :keyboardUp, %{key: key}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def insert_text(this, text) do
+    channel_call(this._page, :keyboardInsertText, %{text: text}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def type(this, text, options \\ %{}) do
+    channel_call(this._page, :keyboardType, Map.merge(%{text: text}, options || %{}), TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def press(this, key, options \\ %{}) do
+    channel_call(this._page, :keyboardPress, Map.merge(%{key: key}, options || %{}), TimeoutSettings.k_no_timeout())
+    nil
+  end
+end
+
+defmodule PlaywrightEx.Client.Mouse do
+  @upstream "packages/playwright-core/src/client/input.ts"
+  @moduledoc "Port of `#{@upstream}` (`class Mouse`). No mutable state: a plain struct."
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
+
+  alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.TimeoutSettings
+
+  defstruct [:_page]
+
+  def new(page) do
+    %__MODULE__{_page: page}
+  end
+
+  def move(this, x, y, options \\ %{}) do
+    channel_call(this._page, :mouseMove, Map.merge(%{x: x, y: y}, options || %{}), TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def down(this, options \\ %{}) do
+    channel_call(this._page, :mouseDown, options || %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def up(this, options \\ %{}) do
+    channel_call(this._page, :mouseUp, options || %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def click(this, x, y, options \\ %{}) do
+    channel_call(this._page, :mouseClick, Map.merge(%{x: x, y: y}, options || %{}), TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def dblclick(this, x, y, options \\ %{}) do
+    ChannelOwner._wrap_api_call(
+      this._page,
+      fn _ -> click(this, x, y, Map.merge(options || %{}, %{clickCount: 2})) end,
+      %{title: "Double click"}
+    )
+
+    nil
+  end
+
+  def wheel(this, delta_x, delta_y) do
+    channel_call(this._page, :mouseWheel, %{deltaX: delta_x, deltaY: delta_y}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+end
+
+defmodule PlaywrightEx.Client.Touchscreen do
+  @upstream "packages/playwright-core/src/client/input.ts"
+  @moduledoc "Port of `#{@upstream}` (`class Touchscreen`). No mutable state: a plain struct."
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
+
+  alias PlaywrightEx.Client.TimeoutSettings
+
+  defstruct [:_page]
+
+  def new(page) do
+    %__MODULE__{_page: page}
+  end
+
+  def tap(this, x, y) do
+    channel_call(this._page, :touchscreenTap, %{x: x, y: y}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+end

@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `position`.
   1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -347,7 +347,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to double click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `position`.
      if the first click of the `dblclick()` triggers a navigation event, this method will throw.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -1601,7 +1601,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to hover over the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `position`.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
@@ -2354,7 +2354,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked or unchecked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -2516,7 +2516,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.touchscreen`](https://playwright.dev/docs/api/class-page#page-touchscreen) to tap the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `position`.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
@@ -2654,7 +2654,7 @@ defmodule PlaywrightEx.Frame do
   Sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text. `frame.type` can be used to
   send fine-grained keyboard events. To fill values in form fields, use `PlaywrightEx.Frame.fill/4`.
 
-  To press a special key, like `Control` or `ArrowDown`, use [`Keyboard.press`](https://playwright.dev/docs/api/class-keyboard#keyboard-press).
+  To press a special key, like `Control` or `ArrowDown`, use `PlaywrightEx.Keyboard.press/3`.
 
   **Usage**
 
@@ -2733,7 +2733,7 @@ defmodule PlaywrightEx.Frame do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now unchecked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a

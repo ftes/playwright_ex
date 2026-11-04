@@ -355,7 +355,7 @@ defmodule PlaywrightEx.Locator do
      checked, this method returns immediately.
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked. If not, this method throws.
 
   If the element is detached from the DOM at any moment during the action, this method throws.
@@ -515,7 +515,7 @@ defmodule PlaywrightEx.Locator do
 
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `position`.
   1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
 
   If the element is detached from the DOM at any moment during the action, this method throws.
@@ -669,7 +669,7 @@ defmodule PlaywrightEx.Locator do
 
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to double click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `position`.
 
   If the element is detached from the DOM at any moment during the action, this method throws.
 
@@ -1825,7 +1825,7 @@ defmodule PlaywrightEx.Locator do
 
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to hover over the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `position`.
 
   If the element is detached from the DOM at any moment during the action, this method throws.
 
@@ -2396,7 +2396,7 @@ defmodule PlaywrightEx.Locator do
 
   **Details**
 
-  Focuses the element, and then uses [`Keyboard.down`](https://playwright.dev/docs/api/class-keyboard#keyboard-down) and [`Keyboard.up`](https://playwright.dev/docs/api/class-keyboard#keyboard-up).
+  Focuses the element, and then uses `PlaywrightEx.Keyboard.down/2` and `PlaywrightEx.Keyboard.up/2`.
 
   `key` can specify the intended
   [keyboardEvent.key](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key) value or a single character to
@@ -2676,7 +2676,7 @@ defmodule PlaywrightEx.Locator do
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked or unchecked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
@@ -2770,7 +2770,7 @@ defmodule PlaywrightEx.Locator do
 
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
   1. Scroll the element into view if needed.
-  1. Use [`Page.touchscreen`](https://playwright.dev/docs/api/class-page#page-touchscreen) to tap the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `position`.
 
   If the element is detached from the DOM at any moment during the action, this method throws.
 
@@ -2947,7 +2947,7 @@ defmodule PlaywrightEx.Locator do
      unchecked, this method returns immediately.
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
   1. Scroll the element into view if needed.
-  1. Use [`Page.mouse`](https://playwright.dev/docs/api/class-page#page-mouse) to click in the center of the element.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now unchecked. If not, this method throws.
 
   If the element is detached from the DOM at any moment during the action, this method throws.

@@ -281,7 +281,7 @@ defmodule PlaywrightEx.Request do
 
   @doc since: "1.24"
   @doc ~S"""
-  The Service [`Worker`](https://playwright.dev/docs/api/class-worker) that is performing the request.
+  The Service [`Worker`](`PlaywrightEx.Worker`) that is performing the request.
 
   **Details**
 
@@ -289,7 +289,7 @@ defmodule PlaywrightEx.Request do
 
   Requests originated in a Service Worker do not have a `PlaywrightEx.Request.frame/1` available.
   """
-  @spec service_worker(t()) :: nil | term()
+  @spec service_worker(t()) :: nil | PlaywrightEx.Worker.t()
   def service_worker(request) do
     PlaywrightEx.Client.Request.service_worker(request)
   end

@@ -52,4 +52,10 @@ defmodule PlaywrightEx.Client.Events do
     def web_socket, do: "websocket"
     def worker, do: "worker"
   end
+
+  defmodule Worker do
+    @moduledoc false
+    def close, do: "close"
+    def console, do: "console"
+  end
 end
