@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
+  alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -111,8 +112,37 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Request.failure(Response.request(response)) == nil
   end
 
-  @tag skip: "not ported: route"
-  test "should work with Cross-Origin-Opener-Policy and interception"
+  test "should work with Cross-Origin-Opener-Policy and interception", %{page: page, server: server} do
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
+      # Note: without 'onload', Firefox sometimes does not fire the load event
+      # over the protocol. The reason is unclear.
+      |> Plug.Conn.send_resp(200, """
+        <div>Hello there!</div>
+        <script>window.onload = () => console.log('onload')</script>
+      """)
+    end)
+
+    test = self()
+    Page.on(page, :request, fn r -> send(test, {:event, {"request", r}}) end)
+    Page.on(page, :request_failed, fn r -> send(test, {:event, {"requestfailed", r}}) end)
+    Page.on(page, :request_finished, fn r -> send(test, {:event, {"requestfinished", r}}) end)
+    Page.on(page, :response, fn r -> send(test, {:event, {"response", Response.request(r)}}) end)
+
+    Page.route!(page, "**/*", fn route ->
+      Page.wait_for_timeout!(page, 100)
+      Route.continue!(route)
+    end)
+
+    response = Page.goto!(page, server.empty_page)
+    assert Page.url(page) == server.empty_page
+    Response.finished!(response)
+    {events, requests} = Enum.unzip(received())
+    assert events == ["request", "response", "requestfinished"]
+    assert MapSet.size(MapSet.new(requests)) == 1
+    assert Request.failure(Response.request(response)) == nil
+  end
 
   test "should work with Cross-Origin-Opener-Policy after redirect", %{page: page, server: server} do
     TestServer.set_redirect(server, "/redirect", "/empty.html")

@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   @tag skip: "not ported: waitForEvent"
   test "should dispatch console messages when page has workers"
 
-  @tag skip: "not ported: route, expect.poll"
+  @tag skip: "not ported: expect.poll"
   test "should report and intercept network from nested worker"
 
   @tag skip: "not ported: waitForEvent"
