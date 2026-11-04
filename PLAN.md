@@ -93,6 +93,8 @@ shared token, since guids repeat across connections.
 
 ## Tracking upstream
 
+Conventions and the roll procedure: `PORTING.md`.
+
 - No line numbers. `@upstream "<path>"` per module, same names, markers only on deviations.
 - `mix playwright_ex.parity`: TS methods per file vs Elixir functions; api.json vs facade.
 - Roll: bump pin and checksums, regenerate, `git diff vA vB -- packages/playwright-core/src/client`
