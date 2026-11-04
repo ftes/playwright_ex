@@ -72,7 +72,10 @@ defmodule PlaywrightEx.Protocol.ValidatorTest do
 
   test "metainfo" do
     assert Metainfo.get_metainfo(%{type: "Root", method: "initialize"}) == %{internal: true}
-    assert %{title: "Navigate", subtitle: "{url}", renderParams: ["url"], slowMo: true} = Metainfo.get_metainfo(%{type: "Frame", method: "goto"})
+
+    assert %{title: "Navigate", subtitle: "{url}", renderParams: ["url"], slowMo: true} =
+             Metainfo.get_metainfo(%{type: "Frame", method: "goto"})
+
     assert Metainfo.get_metainfo(%{type: "Frame", method: "nope"}) == nil
   end
 end
