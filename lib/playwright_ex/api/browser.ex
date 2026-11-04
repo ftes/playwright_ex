@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Browser do
   * Browser application is closed or crashed.
   * The `PlaywrightEx.Browser.close/2` method was called.
 
-  Not ported yet: `bind`, `removeAllListeners`, `unbind`.
+  Not ported yet: `removeAllListeners`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1068,6 +1068,53 @@ defmodule PlaywrightEx.Browser do
     Facade.async!("browser.newPage", browser, fn -> PlaywrightEx.Client.Browser.new_page(browser, options) end)
   end
 
+  @bind_options {:object,
+                 %{
+                   host: {:host, nil},
+                   metadata: {:metadata, nil},
+                   port: {:port, nil},
+                   workspace_dir: {:workspaceDir, nil}
+                 }}
+
+  @typedoc "Options of `bind`, see its docs."
+  @type bind_options ::
+          [host: String.t(), metadata: %{optional(String.t()) => term()}, port: integer(), workspace_dir: String.t()]
+          | %{
+              optional(:host) => String.t(),
+              optional(:metadata) => %{optional(String.t()) => term()},
+              optional(:port) => integer(),
+              optional(:workspace_dir) => String.t()
+            }
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Binds the browser to a named pipe or web socket, making it available for other clients to connect to.
+
+  ## Arguments
+
+  * `title` - Title of the browser server, used for identification.
+
+  ## Options
+
+  * `:host` - Host to bind the web socket server to. When specified, a web socket server is created instead of a named pipe.
+  * `:metadata` - Additional metadata to associate with the browser server.
+  * `:port` - Port to bind the web socket server to. When specified, a web socket server is created instead of a named pipe. Use `0` to let the OS pick an available port.
+  * `:workspace_dir` - Working directory associated with this browser server.
+  """
+  @spec bind(t(), String.t(), bind_options()) :: {:ok, %{endpoint: String.t()}} | {:error, Exception.t()}
+  def bind(browser, title, options \\ []) do
+    options = Facade.options!(options, @bind_options, "browser.bind")
+    Facade.async("browser.bind", browser, fn -> PlaywrightEx.Client.Browser.bind(browser, title, options) end)
+  end
+
+  @doc since: "1.59"
+  @doc "Like `bind/3`, but returns the value and raises on error."
+  @spec bind!(t(), String.t(), bind_options()) :: %{endpoint: String.t()}
+  def bind!(browser, title, options \\ []) do
+    options = Facade.options!(options, @bind_options, "browser.bind")
+    Facade.async!("browser.bind", browser, fn -> PlaywrightEx.Client.Browser.bind(browser, title, options) end)
+  end
+
   @start_tracing_options {:object,
                           %{categories: {:categories, nil}, path: {:path, nil}, screenshots: {:screenshots, nil}}}
 
@@ -1141,6 +1188,22 @@ defmodule PlaywrightEx.Browser do
   @spec stop_tracing!(t()) :: binary()
   def stop_tracing!(browser) do
     Facade.async!("browser.stopTracing", browser, fn -> PlaywrightEx.Client.Browser.stop_tracing(browser) end)
+  end
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Unbinds the browser server previously bound with `PlaywrightEx.Browser.bind/3`.
+  """
+  @spec unbind(t()) :: :ok | {:error, Exception.t()}
+  def unbind(browser) do
+    Facade.async_void("browser.unbind", browser, fn -> PlaywrightEx.Client.Browser.unbind(browser) end)
+  end
+
+  @doc since: "1.59"
+  @doc "Like `unbind/1`, but returns the value and raises on error."
+  @spec unbind!(t()) :: :ok
+  def unbind!(browser) do
+    Facade.async_void!("browser.unbind", browser, fn -> PlaywrightEx.Client.Browser.unbind(browser) end)
   end
 
   @doc since: "1.8"

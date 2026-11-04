@@ -114,7 +114,18 @@ defmodule PlaywrightEx.Client.Browser do
     get(this, :_initializer).version
   end
 
-  # bind, unbind  -- not ported
+  def bind(this, title, options \\ %{}) do
+    %{endpoint: endpoint} =
+      channel_call(this, :startServer, Map.merge(%{title: title}, options), TimeoutSettings.k_no_timeout())
+
+    %{endpoint: endpoint}
+  end
+
+  def unbind(this) do
+    channel_call(this, :stopServer, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
   def new_page(this, options \\ %{}) do
     _wrap_api_call(
       this,
@@ -157,6 +168,8 @@ defmodule PlaywrightEx.Client.Browser do
 
     buffer
   end
+
+  # [Symbol.asyncDispose]  -- not ported: await using
 
   def close(this, options \\ %{}) do
     put(this, :_closeReason, options[:reason])

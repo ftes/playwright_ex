@@ -28,6 +28,7 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.JSHandle
+  alias PlaywrightEx.Client.JsonPipe
   alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Playwright
@@ -109,7 +110,7 @@ defmodule PlaywrightEx.Client.Connection do
         "ElementHandle" => &ElementHandle.new/4,
         "Frame" => &Frame.new/4,
         "JSHandle" => &JSHandle.new/4,
-        "JsonPipe" => dummy,
+        "JsonPipe" => &JsonPipe.new/4,
         "LocalUtils" => fn parent, type, guid, init ->
           result = LocalUtils.new(parent, type, guid, init)
           if !get(this, :_localUtils), do: put(this, :_localUtils, result)
