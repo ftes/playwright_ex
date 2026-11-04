@@ -89,6 +89,7 @@ defmodule PlaywrightEx.Client.Worker do
   # waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
 
   def _disconnect(this, options \\ %{}) do
+    options = options || %{}
     put(this, :_closeReason, options[:reason])
 
     try do
