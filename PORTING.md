@@ -72,8 +72,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 - Fixtures mirror upstream's (`server`, `https_server`, `browser_type`, `browser`, `asset`, ...),
   see `PlaywrightEx.UpstreamCase`. `PlaywrightEx.TestServer` ports `tests/config/testserver`;
   assets and certs come from `PlaywrightEx.Upstream` (the pinned release, not vendored).
-- Keep assertions verbatim, except where the driver words a message for our `sdkLanguage`
-  ("python": `user_data_dir`, `browser_type.launch_persistent_context`). Comment the upstream text.
+- Keep assertions verbatim (we announce `sdkLanguage: "javascript"`, as upstream).
 
 ## Bumping the pinned version
 

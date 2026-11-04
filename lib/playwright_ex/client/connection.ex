@@ -38,9 +38,8 @@ defmodule PlaywrightEx.Client.Connection do
     end
 
     def initialize(this) do
-      # sdkLanguage: 'javascript'  -- deviation: "python" makes the server render snake_case locators
       Playwright.from(
-        channel_call(this, :initialize, %{sdkLanguage: "python"}, TimeoutSettings.k_no_timeout()).playwright
+        channel_call(this, :initialize, %{sdkLanguage: "javascript"}, TimeoutSettings.k_no_timeout()).playwright
       )
     end
   end

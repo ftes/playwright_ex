@@ -17,8 +17,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   test "should throw if userDataDir is passed as an argument", %{browser_type: browser_type} do
     wait_error = catch_error(launch(browser_type, %{args: ["--user-data-dir=random-path", "--profile=random-path"]}))
 
-    # The driver words this for sdkLanguage "python" (upstream: "Pass userDataDir parameter to 'browserType.launchPersistentContext").
-    assert Exception.message(wait_error) =~ "Pass user_data_dir parameter to 'browser_type.launch_persistent_context"
+    assert Exception.message(wait_error) =~ "Pass userDataDir parameter to 'browserType.launchPersistentContext"
   end
 
   test "should throw if port option is passed", %{browser_type: browser_type} do

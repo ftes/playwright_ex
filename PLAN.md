@@ -105,7 +105,8 @@ Conventions and the roll procedure: `PORTING.md`.
 - Locator rendering and URL globs via the driver's `LocalUtils.asLocatorDescription` and
   `globToRegex` (as non-JS clients do; regex cached per route), instead of porting ~3.3k
   lines of locator/selector/CSS parsers.
-- `sdkLanguage: "python"` so server messages render snake_case locators.
+- `sdkLanguage: "javascript"` as upstream, so driver messages match upstream tests, docs and
+  issues. The driver rejects anything but javascript|python|java|csharp (no "elixir").
 - Strings vs bytes: explicit `{:binary, b}` where JS branches on Buffer (WebSocket, fulfill, fetch).
 - Evaluate: JS source strings, omit `isFunction` (like Python); string + `arg` is function source.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
@@ -170,3 +171,8 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    infrastructure landed in phase 1).
 2. Core port (connection → page/frame/locator → network → matchers), then the remaining
    classes, released as one breaking version with the migration guide.
+3. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
+   `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
+   with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match
+   rewrites of fixed driver hints (install command: `mix playwright_ex.install`). Locators the
+   driver renders inside errors stay JS.
