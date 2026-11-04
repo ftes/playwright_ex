@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Upstream do
   alias PlaywrightEx.Driver
 
   @paths ~w(
-    packages/playwright-core/src packages/protocol packages/isomorphic packages/utils utils
+    packages/playwright-core/src packages/playwright/src packages/protocol packages/isomorphic packages/utils utils
     docs/src/api tests/page tests/library tests/config tests/assets
   )
 
