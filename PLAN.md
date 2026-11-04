@@ -166,6 +166,7 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
 
 ## Then
 
-1. Generators (`api.json` facade, `protocol.yml` channels) and parity task.
+1. Generator for the `api.json` facade (`protocol.yml` channels, parity task and upstream test
+   infrastructure landed in phase 1).
 2. Core port (connection → page/frame/locator → network → matchers), then the remaining
    classes, released as one breaking version with the migration guide.
