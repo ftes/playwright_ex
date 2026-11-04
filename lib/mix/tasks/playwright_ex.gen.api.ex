@@ -540,15 +540,20 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     |> String.replace("↵", "\n")
     |> then(
       &Regex.replace(@inline, &1, fn match, kind, class, member, label, href, code, type ->
-        cond do
-          kind != "" -> member_link(ctx, kind, class, member)
-          href != "" -> "[#{label}](#{href(ctx, href)})"
-          code != "" -> code_link(ctx, code) || match
-          type != "" -> code_link(ctx, type) || if(type =~ ~r/^[A-Z]|^string$/, do: "`#{type}`", else: match)
-        end
+        inline(ctx, match, {kind, class, member}, {label, href}, code, type)
       end)
     )
   end
+
+  defp inline(ctx, _match, {kind, class, member}, _link, _code, _type) when kind != "",
+    do: member_link(ctx, kind, class, member)
+
+  defp inline(ctx, _match, _ref, {label, href}, _code, _type) when href != "", do: "[#{label}](#{href(ctx, href)})"
+  defp inline(ctx, match, _ref, _link, code, "") when code != "", do: code_link(ctx, code) || match
+
+  # `[Promise]`, `[string]`; not `[contenteditable]`.
+  defp inline(ctx, match, _ref, _link, _code, type),
+    do: code_link(ctx, type) || if(type =~ ~r/^[A-Z]|^string$/, do: "`#{type}`", else: match)
 
   # A facade function where generated, else playwright.dev (`linkUtils.js` createMarkdownLink).
   defp member_link(ctx, "event", class, event) do
@@ -600,7 +605,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp class_href(ctx, lower, []) do
-    if class = Enum.find(Map.keys(ctx.classes), &(String.downcase(&1) == lower)), do: "`#{inspect(facade(class))}`"
+    case Enum.find(Map.keys(ctx.classes), &(String.downcase(&1) == lower)) do
+      nil -> nil
+      class -> "`#{inspect(facade(class))}`"
+    end
   end
 
   defp class_href(_ctx, _lower, _anchor), do: nil
