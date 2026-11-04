@@ -20,13 +20,13 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
           file: to_string(location[:file] || ""),
           line: location[:line] || 0,
           column: 0,
-          function: {module, function, arity}
+          function: Exception.format_mfa(module, function, arity)
         }
 
         is_playwright_library =
           String.starts_with?(Atom.to_string(module), @library)
 
-        %{frame: frame, isPlaywrightLibrary: is_playwright_library}
+        %{frame: frame, mfa: {module, function, arity}, isPlaywrightLibrary: is_playwright_library}
       end)
 
     # Deepest transition between non-client code calling into client code is the api entry.
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
         |> Enum.chunk_every(2, 1, :discard)
         |> Enum.find_value("", fn [parsed_frame, next] ->
           if parsed_frame.isPlaywrightLibrary and !next.isPlaywrightLibrary,
-            do: normalize_api_name(parsed_frame.frame.function)
+            do: normalize_api_name(parsed_frame.mfa)
         end)
 
     # This is for the inspector so that it did not include the test runner stack frames.
