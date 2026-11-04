@@ -593,6 +593,20 @@ defmodule PlaywrightEx.FrameTest do
                """)
     end
 
+    test "can upload a payload whose message frame exceeds the max utf32 codepoint", %{frame: frame} do
+      :ok = set_html(frame.guid, "<input id='file-input' type='file'>")
+      buffer = :binary.copy(<<0>>, 1_200_000)
+
+      assert {:ok, _} =
+               Frame.set_input_files(frame.guid,
+                 selector: "#file-input",
+                 payloads: %FilePayload{name: "large.bin", buffer: buffer},
+                 timeout: @timeout
+               )
+
+      assert {:ok, 1_200_000} = eval(frame.guid, "() => document.getElementById('file-input').files[0].size")
+    end
+
     test "an empty local path list clears selected files", %{frame: frame} do
       :ok = set_html(frame.guid, "<input id='file-input' type='file'>")
 
