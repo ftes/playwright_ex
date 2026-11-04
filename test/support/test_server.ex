@@ -187,53 +187,52 @@ defmodule PlaywrightEx.TestServer do
     settings = settings(this)
     path_name = if conn.request_path == "/", do: "/index.html", else: conn.request_path
     file_path = file_path || Path.join(settings.dir_path, String.slice(path_name, 1..-1//1))
+    cached = settings.cached_path_prefix != nil and String.starts_with?(file_path, settings.cached_path_prefix)
 
-    conn =
-      if settings.cached_path_prefix != nil and String.starts_with?(file_path, settings.cached_path_prefix) do
-        if Plug.Conn.get_req_header(conn, "if-modified-since") != [] do
-          # not modified
-          throw({:sent, Plug.Conn.send_resp(conn, 304, "")})
-        end
-
-        conn
-        |> Plug.Conn.put_resp_header("cache-control", "public, max-age=31536000, no-cache")
-        |> Plug.Conn.put_resp_header("last-modified", DateTime.to_iso8601(settings.start_time))
-      else
-        Plug.Conn.put_resp_header(conn, "cache-control", "no-cache, no-store")
-      end
-
-    conn =
-      if csp = settings.csp[path_name],
-        do: Plug.Conn.put_resp_header(conn, "content-security-policy", csp),
-        else: conn
-
-    conn =
-      Enum.reduce(settings.extra_headers[path_name] || %{}, conn, fn {key, value}, conn ->
-        Plug.Conn.put_resp_header(conn, header_name(key), value)
-      end)
-
-    case File.read(file_path) do
-      {:error, _} ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "text/plain")
-        |> Plug.Conn.send_resp(404, if(conn.method == "HEAD", do: "", else: "File not found: #{file_path}"))
-
-      {:ok, data} ->
-        mime_type = MIME.from_path(file_path)
-        is_text_encoding = Regex.match?(~r/^text\/|^application\/(javascript|json)/, mime_type)
-        content_type = if is_text_encoding, do: "#{mime_type}; charset=utf-8", else: mime_type
-        conn = Plug.Conn.put_resp_header(conn, "content-type", content_type)
-
-        if MapSet.member?(settings.gzip_routes, path_name) do
+    if cached and Plug.Conn.get_req_header(conn, "if-modified-since") != [] do
+      # not modified
+      Plug.Conn.send_resp(conn, 304, "")
+    else
+      conn =
+        if cached do
           conn
-          |> Plug.Conn.put_resp_header("content-encoding", "gzip")
-          |> Plug.Conn.send_resp(200, if(conn.method == "HEAD", do: "", else: :zlib.gzip(data)))
+          |> Plug.Conn.put_resp_header("cache-control", "public, max-age=31536000, no-cache")
+          |> Plug.Conn.put_resp_header("last-modified", DateTime.to_iso8601(settings.start_time))
         else
-          Plug.Conn.send_resp(conn, 200, if(conn.method == "HEAD", do: "", else: data))
+          Plug.Conn.put_resp_header(conn, "cache-control", "no-cache, no-store")
         end
+
+      conn =
+        if csp = settings.csp[path_name],
+          do: Plug.Conn.put_resp_header(conn, "content-security-policy", csp),
+          else: conn
+
+      conn =
+        Enum.reduce(settings.extra_headers[path_name] || %{}, conn, fn {key, value}, conn ->
+          Plug.Conn.put_resp_header(conn, header_name(key), value)
+        end)
+
+      case File.read(file_path) do
+        {:error, _} ->
+          conn
+          |> Plug.Conn.put_resp_header("content-type", "text/plain")
+          |> Plug.Conn.send_resp(404, if(conn.method != "HEAD", do: "File not found: #{file_path}", else: ""))
+
+        {:ok, data} ->
+          mime_type = MIME.from_path(file_path)
+          is_text_encoding = Regex.match?(~r/^text\/|^application\/(javascript|json)/, mime_type)
+          content_type = if is_text_encoding, do: "#{mime_type}; charset=utf-8", else: mime_type
+          conn = Plug.Conn.put_resp_header(conn, "content-type", content_type)
+
+          if MapSet.member?(settings.gzip_routes, path_name) do
+            conn
+            |> Plug.Conn.put_resp_header("content-encoding", "gzip")
+            |> Plug.Conn.send_resp(200, if(conn.method != "HEAD", do: :zlib.gzip(data), else: ""))
+          else
+            Plug.Conn.send_resp(conn, 200, if(conn.method != "HEAD", do: data, else: ""))
+          end
+      end
     end
-  catch
-    {:sent, conn} -> conn
   end
 
   # onceWebSocketConnection, waitForWebSocketConnectionRequest  -- not ported: WebSocket

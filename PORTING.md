@@ -26,8 +26,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered.
   Markers are per line.
-- Ported dirs (`client/`, `protocol/`) have a few credo checks relaxed (`.credo.exs`), so
-  statements stay in upstream order. Don't restructure ported code to please a linter.
+- Upstream-shaped code has a few credo checks relaxed (`.credo.exs`), so statements stay in
+  upstream order. Don't restructure ported code to please a linter.
 
 ## Idioms
 
