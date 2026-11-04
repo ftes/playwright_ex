@@ -88,6 +88,7 @@ defmodule PlaywrightEx.MixProject do
         "credo",
         "compile --warnings-as-errors",
         "dialyzer --format github --format dialyxir",
+        "playwright_ex.parity",
         "test --warnings-as-errors"
       ]
     ]

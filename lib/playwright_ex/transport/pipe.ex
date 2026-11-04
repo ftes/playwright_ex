@@ -24,6 +24,7 @@ defmodule PlaywrightEx.Transport.Pipe do
   """
   def start_link(opts), do: GenServer.start_link(__MODULE__, Map.new(opts))
 
+  # send  -- ported as send_message/2 (Kernel.send/2)
   def send_message(pid, message), do: GenServer.cast(pid, {:send, message})
 
   def close(pid), do: GenServer.call(pid, :close)
@@ -62,7 +63,7 @@ defmodule PlaywrightEx.Transport.Pipe do
   end
 
   @impl true
-  def handle_info({port, {:data, data}}, %{port: port} = state), do: {:noreply, dispatch(state, data)}
+  def handle_info({port, {:data, data}}, %{port: port} = state), do: {:noreply, _dispatch(state, data)}
 
   def handle_info({port, {:exit_status, _status}}, %{port: port} = state), do: {:stop, :normal, on_close(state)}
 
@@ -74,22 +75,22 @@ defmodule PlaywrightEx.Transport.Pipe do
   end
 
   # Reading the 4-byte length.
-  defp dispatch(%{bytes_left: 0} = state, data) do
+  defp _dispatch(%{bytes_left: 0} = state, data) do
     case state.header <> data do
-      <<length::little-unsigned-32, rest::binary>> -> dispatch(%{state | header: "", bytes_left: length}, rest)
+      <<length::little-unsigned-32, rest::binary>> -> _dispatch(%{state | header: "", bytes_left: length}, rest)
       header -> %{state | header: header}
     end
   end
 
   # Reading the message body.
-  defp dispatch(state, data) do
+  defp _dispatch(state, data) do
     need = state.bytes_left - state.size
 
     case data do
       <<part::binary-size(^need), rest::binary>> ->
         message = IO.iodata_to_binary(Enum.reverse([part | state.chunks]))
         state.on_message.(JSON.decode!(message))
-        dispatch(%{state | bytes_left: 0, chunks: [], size: 0}, rest)
+        _dispatch(%{state | bytes_left: 0, chunks: [], size: 0}, rest)
 
       _ when data == "" ->
         state

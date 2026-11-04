@@ -43,6 +43,9 @@ steps:
   - name: "Compile without warnings"
     command: mix compile --warnings-as-errors
 
+  - name: "Check parity with upstream"
+    command: mix playwright_ex.parity
+
   - name: "Test"
     command: |
       set -euo pipefail

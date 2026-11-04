@@ -19,6 +19,7 @@ defmodule PlaywrightEx.OutOfProcess do
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Transport.Pipe
 
+  # start  -- ported as start_link/1 and init/1
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, Keyword.take(opts, [:name]))
 
   @doc "The root `PlaywrightEx.Client.Playwright` object."
@@ -67,6 +68,7 @@ defmodule PlaywrightEx.OutOfProcess do
   def handle_info(_message, state), do: {:noreply, state}
 
   # stop(): closing the pipe makes the driver exit.
+  # stop  -- ported as terminate/2 (GenServer.stop/1)
   @impl true
   def terminate(_reason, state) do
     if Process.alive?(state.transport), do: Pipe.close(state.transport)

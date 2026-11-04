@@ -169,7 +169,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     }
   end
 
-  # _createChannel: the Proxy `get` trap, called as `channel_call(this, :method, params, options)`.
+  # _createChannel  -- ported as channel_call/4 (the Proxy `get` trap) and _channel/1 (its EventEmitter)
   def channel_call(this, method, params, options \\ %{}) do
     method = to_string(method)
     type = get(this, :_type)

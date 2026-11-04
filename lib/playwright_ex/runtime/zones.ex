@@ -57,6 +57,6 @@ defmodule PlaywrightEx.Runtime.Zones do
     data(type)
   end
 
-  def current, do: Process.get(@key, %{})
+  def current_zone, do: Process.get(@key, %{})
   def restore(zone), do: Process.put(@key, zone)
 end

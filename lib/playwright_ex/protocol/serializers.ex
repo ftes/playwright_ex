@@ -202,6 +202,7 @@ defmodule PlaywrightEx.Protocol.Serializers do
       is_atom(value) ->
         {%{s: Atom.to_string(value)}, visitor_info}
 
+      # isRegExp, isDate, isURL, isError  -- ported as is_exception/1 and is_struct/2 guards
       is_exception(value) ->
         {serialize_error(value), visitor_info}
 

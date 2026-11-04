@@ -4,12 +4,10 @@ defmodule PlaywrightEx.Protocol.Validator do
   @upstream "packages/protocol/src/validator.ts"
   @moduledoc "Generated port of `#{@upstream}`: protocol schemes as data, see `PlaywrightEx.Protocol.ValidatorPrimitives`."
 
-  alias PlaywrightEx.Protocol.ValidatorPrimitives
-
-  defdelegate find_validator(type, method, kind), to: ValidatorPrimitives
-  defdelegate maybe_find_validator(type, method, kind), to: ValidatorPrimitives
-  defdelegate create_metadata_validator(), to: ValidatorPrimitives
-  defdelegate create_wait_info_validator(), to: ValidatorPrimitives
+  defdelegate find_validator(type, method, kind), to: PlaywrightEx.Protocol.ValidatorPrimitives
+  defdelegate maybe_find_validator(type, method, kind), to: PlaywrightEx.Protocol.ValidatorPrimitives
+  defdelegate create_metadata_validator(), to: PlaywrightEx.Protocol.ValidatorPrimitives
+  defdelegate create_wait_info_validator(), to: PlaywrightEx.Protocol.ValidatorPrimitives
 
   @doc "The scheme named `name`, or `nil`."
   def scheme("AndroidInitializer"), do: {:optional, {:object, []}}

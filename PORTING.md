@@ -23,7 +23,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   No line numbers.
 - Comment only deviations. A skipped statement or method keeps its upstream text with a marker,
   `# this._instrumentation.onApiCallEnd(apiZone);  -- not ported`, optionally `-- not ported: <reason>`.
-  `mix playwright_ex.parity` reads these markers: a method named in one counts as acknowledged.
+  A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
+  `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered.
 - Ported dirs (`client/`, `protocol/`) are formatted without Styler and have a few credo checks
   relaxed (`.credo.exs`), so statements stay in upstream order. Don't restructure ported code
   to please a linter.

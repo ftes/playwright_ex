@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Client.Browser do
     get(this, :_browserType)
   end
 
-  # newContext, newContextForReuse, newPage, _innerNewContext  -- not ported: BrowserContext
+  # newContext, _newContextForReuse, _disconnectFromReusedContext, _innerNewContext  -- not ported: BrowserContext
 
   def _connect_to_browser_type(this, browser_type, browser_options, logger) do
     # Note: when using connect(), `browserType` is different from `this._parent`.
@@ -49,9 +49,13 @@ defmodule PlaywrightEx.Client.Browser do
     get(this, :_initializer).version
   end
 
+  # bind, unbind, newPage  -- not ported: BrowserContext
+
   def is_connected(this) do
     get(this, :_isConnected)
   end
+
+  # newBrowserCDPSession, startTracing, stopTracing  -- not ported
 
   def close(this, options \\ %{}) do
     put(this, :_closeReason, options[:reason])

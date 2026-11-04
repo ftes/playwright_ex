@@ -134,4 +134,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   def event_names(%{baton: %{table: table}, guid: guid}),
     do: table |> :ets.match({{guid, :_events, :"$1"}, :_}) |> Enum.map(&hd/1)
+
+  # rawListeners  -- not ported: listeners are stored unwrapped
+  # _removeAllListeners, _waitFor, _listeners  -- ported as remove_all_listeners/2 and listeners/2 (no behavior option)
+  # checkListener, OnceWrapper, unwrapListener, unwrapListeners, wrappedListener  -- not ported: once/3 wraps with {id, fun}
 end

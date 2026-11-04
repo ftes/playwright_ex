@@ -187,7 +187,7 @@ defmodule PlaywrightEx.Runtime.Baton do
 
     parent = self()
     ref = make_ref()
-    zone = Zones.current()
+    zone = Zones.current_zone()
 
     {pid, mon} =
       spawn_monitor(fn ->

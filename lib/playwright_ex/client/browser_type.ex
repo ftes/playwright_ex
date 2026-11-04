@@ -58,4 +58,5 @@ defmodule PlaywrightEx.Client.BrowserType do
   end
 
   # launchServer, launchPersistentContext, connect, _connect, connectOverCDP  -- not ported
+  # _browserFromConnectResult, _connectToWorker, isConnectionTransport  -- not ported: connect
 end

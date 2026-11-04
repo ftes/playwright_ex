@@ -4,10 +4,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
   @moduledoc """
   Port of upstream `#{@upstream}` (the validator and metainfo parts).
 
-      mix playwright_ex.gen.protocol <playwright-repo>
+      mix playwright_ex.gen.protocol [<playwright-repo>]
 
-  `<playwright-repo>` is a checkout (or release tarball) of microsoft/playwright at the
-  pinned driver version. Its `packages/protocol/spec/*.yml` are loaded like
+  `<playwright-repo>` is a checkout of microsoft/playwright at the pinned driver version,
+  by default `PlaywrightEx.Upstream.ensure!/0`. Its `packages/protocol/spec/*.yml` are loaded like
   `utils/protocol_spec.js` does, with the yaml parser bundled in the installed driver's
   playwright-core, so no npm install is needed. Writes:
 
@@ -44,6 +44,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
   """
 
   @impl Mix.Task
+  def run([]), do: run([PlaywrightEx.Upstream.ensure!()])
+
   def run([repo]) do
     {node, [cli]} = PlaywrightEx.Driver.ensure_installed()
     {json, 0} = System.cmd(node, ["-e", @load_protocol, Path.expand(repo), Path.dirname(cli)])
@@ -64,7 +66,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
     write(@metainfo, metainfo_source(metainfo))
   end
 
-  def run(_), do: Mix.raise("Usage: mix playwright_ex.gen.protocol <playwright-repo>")
+  def run(_), do: Mix.raise("Usage: mix playwright_ex.gen.protocol [<playwright-repo>]")
 
   defp generate(ctx, protocol) do
     acc = %{schemes: {[], %{}}, metainfo: []}
