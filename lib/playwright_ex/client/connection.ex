@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.BrowserType
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Dialog
+  alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Client.Frame
@@ -28,6 +29,7 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Client.Worker
+  alias PlaywrightEx.Client.WritableStream
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
@@ -93,7 +95,7 @@ defmodule PlaywrightEx.Client.Connection do
         "Disposable" => dummy,
         "Electron" => dummy,
         "ElectronApplication" => dummy,
-        "ElementHandle" => dummy,
+        "ElementHandle" => &ElementHandle.new/4,
         "Frame" => &Frame.new/4,
         "JSHandle" => &JSHandle.new/4,
         "JsonPipe" => dummy,
@@ -113,7 +115,7 @@ defmodule PlaywrightEx.Client.Connection do
         "WebSocket" => dummy,
         "WebSocketRoute" => dummy,
         "Worker" => &Worker.new/4,
-        "WritableStream" => dummy
+        "WritableStream" => &WritableStream.new/4
       })
 
       this

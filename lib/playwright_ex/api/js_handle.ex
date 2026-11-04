@@ -3,7 +3,7 @@
 defmodule PlaywrightEx.JSHandle do
   @moduledoc since: "1.8"
   @moduledoc ~S"""
-  JSHandle represents an in-page JavaScript object. JSHandles can be created with the [`Page.evaluateHandle`](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+  JSHandle represents an in-page JavaScript object. JSHandles can be created with the `PlaywrightEx.Page.evaluate_handle/4`
   method.
 
   ```js
@@ -12,15 +12,209 @@ defmodule PlaywrightEx.JSHandle do
   ```
 
   JSHandle prevents the referenced JavaScript object being garbage collected unless the handle is exposed with
-  [`JSHandle.dispose`](https://playwright.dev/docs/api/class-jshandle#js-handle-dispose). JSHandles are auto-disposed when their origin frame gets navigated or the parent context
+  `PlaywrightEx.JSHandle.dispose/1`. JSHandles are auto-disposed when their origin frame gets navigated or the parent context
   gets destroyed.
 
   JSHandle instances can be used as an argument in [`Page.evalOnSelector`](https://playwright.dev/docs/api/class-page#page-eval-on-selector), `PlaywrightEx.Page.evaluate/4` and
-  [`Page.evaluateHandle`](https://playwright.dev/docs/api/class-page#page-evaluate-handle) methods.
-
-  Not ported yet: `asElement`, `dispose`, `evaluate`, `evaluateHandle`, `getProperties`, `getProperty`, `jsonValue`.
+  `PlaywrightEx.Page.evaluate_handle/4` methods.
   """
 
+  alias PlaywrightEx.Runtime.Facade
+
   @typedoc "A `JSHandle` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.JSHandle{}
+  @type t :: %PlaywrightEx.Client.JSHandle{} | %PlaywrightEx.Client.ElementHandle{}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns either `null` or the object handle itself, if the object handle is an instance of [`ElementHandle`](`PlaywrightEx.ElementHandle`).
+  """
+  @spec as_element(t()) :: nil | PlaywrightEx.ElementHandle.t()
+  def as_element(js_handle) do
+    PlaywrightEx.Client.JSHandle.as_element(js_handle)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  The `jsHandle.dispose` method stops referencing the element handle.
+  """
+  @spec dispose(t()) :: :ok | {:error, Exception.t()}
+  def dispose(js_handle) do
+    Facade.async_void("jsHandle.dispose", js_handle, fn -> PlaywrightEx.Client.JSHandle.dispose(js_handle) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `dispose/1`, but returns the value and raises on error."
+  @spec dispose!(t()) :: :ok
+  def dispose!(js_handle) do
+    Facade.async_void!("jsHandle.dispose", js_handle, fn -> PlaywrightEx.Client.JSHandle.dispose(js_handle) end)
+  end
+
+  @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `evaluate`, see its docs."
+  @type evaluate_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the return value of `pageFunction`.
+
+  This method passes this handle as the first argument to `pageFunction`.
+
+  If `pageFunction` returns a `Promise`, then `handle.evaluate` would wait for the promise to resolve and return
+  its value.
+
+  **Usage**
+
+  ```js
+  const tweetHandle = await page.$('.tweet .retweets');
+  expect(await tweetHandle.evaluate(node => node.innerText)).toBe('10 retweets');
+  ```
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  """
+  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
+  def evaluate(js_handle, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_options, "jsHandle.evaluate")
+
+    Facade.async("jsHandle.evaluate", js_handle, fn ->
+      PlaywrightEx.Client.JSHandle.evaluate(js_handle, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `evaluate/4`, but returns the value and raises on error."
+  @spec evaluate!(t(), String.t(), term() | nil, evaluate_options()) :: term()
+  def evaluate!(js_handle, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_options, "jsHandle.evaluate")
+
+    Facade.async!("jsHandle.evaluate", js_handle, fn ->
+      PlaywrightEx.Client.JSHandle.evaluate(js_handle, expression, arg, options)
+    end)
+  end
+
+  @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `evaluate_handle`, see its docs."
+  @type evaluate_handle_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the return value of `pageFunction` as a [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  This method passes this handle as the first argument to `pageFunction`.
+
+  The only difference between `jsHandle.evaluate` and `jsHandle.evaluateHandle` is that `jsHandle.evaluateHandle` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  If the function passed to the `jsHandle.evaluateHandle` returns a `Promise`, then `jsHandle.evaluateHandle` would wait
+  for the promise to resolve and return its value.
+
+  See `PlaywrightEx.Page.evaluate_handle/4` for more details.
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  """
+  @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def evaluate_handle(js_handle, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "jsHandle.evaluateHandle")
+
+    Facade.async("jsHandle.evaluateHandle", js_handle, fn ->
+      PlaywrightEx.Client.JSHandle.evaluate_handle(js_handle, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `evaluate_handle/4`, but returns the value and raises on error."
+  @spec evaluate_handle!(t(), String.t(), term() | nil, evaluate_handle_options()) :: PlaywrightEx.JSHandle.t()
+  def evaluate_handle!(js_handle, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "jsHandle.evaluateHandle")
+
+    Facade.async!("jsHandle.evaluateHandle", js_handle, fn ->
+      PlaywrightEx.Client.JSHandle.evaluate_handle(js_handle, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  The method returns a map with **own property names** as keys and JSHandle instances for the property values.
+
+  **Usage**
+
+  ```js
+  const handle = await page.evaluateHandle(() => ({ window, document }));
+  const properties = await handle.getProperties();
+  const windowHandle = properties.get('window');
+  const documentHandle = properties.get('document');
+  await handle.dispose();
+  ```
+  """
+  @spec get_properties(t()) :: {:ok, term()} | {:error, Exception.t()}
+  def get_properties(js_handle) do
+    Facade.async("jsHandle.getProperties", js_handle, fn -> PlaywrightEx.Client.JSHandle.get_properties(js_handle) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `get_properties/1`, but returns the value and raises on error."
+  @spec get_properties!(t()) :: term()
+  def get_properties!(js_handle) do
+    Facade.async!("jsHandle.getProperties", js_handle, fn -> PlaywrightEx.Client.JSHandle.get_properties(js_handle) end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Fetches a single property from the referenced object.
+
+  ## Arguments
+
+  * `property_name` - property to get
+  """
+  @spec get_property(t(), String.t()) :: {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def get_property(js_handle, property_name) do
+    Facade.async("jsHandle.getProperty", js_handle, fn ->
+      PlaywrightEx.Client.JSHandle.get_property(js_handle, property_name)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `get_property/2`, but returns the value and raises on error."
+  @spec get_property!(t(), String.t()) :: PlaywrightEx.JSHandle.t()
+  def get_property!(js_handle, property_name) do
+    Facade.async!("jsHandle.getProperty", js_handle, fn ->
+      PlaywrightEx.Client.JSHandle.get_property(js_handle, property_name)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns a JSON representation of the object. If the object has a `toJSON` function, it **will not be called**.
+
+  > #### Note {: .info}
+  >
+  > The method will return an empty JSON object if the referenced object is not stringifiable. It will throw an error if the
+  > object has circular references.
+  """
+  @spec json_value(t()) :: {:ok, term()} | {:error, Exception.t()}
+  def json_value(js_handle) do
+    Facade.async("jsHandle.jsonValue", js_handle, fn -> PlaywrightEx.Client.JSHandle.json_value(js_handle) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `json_value/1`, but returns the value and raises on error."
+  @spec json_value!(t()) :: term()
+  def json_value!(js_handle) do
+    Facade.async!("jsHandle.jsonValue", js_handle, fn -> PlaywrightEx.Client.JSHandle.json_value(js_handle) end)
+  end
 end

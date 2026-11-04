@@ -177,7 +177,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     body = """
     @typedoc "A `#{name}` handle. Compare handles with `==`, their fields are internal."
-    @type t :: #{struct_type(name)}
+    @type t :: #{struct_type(ctx, name)}
     #{event_type(events)}
 
     #{events_table}
@@ -199,20 +199,31 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     """
   end
 
-  defp struct_type(name) do
-    if function_exported?(impl(name), :__struct__, 0), do: "%#{inspect(impl(name))}{}", else: "term()"
+  # A subclass handle is one too (an `ElementHandle` is a `JSHandle`).
+  defp struct_type(ctx, name) do
+    subclasses = for {sub, %{"extends" => ^name}} <- ctx.classes, do: sub
+
+    if function_exported?(impl(name), :__struct__, 0),
+      do: Enum.map_join([name | Enum.sort(subclasses)], " | ", &"%#{inspect(impl(&1))}{}"),
+      else: "term()"
   end
 
   defp module_doc(ctx, class, events, unported) do
     sections([
       md(class["spec"], ctx),
-      class["extends"] && "Extends `#{class["extends"]}`.",
+      class["extends"] && extends_doc(ctx, class["extends"]),
       events != [] &&
         "## Events\n\n" <>
           Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"])),
       unported != [] &&
         "Not ported yet: " <> Enum.map_join(unported, ", ", &"`#{&1["alias"]}`") <> "."
     ])
+  end
+
+  defp extends_doc(ctx, parent) do
+    if Map.has_key?(ctx.classes, parent),
+      do: "Extends `#{inspect(facade(parent))}`: its functions take this handle too.",
+      else: "Extends `#{parent}`."
   end
 
   defp event_doc(ctx, event, since) do

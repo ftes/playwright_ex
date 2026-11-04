@@ -242,7 +242,31 @@ defmodule PlaywrightEx.Client.Frame do
     nil
   end
 
-  # frameElement, evaluateHandle  -- not ported: ElementHandle, JSHandle
+  def frame_element(this) do
+    ElementHandle.from(channel_call(this, :frameElement, %{}, TimeoutSettings.k_no_timeout()).element)
+  end
+
+  def evaluate_handle(this, page_function, arg \\ nil, options \\ nil) do
+    # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
+    JSHandle.assert_evaluate_options(options)
+
+    serialized_arg =
+      if options[:exposeFunctions],
+        # await serializeArgumentWithCallbacks(this, this._page, arg)  -- not ported: exposeFunctions
+        do: raise("exposeFunctions is not supported yet"),
+        else: JSHandle.serialize_argument(arg)
+
+    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    result =
+      channel_call(
+        this,
+        :evaluateExpressionHandle,
+        %{expression: page_function, arg: serialized_arg},
+        TimeoutSettings.k_no_timeout()
+      )
+
+    JSHandle.from(result.handle)
+  end
 
   def evaluate(this, page_function, arg \\ nil, options \\ nil) do
     # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
@@ -278,7 +302,28 @@ defmodule PlaywrightEx.Client.Frame do
     JSHandle.parse_result(result.value)
   end
 
-  # $, waitForSelector  -- not ported: ElementHandle
+  # $  -- ported as query_selector/3
+  def query_selector(this, selector, options \\ nil) do
+    result =
+      channel_call(
+        this,
+        :querySelector,
+        Map.merge(%{selector: selector}, options || %{}),
+        TimeoutSettings.k_no_timeout()
+      )
+
+    ElementHandle.from_nullable(result[:element])
+  end
+
+  def wait_for_selector(this, selector, options \\ %{}) do
+    if options[:visibility], do: raise("options.visibility is not supported, did you mean options.state?")
+
+    if options[:waitFor] && options[:waitFor] != "visible",
+      do: raise("options.waitFor is not supported, did you mean options.state?")
+
+    result = channel_call(this, :waitForSelector, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    ElementHandle.from_nullable(result[:element])
+  end
 
   def dispatch_event(this, selector, type, event_init \\ nil, options \\ %{}) do
     channel_call(
@@ -319,7 +364,11 @@ defmodule PlaywrightEx.Client.Frame do
     JSHandle.parse_result(result.value)
   end
 
-  # $$  -- not ported: ElementHandle
+  # $$  -- ported as query_selector_all/2
+  def query_selector_all(this, selector) do
+    result = channel_call(this, :querySelectorAll, %{selector: selector}, TimeoutSettings.k_no_timeout())
+    Enum.map(result.elements, &ElementHandle.from/1)
+  end
 
   def _query_count(this, selector) do
     channel_call(this, :queryCount, %{selector: selector}, TimeoutSettings.k_no_timeout()).value
@@ -362,7 +411,33 @@ defmodule PlaywrightEx.Client.Frame do
     get(this, :_detached)
   end
 
-  # addScriptTag, addStyleTag  -- not ported: ElementHandle
+  def add_script_tag(this, options \\ %{}) do
+    copy = options
+
+    copy =
+      if copy[:path] do
+        copy = Map.put(copy, :content, File.read!(copy.path))
+        Map.put(copy, :content, add_source_url_to_script(copy.content, copy.path))
+      else
+        copy
+      end
+
+    ElementHandle.from(channel_call(this, :addScriptTag, copy, TimeoutSettings.k_no_timeout()).element)
+  end
+
+  def add_style_tag(this, options \\ %{}) do
+    copy = options
+
+    copy =
+      if copy[:path] do
+        copy = Map.put(copy, :content, File.read!(copy.path))
+        Map.put(copy, :content, copy.content <> "/*# sourceURL=" <> String.replace(copy.path, "\n", "") <> "*/")
+      else
+        copy
+      end
+
+    ElementHandle.from(channel_call(this, :addStyleTag, copy, TimeoutSettings.k_no_timeout()).element)
+  end
 
   def click(this, selector, options \\ %{}) do
     channel_call(this, :click, Map.merge(%{selector: selector}, options), _timeout(this, options))
@@ -379,7 +454,30 @@ defmodule PlaywrightEx.Client.Frame do
     nil
   end
 
-  # _drop  -- not ported: convertInputFiles
+  def _drop(this, selector, payload, options \\ %{}) do
+    file_params =
+      if payload[:files] != nil do
+        converted = ElementHandle.convert_input_files(payload.files, Page.context(page(this)))
+
+        if converted[:localDirectory] || converted[:directoryStream],
+          do: raise("Dropping a directory is not supported — pass individual files."),
+          else: %{payloads: converted[:payloads], localPaths: converted[:localPaths], streams: converted[:streams]}
+      else
+        %{}
+      end
+
+    data_array =
+      if payload[:data], do: Enum.map(payload.data, fn {mime_type, value} -> %{mimeType: mime_type, value: value} end)
+
+    channel_call(
+      this,
+      :drop,
+      Map.merge(Map.merge(Map.put(file_params, :selector, selector), %{data: data_array}), options),
+      _timeout(this, options)
+    )
+
+    nil
+  end
 
   def tap(this, selector, options \\ %{}) do
     channel_call(this, :tap, Map.merge(%{selector: selector}, options), _timeout(this, options))
@@ -504,7 +602,18 @@ defmodule PlaywrightEx.Client.Frame do
     ).values
   end
 
-  # setInputFiles  -- not ported: convertInputFiles
+  def set_input_files(this, selector, files, options \\ %{}) do
+    converted = ElementHandle.convert_input_files(files, Page.context(page(this)))
+
+    channel_call(
+      this,
+      :setInputFiles,
+      Map.merge(Map.merge(%{selector: selector}, converted), options),
+      _timeout(this, options)
+    )
+
+    nil
+  end
 
   def type(this, selector, text, options \\ %{}) do
     channel_call(this, :type, Map.merge(%{selector: selector, text: text}, options), _timeout(this, options))
@@ -537,13 +646,38 @@ defmodule PlaywrightEx.Client.Frame do
     nil
   end
 
-  # waitForFunction  -- not ported: JSHandle
+  def wait_for_function(this, page_function, arg \\ nil, options \\ %{}) do
+    options = options || %{}
+
+    if is_binary(options[:polling]) and options.polling != "raf",
+      do: raise("Unknown polling option: " <> options.polling)
+
+    result =
+      channel_call(
+        this,
+        :waitForFunction,
+        Map.merge(options, %{
+          pollingInterval: if(options[:polling] == "raf", do: nil, else: options[:polling]),
+          expression: page_function,
+          # isFunction: typeof pageFunction === 'function',  -- omitted: page functions are JS source (PLAN)
+          arg: JSHandle.serialize_argument(arg)
+        }),
+        _timeout(this, options)
+      )
+
+    JSHandle.from(result[:handle])
+  end
 
   def title(this) do
     channel_call(this, :title, %{}, TimeoutSettings.k_no_timeout()).value
   end
 
   # _expect  -- not ported: matchers
+
+  # clientHelper.ts addSourceUrlToScript
+  defp add_source_url_to_script(source, path) do
+    "#{source}\n//# sourceURL=#{String.replace(path, "\n", "")}"
+  end
 
   def verify_load_state(name, wait_until) do
     wait_until = if wait_until == "networkidle0", do: "networkidle", else: wait_until

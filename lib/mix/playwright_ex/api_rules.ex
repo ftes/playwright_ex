@@ -28,7 +28,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   @dropped_members ~w()
 
   # "Class.member" whose `options` argument the client rejects.
-  @dropped_options ~w(Frame.evalOnSelector Page.evalOnSelector)
+  @dropped_options ~w(Frame.evalOnSelector Page.evalOnSelector ElementHandle.inputValue)
 
   # The events of the Python `expect_*` members that have no JS member (`expect_popup` is
   # `waitForEvent("popup")` in the Python client).

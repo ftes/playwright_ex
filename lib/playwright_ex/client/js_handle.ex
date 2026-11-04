@@ -1,22 +1,113 @@
 defmodule PlaywrightEx.Client.JSHandle do
   @upstream "packages/playwright-core/src/client/jsHandle.ts"
-  @moduledoc "Port of `#{@upstream}`: the `JSHandle` constructor and the argument serialization for `evaluate`."
+  @moduledoc """
+  Port of `#{@upstream}`.
+
+  `ElementHandle extends JSHandle`: `PlaywrightEx.Client.ElementHandle` is its own struct and
+  module; the methods here take either handle. `asElement`, the one method ElementHandle
+  overrides, dispatches on the struct. `toString` is also `String.Chars` (`"\#{handle}"`).
+  """
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Protocol.Serializers
 
   def from(handle) do
     handle
   end
 
-  def new(parent, type, guid, initializer) do
-    this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
+  # `module` is the subclass for `super(...)` in ElementHandle, as in ChannelOwner.new/5.
+  def new(module \\ __MODULE__, parent, type, guid, initializer) do
+    this = ChannelOwner.new(module, parent, type, guid, initializer)
     put(this, :_preview, get(this, :_initializer).preview)
     EventEmitter.on(_channel(this), "previewUpdated", fn %{preview: preview} -> put(this, :_preview, preview) end)
     this
   end
 
-  # evaluate, evaluateHandle, getProperty, getProperties, jsonValue, asElement, dispose, toString  -- not ported
+  def evaluate(this, page_function, arg \\ nil, options \\ nil) do
+    assert_evaluate_options(options)
+
+    serialized_arg =
+      if options[:exposeFunctions],
+        # await serializeArgumentWithCallbacks(this, this._parentOfType('Page'), arg)  -- not ported: exposeFunctions
+        do: raise("exposeFunctions is not supported yet"),
+        else: serialize_argument(arg)
+
+    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    result =
+      channel_call(
+        this,
+        :evaluateExpression,
+        %{expression: page_function, arg: serialized_arg},
+        TimeoutSettings.k_no_timeout()
+      )
+
+    parse_result(result.value)
+  end
+
+  def evaluate_handle(this, page_function, arg \\ nil, options \\ nil) do
+    assert_evaluate_options(options)
+
+    serialized_arg =
+      if options[:exposeFunctions],
+        # await serializeArgumentWithCallbacks(this, this._parentOfType('Page'), arg)  -- not ported: exposeFunctions
+        do: raise("exposeFunctions is not supported yet"),
+        else: serialize_argument(arg)
+
+    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    result =
+      channel_call(
+        this,
+        :evaluateExpressionHandle,
+        %{expression: page_function, arg: serialized_arg},
+        TimeoutSettings.k_no_timeout()
+      )
+
+    from(result.handle)
+  end
+
+  def get_property(this, property_name) do
+    result = channel_call(this, :getProperty, %{name: property_name}, TimeoutSettings.k_no_timeout())
+    from(result.handle)
+  end
+
+  # `Map<string, JSHandle>` is a map.
+  def get_properties(this) do
+    for %{name: name, value: value} <-
+          channel_call(this, :getPropertyList, %{}, TimeoutSettings.k_no_timeout()).properties,
+        into: %{},
+        do: {name, from(value)}
+  end
+
+  def json_value(this) do
+    parse_result(channel_call(this, :jsonValue, %{}, TimeoutSettings.k_no_timeout()).value)
+  end
+
+  # ElementHandle overrides asElement: dispatch on the struct.
+  def as_element(%__MODULE__{}) do
+    nil
+  end
+
+  def as_element(this), do: this.__struct__.as_element(this)
+
+  # [Symbol.asyncDispose]  -- not ported: await using
+
+  def dispose(this) do
+    try do
+      channel_call(this, :dispose, %{}, TimeoutSettings.k_no_timeout())
+    rescue
+      e ->
+        if Errors.is_target_closed_error(e),
+          do: nil,
+          else: reraise(e, __STACKTRACE__)
+    end
+
+    nil
+  end
+
+  def to_string(this) do
+    get(this, :_preview)
+  end
 
   # This function takes care of converting all JSHandles to their channels,
   # so that generic channel serializer converts them to guids.
@@ -58,4 +149,8 @@ defmodule PlaywrightEx.Client.JSHandle do
   # `value instanceof JSHandle` (ElementHandle extends JSHandle)
   defp is_js_handle(value),
     do: ChannelOwner.is_channel_owner(value) and get(value, :_type) in ["JSHandle", "ElementHandle"]
+
+  defimpl String.Chars do
+    def to_string(this), do: PlaywrightEx.Client.JSHandle.to_string(this)
+  end
 end

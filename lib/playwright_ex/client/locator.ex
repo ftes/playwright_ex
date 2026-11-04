@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Locator do
   @moduledoc "Port of `#{@upstream}` (`class Locator`). Locators hold no mutable state: a plain struct."
 
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.FrameLocator
   alias PlaywrightEx.Client.JSHandle
@@ -54,7 +55,34 @@ defmodule PlaywrightEx.Client.Locator do
     %__MODULE__{_frame: frame, _selector: selector}
   end
 
-  # _withElement  -- not ported: ElementHandle
+  defp _with_element(this, task, options) do
+    timeout = Frame._timeout(this._frame, %{timeout: options[:timeout]}).timeout
+    deadline = if timeout != 0, do: monotonic_time() + timeout, else: 0
+
+    ChannelOwner._wrap_api_call(
+      this._frame,
+      fn _ ->
+        result =
+          ChannelOwner.channel_call(
+            this._frame,
+            :waitForSelector,
+            %{selector: this._selector, strict: true, state: "attached"},
+            # { signal: options.signal, timeout }  -- signal not ported: AbortSignal
+            %{timeout: timeout}
+          )
+
+        handle = ElementHandle.from_nullable(result[:element])
+        if !handle, do: raise("Could not resolve #{this._selector} to DOM Element")
+
+        try do
+          task.(handle, if(deadline != 0, do: deadline - monotonic_time(), else: 0))
+        after
+          JSHandle.dispose(handle)
+        end
+      end,
+      %{title: options.title, internal: options[:internal]}
+    )
+  end
 
   def _equals(this, locator) do
     this._frame == locator._frame and this._selector == locator._selector
@@ -64,7 +92,12 @@ defmodule PlaywrightEx.Client.Locator do
     Frame.page(this._frame)
   end
 
-  # boundingBox  -- not ported: ElementHandle
+  def bounding_box(this, options \\ nil) do
+    _with_element(this, fn h, _ -> ElementHandle.bounding_box(h) end, %{
+      title: "Bounding box",
+      timeout: options[:timeout]
+    })
+  end
 
   def check(this, options \\ %{}) do
     Frame.check(this._frame, this._selector, Map.merge(%{strict: true}, options || %{}))
@@ -87,14 +120,27 @@ defmodule PlaywrightEx.Client.Locator do
     Frame.drag_and_drop(this._frame, this._selector, target._selector, Map.merge(%{strict: true}, options || %{}))
   end
 
-  # drop  -- not ported: convertInputFiles
-  # evaluate  -- not ported: ElementHandle
+  def drop(this, payload, options \\ %{}) do
+    Frame._drop(this._frame, this._selector, payload, Map.merge(%{strict: true}, options || %{}))
+  end
+
+  def evaluate(this, page_function, arg \\ nil, options \\ nil) do
+    _with_element(this, fn h, _ -> JSHandle.evaluate(h, page_function, arg, options) end, %{
+      title: "Evaluate",
+      timeout: options[:timeout]
+    })
+  end
 
   def evaluate_all(this, page_function, arg \\ nil) do
     Frame.eval_on_selector_all(this._frame, this._selector, page_function, arg)
   end
 
-  # evaluateHandle  -- not ported: ElementHandle
+  def evaluate_handle(this, page_function, arg \\ nil, options \\ nil) do
+    _with_element(this, fn h, _ -> JSHandle.evaluate_handle(h, page_function, arg, options) end, %{
+      title: "Evaluate",
+      timeout: options[:timeout]
+    })
+  end
 
   def fill(this, value, options \\ %{}) do
     Frame.fill(this._frame, this._selector, value, Map.merge(%{strict: true}, options || %{}))
@@ -169,7 +215,13 @@ defmodule PlaywrightEx.Client.Locator do
     new(this._frame, this._selector, %{visible: true})
   end
 
-  # elementHandle, elementHandles  -- not ported: ElementHandle
+  def element_handle(this, options \\ nil) do
+    Frame.wait_for_selector(this._frame, this._selector, Map.merge(%{strict: true, state: "attached"}, options || %{}))
+  end
+
+  def element_handles(this) do
+    Frame.query_selector_all(this._frame, this._selector)
+  end
 
   def content_frame(this) do
     FrameLocator.new(this._frame, this._selector)
@@ -286,7 +338,16 @@ defmodule PlaywrightEx.Client.Locator do
     Frame.press(this._frame, this._selector, key, Map.merge(%{strict: true}, options || %{}))
   end
 
-  # screenshot  -- not ported: ElementHandle
+  def screenshot(this, options \\ %{}) do
+    options = options || %{}
+    mask = options[:mask]
+
+    _with_element(
+      this,
+      fn h, timeout -> ElementHandle.screenshot(h, Map.merge(options, %{mask: mask, timeout: timeout})) end,
+      %{title: "Screenshot", timeout: options[:timeout]}
+    )
+  end
 
   def aria_snapshot(this, options \\ %{}) do
     options = options || %{}
@@ -316,13 +377,29 @@ defmodule PlaywrightEx.Client.Locator do
     result.snapshot
   end
 
-  # scrollIntoViewIfNeeded  -- not ported: ElementHandle
+  def scroll_into_view_if_needed(this, options \\ %{}) do
+    options = options || %{}
+
+    _with_element(
+      this,
+      fn h, timeout -> ElementHandle.scroll_into_view_if_needed(h, Map.put(options, :timeout, timeout)) end,
+      %{title: "Scroll into view", timeout: options[:timeout]}
+    )
+  end
 
   def select_option(this, values, options \\ %{}) do
     Frame.select_option(this._frame, this._selector, values, Map.merge(%{strict: true}, options || %{}))
   end
 
-  # selectText  -- not ported: ElementHandle
+  def select_text(this, options \\ %{}) do
+    options = options || %{}
+
+    _with_element(
+      this,
+      fn h, timeout -> ElementHandle.select_text(h, Map.put(options, :timeout, timeout)) end,
+      %{title: "Select text", timeout: options[:timeout]}
+    )
+  end
 
   def set_checked(this, checked, options \\ nil) do
     if checked,
@@ -332,7 +409,9 @@ defmodule PlaywrightEx.Client.Locator do
     nil
   end
 
-  # setInputFiles  -- not ported: convertInputFiles
+  def set_input_files(this, files, options \\ %{}) do
+    Frame.set_input_files(this._frame, this._selector, files, Map.merge(%{strict: true}, options || %{}))
+  end
 
   def tap(this, options \\ %{}) do
     Frame.tap(this._frame, this._selector, Map.merge(%{strict: true}, options || %{}))
@@ -419,6 +498,9 @@ defmodule PlaywrightEx.Client.Locator do
       nil -> nil
     end
   end
+
+  # utils monotonicTime(), in milliseconds.
+  defp monotonic_time, do: System.monotonic_time(:millisecond)
 
   # JS truthiness of a `string | RegExp` option.
   defp truthy(value), do: value not in [nil, false, ""]

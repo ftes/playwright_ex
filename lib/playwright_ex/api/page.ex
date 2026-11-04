@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page do
   ### `:file_chooser`
 
   *Since 1.9.* Emitted when a file chooser is supposed to appear, such as after clicking the  `<input type=file>`. Playwright can
-  respond to it via setting the input files using [`FileChooser.setFiles`](https://playwright.dev/docs/api/class-filechooser#file-chooser-set-files) that can be uploaded after that.
+  respond to it via setting the input files using `PlaywrightEx.FileChooser.set_files/3` that can be uploaded after that.
 
   ```js
   page.on('filechooser', async fileChooser => {
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `addScriptTag`, `addStyleTag`, `coverage`, `emulateMedia`, `evaluateHandle`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `$`, `$$`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `screenshot`, `setInputFiles`, `ariaSnapshot`, `ariaSnapshotJSON`, `unrouteAll`, `unroute`, `video`, `waitForFunction`, `waitForSelector`, `webmcp`, `expect_download`, `expect_file_chooser`, `expect_websocket`.
+  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `ariaSnapshot`, `ariaSnapshotJSON`, `unrouteAll`, `unroute`, `video`, `webmcp`, `expect_download`, `expect_websocket`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -267,6 +267,80 @@ defmodule PlaywrightEx.Page do
     web_socket: "websocket",
     worker: "worker"
   }
+
+  @add_script_tag_options {:object,
+                           %{content: {:content, nil}, path: {:path, nil}, type: {:type, nil}, url: {:url, nil}}}
+
+  @typedoc "Options of `add_script_tag`, see its docs."
+  @type add_script_tag_options ::
+          [content: String.t(), path: String.t(), type: String.t(), url: String.t()]
+          | %{
+              optional(:content) => String.t(),
+              optional(:path) => String.t(),
+              optional(:type) => String.t(),
+              optional(:url) => String.t()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Adds a `<script>` tag into the page with the desired url or content. Returns the added tag when the script's onload
+  fires or when the script content was injected into frame.
+
+  ## Options
+
+  * `:content` - Raw JavaScript content to be injected into frame.
+  * `:path` - Path to the JavaScript file to be injected into frame. If `path` is a relative path, then it is resolved relative to the
+    current working directory.
+  * `:type` - Script type. Use 'module' in order to load a JavaScript ES6 module. See
+    [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) for more details.
+  * `:url` - URL of a script to be added.
+  """
+  @spec add_script_tag(t(), add_script_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def add_script_tag(page, options \\ []) do
+    options = Facade.options!(options, @add_script_tag_options, "page.addScriptTag")
+    Facade.async("page.addScriptTag", page, fn -> PlaywrightEx.Client.Page.add_script_tag(page, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `add_script_tag/2`, but returns the value and raises on error."
+  @spec add_script_tag!(t(), add_script_tag_options()) :: PlaywrightEx.ElementHandle.t()
+  def add_script_tag!(page, options \\ []) do
+    options = Facade.options!(options, @add_script_tag_options, "page.addScriptTag")
+    Facade.async!("page.addScriptTag", page, fn -> PlaywrightEx.Client.Page.add_script_tag(page, options) end)
+  end
+
+  @add_style_tag_options {:object, %{content: {:content, nil}, path: {:path, nil}, url: {:url, nil}}}
+
+  @typedoc "Options of `add_style_tag`, see its docs."
+  @type add_style_tag_options ::
+          [content: String.t(), path: String.t(), url: String.t()]
+          | %{optional(:content) => String.t(), optional(:path) => String.t(), optional(:url) => String.t()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Adds a `<link rel="stylesheet">` tag into the page with the desired url or a `<style type="text/css">` tag with the
+  content. Returns the added tag when the stylesheet's onload fires or when the CSS content was injected into frame.
+
+  ## Options
+
+  * `:content` - Raw CSS content to be injected into frame.
+  * `:path` - Path to the CSS file to be injected into frame. If `path` is a relative path, then it is resolved relative to the
+    current working directory.
+  * `:url` - URL of the `<link>` tag.
+  """
+  @spec add_style_tag(t(), add_style_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def add_style_tag(page, options \\ []) do
+    options = Facade.options!(options, @add_style_tag_options, "page.addStyleTag")
+    Facade.async("page.addStyleTag", page, fn -> PlaywrightEx.Client.Page.add_style_tag(page, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `add_style_tag/2`, but returns the value and raises on error."
+  @spec add_style_tag!(t(), add_style_tag_options()) :: PlaywrightEx.ElementHandle.t()
+  def add_style_tag!(page, options \\ []) do
+    options = Facade.options!(options, @add_style_tag_options, "page.addStyleTag")
+    Facade.async!("page.addStyleTag", page, fn -> PlaywrightEx.Client.Page.add_style_tag(page, options) end)
+  end
 
   @doc since: "1.8"
   @doc ~S"""
@@ -913,7 +987,7 @@ defmodule PlaywrightEx.Page do
   > #### Discouraged {: .warning}
   >
   > This method does not wait for the element to pass actionability
-  > checks and therefore can lead to the flaky tests. Use [`Locator.evaluate`](https://playwright.dev/docs/api/class-locator#locator-evaluate),
+  > checks and therefore can lead to the flaky tests. Use `PlaywrightEx.Locator.evaluate/4`,
   > other [`Locator`](`PlaywrightEx.Locator`) helper methods or web-first assertions instead.
 
   ## Arguments
@@ -1045,6 +1119,72 @@ defmodule PlaywrightEx.Page do
   def evaluate!(page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "page.evaluate")
     Facade.async!("page.evaluate", page, fn -> PlaywrightEx.Client.Page.evaluate(page, expression, arg, options) end)
+  end
+
+  @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `evaluate_handle`, see its docs."
+  @type evaluate_handle_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the value of the `pageFunction` invocation as a [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  The only difference between `PlaywrightEx.Page.evaluate/4` and `PlaywrightEx.Page.evaluate_handle/4` is that `PlaywrightEx.Page.evaluate_handle/4` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  If the function passed to the `PlaywrightEx.Page.evaluate_handle/4` returns a `Promise`, then `PlaywrightEx.Page.evaluate_handle/4` would wait for the
+  promise to resolve and return its value.
+
+  **Usage**
+
+  ```js
+  // Handle for the window object.
+  const aWindowHandle = await page.evaluateHandle(() => Promise.resolve(window));
+  ```
+
+  A string can also be passed in instead of a function:
+
+  ```js
+  const aHandle = await page.evaluateHandle('document'); // Handle for the 'document'
+  ```
+
+  [`JSHandle`](`PlaywrightEx.JSHandle`) instances can be passed as an argument to the `PlaywrightEx.Page.evaluate_handle/4`:
+
+  ```js
+  const aHandle = await page.evaluateHandle(() => document.body);
+  const resultHandle = await page.evaluateHandle(body => body.innerHTML, aHandle);
+  console.log(await resultHandle.jsonValue());
+  await resultHandle.dispose();
+  ```
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  """
+  @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def evaluate_handle(page, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "page.evaluateHandle")
+
+    Facade.async("page.evaluateHandle", page, fn ->
+      PlaywrightEx.Client.Page.evaluate_handle(page, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `evaluate_handle/4`, but returns the value and raises on error."
+  @spec evaluate_handle!(t(), String.t(), term() | nil, evaluate_handle_options()) :: PlaywrightEx.JSHandle.t()
+  def evaluate_handle!(page, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "page.evaluateHandle")
+
+    Facade.async!("page.evaluateHandle", page, fn ->
+      PlaywrightEx.Client.Page.evaluate_handle(page, expression, arg, options)
+    end)
   end
 
   @fill_options {:object,
@@ -2866,6 +3006,69 @@ defmodule PlaywrightEx.Page do
     Facade.async_void!("page.press", page, fn -> PlaywrightEx.Client.Page.press(page, selector, key, options) end)
   end
 
+  @query_selector_options {:object, %{strict: {:strict, nil}}}
+
+  @typedoc "Options of `query_selector`, see its docs."
+  @type query_selector_options :: [strict: boolean()] | %{optional(:strict) => boolean()}
+
+  @doc since: "1.9"
+  @doc ~S"""
+  The method finds an element matching the specified selector within the page. If no elements match the selector, the
+  return value resolves to `null`. To wait for an element on the page, use `PlaywrightEx.Locator.wait_for/2`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Page.locator/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+
+  ## Options
+
+  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  """
+  @spec query_selector(t(), String.t(), query_selector_options()) ::
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def query_selector(page, selector, options \\ []) do
+    options = Facade.options!(options, @query_selector_options, "page.$")
+    Facade.async("page.$", page, fn -> PlaywrightEx.Client.Page.query_selector(page, selector, options) end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `query_selector/3`, but returns the value and raises on error."
+  @spec query_selector!(t(), String.t(), query_selector_options()) :: nil | PlaywrightEx.ElementHandle.t()
+  def query_selector!(page, selector, options \\ []) do
+    options = Facade.options!(options, @query_selector_options, "page.$")
+    Facade.async!("page.$", page, fn -> PlaywrightEx.Client.Page.query_selector(page, selector, options) end)
+  end
+
+  @doc since: "1.9"
+  @doc ~S"""
+  The method finds all elements matching the specified selector within the page. If no elements match the selector, the
+  return value resolves to `[]`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Page.locator/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+  """
+  @spec query_selector_all(t(), String.t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, Exception.t()}
+  def query_selector_all(page, selector) do
+    Facade.async("page.$$", page, fn -> PlaywrightEx.Client.Page.query_selector_all(page, selector) end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `query_selector_all/2`, but returns the value and raises on error."
+  @spec query_selector_all!(t(), String.t()) :: [PlaywrightEx.ElementHandle.t()]
+  def query_selector_all!(page, selector) do
+    Facade.async!("page.$$", page, fn -> PlaywrightEx.Client.Page.query_selector_all(page, selector) end)
+  end
+
   @doc since: "1.56"
   @doc ~S"""
   Returns up to (currently) 100 last network request from this page. See [`Page.on(:request)`](PlaywrightEx.Page.html#module-request) for more details.
@@ -2941,6 +3144,113 @@ defmodule PlaywrightEx.Page do
   def reload!(page, options \\ []) do
     options = Facade.options!(options, @reload_options, "page.reload")
     Facade.async!("page.reload", page, fn -> PlaywrightEx.Client.Page.reload(page, options) end)
+  end
+
+  @screenshot_options {:object,
+                       %{
+                         animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
+                         caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
+                         clip: {:clip, {:fields, %{x: nil, y: nil, width: nil, height: nil}}},
+                         full_page: {:fullPage, nil},
+                         mask: {:mask, nil},
+                         mask_color: {:maskColor, nil},
+                         omit_background: {:omitBackground, nil},
+                         path: {:path, nil},
+                         quality: {:quality, nil},
+                         scale: {:scale, {:enum, %{css: "css", device: "device"}}},
+                         style: {:style, nil},
+                         timeout: {:timeout, nil},
+                         type: {:type, {:enum, %{png: "png", jpeg: "jpeg", webp: "webp"}}}
+                       }}
+
+  @typedoc "Options of `screenshot`, see its docs."
+  @type screenshot_options ::
+          [
+            animations: :disabled | :allow,
+            caret: :hide | :initial,
+            clip: %{x: number(), y: number(), width: number(), height: number()},
+            full_page: boolean(),
+            mask: [PlaywrightEx.Locator.t()],
+            mask_color: String.t(),
+            omit_background: boolean(),
+            path: String.t(),
+            quality: integer(),
+            scale: :css | :device,
+            style: String.t(),
+            timeout: number() | :infinity,
+            type: :png | :jpeg | :webp
+          ]
+          | %{
+              optional(:animations) => :disabled | :allow,
+              optional(:caret) => :hide | :initial,
+              optional(:clip) => %{x: number(), y: number(), width: number(), height: number()},
+              optional(:full_page) => boolean(),
+              optional(:mask) => [PlaywrightEx.Locator.t()],
+              optional(:mask_color) => String.t(),
+              optional(:omit_background) => boolean(),
+              optional(:path) => String.t(),
+              optional(:quality) => integer(),
+              optional(:scale) => :css | :device,
+              optional(:style) => String.t(),
+              optional(:timeout) => number() | :infinity,
+              optional(:type) => :png | :jpeg | :webp
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the buffer with the captured screenshot.
+
+  ## Options
+
+  * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+
+    * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
+    * infinite animations are canceled to initial state, and then played over after the screenshot.
+
+    Defaults to `"allow"` that leaves animations untouched.
+  * `:caret` - When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, text caret behavior will not be changed.  Defaults to `"hide"`.
+  * `:clip` - An object which specifies clipping of the resulting image.
+    * `:x` - x-coordinate of top-left corner of clip area
+    * `:y` - y-coordinate of top-left corner of clip area
+    * `:width` - width of clipping area
+    * `:height` - height of clipping area
+  * `:full_page` - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
+    `false`.
+  * `:mask` - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+    a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
+    The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
+  * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+    Defaults to `false`.
+  * `:path` - The file path to save the image to. The screenshot type will be inferred from file extension. If `path` is a
+    relative path, then it is resolved relative to the current working directory. If no path is provided, the image won't be
+    saved to the disk.
+  * `:quality` - The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`.
+    For `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
+  * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+
+    Defaults to `"device"`.
+  * `:style` - *Since 1.41.* Text of the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible
+    or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies
+    to the inner frames.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:type` - Specify screenshot type, defaults to `png`.
+  """
+  @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, Exception.t()}
+  def screenshot(page, options \\ []) do
+    options = Facade.options!(options, @screenshot_options, "page.screenshot")
+    Facade.async("page.screenshot", page, fn -> PlaywrightEx.Client.Page.screenshot(page, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `screenshot/2`, but returns the value and raises on error."
+  @spec screenshot!(t(), screenshot_options()) :: binary()
+  def screenshot!(page, options \\ []) do
+    options = Facade.options!(options, @screenshot_options, "page.screenshot")
+    Facade.async!("page.screenshot", page, fn -> PlaywrightEx.Client.Page.screenshot(page, options) end)
   end
 
   @select_option_values {:union,
@@ -3296,6 +3606,92 @@ defmodule PlaywrightEx.Page do
   def set_extra_http_headers!(page, headers) do
     Facade.async_void!("page.setExtraHTTPHeaders", page, fn ->
       PlaywrightEx.Client.Page.set_extra_http_headers(page, headers)
+    end)
+  end
+
+  @set_input_files_files {:union,
+                          [
+                            {:fields, %{name: nil, mimeType: nil, buffer: nil}},
+                            {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
+                          ]}
+  @set_input_files_options {:object,
+                            %{no_wait_after: {:noWaitAfter, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `set_input_files`, see its docs."
+  @type set_input_files_options ::
+          [no_wait_after: boolean(), strict: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:no_wait_after) => boolean(),
+              optional(:strict) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then they
+  are resolved relative to the current working directory. For empty array, clears the selected files.
+  For inputs with a `[webkitdirectory]` attribute, only a single directory path is supported.
+
+  This method expects `selector` to point to an
+  [input element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), targets the control instead.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.set_input_files/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to search for an element. If there are multiple elements satisfying the selector, the first will be used.
+  * `files`
+    * `:name` - File name
+    * `:mimeType` - File type
+    * `:buffer` - File content
+
+  ## Options
+
+  * `:no_wait_after` - This option has no effect.
+  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec set_input_files(
+          t(),
+          String.t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok | {:error, Exception.t()}
+  def set_input_files(page, selector, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "page.setInputFiles")
+
+    Facade.async_void("page.setInputFiles", page, fn ->
+      PlaywrightEx.Client.Page.set_input_files(page, selector, files, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `set_input_files/4`, but returns the value and raises on error."
+  @spec set_input_files!(
+          t(),
+          String.t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok
+  def set_input_files!(page, selector, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "page.setInputFiles")
+
+    Facade.async_void!("page.setInputFiles", page, fn ->
+      PlaywrightEx.Client.Page.set_input_files(page, selector, files, options)
     end)
   end
 
@@ -3721,6 +4117,76 @@ defmodule PlaywrightEx.Page do
     Facade.promise("page.waitForEvent", page, fn -> PlaywrightEx.Client.Page.wait_for_event(page, event, options) end)
   end
 
+  @wait_for_function_options {:object, %{polling: {:polling, {:enum, %{raf: "raf"}}}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_function`, see its docs."
+  @type wait_for_function_options ::
+          [polling: number() | :raf, timeout: number() | :infinity]
+          | %{optional(:polling) => number() | :raf, optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns when the `pageFunction` returns a truthy value. It resolves to a JSHandle of the truthy value.
+
+  **Usage**
+
+  The `PlaywrightEx.Page.wait_for_function/4` can be used to observe viewport size change:
+
+  ```js
+  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
+
+  (async () => {
+    const browser = await webkit.launch();
+    const page = await browser.newPage();
+    const watchDog = page.waitForFunction(() => window.innerWidth < 100);
+    await page.setViewportSize({ width: 50, height: 50 });
+    await watchDog;
+    await browser.close();
+  })();
+  ```
+
+  To pass an argument to the predicate of `PlaywrightEx.Page.wait_for_function/4` function:
+
+  ```js
+  const selector = '.foo';
+  await page.waitForFunction(selector => !!document.querySelector(selector), selector);
+  ```
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:polling` - If `polling` is `'raf'`, then `pageFunction` is constantly executed in `requestAnimationFrame`
+    callback. If `polling` is a number, then it is treated as an interval in milliseconds at which the function
+    would be executed. Defaults to `raf`.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec wait_for_function(t(), String.t(), term() | nil, wait_for_function_options()) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def wait_for_function(page, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @wait_for_function_options, "page.waitForFunction")
+
+    Facade.async("page.waitForFunction", page, fn ->
+      PlaywrightEx.Client.Page.wait_for_function(page, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `wait_for_function/4`, but returns the value and raises on error."
+  @spec wait_for_function!(t(), String.t(), term() | nil, wait_for_function_options()) :: PlaywrightEx.JSHandle.t()
+  def wait_for_function!(page, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @wait_for_function_options, "page.waitForFunction")
+
+    Facade.async!("page.waitForFunction", page, fn ->
+      PlaywrightEx.Client.Page.wait_for_function(page, expression, arg, options)
+    end)
+  end
+
   @wait_for_load_state_state {:enum, %{load: "load", domcontentloaded: "domcontentloaded", networkidle: "networkidle"}}
   @wait_for_load_state_options {:object, %{timeout: {:timeout, nil}}}
 
@@ -3979,6 +4445,106 @@ defmodule PlaywrightEx.Page do
     end)
   end
 
+  @wait_for_selector_options {:object,
+                              %{
+                                state:
+                                  {:state,
+                                   {:enum,
+                                    %{attached: "attached", detached: "detached", visible: "visible", hidden: "hidden"}}},
+                                strict: {:strict, nil},
+                                timeout: {:timeout, nil}
+                              }}
+
+  @typedoc "Options of `wait_for_selector`, see its docs."
+  @type wait_for_selector_options ::
+          [state: :attached | :detached | :visible | :hidden, strict: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:state) => :attached | :detached | :visible | :hidden,
+              optional(:strict) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
+  `detached`.
+
+  > #### Note {: .info}
+  >
+  > Playwright automatically waits for element to be ready before performing an action. Using
+  > [`Locator`](`PlaywrightEx.Locator`) objects and web-first assertions makes the code wait-for-selector-free.
+
+  Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become
+  visible/hidden). If at the moment of calling the method `selector` already satisfies the condition, the method
+  will return immediately. If the selector doesn't satisfy the condition for the `timeout` milliseconds, the
+  function will throw.
+
+  **Usage**
+
+  This method works across navigations:
+
+  ```js
+  const { chromium } = require('playwright');  // Or 'firefox' or 'webkit'.
+
+  (async () => {
+    const browser = await chromium.launch();
+    const page = await browser.newPage();
+    for (const currentURL of ['https://google.com', 'https://bbc.com']) {
+      await page.goto(currentURL);
+      const element = await page.waitForSelector('img');
+      console.log('Loaded image: ' + await element.getAttribute('src'));
+    }
+    await browser.close();
+  })();
+  ```
+
+  > #### Discouraged {: .warning}
+  >
+  > Use web assertions that assert visibility or a locator-based `PlaywrightEx.Locator.wait_for/2` instead.
+  > Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+
+  ## Options
+
+  * `:state` - Defaults to `'visible'`. Can be either:
+
+    * `'attached'` - wait for element to be present in DOM.
+    * `'detached'` - wait for element to not be present in DOM.
+    * `'visible'` - wait for element to have non-empty bounding box and no `visibility:hidden`. Note that element without
+      any content or with `display:none` has an empty bounding box and is not considered visible.
+    * `'hidden'` - wait for element to be either detached from DOM, or have an empty bounding box or `visibility:hidden`.
+      This is opposite to the `'visible'` option.
+  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec wait_for_selector(t(), String.t(), wait_for_selector_options()) ::
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def wait_for_selector(page, selector, options \\ []) do
+    options = Facade.options!(options, @wait_for_selector_options, "page.waitForSelector")
+
+    Facade.async("page.waitForSelector", page, fn ->
+      PlaywrightEx.Client.Page.wait_for_selector(page, selector, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `wait_for_selector/3`, but returns the value and raises on error."
+  @spec wait_for_selector!(t(), String.t(), wait_for_selector_options()) :: nil | PlaywrightEx.ElementHandle.t()
+  def wait_for_selector!(page, selector, options \\ []) do
+    options = Facade.options!(options, @wait_for_selector_options, "page.waitForSelector")
+
+    Facade.async!("page.waitForSelector", page, fn ->
+      PlaywrightEx.Client.Page.wait_for_selector(page, selector, options)
+    end)
+  end
+
   @wait_for_timeout_timeout :timeout
 
   @doc since: "1.8"
@@ -4217,6 +4783,61 @@ defmodule PlaywrightEx.Page do
       "page.waitForEvent",
       page,
       fn -> PlaywrightEx.Client.Page.wait_for_event(page, event, options) end,
+      action
+    )
+  end
+
+  @expect_file_chooser_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_file_chooser`, see its docs."
+  @type expect_file_chooser_options ::
+          [predicate: (PlaywrightEx.FileChooser.t() -> boolean()), timeout: number() | :infinity]
+          | %{
+              optional(:predicate) => (PlaywrightEx.FileChooser.t() -> boolean()),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Performs action and waits for a new [`FileChooser`](`PlaywrightEx.FileChooser`) to be created. If predicate is provided, it passes
+  [`FileChooser`](`PlaywrightEx.FileChooser`) value into the `predicate` function and waits for `predicate(fileChooser)` to return a truthy value.
+  Will throw an error if the page is closed before the file chooser is opened.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`FileChooser`](`PlaywrightEx.FileChooser`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_file_chooser(t(), (-> term()), expect_file_chooser_options()) ::
+          {:ok, PlaywrightEx.FileChooser.t()} | {:error, Exception.t()}
+  def expect_file_chooser(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_file_chooser_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "filechooser", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.9"
+  @doc "Like `expect_file_chooser/3`, but returns the value and raises on error."
+  @spec expect_file_chooser!(t(), (-> term()), expect_file_chooser_options()) :: PlaywrightEx.FileChooser.t()
+  def expect_file_chooser!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_file_chooser_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "filechooser", options) end,
       action
     )
   end
@@ -4647,7 +5268,7 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec on(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :download, (term() -> term())) :: t()
-  @spec on(t(), :file_chooser, (term() -> term())) :: t()
+  @spec on(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec on(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -4672,7 +5293,7 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec once(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :download, (term() -> term())) :: t()
-  @spec once(t(), :file_chooser, (term() -> term())) :: t()
+  @spec once(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec once(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -4697,7 +5318,7 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec add_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :download, (term() -> term())) :: t()
-  @spec add_listener(t(), :file_chooser, (term() -> term())) :: t()
+  @spec add_listener(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec add_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -4722,7 +5343,7 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec remove_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :download, (term() -> term())) :: t()
-  @spec remove_listener(t(), :file_chooser, (term() -> term())) :: t()
+  @spec remove_listener(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -4747,7 +5368,7 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec off(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :download, (term() -> term())) :: t()
-  @spec off(t(), :file_chooser, (term() -> term())) :: t()
+  @spec off(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec off(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -4772,7 +5393,7 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec prepend_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :download, (term() -> term())) :: t()
-  @spec prepend_listener(t(), :file_chooser, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()

@@ -6,7 +6,9 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.FileChooser
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.Keyboard
   alias PlaywrightEx.Client.Mouse
@@ -65,7 +67,11 @@ defmodule PlaywrightEx.Client.Page do
     # this._channel.on('bindingCall', ...)  -- not ported: BindingCall
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
     EventEmitter.on(_channel(this), "crash", fn _ -> _on_crash(this) end)
-    # this._channel.on('download' | 'fileChooser', ...)  -- not ported: Download, FileChooser
+    # this._channel.on('download', ...)  -- not ported: Download
+    EventEmitter.on(_channel(this), "fileChooser", fn %{element: element, isMultiple: is_multiple} ->
+      emit(this, Events.Page.file_chooser(), FileChooser.new(this, ElementHandle.from(element), is_multiple))
+    end)
+
     EventEmitter.on(_channel(this), "frameAttached", fn %{frame: frame} ->
       _on_frame_attached(this, Frame.from(frame))
     end)
@@ -209,13 +215,23 @@ defmodule PlaywrightEx.Client.Page do
     nil
   end
 
-  # $, waitForSelector  -- not ported: ElementHandle
+  # $  -- ported as query_selector/3
+  def query_selector(this, selector, options \\ nil) do
+    Frame.query_selector(get(this, :_mainFrame), selector, options)
+  end
+
+  def wait_for_selector(this, selector, options \\ nil) do
+    Frame.wait_for_selector(get(this, :_mainFrame), selector, options || %{})
+  end
 
   def dispatch_event(this, selector, type, event_init \\ nil, options \\ %{}) do
     Frame.dispatch_event(get(this, :_mainFrame), selector, type, event_init, options || %{})
   end
 
-  # evaluateHandle  -- not ported: JSHandle
+  def evaluate_handle(this, page_function, arg \\ nil, options \\ nil) do
+    # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
+    Frame.evaluate_handle(get(this, :_mainFrame), page_function, arg, options)
+  end
 
   # $eval  -- ported as eval_on_selector/4
   def eval_on_selector(this, selector, page_function, arg \\ nil) do
@@ -229,8 +245,19 @@ defmodule PlaywrightEx.Client.Page do
     Frame.eval_on_selector_all(get(this, :_mainFrame), selector, page_function, arg)
   end
 
-  # $$  -- not ported: ElementHandle
-  # addScriptTag, addStyleTag  -- not ported: ElementHandle
+  # $$  -- ported as query_selector_all/2
+  def query_selector_all(this, selector) do
+    Frame.query_selector_all(get(this, :_mainFrame), selector)
+  end
+
+  def add_script_tag(this, options \\ %{}) do
+    Frame.add_script_tag(get(this, :_mainFrame), options || %{})
+  end
+
+  def add_style_tag(this, options \\ %{}) do
+    Frame.add_style_tag(get(this, :_mainFrame), options || %{})
+  end
+
   # exposeFunction, exposeBinding, _exposeCallbackBinding, _exposeEvaluateCallback, _eraseEvaluateCallbacks  -- not ported: BindingCall
 
   def set_extra_http_headers(this, headers) do
@@ -415,7 +442,27 @@ defmodule PlaywrightEx.Client.Page do
   # addInitScript  -- not ported: Disposable
   # route, routeFromHAR, routeWebSocket, _disposeHarRouters, unrouteAll, unroute  -- not ported: routing
   # _unrouteInternal, _updateInterceptionPatterns, _updateWebSocketInterceptionPatterns  -- not ported: routing
-  # screenshot, _expectScreenshot  -- not ported
+  def screenshot(this, options \\ %{}) do
+    mask = options[:mask]
+    copy = Map.put(options, :mask, nil)
+    copy = if !copy[:type], do: Map.put(copy, :type, ElementHandle.determine_screenshot_type(options)), else: copy
+
+    copy =
+      if mask,
+        do: Map.put(copy, :mask, Enum.map(mask, &%{frame: &1._frame, selector: &1._selector})),
+        else: copy
+
+    result = channel_call(this, :screenshot, copy, TimeoutSettings.timeout(get(this, :_timeoutSettings), options))
+
+    if options[:path] do
+      ElementHandle.mkdir_if_needed(options.path)
+      File.write!(options.path, result.binary)
+    end
+
+    result.binary
+  end
+
+  # _expectScreenshot  -- not ported: matchers
 
   def title(this) do
     Frame.title(get(this, :_mainFrame))
@@ -589,7 +636,9 @@ defmodule PlaywrightEx.Client.Page do
     Frame.select_option(get(this, :_mainFrame), selector, values, options || %{})
   end
 
-  # setInputFiles  -- not ported: convertInputFiles
+  def set_input_files(this, selector, files, options \\ nil) do
+    Frame.set_input_files(get(this, :_mainFrame), selector, files, options || %{})
+  end
 
   def type(this, selector, text, options \\ %{}) do
     Frame.type(get(this, :_mainFrame), selector, text, options || %{})
@@ -615,7 +664,9 @@ defmodule PlaywrightEx.Client.Page do
     Frame.wait_for_timeout(get(this, :_mainFrame), timeout)
   end
 
-  # waitForFunction  -- not ported: JSHandle
+  def wait_for_function(this, page_function, arg \\ nil, options \\ nil) do
+    Frame.wait_for_function(get(this, :_mainFrame), page_function, arg, options)
+  end
 
   def requests(this) do
     %{requests: requests} = channel_call(this, :requests, %{}, TimeoutSettings.k_no_timeout())

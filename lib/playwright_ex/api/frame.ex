@@ -34,13 +34,90 @@ defmodule PlaywrightEx.Frame do
   })();
   ```
 
-  Not ported yet: `addScriptTag`, `addStyleTag`, `evaluateHandle`, `frameElement`, `$`, `$$`, `setInputFiles`, `waitForFunction`, `waitForSelector`, `webmcp`.
+  Not ported yet: `webmcp`.
   """
 
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Frame` handle. Compare handles with `==`, their fields are internal."
   @type t :: %PlaywrightEx.Client.Frame{}
+
+  @add_script_tag_options {:object,
+                           %{content: {:content, nil}, path: {:path, nil}, type: {:type, nil}, url: {:url, nil}}}
+
+  @typedoc "Options of `add_script_tag`, see its docs."
+  @type add_script_tag_options ::
+          [content: String.t(), path: String.t(), type: String.t(), url: String.t()]
+          | %{
+              optional(:content) => String.t(),
+              optional(:path) => String.t(),
+              optional(:type) => String.t(),
+              optional(:url) => String.t()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the added tag when the script's onload fires or when the script content was injected into frame.
+
+  Adds a `<script>` tag into the page with the desired url or content.
+
+  ## Options
+
+  * `:content` - Raw JavaScript content to be injected into frame.
+  * `:path` - Path to the JavaScript file to be injected into frame. If `path` is a relative path, then it is resolved relative to the
+    current working directory.
+  * `:type` - Script type. Use 'module' in order to load a JavaScript ES6 module. See
+    [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) for more details.
+  * `:url` - URL of a script to be added.
+  """
+  @spec add_script_tag(t(), add_script_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def add_script_tag(frame, options \\ []) do
+    options = Facade.options!(options, @add_script_tag_options, "frame.addScriptTag")
+    Facade.async("frame.addScriptTag", frame, fn -> PlaywrightEx.Client.Frame.add_script_tag(frame, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `add_script_tag/2`, but returns the value and raises on error."
+  @spec add_script_tag!(t(), add_script_tag_options()) :: PlaywrightEx.ElementHandle.t()
+  def add_script_tag!(frame, options \\ []) do
+    options = Facade.options!(options, @add_script_tag_options, "frame.addScriptTag")
+    Facade.async!("frame.addScriptTag", frame, fn -> PlaywrightEx.Client.Frame.add_script_tag(frame, options) end)
+  end
+
+  @add_style_tag_options {:object, %{content: {:content, nil}, path: {:path, nil}, url: {:url, nil}}}
+
+  @typedoc "Options of `add_style_tag`, see its docs."
+  @type add_style_tag_options ::
+          [content: String.t(), path: String.t(), url: String.t()]
+          | %{optional(:content) => String.t(), optional(:path) => String.t(), optional(:url) => String.t()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the added tag when the stylesheet's onload fires or when the CSS content was injected into frame.
+
+  Adds a `<link rel="stylesheet">` tag into the page with the desired url or a `<style type="text/css">` tag with the
+  content.
+
+  ## Options
+
+  * `:content` - Raw CSS content to be injected into frame.
+  * `:path` - Path to the CSS file to be injected into frame. If `path` is a relative path, then it is resolved relative to the
+    current working directory.
+  * `:url` - URL of the `<link>` tag.
+  """
+  @spec add_style_tag(t(), add_style_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def add_style_tag(frame, options \\ []) do
+    options = Facade.options!(options, @add_style_tag_options, "frame.addStyleTag")
+    Facade.async("frame.addStyleTag", frame, fn -> PlaywrightEx.Client.Frame.add_style_tag(frame, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `add_style_tag/2`, but returns the value and raises on error."
+  @spec add_style_tag!(t(), add_style_tag_options()) :: PlaywrightEx.ElementHandle.t()
+  def add_style_tag!(frame, options \\ []) do
+    options = Facade.options!(options, @add_style_tag_options, "frame.addStyleTag")
+    Facade.async!("frame.addStyleTag", frame, fn -> PlaywrightEx.Client.Frame.add_style_tag(frame, options) end)
+  end
 
   @check_options {:object,
                   %{
@@ -599,7 +676,7 @@ defmodule PlaywrightEx.Frame do
   > #### Discouraged {: .warning}
   >
   > This method does not wait for the element to pass the actionability
-  > checks and therefore can lead to the flaky tests. Use [`Locator.evaluate`](https://playwright.dev/docs/api/class-locator#locator-evaluate), other [`Locator`](`PlaywrightEx.Locator`) helper methods or web-first assertions instead.
+  > checks and therefore can lead to the flaky tests. Use `PlaywrightEx.Locator.evaluate/4`, other [`Locator`](`PlaywrightEx.Locator`) helper methods or web-first assertions instead.
 
   ## Arguments
 
@@ -731,6 +808,75 @@ defmodule PlaywrightEx.Frame do
     Facade.async!("frame.evaluate", frame, fn -> PlaywrightEx.Client.Frame.evaluate(frame, expression, arg, options) end)
   end
 
+  @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `evaluate_handle`, see its docs."
+  @type evaluate_handle_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the return value of `pageFunction` as a [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  The only difference between `PlaywrightEx.Frame.evaluate/4` and `PlaywrightEx.Frame.evaluate_handle/4` is that
+  `PlaywrightEx.Frame.evaluate_handle/4` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  If the function, passed to the `PlaywrightEx.Frame.evaluate_handle/4`, returns a `Promise`, then
+  `PlaywrightEx.Frame.evaluate_handle/4` would wait for the promise to resolve and return its value.
+
+  **Usage**
+
+  ```js
+  // Handle for the window object
+  const aWindowHandle = await frame.evaluateHandle(() => Promise.resolve(window));
+  ```
+
+  A string can also be passed in instead of a function.
+
+  ```js
+  const aHandle = await frame.evaluateHandle('document'); // Handle for the 'document'.
+  ```
+
+  [`JSHandle`](`PlaywrightEx.JSHandle`) instances can be passed as an argument to the `PlaywrightEx.Frame.evaluate_handle/4`:
+
+  ```js
+  const aHandle = await frame.evaluateHandle(() => document.body);
+  const resultHandle = await frame.evaluateHandle(([body, suffix]) =>
+    body.innerHTML + suffix, [aHandle, 'hello'],
+  );
+  console.log(await resultHandle.jsonValue());
+  await resultHandle.dispose();
+  ```
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  """
+  @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def evaluate_handle(frame, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "frame.evaluateHandle")
+
+    Facade.async("frame.evaluateHandle", frame, fn ->
+      PlaywrightEx.Client.Frame.evaluate_handle(frame, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `evaluate_handle/4`, but returns the value and raises on error."
+  @spec evaluate_handle!(t(), String.t(), term() | nil, evaluate_handle_options()) :: PlaywrightEx.JSHandle.t()
+  def evaluate_handle!(frame, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "frame.evaluateHandle")
+
+    Facade.async!("frame.evaluateHandle", frame, fn ->
+      PlaywrightEx.Client.Frame.evaluate_handle(frame, expression, arg, options)
+    end)
+  end
+
   @fill_options {:object,
                  %{
                    force: {:force, nil},
@@ -832,6 +978,35 @@ defmodule PlaywrightEx.Frame do
   def focus!(frame, selector, options \\ []) do
     options = Facade.options!(options, @focus_options, "frame.focus")
     Facade.async_void!("frame.focus", frame, fn -> PlaywrightEx.Client.Frame.focus(frame, selector, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the `frame` or `iframe` element handle which corresponds to this frame.
+
+  This is an inverse of `PlaywrightEx.ElementHandle.content_frame/1`. Note that returned handle actually belongs to the parent
+  frame.
+
+  This method throws an error if the frame has been detached before `frameElement()` returns.
+
+  **Usage**
+
+  ```js
+  const frameElement = await frame.frameElement();
+  const contentFrame = await frameElement.contentFrame();
+  console.log(frame === contentFrame);  // -> true
+  ```
+  """
+  @spec frame_element(t()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def frame_element(frame) do
+    Facade.async("frame.frameElement", frame, fn -> PlaywrightEx.Client.Frame.frame_element(frame) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `frame_element/1`, but returns the value and raises on error."
+  @spec frame_element!(t()) :: PlaywrightEx.ElementHandle.t()
+  def frame_element!(frame) do
+    Facade.async!("frame.frameElement", frame, fn -> PlaywrightEx.Client.Frame.frame_element(frame) end)
   end
 
   @doc since: "1.17"
@@ -2196,6 +2371,81 @@ defmodule PlaywrightEx.Frame do
     Facade.async_void!("frame.press", frame, fn -> PlaywrightEx.Client.Frame.press(frame, selector, key, options) end)
   end
 
+  @query_selector_options {:object, %{strict: {:strict, nil}}}
+
+  @typedoc "Options of `query_selector`, see its docs."
+  @type query_selector_options :: [strict: boolean()] | %{optional(:strict) => boolean()}
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Returns the ElementHandle pointing to the frame element.
+
+  > #### Caution {: .warning}
+  >
+  > The use of [`ElementHandle`](`PlaywrightEx.ElementHandle`) is discouraged, use [`Locator`](`PlaywrightEx.Locator`) objects and web-first assertions instead.
+
+  The method finds an element matching the specified selector within the frame. If no elements match the selector,
+  returns `null`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Frame.locator/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+
+  ## Options
+
+  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  """
+  @spec query_selector(t(), String.t(), query_selector_options()) ::
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def query_selector(frame, selector, options \\ []) do
+    options = Facade.options!(options, @query_selector_options, "frame.$")
+    Facade.async("frame.$", frame, fn -> PlaywrightEx.Client.Frame.query_selector(frame, selector, options) end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `query_selector/3`, but returns the value and raises on error."
+  @spec query_selector!(t(), String.t(), query_selector_options()) :: nil | PlaywrightEx.ElementHandle.t()
+  def query_selector!(frame, selector, options \\ []) do
+    options = Facade.options!(options, @query_selector_options, "frame.$")
+    Facade.async!("frame.$", frame, fn -> PlaywrightEx.Client.Frame.query_selector(frame, selector, options) end)
+  end
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Returns the ElementHandles pointing to the frame elements.
+
+  > #### Caution {: .warning}
+  >
+  > The use of [`ElementHandle`](`PlaywrightEx.ElementHandle`) is discouraged, use [`Locator`](`PlaywrightEx.Locator`) objects instead.
+
+  The method finds all elements matching the specified selector within the frame. If no elements match the selector,
+  returns empty array.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Frame.locator/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+  """
+  @spec query_selector_all(t(), String.t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, Exception.t()}
+  def query_selector_all(frame, selector) do
+    Facade.async("frame.$$", frame, fn -> PlaywrightEx.Client.Frame.query_selector_all(frame, selector) end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `query_selector_all/2`, but returns the value and raises on error."
+  @spec query_selector_all!(t(), String.t()) :: [PlaywrightEx.ElementHandle.t()]
+  def query_selector_all!(frame, selector) do
+    Facade.async!("frame.$$", frame, fn -> PlaywrightEx.Client.Frame.query_selector_all(frame, selector) end)
+  end
+
   @select_option_values {:union,
                          [
                            {:fields, %{value: nil, label: nil, index: nil}},
@@ -2466,6 +2716,91 @@ defmodule PlaywrightEx.Frame do
   def set_content!(frame, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "frame.setContent")
     Facade.async_void!("frame.setContent", frame, fn -> PlaywrightEx.Client.Frame.set_content(frame, html, options) end)
+  end
+
+  @set_input_files_files {:union,
+                          [
+                            {:fields, %{name: nil, mimeType: nil, buffer: nil}},
+                            {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
+                          ]}
+  @set_input_files_options {:object,
+                            %{no_wait_after: {:noWaitAfter, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `set_input_files`, see its docs."
+  @type set_input_files_options ::
+          [no_wait_after: boolean(), strict: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:no_wait_after) => boolean(),
+              optional(:strict) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then they
+  are resolved relative to the current working directory. For empty array, clears the selected files.
+
+  This method expects `selector` to point to an
+  [input element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), targets the control instead.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.set_input_files/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to search for an element. If there are multiple elements satisfying the selector, the first will be used.
+  * `files`
+    * `:name` - File name
+    * `:mimeType` - File type
+    * `:buffer` - File content
+
+  ## Options
+
+  * `:no_wait_after` - This option has no effect.
+  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec set_input_files(
+          t(),
+          String.t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok | {:error, Exception.t()}
+  def set_input_files(frame, selector, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
+
+    Facade.async_void("frame.setInputFiles", frame, fn ->
+      PlaywrightEx.Client.Frame.set_input_files(frame, selector, files, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `set_input_files/4`, but returns the value and raises on error."
+  @spec set_input_files!(
+          t(),
+          String.t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok
+  def set_input_files!(frame, selector, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
+
+    Facade.async_void!("frame.setInputFiles", frame, fn ->
+      PlaywrightEx.Client.Frame.set_input_files(frame, selector, files, options)
+    end)
   end
 
   @tap_options {:object,
@@ -2790,6 +3125,76 @@ defmodule PlaywrightEx.Frame do
     PlaywrightEx.Client.Frame.url(frame)
   end
 
+  @wait_for_function_options {:object, %{polling: {:polling, {:enum, %{raf: "raf"}}}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_function`, see its docs."
+  @type wait_for_function_options ::
+          [polling: number() | :raf, timeout: number() | :infinity]
+          | %{optional(:polling) => number() | :raf, optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns when the `pageFunction` returns a truthy value, returns that value.
+
+  **Usage**
+
+  The `PlaywrightEx.Frame.wait_for_function/4` can be used to observe viewport size change:
+
+  ```js
+  const { firefox } = require('playwright');  // Or 'chromium' or 'webkit'.
+
+  (async () => {
+    const browser = await firefox.launch();
+    const page = await browser.newPage();
+    const watchDog = page.mainFrame().waitForFunction('window.innerWidth < 100');
+    await page.setViewportSize({ width: 50, height: 50 });
+    await watchDog;
+    await browser.close();
+  })();
+  ```
+
+  To pass an argument to the predicate of `frame.waitForFunction` function:
+
+  ```js
+  const selector = '.foo';
+  await frame.waitForFunction(selector => !!document.querySelector(selector), selector);
+  ```
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:polling` - If `polling` is `'raf'`, then `pageFunction` is constantly executed in `requestAnimationFrame`
+    callback. If `polling` is a number, then it is treated as an interval in milliseconds at which the function
+    would be executed. Defaults to `raf`.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec wait_for_function(t(), String.t(), term() | nil, wait_for_function_options()) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def wait_for_function(frame, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @wait_for_function_options, "frame.waitForFunction")
+
+    Facade.async("frame.waitForFunction", frame, fn ->
+      PlaywrightEx.Client.Frame.wait_for_function(frame, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `wait_for_function/4`, but returns the value and raises on error."
+  @spec wait_for_function!(t(), String.t(), term() | nil, wait_for_function_options()) :: PlaywrightEx.JSHandle.t()
+  def wait_for_function!(frame, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @wait_for_function_options, "frame.waitForFunction")
+
+    Facade.async!("frame.waitForFunction", frame, fn ->
+      PlaywrightEx.Client.Frame.wait_for_function(frame, expression, arg, options)
+    end)
+  end
+
   @wait_for_load_state_state {:enum, %{load: "load", domcontentloaded: "domcontentloaded", networkidle: "networkidle"}}
   @wait_for_load_state_options {:object, %{timeout: {:timeout, nil}}}
 
@@ -2933,6 +3338,106 @@ defmodule PlaywrightEx.Frame do
 
     Facade.promise("frame.waitForNavigation", frame, fn ->
       PlaywrightEx.Client.Frame.wait_for_navigation(frame, options)
+    end)
+  end
+
+  @wait_for_selector_options {:object,
+                              %{
+                                state:
+                                  {:state,
+                                   {:enum,
+                                    %{attached: "attached", detached: "detached", visible: "visible", hidden: "hidden"}}},
+                                strict: {:strict, nil},
+                                timeout: {:timeout, nil}
+                              }}
+
+  @typedoc "Options of `wait_for_selector`, see its docs."
+  @type wait_for_selector_options ::
+          [state: :attached | :detached | :visible | :hidden, strict: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:state) => :attached | :detached | :visible | :hidden,
+              optional(:strict) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
+  `detached`.
+
+  > #### Note {: .info}
+  >
+  > Playwright automatically waits for element to be ready before performing an action. Using
+  > [`Locator`](`PlaywrightEx.Locator`) objects and web-first assertions make the code wait-for-selector-free.
+
+  Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become
+  visible/hidden). If at the moment of calling the method `selector` already satisfies the condition, the method
+  will return immediately. If the selector doesn't satisfy the condition for the `timeout` milliseconds, the
+  function will throw.
+
+  **Usage**
+
+  This method works across navigations:
+
+  ```js
+  const { chromium } = require('playwright');  // Or 'firefox' or 'webkit'.
+
+  (async () => {
+    const browser = await chromium.launch();
+    const page = await browser.newPage();
+    for (const currentURL of ['https://google.com', 'https://bbc.com']) {
+      await page.goto(currentURL);
+      const element = await page.mainFrame().waitForSelector('img');
+      console.log('Loaded image: ' + await element.getAttribute('src'));
+    }
+    await browser.close();
+  })();
+  ```
+
+  > #### Discouraged {: .warning}
+  >
+  > Use web assertions that assert visibility or a locator-based `PlaywrightEx.Locator.wait_for/2` instead.
+  > Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+
+  ## Options
+
+  * `:state` - Defaults to `'visible'`. Can be either:
+
+    * `'attached'` - wait for element to be present in DOM.
+    * `'detached'` - wait for element to not be present in DOM.
+    * `'visible'` - wait for element to have non-empty bounding box and no `visibility:hidden`. Note that element without
+      any content or with `display:none` has an empty bounding box and is not considered visible.
+    * `'hidden'` - wait for element to be either detached from DOM, or have an empty bounding box or `visibility:hidden`.
+      This is opposite to the `'visible'` option.
+  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec wait_for_selector(t(), String.t(), wait_for_selector_options()) ::
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def wait_for_selector(frame, selector, options \\ []) do
+    options = Facade.options!(options, @wait_for_selector_options, "frame.waitForSelector")
+
+    Facade.async("frame.waitForSelector", frame, fn ->
+      PlaywrightEx.Client.Frame.wait_for_selector(frame, selector, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `wait_for_selector/3`, but returns the value and raises on error."
+  @spec wait_for_selector!(t(), String.t(), wait_for_selector_options()) :: nil | PlaywrightEx.ElementHandle.t()
+  def wait_for_selector!(frame, selector, options \\ []) do
+    options = Facade.options!(options, @wait_for_selector_options, "frame.waitForSelector")
+
+    Facade.async!("frame.waitForSelector", frame, fn ->
+      PlaywrightEx.Client.Frame.wait_for_selector(frame, selector, options)
     end)
   end
 

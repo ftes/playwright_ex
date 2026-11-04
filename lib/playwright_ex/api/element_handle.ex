@@ -17,7 +17,7 @@ defmodule PlaywrightEx.ElementHandle do
   ```
 
   ElementHandle prevents DOM element from garbage collection unless the handle is disposed with
-  [`JSHandle.dispose`](https://playwright.dev/docs/api/class-jshandle#js-handle-dispose). ElementHandles are auto-disposed when their origin frame gets navigated.
+  `PlaywrightEx.JSHandle.dispose/1`. ElementHandles are auto-disposed when their origin frame gets navigated.
 
   ElementHandle instances can be used as an argument in [`Page.evalOnSelector`](https://playwright.dev/docs/api/class-page#page-eval-on-selector) and `PlaywrightEx.Page.evaluate/4` methods.
 
@@ -41,11 +41,2030 @@ defmodule PlaywrightEx.ElementHandle do
   await locator.click();
   ```
 
-  Extends `JSHandle`.
-
-  Not ported yet: `boundingBox`, `check`, `click`, `contentFrame`, `dblclick`, `dispatchEvent`, `$eval`, `$$eval`, `fill`, `focus`, `getAttribute`, `hover`, `innerHTML`, `innerText`, `inputValue`, `isChecked`, `isDisabled`, `isEditable`, `isEnabled`, `isHidden`, `isVisible`, `ownerFrame`, `press`, `$`, `$$`, `screenshot`, `scrollIntoViewIfNeeded`, `selectOption`, `selectText`, `setChecked`, `setInputFiles`, `tap`, `textContent`, `type`, `uncheck`, `waitForElementState`, `waitForSelector`.
+  Extends `PlaywrightEx.JSHandle`: its functions take this handle too.
   """
 
+  alias PlaywrightEx.Runtime.Facade
+
   @typedoc "A `ElementHandle` handle. Compare handles with `==`, their fields are internal."
-  @type t :: term()
+  @type t :: %PlaywrightEx.Client.ElementHandle{}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method returns the bounding box of the element, or `null` if the element is not visible. The bounding box is
+  calculated relative to the main frame viewport - which is usually the same as the browser window.
+
+  Scrolling affects the returned bounding box, similarly to
+  [Element.getBoundingClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect). That
+  means `x` and/or `y` may be negative.
+
+  Elements from child frames return the bounding box relative to the main frame, unlike the
+  [Element.getBoundingClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+
+  Assuming the page is static, it is safe to use bounding box coordinates to perform input. For example, the following
+  snippet should click the center of the element.
+
+  **Usage**
+
+  ```js
+  const box = await elementHandle.boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  ```
+  """
+  @spec bounding_box(t()) ::
+          {:ok, nil | %{x: number(), y: number(), width: number(), height: number()}} | {:error, Exception.t()}
+  def bounding_box(element_handle) do
+    Facade.async("elementHandle.boundingBox", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.bounding_box(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `bounding_box/1`, but returns the value and raises on error."
+  @spec bounding_box!(t()) :: nil | %{x: number(), y: number(), width: number(), height: number()}
+  def bounding_box!(element_handle) do
+    Facade.async!("elementHandle.boundingBox", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.bounding_box(element_handle)
+    end)
+  end
+
+  @check_options {:object,
+                  %{
+                    force: {:force, nil},
+                    no_wait_after: {:noWaitAfter, nil},
+                    position: {:position, {:fields, %{x: nil, y: nil}}},
+                    scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                    timeout: {:timeout, nil},
+                    trial: {:trial, nil}
+                  }}
+
+  @typedoc "Options of `check`, see its docs."
+  @type check_options ::
+          [
+            force: boolean(),
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:force) => boolean(),
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method checks the element by performing the following steps:
+
+  1. Ensure that element is a checkbox or a radio input. If not, this method throws. If the element is already
+     checked, this method returns immediately.
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
+  1. Ensure that the element is now checked. If not, this method throws.
+
+  If the element is detached from the DOM at any moment during the action, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.check/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` - This option has no effect.
+  * `:position` - *Since 1.11.* A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec check(t(), check_options()) :: :ok | {:error, Exception.t()}
+  def check(element_handle, options \\ []) do
+    options = Facade.options!(options, @check_options, "elementHandle.check")
+
+    Facade.async_void("elementHandle.check", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.check(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `check/2`, but returns the value and raises on error."
+  @spec check!(t(), check_options()) :: :ok
+  def check!(element_handle, options \\ []) do
+    options = Facade.options!(options, @check_options, "elementHandle.check")
+
+    Facade.async_void!("elementHandle.check", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.check(element_handle, options)
+    end)
+  end
+
+  @click_options {:object,
+                  %{
+                    button: {:button, {:enum, %{left: "left", right: "right", middle: "middle"}}},
+                    click_count: {:clickCount, nil},
+                    delay: {:delay, nil},
+                    force: {:force, nil},
+                    modifiers:
+                      {:modifiers,
+                       {:array,
+                        {:enum,
+                         %{
+                           alt: "Alt",
+                           control: "Control",
+                           control_or_meta: "ControlOrMeta",
+                           meta: "Meta",
+                           shift: "Shift"
+                         }}}},
+                    no_wait_after: {:noWaitAfter, nil},
+                    position: {:position, {:fields, %{x: nil, y: nil}}},
+                    scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                    steps: {:steps, nil},
+                    timeout: {:timeout, nil},
+                    trial: {:trial, nil}
+                  }}
+
+  @typedoc "Options of `click`, see its docs."
+  @type click_options ::
+          [
+            button: :left | :right | :middle,
+            click_count: integer(),
+            delay: number(),
+            force: boolean(),
+            modifiers: [:alt | :control | :control_or_meta | :meta | :shift],
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            steps: integer(),
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:button) => :left | :right | :middle,
+              optional(:click_count) => integer(),
+              optional(:delay) => number(),
+              optional(:force) => boolean(),
+              optional(:modifiers) => [:alt | :control | :control_or_meta | :meta | :shift],
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:steps) => integer(),
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method clicks the element by performing the following steps:
+
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `position`.
+  1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
+
+  If the element is detached from the DOM at any moment during the action, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.click/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:button` - Defaults to `left`.
+  * `:click_count` - defaults to 1. See [UIEvent.detail].
+  * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+    modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
+    and Linux and to "Meta" on macOS.
+  * `:no_wait_after` - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
+    opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as navigating
+    to inaccessible pages. Defaults to `false`.
+  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:steps` - *Since 1.57.* Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec click(t(), click_options()) :: :ok | {:error, Exception.t()}
+  def click(element_handle, options \\ []) do
+    options = Facade.options!(options, @click_options, "elementHandle.click")
+
+    Facade.async_void("elementHandle.click", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.click(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `click/2`, but returns the value and raises on error."
+  @spec click!(t(), click_options()) :: :ok
+  def click!(element_handle, options \\ []) do
+    options = Facade.options!(options, @click_options, "elementHandle.click")
+
+    Facade.async_void!("elementHandle.click", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.click(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the content frame for element handles referencing iframe nodes, or `null` otherwise
+  """
+  @spec content_frame(t()) :: {:ok, nil | PlaywrightEx.Frame.t()} | {:error, Exception.t()}
+  def content_frame(element_handle) do
+    Facade.async("elementHandle.contentFrame", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.content_frame(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `content_frame/1`, but returns the value and raises on error."
+  @spec content_frame!(t()) :: nil | PlaywrightEx.Frame.t()
+  def content_frame!(element_handle) do
+    Facade.async!("elementHandle.contentFrame", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.content_frame(element_handle)
+    end)
+  end
+
+  @dblclick_options {:object,
+                     %{
+                       button: {:button, {:enum, %{left: "left", right: "right", middle: "middle"}}},
+                       delay: {:delay, nil},
+                       force: {:force, nil},
+                       modifiers:
+                         {:modifiers,
+                          {:array,
+                           {:enum,
+                            %{
+                              alt: "Alt",
+                              control: "Control",
+                              control_or_meta: "ControlOrMeta",
+                              meta: "Meta",
+                              shift: "Shift"
+                            }}}},
+                       no_wait_after: {:noWaitAfter, nil},
+                       position: {:position, {:fields, %{x: nil, y: nil}}},
+                       scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                       steps: {:steps, nil},
+                       timeout: {:timeout, nil},
+                       trial: {:trial, nil}
+                     }}
+
+  @typedoc "Options of `dblclick`, see its docs."
+  @type dblclick_options ::
+          [
+            button: :left | :right | :middle,
+            delay: number(),
+            force: boolean(),
+            modifiers: [:alt | :control | :control_or_meta | :meta | :shift],
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            steps: integer(),
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:button) => :left | :right | :middle,
+              optional(:delay) => number(),
+              optional(:force) => boolean(),
+              optional(:modifiers) => [:alt | :control | :control_or_meta | :meta | :shift],
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:steps) => integer(),
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method double clicks the element by performing the following steps:
+
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `position`.
+
+  If the element is detached from the DOM at any moment during the action, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Note {: .info}
+  >
+  > `elementHandle.dblclick()` dispatches two `click` events and a single `dblclick` event.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.dblclick/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:button` - Defaults to `left`.
+  * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+    modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
+    and Linux and to "Meta" on macOS.
+  * `:no_wait_after` - This option has no effect.
+  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:steps` - *Since 1.57.* Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec dblclick(t(), dblclick_options()) :: :ok | {:error, Exception.t()}
+  def dblclick(element_handle, options \\ []) do
+    options = Facade.options!(options, @dblclick_options, "elementHandle.dblclick")
+
+    Facade.async_void("elementHandle.dblclick", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.dblclick(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `dblclick/2`, but returns the value and raises on error."
+  @spec dblclick!(t(), dblclick_options()) :: :ok
+  def dblclick!(element_handle, options \\ []) do
+    options = Facade.options!(options, @dblclick_options, "elementHandle.dblclick")
+
+    Facade.async_void!("elementHandle.dblclick", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.dblclick(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  The snippet below dispatches the `click` event on the element. Regardless of the visibility state of the element, `click`
+  is dispatched. This is equivalent to calling
+  [element.click()](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/click).
+
+  **Usage**
+
+  ```js
+  await elementHandle.dispatchEvent('click');
+  ```
+
+  Under the hood, it creates an instance of an event based on the given `type`, initializes it with
+  `eventInit` properties and dispatches it on the element. Events are `composed`, `cancelable` and bubble by
+  default.
+
+  Since `eventInit` is event-specific, please refer to the events documentation for the lists of initial
+  properties:
+
+  * [DeviceMotionEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/DeviceMotionEvent)
+  * [DeviceOrientationEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent/DeviceOrientationEvent)
+  * [DragEvent](https://developer.mozilla.org/en-US/docs/Web/API/DragEvent/DragEvent)
+  * [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event/Event)
+  * [FocusEvent](https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent/FocusEvent)
+  * [KeyboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/KeyboardEvent)
+  * [MouseEvent](https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/MouseEvent)
+  * [PointerEvent](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/PointerEvent)
+  * [TouchEvent](https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent/TouchEvent)
+  * [WheelEvent](https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent/WheelEvent)
+
+  You can also specify [`JSHandle`](`PlaywrightEx.JSHandle`) as the property value if you want live objects to be passed into the event:
+
+  ```js
+  // Note you can only create DataTransfer in Chromium and Firefox
+  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await elementHandle.dispatchEvent('dragstart', { dataTransfer });
+  ```
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.dispatch_event/4` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `type` - DOM event type: `"click"`, `"dragstart"`, etc.
+  * `event_init` - Optional event-specific initialization properties.
+  """
+  @spec dispatch_event(t(), String.t(), term() | nil) :: :ok | {:error, Exception.t()}
+  def dispatch_event(element_handle, type, event_init \\ nil) do
+    Facade.async_void("elementHandle.dispatchEvent", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.dispatch_event(element_handle, type, event_init)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `dispatch_event/3`, but returns the value and raises on error."
+  @spec dispatch_event!(t(), String.t(), term() | nil) :: :ok
+  def dispatch_event!(element_handle, type, event_init \\ nil) do
+    Facade.async_void!("elementHandle.dispatchEvent", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.dispatch_event(element_handle, type, event_init)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Returns the return value of `pageFunction`.
+
+  The method finds an element matching the specified selector in the [`ElementHandle`](`PlaywrightEx.ElementHandle`)s subtree and passes it as a first
+  argument to `pageFunction`. If no elements match the selector, the method throws an error.
+
+  If `pageFunction` returns a `Promise`, then [`ElementHandle.evalOnSelector`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector) would wait for the promise to resolve and return its
+  value.
+
+  **Usage**
+
+  ```js
+  const tweetHandle = await page.$('.tweet');
+  expect(await tweetHandle.$eval('.like', node => node.innerText)).toBe('100');
+  expect(await tweetHandle.$eval('.retweets', node => node.innerText)).toBe('10');
+  ```
+
+  > #### Discouraged {: .warning}
+  >
+  > This method does not wait for the element to pass actionability
+  > checks and therefore can lead to the flaky tests. Use `PlaywrightEx.Locator.evaluate/4`,
+  > other [`Locator`](`PlaywrightEx.Locator`) helper methods or web-first assertions instead.
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+  """
+  @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
+  def eval_on_selector(element_handle, selector, expression, arg \\ nil) do
+    Facade.async("elementHandle.$eval", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.eval_on_selector(element_handle, selector, expression, arg)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `eval_on_selector/4`, but returns the value and raises on error."
+  @spec eval_on_selector!(t(), String.t(), String.t(), term() | nil) :: term()
+  def eval_on_selector!(element_handle, selector, expression, arg \\ nil) do
+    Facade.async!("elementHandle.$eval", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.eval_on_selector(element_handle, selector, expression, arg)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Returns the return value of `pageFunction`.
+
+  The method finds all elements matching the specified selector in the [`ElementHandle`](`PlaywrightEx.ElementHandle`)'s subtree and passes an array of
+  matched elements as a first argument to `pageFunction`.
+
+  If `pageFunction` returns a `Promise`, then [`ElementHandle.evalOnSelectorAll`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all) would wait for the promise to resolve and return its
+  value.
+
+  **Usage**
+
+  ```html
+  <div class="feed">
+    <div class="tweet">Hello!</div>
+    <div class="tweet">Hi!</div>
+  </div>
+  ```
+
+  ```js
+  const feedHandle = await page.$('.feed');
+  expect(await feedHandle.$$eval('.tweet', nodes =>
+    nodes.map(n => n.innerText))).toEqual(['Hello!', 'Hi!'],
+  );
+  ```
+
+  > #### Discouraged {: .warning}
+  >
+  > In most cases, `PlaywrightEx.Locator.evaluate_all/3`,
+  > other [`Locator`](`PlaywrightEx.Locator`) helper methods and web-first assertions do a better job.
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+  """
+  @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
+  def eval_on_selector_all(element_handle, selector, expression, arg \\ nil) do
+    Facade.async("elementHandle.$$eval", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.eval_on_selector_all(element_handle, selector, expression, arg)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `eval_on_selector_all/4`, but returns the value and raises on error."
+  @spec eval_on_selector_all!(t(), String.t(), String.t(), term() | nil) :: term()
+  def eval_on_selector_all!(element_handle, selector, expression, arg \\ nil) do
+    Facade.async!("elementHandle.$$eval", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.eval_on_selector_all(element_handle, selector, expression, arg)
+    end)
+  end
+
+  @fill_options {:object, %{force: {:force, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `fill`, see its docs."
+  @type fill_options ::
+          [force: boolean(), no_wait_after: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:force) => boolean(),
+              optional(:no_wait_after) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method waits for [actionability](https://playwright.dev/docs/actionability) checks, focuses the element, fills it and triggers an `input` event after filling. Note that you can pass an empty string to clear the input field.
+
+  If the target element is not an `<input>`, `<textarea>` or `[contenteditable]` element, this method throws an error. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be filled instead.
+
+  To send fine-grained keyboard events, use `PlaywrightEx.Locator.press_sequentially/3`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.fill/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `value` - Value to set for the `<input>`, `<textarea>` or `[contenteditable]` element.
+
+  ## Options
+
+  * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` - This option has no effect.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec fill(t(), String.t(), fill_options()) :: :ok | {:error, Exception.t()}
+  def fill(element_handle, value, options \\ []) do
+    options = Facade.options!(options, @fill_options, "elementHandle.fill")
+
+    Facade.async_void("elementHandle.fill", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.fill(element_handle, value, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `fill/3`, but returns the value and raises on error."
+  @spec fill!(t(), String.t(), fill_options()) :: :ok
+  def fill!(element_handle, value, options \\ []) do
+    options = Facade.options!(options, @fill_options, "elementHandle.fill")
+
+    Facade.async_void!("elementHandle.fill", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.fill(element_handle, value, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Calls [focus](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus) on the element.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.focus/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec focus(t()) :: :ok | {:error, Exception.t()}
+  def focus(element_handle) do
+    Facade.async_void("elementHandle.focus", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.focus(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `focus/1`, but returns the value and raises on error."
+  @spec focus!(t()) :: :ok
+  def focus!(element_handle) do
+    Facade.async_void!("elementHandle.focus", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.focus(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns element attribute value.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.get_attribute/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `name` - Attribute name to get the value for.
+  """
+  @spec get_attribute(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  def get_attribute(element_handle, name) do
+    Facade.async("elementHandle.getAttribute", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.get_attribute(element_handle, name)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `get_attribute/2`, but returns the value and raises on error."
+  @spec get_attribute!(t(), String.t()) :: nil | String.t()
+  def get_attribute!(element_handle, name) do
+    Facade.async!("elementHandle.getAttribute", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.get_attribute(element_handle, name)
+    end)
+  end
+
+  @hover_options {:object,
+                  %{
+                    force: {:force, nil},
+                    modifiers:
+                      {:modifiers,
+                       {:array,
+                        {:enum,
+                         %{
+                           alt: "Alt",
+                           control: "Control",
+                           control_or_meta: "ControlOrMeta",
+                           meta: "Meta",
+                           shift: "Shift"
+                         }}}},
+                    no_wait_after: {:noWaitAfter, nil},
+                    position: {:position, {:fields, %{x: nil, y: nil}}},
+                    scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                    timeout: {:timeout, nil},
+                    trial: {:trial, nil}
+                  }}
+
+  @typedoc "Options of `hover`, see its docs."
+  @type hover_options ::
+          [
+            force: boolean(),
+            modifiers: [:alt | :control | :control_or_meta | :meta | :shift],
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:force) => boolean(),
+              optional(:modifiers) => [:alt | :control | :control_or_meta | :meta | :shift],
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method hovers over the element by performing the following steps:
+
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `position`.
+
+  If the element is detached from the DOM at any moment during the action, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.hover/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+    modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
+    and Linux and to "Meta" on macOS.
+  * `:no_wait_after` - *Since 1.28.* This option has no effect.
+  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec hover(t(), hover_options()) :: :ok | {:error, Exception.t()}
+  def hover(element_handle, options \\ []) do
+    options = Facade.options!(options, @hover_options, "elementHandle.hover")
+
+    Facade.async_void("elementHandle.hover", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.hover(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `hover/2`, but returns the value and raises on error."
+  @spec hover!(t(), hover_options()) :: :ok
+  def hover!(element_handle, options \\ []) do
+    options = Facade.options!(options, @hover_options, "elementHandle.hover")
+
+    Facade.async_void!("elementHandle.hover", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.hover(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the `element.innerHTML`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.inner_html/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec inner_html(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  def inner_html(element_handle) do
+    Facade.async("elementHandle.innerHTML", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.inner_html(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `inner_html/1`, but returns the value and raises on error."
+  @spec inner_html!(t()) :: String.t()
+  def inner_html!(element_handle) do
+    Facade.async!("elementHandle.innerHTML", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.inner_html(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the `element.innerText`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.inner_text/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec inner_text(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  def inner_text(element_handle) do
+    Facade.async("elementHandle.innerText", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.inner_text(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `inner_text/1`, but returns the value and raises on error."
+  @spec inner_text!(t()) :: String.t()
+  def inner_text!(element_handle) do
+    Facade.async!("elementHandle.innerText", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.inner_text(element_handle)
+    end)
+  end
+
+  @doc since: "1.13"
+  @doc ~S"""
+  Returns `input.value` for the selected `<input>` or `<textarea>` or `<select>` element.
+
+  Throws for non-input elements. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), returns the value of the control.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.input_value/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec input_value(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  def input_value(element_handle) do
+    Facade.async("elementHandle.inputValue", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.input_value(element_handle)
+    end)
+  end
+
+  @doc since: "1.13"
+  @doc "Like `input_value/1`, but returns the value and raises on error."
+  @spec input_value!(t()) :: String.t()
+  def input_value!(element_handle) do
+    Facade.async!("elementHandle.inputValue", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.input_value(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns whether the element is checked. Throws if the element is not a checkbox or radio input.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.is_checked/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec is_checked(t()) :: {:ok, boolean()} | {:error, Exception.t()}
+  def is_checked(element_handle) do
+    Facade.async("elementHandle.isChecked", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_checked(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `is_checked/1`, but returns the value and raises on error."
+  @spec is_checked!(t()) :: boolean()
+  def is_checked!(element_handle) do
+    Facade.async!("elementHandle.isChecked", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_checked(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns whether the element is disabled, the opposite of [enabled](https://playwright.dev/docs/actionability#enabled).
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.is_disabled/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec is_disabled(t()) :: {:ok, boolean()} | {:error, Exception.t()}
+  def is_disabled(element_handle) do
+    Facade.async("elementHandle.isDisabled", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_disabled(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `is_disabled/1`, but returns the value and raises on error."
+  @spec is_disabled!(t()) :: boolean()
+  def is_disabled!(element_handle) do
+    Facade.async!("elementHandle.isDisabled", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_disabled(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns whether the element is [editable](https://playwright.dev/docs/actionability#editable).
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.is_editable/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec is_editable(t()) :: {:ok, boolean()} | {:error, Exception.t()}
+  def is_editable(element_handle) do
+    Facade.async("elementHandle.isEditable", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_editable(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `is_editable/1`, but returns the value and raises on error."
+  @spec is_editable!(t()) :: boolean()
+  def is_editable!(element_handle) do
+    Facade.async!("elementHandle.isEditable", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_editable(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns whether the element is [enabled](https://playwright.dev/docs/actionability#enabled).
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.is_enabled/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec is_enabled(t()) :: {:ok, boolean()} | {:error, Exception.t()}
+  def is_enabled(element_handle) do
+    Facade.async("elementHandle.isEnabled", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_enabled(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `is_enabled/1`, but returns the value and raises on error."
+  @spec is_enabled!(t()) :: boolean()
+  def is_enabled!(element_handle) do
+    Facade.async!("elementHandle.isEnabled", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_enabled(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns whether the element is hidden, the opposite of [visible](https://playwright.dev/docs/actionability#visible).
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.is_hidden/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec is_hidden(t()) :: {:ok, boolean()} | {:error, Exception.t()}
+  def is_hidden(element_handle) do
+    Facade.async("elementHandle.isHidden", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_hidden(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `is_hidden/1`, but returns the value and raises on error."
+  @spec is_hidden!(t()) :: boolean()
+  def is_hidden!(element_handle) do
+    Facade.async!("elementHandle.isHidden", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_hidden(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns whether the element is [visible](https://playwright.dev/docs/actionability#visible).
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.is_visible/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec is_visible(t()) :: {:ok, boolean()} | {:error, Exception.t()}
+  def is_visible(element_handle) do
+    Facade.async("elementHandle.isVisible", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_visible(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `is_visible/1`, but returns the value and raises on error."
+  @spec is_visible!(t()) :: boolean()
+  def is_visible!(element_handle) do
+    Facade.async!("elementHandle.isVisible", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.is_visible(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the frame containing the given element.
+  """
+  @spec owner_frame(t()) :: {:ok, nil | PlaywrightEx.Frame.t()} | {:error, Exception.t()}
+  def owner_frame(element_handle) do
+    Facade.async("elementHandle.ownerFrame", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.owner_frame(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `owner_frame/1`, but returns the value and raises on error."
+  @spec owner_frame!(t()) :: nil | PlaywrightEx.Frame.t()
+  def owner_frame!(element_handle) do
+    Facade.async!("elementHandle.ownerFrame", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.owner_frame(element_handle)
+    end)
+  end
+
+  @press_options {:object, %{delay: {:delay, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `press`, see its docs."
+  @type press_options ::
+          [delay: number(), no_wait_after: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:delay) => number(),
+              optional(:no_wait_after) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Focuses the element, and then uses `PlaywrightEx.Keyboard.down/2` and `PlaywrightEx.Keyboard.up/2`.
+
+  `key` can specify the intended
+  [keyboardEvent.key](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key) value or a single character to
+  generate the text for. A superset of the `key` values can be found
+  [here](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values). Examples of the keys are:
+
+  `F1` - `F12`, `Digit0`- `Digit9`, `KeyA`- `KeyZ`, `Backquote`, `Minus`, `Equal`, `Backslash`, `Backspace`, `Tab`,
+  `Delete`, `Escape`, `ArrowDown`, `End`, `Enter`, `Home`, `Insert`, `PageDown`, `PageUp`, `ArrowRight`, `ArrowUp`, etc.
+
+  Following modification shortcuts are also supported: `Shift`, `Control`, `Alt`, `Meta`, `ShiftLeft`, `ControlOrMeta`.
+
+  Holding down `Shift` will type the text that corresponds to the `key` in the upper case.
+
+  If `key` is a single character, it is case-sensitive, so the values `a` and `A` will generate different
+  respective texts.
+
+  Shortcuts such as `key: "Control+o"`, `key: "Control++` or `key: "Control+Shift+T"` are supported as well. When specified with the
+  modifier, modifier is pressed and being held while the subsequent key is being pressed.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.press/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `key` - Name of the key to press or a character to generate, such as `ArrowLeft` or `a`.
+
+  ## Options
+
+  * `:delay` - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
+  * `:no_wait_after` - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
+    opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as navigating
+    to inaccessible pages. Defaults to `false`.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec press(t(), String.t(), press_options()) :: :ok | {:error, Exception.t()}
+  def press(element_handle, key, options \\ []) do
+    options = Facade.options!(options, @press_options, "elementHandle.press")
+
+    Facade.async_void("elementHandle.press", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.press(element_handle, key, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `press/3`, but returns the value and raises on error."
+  @spec press!(t(), String.t(), press_options()) :: :ok
+  def press!(element_handle, key, options \\ []) do
+    options = Facade.options!(options, @press_options, "elementHandle.press")
+
+    Facade.async_void!("elementHandle.press", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.press(element_handle, key, options)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc ~S"""
+  The method finds an element matching the specified selector in the [`ElementHandle`](`PlaywrightEx.ElementHandle`)'s subtree. If no elements match the selector,
+  returns `null`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Page.locator/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+  """
+  @spec query_selector(t(), String.t()) :: {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def query_selector(element_handle, selector) do
+    Facade.async("elementHandle.$", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.query_selector(element_handle, selector)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `query_selector/2`, but returns the value and raises on error."
+  @spec query_selector!(t(), String.t()) :: nil | PlaywrightEx.ElementHandle.t()
+  def query_selector!(element_handle, selector) do
+    Facade.async!("elementHandle.$", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.query_selector(element_handle, selector)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc ~S"""
+  The method finds all elements matching the specified selector in the [`ElementHandle`](`PlaywrightEx.ElementHandle`)s subtree. If no elements match the selector,
+  returns empty array.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Page.locator/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+  """
+  @spec query_selector_all(t(), String.t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, Exception.t()}
+  def query_selector_all(element_handle, selector) do
+    Facade.async("elementHandle.$$", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.query_selector_all(element_handle, selector)
+    end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `query_selector_all/2`, but returns the value and raises on error."
+  @spec query_selector_all!(t(), String.t()) :: [PlaywrightEx.ElementHandle.t()]
+  def query_selector_all!(element_handle, selector) do
+    Facade.async!("elementHandle.$$", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.query_selector_all(element_handle, selector)
+    end)
+  end
+
+  @screenshot_options {:object,
+                       %{
+                         animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
+                         caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
+                         mask: {:mask, nil},
+                         mask_color: {:maskColor, nil},
+                         omit_background: {:omitBackground, nil},
+                         path: {:path, nil},
+                         quality: {:quality, nil},
+                         scale: {:scale, {:enum, %{css: "css", device: "device"}}},
+                         style: {:style, nil},
+                         timeout: {:timeout, nil},
+                         type: {:type, {:enum, %{png: "png", jpeg: "jpeg", webp: "webp"}}}
+                       }}
+
+  @typedoc "Options of `screenshot`, see its docs."
+  @type screenshot_options ::
+          [
+            animations: :disabled | :allow,
+            caret: :hide | :initial,
+            mask: [PlaywrightEx.Locator.t()],
+            mask_color: String.t(),
+            omit_background: boolean(),
+            path: String.t(),
+            quality: integer(),
+            scale: :css | :device,
+            style: String.t(),
+            timeout: number() | :infinity,
+            type: :png | :jpeg | :webp
+          ]
+          | %{
+              optional(:animations) => :disabled | :allow,
+              optional(:caret) => :hide | :initial,
+              optional(:mask) => [PlaywrightEx.Locator.t()],
+              optional(:mask_color) => String.t(),
+              optional(:omit_background) => boolean(),
+              optional(:path) => String.t(),
+              optional(:quality) => integer(),
+              optional(:scale) => :css | :device,
+              optional(:style) => String.t(),
+              optional(:timeout) => number() | :infinity,
+              optional(:type) => :png | :jpeg | :webp
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method captures a screenshot of the page, clipped to the size and position of this particular element. If the element is covered by other elements, it will not be actually visible on the screenshot. If the element is a scrollable container, only the currently scrolled content will be visible on the screenshot.
+
+  This method waits for the [actionability](https://playwright.dev/docs/actionability) checks, then scrolls element into view before taking a
+  screenshot. If the element is detached from DOM, the method throws an error.
+
+  Returns the buffer with the captured screenshot.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.screenshot/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+
+    * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
+    * infinite animations are canceled to initial state, and then played over after the screenshot.
+
+    Defaults to `"allow"` that leaves animations untouched.
+  * `:caret` - When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, text caret behavior will not be changed.  Defaults to `"hide"`.
+  * `:mask` - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+    a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
+    The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
+  * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+    Defaults to `false`.
+  * `:path` - The file path to save the image to. The screenshot type will be inferred from file extension. If `path` is a
+    relative path, then it is resolved relative to the current working directory. If no path is provided, the image won't be
+    saved to the disk.
+  * `:quality` - The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`.
+    For `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
+  * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+
+    Defaults to `"device"`.
+  * `:style` - *Since 1.41.* Text of the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible
+    or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies
+    to the inner frames.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:type` - Specify screenshot type, defaults to `png`.
+  """
+  @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, Exception.t()}
+  def screenshot(element_handle, options \\ []) do
+    options = Facade.options!(options, @screenshot_options, "elementHandle.screenshot")
+
+    Facade.async("elementHandle.screenshot", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.screenshot(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `screenshot/2`, but returns the value and raises on error."
+  @spec screenshot!(t(), screenshot_options()) :: binary()
+  def screenshot!(element_handle, options \\ []) do
+    options = Facade.options!(options, @screenshot_options, "elementHandle.screenshot")
+
+    Facade.async!("elementHandle.screenshot", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.screenshot(element_handle, options)
+    end)
+  end
+
+  @scroll_into_view_if_needed_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `scroll_into_view_if_needed`, see its docs."
+  @type scroll_into_view_if_needed_options ::
+          [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method waits for [actionability](https://playwright.dev/docs/actionability) checks, then tries to scroll element into view, unless it is
+  completely visible as defined by
+  [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API)'s `ratio`.
+
+  Throws when `elementHandle` does not point to an element
+  [connected](https://developer.mozilla.org/en-US/docs/Web/API/Node/isConnected) to a Document or a ShadowRoot.
+
+  See [scrolling](https://playwright.dev/docs/input#scrolling) for alternative ways to scroll.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.scroll_into_view_if_needed/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec scroll_into_view_if_needed(t(), scroll_into_view_if_needed_options()) :: :ok | {:error, Exception.t()}
+  def scroll_into_view_if_needed(element_handle, options \\ []) do
+    options = Facade.options!(options, @scroll_into_view_if_needed_options, "elementHandle.scrollIntoViewIfNeeded")
+
+    Facade.async_void("elementHandle.scrollIntoViewIfNeeded", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.scroll_into_view_if_needed(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `scroll_into_view_if_needed/2`, but returns the value and raises on error."
+  @spec scroll_into_view_if_needed!(t(), scroll_into_view_if_needed_options()) :: :ok
+  def scroll_into_view_if_needed!(element_handle, options \\ []) do
+    options = Facade.options!(options, @scroll_into_view_if_needed_options, "elementHandle.scrollIntoViewIfNeeded")
+
+    Facade.async_void!("elementHandle.scrollIntoViewIfNeeded", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.scroll_into_view_if_needed(element_handle, options)
+    end)
+  end
+
+  @select_option_values {:union,
+                         [
+                           {:fields, %{value: nil, label: nil, index: nil}},
+                           {:array, {:fields, %{value: nil, label: nil, index: nil}}}
+                         ]}
+  @select_option_options {:object,
+                          %{force: {:force, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `select_option`, see its docs."
+  @type select_option_options ::
+          [force: boolean(), no_wait_after: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:force) => boolean(),
+              optional(:no_wait_after) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method waits for [actionability](https://playwright.dev/docs/actionability) checks, waits until all specified options are present in the `<select>` element and selects these options.
+
+  If the target element is not a `<select>` element, this method throws an error. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be used instead.
+
+  Returns the array of option values that have been successfully selected.
+
+  Triggers a `change` and `input` event once all the provided options have been selected.
+
+  **Usage**
+
+  ```js
+  // Single selection matching the value or label
+  handle.selectOption('blue');
+
+  // single selection matching the label
+  handle.selectOption({ label: 'Blue' });
+
+  // multiple selection
+  handle.selectOption(['red', 'green', 'blue']);
+  ```
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.select_option/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `values` - Options to select. If the `<select>` has the `multiple` attribute, all matching options are selected, otherwise only the
+    first option matching one of the passed options is selected. String values are matching both values and labels. Option
+    is considered matching if all specified properties match.
+    * `:value` - Matches by `option.value`. Optional.
+    * `:label` - Matches by `option.label`. Optional.
+    * `:index` - Matches by the index. Optional.
+
+  ## Options
+
+  * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` - This option has no effect.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec select_option(
+          t(),
+          :null
+          | String.t()
+          | PlaywrightEx.ElementHandle.t()
+          | [String.t()]
+          | %{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}
+          | [PlaywrightEx.ElementHandle.t()]
+          | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
+          select_option_options()
+        ) :: {:ok, [String.t()]} | {:error, Exception.t()}
+  def select_option(element_handle, values, options \\ []) do
+    values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption")
+    options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
+
+    Facade.async("elementHandle.selectOption", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.select_option(element_handle, values, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `select_option/3`, but returns the value and raises on error."
+  @spec select_option!(
+          t(),
+          :null
+          | String.t()
+          | PlaywrightEx.ElementHandle.t()
+          | [String.t()]
+          | %{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}
+          | [PlaywrightEx.ElementHandle.t()]
+          | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
+          select_option_options()
+        ) :: [String.t()]
+  def select_option!(element_handle, values, options \\ []) do
+    values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption")
+    options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
+
+    Facade.async!("elementHandle.selectOption", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.select_option(element_handle, values, options)
+    end)
+  end
+
+  @select_text_options {:object, %{force: {:force, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `select_text`, see its docs."
+  @type select_text_options ::
+          [force: boolean(), timeout: number() | :infinity]
+          | %{optional(:force) => boolean(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method waits for [actionability](https://playwright.dev/docs/actionability) checks, then focuses the element and selects all its text
+  content.
+
+  If the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), focuses and selects text in the control instead.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.select_text/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec select_text(t(), select_text_options()) :: :ok | {:error, Exception.t()}
+  def select_text(element_handle, options \\ []) do
+    options = Facade.options!(options, @select_text_options, "elementHandle.selectText")
+
+    Facade.async_void("elementHandle.selectText", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.select_text(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `select_text/2`, but returns the value and raises on error."
+  @spec select_text!(t(), select_text_options()) :: :ok
+  def select_text!(element_handle, options \\ []) do
+    options = Facade.options!(options, @select_text_options, "elementHandle.selectText")
+
+    Facade.async_void!("elementHandle.selectText", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.select_text(element_handle, options)
+    end)
+  end
+
+  @set_checked_options {:object,
+                        %{
+                          force: {:force, nil},
+                          no_wait_after: {:noWaitAfter, nil},
+                          position: {:position, {:fields, %{x: nil, y: nil}}},
+                          scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                          timeout: {:timeout, nil},
+                          trial: {:trial, nil}
+                        }}
+
+  @typedoc "Options of `set_checked`, see its docs."
+  @type set_checked_options ::
+          [
+            force: boolean(),
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:force) => boolean(),
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.15"
+  @doc ~S"""
+  This method checks or unchecks an element by performing the following steps:
+
+  1. Ensure that element is a checkbox or a radio input. If not, this method throws.
+  1. If the element already has the right checked state, this method returns immediately.
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+     set. If the element is detached during the checks, the whole action is retried.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
+  1. Ensure that the element is now checked or unchecked. If not, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.set_checked/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `checked` - Whether to check or uncheck the checkbox.
+
+  ## Options
+
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` - This option has no effect.
+  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec set_checked(t(), boolean(), set_checked_options()) :: :ok | {:error, Exception.t()}
+  def set_checked(element_handle, checked, options \\ []) do
+    options = Facade.options!(options, @set_checked_options, "elementHandle.setChecked")
+
+    Facade.async_void("elementHandle.setChecked", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.set_checked(element_handle, checked, options)
+    end)
+  end
+
+  @doc since: "1.15"
+  @doc "Like `set_checked/3`, but returns the value and raises on error."
+  @spec set_checked!(t(), boolean(), set_checked_options()) :: :ok
+  def set_checked!(element_handle, checked, options \\ []) do
+    options = Facade.options!(options, @set_checked_options, "elementHandle.setChecked")
+
+    Facade.async_void!("elementHandle.setChecked", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.set_checked(element_handle, checked, options)
+    end)
+  end
+
+  @set_input_files_files {:union,
+                          [
+                            {:fields, %{name: nil, mimeType: nil, buffer: nil}},
+                            {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
+                          ]}
+  @set_input_files_options {:object, %{no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `set_input_files`, see its docs."
+  @type set_input_files_options ::
+          [no_wait_after: boolean(), timeout: number() | :infinity]
+          | %{optional(:no_wait_after) => boolean(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then they
+  are resolved relative to the current working directory. For empty array, clears the selected files.
+  For inputs with a `[webkitdirectory]` attribute, only a single directory path is supported.
+
+  This method expects [`ElementHandle`](`PlaywrightEx.ElementHandle`) to point to an
+  [input element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), targets the control instead.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.set_input_files/3` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Arguments
+
+  * `files`
+    * `:name` - File name
+    * `:mimeType` - File type
+    * `:buffer` - File content
+
+  ## Options
+
+  * `:no_wait_after` - This option has no effect.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec set_input_files(
+          t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok | {:error, Exception.t()}
+  def set_input_files(element_handle, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
+
+    Facade.async_void("elementHandle.setInputFiles", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.set_input_files(element_handle, files, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `set_input_files/3`, but returns the value and raises on error."
+  @spec set_input_files!(
+          t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok
+  def set_input_files!(element_handle, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
+
+    Facade.async_void!("elementHandle.setInputFiles", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.set_input_files(element_handle, files, options)
+    end)
+  end
+
+  @tap_options {:object,
+                %{
+                  force: {:force, nil},
+                  modifiers:
+                    {:modifiers,
+                     {:array,
+                      {:enum,
+                       %{alt: "Alt", control: "Control", control_or_meta: "ControlOrMeta", meta: "Meta", shift: "Shift"}}}},
+                  no_wait_after: {:noWaitAfter, nil},
+                  position: {:position, {:fields, %{x: nil, y: nil}}},
+                  scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                  timeout: {:timeout, nil},
+                  trial: {:trial, nil}
+                }}
+
+  @typedoc "Options of `tap`, see its docs."
+  @type tap_options ::
+          [
+            force: boolean(),
+            modifiers: [:alt | :control | :control_or_meta | :meta | :shift],
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:force) => boolean(),
+              optional(:modifiers) => [:alt | :control | :control_or_meta | :meta | :shift],
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method taps the element by performing the following steps:
+
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `position`.
+
+  If the element is detached from the DOM at any moment during the action, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Note {: .info}
+  >
+  > `elementHandle.tap()` requires that the `hasTouch` option of the browser context be set to true.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.tap/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+    modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
+    and Linux and to "Meta" on macOS.
+  * `:no_wait_after` - This option has no effect.
+  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec tap(t(), tap_options()) :: :ok | {:error, Exception.t()}
+  def tap(element_handle, options \\ []) do
+    options = Facade.options!(options, @tap_options, "elementHandle.tap")
+
+    Facade.async_void("elementHandle.tap", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.tap(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `tap/2`, but returns the value and raises on error."
+  @spec tap!(t(), tap_options()) :: :ok
+  def tap!(element_handle, options \\ []) do
+    options = Facade.options!(options, @tap_options, "elementHandle.tap")
+
+    Facade.async_void!("elementHandle.tap", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.tap(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the `node.textContent`.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.text_content/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+  """
+  @spec text_content(t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  def text_content(element_handle) do
+    Facade.async("elementHandle.textContent", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.text_content(element_handle)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `text_content/1`, but returns the value and raises on error."
+  @spec text_content!(t()) :: nil | String.t()
+  def text_content!(element_handle) do
+    Facade.async!("elementHandle.textContent", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.text_content(element_handle)
+    end)
+  end
+
+  @type_options {:object, %{delay: {:delay, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `type`, see its docs."
+  @type type_options ::
+          [delay: number(), no_wait_after: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:delay) => number(),
+              optional(:no_wait_after) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc deprecated:
+         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+  @doc ~S"""
+  Focuses the element, and then sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text.
+
+  To press a special key, like `Control` or `ArrowDown`, use `PlaywrightEx.ElementHandle.press/3`.
+
+  **Usage**
+
+  ## Arguments
+
+  * `text` - A text to type into a focused element.
+
+  ## Options
+
+  * `:delay` - Time to wait between key presses in milliseconds. Defaults to 0.
+  * `:no_wait_after` - This option has no effect.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec type(t(), String.t(), type_options()) :: :ok | {:error, Exception.t()}
+  def type(element_handle, text, options \\ []) do
+    options = Facade.options!(options, @type_options, "elementHandle.type")
+
+    Facade.async_void("elementHandle.type", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.type(element_handle, text, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc deprecated:
+         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+  @doc "Like `type/3`, but returns the value and raises on error."
+  @spec type!(t(), String.t(), type_options()) :: :ok
+  def type!(element_handle, text, options \\ []) do
+    options = Facade.options!(options, @type_options, "elementHandle.type")
+
+    Facade.async_void!("elementHandle.type", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.type(element_handle, text, options)
+    end)
+  end
+
+  @uncheck_options {:object,
+                    %{
+                      force: {:force, nil},
+                      no_wait_after: {:noWaitAfter, nil},
+                      position: {:position, {:fields, %{x: nil, y: nil}}},
+                      scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                      timeout: {:timeout, nil},
+                      trial: {:trial, nil}
+                    }}
+
+  @typedoc "Options of `uncheck`, see its docs."
+  @type uncheck_options ::
+          [
+            force: boolean(),
+            no_wait_after: boolean(),
+            position: %{x: number(), y: number()},
+            scroll: :auto | :none,
+            timeout: number() | :infinity,
+            trial: boolean()
+          ]
+          | %{
+              optional(:force) => boolean(),
+              optional(:no_wait_after) => boolean(),
+              optional(:position) => %{x: number(), y: number()},
+              optional(:scroll) => :auto | :none,
+              optional(:timeout) => number() | :infinity,
+              optional(:trial) => boolean()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method checks the element by performing the following steps:
+
+  1. Ensure that element is a checkbox or a radio input. If not, this method throws. If the element is already
+     unchecked, this method returns immediately.
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `force` option is set.
+  1. Scroll the element into view if needed.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
+  1. Ensure that the element is now unchecked. If not, this method throws.
+
+  If the element is detached from the DOM at any moment during the action, this method throws.
+
+  When all steps combined have not finished during the specified `timeout`, this method throws a
+  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use locator-based `PlaywrightEx.Locator.uncheck/2` instead. Read more about [locators](https://playwright.dev/docs/locators).
+
+  ## Options
+
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` - This option has no effect.
+  * `:position` - *Since 1.11.* A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+    which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
+    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  """
+  @spec uncheck(t(), uncheck_options()) :: :ok | {:error, Exception.t()}
+  def uncheck(element_handle, options \\ []) do
+    options = Facade.options!(options, @uncheck_options, "elementHandle.uncheck")
+
+    Facade.async_void("elementHandle.uncheck", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.uncheck(element_handle, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `uncheck/2`, but returns the value and raises on error."
+  @spec uncheck!(t(), uncheck_options()) :: :ok
+  def uncheck!(element_handle, options \\ []) do
+    options = Facade.options!(options, @uncheck_options, "elementHandle.uncheck")
+
+    Facade.async_void!("elementHandle.uncheck", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.uncheck(element_handle, options)
+    end)
+  end
+
+  @wait_for_element_state_state {:enum,
+                                 %{
+                                   visible: "visible",
+                                   hidden: "hidden",
+                                   stable: "stable",
+                                   enabled: "enabled",
+                                   disabled: "disabled",
+                                   editable: "editable"
+                                 }}
+  @wait_for_element_state_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_element_state`, see its docs."
+  @type wait_for_element_state_options ::
+          [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns when the element satisfies the `state`.
+
+  Depending on the `state` parameter, this method waits for one of the [actionability](https://playwright.dev/docs/actionability) checks
+  to pass. This method throws when the element is detached while waiting, unless waiting for the `"hidden"` state.
+
+  * `"visible"` Wait until the element is [visible](https://playwright.dev/docs/actionability#visible).
+  * `"hidden"` Wait until the element is [not visible](https://playwright.dev/docs/actionability#visible) or
+    not attached. Note that waiting for hidden does not throw when the element detaches.
+  * `"stable"` Wait until the element is both [visible](https://playwright.dev/docs/actionability#visible) and
+    [stable](https://playwright.dev/docs/actionability#stable).
+  * `"enabled"` Wait until the element is [enabled](https://playwright.dev/docs/actionability#enabled).
+  * `"disabled"` Wait until the element is [not enabled](https://playwright.dev/docs/actionability#enabled).
+  * `"editable"` Wait until the element is [editable](https://playwright.dev/docs/actionability#editable).
+
+  If the element does not satisfy the condition for the `timeout` milliseconds, this method will throw.
+
+  ## Arguments
+
+  * `state` - A state to wait for, see below for more details.
+
+  ## Options
+
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec wait_for_element_state(
+          t(),
+          :visible | :hidden | :stable | :enabled | :disabled | :editable,
+          wait_for_element_state_options()
+        ) :: :ok | {:error, Exception.t()}
+  def wait_for_element_state(element_handle, state, options \\ []) do
+    state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState")
+    options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
+
+    Facade.async_void("elementHandle.waitForElementState", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.wait_for_element_state(element_handle, state, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `wait_for_element_state/3`, but returns the value and raises on error."
+  @spec wait_for_element_state!(
+          t(),
+          :visible | :hidden | :stable | :enabled | :disabled | :editable,
+          wait_for_element_state_options()
+        ) :: :ok
+  def wait_for_element_state!(element_handle, state, options \\ []) do
+    state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState")
+    options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
+
+    Facade.async_void!("elementHandle.waitForElementState", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.wait_for_element_state(element_handle, state, options)
+    end)
+  end
+
+  @wait_for_selector_options {:object,
+                              %{
+                                state:
+                                  {:state,
+                                   {:enum,
+                                    %{attached: "attached", detached: "detached", visible: "visible", hidden: "hidden"}}},
+                                strict: {:strict, nil},
+                                timeout: {:timeout, nil}
+                              }}
+
+  @typedoc "Options of `wait_for_selector`, see its docs."
+  @type wait_for_selector_options ::
+          [state: :attached | :detached | :visible | :hidden, strict: boolean(), timeout: number() | :infinity]
+          | %{
+              optional(:state) => :attached | :detached | :visible | :hidden,
+              optional(:strict) => boolean(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns element specified by selector when it satisfies `state` option. Returns `null` if waiting for `hidden`
+  or `detached`.
+
+  Wait for the `selector` relative to the element handle to satisfy `state` option (either
+  appear/disappear from dom, or become visible/hidden). If at the moment of calling the method `selector` already
+  satisfies the condition, the method will return immediately. If the selector doesn't satisfy the condition for the
+  `timeout` milliseconds, the function will throw.
+
+  **Usage**
+
+  ```js
+  await page.setContent(`<div><span></span></div>`);
+  const div = await page.$('div');
+  // Waiting for the 'span' selector relative to the div.
+  const span = await div.waitForSelector('span', { state: 'attached' });
+  ```
+
+  > #### Note {: .info}
+  >
+  > This method does not work across navigations, use `PlaywrightEx.Page.wait_for_selector/3` instead.
+
+  > #### Discouraged {: .warning}
+  >
+  > Use web assertions that assert visibility or a locator-based `PlaywrightEx.Locator.wait_for/2` instead.
+
+  ## Arguments
+
+  * `selector` - A selector to query for.
+
+  ## Options
+
+  * `:state` - Defaults to `'visible'`. Can be either:
+
+    * `'attached'` - wait for element to be present in DOM.
+    * `'detached'` - wait for element to not be present in DOM.
+    * `'visible'` - wait for element to have non-empty bounding box and no `visibility:hidden`. Note that element without
+      any content or with `display:none` has an empty bounding box and is not considered visible.
+    * `'hidden'` - wait for element to be either detached from DOM, or have an empty bounding box or `visibility:hidden`.
+      This is opposite to the `'visible'` option.
+  * `:strict` - *Since 1.15.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+    than one element, the call throws an exception.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec wait_for_selector(t(), String.t(), wait_for_selector_options()) ::
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def wait_for_selector(element_handle, selector, options \\ []) do
+    options = Facade.options!(options, @wait_for_selector_options, "elementHandle.waitForSelector")
+
+    Facade.async("elementHandle.waitForSelector", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.wait_for_selector(element_handle, selector, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `wait_for_selector/3`, but returns the value and raises on error."
+  @spec wait_for_selector!(t(), String.t(), wait_for_selector_options()) :: nil | PlaywrightEx.ElementHandle.t()
+  def wait_for_selector!(element_handle, selector, options \\ []) do
+    options = Facade.options!(options, @wait_for_selector_options, "elementHandle.waitForSelector")
+
+    Facade.async!("elementHandle.waitForSelector", element_handle, fn ->
+      PlaywrightEx.Client.ElementHandle.wait_for_selector(element_handle, selector, options)
+    end)
+  end
 end

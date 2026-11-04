@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Locator do
 
   [Learn more about locators](https://playwright.dev/docs/locators).
 
-  Not ported yet: `boundingBox`, `drop`, `elementHandle`, `elementHandles`, `evaluate`, `evaluateHandle`, `highlight`, `screenshot`, `scrollIntoViewIfNeeded`, `selectText`, `setInputFiles`, `toString`.
+  Not ported yet: `highlight`, `toString`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -312,6 +312,58 @@ defmodule PlaywrightEx.Locator do
   def blur!(this, options \\ []) do
     options = Facade.options!(options, @blur_options, "locator.blur")
     Facade.async_void!("locator.blur", this, fn -> PlaywrightEx.Client.Locator.blur(this, options) end)
+  end
+
+  @bounding_box_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `bounding_box`, see its docs."
+  @type bounding_box_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  This method returns the bounding box of the element matching the locator, or `null` if the element is not visible. The bounding box is
+  calculated relative to the main frame viewport - which is usually the same as the browser window.
+
+  **Details**
+
+  Scrolling affects the returned bounding box, similarly to
+  [Element.getBoundingClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect). That
+  means `x` and/or `y` may be negative.
+
+  Elements from child frames return the bounding box relative to the main frame, unlike the
+  [Element.getBoundingClientRect](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+
+  Assuming the page is static, it is safe to use bounding box coordinates to perform input. For example, the following
+  snippet should click the center of the element.
+
+  **Usage**
+
+  ```js
+  const box = await page.getByRole('button').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  ```
+
+  ## Options
+
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec bounding_box(t(), bounding_box_options()) ::
+          {:ok, nil | %{x: number(), y: number(), width: number(), height: number()}} | {:error, Exception.t()}
+  def bounding_box(this, options \\ []) do
+    options = Facade.options!(options, @bounding_box_options, "locator.boundingBox")
+    Facade.async("locator.boundingBox", this, fn -> PlaywrightEx.Client.Locator.bounding_box(this, options) end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `bounding_box/2`, but returns the value and raises on error."
+  @spec bounding_box!(t(), bounding_box_options()) ::
+          nil | %{x: number(), y: number(), width: number(), height: number()}
+  def bounding_box!(this, options \\ []) do
+    options = Facade.options!(options, @bounding_box_options, "locator.boundingBox")
+    Facade.async!("locator.boundingBox", this, fn -> PlaywrightEx.Client.Locator.bounding_box(this, options) end)
   end
 
   @check_options {:object,
@@ -934,6 +986,172 @@ defmodule PlaywrightEx.Locator do
     Facade.async_void!("locator.dragTo", this, fn -> PlaywrightEx.Client.Locator.drag_to(this, target, options) end)
   end
 
+  @drop_payload {:fields,
+                 %{
+                   files:
+                     {:union,
+                      [
+                        {:fields, %{name: nil, mimeType: nil, buffer: nil}},
+                        {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
+                      ]},
+                   data: nil
+                 }}
+  @drop_options {:object, %{position: {:position, {:fields, %{x: nil, y: nil}}}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `drop`, see its docs."
+  @type drop_options ::
+          [position: %{x: number(), y: number()}, timeout: number() | :infinity]
+          | %{optional(:position) => %{x: number(), y: number()}, optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.60"
+  @doc ~S"""
+  Simulate an external drag-and-drop of files or clipboard-like data onto this locator.
+
+  **Details**
+
+  Dispatches the native `dragenter`, `dragover`, and `drop` events at the center of the
+  target element with a synthetic `DataTransfer` carrying the provided files and/or data
+  entries. Works cross-browser by constructing the `DataTransfer` in the page context.
+
+  If the target element's `dragover` listener does not call `preventDefault()`, the target
+  is considered to have rejected the drop: Playwright dispatches `dragleave` and this
+  method throws.
+
+  **Usage**
+
+  Drop a file buffer onto an upload area:
+
+  ```js
+  await page.locator('#dropzone').drop({
+    files: { name: 'note.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') },
+  });
+  ```
+
+  Drop plain text and a URL together:
+
+  ```js
+  await page.locator('#dropzone').drop({
+    data: {
+      'text/plain': 'hello world',
+      'text/uri-list': 'https://example.com',
+    },
+  });
+  ```
+
+  ## Arguments
+
+  * `payload` - Data to drop onto the target. Provide `files` (file paths or in-memory buffers), `data`
+    (a mime-type → string map for clipboard-like content such as `text/plain`, `text/html`,
+    `text/uri-list`), or both.
+    * `:files`
+      * `:name` - File name
+      * `:mimeType` - File type
+      * `:buffer` - File content
+    * `:data`
+
+  ## Options
+
+  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+    element.
+    * `:x`
+    * `:y`
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec drop(
+          t(),
+          %{
+            optional(:files) =>
+              String.t()
+              | [String.t()]
+              | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+              | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+            optional(:data) => %{optional(String.t()) => String.t()}
+          },
+          drop_options()
+        ) :: :ok | {:error, Exception.t()}
+  def drop(this, payload, options \\ []) do
+    payload = Facade.arg!(payload, @drop_payload, "locator.drop")
+    options = Facade.options!(options, @drop_options, "locator.drop")
+    Facade.async_void("locator.drop", this, fn -> PlaywrightEx.Client.Locator.drop(this, payload, options) end)
+  end
+
+  @doc since: "1.60"
+  @doc "Like `drop/3`, but returns the value and raises on error."
+  @spec drop!(
+          t(),
+          %{
+            optional(:files) =>
+              String.t()
+              | [String.t()]
+              | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+              | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+            optional(:data) => %{optional(String.t()) => String.t()}
+          },
+          drop_options()
+        ) :: :ok
+  def drop!(this, payload, options \\ []) do
+    payload = Facade.arg!(payload, @drop_payload, "locator.drop")
+    options = Facade.options!(options, @drop_options, "locator.drop")
+    Facade.async_void!("locator.drop", this, fn -> PlaywrightEx.Client.Locator.drop(this, payload, options) end)
+  end
+
+  @element_handle_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `element_handle`, see its docs."
+  @type element_handle_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  Resolves given locator to the first matching DOM element. If there are no matching elements, waits for one. If multiple elements match the locator, throws.
+
+  > #### Discouraged {: .warning}
+  >
+  > Always prefer using [`Locator`](`PlaywrightEx.Locator`)s and web assertions over [`ElementHandle`](`PlaywrightEx.ElementHandle`)s because latter are inherently racy.
+
+  ## Options
+
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec element_handle(t(), element_handle_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  def element_handle(this, options \\ []) do
+    options = Facade.options!(options, @element_handle_options, "locator.elementHandle")
+    Facade.async("locator.elementHandle", this, fn -> PlaywrightEx.Client.Locator.element_handle(this, options) end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `element_handle/2`, but returns the value and raises on error."
+  @spec element_handle!(t(), element_handle_options()) :: PlaywrightEx.ElementHandle.t()
+  def element_handle!(this, options \\ []) do
+    options = Facade.options!(options, @element_handle_options, "locator.elementHandle")
+    Facade.async!("locator.elementHandle", this, fn -> PlaywrightEx.Client.Locator.element_handle(this, options) end)
+  end
+
+  @doc since: "1.14"
+  @doc ~S"""
+  Resolves given locator to all matching DOM elements. If there are no matching elements, returns an empty list.
+
+  > #### Discouraged {: .warning}
+  >
+  > Always prefer using [`Locator`](`PlaywrightEx.Locator`)s and web assertions over [`ElementHandle`](`PlaywrightEx.ElementHandle`)s because latter are inherently racy.
+  """
+  @spec element_handles(t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, Exception.t()}
+  def element_handles(this) do
+    Facade.async("locator.elementHandles", this, fn -> PlaywrightEx.Client.Locator.element_handles(this) end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `element_handles/1`, but returns the value and raises on error."
+  @spec element_handles!(t()) :: [PlaywrightEx.ElementHandle.t()]
+  def element_handles!(this) do
+    Facade.async!("locator.elementHandles", this, fn -> PlaywrightEx.Client.Locator.element_handles(this) end)
+  end
+
   @doc since: "1.43"
   @doc ~S"""
   Returns a [`FrameLocator`](`PlaywrightEx.FrameLocator`) object pointing to the same `iframe` as this locator.
@@ -954,6 +1172,68 @@ defmodule PlaywrightEx.Locator do
   @spec content_frame(t()) :: PlaywrightEx.FrameLocator.t()
   def content_frame(this) do
     PlaywrightEx.Client.Locator.content_frame(this)
+  end
+
+  @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `evaluate`, see its docs."
+  @type evaluate_options ::
+          [expose_functions: boolean(), timeout: number() | :infinity]
+          | %{optional(:expose_functions) => boolean(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  Execute JavaScript code in the page, taking the matching element as an argument.
+
+  **Details**
+
+  Returns the return value of `pageFunction`, called with the matching element as a first argument, and `arg` as a second argument.
+
+  If `pageFunction` returns a `Promise`, this method will wait for the promise to resolve and return its value.
+
+  If `pageFunction` throws or rejects, this method throws.
+
+  **Usage**
+
+  Passing argument to `pageFunction`:
+
+  ```js
+  const result = await page.getByTestId('myId').evaluate((element, [x, y]) => {
+    return element.textContent + ' ' + x * y;
+  }, [7, 8]);
+  console.log(result); // prints "myId text 56"
+  ```
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:timeout` - Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
+  def evaluate(this, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_options, "locator.evaluate")
+
+    Facade.async("locator.evaluate", this, fn ->
+      PlaywrightEx.Client.Locator.evaluate(this, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `evaluate/4`, but returns the value and raises on error."
+  @spec evaluate!(t(), String.t(), term() | nil, evaluate_options()) :: term()
+  def evaluate!(this, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_options, "locator.evaluate")
+
+    Facade.async!("locator.evaluate", this, fn ->
+      PlaywrightEx.Client.Locator.evaluate(this, expression, arg, options)
+    end)
   end
 
   @doc since: "1.14"
@@ -990,6 +1270,62 @@ defmodule PlaywrightEx.Locator do
   @spec evaluate_all!(t(), String.t(), term() | nil) :: term()
   def evaluate_all!(this, expression, arg \\ nil) do
     Facade.async!("locator.evaluateAll", this, fn -> PlaywrightEx.Client.Locator.evaluate_all(this, expression, arg) end)
+  end
+
+  @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `evaluate_handle`, see its docs."
+  @type evaluate_handle_options ::
+          [expose_functions: boolean(), timeout: number() | :infinity]
+          | %{optional(:expose_functions) => boolean(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  Execute JavaScript code in the page, taking the matching element as an argument, and return a [`JSHandle`](`PlaywrightEx.JSHandle`) with the result.
+
+  **Details**
+
+  Returns the return value of `pageFunction` as a[`JSHandle`](`PlaywrightEx.JSHandle`), called with the matching element as a first argument, and `arg` as a second argument.
+
+  The only difference between `PlaywrightEx.Locator.evaluate/4` and `PlaywrightEx.Locator.evaluate_handle/4` is that `PlaywrightEx.Locator.evaluate_handle/4` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
+
+  If `pageFunction` returns a `Promise`, this method will wait for the promise to resolve and return its value.
+
+  If `pageFunction` throws or rejects, this method throws.
+
+  See `PlaywrightEx.Page.evaluate_handle/4` for more details.
+
+  ## Arguments
+
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:timeout` - Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  def evaluate_handle(this, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "locator.evaluateHandle")
+
+    Facade.async("locator.evaluateHandle", this, fn ->
+      PlaywrightEx.Client.Locator.evaluate_handle(this, expression, arg, options)
+    end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `evaluate_handle/4`, but returns the value and raises on error."
+  @spec evaluate_handle!(t(), String.t(), term() | nil, evaluate_handle_options()) :: PlaywrightEx.JSHandle.t()
+  def evaluate_handle!(this, expression, arg \\ nil, options \\ []) do
+    options = Facade.options!(options, @evaluate_handle_options, "locator.evaluateHandle")
+
+    Facade.async!("locator.evaluateHandle", this, fn ->
+      PlaywrightEx.Client.Locator.evaluate_handle(this, expression, arg, options)
+    end)
   end
 
   @fill_options {:object, %{force: {:force, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
@@ -2516,6 +2852,162 @@ defmodule PlaywrightEx.Locator do
     end)
   end
 
+  @screenshot_options {:object,
+                       %{
+                         animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
+                         caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
+                         mask: {:mask, nil},
+                         mask_color: {:maskColor, nil},
+                         omit_background: {:omitBackground, nil},
+                         path: {:path, nil},
+                         quality: {:quality, nil},
+                         scale: {:scale, {:enum, %{css: "css", device: "device"}}},
+                         style: {:style, nil},
+                         timeout: {:timeout, nil},
+                         type: {:type, {:enum, %{png: "png", jpeg: "jpeg", webp: "webp"}}}
+                       }}
+
+  @typedoc "Options of `screenshot`, see its docs."
+  @type screenshot_options ::
+          [
+            animations: :disabled | :allow,
+            caret: :hide | :initial,
+            mask: [PlaywrightEx.Locator.t()],
+            mask_color: String.t(),
+            omit_background: boolean(),
+            path: String.t(),
+            quality: integer(),
+            scale: :css | :device,
+            style: String.t(),
+            timeout: number() | :infinity,
+            type: :png | :jpeg | :webp
+          ]
+          | %{
+              optional(:animations) => :disabled | :allow,
+              optional(:caret) => :hide | :initial,
+              optional(:mask) => [PlaywrightEx.Locator.t()],
+              optional(:mask_color) => String.t(),
+              optional(:omit_background) => boolean(),
+              optional(:path) => String.t(),
+              optional(:quality) => integer(),
+              optional(:scale) => :css | :device,
+              optional(:style) => String.t(),
+              optional(:timeout) => number() | :infinity,
+              optional(:type) => :png | :jpeg | :webp
+            }
+
+  @doc since: "1.14"
+  @doc ~S"""
+  Take a screenshot of the element matching the locator.
+
+  **Usage**
+
+  ```js
+  await page.getByRole('link').screenshot();
+  ```
+
+  Disable animations and save screenshot to a file:
+
+  ```js
+  await page.getByRole('link').screenshot({ animations: 'disabled', path: 'link.png' });
+  ```
+
+  **Details**
+
+  This method captures a screenshot of the page, clipped to the size and position of a particular element matching the locator. If the element is covered by other elements, it will not be actually visible on the screenshot. If the element is a scrollable container, only the currently scrolled content will be visible on the screenshot.
+
+  This method waits for the [actionability](https://playwright.dev/docs/actionability) checks, then scrolls element into view before taking a
+  screenshot. If the element is detached from DOM, the method throws an error.
+
+  Returns the buffer with the captured screenshot.
+
+  ## Options
+
+  * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+
+    * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
+    * infinite animations are canceled to initial state, and then played over after the screenshot.
+
+    Defaults to `"allow"` that leaves animations untouched.
+  * `:caret` - When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, text caret behavior will not be changed.  Defaults to `"hide"`.
+  * `:mask` - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+    a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
+    The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
+  * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+    Defaults to `false`.
+  * `:path` - The file path to save the image to. The screenshot type will be inferred from file extension. If `path` is a
+    relative path, then it is resolved relative to the current working directory. If no path is provided, the image won't be
+    saved to the disk.
+  * `:quality` - The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`.
+    For `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
+  * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+
+    Defaults to `"device"`.
+  * `:style` - *Since 1.41.* Text of the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible
+    or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies
+    to the inner frames.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:type` - Specify screenshot type, defaults to `png`.
+  """
+  @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, Exception.t()}
+  def screenshot(this, options \\ []) do
+    options = Facade.options!(options, @screenshot_options, "locator.screenshot")
+    Facade.async("locator.screenshot", this, fn -> PlaywrightEx.Client.Locator.screenshot(this, options) end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `screenshot/2`, but returns the value and raises on error."
+  @spec screenshot!(t(), screenshot_options()) :: binary()
+  def screenshot!(this, options \\ []) do
+    options = Facade.options!(options, @screenshot_options, "locator.screenshot")
+    Facade.async!("locator.screenshot", this, fn -> PlaywrightEx.Client.Locator.screenshot(this, options) end)
+  end
+
+  @scroll_into_view_if_needed_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `scroll_into_view_if_needed`, see its docs."
+  @type scroll_into_view_if_needed_options ::
+          [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  This method waits for [actionability](https://playwright.dev/docs/actionability) checks, then tries to scroll element into view, unless it is
+  completely visible as defined by
+  [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API)'s `ratio`.
+
+  See [scrolling](https://playwright.dev/docs/input#scrolling) for alternative ways to scroll.
+
+  ## Options
+
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec scroll_into_view_if_needed(t(), scroll_into_view_if_needed_options()) :: :ok | {:error, Exception.t()}
+  def scroll_into_view_if_needed(this, options \\ []) do
+    options = Facade.options!(options, @scroll_into_view_if_needed_options, "locator.scrollIntoViewIfNeeded")
+
+    Facade.async_void("locator.scrollIntoViewIfNeeded", this, fn ->
+      PlaywrightEx.Client.Locator.scroll_into_view_if_needed(this, options)
+    end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `scroll_into_view_if_needed/2`, but returns the value and raises on error."
+  @spec scroll_into_view_if_needed!(t(), scroll_into_view_if_needed_options()) :: :ok
+  def scroll_into_view_if_needed!(this, options \\ []) do
+    options = Facade.options!(options, @scroll_into_view_if_needed_options, "locator.scrollIntoViewIfNeeded")
+
+    Facade.async_void!("locator.scrollIntoViewIfNeeded", this, fn ->
+      PlaywrightEx.Client.Locator.scroll_into_view_if_needed(this, options)
+    end)
+  end
+
   @select_option_values {:union,
                          [
                            {:fields, %{value: nil, label: nil, index: nil}},
@@ -2628,6 +3120,42 @@ defmodule PlaywrightEx.Locator do
     end)
   end
 
+  @select_text_options {:object, %{force: {:force, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `select_text`, see its docs."
+  @type select_text_options ::
+          [force: boolean(), timeout: number() | :infinity]
+          | %{optional(:force) => boolean(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  This method waits for [actionability](https://playwright.dev/docs/actionability) checks, then focuses the element and selects all its text
+  content.
+
+  If the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), focuses and selects text in the control instead.
+
+  ## Options
+
+  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec select_text(t(), select_text_options()) :: :ok | {:error, Exception.t()}
+  def select_text(this, options \\ []) do
+    options = Facade.options!(options, @select_text_options, "locator.selectText")
+    Facade.async_void("locator.selectText", this, fn -> PlaywrightEx.Client.Locator.select_text(this, options) end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `select_text/2`, but returns the value and raises on error."
+  @spec select_text!(t(), select_text_options()) :: :ok
+  def select_text!(this, options \\ []) do
+    options = Facade.options!(options, @select_text_options, "locator.selectText")
+    Facade.async_void!("locator.selectText", this, fn -> PlaywrightEx.Client.Locator.select_text(this, options) end)
+  end
+
   @set_checked_options {:object,
                         %{
                           force: {:force, nil},
@@ -2721,6 +3249,108 @@ defmodule PlaywrightEx.Locator do
 
     Facade.async_void!("locator.setChecked", this, fn ->
       PlaywrightEx.Client.Locator.set_checked(this, checked, options)
+    end)
+  end
+
+  @set_input_files_files {:union,
+                          [
+                            {:fields, %{name: nil, mimeType: nil, buffer: nil}},
+                            {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
+                          ]}
+  @set_input_files_options {:object, %{no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `set_input_files`, see its docs."
+  @type set_input_files_options ::
+          [no_wait_after: boolean(), timeout: number() | :infinity]
+          | %{optional(:no_wait_after) => boolean(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.14"
+  @doc ~S"""
+  Upload file or multiple files into `<input type=file>`.
+  For inputs with a `[webkitdirectory]` attribute, only a single directory path is supported.
+
+  **Usage**
+
+  ```js
+  // Select one file
+  await page.getByLabel('Upload file').setInputFiles(path.join(__dirname, 'myfile.pdf'));
+
+  // Select multiple files
+  await page.getByLabel('Upload files').setInputFiles([
+    path.join(__dirname, 'file1.txt'),
+    path.join(__dirname, 'file2.txt'),
+  ]);
+
+  // Select a directory
+  await page.getByLabel('Upload directory').setInputFiles(path.join(__dirname, 'mydir'));
+
+  // Remove all the selected files
+  await page.getByLabel('Upload file').setInputFiles([]);
+
+  // Upload buffer from memory
+  await page.getByLabel('Upload file').setInputFiles({
+    name: 'file.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('this is test')
+  });
+  ```
+
+  **Details**
+
+  Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then they
+  are resolved relative to the current working directory. For empty array, clears the selected files.
+
+  This method expects [`Locator`](`PlaywrightEx.Locator`) to point to an
+  [input element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), targets the control instead.
+
+  ## Arguments
+
+  * `files`
+    * `:name` - File name
+    * `:mimeType` - File type
+    * `:buffer` - File content
+
+  ## Options
+
+  * `:no_wait_after` - This option has no effect.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec set_input_files(
+          t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok | {:error, Exception.t()}
+  def set_input_files(this, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "locator.setInputFiles")
+
+    Facade.async_void("locator.setInputFiles", this, fn ->
+      PlaywrightEx.Client.Locator.set_input_files(this, files, options)
+    end)
+  end
+
+  @doc since: "1.14"
+  @doc "Like `set_input_files/3`, but returns the value and raises on error."
+  @spec set_input_files!(
+          t(),
+          String.t()
+          | [String.t()]
+          | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+          | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
+          set_input_files_options()
+        ) :: :ok
+  def set_input_files!(this, files, options \\ []) do
+    files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles")
+    options = Facade.options!(options, @set_input_files_options, "locator.setInputFiles")
+
+    Facade.async_void!("locator.setInputFiles", this, fn ->
+      PlaywrightEx.Client.Locator.set_input_files(this, files, options)
     end)
   end
 
