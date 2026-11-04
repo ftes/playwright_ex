@@ -439,10 +439,10 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  @tag skip: "not ported: expect"
+  @tag skip: "not ported: toPass"
   test "js redirect overrides url bar navigation "
 
-  @tag skip: "not ported: expect"
+  @tag skip: "not ported: toPass"
   test "should succeed on url bar navigation when there is pending navigation"
 
   test "should work when navigating to valid url", %{page: page, server: server} do

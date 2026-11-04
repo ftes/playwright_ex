@@ -173,6 +173,8 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   end
 
   # `string.indexOf(search)` in characters, -1 when absent.
+  defp index_of(_string, ""), do: 0
+
   defp index_of(string, search) do
     case :binary.match(string, search) do
       {byte, _} -> String.length(binary_part(string, 0, byte))

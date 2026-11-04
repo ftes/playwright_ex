@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   @upstream "tests/page/page-keyboard.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
@@ -51,8 +52,23 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "嗨a"
   end
 
-  @tag skip: "not ported: expect"
-  test "should not type text with Alt modifier"
+  test "should not type text with Alt modifier", %{page: page} do
+    Page.set_content!(page, "<input><textarea></textarea><div contenteditable></div>")
+
+    for locator <- [Page.locator(page, "input"), Page.locator(page, "textarea"), Page.locator(page, "div")] do
+      Locator.press!(locator, "Alt+KeyA")
+      Locator.press!(locator, "Alt+Digit1")
+      Locator.press!(locator, "Alt+Shift+KeyA")
+      Keyboard.down!(Page.keyboard(page), "Alt")
+      Keyboard.press!(Page.keyboard(page), "b")
+      Keyboard.up!(Page.keyboard(page), "Alt")
+      Locator.press!(locator, "c")
+    end
+
+    Expect.to_have_value!(Page.locator(page, "input"), "c")
+    Expect.to_have_value!(Page.locator(page, "textarea"), "c")
+    Expect.to_have_text!(Page.locator(page, "div"), "c")
+  end
 
   @tag skip: "not ported: evaluateHandle"
   test "insertText should only emit input event"
@@ -283,8 +299,14 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   @tag skip: "not ported: evaluateHandle"
   test "should press NumpadDecimal as Delete"
 
-  @tag skip: "not ported: expect"
-  test "should type numpad digits with Shift"
+  test "should type numpad digits with Shift", %{page: page} do
+    Page.set_content!(page, "<textarea></textarea>")
+    textarea = Page.locator(page, "textarea")
+    Locator.press!(textarea, "Shift+Numpad1")
+    Locator.press!(textarea, "Shift+NumpadDecimal")
+    Locator.press!(textarea, "Shift+Numpad9")
+    Expect.to_have_value!(textarea, "1.9")
+  end
 
   @tag skip: "not ported: evaluateHandle"
   test "should press Enter"
@@ -315,8 +337,14 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   @tag skip: "not ported: ElementHandle"
   test "should handle selectAll"
 
-  @tag skip: "not ported: expect"
-  test "pressing Meta should not result in any text insertion on any platform"
+  test "pressing Meta should not result in any text insertion on any platform", %{page: page} do
+    Page.set_content!(page, ~s(<input type="text" value="hello world">))
+    input = Page.locator(page, "input")
+    Expect.to_have_value!(input, "hello world")
+    Locator.focus!(input)
+    Keyboard.press!(Page.keyboard(page), "Meta")
+    Expect.to_have_value!(input, "hello world")
+  end
 
   @tag skip: "not ported: ElementHandle"
   test "should be able to prevent selectAll"
@@ -387,8 +415,20 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').textContent") == "123123"
   end
 
-  @tag skip: "not ported: expect"
-  test "should support undo-redo"
+  test "should support undo-redo", %{page: page, browser_name: browser_name} do
+    # it.fixme(browserName === 'webkit' && isLinux || channel === 'webkit-wsl', 'https://github.com/microsoft/playwright/issues/12000');
+    if !(browser_name == "webkit" and match?({:unix, :linux}, :os.type())) do
+      Page.set_content!(page, "<div contenteditable></div>")
+      div = Page.locator(page, "div")
+      Expect.to_have_text!(div, "")
+      Locator.type!(div, "123")
+      Expect.to_have_text!(div, "123")
+      Keyboard.press!(Page.keyboard(page), "ControlOrMeta+KeyZ")
+      Expect.to_have_text!(div, "")
+      Keyboard.press!(Page.keyboard(page), "Shift+ControlOrMeta+KeyZ")
+      Expect.to_have_text!(div, "123")
+    end
+  end
 
   test "should type repeatedly in contenteditable in shadow dom", %{page: page} do
     Page.set_content!(page, """

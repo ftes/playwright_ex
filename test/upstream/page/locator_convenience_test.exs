@@ -198,9 +198,15 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Locator.description(locator3) == nil
   end
 
-  @tag skip: "not ported: Locator.toString"
-  test "toString() returns formatted locator"
+  test "toString() returns formatted locator", %{page: page} do
+    locator = Page.get_by_role(page, "button", name: "Submit")
+    assert Locator.to_string(locator) == "getByRole('button', { name: 'Submit' })"
+    assert Locator.description(locator) == nil
+  end
 
-  @tag skip: "not ported: Locator.toString"
-  test "toString() prefers description"
+  test "toString() prefers description", %{page: page} do
+    locator = page |> Page.get_by_role("button", name: "Submit") |> Locator.describe("Submit button")
+    assert Locator.to_string(locator) == "Submit button"
+    assert Locator.to_string(locator) == Locator.description(locator)
+  end
 end

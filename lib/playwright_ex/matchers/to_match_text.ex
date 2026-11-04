@@ -44,7 +44,8 @@ defmodule PlaywrightEx.Matchers.ToMatchText do
         if is_binary(expected), do: if(options[:matchSubstring], do: " string", else: ""), else: " string"
 
       received_value = received[:value]
-      received_string = received_value || ""
+      # `receivedValue || ''`: also for a JS `null`.
+      received_string = if received_value in [nil, :null], do: "", else: received_value
 
       {printed_expected, printed_received, printed_diff} =
         cond do
@@ -128,6 +129,8 @@ defmodule PlaywrightEx.Matchers.ToMatchText do
   end
 
   # `string.indexOf(search)` in characters, -1 when absent.
+  defp index_of(_string, ""), do: 0
+
   defp index_of(string, search) do
     case :binary.match(string, search) do
       {byte, _} -> String.length(binary_part(string, 0, byte))

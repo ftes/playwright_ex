@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
@@ -81,8 +82,47 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     Page.close!(page2)
   end
 
-  @tag skip: "not ported: expect"
-  test "should be able to hover across browser contexts in parallel"
+  test "should be able to hover across browser contexts in parallel", %{browser: browser} do
+    # it.fixme(browserName === 'firefox' && !headless, 'Hover is flaky in headed Firefox');
+    html = """
+    <style>
+      [role="tooltip"] { display: none; }
+      [role="tooltip"].visible { display: block; }
+    </style>
+    <button>Hover me</button>
+    <div role="tooltip">Tooltip content</div>
+    <script>
+      const button = document.querySelector('button');
+      const tooltip = document.querySelector('[role="tooltip"]');
+      button.addEventListener('pointerenter', () => tooltip.classList.add('visible'));
+      button.addEventListener('pointerleave', () => tooltip.classList.remove('visible'));
+    </script>
+    """
+
+    pages =
+      [1, 2, 3, 4, 5]
+      |> Enum.map(fn _ ->
+        Task.async(fn ->
+          context = Browser.new_context!(browser)
+          page = BrowserContext.new_page!(context)
+          Page.set_content!(page, html)
+          page
+        end)
+      end)
+      |> Task.await_many()
+
+    # expect.soft(..., `Tooltip for page ${index + 1} should be visible`): a plain assertion (no soft asserts).
+    pages
+    |> Enum.map(fn page ->
+      Task.async(fn ->
+        page |> Page.get_by_role("button", name: "Hover me") |> Locator.hover!()
+        Expect.to_be_visible!(Page.get_by_role(page, "tooltip"))
+      end)
+    end)
+    |> Task.await_many()
+
+    pages |> Enum.map(&Task.async(fn -> BrowserContext.close!(Page.context(&1)) end)) |> Task.await_many()
+  end
 
   test "window.open should use parent tab context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
@@ -285,8 +325,12 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert Page.evaluate!(page, "async () => 2") == 2
   end
 
-  @tag skip: "not ported: expect"
-  test "setContent should work after disabling javascript"
+  test "setContent should work after disabling javascript", %{context_factory: context_factory} do
+    context = context_factory.(java_script_enabled: false)
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<h1>Hello</h1>")
+    Expect.to_have_text!(Page.locator(page, "h1"), "Hello")
+  end
 
   @tag skip: "not ported: expect"
   test "should retry click after disabling javascript"

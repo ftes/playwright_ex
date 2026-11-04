@@ -73,12 +73,10 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
 
   # toWebSocketBaseUrl, resolveGlobBase  -- not ported: LocalUtils.globToRegex (PLAN)
 
-  # `new URL(url)`, but the matcher gets the string (see the moduledoc).
+  # `new URL(url)`, but the matcher gets the string (see the moduledoc). An absolute URL has a
+  # scheme; `URI.new/1` is stricter than WHATWG URLs (`data:text/html,<div>`), so only the scheme is checked.
   defp parse_url(url) do
-    case URI.new(url) do
-      {:ok, %URI{scheme: scheme}} when is_binary(scheme) -> url
-      _ -> nil
-    end
+    if Regex.match?(~r/^[a-zA-Z][a-zA-Z0-9+.-]*:/, url), do: url
   end
 
   def construct_url_based_on_base_url(base_url, given_url) do
