@@ -99,7 +99,10 @@ defmodule PlaywrightEx.Client.Connect do
 
     # let closeError: string | undefined;
     close_error = new_object(Cell)
-    on_transport_closed = fn reason -> Connection.close(connection, reason || get(close_error, :value)) end
+    # `reason || closeError`, JS truthiness: the pipe reports an empty reason.
+    on_transport_closed = fn reason ->
+      Connection.close(connection, Enum.find([reason, get(close_error, :value)], &(&1 not in [nil, ""])))
+    end
     __MODULE__.JsonPipeTransport.on_close(transport, fn reason -> on_transport_closed.(reason) end)
 
     put(connection, :onmessage, fn message ->
