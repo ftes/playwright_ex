@@ -342,9 +342,9 @@ defmodule PlaywrightEx.Library.TracingTest do
     # 1 network resource should be preserved.
     assert Enum.count(names, &String.ends_with?(&1, ".html")) == 1
     # screenshots from the previous chunk should not be preserved.
-    assert Enum.count(names, &(&1 in jpegs)) == 0
+    refute Enum.any?(names, &(&1 in jpegs))
     # 0 source files for the second test.
-    assert Enum.count(names, &String.starts_with?(&1, "src/")) == 0
+    refute Enum.any?(names, &String.starts_with?(&1, "src/"))
   end
 
   @tag :tmp_dir
@@ -363,7 +363,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     Tracing.stop!(tracing(context), path: path)
 
     %{resources: resources} = parse_trace_raw(path, context)
-    assert Enum.count(Map.keys(resources), &String.ends_with?(&1, ".html")) == 0
+    refute Enum.any?(Map.keys(resources), &String.ends_with?(&1, ".html"))
   end
 
   @tag :tmp_dir

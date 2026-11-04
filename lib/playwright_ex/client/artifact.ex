@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Client.Artifact do
       stream = Stream.from(result.stream)
       FileUtils.mkdir_if_needed(path)
       # stream.stream().pipe(fs.createWriteStream(path)).on('finish', resolve).on('error', reject)
-      Enum.into(Stream.stream(stream), File.stream!(path))
+      _ = Enum.into(Stream.stream(stream), File.stream!(path))
       nil
     end
   end

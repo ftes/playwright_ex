@@ -33,7 +33,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     ensure_some_frames(page)
     Screencast.stop!(Page.screencast(page))
 
-    assert length(frames.()) > 0
+    assert frames.() != []
 
     for frame <- frames.() do
       # Each frame must be a valid JPEG (starts with FF D8)
@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     ensure_some_frames(page)
     Screencast.stop!(Page.screencast(page))
 
-    assert length(frames.()) > 0
+    assert frames.() != []
 
     for frame <- frames.() do
       assert frame.viewportWidth == 1000

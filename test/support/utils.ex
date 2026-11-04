@@ -62,29 +62,7 @@ defmodule PlaywrightEx.Utils do
 
     trace_events = lines.(".trace")
 
-    action_map =
-      Enum.reduce(trace_events, %{order: [], map: %{}}, fn event, acc ->
-        case event["type"] do
-          "before" ->
-            action = Map.merge(event, %{"type" => "action", "endTime" => 0})
-            %{acc | order: acc.order ++ [event["callId"]], map: Map.put(acc.map, event["callId"], action)}
-
-          "input" ->
-            update_in(acc, [:map, event["callId"]], &Map.put(&1, "point", event["point"]))
-
-          "after" ->
-            update_in(acc, [:map, event["callId"]], fn existing ->
-              Map.merge(existing, %{
-                "endTime" => event["endTime"],
-                "error" => event["error"],
-                "result" => event["result"]
-              })
-            end)
-
-          _ ->
-            acc
-        end
-      end)
+    action_map = Enum.reduce(trace_events, %{order: [], map: %{}}, &add_trace_event/2)
 
     events = trace_events ++ lines.(".network")
 
@@ -131,6 +109,22 @@ defmodule PlaywrightEx.Utils do
 
   # unshift, stripAnsi, inheritAndCleanEnv  -- not ported: not needed yet
 
+  defp add_trace_event(%{"type" => "before", "callId" => call_id} = event, acc) do
+    action = Map.merge(event, %{"type" => "action", "endTime" => 0})
+    %{acc | order: acc.order ++ [call_id], map: Map.put(acc.map, call_id, action)}
+  end
+
+  defp add_trace_event(%{"type" => "input", "callId" => call_id} = event, acc),
+    do: update_in(acc, [:map, call_id], &Map.put(&1, "point", event["point"]))
+
+  defp add_trace_event(%{"type" => "after", "callId" => call_id} = event, acc) do
+    update_in(acc, [:map, call_id], fn existing ->
+      Map.merge(existing, %{"endTime" => event["endTime"], "error" => event["error"], "result" => event["result"]})
+    end)
+  end
+
+  defp add_trace_event(_event, acc), do: acc
+
   # isomorphic/trace/traceUtils.ts
   defp parse_client_side_call_metadata(%{"files" => files, "stacks" => stacks}) do
     Map.new(stacks, fn [id, ff] ->
@@ -166,31 +160,27 @@ defmodule PlaywrightEx.Utils do
   defp format_protocol_param(params, alternatives, handle) do
     alternatives
     |> String.split("|")
-    |> Enum.find_value(fn name ->
-      value = deep_param(params, name)
-
-      cond do
-        name == "url" and is_binary(params["url"]) ->
-          uri = URI.parse(params["url"])
-
-          cond do
-            uri.scheme == "data" -> "data:"
-            uri.scheme in ["about", "chrome", "edge"] -> params["url"]
-            uri.host -> "#{uri.host}#{if uri.port, do: ":#{uri.port}"}#{uri.path}#{if uri.query, do: "?#{uri.query}"}"
-            true -> params["url"]
-          end
-
-        value == nil ->
-          nil
-
-        name == "selector" or String.ends_with?(name, ".selector") ->
-          as_locator_description(handle, value)
-
-        true ->
-          value
-      end
-    end)
+    |> Enum.find_value(&format_protocol_param_name(params, &1, handle))
     |> then(&(&1 && String.replace(&1, "\n", "\\n")))
+  end
+
+  defp format_protocol_param_name(%{"url" => url}, "url", _handle) when is_binary(url) do
+    uri = URI.parse(url)
+
+    cond do
+      uri.scheme == "data" -> "data:"
+      uri.scheme in ["about", "chrome", "edge"] -> url
+      uri.host -> "#{uri.host}#{uri.port && ":#{uri.port}"}#{uri.path}#{uri.query && "?#{uri.query}"}"
+      true -> url
+    end
+  end
+
+  defp format_protocol_param_name(params, name, handle) do
+    value = deep_param(params, name)
+
+    if value && (name == "selector" or String.ends_with?(name, ".selector")),
+      do: as_locator_description(handle, value),
+      else: value
   end
 
   defp deep_param(params, name) do
