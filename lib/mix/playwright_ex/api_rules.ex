@@ -20,6 +20,14 @@ defmodule Mix.PlaywrightEx.ApiRules do
       a `"callback"`: the JS member it starts (`waitForEvent`), and the event for those that have
       none in JS (`@callback_events`).
 
+    * Assertions: `LocatorAssertions`, `PageAssertions` and `APIResponseAssertions` become one
+      class, `Expect` (`PlaywrightEx.Expect`): `expect(locator).toHaveText(...)` is
+      `Expect.to_have_text(locator, ...)`, as upstream's matchers are one set of functions on the
+      receiver. Each matcher has a `"matcher"` (its JS name, `isNot`, the receiver classes) and a
+      `not` form (`not_to_have_text`, the Python name of `expect(x).not.toHaveText`). Matchers of
+      both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is dropped, as
+      are overloads, except that `toHaveAttribute(name, options)` makes `value` optional.
+
   Still to come with the classes they need: the `to_have_screenshot` path rule.
   """
 
@@ -48,11 +56,19 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
 
+  # Assertion classes and the class of their receiver (`expect(receiver)`).
+  @assertions %{"LocatorAssertions" => "Locator", "PageAssertions" => "Page", "APIResponseAssertions" => "APIResponse"}
+
+  # "Class.member.arg" that an overload without it makes optional.
+  @optional_args ~w(LocatorAssertions.toHaveAttribute.value)
+
   @doc """
   Applies the rules to the decoded `api.json` classes (the JS view), with the Python view
   (`python`) for the waits and their callback forms.
   """
   def apply(classes, python) do
+    classes = expect_class(classes)
+
     for class <- classes, class["name"] not in @dropped_classes do
       expects = expect_members(python, class["name"])
 
@@ -65,6 +81,92 @@ defmodule Mix.PlaywrightEx.ApiRules do
       callbacks = for expect <- expects, do: expect |> callback(class, members) |> member(false)
       %{class | "members" => members ++ callbacks}
     end
+  end
+
+  # The assertion classes merged into `Expect`, after the other classes.
+  defp expect_class(classes) do
+    {assertions, others} = Enum.split_with(classes, &Map.has_key?(@assertions, &1["name"]))
+
+    matchers =
+      for class <- Enum.sort_by(assertions, &(&1["name"] != "LocatorAssertions")),
+          member <- class["members"],
+          member["kind"] == "method" and member["overloadIndex"] == 0,
+          do: matcher(class, member)
+
+    members =
+      matchers
+      |> Enum.group_by(& &1["alias"])
+      |> Map.values()
+      |> Enum.sort_by(fn [first | _] -> Enum.find_index(matchers, &(&1 == first)) end)
+      |> Enum.map(&merge_receivers/1)
+      |> Enum.flat_map(&[&1, not_matcher(&1)])
+
+    spec = [
+      %{
+        "type" => "text",
+        "text" =>
+          "Web-first assertions: the methods of `LocatorAssertions`, `PageAssertions` and `APIResponseAssertions`, " <>
+            "as functions of their receiver. `expect(locator).toHaveText(expected)` is " <>
+            "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
+            "`not_to_have_text(locator, expected)`. They retry until the expectation is met or the timeout " <>
+            "(5 seconds by default) passes, then return `:ok` or `{:error, %PlaywrightEx.Matchers.MatcherHint.ExpectError{}}` " <>
+            "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
+      }
+      | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]
+    ]
+
+    others ++ [%{"name" => "Expect", "since" => "v1.17", "spec" => spec, "extends" => nil, "members" => members}]
+  end
+
+  defp matcher(class, member) do
+    args =
+      for arg <- member["args"] do
+        if "#{class["name"]}.#{member["alias"]}.#{arg["name"]}" in @optional_args,
+          do: %{arg | "required" => false},
+          else: arg
+      end
+
+    receiver = Map.fetch!(@assertions, class["name"])
+
+    Map.merge(member, %{
+      "args" => args,
+      "matcher" => %{"name" => member["alias"], "isNot" => false, "receivers" => [receiver]}
+    })
+  end
+
+  # A matcher of several assertion classes: one member with every receiver and every option.
+  defp merge_receivers([member]), do: member
+
+  defp merge_receivers([first | rest]) do
+    receivers = Enum.flat_map([first | rest], & &1["matcher"]["receivers"])
+
+    props = for m <- [first | rest], %{"name" => "options"} = arg <- m["args"], p <- arg["type"]["properties"], do: p
+    props = Enum.uniq_by(props, & &1["name"])
+
+    args =
+      for arg <- first["args"],
+          do: if(arg["name"] == "options", do: put_in(arg, ["type", "properties"], props), else: arg)
+
+    put_in(%{first | "args" => args}, ["matcher", "receivers"], receivers)
+  end
+
+  # `expect(x).not.toHaveText(...)`: Python's `not_to_have_text`.
+  defp not_matcher(member) do
+    name = "not" <> String.capitalize(String.first(member["alias"])) <> String.slice(member["alias"], 1..-1//1)
+    arity = 1 + length(member["args"])
+
+    Map.merge(member, %{
+      "name" => name,
+      "alias" => name,
+      "spec" => [
+        %{
+          "type" => "text",
+          "text" =>
+            "The opposite of `#{Macro.underscore(member["alias"])}/#{arity}`: `expect(x).not.#{member["alias"]}(...)` in JS."
+        }
+      ],
+      "matcher" => %{member["matcher"] | "isNot" => true}
+    })
   end
 
   # Python's `expect_*` members of `class_name`, by JS name.

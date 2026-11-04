@@ -59,4 +59,10 @@ defmodule PlaywrightEx.Client.LocalUtils do
         )
     end)
   end
+
+  # Elixir only: the JS client renders locators itself (isomorphic/locatorGenerators.ts). Here the
+  # driver does, as in the non-JS clients (PLAN, Decisions).
+  def as_locator_description(this, params) do
+    channel_call(this, :asLocatorDescription, params, TimeoutSettings.k_no_timeout()).description
+  end
 end

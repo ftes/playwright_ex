@@ -7,7 +7,25 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
 
   alias PlaywrightEx.Protocol.Serializers
 
-  # escapeWithQuotes, escapeTemplateString  -- not ported: codegen
+  def escape_with_quotes(text, char \\ "'") do
+    stringified = JSON.encode!(text)
+    escaped_text = stringified |> String.slice(1..-2//1) |> String.replace(~S(\"), ~S("))
+
+    case char do
+      "'" -> char <> String.replace(escaped_text, "'", "\\'") <> char
+      "\"" -> char <> String.replace(escaped_text, "\"", "\\\"") <> char
+      "`" -> char <> String.replace(escaped_text, "`", "\\`") <> char
+      _ -> raise "Invalid escape char"
+    end
+  end
+
+  def escape_template_string(text) do
+    text
+    |> String.replace("\\", "\\\\")
+    |> String.replace("`", "\\`")
+    |> String.replace("${", "\\${")
+  end
+
   # isString  -- ported as is_binary/1
   # toTitleCase, toSnakeCase, formatObject, formatObjectOrVoid, quoteCSSAttributeValue  -- not ported: codegen
   # cacheNormalizedWhitespaces, normalizeWhiteSpace, normalizeEscapedRegexQuotes  -- not ported: locator parsing

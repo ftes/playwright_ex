@@ -3,13 +3,17 @@ defmodule PlaywrightEx.Client.Locator do
   @moduledoc "Port of `#{@upstream}` (`class Locator`). Locators hold no mutable state: a plain struct."
 
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.FrameLocator
   alias PlaywrightEx.Client.JSHandle
+  alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Isomorphic.LocatorUtils
   alias PlaywrightEx.Isomorphic.StringUtils
+  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.Heap
 
   defstruct [:_frame, :_selector, _apiName: "Locator"]
 
@@ -478,9 +482,21 @@ defmodule PlaywrightEx.Client.Locator do
     nil
   end
 
-  # _expect  -- not ported: matchers
+  def _expect(this, expression, options) do
+    Frame._expect(this._frame, expression, Map.put(options, :selector, this._selector))
+  end
+
   # _inspect  -- ported as Inspect, see below
-  # toString  -- not ported: matchers (LocalUtils.asLocatorDescription, PLAN)
+
+  # asLocatorDescription through the driver (PLAN, Decisions): a sync member that needs the baton.
+  def to_string(this) do
+    EventLoop.with_baton(this._frame.loop, fn ->
+      LocalUtils.as_locator_description(Connection.local_utils(Heap.get(this._frame, :_connection)), %{
+        selector: this._selector,
+        sdkLanguage: "javascript"
+      })
+    end)
+  end
 
   # locator.ts module functions
 

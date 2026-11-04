@@ -126,6 +126,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end)
   end
 
+  # `Expect` (the assertion classes, see `Mix.PlaywrightEx.ApiRules`) is implemented by the matchers.
+  defp impl("Expect"), do: PlaywrightEx.Matchers.Expect
   defp impl(class_name), do: Module.concat(PlaywrightEx.Client, class_name)
   defp facade(class_name), do: Module.concat(PlaywrightEx, class_name)
 
@@ -136,12 +138,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     for member <- class["members"],
         member["kind"] in ["method", "property"],
-        {name, arity} = client_function(member),
-        function_exported?(impl, String.to_atom(name), arity),
-        result_ported?(member),
+        exported?(impl, member),
         into: MapSet.new(),
         do: member["alias"]
   end
+
+  # A matcher is exported when `customAsyncMatchers` has it with the JS arity (this, receiver,
+  # arguments) and its receiver classes are ported.
+  defp exported?(_impl, %{"matcher" => matcher} = member) do
+    fun = matcher_function(member)
+
+    is_function(fun, 2 + length(member["args"])) and
+      Enum.all?(matcher["receivers"], &Code.ensure_loaded?(impl(&1)))
+  end
+
+  defp exported?(impl, member) do
+    {name, arity} = client_function(member)
+    function_exported?(impl, String.to_atom(name), arity) and result_ported?(member)
+  end
+
+  defp matcher_function(%{"matcher" => %{"name" => name}}),
+    do: PlaywrightEx.Matchers.Expect.custom_async_matchers()[name]
 
   defp client_function(%{"callback" => %{"call" => call, "event" => nil}} = member),
     do: {snake(call), 1 + length(member["args"])}
@@ -175,10 +192,15 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       if listeners != [] or Enum.any?(ported, &event_arg?/1),
         do: "@events #{render({:map, Enum.map(events, &{event_atom(&1), String.downcase(&1["name"])})})}"
 
+    handle_type =
+      if name != "Expect",
+        do: """
+        @typedoc "A `#{name}` handle. Compare handles with `==`, their fields are internal."
+        @type t :: #{struct_type(ctx, name)}
+        """
+
     body = """
-    @typedoc "A `#{name}` handle. Compare handles with `==`, their fields are internal."
-    @type t :: #{struct_type(ctx, name)}
-    #{event_type(events)}
+    #{handle_type}#{event_type(events)}
 
     #{events_table}
 
@@ -238,6 +260,54 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     do: "@type event :: " <> Enum.map_join(events, " | ", &inspect(event_atom(&1)))
 
   # --- members -----------------------------------------------------------------
+
+  # `to_have_text(locator, expected, options)`: `createMatcher(name, info, actual, matcher)(...args)`.
+  defp member_source(ctx, class, %{"matcher" => matcher} = member, _receiver) do
+    name = snake(member["alias"])
+    api_name = api_name(class["name"], member["alias"])
+    receiver = matcher_receiver(matcher["receivers"])
+    vars = Enum.map(member["args"], &var(&1["name"]))
+    attrs = for {arg, var} <- Enum.zip(member["args"], vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
+    params = [receiver | Enum.map(Enum.zip(member["args"], vars), &param/1)]
+    fun = matcher_function(member)
+    info = Function.info(fun)
+    capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
+
+    call =
+      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, %{isNot: #{matcher["isNot"]}}, " <>
+        "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
+
+    receiver_spec = Enum.map_join(matcher["receivers"], " | ", &"#{inspect(facade(&1))}.t()")
+    spec_args = Enum.join([receiver_spec | Enum.map(member["args"], &arg_spec(ctx, &1, name))], ", ")
+    conversions = Enum.map_join(attrs, "\n", &conversion(name, api_name, &1))
+
+    attributes =
+      Enum.join(
+        [
+          Enum.map_join(attrs, "\n", &attribute(name, &1))
+          | for(%{"name" => "options"} = arg <- member["args"], do: options_type(ctx, name, arg))
+        ],
+        "\n\n"
+      )
+
+    """
+    #{attributes}
+
+    #{since(member)}#{deprecated(member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
+    @spec #{name}(#{spec_args}) :: :ok | {:error, Exception.t()}
+    def #{name}(#{Enum.join(params, ", ")}) do
+      #{conversions}
+      Facade.matcher(#{receiver}, fn -> #{call} end)
+    end
+
+    #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met."
+    @spec #{name}!(#{spec_args}) :: :ok
+    def #{name}!(#{Enum.join(params, ", ")}) do
+      #{conversions}
+      Facade.matcher!(#{receiver}, fn -> #{call} end)
+    end
+    """
+  end
 
   defp member_source(ctx, class, member, receiver) do
     name = snake(member["alias"])
@@ -665,6 +735,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     [_, head, rest] = Regex.run(~r/^(API|JS|CDP|[A-Z])(.*)$/, class_name)
     "#{String.downcase(head)}#{rest}.#{member}"
   end
+
+  defp matcher_receiver(receivers), do: receivers |> Enum.map_join("_or_", &snake/1)
 
   defp receiver(class_name, members) do
     receiver = snake(class_name)

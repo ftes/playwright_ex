@@ -2,7 +2,7 @@
 # (`isConnected` -> `is_connected`) and control flow, so checks that would reshape it are
 # relaxed there only.
 upstream_shaped = [
-  ~r"lib/playwright_ex/(api|client|isomorphic|protocol|runtime)/",
+  ~r"lib/playwright_ex/(api|client|isomorphic|matchers|protocol|runtime)/",
   ~r"lib/playwright_ex/driver.ex",
   ~r"test/support/test_server.ex"
 ]

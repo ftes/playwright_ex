@@ -32,7 +32,8 @@ defmodule PlaywrightEx.MixProject do
   def application do
     [
       # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`).
-      extra_applications: [:logger, :inets, :ssl, :crypto, :public_key]
+      # ex_unit: matchers raise ExUnit.AssertionError (`PlaywrightEx.Expect`), optional outside tests.
+      extra_applications: [:logger, :inets, :ssl, :crypto, :public_key, ex_unit: :optional]
     ]
   end
 

@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Client.Frame do
 
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ElementHandle
+  alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FrameLocator
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Locator
@@ -672,7 +673,46 @@ defmodule PlaywrightEx.Client.Frame do
     channel_call(this, :title, %{}, TimeoutSettings.k_no_timeout()).value
   end
 
-  # _expect  -- not ported: matchers
+  def _expect(this, expression, options) do
+    %{timeout: timeout} = options
+    signal = options[:signal]
+    title = options[:title]
+    rest = Map.drop(options, [:timeout, :signal, :title])
+
+    _wrap_api_call(
+      this,
+      fn _api_zone ->
+        params = Map.merge(%{expression: expression}, Map.put(rest, :isNot, !!rest[:isNot]))
+        params = Map.put(params, :expectedValue, JSHandle.serialize_argument(rest[:expectedValue]))
+
+        try do
+          channel_call(this, :expect, params, %{signal: signal, timeout: timeout})
+          %{matches: !params.isNot}
+        rescue
+          e ->
+            # if (e instanceof AbortError) return { matches: !!params.isNot, errorMessage: ... };  -- not ported: AbortSignal
+            if !Errors.is_playwright_error(e), do: reraise(e, __STACKTRACE__)
+            details = Map.get(e, :details) || %{}
+
+            received =
+              if details[:received],
+                do: %{
+                  value: if(details.received[:value] != nil, do: JSHandle.parse_result(details.received.value)),
+                  ariaSnapshot: details.received[:ariaSnapshot]
+                }
+
+            %{
+              matches: !!params.isNot,
+              received: received,
+              log: Map.get(e, :log),
+              timedOut: details[:timedOut],
+              errorMessage: if(details[:customErrorMessage], do: "Error: " <> details.customErrorMessage)
+            }
+        end
+      end,
+      %{title: title}
+    )
+  end
 
   # clientHelper.ts addSourceUrlToScript
   defp add_source_url_to_script(source, path) do

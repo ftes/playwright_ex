@@ -81,5 +81,33 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
     end
   end
 
-  # constructURLBasedOnBaseURL, resolveBaseURL  -- not ported: unused
+  def construct_url_based_on_base_url(base_url, given_url) do
+    resolve_base_url(base_url, given_url).resolved
+  rescue
+    _ -> given_url
+  end
+
+  defp resolve_base_url(base_url, given_url) do
+    url = new_url(given_url, base_url)
+    resolved = url_to_string(url)
+    # Schema and domain are case-insensitive.
+    case_insensitive_prefix = url_to_string(%{url | path: nil, query: nil, fragment: nil, userinfo: nil})
+    %{resolved: resolved, caseInsensitivePart: case_insensitive_prefix}
+  rescue
+    _ -> %{resolved: given_url}
+  end
+
+  # `new URL(url, base)`: raises unless the result is absolute.
+  defp new_url(url, nil), do: absolute!(URI.new!(url))
+  defp new_url(url, base), do: absolute!(URI.merge(absolute!(URI.new!(base)), url))
+
+  defp absolute!(%URI{scheme: scheme} = uri) when is_binary(scheme), do: uri
+  defp absolute!(_uri), do: raise(ArgumentError, "Invalid URL")
+
+  # `url.toString()`: WHATWG URLs lowercase scheme and host and have a "/" path when it is empty.
+  defp url_to_string(%URI{} = uri) do
+    host = uri.host && String.downcase(uri.host)
+    path = if uri.host != nil and uri.path in [nil, ""], do: "/", else: uri.path
+    URI.to_string(%{uri | scheme: String.downcase(uri.scheme), host: host, path: path})
+  end
 end

@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Locator do
 
   [Learn more about locators](https://playwright.dev/docs/locators).
 
-  Not ported yet: `highlight`, `toString`.
+  Not ported yet: `highlight`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -793,7 +793,7 @@ defmodule PlaywrightEx.Locator do
 
   @doc since: "1.57"
   @doc ~S"""
-  Returns locator description previously set with `PlaywrightEx.Locator.describe/2`. Returns `null` if no custom description has been set. Prefer [`Locator.toString`](https://playwright.dev/docs/api/class-locator#locator-to-string) for a human-readable representation, as it uses the description when available.
+  Returns locator description previously set with `PlaywrightEx.Locator.describe/2`. Returns `null` if no custom description has been set. Prefer `PlaywrightEx.Locator.to_string/1` for a human-readable representation, as it uses the description when available.
 
   **Usage**
 
@@ -3478,6 +3478,15 @@ defmodule PlaywrightEx.Locator do
   def text_content!(this, options \\ []) do
     options = Facade.options!(options, @text_content_options, "locator.textContent")
     Facade.async!("locator.textContent", this, fn -> PlaywrightEx.Client.Locator.text_content(this, options) end)
+  end
+
+  @doc since: "1.57"
+  @doc ~S"""
+  Returns a human-readable representation of the locator, using the `PlaywrightEx.Locator.description/1` if one exists; otherwise, it generates a string based on the locator's selector.
+  """
+  @spec to_string(t()) :: String.t()
+  def to_string(this) do
+    PlaywrightEx.Client.Locator.to_string(this)
   end
 
   @type_options {:object, %{delay: {:delay, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
