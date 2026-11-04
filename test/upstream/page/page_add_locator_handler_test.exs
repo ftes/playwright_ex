@@ -10,22 +10,121 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   @moduletag :page
 
   # Handlers report to the test process: `++called` is `send(test, :called)`.
-  defp called(count \\ 0) do
+  defp called(count \\ 0, message \\ :called) do
     receive do
-      :called -> called(count + 1)
+      ^message -> called(count + 1, message)
     after
       0 -> count
     end
   end
 
-  @tag skip: "not ported: expect"
-  test "should work"
+  test "should work", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
 
-  @tag skip: "not ported: expect"
-  test "should work with a custom check"
+    original_locator = Page.get_by_text(page, "This interstitial covers the button")
 
-  @tag skip: "not ported: expect"
-  test "should work with locator.hover()"
+    Page.add_locator_handler!(page, original_locator, fn locator_argument ->
+      # expect(locatorArgument).toBe(originalLocator): checked by the test process.
+      send(test, {:argument, locator_argument})
+      send(test, :before)
+      Locator.click!(Page.locator(page, "#close"))
+      send(test, :after)
+    end)
+
+    for args <- [
+          ["mouseover", 1],
+          ["mouseover", 1, "capture"],
+          ["mouseover", 2],
+          ["mouseover", 2, "capture"],
+          ["pointerover", 1],
+          ["pointerover", 1, "capture"],
+          ["none", 1],
+          ["remove", 1],
+          ["hide", 1]
+        ] do
+      # test.step(...)
+      Locator.hover!(Page.locator(page, "#aside"))
+
+      Page.evaluate!(
+        page,
+        """
+        args => {
+          window.clicked = 0;
+          window.setupAnnoyingInterstitial(...args);
+        }
+        """,
+        args
+      )
+
+      assert called(0, :before) == 0
+      assert called(0, :after) == 0
+      Locator.click!(Page.locator(page, "#target"))
+      assert called(0, :before) == Enum.at(args, 1)
+      assert called(0, :after) == Enum.at(args, 1)
+      assert Page.evaluate!(page, "window.clicked") == 1
+      Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+    end
+
+    assert_received {:argument, ^original_locator}
+  end
+
+  test "should work with a custom check", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+
+    Page.add_locator_handler!(
+      page,
+      Page.locator(page, "body"),
+      fn ->
+        if Locator.is_visible!(Page.get_by_text(page, "This interstitial covers the button")),
+          do: Locator.click!(Page.locator(page, "#close"))
+      end,
+      no_wait_after: true
+    )
+
+    for args <- [["mouseover", 2], ["none", 1], ["remove", 1], ["hide", 1]] do
+      # test.step(...)
+      Locator.hover!(Page.locator(page, "#aside"))
+
+      Page.evaluate!(
+        page,
+        """
+        args => {
+          window.clicked = 0;
+          window.setupAnnoyingInterstitial(...args);
+        }
+        """,
+        args
+      )
+
+      Locator.click!(Page.locator(page, "#target"))
+      assert Page.evaluate!(page, "window.clicked") == 1
+      Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+    end
+  end
+
+  test "should work with locator.hover()", %{page: page, server: server} do
+    # test.skip(!headless, 'Stray hovers in headed mode');
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+
+    Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
+      Locator.click!(Page.locator(page, "#close"))
+    end)
+
+    Locator.hover!(Page.locator(page, "#aside"))
+
+    Page.evaluate!(page, """
+    () => {
+      window.setupAnnoyingInterstitial('pointerover', 1, 'capture');
+    }
+    """)
+
+    Locator.hover!(Page.locator(page, "#target"))
+    Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+
+    assert Page.eval_on_selector!(page, "#target", "e => window.getComputedStyle(e).backgroundColor") ==
+             "rgb(255, 255, 0)"
+  end
 
   test "should not work with force:true", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
@@ -76,11 +175,47 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert called() == 1
   end
 
-  @tag skip: "not ported: expect"
-  test "should work with toBeVisible"
+  test "should work with toBeVisible", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
 
-  @tag skip: "not ported: expect"
-  test "should work with locator.waitFor"
+    Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
+      send(test, :called)
+      Locator.click!(Page.locator(page, "#close"))
+    end)
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('remove', 1);
+    }
+    """)
+
+    Expect.to_be_visible!(Page.locator(page, "#target"))
+    Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+    assert called() == 1
+  end
+
+  test "should work with locator.waitFor", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
+
+    Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
+      send(test, :called)
+      Locator.click!(Page.locator(page, "#close"))
+    end)
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('remove', 1);
+    }
+    """)
+
+    Locator.wait_for!(Page.locator(page, "#target"))
+    Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+    assert called() == 1
+  end
 
   @tag :tmp_dir
   test "should work with toHaveScreenshot", %{page: page, server: server, browser_name: browser_name, tmp_dir: tmp_dir} do
@@ -156,11 +291,57 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  @tag skip: "not ported: expect"
-  test "should work with times: option"
+  test "should work with times: option", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
 
-  @tag skip: "not ported: expect"
-  test "should wait for hidden by default"
+    Page.add_locator_handler!(page, Page.locator(page, "body"), fn -> send(test, :called) end,
+      no_wait_after: true,
+      times: 2
+    )
+
+    Locator.hover!(Page.locator(page, "#aside"))
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('mouseover', 4);
+    }
+    """)
+
+    {:error, error} = Locator.click(Page.locator(page, "#target"), timeout: 3000)
+    assert called() == 2
+    assert Page.evaluate!(page, "window.clicked") == 0
+    Expect.to_be_visible!(Page.locator(page, "#interstitial"))
+    assert error.message =~ "Timeout 3000ms exceeded"
+
+    assert error.message =~
+             ~s(<div>This interstitial covers the button</div> from <div class="visible" id="interstitial">…</div> subtree intercepts pointer events)
+  end
+
+  test "should wait for hidden by default", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
+
+    Page.add_locator_handler!(page, Page.get_by_role(page, :button, name: "close"), fn button ->
+      send(test, :called)
+      Locator.click!(button)
+    end)
+
+    Locator.hover!(Page.locator(page, "#aside"))
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('timeout', 1);
+    }
+    """)
+
+    Locator.click!(Page.locator(page, "#target"))
+    assert Page.evaluate!(page, "window.clicked") == 1
+    Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+    assert called() == 1
+  end
 
   test "should wait for hidden by default 2", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
@@ -188,9 +369,73 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
              "locator handler has finished, waiting for getByRole('button', { name: 'close' }) to be hidden"
   end
 
-  @tag skip: "not ported: expect"
-  test "should work with noWaitAfter"
+  test "should work with noWaitAfter", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
+    {:ok, called} = Agent.start_link(fn -> 0 end)
 
-  @tag skip: "not ported: expect"
-  test "should removeLocatorHandler"
+    Page.add_locator_handler!(
+      page,
+      Page.get_by_role(page, :button, name: "close"),
+      fn button ->
+        send(test, :called)
+
+        if Agent.get_and_update(called, &{&1 + 1, &1 + 1}) == 1,
+          do: Locator.click!(button),
+          else: Locator.wait_for!(Page.locator(page, "#interstitial"), state: :hidden)
+      end,
+      no_wait_after: true
+    )
+
+    Locator.hover!(Page.locator(page, "#aside"))
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('timeout', 1);
+    }
+    """)
+
+    Locator.click!(Page.locator(page, "#target"))
+    assert Page.evaluate!(page, "window.clicked") == 1
+    Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+    assert called() == 2
+  end
+
+  test "should removeLocatorHandler", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+    test = self()
+
+    Page.add_locator_handler!(page, Page.get_by_role(page, :button, name: "close"), fn locator ->
+      send(test, :called)
+      Locator.click!(locator)
+    end)
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('hide', 1);
+    }
+    """)
+
+    Locator.click!(Page.locator(page, "#target"))
+    assert called() == 1
+    assert Page.evaluate!(page, "window.clicked") == 1
+    Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
+
+    Page.evaluate!(page, """
+    () => {
+      window.clicked = 0;
+      window.setupAnnoyingInterstitial('hide', 1);
+    }
+    """)
+
+    Page.remove_locator_handler!(page, Page.get_by_role(page, :button, name: "close"))
+
+    {:error, error} = Locator.click(Page.locator(page, "#target"), timeout: 3000)
+    assert called() == 0
+    assert Page.evaluate!(page, "window.clicked") == 0
+    Expect.to_be_visible!(Page.locator(page, "#interstitial"))
+    assert error.message =~ "Timeout 3000ms exceeded"
+  end
 end
