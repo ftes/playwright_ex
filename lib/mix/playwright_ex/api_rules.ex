@@ -1,0 +1,53 @@
+defmodule Mix.PlaywrightEx.ApiRules do
+  @moduledoc """
+  Elixir rules for `mix playwright_ex.gen.api`, applied to the JS view of `api.json`
+  (the counterpart of the Python client's `python_rules`).
+
+    * Drops JS-only classes the Elixir client has no use for (`@dropped_classes`), and every
+      member, argument and option whose type refers to one of them (`logger: Logger`).
+    * Drops JS-only members (`@dropped_members`).
+    * Documents the Elixir forms of `timeout`.
+
+  Still to come with the classes they need: callback forms (`expect_popup`), the
+  `to_have_screenshot` path rule.
+  """
+
+  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions)
+
+  # "Class.member"
+  @dropped_members ~w()
+
+  @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
+
+  @doc "Applies the rules to the decoded `api.json` classes."
+  def apply(classes) do
+    for class <- classes, class["name"] not in @dropped_classes do
+      members =
+        for member <- class["members"],
+            "#{class["name"]}.#{member["name"]}" not in @dropped_members,
+            keep?(member["type"]),
+            do: member(member)
+
+      %{class | "members" => members}
+    end
+  end
+
+  defp member(member) do
+    args = for arg <- member["args"], keep?(arg["type"]), do: property(arg)
+    %{member | "args" => args}
+  end
+
+  defp property(%{"name" => "timeout"} = property),
+    do: Map.update(property, "comment", @timeout_doc, &"#{&1}\n\n#{@timeout_doc}") |> type()
+
+  defp property(property), do: type(property)
+
+  defp type(%{"type" => %{"properties" => props} = type} = property) when is_list(props),
+    do: %{property | "type" => %{type | "properties" => for(p <- props, keep?(p["type"]), do: property(p))}}
+
+  defp type(property), do: property
+
+  # A type that is (only) a dropped class.
+  defp keep?(%{"name" => name}) when name in @dropped_classes, do: false
+  defp keep?(_type), do: true
+end
