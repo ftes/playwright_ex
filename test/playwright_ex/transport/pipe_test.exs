@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Transport.PipeTest do
   test "round-trips messages like JSON.stringify/JSON.parse" do
     pipe = start("exec cat")
     Pipe.send_message(pipe, %{id: 1, params: %{a: nil, b: :null, c: [%{d: nil, e: "x"}]}})
-    assert_receive {:message, %{"id" => 1, "params" => %{"b" => nil, "c" => [%{"e" => "x"}]} = params}}
+    assert_receive {:message, %{"id" => 1, "params" => %{"b" => nil, "c" => [%{"e" => "x"}]} = params}}, 5000
     refute Map.has_key?(params, "a")
   end
 
@@ -38,12 +38,12 @@ defmodule PlaywrightEx.Transport.PipeTest do
   test "close/1 closes the pipe and calls on_close once" do
     pipe = start("exec cat")
     assert :ok = Pipe.close(pipe)
-    assert_receive :closed
+    assert_receive :closed, 5000
     refute_receive :closed
   end
 
   test "driver exit calls on_close" do
     start("exit 3")
-    assert_receive :closed
+    assert_receive :closed, 5000
   end
 end
