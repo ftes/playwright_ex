@@ -1,0 +1,287 @@
+defmodule PlaywrightEx.Client.ChannelOwner do
+  @upstream "packages/playwright-core/src/client/channelOwner.ts"
+  @moduledoc """
+  Port of `#{@upstream}`.
+
+  `abstract class ChannelOwner extends EventEmitter` becomes `use PlaywrightEx.Client.ChannelOwner`,
+  which injects the struct (`guid` + `baton`) and the inherited methods; `super(...)` in a
+  subclass constructor is `ChannelOwner.new(__MODULE__, parent, type, guid, initializer)`.
+
+  Deviations: the `this._channel` Proxy is `channel_call(this, :method, params, options)`,
+  and its event side is the separate emitter `_channel(this)`. Channels and their owners are
+  the same handle, so `X.from(channel)` is the identity.
+  """
+  import PlaywrightEx.Runtime.Heap
+
+  alias PlaywrightEx.Client.ClientStackTrace
+  alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.EventEmitter
+  alias PlaywrightEx.Protocol.Metainfo
+  alias PlaywrightEx.Protocol.Validator
+  alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
+  alias PlaywrightEx.Runtime.Promise
+  alias PlaywrightEx.Runtime.Zones
+
+  require Logger
+
+  defmacro __using__(_opts) do
+    quote do
+      use PlaywrightEx.Client.EventEmitter
+
+      import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 3, channel_call: 4, _channel: 1]
+      import PlaywrightEx.Runtime.Heap
+
+      alias PlaywrightEx.Client.ChannelOwner
+      alias PlaywrightEx.Client.EventEmitter
+      alias PlaywrightEx.Client.Events
+      alias PlaywrightEx.Client.TimeoutSettings
+      alias PlaywrightEx.Runtime.Promise
+
+      defstruct [:guid, :baton]
+
+      defdelegate on(this, event, listener), to: ChannelOwner
+      # `x instanceof ChannelOwner`
+      defdelegate add_listener(this, event, listener), to: ChannelOwner
+      defdelegate prepend_listener(this, event, listener), to: ChannelOwner
+      defdelegate off(this, event, listener), to: ChannelOwner
+      defdelegate remove_listener(this, event, listener), to: ChannelOwner
+      # super(); this.setMaxListeners(0);  -- EventEmitter state is implicit
+      defdelegate _wrap_api_call(this, func, options \\ %{}), to: ChannelOwner
+      defdelegate _parent_of_type(this, type), to: ChannelOwner
+      # this._instrumentation = this._connection._instrumentation;  -- not ported: instrumentation
+      defdelegate _set_event_to_subscription_mapping(this, mapping), to: ChannelOwner
+      def __channel_owner__, do: true
+    end
+  end
+
+  def is_channel_owner(%module{}), do: function_exported?(module, :__channel_owner__, 0)
+  def is_channel_owner(_), do: false
+
+  def new(module, parent, type, guid, initializer) do
+    connection = if is_channel_owner(parent), do: get(parent, :_connection), else: parent
+    this = struct(module, guid: guid, baton: connection.baton)
+    put(this, :_connection, connection)
+    put(this, :_type, type)
+    put(this, :_guid, guid)
+    put(this, :_parent, if(is_channel_owner(parent), do: parent))
+
+    map_set(connection, :_objects, guid, this)
+
+    if get(this, :_parent) do
+      map_set(get(this, :_parent), :_objects, guid, this)
+      put(this, :_logger, get(get(this, :_parent), :_logger))
+    end
+
+    # this._channel = this._createChannel(new EventEmitter());  -- see channel_call/4 and _channel/1
+    put(this, :_initializer, initializer)
+    this
+  end
+
+  # The EventEmitter behind `this._channel` (protocol events).
+  def _channel(this), do: %EventEmitter{guid: {:channel, this.guid}, baton: this.baton}
+
+  def _set_event_to_subscription_mapping(this, mapping) do
+    put(this, :_eventToSubscriptionMapping, mapping)
+  end
+
+  defp _update_subscription(this, event, enabled) do
+    protocol_event = (get(this, :_eventToSubscriptionMapping) || %{})[event]
+
+    if protocol_event do
+      this.baton
+      |> Promise.async(fn ->
+        channel_call(
+          this,
+          :updateSubscription,
+          %{event: protocol_event, enabled: enabled},
+          PlaywrightEx.Client.TimeoutSettings.k_no_timeout()
+        )
+      end)
+      |> Promise.catch_(fn _ -> nil end)
+    end
+  end
+
+  def on(this, event, listener) do
+    if listener_count(this, event) == 0, do: _update_subscription(this, event, true)
+    EventEmitter.on(this, event, listener)
+    this
+  end
+
+  def add_listener(this, event, listener) do
+    if listener_count(this, event) == 0, do: _update_subscription(this, event, true)
+    EventEmitter.add_listener(this, event, listener)
+    this
+  end
+
+  def prepend_listener(this, event, listener) do
+    if listener_count(this, event) == 0, do: _update_subscription(this, event, true)
+    EventEmitter.prepend_listener(this, event, listener)
+    this
+  end
+
+  def off(this, event, listener) do
+    EventEmitter.off(this, event, listener)
+    if listener_count(this, event) == 0, do: _update_subscription(this, event, false)
+    this
+  end
+
+  def remove_listener(this, event, listener) do
+    EventEmitter.remove_listener(this, event, listener)
+    if listener_count(this, event) == 0, do: _update_subscription(this, event, false)
+    this
+  end
+
+  defp listener_count(this, event), do: EventEmitter.listener_count(this, event)
+
+  def _adopt(this, child) do
+    map_delete(get(child, :_parent), :_objects, child.guid)
+    map_set(this, :_objects, child.guid, child)
+    put(child, :_parent, this)
+  end
+
+  def _parent_of_type(this, type) do
+    parent = get(this, :_parent)
+
+    cond do
+      parent == nil -> nil
+      get(parent, :_type) == type -> parent
+      true -> _parent_of_type(parent, type)
+    end
+  end
+
+  def _dispose(this, reason) do
+    # Clean up from parent and connection.
+    if get(this, :_parent), do: map_delete(get(this, :_parent), :_objects, this.guid)
+    map_delete(get(this, :_connection), :_objects, this.guid)
+    put(this, :_wasCollected, reason == "gc")
+
+    # Dispose all children.
+    for object <- map_values(this, :_objects), do: _dispose(object, reason)
+    map_clear(this, :_objects)
+  end
+
+  # _debugScopeState  -- not ported
+
+  defp _validator_to_wire_context(this) do
+    %{
+      tChannelImpl: &t_channel_impl_to_wire/4,
+      binary: if(Connection.raw_buffers(get(this, :_connection)), do: "buffer", else: "toBase64")
+    }
+  end
+
+  # _createChannel: the Proxy `get` trap, called as `channel_call(this, :method, params, options)`.
+  def channel_call(this, method, params, options \\ %{}) do
+    method = to_string(method)
+    type = get(this, :_type)
+    # JS: a missing validator falls through to `obj[prop]`, i.e. `undefined is not a function`.
+    validator =
+      Validator.maybe_find_validator(type, method, "Params") || raise "#{type}.#{method} is not a protocol method"
+
+    internal = (Metainfo.get_metainfo(%{type: type, method: method}) || %{})[:internal]
+
+    _wrap_api_call(
+      this,
+      fn api_zone ->
+        validated_params = validator.(params, "", _validator_to_wire_context(this))
+        %{signal: signal, timeout: timeout} = Map.merge(%{signal: nil, timeout: 0}, options)
+
+        if !api_zone.internal and !api_zone.reported do
+          # Reporting/tracing/logging this api call for the first time.
+          api_zone = Zones.update(:apiZone, &%{&1 | reported: true}) || api_zone
+          # this._instrumentation.onApiCallBegin(apiZone, { type: this._type, method: prop, params });  -- not ported
+          log_api_call(get(this, :_logger), "=> #{api_zone.apiName} started")
+
+          Connection.send_message_to_server(
+            get(this, :_connection),
+            this,
+            method,
+            validated_params,
+            Map.merge(api_zone, %{signal: signal, timeout: timeout})
+          )
+        else
+          # Since this api call is either internal, or has already been reported/traced once,
+          # passing as internal.
+          Connection.send_message_to_server(get(this, :_connection), this, method, validated_params, %{
+            internal: true,
+            signal: signal,
+            timeout: timeout
+          })
+        end
+      end,
+      %{internal: internal}
+    )
+  end
+
+  def _wrap_api_call(this, func, options \\ %{}) do
+    logger = get(this, :_logger)
+    existing_api_zone = Zones.data(:apiZone)
+
+    if existing_api_zone do
+      func.(existing_api_zone)
+    else
+      stack_trace = ClientStackTrace.capture_library_stack_trace()
+      api_name = stack_trace.apiName
+
+      api_name =
+        if String.starts_with?(api_name, "_") or String.contains?(api_name, "._"),
+          do: options[:title] || api_name,
+          else: api_name
+
+      api_zone = %{
+        title: options[:title],
+        apiName: api_name,
+        frames: stack_trace.frames,
+        internal: options[:internal] || false,
+        reported: false,
+        userData: nil,
+        callId: nil
+      }
+
+      try do
+        result = Zones.with(:apiZone, api_zone, fn -> func.(api_zone) end)
+
+        if !options[:internal] do
+          log_api_call(logger, "<= #{api_zone.apiName} succeeded")
+          # this._instrumentation.onApiCallEnd(apiZone);  -- not ported
+        end
+
+        result
+      rescue
+        e ->
+          # const innerError = ...  -- not ported: stack rewriting (Elixir keeps __STACKTRACE__)
+          e =
+            if api_zone.apiName != "" and !String.contains?(api_zone.apiName, "<anonymous>") and
+                 Map.has_key?(e, :message),
+               do: %{e | message: api_zone.apiName <> ": " <> Exception.message(e)},
+               else: e
+
+          # const stackFrames = ...; e.stack = ...  -- not ported: stack rewriting
+
+          if !options[:internal] do
+            # apiZone.error = e;  -- not ported: instrumentation
+            log_api_call(logger, "<= #{api_zone.apiName} failed")
+            # this._instrumentation.onApiCallEnd(apiZone);  -- not ported
+          end
+
+          reraise e, __STACKTRACE__
+      end
+    end
+  end
+
+  # toJSON  -- not ported (Inspect shows the handle)
+
+  defp log_api_call(_logger, message) do
+    # if (logger && logger.isEnabled('api', 'info')) logger.log(...)  -- not ported: user Logger
+    Logger.debug("pw:api " <> message)
+  end
+
+  defp t_channel_impl_to_wire(names, arg, path, _context) do
+    if is_channel_owner(arg) and (names == :* or get(arg, :_type) in names),
+      do: %{guid: arg.guid},
+      else: raise(ValidationError, message: "#{path}: expected channel #{channel_names(names)}")
+  end
+
+  @doc false
+  def channel_names(:*), do: "*"
+  def channel_names(names), do: Enum.join(names, ",")
+end

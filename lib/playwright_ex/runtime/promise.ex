@@ -15,6 +15,8 @@ defmodule PlaywrightEx.Runtime.Promise do
   alias PlaywrightEx.Runtime.Baton
   alias PlaywrightEx.Runtime.Heap
 
+  require Logger
+
   defstruct [:guid, :baton, :task]
 
   # new Promise((resolve, reject) => ...)
@@ -57,8 +59,7 @@ defmodule PlaywrightEx.Runtime.Promise do
   defp run_reaction(reaction, result) do
     reaction.(result)
   rescue
-    e ->
-      require(Logger) && Logger.error("Uncaught in promise reaction: " <> Exception.format(:error, e, __STACKTRACE__))
+    e -> Logger.error("Uncaught in promise reaction: " <> Exception.format(:error, e, __STACKTRACE__))
   end
 
   @doc false

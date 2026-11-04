@@ -276,8 +276,7 @@ defmodule PlaywrightEx.Protocol.Serializers do
   defp regex_options(flags), do: for(<<flag <- flags>>, flag in ~c"imsu", into: "", do: <<flag>>)
 
   defp regex_flags(regex) do
-    # A list of atoms, or a string of flags on older Elixir versions.
-    opts = with opts when is_binary(opts) <- Regex.opts(regex), do: Regex.compile!("", opts).opts
+    opts = Regex.opts(regex)
     for {opt, flag} <- [caseless: "i", multiline: "m", dotall: "s", unicode: "u"], opt in opts, into: "", do: flag
   end
 end
