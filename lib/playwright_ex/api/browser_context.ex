@@ -733,6 +733,7 @@ defmodule PlaywrightEx.BrowserContext do
   }
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec on(t(), event(), (term() -> term())) :: t()
   def on(browser_context, event, listener),
     do:
@@ -743,6 +744,7 @@ defmodule PlaywrightEx.BrowserContext do
       )
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
+  @doc group: "Events"
   @spec once(t(), event(), (term() -> term())) :: t()
   def once(browser_context, event, listener),
     do:
@@ -753,6 +755,7 @@ defmodule PlaywrightEx.BrowserContext do
       )
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec add_listener(t(), event(), (term() -> term())) :: t()
   def add_listener(browser_context, event, listener),
     do:
@@ -763,6 +766,7 @@ defmodule PlaywrightEx.BrowserContext do
       )
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
+  @doc group: "Events"
   @spec remove_listener(t(), event(), (term() -> term())) :: t()
   def remove_listener(browser_context, event, listener),
     do:
@@ -773,6 +777,7 @@ defmodule PlaywrightEx.BrowserContext do
       )
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
+  @doc group: "Events"
   @spec off(t(), event(), (term() -> term())) :: t()
   def off(browser_context, event, listener),
     do:
@@ -783,6 +788,7 @@ defmodule PlaywrightEx.BrowserContext do
       )
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec prepend_listener(t(), event(), (term() -> term())) :: t()
   def prepend_listener(browser_context, event, listener),
     do:

@@ -34,6 +34,10 @@ jobs:
         run: mix credo
       - name: Compiles without warnings
         run: mix compile --warnings-as-errors
+      - name: Docs build without warnings
+        run: mix docs --warnings-as-errors
+        env:
+          MIX_ENV: dev
       # PLTs built on another runner image (e.g. ubuntu24 vs ubuntu26) are rejected as "Old PLT file".
       - name: Get runner image
         id: runner_image

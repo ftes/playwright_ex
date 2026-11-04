@@ -358,6 +358,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
         """
         @doc #{inspect(doc)}
+        @doc group: "Events"
         @spec #{name}(t(), event(), (term() -> term())) :: t()
         def #{name}(#{receiver}, event, listener),
           do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}), listener)

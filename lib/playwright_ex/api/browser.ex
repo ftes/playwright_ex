@@ -741,22 +741,26 @@ defmodule PlaywrightEx.Browser do
   @events %{context: "context", disconnected: "disconnected"}
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec on(t(), event(), (term() -> term())) :: t()
   def on(browser, event, listener),
     do: PlaywrightEx.Client.Browser.on(browser, Facade.event!(event, @events, "browser.on"), listener)
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
+  @doc group: "Events"
   @spec once(t(), event(), (term() -> term())) :: t()
   def once(browser, event, listener),
     do: PlaywrightEx.Client.Browser.once(browser, Facade.event!(event, @events, "browser.once"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec add_listener(t(), event(), (term() -> term())) :: t()
   def add_listener(browser, event, listener),
     do:
       PlaywrightEx.Client.Browser.add_listener(browser, Facade.event!(event, @events, "browser.addListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
+  @doc group: "Events"
   @spec remove_listener(t(), event(), (term() -> term())) :: t()
   def remove_listener(browser, event, listener),
     do:
@@ -767,11 +771,13 @@ defmodule PlaywrightEx.Browser do
       )
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
+  @doc group: "Events"
   @spec off(t(), event(), (term() -> term())) :: t()
   def off(browser, event, listener),
     do: PlaywrightEx.Client.Browser.off(browser, Facade.event!(event, @events, "browser.off"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec prepend_listener(t(), event(), (term() -> term())) :: t()
   def prepend_listener(browser, event, listener),
     do:

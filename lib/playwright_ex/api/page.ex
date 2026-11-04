@@ -1041,31 +1041,37 @@ defmodule PlaywrightEx.Page do
   }
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec on(t(), event(), (term() -> term())) :: t()
   def on(page, event, listener),
     do: PlaywrightEx.Client.Page.on(page, Facade.event!(event, @events, "page.on"), listener)
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
+  @doc group: "Events"
   @spec once(t(), event(), (term() -> term())) :: t()
   def once(page, event, listener),
     do: PlaywrightEx.Client.Page.once(page, Facade.event!(event, @events, "page.once"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec add_listener(t(), event(), (term() -> term())) :: t()
   def add_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.add_listener(page, Facade.event!(event, @events, "page.addListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
+  @doc group: "Events"
   @spec remove_listener(t(), event(), (term() -> term())) :: t()
   def remove_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.remove_listener(page, Facade.event!(event, @events, "page.removeListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
+  @doc group: "Events"
   @spec off(t(), event(), (term() -> term())) :: t()
   def off(page, event, listener),
     do: PlaywrightEx.Client.Page.off(page, Facade.event!(event, @events, "page.off"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
+  @doc group: "Events"
   @spec prepend_listener(t(), event(), (term() -> term())) :: t()
   def prepend_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.prepend_listener(page, Facade.event!(event, @events, "page.prependListener"), listener)
