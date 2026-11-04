@@ -213,22 +213,42 @@ defmodule PlaywrightEx.Utils do
   defp facade(PlaywrightEx.Client.Frame), do: PlaywrightEx.Frame
 
   @doc """
-  `expect.poll(fn).toX(...)` and `expect(async () => {...}).toPass()`: calls `assertion` until it
-  stops raising `ExUnit.AssertionError` and returns its result; after `timeout` ms (upstream's
-  default expect timeout, 5000) the last error is raised. Write `expect.poll(fn).toBe(x)` as
-  `to_pass(fn -> assert fun.() == x end)`.
+  `expect(fn).toPass(options)` (`expect.ts`): calls `fun` until it returns without raising
+  (an `ExUnit.AssertionError` or any other exception), with upstream's default `intervals`
+  (100, 250, 500, 1000 ms) until `timeout` (deviation: default 5000 ms, upstream's is the test
+  timeout). Returns `fun`'s value; re-raises the last error on timeout.
   """
-  def to_pass(assertion, timeout \\ 5000) do
-    to_pass(assertion, System.monotonic_time(:millisecond) + timeout, [100, 250, 500, 1000])
+  def to_pass(fun, options \\ []) do
+    timeout = Keyword.get(options, :timeout, 5000)
+    intervals = Keyword.get(options, :intervals, [100, 250, 500, 1000])
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_to_pass(fun, intervals, deadline)
   end
 
-  defp to_pass(assertion, deadline, intervals) do
-    assertion.()
+  @doc """
+  `expect.poll(fn, options).<matcher>`: polls `value_fun` until `assertion` (called with its
+  value) passes, as `to_pass/2` does. `poll(fn -> received end, &assert(&1 == [1, 2]))`.
+  Returns the last value.
+  """
+  def poll(value_fun, assertion, options \\ []) do
+    to_pass(
+      fn ->
+        value = value_fun.()
+        assertion.(value)
+        value
+      end,
+      options
+    )
+  end
+
+  defp do_to_pass(fun, intervals, deadline) do
+    fun.()
   rescue
-    error in ExUnit.AssertionError ->
+    error ->
       [interval | rest] = intervals
-      if System.monotonic_time(:millisecond) + interval > deadline, do: reraise(error, __STACKTRACE__)
-      Process.sleep(interval)
-      to_pass(assertion, deadline, if(rest == [], do: [interval], else: rest))
+      now = System.monotonic_time(:millisecond)
+      if now >= deadline, do: reraise(error, __STACKTRACE__)
+      Process.sleep(min(interval, deadline - now))
+      do_to_pass(fun, if(rest == [], do: intervals, else: rest), deadline)
   end
 end
