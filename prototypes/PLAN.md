@@ -109,8 +109,11 @@ shared token, since guids repeat across connections.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
 - GC: keep initializer in the struct, tombstone in ETS. AbortSignal: drop at first.
 - Zones: process dictionary, handed over with the baton.
-- `to_have_screenshot(target, path: ...)`: port of `toHaveScreenshot` with an explicit path
-  instead of testInfo snapshot paths; stabilization and comparison stay on the server.
+- `Expect.to_have_screenshot(target, path: ...)` is one more generated matcher
+  (`Page`/`LocatorAssertions.toHaveScreenshot`, JS-only in api.json, kept by the rules file,
+  which swaps the testInfo-based `name` for an explicit `path`). Its impl ports the
+  `toHaveScreenshot` matcher on top of `page._expectScreenshot`; stabilization and
+  comparison stay on the server. `toMatchAriaSnapshot` (inline) is a regular matcher.
   File aria snapshots and soft asserts: later. Skip `toMatchSnapshot` and jest assertions.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
   inspector; Electron/Android optional.
