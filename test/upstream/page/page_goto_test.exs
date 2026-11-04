@@ -450,8 +450,12 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     for _ <- 1..20, do: {:error, _} = Page.goto(page, "asdf")
   end
 
-  @tag skip: "not ported: waitForNavigation"
-  test "should not leak listeners during 20 waitForNavigation"
+  # process.on('warning'): no MaxListeners warnings here, the waits just have to resolve.
+  test "should not leak listeners during 20 waitForNavigation", %{page: page, server: server} do
+    promises = for _ <- 1..20, do: Page.wait_for_navigation(page)
+    Page.goto!(page, server.empty_page)
+    for promise <- promises, do: PlaywrightEx.Promise.await!(promise)
+  end
 
   test "should navigate to dataURL and not fire dataURL requests", %{page: page} do
     test = self()
@@ -661,7 +665,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.title!(page) == "Hello"
   end
 
-  @tag skip: "not ported: waitForEvent, $"
+  @tag skip: "not ported: $"
   test "should wait for load when iframe attaches and detaches"
 
   test "should return url with basic auth info", %{page: page, server: server} do

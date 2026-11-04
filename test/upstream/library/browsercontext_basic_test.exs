@@ -36,8 +36,14 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @tag skip: "not ported: expect"
   test "should be able to hover across browser contexts in parallel"
 
-  @tag skip: "not ported: waitForEvent"
-  test "window.open should use parent tab context"
+  test "window.open should use parent tab context", %{browser: browser, server: server} do
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+    popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "url => window.open(url)", server.empty_page) end)
+    assert Page.context(popup) == context
+    BrowserContext.close!(context)
+  end
 
   test "should isolate localStorage and cookies @smoke", %{browser: browser, server: server} do
     # Create two incognito contexts.
@@ -130,8 +136,13 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "close() should abort waitForEvent"
+  test "close() should abort waitForEvent", %{browser: browser} do
+    context = Browser.new_context!(browser)
+    promise = BrowserContext.wait_for_event(context, :page)
+    BrowserContext.close!(context)
+    {:error, error} = PlaywrightEx.Promise.await(promise)
+    assert Exception.message(error) =~ "Target page, context or browser has been closed"
+  end
 
   test "close() should be callable twice", %{browser: browser} do
     context = Browser.new_context!(browser)
@@ -139,8 +150,11 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should pass self to close event"
+  test "should pass self to close event", %{browser: browser} do
+    new_context = Browser.new_context!(browser)
+    closed_context = BrowserContext.expect_event!(new_context, :close, fn -> BrowserContext.close!(new_context) end)
+    assert closed_context == new_context
+  end
 
   test "should not report frameless pages on error", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
@@ -311,8 +325,32 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @tag skip: "not ported: evaluateHandle, expect.poll"
   test "should emulate offline event"
 
-  @tag skip: "not ported: waitForEvent"
-  test "should emulate media in popup"
+  test "should emulate media in popup", %{browser: browser, server: server} do
+    context = Browser.new_context!(browser, color_scheme: :dark)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+
+    popup =
+      Page.expect_event!(page, :popup, fn ->
+        Page.evaluate!(page, "url => { window.open(url); }", server.empty_page)
+      end)
+
+    assert Page.evaluate!(popup, "() => matchMedia('(prefers-color-scheme: light)').matches") == false
+    assert Page.evaluate!(popup, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
+    BrowserContext.close!(context)
+
+    page = Browser.new_page!(browser, color_scheme: :light)
+    Page.goto!(page, server.empty_page)
+
+    popup =
+      Page.expect_event!(page, :popup, fn ->
+        Page.evaluate!(page, "url => { window.open(url); }", server.empty_page)
+      end)
+
+    assert Page.evaluate!(popup, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
+    assert Page.evaluate!(popup, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false
+    Page.close!(page)
+  end
 
   @tag skip: "not ported: evaluateHandle (attachFrame)"
   test "should emulate media in cross-process iframe"
