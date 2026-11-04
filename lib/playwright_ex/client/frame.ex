@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Client.Frame do
       page = get(this, :_page)
       # Main frame navigation destroys all execution contexts in the page,
       # erase the bindings backing the functions passed to evaluate().
-      if (!get(this, :_parentFrame) and event[:newDocument]) && page, do: Page._erase_evaluate_callbacks(page)
+      if !get(this, :_parentFrame) && event[:newDocument] && page, do: Page._erase_evaluate_callbacks(page)
       EventEmitter.emit(get(this, :_eventEmitter), "navigated", event)
 
       if !event[:error] and page do

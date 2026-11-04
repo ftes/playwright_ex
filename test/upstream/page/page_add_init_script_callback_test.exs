@@ -86,15 +86,12 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
   test "should pass arguments to the callback", %{page: page, server: server} do
     test = self()
 
-    Page.add_init_script!(
-      page,
-      "({ cb }) => cb(1, 'two', { three: 3 }, [4])",
-      %{
-        cb: fn a, b, c, d ->
-          send(test, {:args, [a, b, c, d]})
-          nil
-        end
-      }, expose_functions: true)
+    cb = fn a, b, c, d ->
+      send(test, {:args, [a, b, c, d]})
+      nil
+    end
+
+    Page.add_init_script!(page, "({ cb }) => cb(1, 'two', { three: 3 }, [4])", %{cb: cb}, expose_functions: true)
 
     Page.goto!(page, server.empty_page)
     assert_receive {:args, args}, 5000
