@@ -39,3 +39,14 @@ Verdict: on track, client modules 1:1 statement for statement. Follow-ups taken:
 - **Known gap**: `record_har`/`expose_functions` are in the facade but raise at runtime (the
   context is created before `recordHar` raises). Fixed by porting HAR/bindings, not by hiding
   the options.
+
+## 2026-11-04: Input, Dialog, ConsoleMessage, WebError, Worker (workstream B)
+
+- **JS readonly fields are client functions** (`Page.keyboard/1`, `mouse/1`, `touchscreen/1`
+  under `# readonly properties`), as `Playwright.chromium/1`: the generator needs an arity-1 export.
+- **`inspect(console_message)` is `#PlaywrightEx.ConsoleMessage<text>`**, like handles and
+  locators; upstream's `util.inspect` shows the bare text. The upstream test asserts the
+  wrapped form with a deviation comment. Revisit if exact upstream output matters.
+- **Assertions inside listeners** become `send` to the test process plus `assert_received`;
+  JS `void dialog.accept()` is a non-bang `Dialog.accept/1` inside the listener.
+- **Mac-only upstream tests** skip by `:os.type()` at compile time.
