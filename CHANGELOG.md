@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Fix transport crash on large outgoing messages (e.g. `set_input_files` payloads over ~1 MB).
+
 ## [0.16.0] 2026-11-04
 
 ### Added

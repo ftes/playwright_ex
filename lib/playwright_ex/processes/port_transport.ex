@@ -53,7 +53,7 @@ defmodule PlaywrightEx.PortTransport do
   def handle_cast({:post, msg}, state) do
     frame = to_json(msg)
     length = byte_size(frame)
-    padding = <<length::utf32-little>>
+    padding = <<length::unsigned-little-integer-size(32)>>
     Port.command(state.port, padding <> frame)
 
     {:noreply, state}
