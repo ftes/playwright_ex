@@ -132,6 +132,12 @@ Conventions and the roll procedure: `PORTING.md`.
 - `sdkLanguage: "javascript"` as upstream, so driver messages match upstream tests, docs and
   issues. The driver rejects anything but javascript|python|java|csharp (no "elixir").
 - Strings vs bytes: explicit `{:binary, b}` where JS branches on Buffer (WebSocket, fulfill, fetch).
+- Names that are no Elixir function names take Python's: `$eval` is `eval_on_selector`
+  (`$`, `$$`, `$$eval` likewise), `and`/`or` are `and_`/`or_` (client and facade). `$eval`
+  has no options (the docs list `strict`, the JS client rejects a 4th argument).
+- `inspect(locator)` shows the selector (`#PlaywrightEx.Locator<internal:role=button>`):
+  `toString` needs the driver (`asLocatorDescription`). The test id attribute name is a
+  `:persistent_term`, module state shared by connections as in JS.
 - Evaluate: JS source strings, omit `isFunction` (like Python); string + `arg` is function source.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
 - GC: keep initializer in the struct, tombstone in ETS. AbortSignal: drop at first.
@@ -203,9 +209,13 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    through BrowserContext → Page → Frame (`new_context`/`new_page`, `goto`, `url`, `title`,
    `close`, the `:page` event, `evaluate`, `Request`/`Response`/`JSHandle` constructors,
    `LongStandingScope`), with mirrored `page-goto`/`browsercontext-basic` specs and both launch
-   specs. Not yet: routing, HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/
-   `waitForNavigation` (promise handle above), selectors and locators, so their specs stay
-   skipped. Next: locators on Frame/Page. Release gate: "generate all".
+   specs. Done: `Locator`, `FrameLocator` and the selector methods of Frame/Page (`click`,
+   `fill`, `text_content`, `get_by_*`, `$eval`, ...), with `locatorUtils`. Not yet: routing,
+   HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
+   above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
+   `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their
+   specs stay skipped. Next: ElementHandle (unblocks `Locator.evaluate`, used by most specs),
+   then matchers. Release gate: "generate all".
    Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
    Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing impl

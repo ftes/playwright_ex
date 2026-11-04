@@ -3,10 +3,14 @@ defmodule PlaywrightEx.Client.Frame do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.ElementHandle
+  alias PlaywrightEx.Client.FrameLocator
   alias PlaywrightEx.Client.JSHandle
+  alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Waiter
+  alias PlaywrightEx.Isomorphic.LocatorUtils
 
   # types.ts kLifecycleEvents
   @k_lifecycle_events ["load", "domcontentloaded", "networkidle", "commit"]
@@ -194,7 +198,52 @@ defmodule PlaywrightEx.Client.Frame do
     JSHandle.parse_result(result.value)
   end
 
-  # $, waitForSelector, dispatchEvent, $eval, $$eval, $$, _queryCount  -- not ported: ElementHandle
+  # $, waitForSelector  -- not ported: ElementHandle
+
+  def dispatch_event(this, selector, type, event_init \\ nil, options \\ %{}) do
+    channel_call(
+      this,
+      :dispatchEvent,
+      Map.merge(%{selector: selector, type: type, eventInit: JSHandle.serialize_argument(event_init)}, options),
+      _timeout(this, options)
+    )
+
+    nil
+  end
+
+  # $eval  -- ported as eval_on_selector/4
+  def eval_on_selector(this, selector, page_function, arg \\ nil) do
+    # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
+    result =
+      channel_call(
+        this,
+        :evalOnSelector,
+        %{selector: selector, expression: page_function, arg: JSHandle.serialize_argument(arg)},
+        TimeoutSettings.k_no_timeout()
+      )
+
+    JSHandle.parse_result(result.value)
+  end
+
+  # $$eval  -- ported as eval_on_selector_all/4
+  def eval_on_selector_all(this, selector, page_function, arg \\ nil) do
+    # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
+    result =
+      channel_call(
+        this,
+        :evalOnSelectorAll,
+        %{selector: selector, expression: page_function, arg: JSHandle.serialize_argument(arg)},
+        TimeoutSettings.k_no_timeout()
+      )
+
+    JSHandle.parse_result(result.value)
+  end
+
+  # $$  -- not ported: ElementHandle
+
+  def _query_count(this, selector) do
+    channel_call(this, :queryCount, %{selector: selector}, TimeoutSettings.k_no_timeout()).value
+  end
 
   def content(this, options \\ %{}) do
     channel_call(this, :content, options, TimeoutSettings.k_no_timeout()).value
@@ -234,11 +283,174 @@ defmodule PlaywrightEx.Client.Frame do
   end
 
   # addScriptTag, addStyleTag  -- not ported: ElementHandle
-  # click, dblclick, dragAndDrop, _drop, tap, fill, _highlight, _hideHighlight  -- not ported: selectors
-  # locator, getByTestId, getByAltText, getByLabel, getByPlaceholder, getByText, getByTitle, getByRole, frameLocator  -- not ported: Locator
-  # focus, textContent, innerText, innerHTML, getAttribute, inputValue  -- not ported: selectors
-  # isChecked, isDisabled, isEditable, isEnabled, isHidden, isVisible, hover  -- not ported: selectors
-  # selectOption, setInputFiles, type, press, check, uncheck, setChecked  -- not ported: selectors
+
+  def click(this, selector, options \\ %{}) do
+    channel_call(this, :click, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def dblclick(this, selector, options \\ %{}) do
+    channel_call(this, :dblclick, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def drag_and_drop(this, source, target, options \\ %{}) do
+    channel_call(this, :dragAndDrop, Map.merge(%{source: source, target: target}, options), _timeout(this, options))
+    nil
+  end
+
+  # _drop  -- not ported: convertInputFiles
+
+  def tap(this, selector, options \\ %{}) do
+    channel_call(this, :tap, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def fill(this, selector, value, options \\ %{}) do
+    channel_call(this, :fill, Map.merge(%{selector: selector, value: value}, options), _timeout(this, options))
+    nil
+  end
+
+  def _highlight(this, selector, style \\ nil) do
+    channel_call(this, :highlight, %{selector: selector, style: style}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def _hide_highlight(this, selector) do
+    channel_call(this, :hideHighlight, %{selector: selector}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def locator(this, selector, options \\ nil) do
+    Locator.new(this, selector, options)
+  end
+
+  def get_by_test_id(this, test_id) do
+    locator(this, LocatorUtils.get_by_test_id_selector(Locator.test_id_attribute_name(), test_id))
+  end
+
+  def get_by_alt_text(this, text, options \\ nil) do
+    locator(this, LocatorUtils.get_by_alt_text_selector(text, options))
+  end
+
+  def get_by_label(this, text, options \\ nil) do
+    locator(this, LocatorUtils.get_by_label_selector(text, options))
+  end
+
+  def get_by_placeholder(this, text, options \\ nil) do
+    locator(this, LocatorUtils.get_by_placeholder_selector(text, options))
+  end
+
+  def get_by_text(this, text, options \\ nil) do
+    locator(this, LocatorUtils.get_by_text_selector(text, options))
+  end
+
+  def get_by_title(this, text, options \\ nil) do
+    locator(this, LocatorUtils.get_by_title_selector(text, options))
+  end
+
+  def get_by_role(this, role, options \\ %{}) do
+    locator(this, LocatorUtils.get_by_role_selector(role, options || %{}))
+  end
+
+  def frame_locator(this, selector \\ nil) do
+    FrameLocator.new(this, if(selector == nil, do: Locator.k_any_frame_selector(), else: selector))
+  end
+
+  def focus(this, selector, options \\ %{}) do
+    channel_call(this, :focus, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def text_content(this, selector, options \\ %{}) do
+    # value === undefined ? null : value
+    channel_call(this, :textContent, Map.merge(%{selector: selector}, options), _timeout(this, options))[:value]
+  end
+
+  def inner_text(this, selector, options \\ %{}) do
+    channel_call(this, :innerText, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def inner_html(this, selector, options \\ %{}) do
+    channel_call(this, :innerHTML, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def get_attribute(this, selector, name, options \\ %{}) do
+    # value === undefined ? null : value
+    channel_call(this, :getAttribute, Map.merge(%{selector: selector, name: name}, options), _timeout(this, options))[
+      :value
+    ]
+  end
+
+  def input_value(this, selector, options \\ %{}) do
+    channel_call(this, :inputValue, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def is_checked(this, selector, options \\ %{}) do
+    channel_call(this, :isChecked, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def is_disabled(this, selector, options \\ %{}) do
+    channel_call(this, :isDisabled, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def is_editable(this, selector, options \\ %{}) do
+    channel_call(this, :isEditable, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def is_enabled(this, selector, options \\ %{}) do
+    channel_call(this, :isEnabled, Map.merge(%{selector: selector}, options), _timeout(this, options)).value
+  end
+
+  def is_hidden(this, selector, options \\ %{}) do
+    channel_call(this, :isHidden, Map.merge(%{selector: selector}, options), TimeoutSettings.k_no_timeout()).value
+  end
+
+  def is_visible(this, selector, options \\ %{}) do
+    channel_call(this, :isVisible, Map.merge(%{selector: selector}, options), TimeoutSettings.k_no_timeout()).value
+  end
+
+  def hover(this, selector, options \\ %{}) do
+    channel_call(this, :hover, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def select_option(this, selector, values, options \\ %{}) do
+    channel_call(
+      this,
+      :selectOption,
+      Map.merge(Map.merge(%{selector: selector}, ElementHandle.convert_select_option_values(values)), options),
+      _timeout(this, options)
+    ).values
+  end
+
+  # setInputFiles  -- not ported: convertInputFiles
+
+  def type(this, selector, text, options \\ %{}) do
+    channel_call(this, :type, Map.merge(%{selector: selector, text: text}, options), _timeout(this, options))
+    nil
+  end
+
+  def press(this, selector, key, options \\ %{}) do
+    channel_call(this, :press, Map.merge(%{selector: selector, key: key}, options), _timeout(this, options))
+    nil
+  end
+
+  def check(this, selector, options \\ %{}) do
+    channel_call(this, :check, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def uncheck(this, selector, options \\ %{}) do
+    channel_call(this, :uncheck, Map.merge(%{selector: selector}, options), _timeout(this, options))
+    nil
+  end
+
+  def set_checked(this, selector, checked, options \\ nil) do
+    if checked,
+      do: check(this, selector, options || %{}),
+      else: uncheck(this, selector, options || %{})
+  end
 
   def wait_for_timeout(this, timeout) do
     channel_call(this, :waitForTimeout, %{waitTimeout: timeout}, TimeoutSettings.k_no_timeout())

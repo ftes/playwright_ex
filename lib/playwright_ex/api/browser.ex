@@ -557,7 +557,7 @@ defmodule PlaywrightEx.Browser do
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
     on selectors that imply single target DOM element will throw when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
-    See [`Locator`](https://playwright.dev/docs/api/class-locator) to learn more about the strict mode.
+    See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.
   * `:timezone_id` - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
     for a list of supported timezone IDs. Defaults to the system timezone.
   * `:user_agent` - Specific user agent to use in this context.
@@ -1012,7 +1012,7 @@ defmodule PlaywrightEx.Browser do
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
     on selectors that imply single target DOM element will throw when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
-    See [`Locator`](https://playwright.dev/docs/api/class-locator) to learn more about the strict mode.
+    See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.
   * `:timezone_id` - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
     for a list of supported timezone IDs. Defaults to the system timezone.
   * `:user_agent` - Specific user agent to use in this context.

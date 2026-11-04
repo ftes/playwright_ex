@@ -552,7 +552,17 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp atom(js_name), do: js_name |> Macro.underscore() |> String.to_atom()
 
-  defp snake(js_name), do: Macro.underscore(js_name)
+  # Names that are no Elixir function names: Python's (`eval_on_selector`, `and_`).
+  @renamed %{
+    "$" => "query_selector",
+    "$$" => "query_selector_all",
+    "$eval" => "eval_on_selector",
+    "$$eval" => "eval_on_selector_all",
+    "and" => "and_",
+    "or" => "or_"
+  }
+
+  defp snake(js_name), do: Map.get_lazy(@renamed, js_name, fn -> Macro.underscore(js_name) end)
 
   defp var(js_name) do
     name = snake(js_name)

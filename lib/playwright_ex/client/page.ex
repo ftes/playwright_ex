@@ -155,8 +155,42 @@ defmodule PlaywrightEx.Client.Page do
   end
 
   # video  -- not ported: Video
-  # pickLocator, cancelPickLocator, hideHighlight  -- not ported: Locator
-  # $, waitForSelector, dispatchEvent, evaluateHandle, $eval, $$eval, $$  -- not ported: ElementHandle, JSHandle
+  def pick_locator(this) do
+    %{selector: selector} = channel_call(this, :pickLocator, %{}, TimeoutSettings.k_no_timeout())
+    locator(this, selector)
+  end
+
+  def cancel_pick_locator(this) do
+    channel_call(this, :cancelPickLocator, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def hide_highlight(this) do
+    channel_call(this, :hideHighlight, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  # $, waitForSelector  -- not ported: ElementHandle
+
+  def dispatch_event(this, selector, type, event_init \\ nil, options \\ %{}) do
+    Frame.dispatch_event(get(this, :_mainFrame), selector, type, event_init, options || %{})
+  end
+
+  # evaluateHandle  -- not ported: JSHandle
+
+  # $eval  -- ported as eval_on_selector/4
+  def eval_on_selector(this, selector, page_function, arg \\ nil) do
+    # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
+    Frame.eval_on_selector(get(this, :_mainFrame), selector, page_function, arg)
+  end
+
+  # $$eval  -- ported as eval_on_selector_all/4
+  def eval_on_selector_all(this, selector, page_function, arg \\ nil) do
+    # assertMaxArguments(arguments.length, 3);  -- not ported: Elixir arities are fixed
+    Frame.eval_on_selector_all(get(this, :_mainFrame), selector, page_function, arg)
+  end
+
+  # $$  -- not ported: ElementHandle
   # addScriptTag, addStyleTag  -- not ported: ElementHandle
   # exposeFunction, exposeBinding, _exposeCallbackBinding, _exposeEvaluateCallback, _eraseEvaluateCallbacks  -- not ported: BindingCall
 
@@ -299,12 +333,145 @@ defmodule PlaywrightEx.Client.Page do
     get(this, :_closed)
   end
 
-  # click, dragAndDrop, dblclick, tap, fill  -- not ported: selectors
+  def click(this, selector, options \\ %{}) do
+    Frame.click(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def drag_and_drop(this, source, target, options \\ %{}) do
+    Frame.drag_and_drop(get(this, :_mainFrame), source, target, options || %{})
+  end
+
+  def dblclick(this, selector, options \\ %{}) do
+    Frame.dblclick(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def tap(this, selector, options \\ %{}) do
+    Frame.tap(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def fill(this, selector, value, options \\ %{}) do
+    Frame.fill(get(this, :_mainFrame), selector, value, options || %{})
+  end
+
   # clearConsoleMessages, consoleMessages, clearPageErrors, pageErrors  -- not ported: ConsoleMessage
-  # locator, getByTestId, getByAltText, getByLabel, getByPlaceholder, getByRef, getByText, getByTitle, getByRole, frameLocator  -- not ported: Locator
-  # focus, textContent, innerText, innerHTML, getAttribute, inputValue  -- not ported: selectors
-  # isChecked, isDisabled, isEditable, isEnabled, isHidden, isVisible, hover  -- not ported: selectors
-  # selectOption, setInputFiles, type, press, check, uncheck, setChecked  -- not ported: selectors
+
+  def locator(this, selector, options \\ nil) do
+    Frame.locator(main_frame(this), selector, options)
+  end
+
+  def get_by_test_id(this, test_id) do
+    Frame.get_by_test_id(main_frame(this), test_id)
+  end
+
+  def get_by_alt_text(this, text, options \\ nil) do
+    Frame.get_by_alt_text(main_frame(this), text, options)
+  end
+
+  def get_by_label(this, text, options \\ nil) do
+    Frame.get_by_label(main_frame(this), text, options)
+  end
+
+  def get_by_placeholder(this, text, options \\ nil) do
+    Frame.get_by_placeholder(main_frame(this), text, options)
+  end
+
+  def get_by_ref(this, ref) do
+    locator(this, "aria-ref=#{ref}")
+  end
+
+  def get_by_text(this, text, options \\ nil) do
+    Frame.get_by_text(main_frame(this), text, options)
+  end
+
+  def get_by_title(this, text, options \\ nil) do
+    Frame.get_by_title(main_frame(this), text, options)
+  end
+
+  def get_by_role(this, role, options \\ %{}) do
+    Frame.get_by_role(main_frame(this), role, options)
+  end
+
+  def frame_locator(this, selector \\ nil) do
+    Frame.frame_locator(main_frame(this), selector)
+  end
+
+  def focus(this, selector, options \\ %{}) do
+    Frame.focus(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def text_content(this, selector, options \\ %{}) do
+    Frame.text_content(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def inner_text(this, selector, options \\ %{}) do
+    Frame.inner_text(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def inner_html(this, selector, options \\ %{}) do
+    Frame.inner_html(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def get_attribute(this, selector, name, options \\ %{}) do
+    Frame.get_attribute(get(this, :_mainFrame), selector, name, options || %{})
+  end
+
+  def input_value(this, selector, options \\ %{}) do
+    Frame.input_value(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def is_checked(this, selector, options \\ %{}) do
+    Frame.is_checked(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def is_disabled(this, selector, options \\ %{}) do
+    Frame.is_disabled(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def is_editable(this, selector, options \\ %{}) do
+    Frame.is_editable(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def is_enabled(this, selector, options \\ %{}) do
+    Frame.is_enabled(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def is_hidden(this, selector, options \\ %{}) do
+    Frame.is_hidden(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def is_visible(this, selector, options \\ %{}) do
+    Frame.is_visible(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def hover(this, selector, options \\ %{}) do
+    Frame.hover(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def select_option(this, selector, values, options \\ %{}) do
+    Frame.select_option(get(this, :_mainFrame), selector, values, options || %{})
+  end
+
+  # setInputFiles  -- not ported: convertInputFiles
+
+  def type(this, selector, text, options \\ %{}) do
+    Frame.type(get(this, :_mainFrame), selector, text, options || %{})
+  end
+
+  def press(this, selector, key, options \\ %{}) do
+    Frame.press(get(this, :_mainFrame), selector, key, options || %{})
+  end
+
+  def check(this, selector, options \\ %{}) do
+    Frame.check(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def uncheck(this, selector, options \\ %{}) do
+    Frame.uncheck(get(this, :_mainFrame), selector, options || %{})
+  end
+
+  def set_checked(this, selector, checked, options \\ %{}) do
+    Frame.set_checked(get(this, :_mainFrame), selector, checked, options || %{})
+  end
 
   def wait_for_timeout(this, timeout) do
     Frame.wait_for_timeout(get(this, :_mainFrame), timeout)

@@ -6,7 +6,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
     * Drops JS-only classes the Elixir client has no use for (`@dropped_classes`), and every
       member, argument and option whose type refers to one of them (`logger: Logger`, and the
       DOM `AbortSignal` of `signal:` options).
-    * Drops JS-only members (`@dropped_members`).
+    * Drops JS-only members (`@dropped_members`), and options the JS client does not take
+      (`@dropped_options`: `$eval` asserts at most 3 arguments).
     * Documents the Elixir forms of `timeout`.
     * Page functions (`expression`, a `[function]|[string]` in JS) are JS source strings.
 
@@ -19,6 +20,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # "Class.member"
   @dropped_members ~w()
 
+  # "Class.member" whose `options` argument the client rejects.
+  @dropped_options ~w(Frame.evalOnSelector Page.evalOnSelector)
+
   @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
 
   @doc "Applies the rules to the decoded `api.json` classes."
@@ -28,14 +32,19 @@ defmodule Mix.PlaywrightEx.ApiRules do
         for member <- class["members"],
             "#{class["name"]}.#{member["name"]}" not in @dropped_members,
             keep?(member["type"]),
-            do: member(member)
+            do: member(member, "#{class["name"]}.#{member["name"]}" in @dropped_options)
 
       %{class | "members" => members}
     end
   end
 
-  defp member(member) do
-    args = for arg <- member["args"], keep?(arg["type"]), do: arg |> expression() |> property()
+  defp member(member, drop_options?) do
+    args =
+      for arg <- member["args"],
+          keep?(arg["type"]),
+          not (drop_options? and arg["name"] == "options"),
+          do: arg |> expression() |> property()
+
     %{member | "args" => args}
   end
 
