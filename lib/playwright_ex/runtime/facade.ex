@@ -40,8 +40,8 @@ defmodule PlaywrightEx.Runtime.Facade do
     :ok
   end
 
-  @doc "Converts `options` (keyword list or map) for the call `api_name`."
-  def options!(options, schema, api_name), do: object!(options, schema, api_name, [])
+  @doc "Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`."
+  def options!(options, {:object, schema}, api_name), do: object!(options, schema, api_name, [])
 
   @doc "Converts a positional argument of `type`."
   def arg!(value, type, api_name), do: convert!(value, type, api_name, [])

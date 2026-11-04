@@ -1,11 +1,11 @@
 defmodule PlaywrightExTest do
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Client.Browser
-  alias PlaywrightEx.Client.BrowserType
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.Errors
-  alias PlaywrightEx.Client.Playwright
   alias PlaywrightEx.Client.Waiter
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Baton
 
@@ -16,12 +16,6 @@ defmodule PlaywrightExTest do
     %{playwright: PlaywrightEx.playwright(__MODULE__)}
   end
 
-  # What the generated facade will do for every call.
-  defp launch(chromium, options \\ %{}),
-    do: Api.call("browserType.launch", chromium, fn -> BrowserType.launch(chromium, options) end)
-
-  defp close(browser), do: Api.call("browser.close", browser, fn -> Browser.close(browser) end)
-
   test "root Playwright object", %{playwright: playwright} do
     assert BrowserType.name(Playwright.chromium(playwright)) == "chromium"
     assert BrowserType.name(Playwright.firefox(playwright)) == "firefox"
@@ -30,34 +24,41 @@ defmodule PlaywrightExTest do
   end
 
   test "launches and closes chromium", %{playwright: playwright} do
-    browser = launch(Playwright.chromium(playwright))
+    assert {:ok, browser} = BrowserType.launch(Playwright.chromium(playwright))
     assert Browser.version(browser) =~ ~r/^\d+\.\d+/
     assert Browser.is_connected(browser)
     assert Browser.browser_type(browser) == Playwright.chromium(playwright)
     refute Baton.held?()
 
-    assert close(browser) == nil
+    assert Browser.close(browser) == :ok
     refute Browser.is_connected(browser)
     # Closing twice is fine (TargetClosedError is swallowed, as upstream).
-    assert close(browser) == nil
+    assert Browser.close!(browser, reason: "done") == :ok
   end
 
   test "disconnected listeners run during close", %{playwright: playwright} do
     test = self()
-    browser = launch(Playwright.chromium(playwright))
-    Browser.on(browser, "disconnected", fn b -> send(test, {:disconnected, b, Baton.held?()}) end)
-    close(browser)
+    browser = BrowserType.launch!(Playwright.chromium(playwright))
+    listener = fn b -> send(test, {:disconnected, b, Baton.held?()}) end
+    assert Browser.on(browser, :disconnected, listener) == browser
+    Browser.close!(browser)
     assert_received {:disconnected, ^browser, true}
+
+    assert_raise ArgumentError, ~r/browser\.on: unknown event :closed, expected one of :context, :disconnected/, fn ->
+      Browser.on(browser, :closed, listener)
+    end
   end
 
   test "protocol errors carry the API name and the call log", %{playwright: playwright} do
-    error =
-      assert_raise Errors.PlaywrightError, fn ->
-        launch(Playwright.chromium(playwright), %{executablePath: "/nonexistent/chrome"})
-      end
+    assert {:error, %Errors.PlaywrightError{} = error} =
+             BrowserType.launch(Playwright.chromium(playwright), executable_path: "/nonexistent/chrome")
 
     assert error.message =~ ~r/^browserType\.launch: .*\/nonexistent\/chrome/
     assert is_list(error.log)
+
+    assert_raise Errors.PlaywrightError, ~r/^browserType\.launch: /, fn ->
+      BrowserType.launch!(Playwright.chromium(playwright), executable_path: "/nonexistent/chrome")
+    end
   end
 
   test "client-side validation errors", %{playwright: playwright} do
@@ -65,13 +66,21 @@ defmodule PlaywrightExTest do
 
     assert_raise PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError,
                  "browserType.launch: args: expected array, got string",
-                 fn ->
-                   launch(chromium, %{args: "--no-sandbox"})
-                 end
+                 fn -> BrowserType.launch!(chromium, args: "--no-sandbox") end
+  end
+
+  test "options: snake_case keys, nested objects, JS names, unknown keys", %{playwright: playwright} do
+    chromium = Playwright.chromium(playwright)
+    browser = BrowserType.launch!(chromium, timeout: :infinity, proxy: [server: "per-context"], chromiumSandbox: false)
+    Browser.close!(browser)
+
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown option :proxy\.servr, expected one of :bypass/, fn ->
+      BrowserType.launch(chromium, proxy: [servr: "x"])
+    end
   end
 
   test "waiter: waits for an event, or times out", %{playwright: playwright} do
-    browser = launch(Playwright.chromium(playwright))
+    browser = BrowserType.launch!(Playwright.chromium(playwright))
 
     waiting =
       Task.async(fn ->
@@ -83,7 +92,7 @@ defmodule PlaywrightExTest do
 
     # Let the waiter subscribe before closing.
     Process.sleep(100)
-    close(browser)
+    Browser.close!(browser)
     assert Task.await(waiting) == browser
 
     error =

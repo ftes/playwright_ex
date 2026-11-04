@@ -2,44 +2,46 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   @upstream "tests/library/browsertype-launch.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Client.Browser
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserType
 
   @tag skip: "not ported: Page"
   test "should reject all promises when browser is closed"
 
+  # `{ userDataDir } as any`: the facade rejects options that are not in the API.
   test "should throw if userDataDir option is passed", %{browser_type: browser_type} do
-    wait_error = catch_error(launch(browser_type, %{userDataDir: "random-path"}))
-
-    assert Exception.message(wait_error) =~
-             "userDataDir option is not supported in `browserType.launch`. Use `browserType.launchPersistentContext` instead"
+    wait_error = catch_error(BrowserType.launch(browser_type, user_data_dir: "random-path"))
+    assert Exception.message(wait_error) =~ "browserType.launch: unknown option :user_data_dir"
   end
 
   test "should throw if userDataDir is passed as an argument", %{browser_type: browser_type} do
-    wait_error = catch_error(launch(browser_type, %{args: ["--user-data-dir=random-path", "--profile=random-path"]}))
+    {:error, wait_error} =
+      BrowserType.launch(browser_type, args: ["--user-data-dir=random-path", "--profile=random-path"])
 
     assert Exception.message(wait_error) =~ "Pass userDataDir parameter to 'browserType.launchPersistentContext"
   end
 
+  # `{ port: 1234 } as any`: the facade rejects options that are not in the API.
   test "should throw if port option is passed", %{browser_type: browser_type} do
-    error = catch_error(launch(browser_type, %{port: 1234}))
-    assert Exception.message(error) =~ "Cannot specify a port without launching as a server."
+    error = catch_error(BrowserType.launch(browser_type, port: 1234))
+    assert Exception.message(error) =~ "browserType.launch: unknown option :port"
   end
 
   @tag skip: "not ported: launchPersistentContext"
   test "should throw if port option is passed for persistent context"
 
   test "should throw if page argument is passed", %{browser_type: browser_type} do
-    wait_error = catch_error(launch(browser_type, %{args: ["http://example.com"]}))
+    {:error, wait_error} = BrowserType.launch(browser_type, args: ["http://example.com"])
     assert Exception.message(wait_error) =~ "can not specify page"
   end
 
   test "should reject if launched browser fails immediately", %{browser_type: browser_type, asset: asset} do
-    error = catch_error(launch(browser_type, %{executablePath: asset.("dummy_bad_browser_executable.js")}))
+    {:error, error} = BrowserType.launch(browser_type, executable_path: asset.("dummy_bad_browser_executable.js"))
     assert Exception.message(error) =~ ~r/browserType\.launch(.|\n)*(spawn UNKNOWN|spawn EFTYPE|Browser logs:)/im
   end
 
   test "should reject if executable path is invalid", %{browser_type: browser_type} do
-    wait_error = catch_error(launch(browser_type, %{executablePath: "random-invalid-path"}))
+    {:error, wait_error} = BrowserType.launch(browser_type, executable_path: "random-invalid-path")
     assert Exception.message(wait_error) =~ "Failed to launch"
   end
 
@@ -49,18 +51,16 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   @tag skip: "not ported: __testHookBeforeCreateBrowser is a JS function"
   test "should handle exception and report launch log"
 
-  test "should accept objects as options", %{browser_type: browser_type} do
-    browser = launch(browser_type, %{process: %{env: System.get_env()}})
-    close(browser)
-  end
+  @tag skip: "not ported: `process` is not a launch option (@ts-expect-error), the facade rejects it"
+  test "should accept objects as options"
 
   @tag skip: "not ported: BrowserContext"
   test "should fire close event for all contexts"
 
   test "should be callable twice", %{browser_type: browser_type} do
-    browser = launch(browser_type)
-    Task.await_many([Task.async(fn -> close(browser) end), Task.async(fn -> close(browser) end)])
-    close(browser)
+    browser = BrowserType.launch!(browser_type)
+    Task.await_many([Task.async(fn -> Browser.close!(browser) end), Task.async(fn -> Browser.close!(browser) end)])
+    Browser.close!(browser)
     refute Browser.is_connected(browser)
   end
 

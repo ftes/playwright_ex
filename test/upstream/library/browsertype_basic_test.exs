@@ -2,7 +2,7 @@ defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
   @upstream "tests/library/browsertype-basic.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Client.BrowserType
+  alias PlaywrightEx.BrowserType
 
   test "browserType.executablePath should work", %{browser_type: browser_type} do
     executable_path = BrowserType.executable_path(browser_type)
