@@ -1,0 +1,49 @@
+defmodule PlaywrightEx.Transport.PipeTest do
+  use ExUnit.Case, async: true
+
+  alias PlaywrightEx.Transport.Pipe
+
+  # `sh -c '...' run-driver`: the appended `run-driver` becomes `$0`.
+  defp start(script) do
+    test = self()
+
+    start_supervised!(
+      {Pipe,
+       executable: {"/bin/sh", ["-c", script]},
+       on_message: &send(test, {:message, &1}),
+       on_close: fn -> send(test, :closed) end},
+      restart: :temporary
+    )
+  end
+
+  test "round-trips messages like JSON.stringify/JSON.parse" do
+    pipe = start("exec cat")
+    Pipe.send_message(pipe, %{id: 1, params: %{a: nil, b: :null, c: [%{d: nil, e: "x"}]}})
+    assert_receive {:message, %{"id" => 1, "params" => %{"b" => nil, "c" => [%{"e" => "x"}]} = params}}
+    refute Map.has_key?(params, "a")
+  end
+
+  test "reassembles large messages and keeps order" do
+    pipe = start("exec cat")
+    large = String.duplicate("0123456789", 500_000)
+
+    for i <- 1..20, do: Pipe.send_message(pipe, %{id: i, s: if(i == 10, do: large, else: "small")})
+
+    for i <- 1..20 do
+      assert_receive {:message, %{"id" => ^i, "s" => s}}, 5000
+      assert s == if(i == 10, do: large, else: "small")
+    end
+  end
+
+  test "close/1 closes the pipe and calls on_close once" do
+    pipe = start("exec cat")
+    assert :ok = Pipe.close(pipe)
+    assert_receive :closed
+    refute_receive :closed
+  end
+
+  test "driver exit calls on_close" do
+    start("exit 3")
+    assert_receive :closed
+  end
+end
