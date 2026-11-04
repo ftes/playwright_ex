@@ -522,6 +522,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end
   end
 
+  # A dictionary (`Object<string, ...>`): its keys are data, not checked. api.json can attach the
+  # properties of an object value to it (`multipart`).
+  defp schema(_ctx, %{"name" => "Object", "templates" => [_, _]}, _mode), do: nil
+
   defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =
       for prop <- Enum.uniq_by(props, & &1["name"]),
@@ -596,6 +600,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp type_spec(ctx, %{"union" => union}, dir) when is_list(union),
     do: union |> Enum.map(&type_spec(ctx, &1, dir)) |> Enum.uniq() |> Enum.join(" | ")
 
+  defp type_spec(ctx, %{"name" => "Object", "templates" => [key, value]}, dir),
+    do: "%{optional(#{type_spec(ctx, key, dir)}) => #{type_spec(ctx, value, dir)}}"
+
   # Objects are JS values both ways: results as the client returns them, inputs (nested in
   # options or positional) passed as they are, so a result can be passed back.
   defp type_spec(ctx, %{"properties" => props}, dir) when is_list(props) and props != [],
@@ -605,9 +612,6 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp type_spec(_ctx, %{"name" => "null"}, :out), do: "nil"
   defp type_spec(_ctx, %{"name" => "\"" <> _}, dir) when dir in [:out, :nested], do: "String.t()"
   defp type_spec(ctx, %{"name" => "Array", "templates" => [item]}, dir), do: "[#{type_spec(ctx, item, dir)}]"
-
-  defp type_spec(ctx, %{"name" => "Object", "templates" => [key, value]}, dir),
-    do: "%{optional(#{type_spec(ctx, key, dir)}) => #{type_spec(ctx, value, dir)}}"
 
   defp type_spec(_ctx, %{"name" => "Object"}, _dir), do: "map()"
   defp type_spec(ctx, %{"name" => "Promise", "templates" => [value]}, dir), do: type_spec(ctx, value, dir)

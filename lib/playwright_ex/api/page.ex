@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `unrouteAll`, `unroute`, `video`, `webmcp`, `expect_download`, `expect_websocket`.
+  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `unrouteAll`, `unroute`, `video`, `webmcp`, `expect_download`, `expect_websocket`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -3144,6 +3144,16 @@ defmodule PlaywrightEx.Page do
   def reload!(page, options \\ []) do
     options = Facade.options!(options, @reload_options, "page.reload")
     Facade.async!("page.reload", page, fn -> PlaywrightEx.Client.Page.reload(page, options) end)
+  end
+
+  @doc since: "1.16"
+  @doc ~S"""
+  API testing helper associated with this page. This method returns the same instance as
+  `PlaywrightEx.BrowserContext.request/1` on the page's context. See `PlaywrightEx.BrowserContext.request/1` for more details.
+  """
+  @spec request(t()) :: PlaywrightEx.APIRequestContext.t()
+  def request(page) do
+    PlaywrightEx.Client.Page.request(page)
   end
 
   @screenshot_options {:object,

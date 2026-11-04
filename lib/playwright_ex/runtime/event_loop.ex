@@ -112,10 +112,11 @@ defmodule PlaywrightEx.Runtime.EventLoop do
     end
   end
 
-  # Channel owners carry the loop; value objects (Locator, FrameLocator) reach it through their frame/page.
+  # Channel owners carry the loop; value objects (Locator, FrameLocator, APIResponse) reach it through their frame/page/context.
   defp find(%{loop: %__MODULE__{} = loop}), do: loop
   defp find(%{_frame: frame}), do: find(frame)
   defp find(%{_page: page}), do: find(page)
+  defp find(%{_request: request}), do: find(request)
   defp find(_), do: nil
 
   def acquire(%__MODULE__{pid: pid} = loop) do

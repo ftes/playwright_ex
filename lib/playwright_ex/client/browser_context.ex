@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Dialog
   alias PlaywrightEx.Client.Errors
@@ -37,10 +38,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(this, :_harRouters, [])
     put(this, :_options, initializer.options)
     put(this, :_timeoutSettings, TimeoutSettings.new())
-    # Debugger.from / Tracing.from / APIRequestContext.from  -- not ported: DummyChannelOwners
+    # Debugger.from / Tracing.from  -- not ported: DummyChannelOwners
     put(this, :debugger, initializer.debugger)
     put(this, :tracing, initializer.tracing)
-    put(this, :request, initializer.requestContext)
+    put(this, :request, APIRequestContext.from(initializer.requestContext))
     put(get(this, :request), :_timeoutSettings, get(this, :_timeoutSettings))
     # this.clock = new Clock(this); this.credentials = new Credentials(this);  -- not ported
 
@@ -147,6 +148,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     this
   end
+
+  # readonly properties
+  def request(this), do: get(this, :request)
 
   def _initialize_har_from_options(_this, record_har) do
     if record_har do
@@ -359,7 +363,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
     else
       put(this, :_closeReason, options[:reason])
       put(this, :_closingStatus, "closing")
-      # await this.request.dispose(options);  -- not ported: APIRequestContext
+      APIRequestContext.dispose(get(this, :request), options)
       # await this._instrumentation.runBeforeCloseBrowserContext(this);  -- not ported: instrumentation
       # const harError = await this.tracing._exportAllHars().catch(e => e);  -- not ported: Tracing
       channel_call(this, :close, options, TimeoutSettings.k_no_timeout())

@@ -117,6 +117,7 @@ defmodule PlaywrightEx.Client.Page do
   # readonly properties
   def keyboard(this), do: get(this, :keyboard)
   def mouse(this), do: get(this, :mouse)
+  def request(this), do: get(this, :request)
   def touchscreen(this), do: get(this, :touchscreen)
 
   defp _on_frame_attached(this, frame) do

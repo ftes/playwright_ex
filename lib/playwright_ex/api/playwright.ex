@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Playwright do
   })();
   ```
 
-  Not ported yet: `errors`, `request`, `selectors`.
+  Not ported yet: `errors`, `selectors`.
   """
 
   @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
@@ -65,6 +65,15 @@ defmodule PlaywrightEx.Playwright do
   @spec firefox(t()) :: PlaywrightEx.BrowserType.t()
   def firefox(playwright) do
     PlaywrightEx.Client.Playwright.firefox(playwright)
+  end
+
+  @doc since: "1.16"
+  @doc ~S"""
+  Exposes API that can be used for the Web API testing.
+  """
+  @spec request(t()) :: PlaywrightEx.APIRequest.t()
+  def request(playwright) do
+    PlaywrightEx.Client.Playwright.request(playwright)
   end
 
   @doc since: "1.8"

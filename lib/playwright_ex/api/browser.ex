@@ -488,7 +488,7 @@ defmodule PlaywrightEx.Browser do
     * `:username`
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
-    * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+    * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
@@ -943,7 +943,7 @@ defmodule PlaywrightEx.Browser do
     * `:username`
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
-    * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+    * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).

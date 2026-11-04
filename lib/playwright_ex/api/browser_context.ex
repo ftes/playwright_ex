@@ -164,7 +164,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   Emitted when new service worker is created in the context.
 
-  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`.
+  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `route`, `routeFromHAR`, `routeWebSocket`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -586,6 +586,15 @@ defmodule PlaywrightEx.BrowserContext do
   @spec pages(t()) :: [PlaywrightEx.Page.t()]
   def pages(browser_context) do
     PlaywrightEx.Client.BrowserContext.pages(browser_context)
+  end
+
+  @doc since: "1.16"
+  @doc ~S"""
+  API testing helper associated with this context. Requests made with this API will use context cookies.
+  """
+  @spec request(t()) :: PlaywrightEx.APIRequestContext.t()
+  def request(browser_context) do
+    PlaywrightEx.Client.BrowserContext.request(browser_context)
   end
 
   @doc since: "1.11"

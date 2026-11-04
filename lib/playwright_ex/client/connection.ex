@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Client.Connection do
 
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
@@ -83,7 +84,7 @@ defmodule PlaywrightEx.Client.Connection do
         "Android" => dummy,
         "AndroidDevice" => dummy,
         "AndroidSocket" => dummy,
-        "APIRequestContext" => dummy,
+        "APIRequestContext" => &APIRequestContext.new/4,
         "Artifact" => dummy,
         "BindingCall" => dummy,
         "Browser" => &Browser.new/4,

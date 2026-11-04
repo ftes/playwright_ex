@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Playwright do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.APIRequest
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
@@ -10,7 +11,7 @@ defmodule PlaywrightEx.Client.Playwright do
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
-    # this.request = new APIRequest(this);  -- not ported: fetch
+    put(this, :request, APIRequest.new(this))
     put(this, :chromium, BrowserType.from(initializer.chromium))
     put(get(this, :chromium), :_playwright, this)
     put(this, :firefox, BrowserType.from(initializer.firefox))
@@ -34,6 +35,7 @@ defmodule PlaywrightEx.Client.Playwright do
   def firefox(this), do: get(this, :firefox)
   def webkit(this), do: get(this, :webkit)
   def devices(this), do: get(this, :devices)
+  def request(this), do: get(this, :request)
 
   def from(channel) do
     channel
