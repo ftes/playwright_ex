@@ -30,10 +30,10 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context2)
   end
 
-  @tag skip: "not ported: Locator"
+  @tag skip: "not ported: Locator.evaluate (ElementHandle)"
   test "should be able to click across browser contexts"
 
-  @tag skip: "not ported: Locator"
+  @tag skip: "not ported: expect"
   test "should be able to hover across browser contexts in parallel"
 
   @tag skip: "not ported: waitForEvent"
@@ -142,8 +142,33 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @tag skip: "not ported: waitForEvent"
   test "should pass self to close event"
 
-  @tag skip: "not ported: Locator"
-  test "should not report frameless pages on error"
+  test "should not report frameless pages on error", %{browser: browser, server: server} do
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      Plug.Conn.send_resp(conn, 200, ~s(<a href="#{server.empty_page}" target="_blank">Click me</a>))
+    end)
+
+    test = self()
+    BrowserContext.on(context, :page, fn p -> send(test, {:popup, p}) end)
+    Page.goto!(page, server.empty_page)
+    Page.click!(page, ~s("Click me"))
+    BrowserContext.close!(context)
+
+    popup =
+      receive do
+        {:popup, p} -> p
+      after
+        0 -> nil
+      end
+
+    if popup do
+      # This races on Firefox :/
+      assert Page.is_closed(popup)
+      assert Page.main_frame(popup)
+    end
+  end
 
   test "should return all of the pages", %{browser: browser} do
     context = Browser.new_context!(browser)
@@ -198,10 +223,10 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert Page.evaluate!(page, "async () => 2") == 2
   end
 
-  @tag skip: "not ported: Locator, expect"
+  @tag skip: "not ported: expect"
   test "setContent should work after disabling javascript"
 
-  @tag skip: "not ported: Locator, expect"
+  @tag skip: "not ported: Locator.evaluate (ElementHandle)"
   test "should retry click after disabling javascript"
 
   test "should work with offline option", %{browser: browser, server: server, browser_name: browser_name} do
