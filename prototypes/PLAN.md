@@ -48,6 +48,14 @@ locks and a concurrency review of every ported line, so it is not a goal. Nested
 `connect()` connections share the driver's baton. Object state lives in ETS; reads are
 lock-free. A callback blocking on non-Playwright work stalls the driver, as in JS.
 
+Proven in `js_spike/` (`lib/runtime/baton.ex`, ~300 lines): a scheduler process owns the
+token and never runs client code; settled promises resume before new macrotasks (API
+calls, protocol messages, timers), like JS microtasks; listeners and handlers get the
+token by handoff; dead holders are reclaimed. 1000 concurrent evaluates: no deadlock,
+3.5x faster than sequential on one page, ~30 µs of baton time per call (a third of it
+is stack capture, worth optimizing). Each connection has its own ETS table on the
+shared token, since guids repeat across connections.
+
 ## Infrastructure (not generated from api.json)
 
 - Protocol types/params/events/initializers generated from `protocol.yml`, committed.
@@ -58,6 +66,11 @@ lock-free. A callback blocking on non-Playwright work stalls the driver, as in J
   (SHASUMS256) for the host platform, then installs browsers with that Node. No Node
   needed beforehand. Lazy install on first start (like `esbuild`) and
   `mix playwright_ex.install` for CI/Docker; `executable:` override for npm-managed setups.
+  Proven in `driver_install/`: ~56 MB download, 4-7 s, 130 MB cache per pin, Node 24.22.1
+  (Python's pin), `.tar.gz`/`.zip` like Python (OTP has no xz), committed checksums for six
+  platforms via a `mix driver.checksums` roll step. Alpine/musl: Node from the
+  unofficial-builds musl tarballs (checksummed the same way), or `node:` pointing at
+  `apk add nodejs`. Local browsers still need a glibc image; remote works on musl.
 - No client-side version check: the pinned driver always matches; remote servers reject
   mismatches from the `Playwright/<pin>` user agent.
 - Remote: `BrowserType.connect` as in JS, through the local driver's LocalUtils
@@ -88,17 +101,26 @@ lock-free. A callback blocking on non-Playwright work stalls the driver, as in J
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
   inspector; Electron/Android optional.
 
-## Spikes (before porting)
+## Spike results
 
-1. Baton runtime in place of the loop process; upstream send-then-register restored.
-2. Ordering: console listener has run before `evaluate` returns; awaiting listener.
-3. Routing: page + context handlers, `fallback`, `times`, `unroute` with wait.
-4. Re-entrancy: `exposeBinding` handler calling back into Playwright mid-call.
-5. Dialogs: auto-dismiss without listener, accept with listener.
-6. Remote: `connect` to `run-server` through LocalUtils, nested connection on one baton,
-   download `save_as` and large `set_input_files` over the remote stream.
-7. LocalUtils `asLocatorDescription` in matcher errors; `globToRegex` for routes.
-8. Driver install without Node: download, verify, run, install chromium.
+All passed in `js_spike/` (22 tests) and `driver_install/` (3 tests, no Node on PATH):
+
+1. Baton runtime; upstream send-then-register restored, `waitForLoadState` atomic.
+2. Ordering: console listener ran before `evaluate` returned (300/300); awaiting listeners.
+3. Routing: page/context handlers, `fallback`, `times`, `unrouteAll` with wait, globs via
+   `LocalUtils.globToRegex` cached per handler.
+4. Re-entrancy: `exposeFunction`/`exposeBinding` handlers calling Playwright mid-call,
+   including nested bindings.
+5. Dialogs: auto-dismiss without listener, accept with listener, dismiss after `off`.
+6. Remote: `connect` to `run-server` via LocalUtils, nested connection on one baton,
+   1.3 MB buffer and 3 MB path uploads, download `save_as` over streams.
+7. Matcher failure renders `get_by_role("button", name="Submit")` via the driver.
+8. Driver install, verify, launch chromium without Node.
+
+Follow-ups for the real port: two holders can briefly coexist if a handoff parent is
+killed; heap `update` with a function that awaits loses writes (compute first); promise
+reactions run synchronously instead of as microtasks; JsonPipe close is fire-and-forget;
+`run-server` ignores SIGTERM (tests must `kill -9`).
 
 ## Then
 
