@@ -277,9 +277,35 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Route.fulfill!(route)
   end
 
-  @tag skip: "not ported: fetch"
-  test "should not continue requests in flight (page)"
+  test "should not continue requests in flight (page)", %{page: page, server: server} do
+    me = self()
+    Page.goto!(page, server.empty_page)
 
-  @tag skip: "not ported: fetch"
-  test "should not continue requests in flight (context)"
+    Page.route!(page, "**/*", fn route ->
+      send(me, :route_promise)
+      Page.wait_for_timeout!(page, 3000)
+      response = Route.fetch!(route)
+      Route.fulfill!(route, response: response)
+    end)
+
+    Task.start(fn -> Page.evaluate(page, "() => fetch('/')") end)
+    assert_receive :route_promise, 5000
+    Page.unroute_all!(page, behavior: :wait)
+  end
+
+  test "should not continue requests in flight (context)", %{page: page, context: context, server: server} do
+    me = self()
+    Page.goto!(page, server.empty_page)
+
+    BrowserContext.route!(context, "**/*", fn route ->
+      send(me, :route_promise)
+      Page.wait_for_timeout!(page, 3000)
+      response = Route.fetch!(route)
+      Route.fulfill!(route, response: response)
+    end)
+
+    Task.start(fn -> Page.evaluate(page, "() => fetch('/')") end)
+    assert_receive :route_promise, 5000
+    BrowserContext.unroute_all!(context, behavior: :wait)
+  end
 end

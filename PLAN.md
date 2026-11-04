@@ -224,7 +224,10 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `Page.screenshot`, the Locator `_withElement` methods, with mirrored elementhandle-*,
    jshandle-*, page-wait-for-*, page-set-input-files, page-select-option specs. Done: fetch
    (`APIRequest`, `APIRequestContext`, `APIResponse`; `Playwright`/`BrowserContext`/`Page.request`)
-   with mirrored browsercontext-fetch*, global-fetch* specs. Not yet: routing,
+   with mirrored browsercontext-fetch*, global-fetch* specs. Done: routing (`Route` incl. `fetch`,
+   `RouteHandler`, `WebSocket`, `WebSocketRoute`, `HarRouter`, `route`/`routeFromHAR`/
+   `routeWebSocket`, `recordHar`) with mirrored page-route, page-request-*, browsercontext-route,
+   network, har and web-socket specs. Not yet: routing,
    HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
    above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
    `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their

@@ -107,3 +107,20 @@ Review these first: they shape the public API.
   `data` encodes as the string "null".
 - **Tests**: `request` fixture (`@tag :request`); Plug lowercases response header names
   (commented); upstream's Node socket tricks are private `:gen_tcp` helpers per test module.
+
+## 2026-11-04: Routing, HAR, WebSocketRoute (workstream F)
+
+- **Route handlers take 1 or 2 args** (`fn route ->` / `fn route, request ->`), as Python;
+  an ApiRules rule types the facade argument as either.
+- **`string|Buffer` is `binary() | {:binary, binary()}`** in generated specs (fulfill body,
+  `post_data`, WebSocket messages, fetch `data`): PLAN strings-vs-bytes.
+- **Handlers validate globs through the driver** (cached); `LocalUtils.glob_to_regex` takes
+  the baton itself (sync `Page.frame(url:)` needs it).
+- **RouteHandler `_savedZone` drops `:apiName`**, so calls inside a handler aren't named `page.route`.
+- **WebSocketRoute's server side** is the same struct with guid `"server:<guid>"`.
+- **`route`/`startHar` return nil** where upstream returns a Disposable (H ports Disposable;
+  wired at merge where trivial). HarRouter logs at `Logger.debug("pw:api ...")`.
+- **`Isomorphic.MimeType`**: one module (A and F both started it), all functions in upstream order.
+- **Test server**: Bandit with `compress: false` (match Node); Bandit doesn't echo client
+  close codes and sends fewer headers (`har` "should include sizes" stays skipped).
+- `recordHar` now works: closes the "Known gap" above.

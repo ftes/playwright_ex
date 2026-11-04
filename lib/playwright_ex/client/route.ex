@@ -7,6 +7,8 @@ defmodule PlaywrightEx.Client.Route do
   """
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.APIRequestContext
+  alias PlaywrightEx.Client.APIResponse
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
@@ -67,7 +69,16 @@ defmodule PlaywrightEx.Client.Route do
     end)
   end
 
-  # fetch  -- not ported: fetch (APIRequestContext._innerFetch)
+  def fetch(this, options \\ %{}) do
+    options = options || %{}
+
+    _wrap_api_call(this, fn _ ->
+      APIRequestContext._inner_fetch(
+        get(get(this, :_context), :request),
+        Map.merge(%{request: request(this), data: options[:postData]}, options)
+      )
+    end)
+  end
 
   def fulfill(this, options \\ %{}) do
     options = options || %{}
@@ -102,7 +113,26 @@ defmodule PlaywrightEx.Client.Route do
         body
       end
 
-    # if (options.response instanceof APIResponse) { ... }  -- not ported: APIResponse (fetch)
+    {status_option, headers_option, body, fetch_response_uid} =
+      case options[:response] do
+        %APIResponse{} = response ->
+          status_option = if status_option == nil, do: APIResponse.status(response), else: status_option
+          headers_option = if headers_option == nil, do: APIResponse.headers(response), else: headers_option
+
+          cond do
+            body != nil or options[:path] != nil ->
+              {status_option, headers_option, body, fetch_response_uid}
+
+            get(response._request, :_connection) == get(this, :_connection) ->
+              {status_option, headers_option, body, APIResponse._fetch_uid(response)}
+
+            true ->
+              {status_option, headers_option, {:binary, APIResponse.body(response)}, fetch_response_uid}
+          end
+
+        _ ->
+          {status_option, headers_option, body, fetch_response_uid}
+      end
 
     {body, is_base64, length} =
       cond do

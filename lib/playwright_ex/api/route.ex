@@ -7,8 +7,6 @@ defmodule PlaywrightEx.Route do
   allows to handle the route.
 
   Learn more about [networking](https://playwright.dev/docs/network).
-
-  Not ported yet: `fetch`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -230,6 +228,87 @@ defmodule PlaywrightEx.Route do
   def fallback!(route, options \\ []) do
     options = Facade.options!(options, @fallback_options, "route.fallback")
     Facade.async_void!("route.fallback", route, fn -> PlaywrightEx.Client.Route.fallback(route, options) end)
+  end
+
+  @fetch_options {:object,
+                  %{
+                    headers: {:headers, nil},
+                    max_redirects: {:maxRedirects, nil},
+                    max_retries: {:maxRetries, nil},
+                    method: {:method, nil},
+                    post_data: {:postData, nil},
+                    timeout: {:timeout, nil},
+                    url: {:url, nil}
+                  }}
+
+  @typedoc "Options of `fetch`, see its docs."
+  @type fetch_options ::
+          [
+            headers: %{optional(String.t()) => String.t()},
+            max_redirects: integer(),
+            max_retries: integer(),
+            method: String.t(),
+            post_data: String.t() | {:binary, binary()} | term(),
+            timeout: number() | :infinity,
+            url: String.t()
+          ]
+          | %{
+              optional(:headers) => %{optional(String.t()) => String.t()},
+              optional(:max_redirects) => integer(),
+              optional(:max_retries) => integer(),
+              optional(:method) => String.t(),
+              optional(:post_data) => String.t() | {:binary, binary()} | term(),
+              optional(:timeout) => number() | :infinity,
+              optional(:url) => String.t()
+            }
+
+  @doc since: "1.29"
+  @doc ~S"""
+  Performs the request and fetches result without fulfilling it, so that the response
+  could be modified and then fulfilled.
+
+  **Usage**
+
+  ```js
+  await page.route('https://dog.ceo/api/breeds/list/all', async route => {
+    const response = await route.fetch();
+    const json = await response.json();
+    json.message['big_red_dog'] = [];
+    await route.fulfill({ response, json });
+  });
+  ```
+
+  **Details**
+
+  Note that `headers` option will apply to the fetched request as well as any redirects initiated by it. If you want to only apply `headers` to the original request, but not to redirects, look into `PlaywrightEx.Route.continue/2` instead.
+
+  ## Options
+
+  * `:headers` - If set changes the request HTTP headers. Header values will be converted to a string.
+  * `:max_redirects` - *Since 1.31.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+    Defaults to `20`. Pass `0` to not follow redirects.
+  * `:max_retries` - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:method` - If set changes the request method (e.g. GET or POST).
+  * `:post_data` - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+    and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
+    set to `application/octet-stream` if not explicitly set.
+  * `:timeout` - *Since 1.33.* Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:url` - If set changes the request URL. New URL must have same protocol as original one.
+  """
+  @spec fetch(t(), fetch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  def fetch(route, options \\ []) do
+    options = Facade.options!(options, @fetch_options, "route.fetch")
+    Facade.async("route.fetch", route, fn -> PlaywrightEx.Client.Route.fetch(route, options) end)
+  end
+
+  @doc since: "1.29"
+  @doc "Like `fetch/2`, but returns the value and raises on error."
+  @spec fetch!(t(), fetch_options()) :: PlaywrightEx.APIResponse.t()
+  def fetch!(route, options \\ []) do
+    options = Facade.options!(options, @fetch_options, "route.fetch")
+    Facade.async!("route.fetch", route, fn -> PlaywrightEx.Client.Route.fetch(route, options) end)
   end
 
   @fulfill_options {:object,

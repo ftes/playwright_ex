@@ -405,7 +405,7 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
     end)
   end
 
-  @tag skip: "not ported: fetch, expect"
+  @tag skip: "not ported: expect"
   test "should fulfill popup main request using alias"
 
   @tag skip: "not ported: URLPattern"

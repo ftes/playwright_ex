@@ -2,7 +2,10 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
   @upstream "tests/page/page-request-fulfill.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
@@ -11,7 +14,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
 
   @moduletag :page
 
-  # rewriteAndroidLoopbackURL  -- not ported: only used by the route.fetch tests
+  # rewriteAndroidLoopbackURL  -- not ported: no Android
 
   test "should work", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
@@ -186,17 +189,60 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Request.headers(intercepted_request)["origin"] == server.prefix
   end
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill with global fetch result"
+  test "should fulfill with global fetch result", %{playwright: playwright, page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      request = APIRequest.new_context!(Playwright.request(playwright))
+      response = APIRequestContext.get!(request, server.prefix <> "/simple.json")
+      Route.fulfill(route, response: response)
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill with fetch result"
+    response = Page.goto!(page, server.empty_page)
+    assert Response.status(response) == 200
+    assert Response.json!(response) == %{"foo" => "bar"}
+  end
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill with fetch result and overrides"
+  test "should fulfill with fetch result", %{page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      response = APIRequestContext.get!(Page.request(page), server.prefix <> "/simple.json")
+      Route.fulfill(route, response: response)
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should fetch original request and fulfill"
+    response = Page.goto!(page, server.empty_page)
+    assert Response.status(response) == 200
+    assert Response.json!(response) == %{"foo" => "bar"}
+  end
+
+  test "should fulfill with fetch result and overrides", %{page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      response = APIRequestContext.get!(Page.request(page), server.prefix <> "/simple.json")
+
+      Route.fulfill(route,
+        response: response,
+        status: 201,
+        headers: %{
+          # Case matters for the tested behavior
+          "Content-Type" => "application/json",
+          "foo" => "bar"
+        }
+      )
+    end)
+
+    response = Page.goto!(page, server.empty_page)
+    assert Response.status(response) == 201
+    assert Response.all_headers!(response)["foo"] == "bar"
+    assert Response.json!(response) == %{"foo" => "bar"}
+  end
+
+  test "should fetch original request and fulfill", %{page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
+      Route.fulfill(route, response: response)
+    end)
+
+    response = Page.goto!(page, server.prefix <> "/title.html")
+    assert Response.status(response) == 200
+    assert Page.title!(page) == "Woof-Woof"
+  end
 
   test "should fulfill with multiple set-cookie", %{page: page, server: server} do
     cookies = ["a=b", "c=d"]
@@ -216,8 +262,28 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Response.header_value!(response, "X-Header-2") == "v2"
   end
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill with fetch response that has multiple set-cookie"
+  test "should fulfill with fetch response that has multiple set-cookie", %{
+    playwright: playwright,
+    page: page,
+    server: server
+  } do
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> Plug.Conn.prepend_resp_headers([{"set-cookie", "a=b"}, {"set-cookie", "c=d"}])
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, "")
+    end)
+
+    Page.route!(page, "**/empty.html", fn route ->
+      request = APIRequest.new_context!(Playwright.request(playwright))
+      response = APIRequestContext.fetch!(request, Route.request(route))
+      Route.fulfill(route, response: response)
+    end)
+
+    Page.goto!(page, server.empty_page)
+    cookie = Page.evaluate!(page, "() => document.cookie")
+    assert cookie |> String.split(";") |> Enum.map(&String.trim/1) |> Enum.sort() == ["a=b", "c=d"]
+  end
 
   test "headerValue should return set-cookie from intercepted response", %{
     page: page,
@@ -256,7 +322,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert body == ~s({"bar":"baz"})
   end
 
-  @tag skip: "not ported: fetch, expect"
+  @tag skip: "not ported: expect"
   test "should fulfill with gzip and readback"
 
   test "should not go to the network for fulfilled requests body", %{page: page, server: server} do

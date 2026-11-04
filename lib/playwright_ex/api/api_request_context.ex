@@ -21,8 +21,6 @@ defmodule PlaywrightEx.APIRequestContext do
   If you want API requests that do **not** share cookies with the browser, create an
   isolated context via `PlaywrightEx.APIRequest.new_context/2`. Such [`APIRequestContext`](`PlaywrightEx.APIRequestContext`)
   object will have its own isolated cookie storage.
-
-  Not ported yet: `tracing`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1231,5 +1229,14 @@ defmodule PlaywrightEx.APIRequestContext do
     Facade.async!("apiRequestContext.storageState", api_request_context, fn ->
       PlaywrightEx.Client.APIRequestContext.storage_state(api_request_context, options)
     end)
+  end
+
+  @doc since: "1.60"
+  @doc ~S"""
+  Tracing recorder for requests made through this API request context.
+  """
+  @spec tracing(t()) :: PlaywrightEx.Tracing.t()
+  def tracing(api_request_context) do
+    PlaywrightEx.Client.APIRequestContext.tracing(api_request_context)
   end
 end

@@ -2,55 +2,227 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
   @upstream "tests/page/page-request-intercept.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.APIRequestContext
+  alias PlaywrightEx.APIResponse
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
+  alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
 
   @moduletag :page
 
-  # rewriteAndroidLoopbackURL  -- not ported: only used by the route.fetch tests
+  # rewriteAndroidLoopbackURL  -- not ported: no Android
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill intercepted response"
+  test "should fulfill intercepted response", %{page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill response with empty body"
+      Route.fulfill!(route,
+        response: response,
+        status: 201,
+        headers: %{"foo" => "bar"},
+        content_type: "text/plain",
+        body: "Yo, page!"
+      )
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should override with defaults when intercepted response not provided"
+    response = Page.goto!(page, server.prefix <> "/empty.html")
+    assert Response.status(response) == 201
+    assert Response.headers(response)["foo"] == "bar"
+    assert Response.headers(response)["content-type"] == "text/plain"
+    assert Page.evaluate!(page, "() => document.body.textContent") == "Yo, page!"
+  end
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill with any response"
+  test "should fulfill response with empty body", %{page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
+      Route.fulfill!(route, response: response, headers: %{"content-length" => "0"}, status: 201, body: "")
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should support fulfill after intercept"
+    response = Page.goto!(page, server.prefix <> "/title.html")
+    assert Response.status(response) == 201
+    assert Response.text!(response) == ""
+  end
 
-  @tag skip: "not ported: fetch"
-  test "should give access to the intercepted response"
+  test "should override with defaults when intercepted response not provided", %{
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn |> Plug.Conn.put_resp_header("foo", "bar") |> Plug.Conn.send_resp(200, "my content")
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should give access to the intercepted response body"
+    Page.route!(page, "**/*", fn route ->
+      APIRequestContext.fetch!(Page.request(page), Route.request(route))
+      Route.fulfill!(route, status: 201)
+    end)
+
+    response = Page.goto!(page, server.empty_page)
+    assert Response.status(response) == 201
+    assert Response.text!(response) == ""
+
+    if browser_name == "webkit",
+      do: assert(Response.headers(response) == %{"content-type" => "text/plain"}),
+      else: assert(Response.headers(response) == %{})
+  end
+
+  test "should fulfill with any response", %{page: page, server: server} do
+    TestServer.set_route(server, "/sample", fn conn ->
+      conn |> Plug.Conn.put_resp_header("foo", "bar") |> Plug.Conn.send_resp(200, "Woo-hoo")
+    end)
+
+    sample_response = APIRequestContext.get!(Page.request(page), "#{server.prefix}/sample")
+
+    Page.route!(page, "**/*", fn route ->
+      Route.fulfill!(route, response: sample_response, status: 201, content_type: "text/plain")
+    end)
+
+    response = Page.goto!(page, server.empty_page)
+    assert Response.status(response) == 201
+    assert Response.text!(response) == "Woo-hoo"
+    assert Response.headers(response)["foo"] == "bar"
+  end
+
+  test "should support fulfill after intercept", %{page: page, server: server, asset: asset} do
+    request_promise = TestServer.wait_for_request(server, "/title.html")
+
+    Page.route!(page, "**", fn route ->
+      response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
+      Route.fulfill!(route, response: response)
+    end)
+
+    response = Page.goto!(page, server.prefix <> "/title.html")
+    request = Task.await(request_promise)
+    assert request.request_path == "/title.html"
+    original = File.read!(asset.("title.html"))
+    assert Response.text!(response) == original
+  end
+
+  test "should give access to the intercepted response", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+
+    me = self()
+    Page.route!(page, "**/title.html", fn route -> send(me, {:route, route}) end)
+
+    eval_promise = Task.async(fn -> Page.evaluate!(page, "url => fetch(url)", server.prefix <> "/title.html") end)
+
+    assert_receive {:route, route}, 5000
+    response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
+
+    assert APIResponse.status(response) == 200
+    assert APIResponse.status_text(response) == "OK"
+    assert APIResponse.ok(response)
+    assert String.ends_with?(APIResponse.url(response), "/title.html")
+    assert APIResponse.headers(response)["content-type"] == "text/html; charset=utf-8"
+
+    # Plug sends lowercase header names (upstream: `Content-Type`).
+    assert Enum.filter(APIResponse.headers_array(response), &(String.downcase(&1.name) == "content-type")) == [
+             %{name: "content-type", value: "text/html; charset=utf-8"}
+           ]
+
+    Route.fulfill!(route, response: response)
+    Task.await(eval_promise)
+  end
+
+  test "should give access to the intercepted response body", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+
+    me = self()
+    Page.route!(page, "**/simple.json", fn route -> send(me, {:route, route}) end)
+
+    eval_promise = Task.async(fn -> Page.evaluate(page, "url => fetch(url)", server.prefix <> "/simple.json") end)
+
+    assert_receive {:route, route}, 5000
+    response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
+
+    assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
+
+    Route.fulfill!(route, response: response)
+    Task.await(eval_promise)
+  end
 
   # it.fixme(browserName !== 'firefox')
   @tag skip: "upstream fixme"
   test "should intercept multipart/form-data request body"
 
-  @tag skip: "not ported: fetch"
-  test "should fulfill intercepted response using alias"
+  test "should fulfill intercepted response using alias", %{page: page, server: server} do
+    Page.route!(page, "**/*", fn route ->
+      response = Route.fetch!(route)
+      Route.fulfill!(route, response: response)
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should support timeout option in route.fetch"
+    response = Page.goto!(page, server.prefix <> "/empty.html")
+    assert Response.status(response) == 200
+    assert Response.headers(response)["content-type"] =~ "text/html"
+  end
 
-  @tag skip: "not ported: fetch"
-  test "should not follow redirects when maxRedirects is set to 0 in route.fetch"
+  test "should support timeout option in route.fetch", %{page: page, server: server} do
+    TestServer.set_route(server, "/slow", fn conn ->
+      conn =
+        conn
+        |> Plug.Conn.put_resp_header("content-length", "4096")
+        |> Plug.Conn.put_resp_header("content-type", "text/html")
+        |> Plug.Conn.send_chunked(200)
 
-  @tag skip: "not ported: fetch"
-  test "should intercept with url override"
+      # No body: the response never ends.
+      Process.sleep(:infinity)
+      conn
+    end)
 
-  @tag skip: "not ported: fetch"
-  test "should intercept with post data override"
+    me = self()
+
+    Page.route!(page, "**/*", fn route ->
+      {:error, error} = Route.fetch(route, timeout: 1000)
+      send(me, {:fetch_error, error})
+    end)
+
+    {:error, error} = Page.goto(page, server.prefix <> "/slow", timeout: 2000)
+    assert Exception.message(error) =~ "Timeout 2000ms exceeded"
+    assert_receive {:fetch_error, fetch_error}, 5000
+    assert Exception.message(fetch_error) =~ "route.fetch: Timeout 1000ms exceeded"
+  end
+
+  test "should not follow redirects when maxRedirects is set to 0 in route.fetch", %{page: page, server: server} do
+    TestServer.set_redirect(server, "/foo", "/empty.html")
+    me = self()
+
+    Page.route!(page, "**/*", fn route ->
+      response = Route.fetch!(route, max_redirects: 0)
+      send(me, {:fetched, APIResponse.headers(response)["location"], APIResponse.status(response)})
+      Route.fulfill!(route, body: "hello")
+    end)
+
+    Page.goto!(page, server.prefix <> "/foo")
+    assert_received {:fetched, "/empty.html", 302}
+    assert Page.content!(page) =~ "hello"
+  end
+
+  test "should intercept with url override", %{page: page, server: server} do
+    Page.route!(page, "**/*.html", fn route ->
+      response = Route.fetch!(route, url: server.prefix <> "/one-style.html")
+      Route.fulfill!(route, response: response)
+    end)
+
+    response = Page.goto!(page, server.prefix <> "/empty.html")
+    assert Response.status(response) == 200
+    assert Response.body!(response) =~ "one-style.css"
+  end
+
+  test "should intercept with post data override", %{page: page, server: server} do
+    request_promise = TestServer.wait_for_request(server, "/empty.html")
+
+    Page.route!(page, "**/*.html", fn route ->
+      response = Route.fetch!(route, post_data: %{"foo" => "bar"})
+      Route.fulfill!(route, response: response)
+    end)
+
+    Page.goto!(page, server.prefix <> "/empty.html")
+    request = Task.await(request_promise)
+    assert request.assigns.post_body == JSON.encode!(%{"foo" => "bar"})
+  end
 
   test "request.postData is not null when fetching FormData with a Blob", %{
     page: page,

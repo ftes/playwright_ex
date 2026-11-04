@@ -18,9 +18,13 @@ defmodule PlaywrightEx.Library.HarTest do
   @upstream "tests/library/har.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
+  alias PlaywrightEx.APIResponse
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
@@ -743,8 +747,63 @@ defmodule PlaywrightEx.Library.HarTest do
     assert security_details == %{}
   end
 
-  @tag skip: "not ported: fetch"
-  test "should have security details"
+  test "should have security details", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    https_server: https_server,
+    browser_name: browser_name
+  } do
+    # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl');
+    # it.skip(isFrozenWebkit);  -- not ported: no frozen WebKit
+    if !(browser_name == "webkit" and match?({:win32, _}, :os.type())) do
+      %{page: page, context: context} = session = page_with_har(context_factory, output_path)
+      api_har_path = output_path.("api.har")
+      Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), api_har_path)
+      Page.goto!(page, https_server.empty_page)
+      APIRequestContext.get!(Page.request(page), https_server.empty_page)
+      Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+      log = get_log(session)
+      assert length(log["entries"]) == 1
+
+      %{"serverIPAddress" => server_ip_address, "_serverPort" => port, "_securityDetails" => security_details} =
+        hd(log["entries"])
+
+      assert server_ip_address =~ ~r/^127\.0\.0\.1|\[::1\]/
+      assert port == https_server.port
+
+      if browser_name == "webkit",
+        do:
+          assert(
+            security_details == %{
+              "protocol" => "TLS 1.3",
+              "subjectName" => "playwright-test",
+              "validFrom" => 1_691_708_270,
+              "validTo" => 2_007_068_270
+            }
+          ),
+        else:
+          assert(
+            security_details == %{
+              "issuer" => "playwright-test",
+              "protocol" => "TLS 1.3",
+              "subjectName" => "playwright-test",
+              "validFrom" => 1_691_708_270,
+              "validTo" => 2_007_068_270
+            }
+          )
+
+      api_log = read_log(api_har_path)
+      assert length(api_log["entries"]) == 1
+
+      assert hd(api_log["entries"])["_securityDetails"] == %{
+               "issuer" => "playwright-test",
+               "protocol" => "TLSv1.3",
+               "subjectName" => "playwright-test",
+               "validFrom" => 1_691_708_270,
+               "validTo" => 2_007_068_270
+             }
+    end
+  end
 
   test "should have connection details for redirects", %{
     context_factory: context_factory,
@@ -891,17 +950,88 @@ defmodule PlaywrightEx.Library.HarTest do
     assert page_entry["title"] == "One"
   end
 
-  @tag skip: "not ported: fetch"
-  test "should exclude API request"
+  test "should exclude API request", %{context_factory: context_factory, output_path: output_path, server: server} do
+    %{page: page} = session = page_with_har(context_factory, output_path)
+    Page.goto!(page, server.empty_page)
+    APIRequestContext.get!(Page.request(page), server.prefix <> "/simple.json")
+    log = get_log(session)
+    assert Enum.map(log["entries"], & &1["request"]["url"]) == [server.empty_page]
+  end
 
-  @tag skip: "not ported: fetch"
-  test "should correctly record API request cookies with equals sign in value"
+  test "should correctly record API request cookies with equals sign in value", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    context = context_factory.([])
+    har_path = output_path.("request.har")
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+    url = server.prefix <> "/simple.json"
+    APIRequestContext.get!(BrowserContext.request(context), url, headers: %{"cookie" => "token=abc=xyz; other=val"})
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    BrowserContext.close!(context)
+    log = read_log(har_path)
 
-  @tag skip: "not ported: fetch"
-  test "should respect minimal mode for API Requests"
+    assert hd(log["entries"])["request"]["cookies"] == [
+             %{"name" => "token", "value" => "abc=xyz"},
+             %{"name" => "other", "value" => "val"}
+           ]
+  end
 
-  @tag skip: "not ported: fetch"
-  test "should include redirects from API request"
+  test "should respect minimal mode for API Requests", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    context = context_factory.([])
+    har_path = output_path.("request.har")
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path, mode: :minimal)
+    url = server.prefix <> "/simple.json"
+
+    APIRequestContext.post!(BrowserContext.request(context), url,
+      headers: %{"cookie" => "a=b; c=d"},
+      data: %{foo: "bar"}
+    )
+
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    BrowserContext.close!(context)
+    %{"entries" => entries} = read_log(har_path)
+    assert [entry] = entries
+    assert entry["timings"] == %{"receive" => -1, "send" => -1, "wait" => -1}
+    refute Map.has_key?(entry, "serverIPAddress")
+    refute Map.has_key?(entry, "_serverPort")
+    assert entry["request"]["cookies"] == []
+    assert entry["request"]["bodySize"] == -1
+    assert entry["response"]["bodySize"] == -1
+  end
+
+  test "should include redirects from API request", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    TestServer.set_redirect(server, "/redirect-me", "/simple.json")
+    context = context_factory.([])
+    har_path = output_path.("request.har")
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+
+    APIRequestContext.post!(BrowserContext.request(context), server.prefix <> "/redirect-me",
+      headers: %{"cookie" => "a=b; c=d"},
+      data: %{foo: "bar"}
+    )
+
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    BrowserContext.close!(context)
+    log = read_log(har_path)
+    assert length(log["entries"]) == 2
+    [redirect, json] = log["entries"]
+    assert redirect["request"]["url"] == server.prefix <> "/redirect-me"
+    assert json["request"]["url"] == server.prefix <> "/simple.json"
+    assert redirect["response"]["bodySize"] == -1
+    assert redirect["response"]["content"]["size"] == -1
+    assert redirect["timings"] != nil
+    assert json["timings"] != nil
+  end
 
   test "should not hang on resources served from cache", %{
     context_factory: context_factory,
@@ -988,8 +1118,47 @@ defmodule PlaywrightEx.Library.HarTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: fetch"
-  test "should support HAR larger than 512MB"
+  # it.slow()
+  @tag timeout: 300_000
+  test "should support HAR larger than 512MB", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server,
+    browser_name: browser_name
+  } do
+    # it.skip(browserName !== 'chromium', 'serializer is browser-agnostic; one browser is enough');
+    if browser_name == "chromium" do
+      # annotation: https://github.com/microsoft/playwright/issues/36707
+      har_path = output_path.("test.har")
+      context = context_factory.([])
+      Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+
+      # 30 x 20MB textual responses push the HAR JSON past V8's ~512MB max
+      # string length. Each body still fits in a single string; only the
+      # aggregate would overflow the previous tokens.join('').
+      body = String.duplicate("a", 20 * 1024 * 1024)
+
+      TestServer.set_route(server, "/large", fn conn ->
+        conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(200, body)
+      end)
+
+      for _ <- 1..30, do: APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/large")
+      Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+      BrowserContext.close!(context)
+
+      %File.Stat{size: size} = File.stat!(har_path)
+      assert size > 512 * 1024 * 1024
+
+      # Reading the whole file as a string would re-hit V8's limit, so
+      # sample the head and tail to verify structural sanity.
+      {:ok, fd} = :file.open(har_path, [:read, :binary, :raw])
+      {:ok, head} = :file.pread(fd, 0, 64)
+      {:ok, tail} = :file.pread(fd, size - 64, 64)
+      :ok = :file.close(fd)
+      assert head =~ ~r/^\{\s*"log"\s*:\s*\{/
+      assert tail =~ ~r/\}\s*\}\s*$/
+    end
+  end
 
   test "should record resource type", %{
     context_factory: context_factory,
@@ -1084,8 +1253,57 @@ defmodule PlaywrightEx.Library.HarTest do
       assert hd(log["entries"])["request"]["bodySize"] == -1
     end
 
-    @tag skip: "not ported: fetch"
-    test "should record a HAR for a context APIRequestContext"
+    test "should record a HAR for a context APIRequestContext", %{
+      context_factory: context_factory,
+      output_path: output_path,
+      server: server
+    } do
+      context = context_factory.([])
+      har_path = output_path.("request.har")
+      Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.empty_page)
+      url = server.prefix <> "/simple.json"
+
+      response =
+        APIRequestContext.post!(BrowserContext.request(context), url,
+          headers: %{"cookie" => "a=b; c=d"},
+          data: %{foo: "bar"}
+        )
+
+      response_body = APIResponse.body!(response)
+      Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+      BrowserContext.close!(context)
+
+      log = read_log(har_path)
+      assert length(log["entries"]) == 1
+      entry = hd(log["entries"])
+      assert entry["request"]["url"] == url
+      assert entry["request"]["method"] == "POST"
+      assert entry["request"]["httpVersion"] == "HTTP/1.1"
+      assert entry["request"]["cookies"] == [%{"name" => "a", "value" => "b"}, %{"name" => "c", "value" => "d"}]
+      header = fn headers, name -> Enum.find(headers, &(String.downcase(&1["name"]) == name)) end
+      assert length(entry["request"]["headers"]) > 1
+      assert header.(entry["request"]["headers"], "user-agent")
+      assert header.(entry["request"]["headers"], "content-type")["value"] == "application/json"
+      assert header.(entry["request"]["headers"], "content-length")["value"] == "13"
+      assert entry["request"]["bodySize"] == 13
+
+      assert entry["response"]["status"] == 200
+      assert header.(entry["response"]["headers"], "content-type")["value"] =~ "application/json"
+      assert entry["response"]["content"]["size"] == 15
+      assert entry["response"]["content"]["text"] == response_body
+      assert entry["response"]["bodySize"] == 15
+
+      assert entry["time"] > 0
+      assert %{"blocked" => -1} = entry["timings"]
+
+      for key <- ~w(connect dns receive send ssl wait),
+          do: assert(is_number(entry["timings"][key]))
+
+      assert entry["serverIPAddress"] != nil
+      assert entry["_serverPort"] == server.port
+    end
 
     test "should include pages", %{context_factory: context_factory, output_path: output_path, server: server} do
       context = context_factory.([])
@@ -1106,14 +1324,72 @@ defmodule PlaywrightEx.Library.HarTest do
       assert Enum.at(log["pages"], 1)["title"] == ""
     end
 
-    @tag skip: "not ported: fetch"
-    test "should record a zipped HAR for APIRequestContext"
+    test "should record a zipped HAR for APIRequestContext", %{
+      playwright: playwright,
+      output_path: output_path,
+      server: server
+    } do
+      request = APIRequest.new_context!(Playwright.request(playwright))
+      har_path = output_path.("tracing.har.zip")
+      Tracing.start_har!(APIRequestContext.tracing(request), har_path, content: :attach)
+      APIRequestContext.get!(request, server.prefix <> "/simple.json")
+      Tracing.stop_har!(APIRequestContext.tracing(request))
+      APIRequestContext.dispose!(request)
 
-    @tag skip: "not ported: fetch"
-    test "should record correct cookie expires for APIRequestContext"
+      resources = parse_har(har_path)
+      log = resources |> Map.fetch!("har.har") |> JSON.decode!() |> Map.fetch!("log")
+      assert Enum.any?(log["entries"], &(&1["request"]["url"] == server.prefix <> "/simple.json"))
+    end
 
-    @tag skip: "not ported: fetch"
-    test "should record mixed-case request content-type for APIRequestContext"
+    test "should record correct cookie expires for APIRequestContext", %{
+      playwright: playwright,
+      output_path: output_path,
+      server: server
+    } do
+      TestServer.set_route(server, "/set-cookie", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("set-cookie", "name=value; Expires=Tue, 01 Jan 2030 00:00:00 GMT")
+        |> Plug.Conn.send_resp(200, "hello")
+      end)
+
+      request = APIRequest.new_context!(Playwright.request(playwright))
+      har_path = output_path.("api.har.zip")
+      Tracing.start_har!(APIRequestContext.tracing(request), har_path, content: :attach)
+      APIRequestContext.get!(request, server.prefix <> "/set-cookie")
+      Tracing.stop_har!(APIRequestContext.tracing(request))
+      APIRequestContext.dispose!(request)
+
+      resources = parse_har(har_path)
+      log = resources |> Map.fetch!("har.har") |> JSON.decode!() |> Map.fetch!("log")
+      entry = Enum.find(log["entries"], &String.ends_with?(&1["request"]["url"], "/set-cookie"))
+      cookie = Enum.find(entry["response"]["cookies"], &(&1["name"] == "name"))
+      {:ok, expires, _} = DateTime.from_iso8601(cookie["expires"])
+      assert expires.year == 2030
+    end
+
+    test "should record mixed-case request content-type for APIRequestContext", %{
+      playwright: playwright,
+      output_path: output_path,
+      server: server
+    } do
+      TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, "ok"))
+      request = APIRequest.new_context!(Playwright.request(playwright))
+      har_path = output_path.("api-post.har.zip")
+      Tracing.start_har!(APIRequestContext.tracing(request), har_path, content: :attach)
+
+      APIRequestContext.post!(request, server.prefix <> "/post",
+        headers: %{"Content-Type" => "application/json"},
+        data: {:binary, ~s({"a":1})}
+      )
+
+      Tracing.stop_har!(APIRequestContext.tracing(request))
+      APIRequestContext.dispose!(request)
+
+      resources = parse_har(har_path)
+      log = resources |> Map.fetch!("har.har") |> JSON.decode!() |> Map.fetch!("log")
+      entry = Enum.find(log["entries"], &String.ends_with?(&1["request"]["url"], "/post"))
+      assert entry["request"]["postData"]["mimeType"] == "application/json"
+    end
 
     test "should record a HAR with resourcesDir", %{
       context_factory: context_factory,

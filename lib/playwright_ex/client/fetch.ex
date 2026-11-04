@@ -174,6 +174,9 @@ defmodule PlaywrightEx.Client.APIRequestContext do
     this
   end
 
+  # readonly properties
+  def tracing(this), do: get(this, :tracing)
+
   # [Symbol.asyncDispose]  -- not ported: await using
 
   def dispose(this, options \\ %{}) do
