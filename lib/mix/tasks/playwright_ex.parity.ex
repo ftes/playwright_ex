@@ -35,7 +35,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     upstream = PlaywrightEx.Upstream.ensure!()
 
     problems =
-      check_modules(upstream, Path.wildcard("lib/**/*.ex"), opts[:extra]) ++
+      check_modules(upstream, Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), opts[:extra]) ++
         check_tests(upstream, Path.wildcard("test/**/*_test.exs"))
 
     if problems == [] do

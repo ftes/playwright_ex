@@ -13,6 +13,7 @@ defmodule PlaywrightEx.MixProject do
       version: @version,
       description: @description,
       elixir: "~> 1.18",
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       package: package(),
       name: "PlaywrightEx",
@@ -35,13 +36,18 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:styler, "~> 1.3", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # The port of upstream tests/config/testserver.
+      {:bandit, "~> 1.6", only: :test}
     ]
   end
 
@@ -82,7 +88,7 @@ defmodule PlaywrightEx.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "playwright_ex.install"],
+      setup: ["deps.get", "playwright_ex.install -- chromium"],
       check: [
         "format --check-formatted",
         "credo",

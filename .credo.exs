@@ -1,7 +1,7 @@
 # 1:1 ports keep upstream names (`isConnected` -> `is_connected`) and control flow, so
 # style checks that would reshape them are relaxed for the ported code only.
 ported = [~r"lib/playwright_ex/(client|protocol)/"]
-upstream_shaped = ported ++ [~r"lib/playwright_ex/runtime/", ~r"lib/playwright_ex/driver.ex"]
+upstream_shaped = ported ++ [~r"lib/playwright_ex/runtime/", ~r"lib/playwright_ex/driver.ex", ~r"test/support/test_server.ex"]
 
 %{
   configs: [
