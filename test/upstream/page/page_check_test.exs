@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
   @upstream "tests/page/page-check.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Page
 
   @moduletag :page
@@ -113,11 +114,27 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert Exception.message(error) =~ "Not a checkbox or radio button"
   end
 
-  @tag skip: "not ported: ElementHandle"
-  test "should check the box inside a button"
+  test "should check the box inside a button", %{page: page} do
+    Page.set_content!(page, "<div role='button'><input type='checkbox'></div>")
+    Page.check!(page, "input")
+    assert Page.eval_on_selector!(page, "input", "input => input.checked") == true
+    assert Page.is_checked!(page, "input") == true
+    assert ElementHandle.is_checked!(Page.query_selector!(page, "input")) == true
+  end
 
-  @tag skip: "not ported: ElementHandle"
-  test "should check the label with position"
+  test "should check the label with position", %{page: page, server: server} do
+    Page.set_content!(page, """
+    <input id='checkbox' type='checkbox' style='width: 5px; height: 5px;'>
+    <label for='checkbox'>
+      <a href=#{JSON.encode!(server.empty_page)}>I am a long link that goes away so that nothing good will happen if you click on me</a>
+      Click me
+    </label>
+    """)
+
+    box = ElementHandle.bounding_box!(Page.query_selector!(page, "text=Click me"))
+    Page.check!(page, "text=Click me", position: %{x: box.width - 10, y: 2})
+    assert Page.eval_on_selector!(page, "input", "input => input.checked") == true
+  end
 
   test "trial run should not check", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")

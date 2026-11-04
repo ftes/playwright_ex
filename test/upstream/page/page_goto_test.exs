@@ -665,8 +665,39 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.title!(page) == "Hello"
   end
 
-  @tag skip: "not ported: $"
-  test "should wait for load when iframe attaches and detaches"
+  test "should wait for load when iframe attaches and detaches", %{page: page, server: server} do
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, """
+        <body>
+          <script>
+            const iframe = document.createElement('iframe');
+            iframe.src = './iframe.html';
+            document.body.appendChild(iframe);
+            setTimeout(() => iframe.remove(), 1000);
+          </script>
+        </body>
+      """)
+    end)
+
+    TestServer.set_route(server, "/iframe.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, ~s(<link rel="stylesheet" href="./style2.css">))
+    end)
+
+    # Stall the css so that 'load' does not fire.
+    TestServer.set_route(server, "/style2.css", &hang/1)
+
+    frame_detached = Page.wait_for_event(page, :frame_detached)
+    done = Task.async(fn -> Page.goto!(page, server.empty_page, wait_until: :load) end)
+    # Make sure that iframe is gone.
+    PlaywrightEx.Promise.await!(frame_detached)
+    Task.await(done)
+    assert Page.query_selector!(page, "iframe") == nil
+  end
 
   test "should return url with basic auth info", %{page: page, server: server} do
     url = "http://admin:admin@localhost:#{server.port}/empty.html"

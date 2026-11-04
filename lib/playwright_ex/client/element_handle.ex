@@ -390,7 +390,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
         for {file, writable_stream} <- Enum.zip(files, writable_streams) do
           writable = WritableStream.from(writable_stream)
           # stream.promises.pipeline(fs.createReadStream(file), writable.stream())
-          Enum.into(File.stream!(file, 64 * 1024), WritableStream.stream(writable))
+          _ = Enum.into(File.stream!(file, 64 * 1024), WritableStream.stream(writable))
         end
 
         %{directoryStream: root_dir, streams: if(local_directory, do: nil, else: writable_streams)}

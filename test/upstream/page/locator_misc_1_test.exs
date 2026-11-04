@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  @tag skip: "not ported: Locator.evaluate (ElementHandle), exposeFunction"
+  @tag skip: "not ported: exposeFunction"
   test "should focus and blur a button"
 
   test "focus should respect strictness", %{page: page} do
@@ -95,6 +95,13 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  @tag skip: "not ported: setInputFiles"
-  test "should upload the file"
+  test "should upload the file", %{page: page, server: server, asset: asset} do
+    Page.goto!(page, server.prefix <> "/input/fileupload.html")
+    file_path = Path.relative_to_cwd(asset.("file-to-upload.txt"))
+    input = Page.locator(page, "input[type=file]")
+    Locator.set_input_files!(input, file_path)
+
+    assert Page.evaluate!(page, "e => e.files[0].name", Locator.element_handle!(input)) ==
+             "file-to-upload.txt"
+  end
 end

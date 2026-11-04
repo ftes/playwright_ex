@@ -5,16 +5,23 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Frame
+  alias PlaywrightEx.JSHandle
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Response
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
-  # tests/config/utils.ts verifyViewport
-  defp verify_viewport(page, width, height) do
-    assert Page.viewport_size(page).width == width
-    assert Page.viewport_size(page).height == height
-    assert Page.evaluate!(page, "window.innerWidth") == width
-    assert Page.evaluate!(page, "window.innerHeight") == height
+  import PlaywrightEx.Utils, only: [verify_viewport: 3]
+
+  # expect.poll(fun).toEqual(expected)
+  defp poll(fun, expected, tries \\ 50) do
+    cond do
+      fun.() == expected -> true
+      tries == 0 -> false
+      true -> Process.sleep(100) && poll(fun, expected, tries - 1)
+    end
   end
 
   test "should create new context @smoke", %{browser: browser} do
@@ -30,8 +37,48 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context2)
   end
 
-  @tag skip: "not ported: Locator.evaluate (ElementHandle)"
-  test "should be able to click across browser contexts"
+  test "should be able to click across browser contexts", %{browser: browser} do
+    assert Browser.contexts(browser) == []
+
+    create_page = fn ->
+      page = Browser.new_page!(browser)
+      Page.set_content!(page, "<button>Click me</button>")
+
+      Locator.evaluate!(Page.locator(page, "button"), """
+      button => {
+        window['clicks'] = 0;
+        button.addEventListener('click', () => ++window['clicks'], false);
+      }
+      """)
+
+      page
+    end
+
+    click_in_page = fn page, count ->
+      for _ <- 1..count//1, do: Locator.click!(Page.locator(page, "button"))
+    end
+
+    get_clicks = fn page -> Page.evaluate!(page, "() => window['clicks']") end
+
+    page1 = create_page.()
+    page2 = create_page.()
+
+    click_count = 20
+
+    Task.await_many(
+      [
+        Task.async(fn -> click_in_page.(page1, click_count) end),
+        Task.async(fn -> click_in_page.(page2, click_count) end)
+      ],
+      30_000
+    )
+
+    assert get_clicks.(page1) == click_count
+    assert get_clicks.(page2) == click_count
+
+    Page.close!(page1)
+    Page.close!(page2)
+  end
 
   @tag skip: "not ported: expect"
   test "should be able to hover across browser contexts in parallel"
@@ -240,7 +287,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @tag skip: "not ported: expect"
   test "setContent should work after disabling javascript"
 
-  @tag skip: "not ported: Locator.evaluate (ElementHandle)"
+  @tag skip: "not ported: expect"
   test "should retry click after disabling javascript"
 
   test "should work with offline option", %{browser: browser, server: server, browser_name: browser_name} do
@@ -322,8 +369,27 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @tag skip: "not ported: route"
   test "should emulate navigator.onLine across navigations"
 
-  @tag skip: "not ported: evaluateHandle, expect.poll"
-  test "should emulate offline event"
+  test "should emulate offline event", %{browser: browser} do
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+
+    events =
+      Page.evaluate_handle!(page, """
+      () => {
+        const events = [];
+        window.addEventListener('offline', () => events.push('offline'));
+        window.addEventListener('online', () => events.push('online'));
+        return events;
+      }
+      """)
+
+    BrowserContext.set_offline!(context, true)
+    # await expect.poll(() => events.jsonValue()).toEqual([...])
+    assert poll(fn -> JSHandle.json_value!(events) end, ["offline"])
+    BrowserContext.set_offline!(context, false)
+    assert poll(fn -> JSHandle.json_value!(events) end, ["offline", "online"])
+    BrowserContext.close!(context)
+  end
 
   test "should emulate media in popup", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, color_scheme: :dark)
@@ -352,8 +418,14 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     Page.close!(page)
   end
 
-  @tag skip: "not ported: evaluateHandle (attachFrame)"
-  test "should emulate media in cross-process iframe"
+  test "should emulate media in cross-process iframe", %{browser: browser, server: server} do
+    page = Browser.new_page!(browser, color_scheme: :dark)
+    Page.goto!(page, server.empty_page)
+    Utils.attach_frame(page, "frame1", server.cross_process_prefix <> "/empty.html")
+    frame = Enum.at(Page.frames(page), 1)
+    assert Frame.evaluate!(frame, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
+    Page.close!(page)
+  end
 
   # `(browser as any)._channel.defaultUserAgentForTest()`: the client's channel call.
   @tag :page

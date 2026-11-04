@@ -73,3 +73,20 @@ Review these first: they shape the public API.
 - **`LocalUtils.glob_to_regex` caches the driver's regex** per {glob, baseURL, ws}
   (Elixir-only helper; PLAN Decisions: globs via the driver).
 - **`@events` emitted at the top of each generated module**, so `event` args accept atoms.
+
+## 2026-11-04: ElementHandle, JSHandle, setInputFiles (workstream A)
+
+- **`JSHandle`/`ElementHandle` `toString` is `String.Chars`** (`"#{handle}"` is the preview,
+  pure ETS read, no baton). Revisit with `Locator.toString`.
+- **Subclass dispatch**: `JSHandle.as_element/1` dispatches on the struct (JS virtual call);
+  the generator types `PlaywrightEx.JSHandle.t()` as `%JSHandle{} | %ElementHandle{}` and does
+  not duplicate inherited members into the ElementHandle facade (as api.json).
+- **`ElementHandle.inputValue` has no options** (`@dropped_options`): docs list `timeout`, the
+  JS client takes none (same as `$eval`).
+- **`WritableStream.stream/1` returns a `Collectable`** (`Enum.into(File.stream!(...), ...)`
+  for `stream.pipeline`); remote `lastModifiedMs` has whole-second precision (Erlang stat).
+- **Test deviations, commented**: `(function(){})` needs a `() =>` wrapper (no `isFunction`,
+  PLAN); circular `jsonValue` is `%{"b" => :circular}`; missing-file error lacks "ENOENT:";
+  `waitFor`/`visibility` `as any` options assert the facade's `ArgumentError`, so
+  "should tolerate waitFor=visible" expects an error where upstream expects none.
+- **`test/support/utils.ex`** ports `tests/config/utils.ts` (`attach_frame`, `verify_viewport`, ...).

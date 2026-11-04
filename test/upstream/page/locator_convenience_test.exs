@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
 
   @moduletag :page
 
-  @tag skip: "not ported: Locator.evaluateHandle (ElementHandle), Locator.toString"
+  @tag skip: "not ported: Locator.toString"
   test "should have a nice preview"
 
   test "getAttribute should work", %{page: page, server: server} do
@@ -132,10 +132,19 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
              "Element is not an <input>, <textarea>, <select> or [contenteditable] and does not have a role allowing [aria-readonly]"
   end
 
-  @tag skip: "not ported: Locator.evaluate (ElementHandle)"
-  test "isChecked should work"
+  test "isChecked should work", %{page: page} do
+    Page.set_content!(page, "<input type='checkbox' checked><div>Not a checkbox</div>")
+    element = Page.locator(page, "input")
+    assert Locator.is_checked!(element) == true
+    assert Page.is_checked!(page, "input") == true
+    Locator.evaluate!(element, "input => input.checked = false")
+    assert Locator.is_checked!(element) == false
+    assert Page.is_checked!(page, "input") == false
+    {:error, error} = Page.is_checked(page, "div")
+    assert Exception.message(error) =~ "Not a checkbox or radio button"
+  end
 
-  @tag skip: "not ported: Locator.evaluate (ElementHandle), expect"
+  @tag skip: "not ported: expect"
   test "isChecked should work for indeterminate input"
 
   test "allTextContents should work", %{page: page} do
