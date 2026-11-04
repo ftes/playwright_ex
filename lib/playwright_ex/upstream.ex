@@ -5,13 +5,13 @@ defmodule PlaywrightEx.Upstream do
   (test server assets).
 
   Downloads the release tarball once into `PlaywrightEx.Driver.cache_dir/1` and extracts only
-  `@paths`. `PLAYWRIGHT_EX_UPSTREAM` (or the `:dir` option) points at a checkout instead.
+  `@paths` (again when a path is missing, e.g. after one was added). `PLAYWRIGHT_EX_UPSTREAM` (or the `:dir` option) points at a checkout instead.
   """
   alias PlaywrightEx.Driver
 
   @paths ~w(
     packages/playwright-core/src packages/protocol packages/isomorphic packages/utils utils
-    tests/page tests/library tests/config tests/assets
+    docs/src/api tests/page tests/library tests/config tests/assets
   )
 
   def dir(opts \\ []) do
@@ -22,9 +22,16 @@ defmodule PlaywrightEx.Upstream do
   def ensure!(opts \\ []) do
     dir = dir(opts)
 
-    if not File.dir?(dir) do
-      if opts[:dir] || env(), do: raise("upstream checkout not found: #{dir}")
-      install!(dir)
+    cond do
+      opts[:dir] || env() ->
+        if not File.dir?(dir), do: raise("upstream checkout not found: #{dir}")
+
+      not Enum.all?(@paths, &File.dir?(Path.join(dir, &1))) ->
+        File.rm_rf!(dir)
+        install!(dir)
+
+      true ->
+        :ok
     end
 
     dir
