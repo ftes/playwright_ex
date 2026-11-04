@@ -1,6 +1,5 @@
 defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   @upstream "tests/library/browsertype-launch.spec.ts"
-  @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Client.Browser

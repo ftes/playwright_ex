@@ -44,7 +44,6 @@ defmodule PlaywrightEx.MixProject do
     [
       {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:styler, "~> 1.3", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # The port of upstream tests/config/testserver.
       {:bandit, "~> 1.6", only: :test}

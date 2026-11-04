@@ -25,6 +25,11 @@ defmodule PlaywrightEx.UpstreamCase do
     quote do
       import PlaywrightEx.UpstreamCase
 
+      @moduletag upstream:
+                   Module.get_attribute(__MODULE__, :upstream) ||
+                     raise(CompileError,
+                       description: "set @upstream \"tests/...spec.ts\" before `use PlaywrightEx.UpstreamCase`"
+                     )
       @moduletag timeout: 120_000
     end
   end

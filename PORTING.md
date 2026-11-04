@@ -26,9 +26,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered.
   Markers are per line.
-- Ported dirs (`client/`, `protocol/`) are formatted without Styler and have a few credo checks
-  relaxed (`.credo.exs`), so statements stay in upstream order. Don't restructure ported code
-  to please a linter.
+- Ported dirs (`client/`, `protocol/`) have a few credo checks relaxed (`.credo.exs`), so
+  statements stay in upstream order. Don't restructure ported code to please a linter.
 
 ## Idioms
 
@@ -64,9 +63,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 
 ## Tests
 
-- Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"` (and
-  `@moduledoc "Port of ..."`, as in lib),
-  `use PlaywrightEx.UpstreamCase`, test names identical to upstream.
+- Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
+  then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
+  upstream:tests/page/page-goto.spec.ts`), test names identical to upstream.
 - Keep the upstream order. A test that is not ported stays as a bodiless test with a reason:
   `@tag skip: "not ported: Page"` followed by `test "should work"`.
   `mix playwright_ex.parity` compares the names.
