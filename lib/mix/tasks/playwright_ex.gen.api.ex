@@ -284,7 +284,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp listeners_source(_class, _events, [], _receiver), do: ""
 
   defp listeners_source(class, events, listeners, receiver) do
-    table = Map.new(events, &{event_atom(&1), String.downcase(&1["name"])})
+    table = {:map, Enum.map(events, &{event_atom(&1), String.downcase(&1["name"])})}
 
     funs =
       Enum.map_join(listeners, "\n\n", fn method ->
@@ -311,15 +311,16 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # --- types ---------------------------------------------------------------------
 
+  # Schemas keep api.json order: `{:map, pairs}` is written as a map literal in that order.
   defp arg_schema(ctx, arg), do: schema(ctx, arg["type"])
 
   defp schema(_ctx, nil), do: nil
 
   defp schema(ctx, %{"union" => union}) when is_list(union) do
     {literals, others} = Enum.split_with(union, &literal?(&1["name"]))
-    literals = for %{"name" => n} <- literals, n not in ["null", "undefined"], into: %{}, do: literal(n)
+    literals = for %{"name" => n} <- literals, n not in ["null", "undefined"], uniq: true, do: literal(n)
     schemas = Enum.flat_map(others, &List.wrap(schema(ctx, &1)))
-    schemas = if literals == %{}, do: schemas, else: [{:enum, literals} | schemas]
+    schemas = if literals == [], do: schemas, else: [{:enum, {:map, literals}} | schemas]
 
     case schemas do
       [] -> nil
@@ -329,11 +330,11 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp schema(ctx, %{"properties" => props}) when is_list(props) and props != [] do
-    {:object,
-     Map.new(
-       Enum.uniq_by(props, & &1["name"]),
-       &{atom(&1["name"]), {String.to_atom(&1["name"]), schema(ctx, &1["type"])}}
-     )}
+    pairs =
+      for prop <- Enum.uniq_by(props, & &1["name"]),
+          do: {atom(prop["name"]), {String.to_atom(prop["name"]), schema(ctx, prop["type"])}}
+
+    {:object, {:map, pairs}}
   end
 
   defp schema(ctx, %{"name" => "Array", "templates" => [item]}) do
@@ -341,7 +342,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp schema(_ctx, %{"name" => name}) do
-    if literal?(name) and name not in ["null", "undefined"], do: {:enum, Map.new([literal(name)])}
+    if literal?(name) and name not in ["null", "undefined"], do: {:enum, {:map, [literal(name)]}}
   end
 
   defp literal?(name), do: String.starts_with?(name, "\"") or name in ["null", "undefined"]
@@ -470,12 +471,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     if String.contains?(text, ~s(""")), do: inspect(text), else: ~s(~S"""\n#{text}\n""")
   end
 
-  # `inspect/1` orders small atom-keyed maps by atom table position, which depends on what
-  # the VM loaded before; sort keys by name so the output is stable.
-  defp render(map) when is_map(map) do
-    pairs = map |> Enum.sort_by(&Atom.to_string(elem(&1, 0))) |> Enum.map(fn {k, v} -> "#{key(k)} #{render(v)}" end)
-    "%{#{Enum.join(pairs, ", ")}}"
-  end
+  # Not `inspect/1`: it orders small atom-keyed maps by atom table position, which depends on
+  # what the VM loaded before.
+  defp render({:map, pairs}), do: "%{#{Enum.map_join(pairs, ", ", fn {k, v} -> "#{key(k)} #{render(v)}" end)}}"
 
   defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
   defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"

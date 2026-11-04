@@ -51,10 +51,10 @@ defmodule PlaywrightEx.BrowserType do
                        {:proxy,
                         {:object,
                          %{
-                           bypass: {:bypass, nil},
-                           password: {:password, nil},
                            server: {:server, nil},
-                           username: {:username, nil}
+                           bypass: {:bypass, nil},
+                           username: {:username, nil},
+                           password: {:password, nil}
                          }}},
                      slow_mo: {:slowMo, nil},
                      timeout: {:timeout, nil},
