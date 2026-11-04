@@ -3,18 +3,21 @@
 defmodule PlaywrightEx.Request do
   @moduledoc ~S"""
   Whenever the page sends a request for a network resource the following sequence of events are emitted by `Page`:
-  - `Page.request` emitted when the request is issued by the page.
-  - `Page.response` emitted when/if the response status and headers are received for the request.
-  - `Page.requestFinished` emitted when the response body is downloaded and the request is complete.
 
-  If request fails at some point, then instead of `'requestfinished'` event (and possibly instead of 'response'
-  event), the  `Page.requestFailed` event is emitted.
+  * `Page.request` emitted when the request is issued by the page.
+  * `Page.response` emitted when/if the response status and headers are received for the request.
+  * `Page.requestFinished` emitted when the response body is downloaded and the request is complete.
 
-  **NOTE** HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request
-  will complete with `'requestfinished'` event.
+  If request fails at some point, then instead of `'requestfinished'` event (and possibly instead of 'response' event),
+  the  `Page.requestFailed` event is emitted.
 
-  If request gets a 'redirect' response, the request is successfully finished with the `requestfinished` event, and a
-  new request is  issued to a redirected url.
+  > #### Note {: .info}
+  >
+  > HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request will complete
+  > with `'requestfinished'` event.
+
+  If request gets a 'redirect' response, the request is successfully finished with the `requestfinished` event, and a new
+  request is  issued to a redirected url.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -66,9 +69,9 @@ defmodule PlaywrightEx.Request do
   **Details**
 
   Note that in some cases the frame is not available, and this method will throw.
-  - When request originates in the Service Worker. You can use `request.serviceWorker()` to check that.
-  - When navigation request is issued before the corresponding frame is created. You can use
-    `PlaywrightEx.Request.is_navigation_request/1` to check that.
+
+  * When request originates in the Service Worker. You can use `request.serviceWorker()` to check that.
+  * When navigation request is issued before the corresponding frame is created. You can use `PlaywrightEx.Request.is_navigation_request/1` to check that.
 
   Here is an example that handles all the cases:
 
@@ -87,9 +90,9 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  An object with the request HTTP headers. The header names are lower-cased. Note that this method does not return
-  security-related headers, including cookie-related ones. You can use `PlaywrightEx.Request.all_headers/1` for complete
-  list of headers that include `cookie` information.
+  An object with the request HTTP headers. The header names are lower-cased.
+  Note that this method does not return security-related headers, including cookie-related ones.
+  You can use `PlaywrightEx.Request.all_headers/1` for complete list of headers that include `cookie` information.
   """
   @spec headers(t()) :: map()
   def headers(request) do
@@ -97,9 +100,8 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  An array with all the request HTTP headers associated with this request. Unlike `PlaywrightEx.Request.all_headers/1`,
-  header names are NOT lower-cased. Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple
-  times.
+  An array with all the request HTTP headers associated with this request. Unlike `PlaywrightEx.Request.all_headers/1`, header names are NOT lower-cased.
+  Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
   """
   @spec headers_array(t()) :: {:ok, [map()]} | {:error, Exception.t()}
   def headers_array(request) do
@@ -117,7 +119,7 @@ defmodule PlaywrightEx.Request do
 
   ## Arguments
 
-    * `name` - Name of the header.
+  * `name` - Name of the header.
   """
   @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
   def header_value(request, name) do
@@ -133,8 +135,8 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   Whether this request is driving frame's navigation.
 
-  Some navigation requests are issued before the corresponding frame is created, and therefore do not have
-  `PlaywrightEx.Request.frame/1` available.
+  Some navigation requests are issued before the corresponding frame is created, and therefore
+  do not have `PlaywrightEx.Request.frame/1` available.
   """
   @spec is_navigation_request(t()) :: boolean()
   def is_navigation_request(request) do
@@ -179,8 +181,8 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   Request that was redirected by the server to this one, if any.
 
-  When the server responds with a redirect, Playwright creates a new `Request` object. The two requests are connected
-  by `redirectedFrom()` and `redirectedTo()` methods. When multiple server redirects has happened, it is possible to
+  When the server responds with a redirect, Playwright creates a new `Request` object. The two requests are connected by
+  `redirectedFrom()` and `redirectedTo()` methods. When multiple server redirects has happened, it is possible to
   construct the whole redirect chain by repeatedly calling `redirectedFrom()`.
 
   **Usage**
@@ -222,8 +224,8 @@ defmodule PlaywrightEx.Request do
 
   @doc ~S"""
   Contains the request's resource type as it was perceived by the rendering engine. ResourceType will be one of the
-  following: `document`, `stylesheet`, `image`, `media`, `font`, `script`, `texttrack`, `xhr`, `fetch`,
-  `eventsource`, `websocket`, `manifest`, `beacon`, `ping`, `cspreport`, `other`.
+  following: `document`, `stylesheet`, `image`, `media`, `font`, `script`, `texttrack`, `xhr`, `fetch`, `eventsource`,
+  `websocket`, `manifest`, `beacon`, `ping`, `cspreport`, `other`.
   """
   @spec resource_type(t()) :: String.t()
   def resource_type(request) do
@@ -247,8 +249,9 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   Returns the `Response` object if the response has already been received, `null` otherwise.
 
-  Unlike `PlaywrightEx.Request.response/1`, this method does not wait for the response to arrive. It returns immediately
-  with the response object if the response has been received, or `null` if the response has not been received yet.
+  Unlike `PlaywrightEx.Request.response/1`, this method does not wait for the response to arrive. It returns
+  immediately with the response object if the response has been received, or `null` if the response
+  has not been received yet.
   """
   @spec existing_response(t()) :: nil | PlaywrightEx.Response.t()
   def existing_response(request) do
@@ -284,8 +287,8 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  Returns resource timing information for given request. Most of the timing values become available upon the
-  response, `responseEnd` becomes available when request finishes. Find more information at
+  Returns resource timing information for given request. Most of the timing values become available upon the response,
+  `responseEnd` becomes available when request finishes. Find more information at
   [Resource Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming).
 
   **Usage**

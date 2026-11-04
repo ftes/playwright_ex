@@ -48,7 +48,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp expression(arg), do: arg
 
   defp property(%{"name" => "timeout"} = property),
-    do: Map.update(property, "comment", @timeout_doc, &"#{&1}\n\n#{@timeout_doc}") |> type()
+    do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()
 
   defp property(property), do: type(property)
 

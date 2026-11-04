@@ -7,8 +7,8 @@ defmodule PlaywrightEx.BrowserContext do
   If a page opens another page, e.g. with a `window.open` call, the popup will belong to the parent page's browser
   context.
 
-  Playwright allows creating isolated non-persistent browser contexts with `PlaywrightEx.Browser.new_context/2` method.
-  Non-persistent browser contexts don't write any browsing data to disk.
+  Playwright allows creating isolated non-persistent browser contexts with `PlaywrightEx.Browser.new_context/2` method. Non-persistent browser
+  contexts don't write any browsing data to disk.
 
   ```js
   // Create a new incognito browser context
@@ -22,97 +22,144 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Events
 
-    * `:background_page` - This event is not emitted.
-    * `:close` - Emitted when Browser context gets closed. This might happen because of one of the following:
-      - Browser context is closed.
-      - Browser application is closed or crashed.
-      - The `PlaywrightEx.Browser.close/2` method was called.
-    * `:console` - Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
+  ### `:background_page`
 
-      The arguments passed into `console.log` and the page are available on the `ConsoleMessage` event handler argument.
+  This event is not emitted.
 
-      **Usage**
+  ### `:close`
 
-      ```js
-      context.on('console', async msg => {
-      const values = [];
-      for (const arg of msg.args())
+  Emitted when Browser context gets closed. This might happen because of one of the following:
+
+  * Browser context is closed.
+  * Browser application is closed or crashed.
+  * The `PlaywrightEx.Browser.close/2` method was called.
+
+  ### `:console`
+
+  Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
+
+  The arguments passed into `console.log` and the page are available on the `ConsoleMessage` event handler argument.
+
+  **Usage**
+
+  ```js
+  context.on('console', async msg => {
+    const values = [];
+    for (const arg of msg.args())
       values.push(await arg.jsonValue());
-      console.log(...values);
-      });
-      await page.evaluate(() => console.log('hello', 5, { foo: 'bar' }));
-      ```
+    console.log(...values);
+  });
+  await page.evaluate(() => console.log('hello', 5, { foo: 'bar' }));
+  ```
 
-                    * `:dialog` - Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must**
-      either `Dialog.accept` or `Dialog.dismiss` the dialog - otherwise the page will
-      [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog,
-      and actions like click will never finish.
+  ### `:dialog`
 
-      **Usage**
+  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either `Dialog.accept` or `Dialog.dismiss` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
 
-      ```js
-      context.on('dialog', dialog => {
-      dialog.accept();
-      });
-      ```
+  **Usage**
 
-                  **NOTE** When no `Page.dialog` or `BrowserContext.dialog` listeners are present, all dialogs are
-      automatically dismissed.
-    * `:dialog_closed` - Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by
-      `Dialog.accept`, by `Dialog.dismiss`, or manually by the user in the headed browser.
-    * `:download` - Emitted when attachment download started in any page belonging to this context. User can access basic file
-      operations on downloaded content via the passed `Download` instance. See also `Page.download` to receive
-      events about a specific page.
-    * `:frame_attached` - Emitted when a frame is attached in any page belonging to this context. See also `Page.frameAttached` to
-      receive events about a specific page.
-    * `:frame_detached` - Emitted when a frame is detached in any page belonging to this context. See also `Page.frameDetached` to
-      receive events about a specific page.
-    * `:frame_navigated` - Emitted when a frame is navigated to a new url in any page belonging to this context. See also
-      `Page.frameNavigated` to receive events about navigations in a specific page.
-    * `:page` - The event is emitted when a new Page is created in the BrowserContext. The page may still be loading. The event
-      will also fire for popup pages. See also `Page.popup` to receive events about popups relevant to a
-      specific page.
+  ```js
+  context.on('dialog', dialog => {
+    dialog.accept();
+  });
+  ```
 
-      The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
-      popup with `window.open('http://example.com')`, this event will fire when the network request to
-      "http://example.com" is done and its response has started loading in the popup. If you would like to route/listen
-      to this network request, use `BrowserContext.route` and `BrowserContext.request` respectively
-      instead of similar methods on the `Page`.
+  > #### Note {: .info}
+  >
+  > When no `Page.dialog` or `BrowserContext.dialog` listeners are present, all dialogs are automatically dismissed.
 
-      ```js
-      const newPagePromise = context.waitForEvent('page');
-      await page.getByText('open new page').click();
-      const newPage = await newPagePromise;
-      console.log(await newPage.evaluate('location.href'));
-      ```
+  ### `:dialog_closed`
 
-                      **NOTE** Use `PlaywrightEx.Page.wait_for_load_state/3` to wait until the page gets to a particular state (you should not
-      need it in most cases).
-    * `:page_close` - Emitted when a page in this context is closed. See also `Page.close` to receive events about a specific
-      page.
-    * `:page_load` - Emitted when the JavaScript [`load`](https://developer.mozilla.org/en-US/docs/Web/Events/load) event is dispatched
-      in any page belonging to this context. See also `Page.load` to receive events about a specific page.
-    * `:web_error` - Emitted when exception is unhandled in any of the pages in this context. To listen for errors from a particular
-      page, use `Page.pageError` instead.
-    * `:request` - Emitted when a request is issued from any pages created through this context. The [request] object is read-only. To
-      only listen for requests from a particular page, use `Page.request`.
+  Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by `Dialog.accept`, by `Dialog.dismiss`, or manually by the user in the headed browser.
 
-      In order to intercept and mutate requests, see `BrowserContext.route` or `Page.route`.
-    * `:request_failed` - Emitted when a request fails, for example by timing out. To only listen for failed requests from a particular page,
-      use `Page.requestFailed`.
+  ### `:download`
 
-      **NOTE** HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request
-      will complete with `BrowserContext.requestFinished` event and not with
-      `BrowserContext.requestFailed`.
-    * `:request_finished` - Emitted when a request finishes successfully after downloading the response body. For a successful response, the
-      sequence of events is `request`, `response` and `requestfinished`. To listen for successful requests from a
-      particular page, use `Page.requestFinished`.
-    * `:response` - Emitted when [response] status and headers are received for a request. For a successful response, the sequence of
-      events is `request`, `response` and `requestfinished`. To listen for response events from a particular page, use
-      `Page.response`.
-    * `:service_worker` - **NOTE** Service workers are only supported on Chromium-based browsers.
+  Emitted when attachment download started in any page belonging to this context. User can access basic file operations on downloaded content via the passed `Download` instance. See also `Page.download` to receive events about a specific page.
 
-      Emitted when new service worker is created in the context.
+  ### `:frame_attached`
+
+  Emitted when a frame is attached in any page belonging to this context. See also `Page.frameAttached` to receive events about a specific page.
+
+  ### `:frame_detached`
+
+  Emitted when a frame is detached in any page belonging to this context. See also `Page.frameDetached` to receive events about a specific page.
+
+  ### `:frame_navigated`
+
+  Emitted when a frame is navigated to a new url in any page belonging to this context. See also `Page.frameNavigated` to receive events about navigations in a specific page.
+
+  ### `:page`
+
+  The event is emitted when a new Page is created in the BrowserContext. The page may still be loading. The event will
+  also fire for popup pages. See also `Page.popup` to receive events about popups relevant to a specific page.
+
+  The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
+  popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
+  done and its response has started loading in the popup. If you would like to route/listen to this network request, use `BrowserContext.route` and `BrowserContext.request` respectively instead of similar methods on the `Page`.
+
+  ```js
+  const newPagePromise = context.waitForEvent('page');
+  await page.getByText('open new page').click();
+  const newPage = await newPagePromise;
+  console.log(await newPage.evaluate('location.href'));
+  ```
+
+  > #### Note {: .info}
+  >
+  > Use `PlaywrightEx.Page.wait_for_load_state/3` to wait until the page gets to a particular state (you should not need it in most
+  > cases).
+
+  ### `:page_close`
+
+  Emitted when a page in this context is closed. See also `Page.close` to receive events about a specific page.
+
+  ### `:page_load`
+
+  Emitted when the JavaScript [`load`](https://developer.mozilla.org/en-US/docs/Web/Events/load) event is dispatched in any page belonging to this context. See also `Page.load` to receive events about a specific page.
+
+  ### `:web_error`
+
+  Emitted when exception is unhandled in any of the pages in this
+  context. To listen for errors from a particular page, use `Page.pageError` instead.
+
+  ### `:request`
+
+  Emitted when a request is issued from any pages created through this context.
+  The [request] object is read-only. To only listen for requests from a particular
+  page, use `Page.request`.
+
+  In order to intercept and mutate requests, see `BrowserContext.route`
+  or `Page.route`.
+
+  ### `:request_failed`
+
+  Emitted when a request fails, for example by timing out. To only listen for
+  failed requests from a particular page, use `Page.requestFailed`.
+
+  > #### Note {: .info}
+  >
+  > HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request will complete
+  > with `BrowserContext.requestFinished` event and not with `BrowserContext.requestFailed`.
+
+  ### `:request_finished`
+
+  Emitted when a request finishes successfully after downloading the response body. For a successful response, the
+  sequence of events is `request`, `response` and `requestfinished`. To listen for
+  successful requests from a particular page, use `Page.requestFinished`.
+
+  ### `:response`
+
+  Emitted when [response] status and headers are received for a request. For a successful response, the sequence of events
+  is `request`, `response` and `requestfinished`. To listen for response events
+  from a particular page, use `Page.response`.
+
+  ### `:service_worker`
+
+  > #### Note {: .info}
+  >
+  > Service workers are only supported on Chromium-based browsers.
+
+  Emitted when new service worker is created in the context.
 
   Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `serviceWorkers`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`, `waitForEvent`.
   """
@@ -157,14 +204,28 @@ defmodule PlaywrightEx.BrowserContext do
                          }}}
 
   @doc ~S"""
-  Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies
-  can be obtained via `PlaywrightEx.BrowserContext.cookies/2`.
+  Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies can be
+  obtained via `PlaywrightEx.BrowserContext.cookies/2`.
 
   **Usage**
 
   ```js
   await browserContext.addCookies([cookieObject1, cookieObject2]);
   ```
+
+  ## Arguments
+
+  * `cookies`
+    * `:name`
+    * `:value`
+    * `:url` - Either `url` or both `domain` and `path` are required. Optional.
+    * `:domain` - For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com". Either `url` or both `domain` and `path` are required. Optional.
+    * `:path` - Either `url` or both `domain` and `path` are required. Optional.
+    * `:expires` - Unix time in seconds. Optional.
+    * `:http_only` - Optional.
+    * `:secure` - Optional.
+    * `:same_site` - Optional.
+    * `:partition_key` - For partitioned third-party cookies (aka [CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)), the partition key. Optional.
   """
   @spec add_cookies(t(), [keyword() | map()]) :: :ok | {:error, Exception.t()}
   def add_cookies(browser_context, cookies) do
@@ -195,8 +256,7 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc ~S"""
-  Gets the browser instance that owns the context. Returns `null` if the context is created outside of normal
-  browser, e.g. Android or Electron.
+  Gets the browser instance that owns the context. Returns `null` if the context is created outside of normal browser, e.g. Android or Electron.
   """
   @spec browser(t()) :: nil | PlaywrightEx.Browser.t()
   def browser(browser_context) do
@@ -221,9 +281,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-    * `:domain` - Only removes cookies with the given domain.
-    * `:name` - Only removes cookies with the given name.
-    * `:path` - Only removes cookies with the given path.
+  * `:domain` - Only removes cookies with the given domain.
+  * `:name` - Only removes cookies with the given name.
+  * `:path` - Only removes cookies with the given path.
   """
   @spec clear_cookies(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
   def clear_cookies(browser_context, options \\ []) do
@@ -276,11 +336,13 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   Closes the browser context. All the pages that belong to the browser context will be closed.
 
-  **NOTE** The default browser context cannot be closed.
+  > #### Note {: .info}
+  >
+  > The default browser context cannot be closed.
 
   ## Options
 
-    * `:reason` - The reason to be reported to the operations interrupted by the context closure.
+  * `:reason` - The reason to be reported to the operations interrupted by the context closure.
   """
   @spec close(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
   def close(browser_context, options \\ []) do
@@ -302,12 +364,12 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc ~S"""
-  If no URLs are specified, this method returns all cookies. If URLs are specified, only cookies that affect those
-  URLs are returned.
+  If no URLs are specified, this method returns all cookies. If URLs are specified, only cookies that affect those URLs
+  are returned.
 
   ## Arguments
 
-    * `urls` - Optional list of URLs.
+  * `urls` - Optional list of URLs.
   """
   @spec cookies(t(), String.t() | [String.t()] | nil) :: {:ok, [map()]} | {:error, Exception.t()}
   def cookies(browser_context, urls \\ nil) do
@@ -332,34 +394,36 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-    * `permissions` - A list of permissions to grant.
+  * `permissions` - A list of permissions to grant.
 
-      **NOTE** Supported permissions differ between browsers, and even between different versions of the same browser.
-      Any permission may stop working after an update.
+    > #### Danger {: .error}
+    >
+    > Supported permissions differ between browsers, and even between different versions of the same browser. Any permission may stop working after an update.
 
-      Here are some permissions that may be supported by some browsers:
-      - `'accelerometer'`
-      - `'ambient-light-sensor'`
-      - `'background-sync'`
-      - `'camera'`
-      - `'clipboard-read'`
-      - `'clipboard-write'`
-      - `'geolocation'`
-      - `'gyroscope'`
-      - `'local-fonts'`
-      - `'local-network-access'`
-      - `'magnetometer'`
-      - `'microphone'`
-      - `'midi-sysex'` (system-exclusive midi)
-      - `'midi'`
-      - `'notifications'`
-      - `'payment-handler'`
-      - `'storage-access'`
-      - `'screen-wake-lock'`
+    Here are some permissions that may be supported by some browsers:
+
+    * `'accelerometer'`
+    * `'ambient-light-sensor'`
+    * `'background-sync'`
+    * `'camera'`
+    * `'clipboard-read'`
+    * `'clipboard-write'`
+    * `'geolocation'`
+    * `'gyroscope'`
+    * `'local-fonts'`
+    * `'local-network-access'`
+    * `'magnetometer'`
+    * `'microphone'`
+    * `'midi-sysex'` (system-exclusive midi)
+    * `'midi'`
+    * `'notifications'`
+    * `'payment-handler'`
+    * `'storage-access'`
+    * `'screen-wake-lock'`
 
   ## Options
 
-    * `:origin` - The [origin] to grant permissions to, e.g. "https://example.com".
+  * `:origin` - The [origin] to grant permissions to, e.g. "https://example.com".
   """
   @spec grant_permissions(t(), [String.t()], keyword() | map()) :: :ok | {:error, Exception.t()}
   def grant_permissions(browser_context, permissions, options \\ []) do
@@ -418,21 +482,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc ~S"""
   This setting will change the default maximum navigation time for the following methods and related shortcuts:
-  - `PlaywrightEx.Page.go_back/2`
-  - `PlaywrightEx.Page.go_forward/2`
-  - `PlaywrightEx.Page.goto/3`
-  - `PlaywrightEx.Page.reload/2`
-  - `PlaywrightEx.Page.set_content/3`
-  - `Page.waitForNavigation`
 
-  **NOTE** `PlaywrightEx.Page.set_default_navigation_timeout/2` and `PlaywrightEx.Page.set_default_timeout/2` take priority over
-  `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`.
+  * `PlaywrightEx.Page.go_back/2`
+  * `PlaywrightEx.Page.go_forward/2`
+  * `PlaywrightEx.Page.goto/3`
+  * `PlaywrightEx.Page.reload/2`
+  * `PlaywrightEx.Page.set_content/3`
+  * `Page.waitForNavigation`
+
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.set_default_navigation_timeout/2` and `PlaywrightEx.Page.set_default_timeout/2` take priority over
+  > `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`.
 
   ## Arguments
 
-    * `timeout` - Maximum navigation time in milliseconds
+  * `timeout` - Maximum navigation time in milliseconds
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec set_default_navigation_timeout(t(), number() | :infinity) :: :ok
   def set_default_navigation_timeout(browser_context, timeout) do
@@ -448,15 +515,16 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   This setting will change the default maximum time for all the methods accepting `timeout` option.
 
-  **NOTE** `PlaywrightEx.Page.set_default_navigation_timeout/2`, `PlaywrightEx.Page.set_default_timeout/2` and
-  `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2` take priority over
-  `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.set_default_navigation_timeout/2`, `PlaywrightEx.Page.set_default_timeout/2` and
+  > `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2` take priority over `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
   ## Arguments
 
-    * `timeout` - Maximum time in milliseconds. Pass `0` to disable timeout.
+  * `timeout` - Maximum time in milliseconds. Pass `0` to disable timeout.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec set_default_timeout(t(), number() | :infinity) :: :ok
   def set_default_timeout(browser_context, timeout) do
@@ -466,16 +534,17 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc ~S"""
-  The extra HTTP headers will be sent with every request initiated by any page in the context. These headers are
-  merged with page-specific extra HTTP headers set with `PlaywrightEx.Page.set_extra_http_headers/2`. If page overrides a
-  particular header, page-specific header value will be used instead of the browser context header value.
+  The extra HTTP headers will be sent with every request initiated by any page in the context. These headers are merged
+  with page-specific extra HTTP headers set with `PlaywrightEx.Page.set_extra_http_headers/2`. If page overrides a particular
+  header, page-specific header value will be used instead of the browser context header value.
 
-  **NOTE** `PlaywrightEx.BrowserContext.set_extra_http_headers/2` does not guarantee the order of headers in the outgoing
-  requests.
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.BrowserContext.set_extra_http_headers/2` does not guarantee the order of headers in the outgoing requests.
 
   ## Arguments
 
-    * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
+  * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
   """
   @spec set_extra_http_headers(t(), map()) :: :ok | {:error, Exception.t()}
   def set_extra_http_headers(browser_context, headers) do
@@ -504,8 +573,17 @@ defmodule PlaywrightEx.BrowserContext do
   await browserContext.setGeolocation({ latitude: 59.95, longitude: 30.31667 });
   ```
 
-  **NOTE** Consider using `PlaywrightEx.BrowserContext.grant_permissions/3` to grant permissions for the browser context
-  pages to read its geolocation.
+  > #### Note {: .info}
+  >
+  > Consider using `PlaywrightEx.BrowserContext.grant_permissions/3` to grant permissions for the browser context pages to read
+  > its geolocation.
+
+  ## Arguments
+
+  * `geolocation`
+    * `:latitude` - Latitude between -90 and 90.
+    * `:longitude` - Longitude between -180 and 180.
+    * `:accuracy` - Non-negative accuracy value. Defaults to `0`.
   """
   @spec set_geolocation(t(), :null | keyword() | map()) :: :ok | {:error, Exception.t()}
   def set_geolocation(browser_context, geolocation) do
@@ -546,13 +624,16 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   Sets the credentials for HTTP authentication for this browser context.
 
-  **NOTE** Browsers may cache credentials per origin after a successful authentication, so changing credentials for
-  an origin that has already been authenticated may have no effect.
+  > #### Note {: .info}
+  >
+  > Browsers may cache credentials per origin after a successful authentication, so changing credentials for an origin that has already been authenticated may have no effect.
 
   ## Arguments
 
-    * `http_credentials` - Pass an array to use different credentials for different origins. The first entry that matches the request origin
-      is used, and entries with no origin match any request.
+  * `http_credentials` - Pass an array to use different credentials for different origins. The first entry that matches the request origin is used, and entries with no origin match any request.
+    * `:username`
+    * `:password`
+    * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
   """
   @spec set_http_credentials(t(), :null | keyword() | map() | [keyword() | map()]) :: :ok | {:error, Exception.t()}
   def set_http_credentials(browser_context, http_credentials) do
@@ -578,12 +659,11 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   ## Arguments
 
-    * `offline` - Whether to emulate network being offline for the browser context.
+  * `offline` - Whether to emulate network being offline for the browser context.
 
-      **NOTE** Offline emulation only affects requests that go through the browser's regular network stack, such as page
-      navigations, `fetch()`, `XMLHttpRequest` and WebSockets. It does not affect WebRTC traffic: established
-      `RTCPeerConnection`s keep sending and receiving media over UDP. To test WebRTC connection loss, interrupt the
-      connection outside the browser, for example by stopping the TURN server or using an OS-level firewall.
+    > #### Note {: .info}
+    >
+    > Offline emulation only affects requests that go through the browser's regular network stack, such as page navigations, `fetch()`, `XMLHttpRequest` and WebSockets. It does not affect WebRTC traffic: established `RTCPeerConnection`s keep sending and receiving media over UDP. To test WebRTC connection loss, interrupt the connection outside the browser, for example by stopping the TURN server or using an OS-level firewall.
   """
   @spec set_offline(t(), boolean()) :: :ok | {:error, Exception.t()}
   def set_offline(browser_context, offline) do

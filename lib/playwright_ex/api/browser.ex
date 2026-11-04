@@ -17,11 +17,16 @@ defmodule PlaywrightEx.Browser do
 
   ## Events
 
-    * `:context` - Emitted when a new browser context is created.
-    * `:disconnected` - Emitted when Browser gets disconnected from the browser application. This might happen because of one of the
-      following:
-      - Browser application is closed or crashed.
-      - The `PlaywrightEx.Browser.close/2` method was called.
+  ### `:context`
+
+  Emitted when a new browser context is created.
+
+  ### `:disconnected`
+
+  Emitted when Browser gets disconnected from the browser application. This might happen because of one of the following:
+
+  * Browser application is closed or crashed.
+  * The `PlaywrightEx.Browser.close/2` method was called.
 
   Not ported yet: `newBrowserCDPSession`, `bind`, `removeAllListeners`, `startTracing`, `stopTracing`, `unbind`.
   """
@@ -43,21 +48,21 @@ defmodule PlaywrightEx.Browser do
   @close_options {:object, %{reason: {:reason, nil}}}
 
   @doc ~S"""
-  In case this browser is obtained using `PlaywrightEx.BrowserType.launch/2`, closes the browser and all of its pages (if
-  any were opened).
+  In case this browser is obtained using `PlaywrightEx.BrowserType.launch/2`, closes the browser and all of its pages (if any
+  were opened).
 
-  In case this browser is connected to, clears all created contexts belonging to this browser and disconnects from
-  the browser server.
+  In case this browser is connected to, clears all created contexts belonging to this browser and disconnects from the
+  browser server.
 
-  **NOTE** This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close
-  events, call `PlaywrightEx.BrowserContext.close/1` on any `BrowserContext` instances you explicitly created earlier
-  using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
+  > #### Note {: .info}
+  >
+  > This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close events, call `PlaywrightEx.BrowserContext.close/1` on any `BrowserContext` instances you explicitly created earlier using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
 
   The `Browser` object itself is considered to be disposed and cannot be used anymore.
 
   ## Options
 
-    * `:reason` - The reason to be reported to the operations interrupted by the browser closure.
+  * `:reason` - The reason to be reported to the operations interrupted by the browser closure.
   """
   @spec close(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
   def close(browser, options \\ []) do
@@ -246,10 +251,10 @@ defmodule PlaywrightEx.Browser do
   @doc ~S"""
   Creates a new browser context. It won't share cookies/cache with other browser contexts.
 
-  **NOTE** If directly using this method to create `BrowserContext`s, it is best practice to explicitly close the
-  returned context via `PlaywrightEx.BrowserContext.close/1` when your code is done with the `BrowserContext`, and before
-  calling `PlaywrightEx.Browser.close/2`. This will ensure the `context` is closed gracefully and any artifacts—like HARs
-  and videos—are fully flushed and saved.
+  > #### Note {: .info}
+  >
+  > If directly using this method to create `BrowserContext`s, it is best practice to explicitly close the returned context via `PlaywrightEx.BrowserContext.close/1` when your code is done with the `BrowserContext`,
+  > and before calling `PlaywrightEx.Browser.close/2`. This will ensure the `context` is closed gracefully and any artifacts—like HARs and videos—are fully flushed and saved.
 
   **Usage**
 
@@ -270,97 +275,138 @@ defmodule PlaywrightEx.Browser do
 
   ## Options
 
-    * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-    * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `Page.route`, `Page.waitForURL`,
-      `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by
-      using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the
-      corresponding URL. Unset by default. Examples:
-      - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
-      - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
-      `http://localhost:3000/foo/bar.html`
-      - baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in
-      `http://localhost:3000/bar.html`
-    * `:bypass_csp` - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
-    * `:client_certificates` - TLS Client Authentication allows the server to request a client certificate and verify it.
+  * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `Page.route`, `Page.waitForURL`, `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
-      **Details**
+    * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
+    * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
+    * baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in `http://localhost:3000/bar.html`
+  * `:bypass_csp` - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
+  * `:client_certificates` - TLS Client Authentication allows the server to request a client certificate and verify it.
 
-      An array of client certificates to be used. Each certificate object must have either both `certPath` and `keyPath`,
-      a single `pfxPath`, or their corresponding direct value equivalents (`cert` and `key`, or `pfx`). Optionally,
-      `passphrase` property should be provided if the certificate is encrypted. The `origin` property should be provided
-      with an exact match to the request origin that the certificate is valid for.
+    **Details**
 
-      Client certificate authentication is only active when at least one client certificate is provided. If you want to
-      reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
-      does not match any of the domains you plan to visit.
+    An array of client certificates to be used. Each certificate object must have either both `certPath` and `keyPath`, a single `pfxPath`, or their corresponding direct value equivalents (`cert` and `key`, or `pfx`). Optionally, `passphrase` property should be provided if the certificate is encrypted. The `origin` property should be provided with an exact match to the request origin that the certificate is valid for.
 
-      **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
-      work by replacing `localhost` with `local.playwright`.
-    * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme)
-      media feature, supported values are `'light'` and `'dark'`. See `Page.emulateMedia` for more details.
-      Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-    * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See
-      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
-      `'no-preference'`.
-    * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
-      [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
-    * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-    * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See
-      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
-      `'none'`.
-    * `:geolocation`
-    * `:has_touch` - Specifies if viewport supports touch events. Defaults to false. Learn more about
-      [mobile emulation](https://playwright.dev/docs/emulation#devices).
-    * `:http_credentials` - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
-      origin is specified, the username and password are sent to any servers upon unauthorized responses.
+    Client certificate authentication is only active when at least one client certificate is provided. If you want to reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that does not match any of the domains you plan to visit.
 
-      Pass an array to use different credentials for different origins. The first entry that matches the request origin
-      is used, and entries with no origin match any request.
-    * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-    * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
-      so you don't actually need to set it manually. Defaults to `false`. Learn more about
-      [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
-    * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
-      [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
-    * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-      `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
-      locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
-    * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about
-      [network emulation](https://playwright.dev/docs/emulation#offline).
-    * `:permissions` - A list of permissions to grant to all pages in this context. See `PlaywrightEx.BrowserContext.grant_permissions/3` for
-      more details. Defaults to none.
-    * `:proxy` - Network proxy settings to use with this context. Defaults to none.
-    * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file.
-      If not specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
-      saved.
-    * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded.
-      Make sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
-    * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See
-      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
-      `'no-preference'`.
-    * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
-      `viewport` is set.
-    * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `'allow'`.
-      - `'allow'`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be
-      registered.
-      - `'block'`: Playwright will block all registration of Service Workers.
-    * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+    > #### Note {: .info}
+    >
+    > When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it work by replacing `localhost` with `local.playwright`.
 
-      Populates context with given storage state. This option can be used to initialize context with logged-in
-      information obtained via `BrowserContext.storageState`.
-    * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
-      selectors that imply single target DOM element will throw when more than one element matches the selector. This
-      option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See `Locator` to learn
-      more about the strict mode.
-    * `:timezone_id` - Changes the timezone of the context. See
-      [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-      for a list of supported timezone IDs. Defaults to the system timezone.
-    * `:user_agent` - Specific user agent to use in this context.
-    * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
-      viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+    * `:origin` - Exact origin that the certificate is valid for. Origin includes `https` protocol, a hostname and optionally a port.
+    * `:cert_path` - Path to the file with the certificate in PEM format.
+    * `:cert` - Direct value of the certificate in PEM format.
+    * `:key_path` - Path to the file with the private key in PEM format.
+    * `:key` - Direct value of the private key in PEM format.
+    * `:pfx_path` - Path to the PFX or PKCS12 encoded private key and certificate chain.
+    * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
+    * `:passphrase` - Passphrase for the private key (PEM or PFX).
+  * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
+    `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
+  * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:geolocation`
+    * `:latitude` - Latitude between -90 and 90.
+    * `:longitude` - Longitude between -180 and 180.
+    * `:accuracy` - Non-negative accuracy value. Defaults to `0`.
+  * `:has_touch` - Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#devices).
+  * `:http_credentials` - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+    If no origin is specified, the username and password are sent to any servers upon unauthorized responses.
 
-      **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
-      by the operating system. It makes the execution of the tests non-deterministic.
+    Pass an array to use different credentials for different origins. The first entry that matches the request origin is used, and entries with no origin match any request.
+
+    * `:username`
+    * `:password`
+    * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
+    * `:send` - This option only applies to the requests sent from corresponding `APIRequestContext` and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+  * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
+  * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
+  * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+  * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
+  * `:permissions` - A list of permissions to grant to all pages in this context. See
+    `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.
+  * `:proxy` - Network proxy settings to use with this context. Defaults to none.
+    * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
+      `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP proxy.
+    * `:bypass` - Optional comma-separated domains to bypass proxy, for example `".com, chromium.org, .domain.com"`.
+    * `:username` - Optional username to use if HTTP proxy requires authentication.
+    * `:password` - Optional password to use if HTTP proxy requires authentication.
+  * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
+    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
+    saved.
+    * `:omit_content` - Optional setting to control whether to omit request content from the HAR. Defaults to
+      `false`. Deprecated, use `content` policy instead.
+    * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `attach` for `.zip` output files and to `embed` for all other file extensions.
+    * `:path` - Path on the filesystem to write the HAR file to. If the file name ends with `.zip`, `content: 'attach'` is used by default.
+    * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
+    * `:url_filter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
+  * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
+    sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
+    * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
+    * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
+      scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
+      Actual picture of each page will be scaled down if necessary to fit the specified size.
+      * `:width` - Video frame width.
+      * `:height` - Video frame height.
+    * `:fps` - Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up to 25 frames per second.
+    * `:show_actions` - If specified, enables visual annotations on interacted elements during video recording.
+      * `:duration` - How long each annotation is displayed in milliseconds. Defaults to `500`.
+      * `:position` - Position of the action title overlay. Defaults to `"top-right"`.
+      * `:font_size` - Font size of the action title in pixels. Defaults to `24`. Deprecated, use `style.title` instead.
+      * `:cursor` - Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from the previous action point to the next one. `"none"` disables the cursor decoration.
+      * `:style` - Styles of the action decorations.
+        * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
+        * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
+        * `:title` - CSS declarations for the action title.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
+    `viewport` is set.
+    * `:width` - page width in pixels.
+    * `:height` - page height in pixels.
+  * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `'allow'`.
+
+    * `'allow'`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be registered.
+    * `'block'`: Playwright will block all registration of Service Workers.
+  * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `BrowserContext.storageState`.
+
+    * `:cookies` - Cookies to set for context
+      * `:name`
+      * `:value`
+      * `:domain` - Domain and path are required. For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com"
+      * `:path` - Domain and path are required
+      * `:expires` - Unix time in seconds.
+      * `:http_only`
+      * `:secure`
+      * `:same_site` - sameSite flag
+    * `:origins`
+      * `:origin`
+      * `:local_storage` - localStorage to set for context
+        * `:name`
+        * `:value`
+  * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
+    on selectors that imply single target DOM element will throw when more than one element matches the selector.
+    This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
+    See `Locator` to learn more about the strict mode.
+  * `:timezone_id` - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
+    for a list of supported timezone IDs. Defaults to the system timezone.
+  * `:user_agent` - Specific user agent to use in this context.
+  * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
+    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+
+    > #### Note {: .info}
+    >
+    > The `null` value opts out from the default presets, makes viewport depend on the
+    > host window size defined by the operating system. It makes the execution of the
+    > tests non-deterministic.
+
+    * `:width` - page width in pixels.
+    * `:height` - page height in pixels.
   """
   @spec new_context(t(), keyword() | map()) :: {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
   def new_context(browser, options \\ []) do
@@ -521,103 +567,144 @@ defmodule PlaywrightEx.Browser do
   @doc ~S"""
   Creates a new page in a new browser context. Closing this page will close the context as well.
 
-  This is a convenience API that should only be used for the single-page scenarios and short snippets. Production
-  code and testing frameworks should explicitly create `PlaywrightEx.Browser.new_context/2` followed by the
+  This is a convenience API that should only be used for the single-page scenarios and short snippets. Production code and
+  testing frameworks should explicitly create `PlaywrightEx.Browser.new_context/2` followed by the
   `PlaywrightEx.BrowserContext.new_page/1` to control their exact life times.
 
   ## Options
 
-    * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-    * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `Page.route`, `Page.waitForURL`,
-      `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by
-      using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the
-      corresponding URL. Unset by default. Examples:
-      - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
-      - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
-      `http://localhost:3000/foo/bar.html`
-      - baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in
-      `http://localhost:3000/bar.html`
-    * `:bypass_csp` - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
-    * `:client_certificates` - TLS Client Authentication allows the server to request a client certificate and verify it.
+  * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `Page.route`, `Page.waitForURL`, `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
-      **Details**
+    * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
+    * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
+    * baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in `http://localhost:3000/bar.html`
+  * `:bypass_csp` - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
+  * `:client_certificates` - TLS Client Authentication allows the server to request a client certificate and verify it.
 
-      An array of client certificates to be used. Each certificate object must have either both `certPath` and `keyPath`,
-      a single `pfxPath`, or their corresponding direct value equivalents (`cert` and `key`, or `pfx`). Optionally,
-      `passphrase` property should be provided if the certificate is encrypted. The `origin` property should be provided
-      with an exact match to the request origin that the certificate is valid for.
+    **Details**
 
-      Client certificate authentication is only active when at least one client certificate is provided. If you want to
-      reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
-      does not match any of the domains you plan to visit.
+    An array of client certificates to be used. Each certificate object must have either both `certPath` and `keyPath`, a single `pfxPath`, or their corresponding direct value equivalents (`cert` and `key`, or `pfx`). Optionally, `passphrase` property should be provided if the certificate is encrypted. The `origin` property should be provided with an exact match to the request origin that the certificate is valid for.
 
-      **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
-      work by replacing `localhost` with `local.playwright`.
-    * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme)
-      media feature, supported values are `'light'` and `'dark'`. See `Page.emulateMedia` for more details.
-      Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-    * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See
-      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
-      `'no-preference'`.
-    * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
-      [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
-    * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-    * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See
-      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
-      `'none'`.
-    * `:geolocation`
-    * `:has_touch` - Specifies if viewport supports touch events. Defaults to false. Learn more about
-      [mobile emulation](https://playwright.dev/docs/emulation#devices).
-    * `:http_credentials` - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
-      origin is specified, the username and password are sent to any servers upon unauthorized responses.
+    Client certificate authentication is only active when at least one client certificate is provided. If you want to reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that does not match any of the domains you plan to visit.
 
-      Pass an array to use different credentials for different origins. The first entry that matches the request origin
-      is used, and entries with no origin match any request.
-    * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-    * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
-      so you don't actually need to set it manually. Defaults to `false`. Learn more about
-      [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
-    * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
-      [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
-    * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-      `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
-      locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
-    * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about
-      [network emulation](https://playwright.dev/docs/emulation#offline).
-    * `:permissions` - A list of permissions to grant to all pages in this context. See `PlaywrightEx.BrowserContext.grant_permissions/3` for
-      more details. Defaults to none.
-    * `:proxy` - Network proxy settings to use with this context. Defaults to none.
-    * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file.
-      If not specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
-      saved.
-    * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded.
-      Make sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
-    * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See
-      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
-      `'no-preference'`.
-    * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
-      `viewport` is set.
-    * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `'allow'`.
-      - `'allow'`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be
-      registered.
-      - `'block'`: Playwright will block all registration of Service Workers.
-    * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+    > #### Note {: .info}
+    >
+    > When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it work by replacing `localhost` with `local.playwright`.
 
-      Populates context with given storage state. This option can be used to initialize context with logged-in
-      information obtained via `BrowserContext.storageState`.
-    * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
-      selectors that imply single target DOM element will throw when more than one element matches the selector. This
-      option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See `Locator` to learn
-      more about the strict mode.
-    * `:timezone_id` - Changes the timezone of the context. See
-      [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-      for a list of supported timezone IDs. Defaults to the system timezone.
-    * `:user_agent` - Specific user agent to use in this context.
-    * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
-      viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+    * `:origin` - Exact origin that the certificate is valid for. Origin includes `https` protocol, a hostname and optionally a port.
+    * `:cert_path` - Path to the file with the certificate in PEM format.
+    * `:cert` - Direct value of the certificate in PEM format.
+    * `:key_path` - Path to the file with the private key in PEM format.
+    * `:key` - Direct value of the private key in PEM format.
+    * `:pfx_path` - Path to the PFX or PKCS12 encoded private key and certificate chain.
+    * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
+    * `:passphrase` - Passphrase for the private key (PEM or PFX).
+  * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
+    `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
+  * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:geolocation`
+    * `:latitude` - Latitude between -90 and 90.
+    * `:longitude` - Longitude between -180 and 180.
+    * `:accuracy` - Non-negative accuracy value. Defaults to `0`.
+  * `:has_touch` - Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#devices).
+  * `:http_credentials` - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+    If no origin is specified, the username and password are sent to any servers upon unauthorized responses.
 
-      **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
-      by the operating system. It makes the execution of the tests non-deterministic.
+    Pass an array to use different credentials for different origins. The first entry that matches the request origin is used, and entries with no origin match any request.
+
+    * `:username`
+    * `:password`
+    * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
+    * `:send` - This option only applies to the requests sent from corresponding `APIRequestContext` and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+  * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
+  * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
+  * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+  * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
+  * `:permissions` - A list of permissions to grant to all pages in this context. See
+    `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.
+  * `:proxy` - Network proxy settings to use with this context. Defaults to none.
+    * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
+      `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP proxy.
+    * `:bypass` - Optional comma-separated domains to bypass proxy, for example `".com, chromium.org, .domain.com"`.
+    * `:username` - Optional username to use if HTTP proxy requires authentication.
+    * `:password` - Optional password to use if HTTP proxy requires authentication.
+  * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
+    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
+    saved.
+    * `:omit_content` - Optional setting to control whether to omit request content from the HAR. Defaults to
+      `false`. Deprecated, use `content` policy instead.
+    * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `attach` for `.zip` output files and to `embed` for all other file extensions.
+    * `:path` - Path on the filesystem to write the HAR file to. If the file name ends with `.zip`, `content: 'attach'` is used by default.
+    * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
+    * `:url_filter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
+  * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
+    sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
+    * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
+    * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
+      scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
+      Actual picture of each page will be scaled down if necessary to fit the specified size.
+      * `:width` - Video frame width.
+      * `:height` - Video frame height.
+    * `:fps` - Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up to 25 frames per second.
+    * `:show_actions` - If specified, enables visual annotations on interacted elements during video recording.
+      * `:duration` - How long each annotation is displayed in milliseconds. Defaults to `500`.
+      * `:position` - Position of the action title overlay. Defaults to `"top-right"`.
+      * `:font_size` - Font size of the action title in pixels. Defaults to `24`. Deprecated, use `style.title` instead.
+      * `:cursor` - Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from the previous action point to the next one. `"none"` disables the cursor decoration.
+      * `:style` - Styles of the action decorations.
+        * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
+        * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
+        * `:title` - CSS declarations for the action title.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
+    `viewport` is set.
+    * `:width` - page width in pixels.
+    * `:height` - page height in pixels.
+  * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `'allow'`.
+
+    * `'allow'`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be registered.
+    * `'block'`: Playwright will block all registration of Service Workers.
+  * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `BrowserContext.storageState`.
+
+    * `:cookies` - Cookies to set for context
+      * `:name`
+      * `:value`
+      * `:domain` - Domain and path are required. For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com"
+      * `:path` - Domain and path are required
+      * `:expires` - Unix time in seconds.
+      * `:http_only`
+      * `:secure`
+      * `:same_site` - sameSite flag
+    * `:origins`
+      * `:origin`
+      * `:local_storage` - localStorage to set for context
+        * `:name`
+        * `:value`
+  * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
+    on selectors that imply single target DOM element will throw when more than one element matches the selector.
+    This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
+    See `Locator` to learn more about the strict mode.
+  * `:timezone_id` - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
+    for a list of supported timezone IDs. Defaults to the system timezone.
+  * `:user_agent` - Specific user agent to use in this context.
+  * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
+    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+
+    > #### Note {: .info}
+    >
+    > The `null` value opts out from the default presets, makes viewport depend on the
+    > host window size defined by the operating system. It makes the execution of the
+    > tests non-deterministic.
+
+    * `:width` - page width in pixels.
+    * `:height` - page height in pixels.
   """
   @spec new_page(t(), keyword() | map()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
   def new_page(browser, options \\ []) do

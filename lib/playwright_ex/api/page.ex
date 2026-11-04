@@ -44,123 +44,176 @@ defmodule PlaywrightEx.Page do
 
   ## Events
 
-    * `:close` - Emitted when the page closes.
-    * `:console` - Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
+  ### `:close`
 
-      The arguments passed into `console.log` are available on the `ConsoleMessage` event handler argument.
+  Emitted when the page closes.
 
-      **Usage**
+  ### `:console`
 
-      ```js
-      page.on('console', async msg => {
-      const values = [];
-      for (const arg of msg.args())
+  Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
+
+  The arguments passed into `console.log` are available on the `ConsoleMessage` event handler argument.
+
+  **Usage**
+
+  ```js
+  page.on('console', async msg => {
+    const values = [];
+    for (const arg of msg.args())
       values.push(await arg.jsonValue());
-      console.log(...values);
-      });
-      await page.evaluate(() => console.log('hello', 5, { foo: 'bar' }));
-      ```
+    console.log(...values);
+  });
+  await page.evaluate(() => console.log('hello', 5, { foo: 'bar' }));
+  ```
 
-                    * `:crash` - Emitted when the page crashes. Browser pages might crash if they try to allocate too much memory. When the page
-      crashes, ongoing and subsequent operations will throw.
+  ### `:crash`
 
-      The most common way to deal with crashes is to catch an exception:
+  Emitted when the page crashes. Browser pages might crash if they try to allocate too much memory. When the page crashes,
+  ongoing and subsequent operations will throw.
 
-      ```js
-      try {
-      // Crash might happen during a click.
-      await page.click('button');
-      // Or while waiting for an event.
-      await page.waitForEvent('popup');
-      } catch (e) {
-      // When the page crashes, exception message contains 'crash'.
-      }
-      ```
+  The most common way to deal with crashes is to catch an exception:
 
-                    * `:dialog` - Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must**
-      either `Dialog.accept` or `Dialog.dismiss` the dialog - otherwise the page will
-      [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog,
-      and actions like click will never finish.
+  ```js
+  try {
+    // Crash might happen during a click.
+    await page.click('button');
+    // Or while waiting for an event.
+    await page.waitForEvent('popup');
+  } catch (e) {
+    // When the page crashes, exception message contains 'crash'.
+  }
+  ```
 
-      **Usage**
+  ### `:dialog`
 
-      ```js
-      page.on('dialog', dialog => dialog.accept());
-      ```
+  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either `Dialog.accept` or `Dialog.dismiss` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
 
-                  **NOTE** When no `Page.dialog` or `BrowserContext.dialog` listeners are present, all dialogs are
-      automatically dismissed.
-    * `:dialog_closed` - Emitted when a JavaScript dialog has been closed, either by `Dialog.accept`, by
-      `Dialog.dismiss`, or manually by the user in the headed browser.
-    * `:dom_content_loaded` - Emitted when the JavaScript
-      [`DOMContentLoaded`](https://developer.mozilla.org/en-US/docs/Web/Events/DOMContentLoaded) event is dispatched.
-    * `:download` - Emitted when attachment download started. User can access basic file operations on downloaded content via the
-      passed `Download` instance.
-    * `:file_chooser` - Emitted when a file chooser is supposed to appear, such as after clicking the  `<input type=file>`. Playwright can
-      respond to it via setting the input files using `FileChooser.setFiles` that can be uploaded after that.
+  **Usage**
 
-      ```js
-      page.on('filechooser', async fileChooser => {
-      await fileChooser.setFiles(path.join(__dirname, '/tmp/myfile.pdf'));
-      });
-      ```
+  ```js
+  page.on('dialog', dialog => dialog.accept());
+  ```
 
-                * `:frame_attached` - Emitted when a frame is attached.
-    * `:frame_detached` - Emitted when a frame is detached.
-    * `:frame_navigated` - Emitted when a frame is navigated to a new url.
-    * `:load` - Emitted when the JavaScript [`load`](https://developer.mozilla.org/en-US/docs/Web/Events/load) event is dispatched.
-    * `:page_error` - Emitted when an uncaught exception happens within the page.
+  > #### Note {: .info}
+  >
+  > When no `Page.dialog` or `BrowserContext.dialog` listeners are present, all dialogs are automatically dismissed.
 
-      ```js
-      // Log all uncaught errors to the terminal
-      page.on('pageerror', exception => {
-      console.log(`Uncaught exception: "${exception}"`);
-      });
+  ### `:dialog_closed`
 
-      // Navigate to a page with an exception.
-      await page.goto('data:text/html,<script>throw new Error("Test")</script>');
-      ```
+  Emitted when a JavaScript dialog has been closed, either by `Dialog.accept`, by `Dialog.dismiss`, or manually by the user in the headed browser.
 
-                    * `:popup` - Emitted when the page opens a new tab or window. This event is emitted in addition to the
-      `BrowserContext.page`, but only for popups relevant to this page.
+  ### `:dom_content_loaded`
 
-      The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
-      popup with `window.open('http://example.com')`, this event will fire when the network request to
-      "http://example.com" is done and its response has started loading in the popup. If you would like to route/listen
-      to this network request, use `BrowserContext.route` and `BrowserContext.request` respectively
-      instead of similar methods on the `Page`.
+  Emitted when the JavaScript [`DOMContentLoaded`](https://developer.mozilla.org/en-US/docs/Web/Events/DOMContentLoaded)
+  event is dispatched.
 
-      ```js
-      // Start waiting for popup before clicking. Note no await.
-      const popupPromise = page.waitForEvent('popup');
-      await page.getByText('open the popup').click();
-      const popup = await popupPromise;
-      console.log(await popup.evaluate('location.href'));
-      ```
+  ### `:download`
 
-                      **NOTE** Use `PlaywrightEx.Page.wait_for_load_state/3` to wait until the page gets to a particular state (you should not
-      need it in most cases).
-    * `:request` - Emitted when a page issues a request. The [request] object is read-only. In order to intercept and mutate requests,
-      see `Page.route` or `BrowserContext.route`.
-    * `:request_failed` - Emitted when a request fails, for example by timing out.
+  Emitted when attachment download started. User can access basic file operations on downloaded content via the passed
+  `Download` instance.
 
-      ```js
-      page.on('requestfailed', request => {
-      console.log(request.url() + ' ' + request.failure().errorText);
-      });
-      ```
+  ### `:file_chooser`
 
-              **NOTE** HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request
-      will complete with `Page.requestFinished` event and not with `Page.requestFailed`. A request will
-      only be considered failed when the client cannot get an HTTP response from the server, e.g. due to network error
-      net::ERR_FAILED.
-    * `:request_finished` - Emitted when a request finishes successfully after downloading the response body. For a successful response, the
-      sequence of events is `request`, `response` and `requestfinished`.
-    * `:response` - Emitted when [response] status and headers are received for a request. For a successful response, the sequence of
-      events is `request`, `response` and `requestfinished`.
-    * `:web_socket` - Emitted when `WebSocket` request is sent.
-    * `:worker` - Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned
-      by the page.
+  Emitted when a file chooser is supposed to appear, such as after clicking the  `<input type=file>`. Playwright can
+  respond to it via setting the input files using `FileChooser.setFiles` that can be uploaded after that.
+
+  ```js
+  page.on('filechooser', async fileChooser => {
+    await fileChooser.setFiles(path.join(__dirname, '/tmp/myfile.pdf'));
+  });
+  ```
+
+  ### `:frame_attached`
+
+  Emitted when a frame is attached.
+
+  ### `:frame_detached`
+
+  Emitted when a frame is detached.
+
+  ### `:frame_navigated`
+
+  Emitted when a frame is navigated to a new url.
+
+  ### `:load`
+
+  Emitted when the JavaScript [`load`](https://developer.mozilla.org/en-US/docs/Web/Events/load) event is dispatched.
+
+  ### `:page_error`
+
+  Emitted when an uncaught exception happens within the page.
+
+  ```js
+  // Log all uncaught errors to the terminal
+  page.on('pageerror', exception => {
+    console.log(`Uncaught exception: "${exception}"`);
+  });
+
+  // Navigate to a page with an exception.
+  await page.goto('data:text/html,<script>throw new Error("Test")</script>');
+  ```
+
+  ### `:popup`
+
+  Emitted when the page opens a new tab or window. This event is emitted in addition to the
+  `BrowserContext.page`, but only for popups relevant to this page.
+
+  The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
+  popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
+  done and its response has started loading in the popup. If you would like to route/listen to this network request, use `BrowserContext.route` and `BrowserContext.request` respectively instead of similar methods on the `Page`.
+
+  ```js
+  // Start waiting for popup before clicking. Note no await.
+  const popupPromise = page.waitForEvent('popup');
+  await page.getByText('open the popup').click();
+  const popup = await popupPromise;
+  console.log(await popup.evaluate('location.href'));
+  ```
+
+  > #### Note {: .info}
+  >
+  > Use `PlaywrightEx.Page.wait_for_load_state/3` to wait until the page gets to a particular state (you should not need it in most
+  > cases).
+
+  ### `:request`
+
+  Emitted when a page issues a request. The [request] object is read-only. In order to intercept and mutate requests, see
+  `Page.route` or `BrowserContext.route`.
+
+  ### `:request_failed`
+
+  Emitted when a request fails, for example by timing out.
+
+  ```js
+  page.on('requestfailed', request => {
+    console.log(request.url() + ' ' + request.failure().errorText);
+  });
+  ```
+
+  > #### Note {: .info}
+  >
+  > HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request will complete
+  > with `Page.requestFinished` event and not with `Page.requestFailed`. A request will only be considered
+  > failed when the client cannot get an HTTP response from the server, e.g. due to network error net::ERR_FAILED.
+
+  ### `:request_finished`
+
+  Emitted when a request finishes successfully after downloading the response body. For a successful response, the
+  sequence of events is `request`, `response` and `requestfinished`.
+
+  ### `:response`
+
+  Emitted when [response] status and headers are received for a request. For a successful response, the sequence of events
+  is `request`, `response` and `requestfinished`.
+
+  ### `:web_socket`
+
+  Emitted when `WebSocket` request is sent.
+
+  ### `:worker`
+
+  Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
+  page.
 
   Not ported yet: `clock`, `addInitScript`, `addScriptTag`, `addStyleTag`, `cancelPickLocator`, `check`, `click`, `coverage`, `dblclick`, `dispatchEvent`, `dragAndDrop`, `emulateMedia`, `$eval`, `$$eval`, `evaluateHandle`, `exposeBinding`, `exposeFunction`, `fill`, `focus`, `frame`, `frameLocator`, `getAttribute`, `getByAltText`, `getByLabel`, `getByPlaceholder`, `getByRef`, `getByRole`, `getByTestId`, `getByText`, `getByTitle`, `requestGC`, `hideHighlight`, `hover`, `innerHTML`, `innerText`, `inputValue`, `isChecked`, `isDisabled`, `isEditable`, `isEnabled`, `isHidden`, `isVisible`, `keyboard`, `clearConsoleMessages`, `clearPageErrors`, `localStorage`, `sessionStorage`, `consoleMessages`, `pageErrors`, `locator`, `mouse`, `pause`, `pdf`, `pickLocator`, `press`, `$`, `$$`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `screenshot`, `selectOption`, `setChecked`, `setInputFiles`, `ariaSnapshot`, `ariaSnapshotJSON`, `tap`, `textContent`, `touchscreen`, `type`, `uncheck`, `unrouteAll`, `unroute`, `video`, `waitForEvent`, `waitForFunction`, `waitForNavigation`, `waitForRequest`, `waitForResponse`, `waitForSelector`, `waitForURL`, `webmcp`, `workers`.
   """
@@ -213,14 +266,16 @@ defmodule PlaywrightEx.Page do
 
   By default, `page.close()` **does not** run `beforeunload` handlers.
 
-  **NOTE** if `runBeforeUnload` is passed as true, a `beforeunload` dialog might be summoned and should be handled
-  manually via `Page.dialog` event.
+  > #### Note {: .info}
+  >
+  > if `runBeforeUnload` is passed as true, a `beforeunload` dialog might be summoned and should be handled
+  > manually via `Page.dialog` event.
 
   ## Options
 
-    * `:reason` - The reason to be reported to the operations interrupted by the page closure.
-    * `:run_before_unload` - Defaults to `false`. Whether to run the
-      [before unload](https://developer.mozilla.org/en-US/docs/Web/Events/beforeunload) page handlers.
+  * `:reason` - The reason to be reported to the operations interrupted by the page closure.
+  * `:run_before_unload` - Defaults to `false`. Whether to run the
+    [before unload](https://developer.mozilla.org/en-US/docs/Web/Events/beforeunload) page handlers.
   """
   @spec close(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
   def close(page, options \\ []) do
@@ -242,10 +297,8 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-    * `:include_shadow` - When true, contents of open shadow roots are included as
-      [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
-      i.e. `<template shadowrootmode="open">` elements nested inside their host elements. Closed shadow roots are never
-      included. Defaults to `false`.
+  * `:include_shadow` - When true, contents of open shadow roots are included as [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
+    i.e. `<template shadowrootmode="open">` elements nested inside their host elements. Closed shadow roots are never included. Defaults to `false`.
   """
   @spec content(t(), keyword() | map()) :: {:ok, String.t()} | {:error, Exception.t()}
   def content(page, options \\ []) do
@@ -273,12 +326,12 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns the value of the `pageFunction` invocation.
 
-  If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a [Promise], then `PlaywrightEx.Page.evaluate/4` would
-  wait for the promise to resolve and return its value.
+  If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a [Promise], then `PlaywrightEx.Page.evaluate/4` would wait
+  for the promise to resolve and return its value.
 
   If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a non-[Serializable] value, then
-  `PlaywrightEx.Page.evaluate/4` resolves to `undefined`. Playwright also supports transferring some additional values
-  that are not serializable by `JSON`: `-0`, `NaN`, `Infinity`, `-Infinity`.
+  `PlaywrightEx.Page.evaluate/4` resolves to `undefined`. Playwright also supports transferring some
+  additional values that are not serializable by `JSON`: `-0`, `NaN`, `Infinity`, `-Infinity`.
 
   **Usage**
 
@@ -311,16 +364,12 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-    * `expression` - Function to be evaluated in the page context.
-    * `arg` - Optional argument to pass to `pageFunction`.
+  * `expression` - Function to be evaluated in the page context.
+  * `arg` - Optional argument to pass to `pageFunction`.
 
   ## Options
 
-    * `:expose_functions` - When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function.
-      Calling one returns a [Promise] of its result. Under the hood, each function is exposed via
-      `Page.exposeFunction`, so it is technically accessible from all frames of the page. Exposed functions are
-      cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and
-      passing one throws an error.
+  * `:expose_functions` - When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a [Promise] of its result. Under the hood, each function is exposed via `Page.exposeFunction`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate(t(), String.t(), term() | nil, keyword() | map()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(page, expression, arg \\ nil, options \\ []) do
@@ -359,37 +408,32 @@ defmodule PlaywrightEx.Page do
                     }}
 
   @doc ~S"""
-  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of
-  the last redirect. If cannot go back, returns `null`.
+  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
+  last redirect. If cannot go back, returns `null`.
 
   Navigate to the previous page in history.
 
-  **NOTE** **Testing Back/Forward Cache (BFCache) is not supported.** By default, Playwright disables the
-  Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on
-  network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using
-  `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized
-  `Page` state.
+  > #### Warning {: .warning}
+  >
+  > **Testing Back/Forward Cache (BFCache) is not supported.**
+  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized `Page` state.
 
   ## Options
 
-    * `:signal` - Allows to cancel the operation using an
-      [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
-      operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
-      which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass
-      `timeout: 0` to disable the timeout entirely.
-    * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via
-      `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
-      `PlaywrightEx.BrowserContext.set_default_timeout/2`, `PlaywrightEx.Page.set_default_navigation_timeout/2` or
-      `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:signal` - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
-    * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
-      - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-      - `'load'` - consider operation to be finished when the `load` event is fired.
-      - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
-      at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-      - `'commit'` - consider operation to be finished when network response is received and the document started
-      loading.
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec go_back(t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def go_back(page, options \\ []) do
@@ -420,37 +464,32 @@ defmodule PlaywrightEx.Page do
                        }}
 
   @doc ~S"""
-  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of
-  the last redirect. If cannot go forward, returns `null`.
+  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
+  last redirect. If cannot go forward, returns `null`.
 
   Navigate to the next page in history.
 
-  **NOTE** **Testing Back/Forward Cache (BFCache) is not supported.** By default, Playwright disables the
-  Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on
-  network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using
-  `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized
-  `Page` state.
+  > #### Warning {: .warning}
+  >
+  > **Testing Back/Forward Cache (BFCache) is not supported.**
+  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized `Page` state.
 
   ## Options
 
-    * `:signal` - Allows to cancel the operation using an
-      [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
-      operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
-      which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass
-      `timeout: 0` to disable the timeout entirely.
-    * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via
-      `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
-      `PlaywrightEx.BrowserContext.set_default_timeout/2`, `PlaywrightEx.Page.set_default_navigation_timeout/2` or
-      `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:signal` - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
-    * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
-      - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-      - `'load'` - consider operation to be finished when the `load` event is fired.
-      - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
-      at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-      - `'commit'` - consider operation to be finished when network response is received and the document started
-      loading.
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec go_forward(t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def go_forward(page, options \\ []) do
@@ -486,50 +525,51 @@ defmodule PlaywrightEx.Page do
   non-redirect response.
 
   The method will throw an error if:
-  - there's an SSL error (e.g. in case of self-signed certificates).
-  - target URL is invalid.
-  - the `timeout` is exceeded during navigation.
-  - the remote server does not respond or is unreachable.
-  - the main resource failed to load.
 
-  The method will not throw an error when any valid HTTP status code is returned by the remote server, including 404
-  "Not Found" and 500 "Internal Server Error".  The status code for such responses can be retrieved by calling
+  * there's an SSL error (e.g. in case of self-signed certificates).
+  * target URL is invalid.
+  * the `timeout` is exceeded during navigation.
+  * the remote server does not respond or is unreachable.
+  * the main resource failed to load.
+
+  The method will not throw an error when any valid HTTP status code is returned by the remote server, including 404 "Not
+  Found" and 500 "Internal Server Error".  The status code for such responses can be retrieved by calling
   `PlaywrightEx.Response.status/1`.
 
-  **NOTE** The method either throws an error or returns a main resource response. The only exceptions are navigation
-  to `about:blank` or navigation to the same URL with a different hash, which would succeed and return `null`.
+  > #### Note {: .info}
+  >
+  > The method either throws an error or returns a main resource response. The only exceptions are navigation to
+  > `about:blank` or navigation to the same URL with a different hash, which would succeed and return `null`.
 
-  **NOTE** Headless mode doesn't support navigation to a PDF document. See the
-  [upstream issue](https://bugs.chromium.org/p/chromium/issues/detail?id=761295).
+  > #### Note {: .info}
+  >
+  > Headless mode doesn't support navigation to a PDF document. See the
+  > [upstream issue](https://bugs.chromium.org/p/chromium/issues/detail?id=761295).
 
   ## Arguments
 
-    * `url` - URL to navigate page to. The url should include scheme, e.g. `https://`. When a `baseURL` via the context options
-      was provided and the passed URL is a path, it gets merged via the
-      [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `url` - URL to navigate page to. The url should include scheme, e.g. `https://`.
+    When a `baseURL` via the context options was provided and the passed URL is a path,
+    it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
 
   ## Options
 
-    * `:referer` - Referer header value. If provided it will take preference over the referer header value set by
-      `PlaywrightEx.Page.set_extra_http_headers/2`.
-    * `:signal` - Allows to cancel the operation using an
-      [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
-      operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
-      which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass
-      `timeout: 0` to disable the timeout entirely.
-    * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via
-      `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
-      `PlaywrightEx.BrowserContext.set_default_timeout/2`, `PlaywrightEx.Page.set_default_navigation_timeout/2` or
-      `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:referer` - Referer header value. If provided it will take preference over the referer header value set by
+    `PlaywrightEx.Page.set_extra_http_headers/2`.
+  * `:signal` - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
-    * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
-      - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-      - `'load'` - consider operation to be finished when the `load` event is fired.
-      - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
-      at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-      - `'commit'` - consider operation to be finished when network response is received and the document started
-      loading.
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec goto(t(), String.t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def goto(page, url, options \\ []) do
@@ -577,12 +617,9 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns up to (currently) 100 last network request from this page. See `Page.request` for more details.
 
-  Returned requests should be accessed immediately, otherwise they might be collected to prevent unbounded memory
-  growth as new requests come in. Once collected, retrieving most information about the request is impossible.
+  Returned requests should be accessed immediately, otherwise they might be collected to prevent unbounded memory growth as new requests come in. Once collected, retrieving most information about the request is impossible.
 
-  Note that requests reported through the `Page.request` request are not collected, so there is a trade off
-  between efficient memory usage with `PlaywrightEx.Page.requests/1` and the amount of available information reported
-  through `Page.request`.
+  Note that requests reported through the `Page.request` request are not collected, so there is a trade off between efficient memory usage with `PlaywrightEx.Page.requests/1` and the amount of available information reported through `Page.request`.
   """
   @spec requests(t()) :: {:ok, [PlaywrightEx.Request.t()]} | {:error, Exception.t()}
   def requests(page) do
@@ -611,30 +648,26 @@ defmodule PlaywrightEx.Page do
                    }}
 
   @doc ~S"""
-  This method reloads the current page, in the same way as if the user had triggered a browser refresh. Returns the
-  main resource response. In case of multiple redirects, the navigation will resolve with the response of the last
-  redirect.
+  This method reloads the current page, in the same way as if the user had triggered a browser refresh.
+  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
+  last redirect.
 
   ## Options
 
-    * `:signal` - Allows to cancel the operation using an
-      [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
-      operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
-      which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass
-      `timeout: 0` to disable the timeout entirely.
-    * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via
-      `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
-      `PlaywrightEx.BrowserContext.set_default_timeout/2`, `PlaywrightEx.Page.set_default_navigation_timeout/2` or
-      `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:signal` - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
-    * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
-      - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-      - `'load'` - consider operation to be finished when the `load` event is fired.
-      - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
-      at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-      - `'commit'` - consider operation to be finished when network response is received and the document started
-      loading.
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec reload(t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def reload(page, options \\ []) do
@@ -665,33 +698,28 @@ defmodule PlaywrightEx.Page do
                         }}
 
   @doc ~S"""
-  This method internally calls [document.write()](https://developer.mozilla.org/en-US/docs/Web/API/Document/write),
-  inheriting all its specific characteristics and behaviors.
+  This method internally calls [document.write()](https://developer.mozilla.org/en-US/docs/Web/API/Document/write), inheriting all its specific characteristics and behaviors.
 
   ## Arguments
 
-    * `html` - HTML markup to assign to the page.
+  * `html` - HTML markup to assign to the page.
 
   ## Options
 
-    * `:signal` - Allows to cancel the operation using an
-      [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
-      operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
-      which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass
-      `timeout: 0` to disable the timeout entirely.
-    * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via
-      `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
-      `PlaywrightEx.BrowserContext.set_default_timeout/2`, `PlaywrightEx.Page.set_default_navigation_timeout/2` or
-      `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:signal` - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
-    * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
-      - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-      - `'load'` - consider operation to be finished when the `load` event is fired.
-      - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
-      at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-      - `'commit'` - consider operation to be finished when network response is received and the document started
-      loading.
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec set_content(t(), String.t(), keyword() | map()) :: :ok | {:error, Exception.t()}
   def set_content(page, html, options \\ []) do
@@ -710,22 +738,25 @@ defmodule PlaywrightEx.Page do
 
   @doc ~S"""
   This setting will change the default maximum navigation time for the following methods and related shortcuts:
-  - `PlaywrightEx.Page.go_back/2`
-  - `PlaywrightEx.Page.go_forward/2`
-  - `PlaywrightEx.Page.goto/3`
-  - `PlaywrightEx.Page.reload/2`
-  - `PlaywrightEx.Page.set_content/3`
-  - `Page.waitForNavigation`
-  - `Page.waitForURL`
 
-  **NOTE** `PlaywrightEx.Page.set_default_navigation_timeout/2` takes priority over `PlaywrightEx.Page.set_default_timeout/2`,
-  `PlaywrightEx.BrowserContext.set_default_timeout/2` and `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`.
+  * `PlaywrightEx.Page.go_back/2`
+  * `PlaywrightEx.Page.go_forward/2`
+  * `PlaywrightEx.Page.goto/3`
+  * `PlaywrightEx.Page.reload/2`
+  * `PlaywrightEx.Page.set_content/3`
+  * `Page.waitForNavigation`
+  * `Page.waitForURL`
+
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.set_default_navigation_timeout/2` takes priority over `PlaywrightEx.Page.set_default_timeout/2`,
+  > `PlaywrightEx.BrowserContext.set_default_timeout/2` and `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`.
 
   ## Arguments
 
-    * `timeout` - Maximum navigation time in milliseconds
+  * `timeout` - Maximum navigation time in milliseconds
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec set_default_navigation_timeout(t(), number() | :infinity) :: :ok
   def set_default_navigation_timeout(page, timeout) do
@@ -739,13 +770,15 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   This setting will change the default maximum time for all the methods accepting `timeout` option.
 
-  **NOTE** `PlaywrightEx.Page.set_default_navigation_timeout/2` takes priority over `PlaywrightEx.Page.set_default_timeout/2`.
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.set_default_navigation_timeout/2` takes priority over `PlaywrightEx.Page.set_default_timeout/2`.
 
   ## Arguments
 
-    * `timeout` - Maximum time in milliseconds. Pass `0` to disable timeout.
+  * `timeout` - Maximum time in milliseconds. Pass `0` to disable timeout.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec set_default_timeout(t(), number() | :infinity) :: :ok
   def set_default_timeout(page, timeout) do
@@ -757,11 +790,13 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   The extra HTTP headers will be sent with every request the page initiates.
 
-  **NOTE** `PlaywrightEx.Page.set_extra_http_headers/2` does not guarantee the order of headers in the outgoing requests.
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.set_extra_http_headers/2` does not guarantee the order of headers in the outgoing requests.
 
   ## Arguments
 
-    * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
+  * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
   """
   @spec set_extra_http_headers(t(), map()) :: :ok | {:error, Exception.t()}
   def set_extra_http_headers(page, headers) do
@@ -784,10 +819,8 @@ defmodule PlaywrightEx.Page do
   In the case of multiple pages in a single browser, each page can have its own viewport size. However,
   `PlaywrightEx.Browser.new_context/2` allows to set viewport size (and more) for all pages in the context at once.
 
-  `PlaywrightEx.Page.set_viewport_size/2` will resize the page. A lot of websites don't expect phones to change size, so you
-  should set the viewport size before navigating to the page. `PlaywrightEx.Page.set_viewport_size/2` will also reset
-  `screen` size, use `PlaywrightEx.Browser.new_context/2` with `screen` and `viewport` parameters if you need better
-  control of these properties.
+  `PlaywrightEx.Page.set_viewport_size/2` will resize the page. A lot of websites don't expect phones to change size, so you should set the
+  viewport size before navigating to the page. `PlaywrightEx.Page.set_viewport_size/2` will also reset `screen` size, use `PlaywrightEx.Browser.new_context/2` with `screen` and `viewport` parameters if you need better control of these properties.
 
   **Usage**
 
@@ -799,6 +832,12 @@ defmodule PlaywrightEx.Page do
   });
   await page.goto('https://example.com');
   ```
+
+  ## Arguments
+
+  * `viewport_size`
+    * `:width` - page width in pixels.
+    * `:height` - page height in pixels.
   """
   @spec set_viewport_size(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
   def set_viewport_size(page, viewport_size) do
@@ -851,12 +890,12 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns when the required load state has been reached.
 
-  This resolves when the page reaches a required load state, `load` by default. The navigation must have been
-  committed when this method is called. If current document has already reached the required state, resolves
-  immediately.
+  This resolves when the page reaches a required load state, `load` by default. The navigation must have been committed
+  when this method is called. If current document has already reached the required state, resolves immediately.
 
-  **NOTE** Most of the time, this method is not needed because Playwright
-  [auto-waits before every action](https://playwright.dev/docs/actionability).
+  > #### Note {: .info}
+  >
+  > Most of the time, this method is not needed because Playwright [auto-waits before every action](https://playwright.dev/docs/actionability).
 
   **Usage**
 
@@ -875,26 +914,23 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-    * `state` - Optional load state to wait for, defaults to `load`. If the state has been already reached while loading current
-      document, the method resolves immediately. Can be one of:
-      - `'load'` - wait for the `load` event to be fired.
-      - `'domcontentloaded'` - wait for the `DOMContentLoaded` event to be fired.
-      - `'networkidle'` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use
-      this method for testing, rely on web assertions to assess readiness instead.
+  * `state` - Optional load state to wait for, defaults to `load`. If the state has been already reached while loading current document, the
+    method resolves immediately. Can be one of:
+
+    * `'load'` - wait for the `load` event to be fired.
+    * `'domcontentloaded'` - wait for the `DOMContentLoaded` event to be fired.
+    * `'networkidle'` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
 
   ## Options
 
-    * `:signal` - Allows to cancel the waiting using an
-      [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
-      waiting will be aborted and the operation will throw an error. Note that providing a signal does not disable the
-      default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to
-      disable the timeout entirely.
-    * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via
-      `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
-      `PlaywrightEx.BrowserContext.set_default_timeout/2`, `PlaywrightEx.Page.set_default_navigation_timeout/2` or
-      `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:signal` - Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, keyword() | map()) ::
           :ok | {:error, Exception.t()}
@@ -923,8 +959,8 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Waits for the given `timeout` in milliseconds.
 
-  Note that `page.waitForTimeout()` should only be used for debugging. Tests using the timer in production are going
-  to be flaky. Use signals such as network events, selectors becoming visible and others instead.
+  Note that `page.waitForTimeout()` should only be used for debugging. Tests using the timer in production are going to be
+  flaky. Use signals such as network events, selectors becoming visible and others instead.
 
   **Usage**
 
@@ -933,13 +969,16 @@ defmodule PlaywrightEx.Page do
   await page.waitForTimeout(1000);
   ```
 
-  Discouraged: Never wait for timeout in production. Tests that wait for time are↵inherently flaky. Use `Locator` actions and web assertions that wait automatically.
+  > #### Discouraged {: .warning}
+  >
+  > Never wait for timeout in production. Tests that wait for time are
+  > inherently flaky. Use `Locator` actions and web assertions that wait automatically.
 
   ## Arguments
 
-    * `timeout` - A timeout to wait for
+  * `timeout` - A timeout to wait for
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec wait_for_timeout(t(), number() | :infinity) :: :ok | {:error, Exception.t()}
   def wait_for_timeout(page, timeout) do

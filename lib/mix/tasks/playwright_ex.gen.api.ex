@@ -174,17 +174,15 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp module_doc(ctx, class, events, unported) do
-    parts = [
-      class["comment"],
+    sections([
+      md(class["spec"], ctx),
       class["extends"] && "Extends `#{class["extends"]}`.",
       events != [] &&
         "## Events\n\n" <>
-          Enum.map_join(events, "\n", fn e -> "  * `#{inspect(event_atom(e))}`" <> bullet(e["comment"]) end),
+          Enum.map_join(events, "\n\n", fn e -> sections(["### `#{inspect(event_atom(e))}`", md(e["spec"], ctx)]) end),
       unported != [] &&
         "Not ported yet: " <> Enum.map_join(unported, ", ", &"`#{&1["alias"]}`") <> "."
-    ]
-
-    parts |> Enum.filter(&(is_binary(&1) and &1 != "")) |> Enum.join("\n\n") |> comment(ctx)
+    ])
   end
 
   defp event_type([]), do: ""
@@ -261,25 +259,50 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp member_doc(ctx, member, args) do
-    positional = for arg <- args, arg["name"] != "options", arg["comment"] not in [nil, ""], do: arg
+    positional = for arg <- args, arg["name"] != "options", arg["spec"] != [] or props(arg["type"]) != [], do: arg
     options = for arg <- args, arg["name"] == "options", p <- arg["type"]["properties"], do: p
 
-    [
-      member["comment"],
-      member["discouraged"] && "Discouraged: " <> member["discouraged"],
+    sections([
+      md(member["spec"], ctx),
+      member["discouraged"] && note("Discouraged", "warning", text(member["discouraged"], ctx)),
       positional != [] &&
-        "## Arguments\n\n" <>
-          Enum.map_join(positional, "\n", &"  * `#{var(&1["name"])}`#{bullet(&1["comment"])}"),
-      options != [] &&
-        "## Options\n\n" <>
-          Enum.map_join(options, "\n", &"  * `#{inspect(atom(&1["name"]))}`#{bullet(&1["comment"])}")
-    ]
-    |> Enum.filter(&(is_binary(&1) and &1 != ""))
-    |> Enum.join("\n\n")
-    |> comment(ctx)
+        "## Arguments\n\n" <> Enum.map_join(positional, "\n", &bullet(ctx, "`#{var(&1["name"])}`", &1)),
+      options != [] && "## Options\n\n" <> Enum.map_join(options, "\n", &option_bullet(ctx, &1))
+    ])
   end
 
-  defp deprecated(%{"deprecated" => text}) when is_binary(text), do: "@doc deprecated: #{inspect(first_line(text))}\n"
+  defp option_bullet(ctx, prop), do: bullet(ctx, "`#{inspect(atom(prop["name"]))}`", prop)
+
+  # "* name - doc", then the fields of an object type as nested bullets.
+  defp bullet(ctx, name, prop) do
+    doc = md(prop["spec"], ctx)
+
+    item =
+      cond do
+        doc == "" -> "* #{name}"
+        doc =~ ~r/^(```|> |\* |- |\||\d+\. )/ -> "* #{name}\n\n" <> indent(doc, 2)
+        true -> "* #{name} - " <> indent(doc, 2, :hanging)
+      end
+
+    case props(prop["type"]) do
+      [] ->
+        item
+
+      fields ->
+        separator = if item =~ "\n\n", do: "\n\n", else: "\n"
+        item <> separator <> indent(Enum.map_join(fields, "\n", &option_bullet(ctx, &1)), 2)
+    end
+  end
+
+  # Fields of an object type, also inside arrays and unions (`viewport: null|Object`).
+  defp props(%{"properties" => props}) when is_list(props), do: Enum.uniq_by(props, & &1["name"])
+  defp props(%{"name" => "Array", "templates" => [item]}), do: props(item)
+  defp props(%{"union" => union}) when is_list(union), do: Enum.find_value(union, [], &(props(&1) != [] && props(&1)))
+  defp props(_type), do: []
+
+  defp deprecated(%{"deprecated" => text}) when is_binary(text),
+    do: "@doc deprecated: #{inspect(first_line(String.replace(text, "↵", " ")))}\n"
+
   defp deprecated(_member), do: ""
 
   defp listeners_source(_class, _events, [], _receiver), do: ""
@@ -434,19 +457,75 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     if name in @reserved, do: name <> "_", else: name
   end
 
-  # " - text" for a list item, indented.
-  defp bullet(text) when text in [nil, ""], do: ""
-  defp bullet(text), do: " - " <> bullet_text(text)
-
-  defp bullet_text(text),
-    do: text |> String.trim() |> String.replace(~r/\n */, "\n    ") |> String.replace(~r/\n +\n/, "\n\n")
-
   defp first_line(text), do: text |> String.split("\n") |> hd()
 
-  # JS code blocks only, `[method: Class.member]` links as facade functions where generated.
-  defp comment(text, ctx) do
+  # --- docs: rendered from the `spec` markdown AST (upstream utils/markdown.js) ---------
+
+  # Code blocks for other clients (`python async`, `java`, ...) are dropped.
+  @foreign_langs ~w(java csharp cs python py)
+
+  defp md(nil, _ctx), do: ""
+
+  defp md(nodes, ctx) do
+    nodes
+    |> Enum.flat_map(&block(&1, ctx))
+    |> Enum.chunk_while(
+      nil,
+      fn
+        {kind, text}, {kind, acc} when kind in [:li, :table, :quote, :link_def] -> {:cont, {kind, acc <> "\n" <> text}}
+        block, nil -> {:cont, block}
+        block, acc -> {:cont, elem(acc, 1), block}
+      end,
+      fn
+        nil -> {:cont, nil}
+        acc -> {:cont, elem(acc, 1), nil}
+      end
+    )
+    |> Enum.join("\n\n")
+  end
+
+  defp block(%{"type" => "text", "text" => text}, ctx) do
+    kind =
+      cond do
+        String.starts_with?(text, "|") -> :table
+        String.starts_with?(text, ">") -> :quote
+        text =~ ~r/^\[[^\]]+\]:/ -> :link_def
+        true -> :text
+      end
+
+    [{kind, text(text, ctx)}]
+  end
+
+  defp block(%{"type" => "code", "codeLang" => lang, "lines" => lines} = node, _ctx) do
+    lang = lang |> String.split() |> hd()
+    title = if node["title"], do: ["// #{node["title"]}"], else: []
+    if lang in @foreign_langs, do: [], else: [{:code, Enum.join(["```#{lang}"] ++ title ++ lines ++ ["```"], "\n")}]
+  end
+
+  # `:::warning[Discouraged]` as an ExDoc admonition.
+  defp block(%{"type" => "note", "noteType" => type} = node, ctx) do
+    [_, kind | title] = Regex.run(~r/^(\w+)(?:\[(.*)\])?$/, type)
+    class = Map.get(%{"note" => "info", "caution" => "warning", "danger" => "error"}, kind, kind)
+    [{:note, note(Enum.at(title, 0, String.capitalize(kind)), class, md(node["children"], ctx))}]
+  end
+
+  defp block(%{"type" => "li", "liType" => type, "text" => text} = node, ctx) do
+    marker = Map.fetch!(%{"bullet" => "*", "default" => "-", "ordinal" => "1."}, type)
+    item = indent("#{marker} #{text(text, ctx)}", String.length(marker) + 1, :hanging)
+
+    case md(node["children"], ctx) do
+      "" -> [{:li, item}]
+      children -> [{:li, item <> "\n" <> indent(children, String.length(marker) + 1)}]
+    end
+  end
+
+  defp note(title, class, body), do: indent("#### #{title} {: .#{class}}\n\n#{body}", "> ")
+
+  # Upstream joins the lines of a paragraph with `↵` (soft line breaks).
+  # `[method: Class.member]` links as facade functions where generated.
+  defp text(text, ctx) do
     text
-    |> String.replace(~r/```(java|py|python|csharp|cs)\b.*?```\n*/s, "")
+    |> String.replace("↵", "\n")
     |> String.replace(~r/\[`(method|property|event): (\w+)\.(\w+)`\]/, fn link ->
       [_, kind, class, member] = Regex.run(~r/\[`(\w+): (\w+)\.(\w+)`\]/, link)
       link(ctx, kind, class, member)
@@ -456,8 +535,17 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       # Relative to docs/src/api/.
       "](https://playwright.dev/docs/#{if rel == "../", do: page, else: "api/" <> page}#{anchor})"
     end)
-    |> String.replace(~r/\n{3,}/, "\n\n")
-    |> String.trim()
+  end
+
+  defp sections(parts), do: parts |> Enum.filter(&(is_binary(&1) and &1 != "")) |> Enum.join("\n\n")
+
+  defp indent(text, n, mode \\ :all)
+  defp indent(text, n, mode) when is_integer(n), do: indent(text, String.duplicate(" ", n), mode)
+
+  defp indent(text, prefix, mode) do
+    [first | rest] = String.split(text, "\n")
+    prefixed = Enum.map(rest, &if(&1 == "", do: String.trim_trailing(prefix), else: prefix <> &1))
+    Enum.join([if(mode == :hanging, do: first, else: prefix <> first) | prefixed], "\n")
   end
 
   defp link(ctx, kind, class, member) do

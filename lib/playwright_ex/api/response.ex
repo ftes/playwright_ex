@@ -61,8 +61,7 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
-  Indicates whether this Response was fulfilled by a Service Worker's Fetch Handler (i.e. via
-  [FetchEvent.respondWith](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent/respondWith)).
+  Indicates whether this Response was fulfilled by a Service Worker's Fetch Handler (i.e. via [FetchEvent.respondWith](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent/respondWith)).
   """
   @spec from_service_worker(t()) :: boolean()
   def from_service_worker(response) do
@@ -70,9 +69,9 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
-  An object with the response HTTP headers. The header names are lower-cased. Note that this method does not return
-  security-related headers, including cookie-related ones. You can use `PlaywrightEx.Response.all_headers/1` for complete
-  list of headers that include `cookie` information.
+  An object with the response HTTP headers. The header names are lower-cased.
+  Note that this method does not return security-related headers, including cookie-related ones.
+  You can use `PlaywrightEx.Response.all_headers/1` for complete list of headers that include `cookie` information.
   """
   @spec headers(t()) :: map()
   def headers(response) do
@@ -80,10 +79,9 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
-  An array with all the response HTTP headers associated with this response. Unlike `PlaywrightEx.Response.all_headers/1`,
-  header names are NOT lower-cased. Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple
-  times. Some browser network stacks combine multiple field values before reporting them, so separate entries are not
-  always available.
+  An array with all the response HTTP headers associated with this response. Unlike `PlaywrightEx.Response.all_headers/1`, header names are NOT lower-cased.
+  Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
+  Some browser network stacks combine multiple field values before reporting them, so separate entries are not always available.
   """
   @spec headers_array(t()) :: {:ok, [map()]} | {:error, Exception.t()}
   def headers_array(response) do
@@ -97,13 +95,12 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
-  Returns the value of the header matching the name. The name is case-insensitive. If multiple headers have the same
-  name (except `set-cookie`), they are returned as a list separated by `, `. For `set-cookie`, the `\n` separator is
-  used. If no headers are found, `null` is returned.
+  Returns the value of the header matching the name. The name is case-insensitive. If multiple headers have
+  the same name (except `set-cookie`), they are returned as a list separated by `, `. For `set-cookie`, the `\n` separator is used. If no headers are found, `null` is returned.
 
   ## Arguments
 
-    * `name` - Name of the header.
+  * `name` - Name of the header.
   """
   @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
   def header_value(response, name) do
@@ -121,7 +118,7 @@ defmodule PlaywrightEx.Response do
 
   ## Arguments
 
-    * `name` - Name of the header.
+  * `name` - Name of the header.
   """
   @spec header_values(t(), String.t()) :: {:ok, [String.t()]} | {:error, Exception.t()}
   def header_values(response, name) do

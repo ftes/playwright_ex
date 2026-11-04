@@ -2,8 +2,8 @@
 
 defmodule PlaywrightEx.BrowserType do
   @moduledoc ~S"""
-  BrowserType provides methods to launch a specific browser instance or connect to an existing one. The following is
-  a typical example of using Playwright to drive automation:
+  BrowserType provides methods to launch a specific browser instance or connect to an existing one. The following is a
+  typical example of using Playwright to drive automation:
 
   ```js
   const { chromium } = require('playwright');  // Or 'firefox' or 'webkit'.
@@ -75,65 +75,68 @@ defmodule PlaywrightEx.BrowserType do
   });
   ```
 
-  > **Chromium-only** Playwright can also be used to control the Google Chrome or Microsoft Edge browsers, but it
-  works best with the version of Chromium it is bundled with. There is no guarantee it will work with any other
-  version. Use `executablePath` option with extreme caution.
+  > **Chromium-only** Playwright can also be used to control the Google Chrome or Microsoft Edge browsers, but it works best with the version of
+  Chromium it is bundled with. There is no guarantee it will work with any other version. Use `executablePath`
+  option with extreme caution.
   >
   > If Google Chrome (rather than Chromium) is preferred, a
   [Chrome Canary](https://www.google.com/chrome/browser/canary.html) or
   [Dev Channel](https://www.chromium.org/getting-involved/dev-channel) build is suggested.
   >
-  > Stock browsers like Google Chrome and Microsoft Edge are suitable for tests that require proprietary media codecs
-  for video playback. See
-  [this article](https://www.howtogeek.com/202825/what%E2%80%99s-the-difference-between-chromium-and-chrome/) for
-  other differences between Chromium and Chrome.
+  > Stock browsers like Google Chrome and Microsoft Edge are suitable for tests that require proprietary media codecs for video playback. See [this article](https://www.howtogeek.com/202825/what%E2%80%99s-the-difference-between-chromium-and-chrome/) for other differences between Chromium and Chrome.
   [This article](https://chromium.googlesource.com/chromium/src/+/lkgr/docs/chromium_browser_vs_google_chrome.md)
   describes some differences for Linux users.
 
   ## Options
 
-    * `:args` - **NOTE** Use custom browser args at your own risk, as some of them may break Playwright functionality.
+  * `:args`
 
-      Additional arguments to pass to the browser instance. The list of Chromium flags can be found
-      [here](https://peter.sh/experiments/chromium-command-line-switches/).
-    * `:artifacts_dir` - If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory
-      is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the
-      browser closes.
-    * `:channel` - Browser distribution channel.
+    > #### Warning {: .warning}
+    >
+    > Use custom browser args at your own risk, as some of them may break Playwright functionality.
 
-      Use "chromium" to [opt in to new headless mode](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
+    Additional arguments to pass to the browser instance. The list of Chromium flags can be found
+    [here](https://peter.sh/experiments/chromium-command-line-switches/).
+  * `:artifacts_dir` - If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the browser closes.
+  * `:channel` - Browser distribution channel.
 
-      Use "chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge", "msedge-beta", "msedge-dev", or
-      "msedge-canary" to use branded [Google Chrome and Microsoft Edge](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge).
-    * `:chromium_sandbox` - Enable Chromium sandboxing. Defaults to `false`.
-    * `:downloads_path` - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and
-      is deleted when browser is closed. In either case, the downloads are deleted when the browser context they were
-      created in is closed.
-    * `:env`
-    * `:executable_path` - Path to a browser executable to run instead of the bundled one. If `executablePath` is a relative path, then it is
-      resolved relative to the current working directory. Note that Playwright only works with the bundled Chromium,
-      Firefox or WebKit, use at your own risk.
-    * `:firefox_user_prefs` - Firefox user preferences. Learn more about the Firefox user preferences at
-      [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
+    Use "chromium" to [opt in to new headless mode](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
 
-      You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via
-      `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
-    * `:handle_sighup` - Close the browser process on SIGHUP. Defaults to `true`.
-    * `:handle_sigint` - Close the browser process on Ctrl-C. Defaults to `true`.
-    * `:handle_sigterm` - Close the browser process on SIGTERM. Defaults to `true`.
-    * `:headless` - Whether to run browser in headless mode. More details for
-      [Chromium](https://developers.google.com/web/updates/2017/04/headless-chrome) and
-      [Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
-    * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `args`. If an array is
-      given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
-    * `:proxy` - Network proxy settings.
-    * `:slow_mo` - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going
-      on.
-    * `:timeout` - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0`
-      to disable timeout.
+    Use "chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge", "msedge-beta", "msedge-dev", or "msedge-canary" to use branded [Google Chrome and Microsoft Edge](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge).
+  * `:chromium_sandbox` - Enable Chromium sandboxing. Defaults to `false`.
+  * `:downloads_path` - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
+    deleted when browser is closed. In either case, the downloads are deleted when the browser context they were created in
+    is closed.
+  * `:env`
+  * `:executable_path` - Path to a browser executable to run instead of the bundled one. If `executablePath` is a relative path, then
+    it is resolved relative to the current working directory. Note that Playwright only works with the bundled Chromium,
+    Firefox or WebKit, use at your own risk.
+  * `:firefox_user_prefs` - Firefox user preferences. Learn more about the Firefox user preferences at
+    [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
-      In Elixir, `:infinity` is accepted too (the same as `0`).
-    * `:traces_dir` - If specified, traces are saved into this directory.
+    You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
+  * `:handle_sighup` - Close the browser process on SIGHUP. Defaults to `true`.
+  * `:handle_sigint` - Close the browser process on Ctrl-C. Defaults to `true`.
+  * `:handle_sigterm` - Close the browser process on SIGTERM. Defaults to `true`.
+  * `:headless` - Whether to run browser in headless mode. More details for
+    [Chromium](https://developers.google.com/web/updates/2017/04/headless-chrome) and
+    [Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
+  * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `args`. If an
+    array is given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
+  * `:proxy` - Network proxy settings.
+    * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
+      `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP
+      proxy.
+    * `:bypass` - Optional comma-separated domains to bypass proxy, for example `".com, chromium.org,
+      .domain.com"`.
+    * `:username` - Optional username to use if HTTP proxy requires authentication.
+    * `:password` - Optional password to use if HTTP proxy requires authentication.
+  * `:slow_mo` - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
+  * `:timeout` - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
+    disable timeout.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:traces_dir` - If specified, traces are saved into this directory.
   """
   @spec launch(t(), keyword() | map()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
   def launch(browser_type, options \\ []) do

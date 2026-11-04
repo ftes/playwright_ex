@@ -2,8 +2,8 @@
 
 defmodule PlaywrightEx.Playwright do
   @moduledoc ~S"""
-  Playwright module provides a method to launch a browser instance. The following is a typical example of using
-  Playwright to drive automation:
+  Playwright module provides a method to launch a browser instance. The following is a typical example of using Playwright
+  to drive automation:
 
   ```js
   const { chromium, firefox, webkit } = require('playwright');

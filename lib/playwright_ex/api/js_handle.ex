@@ -11,8 +11,8 @@ defmodule PlaywrightEx.JSHandle do
   ```
 
   JSHandle prevents the referenced JavaScript object being garbage collected unless the handle is exposed with
-  `JSHandle.dispose`. JSHandles are auto-disposed when their origin frame gets navigated or the parent
-  context gets destroyed.
+  `JSHandle.dispose`. JSHandles are auto-disposed when their origin frame gets navigated or the parent context
+  gets destroyed.
 
   JSHandle instances can be used as an argument in `Page.evalOnSelector`, `PlaywrightEx.Page.evaluate/4` and
   `Page.evaluateHandle` methods.
