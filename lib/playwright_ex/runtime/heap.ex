@@ -63,6 +63,10 @@ defmodule PlaywrightEx.Runtime.Heap do
   def map_values(%{heap: heap, guid: guid}, field),
     do: heap |> :ets.match({{guid, field, :_}, :"$1"}) |> Enum.map(&hd/1)
 
+  # `for (const [key, value] of map)` (unordered)
+  def map_entries(%{heap: heap, guid: guid}, field),
+    do: heap |> :ets.match({{guid, field, :"$1"}, :"$2"}) |> Enum.map(&List.to_tuple/1)
+
   def map_clear(%{loop: loop, heap: heap, guid: guid}, field),
     do: EventLoop.with_baton(loop, fn -> :ets.match_delete(heap, {{guid, field, :_}, :_}) end)
 end

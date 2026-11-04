@@ -164,7 +164,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   Emitted when new service worker is created in the context.
 
-  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `storageState`, `setStorageState`.
+  Not ported yet: `clock`, `credentials`, `debugger`, `newCDPSession`, `removeAllListeners`, `storageState`, `setStorageState`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -295,6 +295,88 @@ defmodule PlaywrightEx.BrowserContext do
 
     Facade.async_void!("browserContext.addCookies", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.add_cookies(browser_context, cookies)
+    end)
+  end
+
+  @add_init_script_script {:fields, %{path: nil, content: nil}}
+  @add_init_script_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `add_init_script`, see its docs."
+  @type add_init_script_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Adds a script which would be evaluated in one of the following scenarios:
+
+  * Whenever a page is created in the browser context or is navigated.
+  * Whenever a child frame is attached or navigated in any page in the browser context. In this case, the script is
+    evaluated in the context of the newly attached frame.
+
+  The script is evaluated after the document was created but before any of its scripts were run. This is useful to amend
+  the JavaScript environment, e.g. to seed `Math.random`.
+
+  **Usage**
+
+  An example of overriding `Math.random` before the page loads:
+
+  ```js
+  // preload.js
+  Math.random = () => 42;
+  ```
+
+  ```js
+  // In your playwright script, assuming the preload.js file is in same directory.
+  await browserContext.addInitScript({
+    path: 'preload.js'
+  });
+  ```
+
+  > #### Note {: .info}
+  >
+  > The order of evaluation of multiple scripts installed via `PlaywrightEx.BrowserContext.add_init_script/4` and
+  > `PlaywrightEx.Page.add_init_script/4` is not defined.
+
+  ## Arguments
+
+  * `script` - Script to be evaluated in all pages in the browser context.
+    * `:path` - Path to the JavaScript file. If `path` is a relative path, then it is resolved relative to the
+      current working directory. Optional.
+    * `:content` - Raw script content. Optional.
+  * `arg` - Optional argument to pass to `script` (only supported when passing a function).
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the init script. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Unlike functions passed to `PlaywrightEx.Page.evaluate/4`, functions passed to an init script are exposed in every new document, so they survive navigations. Defaults to `false`, in which case functions are not serializable and are silently dropped.
+  """
+  @spec add_init_script(
+          t(),
+          String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
+          term() | nil,
+          add_init_script_options()
+        ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def add_init_script(browser_context, script, arg \\ nil, options \\ []) do
+    script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript")
+    options = Facade.options!(options, @add_init_script_options, "browserContext.addInitScript")
+
+    Facade.async("browserContext.addInitScript", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.add_init_script(browser_context, script, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `add_init_script/4`, but returns the value and raises on error."
+  @spec add_init_script!(
+          t(),
+          String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
+          term() | nil,
+          add_init_script_options()
+        ) :: PlaywrightEx.Disposable.t()
+  def add_init_script!(browser_context, script, arg \\ nil, options \\ []) do
+    script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript")
+    options = Facade.options!(options, @add_init_script_options, "browserContext.addInitScript")
+
+    Facade.async!("browserContext.addInitScript", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.add_init_script(browser_context, script, arg, options)
     end)
   end
 
@@ -487,6 +569,122 @@ defmodule PlaywrightEx.BrowserContext do
     end)
   end
 
+  @doc since: "1.8"
+  @doc ~S"""
+  The method adds a function called `name` on the `window` object of every frame in every page in the context.
+  When called, the function executes `callback` and returns a `Promise` which resolves to the return value of
+  `callback`. If the `callback` returns a `Promise`, it will be awaited.
+
+  The first argument of the `callback` function contains information about the caller: `{ browserContext:
+  BrowserContext, page: Page, frame: Frame }`.
+
+  See `PlaywrightEx.Page.expose_binding/3` for page-only version.
+
+  **Usage**
+
+  An example of exposing page URL to all frames in all pages in the context:
+
+  ```js
+  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
+
+  (async () => {
+    const browser = await webkit.launch({ headless: false });
+    const context = await browser.newContext();
+    await context.exposeBinding('pageURL', ({ page }) => page.url());
+    const page = await context.newPage();
+    await page.setContent(`
+      <script>
+        async function onClick() {
+          document.querySelector('div').textContent = await window.pageURL();
+        }
+      </script>
+      <button onclick="onClick()">Click me</button>
+      <div></div>
+    `);
+    await page.getByRole('button').click();
+  })();
+  ```
+
+  ## Arguments
+
+  * `name` - Name of the function on the window object.
+  * `callback` - Callback function that will be called in the Playwright's context.
+  """
+  @spec expose_binding(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def expose_binding(browser_context, name, callback) do
+    Facade.async("browserContext.exposeBinding", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.expose_binding(browser_context, name, callback)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expose_binding/3`, but returns the value and raises on error."
+  @spec expose_binding!(t(), String.t(), fun()) :: PlaywrightEx.Disposable.t()
+  def expose_binding!(browser_context, name, callback) do
+    Facade.async!("browserContext.exposeBinding", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.expose_binding(browser_context, name, callback)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  The method adds a function called `name` on the `window` object of every frame in every page in the context.
+  When called, the function executes `callback` and returns a `Promise` which resolves to the return value of
+  `callback`.
+
+  If the `callback` returns a `Promise`, it will be awaited.
+
+  See `PlaywrightEx.Page.expose_function/3` for page-only version.
+
+  **Usage**
+
+  An example of adding a `sha256` function to all pages in the context:
+
+  ```js
+  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
+  const crypto = require('crypto');
+
+  (async () => {
+    const browser = await webkit.launch({ headless: false });
+    const context = await browser.newContext();
+    await context.exposeFunction('sha256', text =>
+      crypto.createHash('sha256').update(text).digest('hex'),
+    );
+    const page = await context.newPage();
+    await page.setContent(`
+      <script>
+        async function onClick() {
+          document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');
+        }
+      </script>
+      <button onclick="onClick()">Click me</button>
+      <div></div>
+    `);
+    await page.getByRole('button').click();
+  })();
+  ```
+
+  ## Arguments
+
+  * `name` - Name of the function on the window object.
+  * `callback` - Callback function that will be called in the Playwright's context.
+  """
+  @spec expose_function(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def expose_function(browser_context, name, callback) do
+    Facade.async("browserContext.exposeFunction", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.expose_function(browser_context, name, callback)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expose_function/3`, but returns the value and raises on error."
+  @spec expose_function!(t(), String.t(), fun()) :: PlaywrightEx.Disposable.t()
+  def expose_function!(browser_context, name, callback) do
+    Facade.async!("browserContext.exposeFunction", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.expose_function(browser_context, name, callback)
+    end)
+  end
+
   @grant_permissions_options {:object, %{origin: {:origin, nil}}}
 
   @typedoc "Options of `grant_permissions`, see its docs."
@@ -667,7 +865,7 @@ defmodule PlaywrightEx.BrowserContext do
           String.t() | Regex.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
-        ) :: {:ok, term()} | {:error, Exception.t()}
+        ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def route(browser_context, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "browserContext.route")
 
@@ -683,7 +881,7 @@ defmodule PlaywrightEx.BrowserContext do
           String.t() | Regex.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
-        ) :: term()
+        ) :: PlaywrightEx.Disposable.t()
   def route!(browser_context, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "browserContext.route")
 

@@ -7,8 +7,6 @@ defmodule PlaywrightEx.Locator do
   a way to find element(s) on the page at any moment. A locator can be created with the `PlaywrightEx.Page.locator/3` method.
 
   [Learn more about locators](https://playwright.dev/docs/locators).
-
-  Not ported yet: `highlight`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1211,7 +1209,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   * `:timeout` - Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -1302,7 +1300,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   * `:timeout` - Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2089,7 +2087,7 @@ defmodule PlaywrightEx.Locator do
 
   @doc since: "1.60"
   @doc ~S"""
-  Hides the element highlight previously added by [`Locator.highlight`](https://playwright.dev/docs/api/class-locator#locator-highlight).
+  Hides the element highlight previously added by `PlaywrightEx.Locator.highlight/2`.
   """
   @spec hide_highlight(t()) :: :ok | {:error, Exception.t()}
   def hide_highlight(this) do
@@ -2101,6 +2099,40 @@ defmodule PlaywrightEx.Locator do
   @spec hide_highlight!(t()) :: :ok
   def hide_highlight!(this) do
     Facade.async_void!("locator.hideHighlight", this, fn -> PlaywrightEx.Client.Locator.hide_highlight(this) end)
+  end
+
+  @highlight_options {:object, %{style: {:style, nil}}}
+
+  @typedoc "Options of `highlight`, see its docs."
+  @type highlight_options ::
+          [style: String.t() | %{optional(String.t()) => String.t() | number()}]
+          | %{optional(:style) => String.t() | %{optional(String.t()) => String.t() | number()}}
+
+  @doc since: "1.20"
+  @doc ~S"""
+  Highlight the corresponding element(s) on the screen. Useful for debugging, don't commit the code that uses `PlaywrightEx.Locator.highlight/2`.
+
+  ## Options
+
+  * `:style` - *Since 1.60.* Inline CSS applied to the highlight overlay, e.g.
+
+    ```js
+    await locator.highlight({ style: 'outline: 2px dashed red' });
+    await locator.highlight({ style: { color: 'red' } });
+    ```
+  """
+  @spec highlight(t(), highlight_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def highlight(this, options \\ []) do
+    options = Facade.options!(options, @highlight_options, "locator.highlight")
+    Facade.async("locator.highlight", this, fn -> PlaywrightEx.Client.Locator.highlight(this, options) end)
+  end
+
+  @doc since: "1.20"
+  @doc "Like `highlight/2`, but returns the value and raises on error."
+  @spec highlight!(t(), highlight_options()) :: PlaywrightEx.Disposable.t()
+  def highlight!(this, options \\ []) do
+    options = Facade.options!(options, @highlight_options, "locator.highlight")
+    Facade.async!("locator.highlight", this, fn -> PlaywrightEx.Client.Locator.highlight(this, options) end)
   end
 
   @hover_options {:object,

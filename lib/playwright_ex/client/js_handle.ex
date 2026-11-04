@@ -9,7 +9,10 @@ defmodule PlaywrightEx.Client.JSHandle do
   """
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.Isomorphic.UtilityScriptSerializers
   alias PlaywrightEx.Protocol.Serializers
 
   def from(handle) do
@@ -29,8 +32,7 @@ defmodule PlaywrightEx.Client.JSHandle do
 
     serialized_arg =
       if options[:exposeFunctions],
-        # await serializeArgumentWithCallbacks(this, this._parentOfType('Page'), arg)  -- not ported: exposeFunctions
-        do: raise("exposeFunctions is not supported yet"),
+        do: serialize_argument_with_callbacks(this, _parent_of_type(this, "Page"), arg),
         else: serialize_argument(arg)
 
     # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
@@ -50,8 +52,7 @@ defmodule PlaywrightEx.Client.JSHandle do
 
     serialized_arg =
       if options[:exposeFunctions],
-        # await serializeArgumentWithCallbacks(this, this._parentOfType('Page'), arg)  -- not ported: exposeFunctions
-        do: raise("exposeFunctions is not supported yet"),
+        do: serialize_argument_with_callbacks(this, _parent_of_type(this, "Page"), arg),
         else: serialize_argument(arg)
 
     # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
@@ -133,7 +134,29 @@ defmodule PlaywrightEx.Client.JSHandle do
     %{value: value, handles: Process.delete(handles)}
   end
 
-  # serializeArgumentWithCallbacks  -- not ported: exposeFunctions (Page._exposeEvaluateCallback)
+  def serialize_argument_with_callbacks(owner, page, arg) do
+    ChannelOwner._wrap_api_call(
+      owner,
+      fn _ ->
+        # `exposePromises.push(...)` from the serializer callback: an accumulator in the process dictionary.
+        expose_promises = make_ref()
+        Process.put(expose_promises, [])
+
+        serialized =
+          serialize_argument(arg, fn callback ->
+            if !page, do: raise("Passing a function is not supported as an argument here")
+            name = UtilityScriptSerializers.k_function_binding_prefix() <> ClientHelper.create_guid()
+            promise = Promise.async(fn -> Page._expose_evaluate_callback(page, name, callback) end)
+            Process.put(expose_promises, Process.get(expose_promises) ++ [promise])
+            name
+          end)
+
+        Promise.await(Promise.all(Process.delete(expose_promises)))
+        serialized
+      end,
+      %{internal: true}
+    )
+  end
 
   def parse_result(value) do
     Serializers.parse_serialized_value(value, nil)

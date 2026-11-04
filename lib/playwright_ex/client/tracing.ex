@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Client.Tracing do
   use PlaywrightEx.Client.ChannelOwner
 
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.LocalUtils
 
   def from(channel) do
@@ -46,8 +47,7 @@ defmodule PlaywrightEx.Client.Tracing do
       )
     end)
 
-    # return new DisposableStub(() => this.stopHar());  -- not ported: Disposable
-    nil
+    DisposableStub.new(fn -> stop_har(this) end)
   end
 
   def stop_har(this) do

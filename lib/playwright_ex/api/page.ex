@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `screencast`, `video`, `webmcp`, `expect_download`.
+  Not ported yet: `clock`, `coverage`, `emulateMedia`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `removeAllListeners`, `screencast`, `video`, `webmcp`, `expect_download`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -267,6 +267,92 @@ defmodule PlaywrightEx.Page do
     web_socket: "websocket",
     worker: "worker"
   }
+
+  @add_init_script_script {:fields, %{path: nil, content: nil}}
+  @add_init_script_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `add_init_script`, see its docs."
+  @type add_init_script_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Adds a script which would be evaluated in one of the following scenarios:
+
+  * Whenever the page is navigated.
+  * Whenever the child frame is attached or navigated. In this case, the script is evaluated in the context of the newly
+    attached frame.
+
+  The script is evaluated after the document was created but before any of its scripts were run. This is useful to amend
+  the JavaScript environment, e.g. to seed `Math.random`.
+
+  **Usage**
+
+  An example of overriding `Math.random` before the page loads:
+
+  ```js
+  // preload.js
+  Math.random = () => 42;
+  ```
+
+  ```js
+  // In your playwright script, assuming the preload.js file is in same directory
+  await page.addInitScript({ path: './preload.js' });
+  ```
+
+  ```js
+  await page.addInitScript(mock => {
+    window.mock = mock;
+  }, mock);
+  ```
+
+  > #### Note {: .info}
+  >
+  > The order of evaluation of multiple scripts installed via `PlaywrightEx.BrowserContext.add_init_script/4` and
+  > `PlaywrightEx.Page.add_init_script/4` is not defined.
+
+  ## Arguments
+
+  * `script` - Script to be evaluated in the page.
+    * `:path` - Path to the JavaScript file. If `path` is a relative path, then it is resolved relative to the
+      current working directory. Optional.
+    * `:content` - Raw script content. Optional.
+  * `arg` - Optional argument to pass to `script` (only supported when passing a function).
+
+  ## Options
+
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the init script. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Unlike functions passed to `PlaywrightEx.Page.evaluate/4`, functions passed to an init script are exposed in every new document, so they survive navigations. Defaults to `false`, in which case functions are not serializable and are silently dropped.
+  """
+  @spec add_init_script(
+          t(),
+          String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
+          term() | nil,
+          add_init_script_options()
+        ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def add_init_script(page, script, arg \\ nil, options \\ []) do
+    script = Facade.arg!(script, @add_init_script_script, "page.addInitScript")
+    options = Facade.options!(options, @add_init_script_options, "page.addInitScript")
+
+    Facade.async("page.addInitScript", page, fn ->
+      PlaywrightEx.Client.Page.add_init_script(page, script, arg, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `add_init_script/4`, but returns the value and raises on error."
+  @spec add_init_script!(
+          t(),
+          String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
+          term() | nil,
+          add_init_script_options()
+        ) :: PlaywrightEx.Disposable.t()
+  def add_init_script!(page, script, arg \\ nil, options \\ []) do
+    script = Facade.arg!(script, @add_init_script_script, "page.addInitScript")
+    options = Facade.options!(options, @add_init_script_options, "page.addInitScript")
+
+    Facade.async!("page.addInitScript", page, fn ->
+      PlaywrightEx.Client.Page.add_init_script(page, script, arg, options)
+    end)
+  end
 
   @add_script_tag_options {:object,
                            %{content: {:content, nil}, path: {:path, nil}, type: {:type, nil}, url: {:url, nil}}}
@@ -1105,7 +1191,7 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(page, expression, arg \\ nil, options \\ []) do
@@ -1164,7 +1250,7 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
           {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
@@ -1185,6 +1271,120 @@ defmodule PlaywrightEx.Page do
     Facade.async!("page.evaluateHandle", page, fn ->
       PlaywrightEx.Client.Page.evaluate_handle(page, expression, arg, options)
     end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  The method adds a function called `name` on the `window` object of every frame in this page. When called, the
+  function executes `callback` and returns a `Promise` which resolves to the return value of `callback`.
+  If the `callback` returns a `Promise`, it will be awaited.
+
+  The first argument of the `callback` function contains information about the caller: `{ browserContext:
+  BrowserContext, page: Page, frame: Frame }`.
+
+  See `PlaywrightEx.BrowserContext.expose_binding/3` for the context-wide version.
+
+  > #### Note {: .info}
+  >
+  > Functions installed via `PlaywrightEx.Page.expose_binding/3` survive navigations.
+
+  **Usage**
+
+  An example of exposing page URL to all frames in a page:
+
+  ```js
+  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
+
+  (async () => {
+    const browser = await webkit.launch({ headless: false });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.exposeBinding('pageURL', ({ page }) => page.url());
+    await page.setContent(`
+      <script>
+        async function onClick() {
+          document.querySelector('div').textContent = await window.pageURL();
+        }
+      </script>
+      <button onclick="onClick()">Click me</button>
+      <div></div>
+    `);
+    await page.click('button');
+  })();
+  ```
+
+  ## Arguments
+
+  * `name` - Name of the function on the window object.
+  * `callback` - Callback function that will be called in the Playwright's context.
+  """
+  @spec expose_binding(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def expose_binding(page, name, callback) do
+    Facade.async("page.exposeBinding", page, fn -> PlaywrightEx.Client.Page.expose_binding(page, name, callback) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expose_binding/3`, but returns the value and raises on error."
+  @spec expose_binding!(t(), String.t(), fun()) :: PlaywrightEx.Disposable.t()
+  def expose_binding!(page, name, callback) do
+    Facade.async!("page.exposeBinding", page, fn -> PlaywrightEx.Client.Page.expose_binding(page, name, callback) end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  The method adds a function called `name` on the `window` object of every frame in the page. When called, the
+  function executes `callback` and returns a `Promise` which resolves to the return value of `callback`.
+
+  If the `callback` returns a `Promise`, it will be awaited.
+
+  See `PlaywrightEx.BrowserContext.expose_function/3` for context-wide exposed function.
+
+  > #### Note {: .info}
+  >
+  > Functions installed via `PlaywrightEx.Page.expose_function/3` survive navigations.
+
+  **Usage**
+
+  An example of adding a `sha256` function to the page:
+
+  ```js
+  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
+  const crypto = require('crypto');
+
+  (async () => {
+    const browser = await webkit.launch({ headless: false });
+    const page = await browser.newPage();
+    await page.exposeFunction('sha256', text =>
+      crypto.createHash('sha256').update(text).digest('hex'),
+    );
+    await page.setContent(`
+      <script>
+        async function onClick() {
+          document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');
+        }
+      </script>
+      <button onclick="onClick()">Click me</button>
+      <div></div>
+    `);
+    await page.click('button');
+  })();
+  ```
+
+  ## Arguments
+
+  * `name` - Name of the function on the window object
+  * `callback` - Callback function which will be called in Playwright's context.
+  """
+  @spec expose_function(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def expose_function(page, name, callback) do
+    Facade.async("page.exposeFunction", page, fn -> PlaywrightEx.Client.Page.expose_function(page, name, callback) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expose_function/3`, but returns the value and raises on error."
+  @spec expose_function!(t(), String.t(), fun()) :: PlaywrightEx.Disposable.t()
+  def expose_function!(page, name, callback) do
+    Facade.async!("page.exposeFunction", page, fn -> PlaywrightEx.Client.Page.expose_function(page, name, callback) end)
   end
 
   @fill_options {:object,
@@ -2204,7 +2404,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.60"
   @doc ~S"""
-  Hide all locator highlight overlays previously added by [`Locator.highlight`](https://playwright.dev/docs/api/class-locator#locator-highlight) on this page.
+  Hide all locator highlight overlays previously added by `PlaywrightEx.Locator.highlight/2` on this page.
   """
   @spec hide_highlight(t()) :: :ok | {:error, Exception.t()}
   def hide_highlight(page) do
@@ -3089,6 +3289,148 @@ defmodule PlaywrightEx.Page do
     Facade.async!("page.requests", page, fn -> PlaywrightEx.Client.Page.requests(page) end)
   end
 
+  @add_locator_handler_options {:object, %{no_wait_after: {:noWaitAfter, nil}, times: {:times, nil}}}
+
+  @typedoc "Options of `add_locator_handler`, see its docs."
+  @type add_locator_handler_options ::
+          [no_wait_after: boolean(), times: integer()]
+          | %{optional(:no_wait_after) => boolean(), optional(:times) => integer()}
+
+  @doc since: "1.42"
+  @doc ~S"""
+  When testing a web page, sometimes unexpected overlays like a "Sign up" dialog appear and block actions you want to automate, e.g. clicking a button. These overlays don't always show up in the same way or at the same time, making them tricky to handle in automated tests.
+
+  This method lets you set up a special function, called a handler, that activates when it detects that overlay is visible. The handler's job is to remove the overlay, allowing your test to continue as if the overlay wasn't there.
+
+  Things to keep in mind:
+
+  * When an overlay is shown predictably, we recommend explicitly waiting for it in your test and dismissing it as a part of your normal test flow, instead of using `PlaywrightEx.Page.add_locator_handler/4`.
+  * Playwright checks for the overlay every time before executing or retrying an action that requires an [actionability check](https://playwright.dev/docs/actionability), or before performing an auto-waiting assertion check. When overlay is visible, Playwright calls the handler first, and then proceeds with the action/assertion. Note that the handler is only called when you perform an action/assertion - if the overlay becomes visible but you don't perform any actions, the handler will not be triggered.
+  * After executing the handler, Playwright will ensure that overlay that triggered the handler is not visible anymore. You can opt-out of this behavior with `noWaitAfter`.
+  * The execution time of the handler counts towards the timeout of the action/assertion that executed the handler. If your handler takes too long, it might cause timeouts.
+  * You can register multiple handlers. However, only a single handler will be running at a time. Make sure the actions within a handler don't depend on another handler.
+
+  > #### Warning {: .warning}
+  >
+  > Running the handler will alter your page state mid-test. For example it will change the currently focused element and move the mouse. Make sure that actions that run after the handler are self-contained and do not rely on the focus and mouse state being unchanged.
+  >
+  > For example, consider a test that calls `PlaywrightEx.Locator.focus/2` followed by `PlaywrightEx.Keyboard.press/3`. If your handler clicks a button between these two actions, the focused element most likely will be wrong, and key press will happen on the unexpected element. Use `PlaywrightEx.Locator.press/3` instead to avoid this problem.
+  >
+  > Another example is a series of mouse actions, where `PlaywrightEx.Mouse.move/4` is followed by `PlaywrightEx.Mouse.down/2`. Again, when the handler runs between these two actions, the mouse position will be wrong during the mouse down. Prefer self-contained actions like `PlaywrightEx.Locator.click/2` that do not rely on the state being unchanged by a handler.
+
+  **Usage**
+
+  An example that closes a "Sign up to the newsletter" dialog when it appears:
+
+  ```js
+  // Setup the handler.
+  await page.addLocatorHandler(page.getByText('Sign up to the newsletter'), async () => {
+    await page.getByRole('button', { name: 'No thanks' }).click();
+  });
+
+  // Write the test as usual.
+  await page.goto('https://example.com');
+  await page.getByRole('button', { name: 'Start here' }).click();
+  ```
+
+  An example that skips the "Confirm your security details" page when it is shown:
+
+  ```js
+  // Setup the handler.
+  await page.addLocatorHandler(page.getByText('Confirm your security details'), async () => {
+    await page.getByRole('button', { name: 'Remind me later' }).click();
+  });
+
+  // Write the test as usual.
+  await page.goto('https://example.com');
+  await page.getByRole('button', { name: 'Start here' }).click();
+  ```
+
+  An example with a custom callback on every actionability check. It uses a `<body>` locator that is always visible, so the handler is called before every actionability check. It is important to specify `noWaitAfter`, because the handler does not hide the `<body>` element.
+
+  ```js
+  // Setup the handler.
+  await page.addLocatorHandler(page.locator('body'), async () => {
+    await page.evaluate(() => window.removeObstructionsForTestIfNeeded());
+  }, { noWaitAfter: true });
+
+  // Write the test as usual.
+  await page.goto('https://example.com');
+  await page.getByRole('button', { name: 'Start here' }).click();
+  ```
+
+  Handler takes the original locator as an argument. You can also automatically remove the handler after a number of invocations by setting `times`:
+
+  ```js
+  await page.addLocatorHandler(page.getByLabel('Close'), async locator => {
+    await locator.click();
+  }, { times: 1 });
+  ```
+
+  ## Arguments
+
+  * `locator` - Locator that triggers the handler.
+  * `handler` - Function that should be run once `locator` appears. This function should get rid of the element that blocks actions like click.
+
+  ## Options
+
+  * `:no_wait_after` - *Since 1.44.* By default, after calling the handler Playwright will wait until the overlay becomes hidden, and only then Playwright will continue with the action/assertion that triggered the handler. This option allows to opt-out of this behavior, so that overlay can stay visible after the handler has run.
+  * `:times` - *Since 1.44.* Specifies the maximum number of times this handler should be called. Unlimited by default.
+  """
+  @spec add_locator_handler(
+          t(),
+          PlaywrightEx.Locator.t(),
+          (PlaywrightEx.Locator.t() -> term()),
+          add_locator_handler_options()
+        ) :: :ok | {:error, Exception.t()}
+  def add_locator_handler(page, locator, handler, options \\ []) do
+    options = Facade.options!(options, @add_locator_handler_options, "page.addLocatorHandler")
+
+    Facade.async_void("page.addLocatorHandler", page, fn ->
+      PlaywrightEx.Client.Page.add_locator_handler(page, locator, handler, options)
+    end)
+  end
+
+  @doc since: "1.42"
+  @doc "Like `add_locator_handler/4`, but returns the value and raises on error."
+  @spec add_locator_handler!(
+          t(),
+          PlaywrightEx.Locator.t(),
+          (PlaywrightEx.Locator.t() -> term()),
+          add_locator_handler_options()
+        ) :: :ok
+  def add_locator_handler!(page, locator, handler, options \\ []) do
+    options = Facade.options!(options, @add_locator_handler_options, "page.addLocatorHandler")
+
+    Facade.async_void!("page.addLocatorHandler", page, fn ->
+      PlaywrightEx.Client.Page.add_locator_handler(page, locator, handler, options)
+    end)
+  end
+
+  @doc since: "1.44"
+  @doc ~S"""
+  Removes all locator handlers added by `PlaywrightEx.Page.add_locator_handler/4` for a specific locator.
+
+  ## Arguments
+
+  * `locator` - Locator passed to `PlaywrightEx.Page.add_locator_handler/4`.
+  """
+  @spec remove_locator_handler(t(), PlaywrightEx.Locator.t()) :: :ok | {:error, Exception.t()}
+  def remove_locator_handler(page, locator) do
+    Facade.async_void("page.removeLocatorHandler", page, fn ->
+      PlaywrightEx.Client.Page.remove_locator_handler(page, locator)
+    end)
+  end
+
+  @doc since: "1.44"
+  @doc "Like `remove_locator_handler/2`, but returns the value and raises on error."
+  @spec remove_locator_handler!(t(), PlaywrightEx.Locator.t()) :: :ok
+  def remove_locator_handler!(page, locator) do
+    Facade.async_void!("page.removeLocatorHandler", page, fn ->
+      PlaywrightEx.Client.Page.remove_locator_handler(page, locator)
+    end)
+  end
+
   @reload_options {:object,
                    %{
                      timeout: {:timeout, nil},
@@ -3235,7 +3577,7 @@ defmodule PlaywrightEx.Page do
           String.t() | Regex.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
-        ) :: {:ok, term()} | {:error, Exception.t()}
+        ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def route(page, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "page.route")
     Facade.async("page.route", page, fn -> PlaywrightEx.Client.Page.route(page, url, handler, options) end)
@@ -3248,7 +3590,7 @@ defmodule PlaywrightEx.Page do
           String.t() | Regex.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
-        ) :: term()
+        ) :: PlaywrightEx.Disposable.t()
   def route!(page, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "page.route")
     Facade.async!("page.route", page, fn -> PlaywrightEx.Client.Page.route(page, url, handler, options) end)

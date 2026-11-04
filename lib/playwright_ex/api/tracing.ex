@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Tracing do
 
   @doc since: "1.60"
   @doc ~S"""
-  Start recording a HAR (HTTP Archive) of network activity in this context. The HAR file is written to disk when `PlaywrightEx.Tracing.stop_har/1` is called, or when the returned [`Disposable`](https://playwright.dev/docs/api/class-disposable) is disposed.
+  Start recording a HAR (HTTP Archive) of network activity in this context. The HAR file is written to disk when `PlaywrightEx.Tracing.stop_har/1` is called, or when the returned [`Disposable`](`PlaywrightEx.Disposable`) is disposed.
 
   Only one HAR recording can be active at a time per [`Tracing`](`PlaywrightEx.Tracing`) instance.
 
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Tracing do
     the HAR file. Not compatible with a `.zip` HAR file.
   * `:url_filter` - A glob or regex pattern to filter requests that are stored in the HAR. Defaults to none.
   """
-  @spec start_har(t(), String.t(), start_har_options()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec start_har(t(), String.t(), start_har_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def start_har(tracing, path, options \\ []) do
     options = Facade.options!(options, @start_har_options, "tracing.startHar")
     Facade.async("tracing.startHar", tracing, fn -> PlaywrightEx.Client.Tracing.start_har(tracing, path, options) end)
@@ -89,7 +89,7 @@ defmodule PlaywrightEx.Tracing do
 
   @doc since: "1.60"
   @doc "Like `start_har/3`, but returns the value and raises on error."
-  @spec start_har!(t(), String.t(), start_har_options()) :: term()
+  @spec start_har!(t(), String.t(), start_har_options()) :: PlaywrightEx.Disposable.t()
   def start_har!(tracing, path, options \\ []) do
     options = Facade.options!(options, @start_har_options, "tracing.startHar")
     Facade.async!("tracing.startHar", tracing, fn -> PlaywrightEx.Client.Tracing.start_har(tracing, path, options) end)

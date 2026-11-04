@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Client.Frame do
       page = get(this, :_page)
       # Main frame navigation destroys all execution contexts in the page,
       # erase the bindings backing the functions passed to evaluate().
-      # if (!this._parentFrame && event.newDocument && this._page) this._page._eraseEvaluateCallbacks();  -- not ported: exposeFunctions
+      if (!get(this, :_parentFrame) and event[:newDocument]) && page, do: Page._erase_evaluate_callbacks(page)
       EventEmitter.emit(get(this, :_eventEmitter), "navigated", event)
 
       if !event[:error] and page do
@@ -253,8 +253,7 @@ defmodule PlaywrightEx.Client.Frame do
 
     serialized_arg =
       if options[:exposeFunctions],
-        # await serializeArgumentWithCallbacks(this, this._page, arg)  -- not ported: exposeFunctions
-        do: raise("exposeFunctions is not supported yet"),
+        do: JSHandle.serialize_argument_with_callbacks(this, get(this, :_page), arg),
         else: JSHandle.serialize_argument(arg)
 
     # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
@@ -275,8 +274,7 @@ defmodule PlaywrightEx.Client.Frame do
 
     serialized_arg =
       if options[:exposeFunctions],
-        # await serializeArgumentWithCallbacks(this, this._page, arg)  -- not ported: exposeFunctions
-        do: raise("exposeFunctions is not supported yet"),
+        do: JSHandle.serialize_argument_with_callbacks(this, get(this, :_page), arg),
         else: JSHandle.serialize_argument(arg)
 
     # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)

@@ -13,11 +13,13 @@ defmodule PlaywrightEx.Client.Connection do
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.APIRequestContext
+  alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Dialog
+  alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.EventEmitter
@@ -90,14 +92,14 @@ defmodule PlaywrightEx.Client.Connection do
         "AndroidSocket" => dummy,
         "APIRequestContext" => &APIRequestContext.new/4,
         "Artifact" => dummy,
-        "BindingCall" => dummy,
+        "BindingCall" => &BindingCall.new/4,
         "Browser" => &Browser.new/4,
         "BrowserContext" => &BrowserContext.new/4,
         "BrowserType" => &BrowserType.new/4,
         "CDPSession" => dummy,
         "Debugger" => dummy,
         "Dialog" => &Dialog.new/4,
-        "Disposable" => dummy,
+        "Disposable" => &DisposableObject.new/4,
         "Electron" => dummy,
         "ElectronApplication" => dummy,
         "ElementHandle" => &ElementHandle.new/4,

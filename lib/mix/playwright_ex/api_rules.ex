@@ -9,7 +9,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
     * Drops JS-only members (`@dropped_members`), and options the JS client does not take
       (`@dropped_options`: `$eval` asserts at most 3 arguments).
     * Documents the Elixir forms of `timeout`.
-    * Page functions (`expression`, a `[function]|[string]` in JS) are JS source strings.
+    * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
+      are JS source strings.
     * Waits: the JS members that the Python client has as `expect_*` (`waitForEvent`,
       `waitForRequest`, `waitForNavigation`, ...) return a promise handle (`"promise"`), as JS
       code starts them without `await`. `waitForEvent` takes Python's arguments (`event`, then
@@ -214,7 +215,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
     %{member | "args" => args}
   end
 
-  defp expression(%{"name" => "expression", "type" => %{"union" => union} = type} = arg) when is_list(union) do
+  defp expression(%{"name" => name, "type" => %{"union" => union} = type} = arg)
+       when name in ["expression", "script"] and is_list(union) do
     case Enum.reject(union, &(&1["name"] == "function")) do
       [single] -> %{arg | "type" => single}
       rest -> %{arg | "type" => %{type | "union" => rest}}

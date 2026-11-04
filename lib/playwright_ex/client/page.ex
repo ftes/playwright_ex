@@ -3,15 +3,21 @@ defmodule PlaywrightEx.Client.Page do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.BrowserContext
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.DisposableObject
+  alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FileChooser
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.HarRouter
+  alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Keyboard
+  alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Client.Mouse
   alias PlaywrightEx.Client.Network
   alias PlaywrightEx.Client.Request
@@ -51,6 +57,7 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_webSocketRoutes, [])
     put(this, :_closeWasCalled, false)
     put(this, :_harRouters, [])
+    put(this, :_evaluateCallbacks, [])
     # this._instrumentation.onPage(this);  -- not ported: instrumentation
     put(this, :_browserContext, parent)
     put(this, :_timeoutSettings, TimeoutSettings.new(get(parent, :_timeoutSettings)))
@@ -71,7 +78,10 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_opener, from_nullable(initializer[:opener]))
     # this._video = new Video(...); this.screencast = new Screencast(this);  -- not ported: Video, Screencast
 
-    # this._channel.on('bindingCall', ...)  -- not ported: BindingCall
+    EventEmitter.on(_channel(this), "bindingCall", fn %{binding: binding} ->
+      _on_binding(this, BindingCall.from(binding))
+    end)
+
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
     EventEmitter.on(_channel(this), "crash", fn _ -> _on_crash(this) end)
     # this._channel.on('download', ...)  -- not ported: Download
@@ -87,7 +97,10 @@ defmodule PlaywrightEx.Client.Page do
       _on_frame_detached(this, Frame.from(frame))
     end)
 
-    # this._channel.on('locatorHandlerTriggered', ...)  -- not ported: locator handlers (not yet)
+    EventEmitter.on(_channel(this), "locatorHandlerTriggered", fn %{uid: uid} ->
+      _on_locator_handler_triggered(this, uid)
+    end)
+
     EventEmitter.on(_channel(this), "route", fn %{route: route} -> _on_route(this, Route.from(route)) end)
 
     EventEmitter.on(_channel(this), "webSocketRoute", fn %{webSocketRoute: web_socket_route} ->
@@ -194,7 +207,15 @@ defmodule PlaywrightEx.Client.Page do
       else: BrowserContext._on_web_socket_route(get(this, :_browserContext), web_socket_route)
   end
 
-  # _onBinding  -- not ported: BindingCall
+  def _on_binding(this, binding_call) do
+    func = map_get(this, :_bindings, get(binding_call, :_initializer).name)
+
+    if func do
+      BindingCall.call(binding_call, func)
+    else
+      BrowserContext._on_binding(get(this, :_browserContext), binding_call)
+    end
+  end
 
   def _on_worker(this, worker) do
     set_add(this, :_workers, worker)
@@ -316,7 +337,41 @@ defmodule PlaywrightEx.Client.Page do
     Frame.add_style_tag(get(this, :_mainFrame), options || %{})
   end
 
-  # exposeFunction, exposeBinding, _exposeCallbackBinding, _exposeEvaluateCallback, _eraseEvaluateCallbacks  -- not ported: BindingCall
+  # Bindings take the source and the list of arguments: `(source, ...args) => ...`.
+  def expose_function(this, name, callback) do
+    result = channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout())
+    binding = fn _source, args -> ClientHelper.call_function(callback, args) end
+    map_set(this, :_bindings, name, binding)
+    DisposableObject.from(result.disposable)
+  end
+
+  def expose_binding(this, name, callback) do
+    result = channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout())
+    # this._bindings.set(name, callback): called with (source, ...args)
+    map_set(this, :_bindings, name, fn source, args -> ClientHelper.call_function(callback, [source | args]) end)
+    DisposableObject.from(result.disposable)
+  end
+
+  def _expose_callback_binding(this, name, callback) do
+    map_set(this, :_bindings, name, fn _source, args -> ClientHelper.call_function(callback, args) end)
+    result = channel_call(this, :exposeBinding, %{name: name, noGlobal: true}, TimeoutSettings.k_no_timeout())
+    DisposableObject.from(result.disposable)
+  end
+
+  def _expose_evaluate_callback(this, name, callback) do
+    disposable = _expose_callback_binding(this, name, callback)
+    update(this, :_evaluateCallbacks, &(&1 ++ [%{name: name, disposable: disposable}]))
+    nil
+  end
+
+  def _erase_evaluate_callbacks(this) do
+    for %{name: name, disposable: disposable} <- get(this, :_evaluateCallbacks) do
+      map_delete(this, :_bindings, name)
+      Promise.catch_(Promise.async(fn -> DisposableObject.dispose(disposable) end), fn _ -> nil end)
+    end
+
+    put(this, :_evaluateCallbacks, [])
+  end
 
   def set_extra_http_headers(this, headers) do
     Network.validate_headers(headers)
@@ -359,7 +414,80 @@ defmodule PlaywrightEx.Client.Page do
     )
   end
 
-  # addLocatorHandler, _onLocatorHandlerTriggered, removeLocatorHandler  -- not ported: locator handlers (not yet)
+  def add_locator_handler(this, locator, handler, options \\ %{}) do
+    options = options || %{}
+    if locator._frame != get(this, :_mainFrame), do: raise("Locator must belong to the main frame of this page")
+
+    if options[:times] == 0 do
+      nil
+    else
+      %{uid: uid} =
+        channel_call(
+          this,
+          :registerLocatorHandler,
+          %{selector: locator._selector, noWaitAfter: options[:noWaitAfter]},
+          TimeoutSettings.k_no_timeout()
+        )
+
+      map_set(this, :_locatorHandlers, uid, %{locator: locator, handler: handler, times: options[:times]})
+      nil
+    end
+  end
+
+  defp _on_locator_handler_triggered(this, uid) do
+    # `try {} finally {}` with `let remove` assigned in `try`: the `try` returns it (`false` when
+    # the handler raises), the `finally` statements follow, then the error is raised again.
+    {remove, error} =
+      try do
+        handler = map_get(this, :_locatorHandlers, uid)
+
+        handler =
+          if handler && handler.times != 0 do
+            # handler.times--: the entry is a value, write it back.
+            handler =
+              if handler.times != nil,
+                do: map_set(this, :_locatorHandlers, uid, %{handler | times: handler.times - 1}),
+                else: handler
+
+            result = ClientHelper.call_function(handler.handler, [handler.locator])
+            if is_struct(result, Promise), do: Promise.await(result)
+            handler
+          else
+            handler
+          end
+
+        {handler != nil and handler.times == 0, nil}
+      rescue
+        e -> {false, {e, __STACKTRACE__}}
+      end
+
+    if remove, do: map_delete(this, :_locatorHandlers, uid)
+
+    Promise.catch_(
+      Promise.async(fn ->
+        channel_call(this, :resolveLocatorHandlerNoReply, %{uid: uid, remove: remove}, TimeoutSettings.k_no_timeout())
+      end),
+      fn _ -> nil end
+    )
+
+    with {e, stacktrace} <- error, do: reraise(e, stacktrace)
+  end
+
+  def remove_locator_handler(this, locator) do
+    for {uid, data} <- map_entries(this, :_locatorHandlers) do
+      if Locator._equals(data.locator, locator) do
+        map_delete(this, :_locatorHandlers, uid)
+
+        try do
+          channel_call(this, :unregisterLocatorHandler, %{uid: uid}, TimeoutSettings.k_no_timeout())
+        rescue
+          _ -> nil
+        end
+      end
+    end
+
+    nil
+  end
 
   def wait_for_load_state(this, state \\ nil, options \\ nil) do
     Frame.wait_for_load_state(get(this, :_mainFrame), state, options)
@@ -497,7 +625,20 @@ defmodule PlaywrightEx.Client.Page do
     Frame.evaluate(get(this, :_mainFrame), page_function, arg, options)
   end
 
-  # addInitScript  -- not ported: Disposable
+  def add_init_script(this, script, arg \\ nil, options \\ nil) do
+    JSHandle.assert_evaluate_options(options)
+
+    if options[:exposeFunctions] do
+      add_init_script_with_exposed_functions(this, script, arg)
+    else
+      source = ClientHelper.evaluation_script(script, arg)
+
+      DisposableObject.from(
+        channel_call(this, :addInitScript, %{source: source}, TimeoutSettings.k_no_timeout()).disposable
+      )
+    end
+  end
+
   def route(this, url, handler, options \\ %{}) do
     options = options || %{}
 
@@ -512,8 +653,7 @@ defmodule PlaywrightEx.Client.Page do
 
     update(this, :_routes, &[route_handler | &1])
     _update_interception_patterns(this, %{title: "Route requests"})
-    # return new DisposableStub(() => this.unroute(url, handler));  -- not ported: Disposable
-    nil
+    DisposableStub.new(fn -> unroute(this, url, handler) end)
   end
 
   def route_from_har(this, har, options \\ %{}) do
@@ -886,6 +1026,99 @@ defmodule PlaywrightEx.Client.Page do
         nil
     end
   end
+
+  # `owner` is a Page or a BrowserContext.
+  def add_init_script_with_exposed_functions(owner, script, arg) do
+    # typeof script !== 'function': a function is JS source (a string).
+    if !is_binary(script), do: raise("Passing functions requires the init script to be a function")
+    # `callbacks.push(...)` runs in the async closure's own process: collect the promises here.
+    callbacks = make_ref()
+    Process.put(callbacks, [])
+
+    source =
+      ChannelOwner._wrap_api_call(
+        owner,
+        fn _ ->
+          ClientHelper.init_script_source_with_exposed_functions(script, arg, fn name, callback ->
+            promise = Promise.async(fn -> owner.__struct__._expose_callback_binding(owner, name, callback) end)
+            Process.put(callbacks, Process.get(callbacks) ++ [{name, promise}])
+            promise
+          end)
+        end,
+        %{internal: true}
+      )
+
+    callbacks = for {name, promise} <- Process.delete(callbacks), do: %{name: name, disposable: Promise.await(promise)}
+
+    init_script_disposable =
+      DisposableObject.from(
+        channel_call(owner, :addInitScript, %{source: source}, TimeoutSettings.k_no_timeout()).disposable
+      )
+
+    DisposableStub.new(fn ->
+      for %{name: name, disposable: disposable} <- callbacks do
+        map_delete(owner, :_bindings, name)
+        Promise.catch_(Promise.async(fn -> DisposableObject.dispose(disposable) end), fn _ -> nil end)
+      end
+
+      DisposableObject.dispose(init_script_disposable)
+    end)
+  end
 end
 
-# BindingCall, addInitScriptWithExposedFunctions  -- not ported: BindingCall
+defmodule PlaywrightEx.Client.BindingCall do
+  @upstream "packages/playwright-core/src/client/page.ts"
+  @moduledoc "Port of `#{@upstream}` (`class BindingCall`)."
+  use PlaywrightEx.Client.ChannelOwner
+
+  alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.Frame
+  alias PlaywrightEx.Client.JSHandle
+  alias PlaywrightEx.Client.Page
+
+  def from(channel) do
+    channel
+  end
+
+  def new(parent, type, guid, initializer), do: ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
+
+  # `func` takes the source and the list of arguments: `(source, ...args)`.
+  def call(this, func) do
+    try do
+      initializer = get(this, :_initializer)
+      frame = Frame.from(initializer.frame)
+
+      source = %{
+        context: Page.context(get(frame, :_page)),
+        page: get(frame, :_page),
+        frame: frame
+      }
+
+      result = func.(source, Enum.map(initializer.args, &JSHandle.parse_result/1))
+      # await: a returned promise is awaited
+      result = if is_struct(result, Promise), do: Promise.await(result), else: result
+      params = %{result: JSHandle.serialize_argument(result)}
+
+      Promise.catch_(
+        Promise.async(fn -> channel_call(this, :resolve, params, TimeoutSettings.k_no_timeout()) end),
+        fn _ -> nil end
+      )
+    rescue
+      e -> _reject(this, e)
+    catch
+      # JS can throw any value (`throw null`): an Elixir `throw`.
+      :throw, value -> _reject(this, value)
+    end
+
+    nil
+  end
+
+  defp _reject(this, e) do
+    params = %{error: Errors.serialize_error(e)}
+
+    Promise.catch_(
+      Promise.async(fn -> channel_call(this, :reject, params, TimeoutSettings.k_no_timeout()) end),
+      fn _ -> nil end
+    )
+  end
+end

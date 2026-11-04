@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Client.Locator do
 
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.FrameLocator
@@ -161,7 +162,12 @@ defmodule PlaywrightEx.Client.Locator do
     Frame._highlight(this._frame, this._selector)
   end
 
-  # highlight  -- not ported: Disposable
+  def highlight(this, options \\ %{}) do
+    options = options || %{}
+    style = if is_map(options[:style]), do: css_object_to_string(options.style), else: options[:style]
+    Frame._highlight(this._frame, this._selector, style)
+    DisposableStub.new(fn -> hide_highlight(this) end)
+  end
 
   def hide_highlight(this) do
     Frame._hide_highlight(this._frame, this._selector)
@@ -509,7 +515,18 @@ defmodule PlaywrightEx.Client.Locator do
     :persistent_term.put({__MODULE__, :test_id_attribute_name}, attribute_name)
   end
 
-  # cssObjectToString  -- not ported: highlight
+  defp css_object_to_string(style) do
+    Enum.map_join(style, "; ", fn {key, value} ->
+      key = Kernel.to_string(key)
+
+      property =
+        if String.starts_with?(key, "--"),
+          do: key,
+          else: String.replace(key, ~r/[A-Z]/, fn m -> "-" <> String.downcase(m) end)
+
+      "#{property}: #{value}"
+    end)
+  end
 
   # locatorGenerators.ts locatorCustomDescription: the last part of the selector if it is
   # `internal:describe`. Without parseSelector: describe() appends it as a JSON string.

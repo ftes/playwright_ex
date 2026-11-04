@@ -4,11 +4,16 @@ defmodule PlaywrightEx.Client.BrowserContext do
   use PlaywrightEx.Client.ChannelOwner
 
   alias PlaywrightEx.Client.APIRequestContext
+  alias PlaywrightEx.Client.BindingCall
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Dialog
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.DisposableObject
+  alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.HarRouter
+  alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Network
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Request
@@ -53,7 +58,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(get(this, :request), :_timeoutSettings, get(this, :_timeoutSettings))
     # this.clock = new Clock(this); this.credentials = new Credentials(this);  -- not ported
 
-    # this._channel.on('bindingCall', ...)  -- not ported: BindingCall
+    EventEmitter.on(_channel(this), "bindingCall", fn %{binding: binding} ->
+      _on_binding(this, BindingCall.from(binding))
+    end)
+
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
     EventEmitter.on(_channel(this), "page", fn %{page: page} -> _on_page(this, Page.from(page)) end)
     EventEmitter.on(_channel(this), "route", fn %{route: route} -> _on_route(this, Route.from(route)) end)
@@ -276,7 +284,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
     nil
   end
 
-  # _onBinding  -- not ported: BindingCall
+  def _on_binding(this, binding_call) do
+    func = map_get(this, :_bindings, get(binding_call, :_initializer).name)
+    if func, do: BindingCall.call(binding_call, func)
+  end
 
   defp _service_worker_scope(_this, service_worker) do
     try do
@@ -371,7 +382,41 @@ defmodule PlaywrightEx.Client.BrowserContext do
     )
   end
 
-  # addInitScript, exposeBinding, _exposeCallbackBinding, exposeFunction  -- not ported: BindingCall, Disposable
+  def add_init_script(this, script, arg \\ nil, options \\ nil) do
+    JSHandle.assert_evaluate_options(options)
+
+    if options[:exposeFunctions] do
+      Page.add_init_script_with_exposed_functions(this, script, arg)
+    else
+      source = ClientHelper.evaluation_script(script, arg)
+
+      DisposableObject.from(
+        channel_call(this, :addInitScript, %{source: source}, TimeoutSettings.k_no_timeout()).disposable
+      )
+    end
+  end
+
+  # Bindings take the source and the list of arguments: `(source, ...args) => ...`.
+  def expose_binding(this, name, callback) do
+    result = channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout())
+    # this._bindings.set(name, callback): called with (source, ...args)
+    map_set(this, :_bindings, name, fn source, args -> ClientHelper.call_function(callback, [source | args]) end)
+    DisposableObject.from(result.disposable)
+  end
+
+  def _expose_callback_binding(this, name, callback) do
+    map_set(this, :_bindings, name, fn _source, args -> ClientHelper.call_function(callback, args) end)
+    result = channel_call(this, :exposeBinding, %{name: name, noGlobal: true}, TimeoutSettings.k_no_timeout())
+    DisposableObject.from(result.disposable)
+  end
+
+  def expose_function(this, name, callback) do
+    result = channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout())
+    binding = fn _source, args -> ClientHelper.call_function(callback, args) end
+    map_set(this, :_bindings, name, binding)
+    DisposableObject.from(result.disposable)
+  end
+
   def route(this, url, handler, options \\ %{}) do
     options = options || %{}
 
@@ -386,8 +431,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     update(this, :_routes, &[route_handler | &1])
     _update_interception_patterns(this, %{title: "Route requests"})
-    # return new DisposableStub(() => this.unroute(url, handler));  -- not ported: Disposable
-    nil
+    DisposableStub.new(fn -> unroute(this, url, handler) end)
   end
 
   def route_web_socket(this, url, handler) do
