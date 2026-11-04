@@ -111,17 +111,19 @@ defmodule PlaywrightEx.Client.Waiter do
   end
 
   def wait_for_promise(this, promise, dispose \\ nil) do
-    if get(this, :_immediateError), do: raise(get(this, :_immediateError))
-    result = Promise.await(Promise.race(this.baton, [promise | get(this, :_failures)]))
-    if dispose, do: dispose.()
-    result
-  rescue
-    e ->
+    try do
+      if get(this, :_immediateError), do: raise(get(this, :_immediateError))
+      result = Promise.await(Promise.race(this.baton, [promise | get(this, :_failures)]))
       if dispose, do: dispose.()
-      put(this, :_error, Exception.message(e))
-      dispose(this)
-      e = Errors.rewrite_error_message(e, Exception.message(e) <> format_log_recording(get(this, :_logs)))
-      reraise e, __STACKTRACE__
+      result
+    rescue
+      e ->
+        if dispose, do: dispose.()
+        put(this, :_error, Exception.message(e))
+        dispose(this)
+        e = Errors.rewrite_error_message(e, Exception.message(e) <> format_log_recording(get(this, :_logs)))
+        reraise e, __STACKTRACE__
+    end
   end
 
   def log(this, s) do

@@ -40,30 +40,30 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       defstruct [:guid, :baton]
 
       defdelegate on(this, event, listener), to: ChannelOwner
-      # `x instanceof ChannelOwner`
       defdelegate add_listener(this, event, listener), to: ChannelOwner
       defdelegate prepend_listener(this, event, listener), to: ChannelOwner
       defdelegate off(this, event, listener), to: ChannelOwner
       defdelegate remove_listener(this, event, listener), to: ChannelOwner
-      # super(); this.setMaxListeners(0);  -- EventEmitter state is implicit
       defdelegate _wrap_api_call(this, func, options \\ %{}), to: ChannelOwner
       defdelegate _parent_of_type(this, type), to: ChannelOwner
-      # this._instrumentation = this._connection._instrumentation;  -- not ported: instrumentation
       defdelegate _set_event_to_subscription_mapping(this, mapping), to: ChannelOwner
       def __channel_owner__, do: true
     end
   end
 
+  # `x instanceof ChannelOwner`
   def is_channel_owner(%module{}), do: function_exported?(module, :__channel_owner__, 0)
   def is_channel_owner(_), do: false
 
   def new(module, parent, type, guid, initializer) do
     connection = if is_channel_owner(parent), do: get(parent, :_connection), else: parent
     this = struct(module, guid: guid, baton: connection.baton)
+    # super(); this.setMaxListeners(0);  -- EventEmitter state is implicit
     put(this, :_connection, connection)
     put(this, :_type, type)
     put(this, :_guid, guid)
     put(this, :_parent, if(is_channel_owner(parent), do: parent))
+    # this._instrumentation = this._connection._instrumentation;  -- not ported: instrumentation
 
     map_set(connection, :_objects, guid, this)
 

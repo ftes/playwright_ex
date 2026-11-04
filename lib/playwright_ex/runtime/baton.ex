@@ -38,13 +38,13 @@ defmodule PlaywrightEx.Runtime.Baton do
 
   require Logger
 
-  ## Client API
-
   defstruct [:pid, :table]
 
   @key :pw_baton
   @ready :pw_ready
   @scope :pw_scope
+
+  ## Client API
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, Keyword.take(opts, [:name]))
 
@@ -201,8 +201,6 @@ defmodule PlaywrightEx.Runtime.Baton do
             Logger.error("Uncaught in handed-off callback: " <> Exception.format(kind, reason, __STACKTRACE__))
         end
 
-        ## Server
-
         release()
       end)
 
@@ -237,6 +235,8 @@ defmodule PlaywrightEx.Runtime.Baton do
   @doc "Hold-time statistics per grant kind: %{kind => %{count, total_us, max_us}}."
   def stats(%__MODULE__{pid: pid}), do: GenServer.call(pid, :stats)
   def reset_stats(%__MODULE__{pid: pid}), do: GenServer.call(pid, :reset_stats)
+
+  ## Server
 
   @impl true
   def init(_opts) do
