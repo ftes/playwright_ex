@@ -4,7 +4,9 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
@@ -247,8 +249,23 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
     assert received() == ["second"]
   end
 
-  @tag skip: "not ported: expect"
-  test "should support async handler w/ times"
+  @tag :page
+  test "should support async handler w/ times", %{context: context, page: page, server: server} do
+    BrowserContext.route!(
+      context,
+      "**/empty.html",
+      fn route ->
+        Process.sleep(100)
+        Route.fulfill(route, body: "<html>intercepted</html>", content_type: "text/html")
+      end,
+      times: 1
+    )
+
+    Page.goto!(page, server.empty_page)
+    Expect.to_have_text!(Page.locator(page, "body"), "intercepted")
+    Page.goto!(page, server.empty_page)
+    Expect.not_to_have_text!(Page.locator(page, "body"), "intercepted")
+  end
 
   @tag :page
   test "should overwrite post body with empty string", %{context: context, server: server, page: page} do
@@ -405,8 +422,17 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
     end)
   end
 
-  @tag skip: "not ported: expect"
-  test "should fulfill popup main request using alias"
+  @tag :page
+  test "should fulfill popup main request using alias", %{page: page, server: server} do
+    BrowserContext.route!(Page.context(page), "**/*", fn route ->
+      response = Route.fetch!(route)
+      Route.fulfill!(route, response: response, body: "hello")
+    end)
+
+    Page.set_content!(page, ~s(<a target=_blank href="#{server.empty_page}">click me</a>))
+    popup = Page.expect_popup!(page, fn -> Locator.click!(Page.get_by_text(page, "click me")) end)
+    Expect.to_have_text!(Page.locator(popup, "body"), "hello")
+  end
 
   @tag skip: "not ported: URLPattern"
   test "should respect URLPattern ignoreCase"

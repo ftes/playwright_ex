@@ -4,11 +4,13 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.Errors.TimeoutError
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -22,6 +24,17 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
   # `server.setRoute(path, (req, res) => {})`: the request hangs.
   defp hang(_conn), do: Process.sleep(:infinity)
+
+  # `server.setRoute(path, async (req, res) => { events.push('started x'); await 2s; res.end(body); events.push('finished x') })`
+  defp slow_route(events, name, body) do
+    fn conn ->
+      Agent.update(events, &(&1 ++ ["started #{name}"]))
+      Process.sleep(2000)
+      conn = conn |> Plug.Conn.put_resp_header("content-type", "text/html") |> Plug.Conn.send_resp(200, body)
+      Agent.update(events, &(&1 ++ ["finished #{name}"]))
+      conn
+    end
+  end
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
@@ -439,11 +452,93 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  @tag skip: "not ported: toPass"
-  test "js redirect overrides url bar navigation "
+  test "js redirect overrides url bar navigation ", %{page: page, server: server, browser_name: browser_name} do
+    # it.skip(trace === 'on', ...);  -- tracing is off
+    TestServer.set_route(server, "/a", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, """
+          <body>
+            <script>
+              setTimeout(() => {
+                window.location.pathname = '/c';
+              }, 1000);
+            </script>
+          </body>
+      """)
+    end)
 
-  @tag skip: "not ported: toPass"
-  test "should succeed on url bar navigation when there is pending navigation"
+    {:ok, events} = Agent.start_link(fn -> [] end)
+    TestServer.set_route(server, "/b", slow_route(events, "b", "BBB"))
+    TestServer.set_route(server, "/c", slow_route(events, "c", "CCC"))
+    Page.goto!(page, server.prefix <> "/a")
+
+    error =
+      case Page.goto(page, server.prefix <> "/b") do
+        {:ok, _} -> nil
+        {:error, e} -> e
+      end
+
+    expect_events =
+      if browser_name == "chromium",
+        do: ["started b", "finished b"],
+        else: ["started b", "started c", "finished b", "finished c"]
+
+    Utils.to_pass(fn -> assert Agent.get(events, & &1) == expect_events end)
+    assert Agent.get(events, & &1) == expect_events
+
+    case browser_name do
+      "chromium" ->
+        # Chromium prioritizes the url bar navigation over the js redirect.
+        refute error
+        Expect.to_have_url!(page, server.prefix <> "/b")
+
+      "webkit" ->
+        assert Exception.message(error) =~
+                 ~s(page.goto: Navigation to "#{server.prefix <> "/b"}" is interrupted by another navigation to "#{server.prefix <> "/c"}")
+
+        Expect.to_have_url!(page, server.prefix <> "/c")
+
+      "firefox" ->
+        assert Exception.message(error) =~ "NS_BINDING_ABORTED"
+        Expect.to_have_url!(page, server.prefix <> "/c")
+    end
+  end
+
+  test "should succeed on url bar navigation when there is pending navigation", %{page: page, server: server} do
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
+    TestServer.set_route(server, "/a", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, """
+        <body>
+          <script>
+            setTimeout(() => {
+              window.location.pathname = '/c';
+            }, 10);
+          </script>
+        </body>
+      """)
+    end)
+
+    {:ok, events} = Agent.start_link(fn -> [] end)
+    TestServer.set_route(server, "/b", slow_route(events, "b", "BBB"))
+    TestServer.set_route(server, "/c", slow_route(events, "c", "CCC"))
+    Page.goto!(page, server.prefix <> "/a")
+    Page.wait_for_timeout!(page, 1000)
+
+    error =
+      case Page.goto(page, server.prefix <> "/b") do
+        {:ok, _} -> nil
+        {:error, e} -> e
+      end
+
+    expect_events = ["started c", "started b", "finished c", "finished b"]
+    Utils.to_pass(fn -> assert Agent.get(events, & &1) == expect_events end, timeout: 5000)
+    assert Agent.get(events, & &1) == expect_events
+    refute error
+    assert Page.url(page) == server.prefix <> "/b"
+  end
 
   test "should work when navigating to valid url", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)

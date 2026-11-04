@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -1085,8 +1086,22 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     assert received() == ["second"]
   end
 
-  @tag skip: "not ported: expect"
-  test "should support async handler w/ times"
+  test "should support async handler w/ times", %{page: page, server: server} do
+    Page.route!(
+      page,
+      "**/empty.html",
+      fn route ->
+        Process.sleep(100)
+        Route.fulfill!(route, body: "<html>intercepted</html>", content_type: "text/html")
+      end,
+      times: 1
+    )
+
+    Page.goto!(page, server.empty_page)
+    Expect.to_have_text!(Page.locator(page, "body"), "intercepted")
+    Page.goto!(page, server.empty_page)
+    Expect.not_to_have_text!(Page.locator(page, "body"), "intercepted")
+  end
 
   test "route abort with times: 1 should not affect second sequential fetch", %{
     page: page,

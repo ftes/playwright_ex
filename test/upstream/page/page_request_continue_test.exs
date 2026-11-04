@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -396,8 +397,23 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "origin") == server.prefix
   end
 
-  @tag skip: "not ported: waitForFunction"
-  test "should continue preload link requests"
+  test "should continue preload link requests", %{page: page, server: server} do
+    me = self()
+
+    Page.route!(page, "**/one-style.css", fn route ->
+      send(me, :intercepted)
+      Route.continue(route, headers: Map.put(Request.headers(Route.request(route)), "custom", "value"))
+    end)
+
+    server_request = TestServer.wait_for_request(server, "/one-style.css")
+    Page.goto!(page, server.prefix <> "/preload.html")
+    server_request = Task.await(server_request)
+    assert req_header(server_request, "custom") == "value"
+    Page.wait_for_function!(page, "() => window.preloadedStyles")
+    assert_received :intercepted
+    color = Page.evaluate!(page, "() => window.getComputedStyle(document.body).backgroundColor")
+    assert color == "rgb(255, 192, 203)"
+  end
 
   test "should respect set-cookie in redirect response", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
@@ -722,8 +738,32 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "foo"
   end
 
-  @tag skip: "not ported: expect"
-  test "continue should pass on 307 cross-origin redirect"
+  test "continue should pass on 307 cross-origin redirect", %{page: page, server: server} do
+    TestServer.set_route(server, "/final", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, "<!doctype html><title>final</title><p>ok</p>")
+    end)
+
+    # Cross-origin 307 redirect that preserves the POST method.
+    TestServer.set_route(server, "/redirect307", fn conn ->
+      conn |> Plug.Conn.put_resp_header("location", "#{server.prefix}/final") |> Plug.Conn.send_resp(307, "")
+    end)
+
+    Page.goto!(page, server.prefix <> "/empty.html")
+
+    Page.set_content!(page, """
+      <form id="f" method="POST" action="#{server.cross_process_prefix}/redirect307">
+        <input type="submit">
+      </form>
+    """)
+
+    Page.route!(page, "**/*", &Route.continue/1)
+    url = Task.async(fn -> Page.wait_for_url!(page, "#{server.prefix}/final") end)
+    Locator.click!(Page.locator(page, "input"))
+    Task.await(url)
+    Expect.to_have_text!(Page.locator(page, "p"), "ok")
+  end
 
   test "should intercept css variable with background url", %{page: page, server: server} do
     TestServer.set_route(server, "/test.html", fn conn ->

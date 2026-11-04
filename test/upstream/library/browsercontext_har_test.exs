@@ -2,8 +2,12 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
   @upstream "tests/library/browsercontext-har.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
@@ -25,14 +29,35 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
 
   defp echo_post_body(conn), do: Plug.Conn.send_resp(conn, 200, conn.assigns.post_body)
 
-  @tag skip: "not ported: expect"
-  test "should context.routeFromHAR, matching the method and following redirects"
+  test "should context.routeFromHAR, matching the method and following redirects", %{context: context, asset: asset} do
+    path = asset.("har-fulfill.har")
+    BrowserContext.route_from_har!(context, path)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    # HAR contains a POST for the css file that should not be used.
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
+  end
 
-  @tag skip: "not ported: expect"
-  test "should page.routeFromHAR, matching the method and following redirects"
+  test "should page.routeFromHAR, matching the method and following redirects", %{context: context, asset: asset} do
+    path = asset.("har-fulfill.har")
+    page = BrowserContext.new_page!(context)
+    Page.route_from_har!(page, path)
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    # HAR contains a POST for the css file that should not be used.
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
+  end
 
-  @tag skip: "not ported: expect"
-  test "fallback:continue should continue when not found in har"
+  test "fallback:continue should continue when not found in har", %{context: context, server: server, asset: asset} do
+    path = asset.("har-fulfill.har")
+    BrowserContext.route_from_har!(context, path, not_found: :fallback)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.prefix <> "/one-style.html")
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 192, 203)")
+  end
 
   test "by default should abort requests not found in har", %{context: context, server: server, asset: asset} do
     path = asset.("har-fulfill.har")
@@ -42,17 +67,81 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert is_exception(error)
   end
 
-  @tag skip: "not ported: expect"
-  test "fallback:continue should continue requests on bad har"
+  test "fallback:continue should continue requests on bad har", %{
+    context: context,
+    server: server,
+    output_path: output_path
+  } do
+    path = output_path.("test.har")
+    File.write!(path, JSON.encode!(%{log: %{}}))
+    BrowserContext.route_from_har!(context, path, not_found: :fallback)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.prefix <> "/one-style.html")
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 192, 203)")
+  end
 
-  @tag skip: "not ported: expect"
-  test "should only handle requests matching url filter"
+  test "should only handle requests matching url filter", %{context: context, asset: asset} do
+    path = asset.("har-fulfill.har")
+    BrowserContext.route_from_har!(context, path, not_found: :fallback, url: "**/*.js")
+    page = BrowserContext.new_page!(context)
 
-  @tag skip: "not ported: expect"
-  test "should only context.routeFromHAR requests matching url filter"
+    BrowserContext.route!(context, "http://no.playwright/", fn route ->
+      assert Request.url(Route.request(route)) == "http://no.playwright/"
 
-  @tag skip: "not ported: expect"
-  test "should only page.routeFromHAR requests matching url filter"
+      Route.fulfill!(route,
+        status: 200,
+        content_type: "text/html",
+        body: ~s(<script src="./script.js"></script><div>hello</div>)
+      )
+    end)
+
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgba(0, 0, 0, 0)")
+  end
+
+  test "should only context.routeFromHAR requests matching url filter", %{context: context, asset: asset} do
+    path = asset.("har-fulfill.har")
+    BrowserContext.route_from_har!(context, path, url: "**/*.js")
+    page = BrowserContext.new_page!(context)
+
+    BrowserContext.route!(context, "http://no.playwright/", fn route ->
+      assert Request.url(Route.request(route)) == "http://no.playwright/"
+
+      Route.fulfill!(route,
+        status: 200,
+        content_type: "text/html",
+        body: ~s(<script src="./script.js"></script><div>hello</div>)
+      )
+    end)
+
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgba(0, 0, 0, 0)")
+  end
+
+  test "should only page.routeFromHAR requests matching url filter", %{context: context, asset: asset} do
+    path = asset.("har-fulfill.har")
+    page = BrowserContext.new_page!(context)
+    Page.route_from_har!(page, path, url: "**/*.js")
+
+    BrowserContext.route!(context, "http://no.playwright/", fn route ->
+      assert Request.url(Route.request(route)) == "http://no.playwright/"
+
+      Route.fulfill!(route,
+        status: 200,
+        content_type: "text/html",
+        body: ~s(<script src="./script.js"></script><div>hello</div>)
+      )
+    end)
+
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgba(0, 0, 0, 0)")
+  end
 
   test "should apply overrides before routing from har", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
@@ -76,26 +165,102 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "window.value") == "foo"
   end
 
-  @tag skip: "not ported: expect"
-  test "should support regex filter"
+  test "should support regex filter", %{context: context, asset: asset} do
+    path = asset.("har-fulfill.har")
+    BrowserContext.route_from_har!(context, path, url: ~r/.*(\.js|.*\.css|no.playwright\/)$/)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, "http://no.playwright/")
+    assert Page.evaluate!(page, "window.value") == "foo"
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
+  end
 
-  @tag skip: "not ported: expect"
-  test "newPage should fulfill from har, matching the method and following redirects"
+  test "newPage should fulfill from har, matching the method and following redirects", %{
+    browser: browser,
+    asset: asset
+  } do
+    path = asset.("har-fulfill.har")
+    page = Browser.new_page!(browser)
+    Page.route_from_har!(page, path)
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    # HAR contains a POST for the css file that should not be used.
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
+    Page.close!(page)
+  end
 
-  @tag skip: "not ported: expect"
-  test "should change document URL after redirected navigation"
+  test "should change document URL after redirected navigation", %{context: context, asset: asset} do
+    path = asset.("har-redirect.har")
+    BrowserContext.route_from_har!(context, path)
+    page = BrowserContext.new_page!(context)
+    navigation = Page.wait_for_navigation(page)
+    url = Task.async(fn -> Page.wait_for_url!(page, "https://www.theverge.com/") end)
+    Page.goto!(page, "https://theverge.com/")
+    response = Promise.await!(navigation)
+    Task.await(url)
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    assert Request.url(Response.request(response)) == "https://www.theverge.com/"
+    assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
+  end
 
-  @tag skip: "not ported: expect"
-  test "should change document URL after redirected navigation on click"
+  test "should change document URL after redirected navigation on click", %{
+    server: server,
+    context: context,
+    asset: asset
+  } do
+    path = asset.("har-redirect.har")
+    BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s(<a href="https://theverge.com/">click me</a>))
+    navigation = Page.wait_for_navigation(page)
+    Page.click!(page, "text=click me")
+    response = Promise.await!(navigation)
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    assert Request.url(Response.request(response)) == "https://www.theverge.com/"
+    assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
+  end
 
-  @tag skip: "not ported: expect"
-  test "should goBack to redirected navigation"
+  test "should goBack to redirected navigation", %{context: context, asset: asset, server: server} do
+    path = asset.("har-redirect.har")
+    BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, "https://theverge.com/")
+    Page.goto!(page, server.empty_page)
+    Expect.to_have_url!(page, server.empty_page)
+    response = Page.go_back!(page)
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    assert Request.url(Response.request(response)) == "https://www.theverge.com/"
+    assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
+  end
 
-  @tag skip: "not ported: expect"
-  test "should goForward to redirected navigation"
+  test "should goForward to redirected navigation", %{context: context, asset: asset, server: server} do
+    path = asset.("har-redirect.har")
+    BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+    Expect.to_have_url!(page, server.empty_page)
+    Page.goto!(page, "https://theverge.com/")
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    Page.go_back!(page)
+    Expect.to_have_url!(page, server.empty_page)
+    response = Page.go_forward!(page)
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    assert Request.url(Response.request(response)) == "https://www.theverge.com/"
+    assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
+  end
 
-  @tag skip: "not ported: expect"
-  test "should reload redirected navigation"
+  test "should reload redirected navigation", %{context: context, asset: asset} do
+    path = asset.("har-redirect.har")
+    BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, "https://theverge.com/")
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    response = Page.reload!(page)
+    Expect.to_have_url!(page, "https://www.theverge.com/")
+    assert Request.url(Response.request(response)) == "https://www.theverge.com/"
+    assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
+  end
 
   test "should fulfill from har with content in a file", %{context: context, asset: asset} do
     path = asset.("har-sha1.har")
@@ -105,14 +270,61 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.content!(page) == "<html><head></head><body>Hello, world</body></html>"
   end
 
-  @tag skip: "not ported: expect"
-  test "should round-trip har.zip"
+  test "should round-trip har.zip", %{context_factory: context_factory, server: server, output_path: output_path} do
+    har_path = output_path.("har.zip")
+    context1 = context_factory.(record_har: %{mode: "minimal", path: har_path})
+    page1 = BrowserContext.new_page!(context1)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
 
-  @tag skip: "not ported: expect"
-  test "should produce extracted zip"
+    context2 = context_factory.([])
+    BrowserContext.route_from_har!(context2, har_path, not_found: :abort)
+    page2 = BrowserContext.new_page!(context2)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
 
-  @tag skip: "not ported: expect"
-  test "should round-trip extracted har.zip"
+  test "should produce extracted zip", %{context_factory: context_factory, server: server, output_path: output_path} do
+    har_path = output_path.("har.har")
+    context1 = context_factory.(record_har: %{mode: "minimal", path: har_path, content: "attach"})
+    page1 = BrowserContext.new_page!(context1)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
+
+    assert File.exists?(har_path)
+    har = File.read!(har_path)
+    refute har =~ "background-color"
+
+    context2 = context_factory.([])
+    BrowserContext.route_from_har!(context2, har_path, not_found: :abort)
+    page2 = BrowserContext.new_page!(context2)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
+
+  test "should round-trip extracted har.zip", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
+    har_path = output_path.("har.zip")
+    context1 = context_factory.(record_har: %{mode: "minimal", path: har_path})
+    page1 = BrowserContext.new_page!(context1)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
+
+    har_dir = output_path.("hardir")
+    {:ok, _} = :zip.unzip(String.to_charlist(har_path), cwd: String.to_charlist(har_dir))
+
+    context2 = context_factory.([])
+    BrowserContext.route_from_har!(context2, Path.join(har_dir, "har.har"))
+    page2 = BrowserContext.new_page!(context2)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
 
   @fetch_function """
   async (body) => {
@@ -233,11 +445,71 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page2, @fetch_header_function, "baz4") == "baz1"
   end
 
-  @tag skip: "not ported: expect"
-  test "should update har.zip for context"
+  test "should update har.zip for context", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
+    har_path = output_path.("har.zip")
+    context1 = context_factory.([])
+    BrowserContext.route_from_har!(context1, har_path, update: true)
+    page1 = BrowserContext.new_page!(context1)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
 
-  @tag skip: "not ported: expect"
-  test "should ignore boundary when matching multipart/form-data body"
+    context2 = context_factory.([])
+    BrowserContext.route_from_har!(context2, har_path, not_found: :abort)
+    page2 = BrowserContext.new_page!(context2)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
+
+  test "should ignore boundary when matching multipart/form-data body", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, """
+        <form id="form" action="form.html" enctype="multipart/form-data" method="POST">
+        <input id="file" type="file" multiple />
+        <button type="submit">Upload</button>
+        </form>
+      """)
+    end)
+
+    TestServer.set_route(server, "/form.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, "<div>done</div>")
+    end)
+
+    har_path = output_path.("har.zip")
+    context1 = context_factory.([])
+    BrowserContext.route_from_har!(context1, har_path, update: true)
+    page1 = BrowserContext.new_page!(context1)
+    Page.goto!(page1, server.prefix <> "/empty.html")
+    req_promise = TestServer.wait_for_request(server, "/form.html")
+    Locator.click!(Page.locator(page1, "button"))
+    Expect.to_have_text!(Page.locator(page1, "div"), "done")
+    req = Task.await(req_promise)
+    assert req.assigns.post_body =~ "---"
+    BrowserContext.close!(context1)
+
+    context2 = context_factory.([])
+    BrowserContext.route_from_har!(context2, har_path, not_found: :abort)
+    page2 = BrowserContext.new_page!(context2)
+    Page.goto!(page2, server.prefix <> "/empty.html")
+    request_promise = Page.wait_for_request(page2, ~r/.*form.html/)
+    Locator.click!(Page.locator(page2, "button"))
+    request = Promise.await!(request_promise)
+    assert Request.response!(request)
+    assert Request.failure(request) == nil
+    Expect.to_have_text!(Page.locator(page2, "div"), "done")
+  end
 
   test "should record single set-cookie headers", %{
     context_factory: context_factory,
@@ -297,14 +569,65 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert cookie2 |> String.split("; ") |> Enum.sort() |> Enum.join("; ") == "first=foo; second=bar"
   end
 
-  @tag skip: "not ported: expect"
-  test "should update har.zip for page"
+  test "should update har.zip for page", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
+    har_path = output_path.("har.zip")
+    context1 = context_factory.([])
+    page1 = BrowserContext.new_page!(context1)
+    Page.route_from_har!(page1, har_path, update: true)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
 
-  @tag skip: "not ported: expect"
-  test "should update har.zip for page with different options"
+    context2 = context_factory.([])
+    page2 = BrowserContext.new_page!(context2)
+    Page.route_from_har!(page2, har_path, not_found: :abort)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
 
-  @tag skip: "not ported: expect"
-  test "should update extracted har.zip for page"
+  test "should update har.zip for page with different options", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
+    har_path = output_path.("har.zip")
+    context1 = context_factory.([])
+    page1 = BrowserContext.new_page!(context1)
+    Page.route_from_har!(page1, har_path, update: true, update_content: :embed, update_mode: :full)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
+
+    context2 = context_factory.([])
+    page2 = BrowserContext.new_page!(context2)
+    Page.route_from_har!(page2, har_path, not_found: :abort)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
+
+  test "should update extracted har.zip for page", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
+    har_path = output_path.("har.har")
+    context1 = context_factory.([])
+    page1 = BrowserContext.new_page!(context1)
+    Page.route_from_har!(page1, har_path, update: true)
+    Page.goto!(page1, server.prefix <> "/one-style.html")
+    BrowserContext.close!(context1)
+
+    context2 = context_factory.([])
+    page2 = BrowserContext.new_page!(context2)
+    Page.route_from_har!(page2, har_path, not_found: :abort)
+    Page.goto!(page2, server.prefix <> "/one-style.html")
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
 
   test "page.unrouteAll should stop page.routeFromHAR", %{
     context_factory: context_factory,

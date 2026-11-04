@@ -332,8 +332,24 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     Expect.to_have_text!(Page.locator(page, "h1"), "Hello")
   end
 
-  @tag skip: "not ported: expect"
-  test "should retry click after disabling javascript"
+  test "should retry click after disabling javascript", %{context_factory: context_factory} do
+    context = context_factory.(java_script_enabled: false)
+    page = BrowserContext.new_page!(context)
+
+    Page.set_content!(page, """
+      <details><summary>Continue</summary>Details</details>
+      <div id="cover" style="position: fixed; inset: 0;"></div>
+    """)
+
+    click_promise = Task.async(fn -> Locator.click!(Page.locator(page, "summary")) end)
+    # Give it enough time to go through a few retries while the button is covered.
+    Page.wait_for_timeout!(page, 2000)
+    clicked = Task.yield(click_promise, 0) != nil
+    assert clicked == false
+    Locator.evaluate!(Page.locator(page, "#cover"), "e => e.remove()")
+    Task.await(click_promise)
+    Expect.to_have_attribute!(Page.locator(page, "details"), "open", "")
+  end
 
   test "should work with offline option", %{browser: browser, server: server, browser_name: browser_name} do
     context = Browser.new_context!(browser, offline: true)
