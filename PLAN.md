@@ -51,6 +51,8 @@ a migration guide maps old calls to new ones.
   client function that disappears is a compile warning. This is interim: before release the
   generator emits every member (see Then, item 2).
 - Unknown options and enum values raise `ArgumentError` in both forms (programmer errors).
+  The facade checks only keys and enums; value types are checked by the generated protocol
+  validator at `channel_call`, as upstream's client does (messages use the JS names).
   Upstream tests that pass options `as any` assert that rejection instead.
 - `void` methods return `:ok` (`close/2`, `close!/2`). Handles stay the client structs
   (no conversion at every boundary, one term per object), typed `PlaywrightEx.Browser.t()` and
@@ -199,22 +201,29 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `LongStandingScope`), with mirrored `page-goto`/`browsercontext-basic` specs and both launch
    specs. Not yet: routing, HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/
    `waitForNavigation` (promise handle above), selectors and locators, so their specs stay
-   skipped. Next: locators on Frame/Page. Release gate: "generate all". Out-of-scope classes
-   and members (`launchServer`, `connectOverCDP(transport)`, Electron/Android unless ported)
-   are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
-   generator stops checking client exports and emits every remaining member, so a missing
-   impl is a compile warning and fails CI. Classes can switch one at a time once complete
+   skipped. Next: locators on Frame/Page, after item 3. Release gate: "generate all".
+   Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
+   Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
+   generator stops checking client exports and emits every remaining member, so a missing impl
+   is a compile warning and fails CI. Classes can switch one at a time once complete
    (a rules entry), so finished ones can't regress while the rest are ported.
-3. Docs on par with playwright.dev for the generated modules (gaps found by comparing `mix docs`
-   with upstream; all in the generator): typed options (a `@type goto_options` per member from
-   the facade schema, keyword or map, enums as atoms, nested fields as nested bullets), return
-   and event payload shapes, links for class and event refs, notes as admonitions (`{: .info}`,
-   from the `spec` AST), upstream "Added in" as `@doc since:` (versions are in sync, see
-   Decisions), an "API" module group and an "Events" doc group, and the event list's broken
-   code blocks fixed. JS examples stay until item 4 rewrites them. CI runs `mix docs
-   --warnings-as-errors`. No NimbleOptions: its validation can't do the conversion the schema
-   already does (JS names, enum strings, `:infinity`), and rendering docs and specs from our
-   own schema is less work than mapping api.json types onto its types.
+3. Next: docs and specs on par with playwright.dev for the generated modules (gaps found by
+   comparing `mix docs` with upstream; all in the generator, independent of item 2). Specs
+   today: 179, but all 50 options are `keyword() | map()`, object values `map()`, 48 `term()`
+   (listener callbacks, `evaluate` args). Wanted:
+   - Types: a `@type goto_options` per member from the facade schema (keyword or map, enums as
+     atoms), object types (`%{width: number(), height: number()}`), return and event payload
+     shapes, listener callbacks typed by event.
+   - Docs: nested option fields as nested bullets, links for class and event refs and raw
+     `[Type]` refs, relative links without `.md`, notes as admonitions (`{: .info}`, from the
+     `spec` AST), errors named (`TimeoutError`), the event list's broken code blocks and the
+     literal `↵` in discouraged notes fixed, the JS `signal` (AbortSignal) option dropped in
+     `ApiRules`. Upstream "Added in" as `@doc since:` (versions are in sync, see Decisions).
+   - ExDoc: an "API" module group, an "Events" doc group, CI runs `mix docs
+     --warnings-as-errors`. JS examples stay until item 4 rewrites them.
+   - No NimbleOptions: its validation can't do the conversion the schema already does (JS
+     names, enum strings, `:infinity`), and rendering docs and specs from our own schema is
+     less work than mapping api.json types onto its types.
 4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
    with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match
