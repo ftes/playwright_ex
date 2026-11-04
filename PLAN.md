@@ -220,6 +220,11 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
      `storage_state`) and keyword lists; results have the JS keys and enums as strings, as the
      client returns them. Listener specs per event, as in `types.d.ts`. Left `term()`: payloads
      of unported classes (until ported) and JS values (`evaluate`, `json`).
+     Open: nested keys. Results keep the JS keys because the client returns protocol values as
+     is (`BrowserContext.storageState` -> `sameSite`, `httpOnly`), so nested inputs accept both
+     spellings. Options: snake_case both ways (a generated result converter, skipping JS values),
+     or Python's model (snake_case only for top-level options, JS keys nested both ways: its
+     `Cookie`/`ClientCertificate` dicts use `sameSite`, `certPath`). Decide before release.
    - No NimbleOptions: its validation can't do the conversion the schema already does.
 4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
