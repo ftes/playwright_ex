@@ -12,11 +12,15 @@ defmodule PlaywrightEx.UpstreamCase do
     * `context_factory` (`context_factory.(options)`; its contexts are closed after the test)
     * `context`, `page` for tests tagged `:page` (`@moduletag :page` for `pageTest` specs):
       upstream creates fixtures lazily, here a tag asks for them.
+    * `request` (`playwright.request.newContext()`, disposed after the test) for tests tagged
+      `:request`, or `request: options` (`newContext` options, for specs that override the fixture)
 
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
   """
   use ExUnit.CaseTemplate
 
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
@@ -89,6 +93,16 @@ defmodule PlaywrightEx.UpstreamCase do
     if tags[:page] do
       context = context_factory.([])
       %{context: context, page: BrowserContext.new_page!(context)}
+    else
+      :ok
+    end
+  end
+
+  setup %{playwright: playwright} = tags do
+    if options = tags[:request] do
+      request = APIRequest.new_context!(Playwright.request(playwright), if(options == true, do: [], else: options))
+      on_exit(fn -> APIRequestContext.dispose(request) end)
+      %{request: request}
     else
       :ok
     end
