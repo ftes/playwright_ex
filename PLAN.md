@@ -62,8 +62,9 @@ a migration guide maps old calls to new ones.
   (no conversion at every boundary, one term per object), typed `PlaywrightEx.Browser.t()` and
   inspected as `#PlaywrightEx.Browser<guid>`. Not `@opaque`: since OTP 28 opaques are nominal, so
   a client function returning a typed struct violates the facade spec of another module.
-- Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`) and the
-  callback form (`Page.expect_popup(page, fn -> ... end)`).
+- Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`, awaited with
+  `PlaywrightEx.Promise.await/1`) for members Python has an `expect_*` for, and the callback
+  form (`Page.expect_popup(page, fn -> ... end)`). Details: `DECISIONS.md`.
 
 ## Concurrency: baton
 
@@ -215,7 +216,10 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `fill`, `text_content`, `get_by_*`, `$eval`, ...), with `locatorUtils` and mirrored
    `locator-click`/`locator-list`/`locator-convenience`/`locator-misc-1`/`page-check` specs. Done: input (`Keyboard`,
    `Mouse`, `Touchscreen`), `Dialog`, `ConsoleMessage`, `WebError`, `Worker`, with mirrored
-   page-dialog/keyboard/mouse/event-console/event-pageerror and workers specs. Not yet: routing,
+   page-dialog/keyboard/mouse/event-console/event-pageerror and workers specs. Done: waits
+   (`wait_for_event`/`navigation`/`url`/`request`/`response`, `Page.frame`), `urlMatch`,
+   promise handles (`PlaywrightEx.Promise`) and `expect_*` callback forms, with mirrored
+   page-wait-for-* and page-event-popup specs. Not yet: routing,
    HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
    above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
    `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their

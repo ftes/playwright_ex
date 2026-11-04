@@ -236,104 +236,111 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     args = if callback, do: with_action(member["args"]), else: member["args"]
     vars = Enum.map(args, &var(&1["name"]))
     attrs = for {arg, var} <- Enum.zip(args, vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
-
-    params =
-      [receiver] ++
-        Enum.map(Enum.zip(args, vars), fn
-          {%{"name" => "options"}, var} -> "#{var} \\\\ []"
-          {%{"required" => true}, var} -> var
-          {_, var} -> "#{var} \\\\ nil"
-        end)
-
-    conversions =
-      Enum.map_join(attrs, "\n", fn
-        {%{"name" => "options"}, var, _} -> "#{var} = Facade.options!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
-        {arg, var, :event} when is_map(arg) -> "#{var} = Facade.event!(#{var}, @events, #{inspect(api_name)})"
-        {_, var, _} -> "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
-      end)
-
-    attributes =
-      Enum.map_join(attrs, "\n", fn
-        {_, _, :event} -> ""
-        {_, var, schema} -> "@#{name}_#{var} #{render(schema)}"
-      end)
-
-    call =
-      case callback do
-        nil ->
-          "#{inspect(impl(class["name"]))}.#{name}(#{Enum.join([receiver | vars], ", ")})"
-
-        %{"call" => call, "event" => event} ->
-          call_args = [receiver | List.wrap(event && inspect(event))] ++ (vars -- ["action"])
-          "#{inspect(impl(class["name"]))}.#{snake(call)}(#{Enum.join(call_args, ", ")})"
-      end
-
+    params = [receiver | Enum.map(Enum.zip(args, vars), &param/1)]
     void? = get_in(member, ["type", "name"]) == "void"
-    head = "#{name}(#{Enum.join(params, ", ")})"
-    spec_args = Enum.join(["t()" | Enum.map(args, &arg_spec(ctx, &1, name))], ", ")
-    return = if void?, do: ":ok", else: type_spec(ctx, member["type"], :out)
     doc = member_doc(ctx, member, args)
     doc = if member["promise"], do: sections([doc, promise_doc(ctx, class, member, length(params))]), else: doc
-    docs = since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
 
     attributes =
-      Enum.join([attributes | for(%{"name" => "options"} = arg <- args, do: options_type(ctx, name, arg))], "\n\n")
+      Enum.join(
+        [
+          Enum.map_join(attrs, "\n", &attribute(name, &1))
+          | for(%{"name" => "options"} = arg <- args, do: options_type(ctx, name, arg))
+        ],
+        "\n\n"
+      )
 
-    fun = "fn -> #{call} end"
+    member_def(member, %{
+      name: name,
+      api_name: inspect(api_name),
+      receiver: receiver,
+      params: params,
+      head: "#{name}(#{Enum.join(params, ", ")})",
+      attributes: attributes,
+      conversions: Enum.map_join(attrs, "\n", &conversion(name, api_name, &1)),
+      call: client_call(class, member, receiver, vars),
+      void?: void?,
+      spec_args: Enum.join(["t()" | Enum.map(args, &arg_spec(ctx, &1, name))], ", "),
+      return: if(void?, do: ":ok", else: type_spec(ctx, member["type"], :out)),
+      docs: since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
+    })
+  end
 
-    cond do
-      member["promise"] ->
-        """
-        #{attributes}
+  defp param({%{"name" => "options"}, var}), do: "#{var} \\\\ []"
+  defp param({%{"required" => true}, var}), do: var
+  defp param({_, var}), do: "#{var} \\\\ nil"
 
-        #{docs}
-        @spec #{name}(#{spec_args}) :: PlaywrightEx.Promise.t()
-        def #{head} do
-          #{conversions}
-          Facade.promise(#{inspect(api_name)}, #{receiver}, #{fun})
-        end
-        """
+  defp attribute(_name, {_, _, :event}), do: ""
+  defp attribute(name, {_, var, schema}), do: "@#{name}_#{var} #{render(schema)}"
 
-      member["async"] ->
-        {async, async!} =
-          cond do
-            callback -> {"expect", "expect!"}
-            void? -> {"async_void", "async_void!"}
-            true -> {"async", "async!"}
-          end
+  defp conversion(name, api_name, {%{"name" => "options"}, var, _}),
+    do: "#{var} = Facade.options!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
 
-        extra = if callback, do: ", action", else: ""
+  defp conversion(_name, api_name, {_, var, :event}),
+    do: "#{var} = Facade.event!(#{var}, @events, #{inspect(api_name)})"
 
-        """
-        #{attributes}
+  defp conversion(name, api_name, {_, var, _}),
+    do: "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
 
-        #{docs}
-        @spec #{name}(#{spec_args}) :: #{if void?, do: ":ok", else: "{:ok, #{return}}"} | {:error, Exception.t()}
-        def #{head} do
-          #{conversions}
-          Facade.#{async}(#{inspect(api_name)}, #{receiver}, #{fun}#{extra})
-        end
+  defp client_call(class, %{"callback" => %{"call" => call, "event" => event}}, receiver, vars) do
+    call_args = [receiver | List.wrap(event && inspect(event))] ++ (vars -- ["action"])
+    "#{inspect(impl(class["name"]))}.#{snake(call)}(#{Enum.join(call_args, ", ")})"
+  end
 
-        #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but returns the value and raises on error."
-        @spec #{name}!(#{spec_args}) :: #{return}
-        def #{name}!(#{Enum.join(params, ", ")}) do
-          #{conversions}
-          Facade.#{async!}(#{inspect(api_name)}, #{receiver}, #{fun}#{extra})
-        end
-        """
+  defp client_call(class, member, receiver, vars),
+    do: "#{inspect(impl(class["name"]))}.#{snake(member["alias"])}(#{Enum.join([receiver | vars], ", ")})"
 
-      true ->
-        """
-        #{attributes}
+  defp member_def(%{"promise" => promise}, m) when is_binary(promise) do
+    """
+    #{m.attributes}
 
-        #{docs}
-        @spec #{name}(#{spec_args}) :: #{return}
-        def #{head} do
-          #{conversions}
-          #{call}#{if void?, do: "\n:ok"}
-        end
-        """
+    #{m.docs}
+    @spec #{m.name}(#{m.spec_args}) :: PlaywrightEx.Promise.t()
+    def #{m.head} do
+      #{m.conversions}
+      Facade.promise(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end)
     end
+    """
+  end
+
+  defp member_def(%{"async" => true} = member, m) do
+    {async, async!, extra} =
+      cond do
+        member["callback"] -> {"expect", "expect!", ", action"}
+        m.void? -> {"async_void", "async_void!", ""}
+        true -> {"async", "async!", ""}
+      end
+
+    """
+    #{m.attributes}
+
+    #{m.docs}
+    @spec #{m.name}(#{m.spec_args}) :: #{if m.void?, do: ":ok", else: "{:ok, #{m.return}}"} | {:error, Exception.t()}
+    def #{m.head} do
+      #{m.conversions}
+      Facade.#{async}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
+    end
+
+    #{since(member)}#{deprecated(member)}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
+    @spec #{m.name}!(#{m.spec_args}) :: #{m.return}
+    def #{m.name}!(#{Enum.join(m.params, ", ")}) do
+      #{m.conversions}
+      Facade.#{async!}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
+    end
+    """
+  end
+
+  defp member_def(_member, m) do
+    """
+    #{m.attributes}
+
+    #{m.docs}
+    @spec #{m.name}(#{m.spec_args}) :: #{m.return}
+    def #{m.head} do
+      #{m.conversions}
+      #{m.call}#{if m.void?, do: "\n:ok"}
+    end
+    """
   end
 
   # The `action` of a callback form, before the options (C#'s `RunAndWaitForPopupAsync(action, options)`).

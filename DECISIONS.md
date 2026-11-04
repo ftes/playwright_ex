@@ -50,3 +50,26 @@ Verdict: on track, client modules 1:1 statement for statement. Follow-ups taken:
 - **Assertions inside listeners** become `send` to the test process plus `assert_received`;
   JS `void dialog.accept()` is a non-bang `Dialog.accept/1` inside the listener.
 - **Mac-only upstream tests** skip by `:os.type()` at compile time.
+
+## 2026-11-04: waitForEvent, urlMatch, promise handles (workstream C)
+
+Review these first: they shape the public API.
+- **Promise handles**: a JS async member returns a `PlaywrightEx.Promise` when the Python
+  client has an `expect_*` for it (`wait_for_event`, `wait_for_navigation`, `wait_for_request`,
+  `wait_for_response` on Page/Frame/BrowserContext). No bang form; block with
+  `Promise.await!(Page.wait_for_navigation(page))`. The wait is registered before the call
+  returns (heap promise started under the baton); any process can await it, any number of
+  times; an unawaited one ends when it settles or times out. Revisit: a blocking
+  `wait_for_navigation!`?
+- **Callback forms** for every Python `expect_*` (`expect_popup(page, action, opts)`,
+  `expect_event(page, event, action, opts)`, `expect_request(page, url_or_predicate, action,
+  opts)`): action before options (C#'s order); action exceptions propagate (C#); error names
+  are the started member's (`page.waitForEvent`). Emitted only when the result class is
+  ported. The generator also loads the Python view of the docs for these.
+- **`wait_for_event` takes Python's arguments** (`event`, options `predicate`/`timeout`), not
+  JS `optionsOrPredicate`. Deviation from the JS signature; `event` accepts atoms.
+- **Function URL matchers get the URL string**, not a parsed URL (Python, Java, .NET).
+  `URLPattern` is dropped from api.json unions (no Elixir counterpart).
+- **`LocalUtils.glob_to_regex` caches the driver's regex** per {glob, baseURL, ws}
+  (Elixir-only helper; PLAN Decisions: globs via the driver).
+- **`@events` emitted at the top of each generated module**, so `event` args accept atoms.
