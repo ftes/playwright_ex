@@ -19,6 +19,10 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       equal the module's `test` names, compared as multisets. Names built at runtime
       (template literals with `${`, concatenation) are not compared.
 
+    * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
+      `api.json` and the compiled client must give the committed files, so a newly ported
+      client method shows up as a stale facade file.
+
   Fails when anything is missing. `--extra` also lists public functions with no upstream
   counterpart (informational: Elixir-only helpers are expected).
   """
@@ -33,10 +37,12 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   def run(argv) do
     {opts, _} = OptionParser.parse!(argv, strict: [extra: :boolean])
     upstream = PlaywrightEx.Upstream.ensure!()
+    Mix.Task.run("compile")
 
     problems =
       check_modules(upstream, Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), opts[:extra]) ++
-        check_tests(upstream, Path.wildcard("test/**/*_test.exs"))
+        check_tests(upstream, Path.wildcard("test/**/*_test.exs")) ++
+        check_facade(upstream)
 
     if problems == [] do
       Mix.shell().info("parity: ok")
@@ -44,6 +50,13 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       Enum.each(problems, fn problem -> Mix.shell().info(problem) end)
       Mix.raise("parity: #{length(problems)} problem(s)")
     end
+  end
+
+  # --- facade ----------------------------------------------------------------
+
+  defp check_facade(upstream) do
+    for path <- Mix.Tasks.PlaywrightEx.Gen.Api.check(upstream),
+        do: "#{path}: out of date with api.json and the client, run mix playwright_ex.gen.api"
   end
 
   # --- modules ---------------------------------------------------------------

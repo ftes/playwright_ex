@@ -1,7 +1,8 @@
-# Code shaped after upstream keeps its names (`isConnected` -> `is_connected`) and control
-# flow, so checks that would reshape it are relaxed there only.
+# Code shaped after upstream, and the facade generated from api.json, keeps its names
+# (`isConnected` -> `is_connected`) and control flow, so checks that would reshape it are
+# relaxed there only.
 upstream_shaped = [
-  ~r"lib/playwright_ex/(client|protocol|runtime)/",
+  ~r"lib/playwright_ex/(api|client|protocol|runtime)/",
   ~r"lib/playwright_ex/driver.ex",
   ~r"test/support/test_server.ex"
 ]

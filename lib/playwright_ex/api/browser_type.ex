@@ -34,30 +34,30 @@ defmodule PlaywrightEx.BrowserType do
 
   @launch_options {:object,
                    %{
-                     timeout: {:timeout, nil},
                      args: {:args, nil},
-                     env: {:env, nil},
-                     proxy:
-                       {:proxy,
-                        {:object,
-                         %{
-                           server: {:server, nil},
-                           password: {:password, nil},
-                           bypass: {:bypass, nil},
-                           username: {:username, nil}
-                         }}},
-                     executable_path: {:executablePath, nil},
                      artifacts_dir: {:artifactsDir, nil},
                      channel: {:channel, nil},
                      chromium_sandbox: {:chromiumSandbox, nil},
                      downloads_path: {:downloadsPath, nil},
+                     env: {:env, nil},
+                     executable_path: {:executablePath, nil},
                      firefox_user_prefs: {:firefoxUserPrefs, nil},
                      handle_sighup: {:handleSIGHUP, nil},
                      handle_sigint: {:handleSIGINT, nil},
                      handle_sigterm: {:handleSIGTERM, nil},
                      headless: {:headless, nil},
                      ignore_default_args: {:ignoreDefaultArgs, nil},
+                     proxy:
+                       {:proxy,
+                        {:object,
+                         %{
+                           bypass: {:bypass, nil},
+                           password: {:password, nil},
+                           server: {:server, nil},
+                           username: {:username, nil}
+                         }}},
                      slow_mo: {:slowMo, nil},
+                     timeout: {:timeout, nil},
                      traces_dir: {:tracesDir, nil}
                    }}
 

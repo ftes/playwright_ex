@@ -215,7 +215,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       end)
 
     attributes =
-      Enum.map_join(attrs, "\n", fn {_, var, schema} -> "@#{name}_#{var} #{inspect(schema, limit: :infinity)}" end)
+      Enum.map_join(attrs, "\n", fn {_, var, schema} -> "@#{name}_#{var} #{render(schema)}" end)
 
     call = "#{inspect(impl(class["name"]))}.#{name}(#{Enum.join([receiver | vars], ", ")})"
     void? = get_in(member, ["type", "name"]) == "void"
@@ -306,7 +306,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
         """
       end)
 
-    "@events #{inspect(table)}\n\n" <> funs
+    "@events #{render(table)}\n\n" <> funs
   end
 
   # --- types ---------------------------------------------------------------------
@@ -464,6 +464,19 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp doc(text) do
     if String.contains?(text, ~s(""")), do: inspect(text), else: ~s(~S"""\n#{text}\n""")
   end
+
+  # `inspect/1` orders small atom-keyed maps by atom table position, which depends on what
+  # the VM loaded before; sort keys by name so the output is stable.
+  defp render(map) when is_map(map) do
+    pairs = map |> Enum.sort_by(&Atom.to_string(elem(&1, 0))) |> Enum.map(fn {k, v} -> "#{key(k)} #{render(v)}" end)
+    "%{#{Enum.join(pairs, ", ")}}"
+  end
+
+  defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
+  defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"
+  defp render(term), do: inspect(term)
+
+  defp key(atom), do: String.trim_leading(inspect(atom), ":") <> ":"
 
   defp format(source), do: IO.iodata_to_binary([Code.format_string!(source, line_length: 120), "\n"])
 
