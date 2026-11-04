@@ -203,7 +203,18 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    generator stops checking client exports and emits every remaining member, so a missing
    impl is a compile warning and fails CI. Classes can switch one at a time once complete
    (a rules entry), so finished ones can't regress while the rest are ported.
-3. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
+3. Docs on par with playwright.dev for the generated modules (gaps found by comparing `mix docs`
+   with upstream; all in the generator): typed options (a `@type goto_options` per member from
+   the facade schema, keyword or map, enums as atoms, nested fields as nested bullets), return
+   and event payload shapes, links for class and event refs, notes as admonitions (`{: .info}`,
+   from the `spec` AST), upstream "Added in" as a `Playwright 1.8` badge (custom `@doc` metadata
+   rendered by `annotations_for_docs`; `since:` would read as our version), an "API" module group
+   and an "Events" doc group, and the event list's broken code blocks fixed. JS examples stay
+   until item 4 rewrites them. CI runs `mix docs --warnings-as-errors`. No NimbleOptions: its
+   validation can't do the conversion the schema already does (JS names, enum strings,
+   `:infinity`), and rendering docs and specs from our own schema is less work than mapping
+   api.json types onto its types.
+4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
    with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match
    rewrites of fixed driver hints (install command: `mix playwright_ex.install`). Locators the
