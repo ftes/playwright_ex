@@ -2,7 +2,10 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
   @upstream "tests/page/page-select-option.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
   alias PlaywrightEx.Utils
 
   @moduletag :page
@@ -96,8 +99,20 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  @tag skip: "not ported: waitForNavigation"
-  test "should not throw when select causes navigation"
+  test "should not throw when select causes navigation", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/select.html")
+
+    Page.eval_on_selector!(
+      page,
+      "select",
+      "select => select.addEventListener('input', () => window.location.href = '/empty.html')"
+    )
+
+    navigation = Page.wait_for_navigation(page)
+    Page.select_option!(page, "select", "blue")
+    Promise.await!(navigation)
+    assert Page.url(page) =~ "empty.html"
+  end
 
   test "should select multiple options", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
@@ -263,7 +278,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     </script></body>
     """)
 
-    PlaywrightEx.Locator.evaluate!(Page.locator(page, "body"), """
+    Locator.evaluate!(Page.locator(page, "body"), """
     select => {
       window.firedBodyEvents = [];
       for (const event of ['input', 'change']) {
@@ -274,7 +289,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     }
     """)
 
-    PlaywrightEx.Locator.evaluate!(Page.locator(page, "select"), """
+    Locator.evaluate!(Page.locator(page, "select"), """
     select => {
       window.firedEvents = [];
       for (const event of ['input', 'change']) {
@@ -290,15 +305,128 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => window['firedBodyEvents']") == ["input:true"]
   end
 
-  @tag skip: "not ported: expect"
-  test "should wait for select to be enabled"
+  test "should wait for select to be enabled", %{page: page} do
+    Page.set_content!(page, """
+    <select disabled>
+      <option>one</option>
+      <option>two</option>
+    </select>
 
-  @tag skip: "not ported: expect"
-  test "should wait for option to be enabled"
+    <script>
+    function hydrate() {
+      const select = document.querySelector('select');
+      select.removeAttribute('disabled');
+      select.addEventListener('change', () => {
+        window['result'] = select.value;
+      });
+    }
+    </script>
+    """)
 
-  @tag skip: "not ported: expect"
-  test "should wait for optgroup to be enabled"
+    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    Process.sleep(1000)
+    Page.evaluate!(page, "() => window.hydrate()")
+    Task.await(select_promise)
+    assert Page.evaluate!(page, "() => window['result']") == "two"
+    Expect.to_have_value!(Page.locator(page, "select"), "two")
+  end
 
-  @tag skip: "not ported: expect"
-  test "should wait for select to be swapped"
+  test "should wait for option to be enabled", %{page: page} do
+    Page.set_content!(page, """
+    <select>
+      <option>one</option>
+      <option disabled id=myoption>two</option>
+    </select>
+
+    <script>
+    function hydrate() {
+      const option = document.querySelector('#myoption');
+      option.removeAttribute('disabled');
+      const select = document.querySelector('select');
+      select.addEventListener('change', () => {
+        window['result'] = select.value;
+      });
+    }
+    </script>
+    """)
+
+    {:error, error} = Locator.select_option(Page.locator(page, "select"), "two", timeout: 1000)
+    assert Exception.message(error) =~ "option being selected is not enabled"
+
+    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    Process.sleep(1000)
+    Page.evaluate!(page, "() => window.hydrate()")
+    Task.await(select_promise)
+    assert Page.evaluate!(page, "() => window['result']") == "two"
+    Expect.to_have_value!(Page.locator(page, "select"), "two")
+  end
+
+  test "should wait for optgroup to be enabled", %{page: page} do
+    Page.set_content!(page, """
+    <select>
+      <option>one</option>
+      <optgroup label="Group" disabled id=mygroup>
+        <option>two</option>
+      </optgroup>
+    </select>
+
+    <script>
+    function hydrate() {
+      const group = document.querySelector('#mygroup');
+      group.removeAttribute('disabled');
+      const select = document.querySelector('select');
+      select.addEventListener('change', () => {
+        window['result'] = select.value;
+      });
+    }
+    </script>
+    """)
+
+    {:error, error} = Locator.select_option(Page.locator(page, "select"), "two", timeout: 1000)
+    assert Exception.message(error) =~ "option being selected is not enabled"
+
+    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    Process.sleep(1000)
+    Page.evaluate!(page, "() => window.hydrate()")
+    Task.await(select_promise)
+    assert Page.evaluate!(page, "() => window['result']") == "two"
+    Expect.to_have_value!(Page.locator(page, "select"), "two")
+  end
+
+  test "should wait for select to be swapped", %{page: page} do
+    Page.set_content!(page, """
+    <select disabled>
+      <option>one</option>
+      <option>two</option>
+    </select>
+
+    <script>
+    function hydrate() {
+      const select = document.querySelector('select');
+      select.remove();
+
+      const newSelect = document.createElement('select');
+      const option1 = document.createElement('option');
+      option1.textContent = 'one';
+      newSelect.appendChild(option1);
+      const option2 = document.createElement('option');
+      option2.textContent = 'two';
+      newSelect.appendChild(option2);
+
+      document.body.appendChild(newSelect);
+
+      newSelect.addEventListener('change', () => {
+        window['result'] = newSelect.value;
+      });
+    }
+    </script>
+    """)
+
+    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    Process.sleep(1000)
+    Page.evaluate!(page, "() => window.hydrate()")
+    Task.await(select_promise)
+    Expect.to_have_value!(Page.locator(page, "select"), "two")
+    assert Page.evaluate!(page, "() => window['result']") == "two"
+  end
 end

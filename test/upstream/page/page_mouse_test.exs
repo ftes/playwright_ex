@@ -2,9 +2,12 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   @upstream "tests/page/page-mouse.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Frame
   alias PlaywrightEx.Keyboard
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -362,6 +365,49 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     end
   end
 
-  @tag skip: "not ported: waitForSelector (ElementHandle), Locator.boundingBox, expect.poll"
-  test "should track hover across iframe boundaries"
+  test "should track hover across iframe boundaries", %{page: page} do
+    # it.skip(!headless, 'headed messes up with hover');
+    Page.set_content!(page, """
+      <style>
+        body, html { margin: 0; padding: 0; }
+        #parentBox { position: absolute; left: 10px; top: 10px; width: 100px; height: 100px; }
+        iframe { position: absolute; left: 200px; top: 10px; width: 200px; height: 200px; border: none; }
+      </style>
+      <div id="parentBox"></div>
+      <iframe srcdoc="
+        <style>body, html { margin: 0; padding: 0; } #childBox { width: 180px; height: 180px; }</style>
+        <div id='childBox'></div>
+        <script>
+          const box = document.querySelector('#childBox');
+          box.addEventListener('mouseenter', () => window.top.__log.push('child:enter'));
+          box.addEventListener('mouseleave', () => window.top.__log.push('child:leave'));
+        </script>
+      "></iframe>
+      <script>
+        window.__log = [];
+        const box = document.querySelector('#parentBox');
+        box.addEventListener('mouseenter', () => window.__log.push('parent:enter'));
+        box.addEventListener('mouseleave', () => window.__log.push('parent:leave'));
+      </script>
+    """)
+
+    Page.wait_for_selector!(page, "iframe")
+    Frame.wait_for_selector!(Enum.at(Page.frames(page), 1), "#childBox")
+    log = fn -> Page.evaluate!(page, "() => window['__log']") end
+    parent_box = Locator.bounding_box!(Page.locator(page, "#parentBox"))
+    iframe_box = Locator.bounding_box!(Page.locator(page, "iframe"))
+    parent_center = %{x: parent_box.x + parent_box.width / 2, y: parent_box.y + parent_box.height / 2}
+    child_center = %{x: iframe_box.x + 90, y: iframe_box.y + 90}
+
+    Mouse.move!(Page.mouse(page), parent_center.x, parent_center.y)
+    Utils.poll(log, &assert(&1 == ["parent:enter"]))
+
+    # Crossing into the iframe leaves the parent element and enters the child.
+    Mouse.move!(Page.mouse(page), child_center.x, child_center.y)
+    Utils.poll(log, &assert(&1 == ["parent:enter", "parent:leave", "child:enter"]))
+
+    # Crossing back out leaves the child element and re-enters the parent.
+    Mouse.move!(Page.mouse(page), parent_center.x, parent_center.y)
+    Utils.poll(log, &assert(&1 == ["parent:enter", "parent:leave", "child:enter", "child:leave", "parent:enter"]))
+  end
 end

@@ -30,11 +30,20 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       Expect.not_to_be_checked!(locator, checked: false)
     end
 
-    @tag skip: "not ported: Locator.evaluate (ElementHandle)"
-    test "with indeterminate:true"
+    test "with indeterminate:true", %{page: page} do
+      Page.set_content!(page, "<input type=checkbox></input>")
+      Locator.evaluate!(Page.locator(page, "input"), "e => e.indeterminate = true")
+      locator = Page.locator(page, "input")
+      Expect.to_be_checked!(locator, indeterminate: true)
+    end
 
-    @tag skip: "not ported: Locator.evaluate (ElementHandle)"
-    test "with indeterminate:true and checked"
+    test "with indeterminate:true and checked", %{page: page} do
+      Page.set_content!(page, "<input type=checkbox></input>")
+      Locator.evaluate!(Page.locator(page, "input"), "e => e.indeterminate = true")
+      locator = Page.locator(page, "input")
+      {:error, error} = Expect.to_be_checked(locator, indeterminate: true, checked: false)
+      assert error.message =~ "Can't assert indeterminate and checked at the same time"
+    end
 
     test "fail", %{page: page} do
       Page.set_content!(page, "<input type=checkbox></input>")
@@ -236,11 +245,29 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ "locator resolved to <button disabled>Text</button>"
     end
 
-    @tag skip: "not ported: Locator.evaluate (ElementHandle)"
-    test "eventually"
+    test "eventually", %{page: page} do
+      Page.set_content!(page, "<button disabled>Text</button>")
+      locator = Page.locator(page, "button")
 
-    @tag skip: "not ported: Locator.evaluate (ElementHandle)"
-    test "eventually with not"
+      Task.start(fn ->
+        Process.sleep(500)
+        Locator.evaluate(locator, "e => e.removeAttribute('disabled')")
+      end)
+
+      Expect.to_be_enabled!(locator)
+    end
+
+    test "eventually with not", %{page: page} do
+      Page.set_content!(page, "<button>Text</button>")
+      locator = Page.locator(page, "button")
+
+      Task.start(fn ->
+        Process.sleep(500)
+        Locator.evaluate(locator, "e => e.setAttribute('disabled', '')")
+      end)
+
+      Expect.not_to_be_enabled!(locator)
+    end
 
     test "with not and enabled:false", %{page: page} do
       Page.set_content!(page, "<button>Text</button>")

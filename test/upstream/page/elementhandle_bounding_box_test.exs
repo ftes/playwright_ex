@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
+  alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
 
   @moduletag :page
@@ -55,8 +56,25 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert box == %{x: 0, y: 0, width: 300, height: 500}
   end
 
-  @tag skip: "not ported: mouse"
-  test "should handle scroll offset and click"
+  test "should handle scroll offset and click", %{page: page} do
+    Page.set_content!(page, """
+      <style>* { margin: 0; padding: 0; }</style>
+      <div style="width:8000px; height:8000px;">
+        <div id=target style="width:20px; height:20px; margin-left:230px; margin-top:340px;"
+          onclick="window.__clicked = true">
+        </div>
+      </div>
+    """)
+
+    element_handle = Page.query_selector!(page, "#target")
+    box1 = ElementHandle.bounding_box!(element_handle)
+    Page.evaluate!(page, "() => window.scrollBy(200, 300)")
+    box2 = ElementHandle.bounding_box!(element_handle)
+    assert box1 == %{x: 230, y: 340, width: 20, height: 20}
+    assert box2 == %{x: 30, y: 40, width: 20, height: 20}
+    Mouse.click!(Page.mouse(page), box2.x + 10, box2.y + 10)
+    assert Page.evaluate!(page, "() => window['__clicked']") == true
+  end
 
   test "should return null for invisible elements", %{page: page} do
     Page.set_content!(page, ~s(<div style="display:none">hi</div>))

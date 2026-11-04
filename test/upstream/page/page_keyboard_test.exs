@@ -2,10 +2,15 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   @upstream "tests/page/page-keyboard.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Frame
+  alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Locator
+  alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -39,8 +44,17 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "Hello World!"
   end
 
-  @tag skip: "not ported: ElementHandle"
-  test "should send a character with ElementHandle.press"
+  test "should send a character with ElementHandle.press", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    textarea = Page.query_selector!(page, "textarea")
+    ElementHandle.press!(textarea, "a")
+    assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "a"
+
+    Page.evaluate!(page, "() => window.addEventListener('keydown', e => e.preventDefault(), true)")
+
+    ElementHandle.press!(textarea, "b")
+    assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "a"
+  end
 
   test "should send a character with insertText", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
@@ -70,14 +84,69 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_text!(Page.locator(page, "div"), "c")
   end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "insertText should only emit input event"
+  test "insertText should only emit input event", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    Page.focus!(page, "textarea")
+    # page.on('console', m => console.log(m.text()));  -- debug output, not ported
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should emit keydown, keypress, textInput and input when typing a character"
+    events =
+      Page.evaluate_handle!(page, """
+      () => {
+        const events = [];
+        document.addEventListener('keydown', e => events.push(e.type));
+        document.addEventListener('keyup', e => events.push(e.type));
+        document.addEventListener('keypress', e => events.push(e.type));
+        document.addEventListener('input', e => events.push(e.type));
+        return events;
+      }
+      """)
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should dispatch key events in separate tasks"
+    Keyboard.insert_text!(Page.keyboard(page), "hello world")
+    assert JSHandle.json_value!(events) == ["input"]
+  end
+
+  test "should emit keydown, keypress, textInput and input when typing a character", %{page: page} do
+    Page.set_content!(page, "<input>")
+
+    events =
+      Page.evaluate_handle!(page, """
+      () => {
+        const events = [];
+        for (const type of ['keydown', 'keypress', 'textInput', 'input', 'keyup'])
+          document.querySelector('input').addEventListener(type, () => events.push(type));
+        return events;
+      }
+      """)
+
+    Page.focus!(page, "input")
+    Keyboard.press!(Page.keyboard(page), "f")
+    assert JSHandle.json_value!(events) == ["keydown", "keypress", "textInput", "input", "keyup"]
+  end
+
+  @tag skip:
+         if(System.get_env("BROWSER", "chromium") == "firefox",
+           do: "Firefox/Juggler dispatches keydown and keypress in the same task"
+         )
+  test "should dispatch key events in separate tasks", %{page: page} do
+    Page.set_content!(page, "<input>")
+
+    log =
+      Page.evaluate_handle!(page, """
+      () => {
+        const log = [];
+        const input = document.querySelector('input');
+        for (const type of ['keydown', 'keypress'])
+          input.addEventListener(type, () => { log.push(type); queueMicrotask(() => log.push('microtask-' + type)); });
+        input.focus();
+        return log;
+      }
+      """)
+
+    Keyboard.press!(Page.keyboard(page), "a")
+    # A microtask scheduled in the keydown handler must run before keypress,
+    # proving each event is delivered in its own task rather than synchronously.
+    assert JSHandle.json_value!(log) == ["keydown", "microtask-keydown", "keypress", "microtask-keypress"]
+  end
 
   test "should report shiftKey", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
@@ -267,8 +336,25 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should specify repeat property"
+  test "should specify repeat property", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    Page.focus!(page, "textarea")
+    last_event = capture_last_keydown(page)
+    keyboard = Page.keyboard(page)
+    Keyboard.down!(keyboard, "a")
+    assert JSHandle.evaluate!(last_event, "e => e.repeat") == false
+    Keyboard.press!(keyboard, "a")
+    assert JSHandle.evaluate!(last_event, "e => e.repeat") == true
+
+    Keyboard.down!(keyboard, "b")
+    assert JSHandle.evaluate!(last_event, "e => e.repeat") == false
+    Keyboard.down!(keyboard, "b")
+    assert JSHandle.evaluate!(last_event, "e => e.repeat") == true
+
+    Keyboard.up!(keyboard, "a")
+    Keyboard.down!(keyboard, "a")
+    assert JSHandle.evaluate!(last_event, "e => e.repeat") == false
+  end
 
   test "should type all kinds of characters", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
@@ -278,8 +364,31 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.eval_on_selector!(page, "textarea", "t => t.value") == text
   end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should specify location"
+  test "should specify location", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    last_event = capture_last_keydown(page)
+    textarea = Page.query_selector!(page, "textarea")
+
+    ElementHandle.press!(textarea, "Digit5")
+    assert JSHandle.evaluate!(last_event, "e => e.location") == 0
+    assert JSHandle.evaluate!(last_event, "e => e.key") == "5"
+    assert JSHandle.evaluate!(last_event, "e => e.code") == "Digit5"
+
+    ElementHandle.press!(textarea, "ControlLeft")
+    assert JSHandle.evaluate!(last_event, "e => e.location") == 1
+    assert JSHandle.evaluate!(last_event, "e => e.key") == "Control"
+    assert JSHandle.evaluate!(last_event, "e => e.code") == "ControlLeft"
+
+    ElementHandle.press!(textarea, "ControlRight")
+    assert JSHandle.evaluate!(last_event, "e => e.location") == 2
+    assert JSHandle.evaluate!(last_event, "e => e.key") == "Control"
+    assert JSHandle.evaluate!(last_event, "e => e.code") == "ControlRight"
+
+    ElementHandle.press!(textarea, "NumpadSubtract")
+    assert JSHandle.evaluate!(last_event, "e => e.location") == 3
+    assert JSHandle.evaluate!(last_event, "e => e.key") == "-"
+    assert JSHandle.evaluate!(last_event, "e => e.code") == "NumpadSubtract"
+  end
 
   test "should specify numpad location on keyup", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
@@ -296,8 +405,17 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should press NumpadDecimal as Delete"
+  test "should press NumpadDecimal as Delete", %{page: page} do
+    Page.set_content!(page, "<textarea></textarea>")
+    last_event = capture_last_keydown(page)
+    textarea = Page.locator(page, "textarea")
+
+    Locator.press!(textarea, "NumpadDecimal")
+    assert JSHandle.evaluate!(last_event, "e => e.key") == "Delete"
+    assert JSHandle.evaluate!(last_event, "e => e.code") == "NumpadDecimal"
+    assert JSHandle.evaluate!(last_event, "e => e.location") == 3
+    Expect.to_have_value!(textarea, "")
+  end
 
   test "should type numpad digits with Shift", %{page: page} do
     Page.set_content!(page, "<textarea></textarea>")
@@ -308,11 +426,51 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_value!(textarea, "1.9")
   end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should press Enter"
+  test "should press Enter", %{page: page} do
+    Page.set_content!(page, "<textarea></textarea>")
+    Page.focus!(page, "textarea")
+    last_event_handle = capture_last_keydown(page)
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should press audio and media control keys"
+    test_enter_key = fn key, expected_key, expected_code ->
+      Keyboard.press!(Page.keyboard(page), key)
+      last_event = JSHandle.json_value!(last_event_handle)
+      # had the wrong key
+      assert last_event["key"] == expected_key
+      # had the wrong code
+      assert last_event["code"] == expected_code
+      value = Page.eval_on_selector!(page, "textarea", "t => t.value")
+      # failed to create a newline
+      assert value == "\n"
+      Page.eval_on_selector!(page, "textarea", "t => t.value = ''")
+    end
+
+    test_enter_key.("Enter", "Enter", "Enter")
+    test_enter_key.("NumpadEnter", "Enter", "NumpadEnter")
+    test_enter_key.("\n", "Enter", "Enter")
+    test_enter_key.("\r", "Enter", "Enter")
+  end
+
+  test "should press audio and media control keys", %{page: page, browser_name: browser_name} do
+    Page.set_content!(page, "<input autofocus>")
+    Page.focus!(page, "input")
+    last_event = capture_last_keydown(page)
+
+    media_keys = [
+      %{key: "AudioVolumeMute", code: if(browser_name == "firefox", do: "VolumeMute", else: "AudioVolumeMute")},
+      %{key: "AudioVolumeDown", code: if(browser_name == "firefox", do: "VolumeDown", else: "AudioVolumeDown")},
+      %{key: "AudioVolumeUp", code: if(browser_name == "firefox", do: "VolumeUp", else: "AudioVolumeUp")},
+      %{key: "MediaTrackNext", code: "MediaTrackNext"},
+      %{key: "MediaTrackPrevious", code: "MediaTrackPrevious"},
+      %{key: "MediaPlayPause", code: "MediaPlayPause"}
+    ]
+
+    for media_key <- media_keys do
+      Keyboard.press!(Page.keyboard(page), media_key.key)
+      assert JSHandle.evaluate!(last_event, "e => e.key") == media_key.key
+      assert JSHandle.evaluate!(last_event, "e => e.code") == media_key.code
+      assert JSHandle.evaluate!(last_event, "e => e.location") == 0
+    end
+  end
 
   test "should throw on unknown keys", %{page: page} do
     {:error, error} = Keyboard.press(Page.keyboard(page), "NotARealKey")
@@ -331,11 +489,25 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == "👹 Tokyo street Japan 🇯🇵"
   end
 
-  @tag skip: "not ported: evaluateHandle (attachFrame)"
-  test "should type emoji into an iframe"
+  test "should type emoji into an iframe", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    Utils.attach_frame(page, "emoji-test", server.prefix <> "/input/textarea.html")
+    frame = Enum.at(Page.frames(page), 1)
+    textarea = Frame.query_selector!(frame, "textarea")
+    ElementHandle.type!(textarea, "👹 Tokyo street Japan 🇯🇵")
+    assert Frame.eval_on_selector!(frame, "textarea", "textarea => textarea.value") == "👹 Tokyo street Japan 🇯🇵"
+  end
 
-  @tag skip: "not ported: ElementHandle"
-  test "should handle selectAll"
+  test "should handle selectAll", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    textarea = Page.query_selector!(page, "textarea")
+    ElementHandle.type!(textarea, "some text")
+    Keyboard.down!(Page.keyboard(page), "ControlOrMeta")
+    Keyboard.press!(Page.keyboard(page), "a")
+    Keyboard.up!(Page.keyboard(page), "ControlOrMeta")
+    Keyboard.press!(Page.keyboard(page), "Backspace")
+    assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == ""
+  end
 
   test "pressing Meta should not result in any text insertion on any platform", %{page: page} do
     Page.set_content!(page, ~s(<input type="text" value="hello world">))
@@ -346,26 +518,106 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_value!(input, "hello world")
   end
 
-  @tag skip: "not ported: ElementHandle"
-  test "should be able to prevent selectAll"
+  test "should be able to prevent selectAll", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    textarea = Page.query_selector!(page, "textarea")
+    ElementHandle.type!(textarea, "some text")
 
-  @tag skip: "not ported: ElementHandle"
-  test "should support MacOS shortcuts"
+    Page.eval_on_selector!(page, "textarea", """
+    textarea => {
+      textarea.addEventListener('keydown', event => {
+        if (event.key === 'a' && (event.metaKey || event.ctrlKey))
+          event.preventDefault();
+      }, false);
+    }
+    """)
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should press the meta key"
+    Keyboard.down!(Page.keyboard(page), "ControlOrMeta")
+    Keyboard.press!(Page.keyboard(page), "a")
+    Keyboard.up!(Page.keyboard(page), "ControlOrMeta")
+    Keyboard.press!(Page.keyboard(page), "Backspace")
+    assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == "some tex"
+  end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should work with keyboard events with empty.html"
+  @tag skip:
+         (cond do
+            !@is_mac ->
+              "it.skip(platform !== 'darwin')"
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should work after a cross origin navigation"
+            System.get_env("BROWSER", "chromium") == "firefox" ->
+              "fixme: https://github.com/microsoft/playwright/issues/5721"
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should expose keyIdentifier in webkit"
+            true ->
+              nil
+          end)
+  test "should support MacOS shortcuts", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+    textarea = Page.query_selector!(page, "textarea")
+    ElementHandle.type!(textarea, "some text")
+    # select one word backwards
+    Keyboard.press!(Page.keyboard(page), "Shift+Control+Alt+KeyB")
+    Keyboard.press!(Page.keyboard(page), "Backspace")
+    assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == "some "
+  end
 
-  @tag skip: "not ported: waitForFunction"
-  test "should scroll with PageDown"
+  test "should press the meta key", %{page: page} do
+    last_event = capture_last_keydown(page)
+    Keyboard.press!(Page.keyboard(page), "Meta")
+    %{"key" => key, "code" => code, "metaKey" => meta_key} = JSHandle.json_value!(last_event)
+    assert key == "Meta"
+    assert code == "MetaLeft"
+    assert meta_key == true
+  end
+
+  test "should work with keyboard events with empty.html", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/empty.html")
+    last_event = capture_last_keydown(page)
+    Keyboard.press!(Page.keyboard(page), "a")
+    assert JSHandle.evaluate!(last_event, "l => l.key") == "a"
+  end
+
+  test "should work after a cross origin navigation", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/empty.html")
+    Page.goto!(page, server.cross_process_prefix <> "/empty.html")
+    last_event = capture_last_keydown(page)
+    Keyboard.press!(Page.keyboard(page), "a")
+    assert JSHandle.evaluate!(last_event, "l => l.key") == "a"
+  end
+
+  @tag skip:
+         if(System.get_env("BROWSER", "chromium") != "webkit",
+           do: "event.keyIdentifier has been removed from all browsers except WebKit"
+         )
+  test "should expose keyIdentifier in webkit", %{page: page} do
+    last_event = capture_last_keydown(page)
+
+    key_map = [
+      {"ArrowUp", "Up"},
+      {"ArrowDown", "Down"},
+      {"ArrowLeft", "Left"},
+      {"ArrowRight", "Right"},
+      {"Backspace", "U+0008"},
+      {"Tab", "U+0009"},
+      {"Delete", "U+007F"},
+      {"a", "U+0041"},
+      {"b", "U+0042"},
+      {"F12", "F12"}
+    ]
+
+    for {key, key_identifier} <- key_map do
+      Keyboard.press!(Page.keyboard(page), key)
+      assert JSHandle.evaluate!(last_event, "e => e.keyIdentifier") == key_identifier
+    end
+  end
+
+  test "should scroll with PageDown", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/scrollable.html")
+    # A click is required for WebKit to send the event into the body.
+    Page.click!(page, "body")
+    Keyboard.press!(Page.keyboard(page), "PageDown")
+    # We can't wait for the scroll to finish, so just wait for it to start.
+    Page.wait_for_function!(page, "() => scrollY > 0")
+  end
 
   test "should move around the selection in a contenteditable", %{page: page} do
     Page.set_content!(page, "<div contenteditable></div>")
@@ -389,11 +641,39 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "1\n2\n3\n"
   end
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should dispatch a click event on a button when Space gets pressed"
+  test "should dispatch a click event on a button when Space gets pressed", %{page: page} do
+    Page.set_content!(page, ~s(<button type="button">a11y</button>))
 
-  @tag skip: "not ported: evaluateHandle"
-  test "should dispatch a click event on a button when Enter gets pressed"
+    actual =
+      Page.evaluate_handle!(page, """
+      () => {
+        const actual = { clicked: false };
+        document.querySelector('button').addEventListener('click', () => (actual.clicked = true));
+        return actual;
+      }
+      """)
+
+    Page.focus!(page, "button")
+    Keyboard.press!(Page.keyboard(page), "Space")
+    assert JSHandle.json_value!(actual)["clicked"] == true
+  end
+
+  test "should dispatch a click event on a button when Enter gets pressed", %{page: page} do
+    Page.set_content!(page, ~s(<button type="button">a11y</button>))
+
+    actual =
+      Page.evaluate_handle!(page, """
+      () => {
+        const actual = { clicked: false };
+        document.querySelector('button').addEventListener('click', () => (actual.clicked = true));
+        return actual;
+      }
+      """)
+
+    Page.focus!(page, "button")
+    Keyboard.press!(Page.keyboard(page), "Enter")
+    assert JSHandle.json_value!(actual)["clicked"] == true
+  end
 
   test "should support simple copy-pasting", %{page: page} do
     Page.set_content!(page, "<div contenteditable>123</div>")
@@ -562,11 +842,78 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.activeElement?.id") == "focusable"
   end
 
-  @tag skip: "not ported: Locator.boundingBox (ElementHandle), expect.poll"
-  test "should dispatch insertText after context menu was opened"
+  defp capture_last_keydown(page) do
+    Page.evaluate_handle!(page, """
+    () => {
+      const lastEvent = {
+        repeat: false,
+        location: -1,
+        code: '',
+        key: '',
+        metaKey: false,
+        keyIdentifier: 'unsupported'
+      };
+      document.addEventListener('keydown', e => {
+        lastEvent.repeat = e.repeat;
+        lastEvent.location = e.location;
+        lastEvent.key = e.key;
+        lastEvent.code = e.code;
+        lastEvent.metaKey = e.metaKey;
+        lastEvent.keyIdentifier = 'keyIdentifier' in e && typeof e['keyIdentifier'] === 'string' && e['keyIdentifier'];
+      }, true);
+      return lastEvent;
+    }
+    """)
+  end
 
-  @tag skip: "not ported: expect.poll"
-  test "should type after context menu was opened"
+  @tag skip:
+         if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
+           do: "context menu support is best-effort for Linux and MacOS"
+         )
+  test "should dispatch insertText after context menu was opened", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/textarea.html")
+
+    Page.evaluate!(page, """
+    () => {
+      window['contextMenuPromise'] = new Promise(x => {
+        window.addEventListener('contextmenu', x, false);
+      });
+    }
+    """)
+
+    box = Locator.bounding_box!(Page.locator(page, "textarea"))
+    cx = box.x + box.width / 2
+    cy = box.y + box.height / 2
+    Mouse.click!(Page.mouse(page), cx, cy, button: :right)
+    Page.evaluate!(page, "() => window['contextMenuPromise']")
+
+    Keyboard.insert_text!(Page.keyboard(page), "嗨")
+    Utils.poll(fn -> Locator.input_value!(Page.locator(page, "textarea")) end, &assert(&1 == "嗨"))
+  end
+
+  @tag skip:
+         if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
+           do: "context menu support is best-effort for Linux and MacOS"
+         )
+  test "should type after context menu was opened", %{page: page} do
+    Page.evaluate!(page, """
+    () => {
+      window['keys'] = [];
+      window.addEventListener('keydown', event => window['keys'].push(event.key));
+      window['contextMenuPromise'] = new Promise(x => {
+        window.addEventListener('contextmenu', x, false);
+      });
+    }
+    """)
+
+    Mouse.move!(Page.mouse(page), 100, 100)
+    Mouse.down!(Page.mouse(page), button: :right)
+    Page.evaluate!(page, "() => window['contextMenuPromise']")
+
+    Keyboard.down!(Page.keyboard(page), "ArrowDown")
+
+    Utils.poll(fn -> Page.evaluate!(page, "window.keys") end, &assert(&1 == ["ArrowDown"]))
+  end
 
   test "should have correct Keydown/Keyup order when pressing Escape key", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
@@ -579,6 +926,22 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              """)
   end
 
-  @tag skip: "not ported: Locator.evaluate (ElementHandle), expect"
-  test "should close dialog on Escape key press in contenteditable"
+  test "should close dialog on Escape key press in contenteditable", %{page: page} do
+    # it.skip(isFrozenWebkit);  -- we run a current browser
+    Page.set_content!(page, """
+      <dialog>
+        <div contenteditable>Edit Me</div>
+      </dialog>
+    """)
+
+    dialog = Page.locator(page, "dialog")
+    widget = Locator.locator(dialog, "[contenteditable]")
+    Locator.evaluate!(dialog, "node => node.showModal()")
+    Expect.to_have_js_property!(dialog, "open", true)
+    Expect.to_be_visible!(widget)
+
+    Locator.press!(widget, "Escape")
+    Expect.to_have_js_property!(dialog, "open", false)
+    Expect.not_to_be_visible!(widget)
+  end
 end

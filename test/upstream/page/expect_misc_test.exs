@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
 
   @moduletag :page
@@ -638,8 +639,18 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
   end
 
   describe "toBeInViewport" do
-    @tag skip: "not ported: Locator.scrollIntoViewIfNeeded"
-    test "should work"
+    test "should work", %{page: page} do
+      Page.set_content!(page, """
+        <div id=big style="height: 10000px;"></div>
+        <div id=small>foo</div>
+      """)
+
+      Expect.to_be_in_viewport!(Page.locator(page, "#big"))
+      Expect.not_to_be_in_viewport!(Page.locator(page, "#small"))
+      Locator.scroll_into_view_if_needed!(Page.locator(page, "#small"))
+      Expect.to_be_in_viewport!(Page.locator(page, "#small"))
+      Expect.to_be_in_viewport!(Page.locator(page, "#small"), ratio: 1)
+    end
 
     test "should respect ratio option", %{page: page} do
       Page.set_content!(page, """
