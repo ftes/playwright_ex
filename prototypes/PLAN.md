@@ -9,7 +9,8 @@ Evidence for the choice of client: `README.md`.
 ```
 PlaywrightEx                      entry: playwright/1 returns the root object
 PlaywrightEx.{Page, Locator, ...} generated facade from api.json (official names)
-PlaywrightEx.Expect               generated matcher facade (raise only)
+PlaywrightEx.Expect               generated matcher facade (tuple + bang)
+PlaywrightEx.Extensions           small, documented non-official helpers (see Consumers)
 PlaywrightEx.Client.*             hand 1:1 port of playwright-core/src/client/*.ts
 PlaywrightEx.Matchers.*           hand 1:1 port of playwright/src/matchers (no jest fork)
 PlaywrightEx.Isomorphic.*         small isomorphic helpers (stringUtils, manualPromise, ...)
@@ -30,7 +31,18 @@ a migration guide maps old calls to new ones.
   an Elixir rules file (like Python's `python_rules.js`): non-JS `timeout` docs, dropped
   JS-only classes (`BrowserServer`, `Logger`, jest assertions), callback forms.
 - `async: true` methods: `name/n` returns `{:ok, v} | {:error, e}`, `name!/n` raises.
-  `async: false` (locators, `url`, `pages`): plain values. Matchers raise.
+  `async: false` (locators, `url`, `pages`): plain values, readable from any process
+  without the baton. Matchers: `to_have_text/3` returns `:ok | {:error, %ExpectError{}}`,
+  `to_have_text!/3` raises `ExUnit.AssertionError`; `%Regex{}` accepted as in JS.
+- Every async function accepts `timeout:`; where the official API has none (`close`,
+  `Dialog.accept`, `evaluate`, `save_as`), it bounds the client-side await. `timeout: 0`
+  means no timeout, as in JS; `:infinity` is accepted too.
+- Arguments: optional positional args stay positional, options always last
+  (`evaluate(frame, expr, arg \\ nil, opts \\ [])`). Enums are atoms mapped to wire strings
+  (`:no_preference`); `storage_state` round-trips. The rules file may allow protocol-only
+  options (`Tracing.start(coverage:)`).
+- Errors are exception structs with `name`, `message`, `log` and `api_name`.
+- `on/3` returns a ref for `off/3` and sends the subscription update before returning.
 - The facade sets the API name for errors (`page.waitForURL`), validates options, carries
   docs/specs and delegates to `Client.*`. A missing impl function is a compile warning.
 - Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`) and the
@@ -121,6 +133,27 @@ Follow-ups for the real port: two holders can briefly coexist if a handoff paren
 killed; heap `update` with a function that awaits loses writes (compute first); promise
 reactions run synchronously instead of as microtasks; JsonPipe close is fire-and-forget;
 `run-server` ignores SIGTERM (tests must `kill -9`).
+
+## Consumers
+
+phoenix_test_playwright (~700 lines, 3-5 days) and fluffy (~700 lines, 4-6 days) migrate
+mostly mechanically: handle structs instead of guids, `Locator.*` instead of `Frame.*`
+with selectors, `on/3` instead of subscriptions, `set_default_timeout` once instead of a
+timeout per call. Both shed code (PTP: two event GenServers; fluffy: protocol plumbing).
+Requirements they add, reflected above, plus:
+
+- `PlaywrightEx.Extensions.Frame.navigation_state/1` returns `{url, document_request,
+  document_ref}` atomically (fluffy's document identity and status; the client already
+  sees `newDocument`). Kept outside the generated facade so parity stays clean.
+- `Expect.to_have_screenshot(target, expected: path, ...)` without testInfo (PTP baselines).
+- `PlaywrightEx.Driver.version/0`, `mix playwright_ex.cli` passthrough (`show-trace`,
+  `install --with-deps`), a monitorable connection pid.
+- `JsLogger` is dropped; the migration guide shows the `on(:console)` / `:weberror` recipe
+  and recommends listeners that only `send/2` to the owning process.
+- `Page.locator(page, string)` passes raw selectors through (custom engines, `internal:`).
+
+Behaviour changes for the guide: `timeout: 0` now means no timeout; dialogs without a
+listener are auto-dismissed instead of hanging; error messages carry the API name prefix.
 
 ## Then
 
