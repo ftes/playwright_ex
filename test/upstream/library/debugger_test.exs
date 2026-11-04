@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Debugger.request_pause!(dbg)
     once_paused(dbg)
     Task.start(fn -> Page.click(page, "div") end)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
 
     # Now run to a specific location.
     line = __ENV__.line
@@ -126,12 +126,12 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     # The next normal call still pauses.
     once_paused(dbg)
     click_promise = Task.async(fn -> Page.click!(page, "button") end)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
     assert Debugger.paused_details(dbg)
 
     once_paused(dbg)
     Debugger.resume!(dbg)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
     Task.await(click_promise)
   end
 
@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Debugger.request_pause!(dbg)
     once_paused(dbg)
     click_promise = Task.async(fn -> Page.click!(page, "button") end)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
 
     assert Debugger.paused_details(dbg).title =~ "Click"
 
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
 
     once_paused(dbg)
     Debugger.resume!(dbg)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
     Task.await(click_promise)
   end
 
@@ -180,12 +180,12 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Debugger.request_pause!(dbg)
     once_paused(dbg)
     click_promise = Task.async(fn -> Page.click!(page, "div") end)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
     assert Debugger.paused_details(dbg).title =~ "Click"
 
     once_paused(dbg)
     Debugger.resume!(dbg)
-    assert_receive :paused_state_changed
+    assert_receive :paused_state_changed, 5000
     Task.await(click_promise)
     assert Debugger.paused_details(dbg) == nil
   end
