@@ -36,6 +36,11 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   next task is granted. A handoff parent monitors the child and continues when it dies.
   Exceptions in listeners/tasks are logged (Node: uncaught exception). Heap state written
   before the crash is kept, like a JS exception thrown halfway through a function.
+
+  Abandoned work is dropped without a log, as pending JS work ends with its process: a process
+  that died while queued or suspended is not granted the baton (a caller's `Task` killed with
+  its test), and a callback or task still running when the server stops (its heaps, ETS tables
+  owned by the server, are gone) is not reported as uncaught.
   """
   use GenServer
 
@@ -206,7 +211,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
           fun.()
         catch
           kind, reason ->
-            Logger.error("Uncaught in handed-off callback: " <> Exception.format(kind, reason, __STACKTRACE__))
+            if !abandoned?(loop),
+              do: Logger.error("Uncaught in handed-off callback: " <> Exception.format(kind, reason, __STACKTRACE__))
         end
 
         release()
@@ -292,8 +298,9 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   @impl true
   def handle_info({:post, fun}, s), do: {:noreply, s |> enqueue({:task, fun}) |> schedule()}
 
+  # `:noproc`: granted to a process that died just before (see `schedule/1`), nothing was held.
   def handle_info({:DOWN, mon, :process, pid, reason}, %{mon: mon} = s) do
-    Logger.error("Baton holder #{inspect(pid)} died: #{inspect(reason)}; reclaiming")
+    if reason != :noproc, do: Logger.error("Baton holder #{inspect(pid)} died: #{inspect(reason)}; reclaiming")
     {:noreply, schedule(%{record(s) | holder: nil, mon: nil})}
   end
 
@@ -301,17 +308,26 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
   defp enqueue(s, item), do: %{s | macro: :queue.in(item, s.macro)}
 
+  # Processes that died while suspended or queued for `acquire` are skipped: their work went with them.
   defp schedule(%{holder: nil} = s) do
     case :queue.out(s.micro) do
       {{:value, pid}, micro} ->
-        send(pid, {:pw_grant, self()})
-        grant(%{s | micro: micro}, pid, :resume)
+        if Process.alive?(pid) do
+          send(pid, {:pw_grant, self()})
+          grant(%{s | micro: micro}, pid, :resume)
+        else
+          schedule(%{s | micro: micro})
+        end
 
       {:empty, _} ->
         case :queue.out(s.macro) do
           {{:value, {:call, {pid, _} = from}}, macro} ->
-            GenServer.reply(from, :ok)
-            grant(%{s | macro: macro}, pid, :call)
+            if Process.alive?(pid) do
+              GenServer.reply(from, :ok)
+              grant(%{s | macro: macro}, pid, :call)
+            else
+              schedule(%{s | macro: macro})
+            end
 
           {{:value, {:task, fun}}, macro} ->
             send(s.executor, {:pw_run, fun})
@@ -352,7 +368,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
           fun.()
         catch
           kind, reason ->
-            Logger.error("Uncaught in event loop task: " <> Exception.format(kind, reason, __STACKTRACE__))
+            if !abandoned?(loop),
+              do: Logger.error("Uncaught in event loop task: " <> Exception.format(kind, reason, __STACKTRACE__))
         end
 
         release()
@@ -360,4 +377,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
     executor_loop(loop)
   end
+
+  # The server stopped while `pid` ran a callback: its heaps are gone, the work is abandoned.
+  defp abandoned?(%__MODULE__{pid: pid}), do: not Process.alive?(pid)
 end

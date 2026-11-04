@@ -1,5 +1,6 @@
 defmodule PlaywrightEx.Client.ConnectionTracingTest do
-  use ExUnit.Case, async: true
+  # Not async: `capture_log` sees the logs of tests running concurrently (event_loop_test logs on purpose).
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
   import PlaywrightEx.Runtime.Heap

@@ -79,7 +79,12 @@ defmodule PlaywrightEx.OutOfProcess do
     :exit, _ -> close_connection(state)
   end
 
+  # Synchronous, not posted: on shutdown the supervisor stops the loop right after this process,
+  # and a posted close would run on the loop's deleted heaps.
   defp close_connection(state) do
-    EventLoop.post(state.connection.loop, fn -> Connection.close(state.connection, "Playwright driver closed") end)
+    EventLoop.with_baton(state.connection.loop, fn -> Connection.close(state.connection, "Playwright driver closed") end)
+  catch
+    # The loop is gone (it crashed, this process is restarted): the connection's heap went with it.
+    :exit, _ -> :ok
   end
 end
