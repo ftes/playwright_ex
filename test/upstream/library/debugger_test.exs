@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
   alias PlaywrightEx.Debugger
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -46,6 +47,18 @@ defmodule PlaywrightEx.Library.DebuggerTest do
   # `page._wrapApiCall(fn, { internal: true })`, internal too.
   defp internal_call(page, fun) do
     Api.call(nil, page, fn -> PlaywrightEx.Client.Page._wrap_api_call(page, fn _ -> fun.() end, %{internal: true}) end)
+  end
+
+  # `dbg.on('apicallsupdated', apiCalls => all.push(...apiCalls))`: an Agent of all updates (cast:
+  # updates after the test are dropped).
+  defp collect_api_calls(dbg) do
+    {:ok, updates} = Agent.start_link(fn -> [] end)
+
+    PlaywrightEx.Client.Debugger.on(dbg, "apicallsupdated", fn api_calls ->
+      Agent.cast(updates, &(&1 ++ api_calls))
+    end)
+
+    updates
   end
 
   defp received_api_calls do
@@ -104,14 +117,84 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert title =~ "Click"
   end
 
-  @tag skip: "not ported: expect.poll"
-  test "should stream api calls via _enable"
+  test "should stream api calls via _enable", %{context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<button>click me</button>")
+    dbg = BrowserContext.debugger(context)
 
-  @tag skip: "not ported: expect.poll"
-  test "should report error status for failed api calls"
+    # Accumulate deltas by id, appending newLogEntries — mirrors the dashboard bridge.
+    updates = collect_api_calls(dbg)
+    enable(dbg)
 
-  @tag skip: "not ported: expect.poll"
-  test "should not stream internal api calls"
+    Page.click!(page, "button")
+
+    calls = fn ->
+      Enum.reduce(Agent.get(updates, & &1), %{}, fn call, calls ->
+        existing = calls[call.id]
+
+        Map.put(calls, call.id, %{
+          title: call.title,
+          status: call.status,
+          location: call[:location],
+          actionPoint: call[:actionPoint] || (existing && existing.actionPoint),
+          logs: ((existing && existing.logs) || []) ++ call.newLogEntries,
+          statusHistory: ((existing && existing.statusHistory) || []) ++ [call.status]
+        })
+      end)
+    end
+
+    click_call = fn -> calls.() |> Map.values() |> Enum.find(&(&1.title =~ "Click")) end
+    Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "success"))
+
+    call = click_call.()
+    assert call.location.file =~ "debugger_test"
+    assert %{x: x, y: y} = call.actionPoint
+    assert is_number(x) and is_number(y)
+    assert call.logs != []
+
+    # The status streamed running -> success (not just a single terminal event).
+    assert hd(call.statusHistory) == "running"
+    assert List.last(call.statusHistory) == "success"
+  end
+
+  test "should report error status for failed api calls", %{context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<div>no button here</div>")
+    dbg = BrowserContext.debugger(context)
+
+    updates = collect_api_calls(dbg)
+    enable(dbg)
+
+    Page.click(page, "button", timeout: 1000)
+
+    click_call = fn ->
+      updates
+      |> Agent.get(& &1)
+      |> Enum.reduce(%{}, &Map.put(&2, &1.id, &1))
+      |> Map.values()
+      |> Enum.find(&(&1.title =~ "Click"))
+    end
+
+    Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "error"))
+    assert click_call.().error
+  end
+
+  test "should not stream internal api calls", %{context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<button>click me</button>")
+    dbg = BrowserContext.debugger(context)
+    updates = collect_api_calls(dbg)
+    enable(dbg)
+
+    # A call wrapped as internal (mirrors the dashboard's own traffic) is excluded.
+    internal_call(page, fn -> Page.click!(page, "button") end)
+    # A normal call is still streamed.
+    Page.click!(page, "button")
+
+    Utils.poll(fn -> Enum.any?(Agent.get(updates, & &1), &(&1.title =~ "Click")) end, &assert(&1 == true))
+    click_ids = for c <- Agent.get(updates, & &1), c.title =~ "Click", uniq: true, do: c.id
+    assert length(click_ids) == 1
+  end
 
   test "should not pause at internal api calls", %{context: context} do
     page = BrowserContext.new_page!(context)
@@ -168,8 +251,38 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Task.await(click_promise)
   end
 
-  @tag skip: "not ported: expect.poll"
-  test "should replay ongoing calls when enabled late"
+  test "should replay ongoing calls when enabled late", %{context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<button>click me</button>")
+    dbg = BrowserContext.debugger(context)
+
+    # Start a call and pause on it, so it is definitely in-flight — but do NOT enable yet.
+    # (The click runs in the test process for its location; a helper does the rest.)
+    Debugger.request_pause!(dbg)
+
+    helper =
+      Task.async(fn ->
+        assert_receive :paused_state_changed, 5000
+
+        # Enabling now must replay the already-ongoing call right away.
+        updates = collect_api_calls(dbg)
+        enable(dbg)
+
+        click_call = fn -> Enum.find(Agent.get(updates, & &1), &(&1.title =~ "Click")) end
+        Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "running"))
+
+        once_paused(dbg)
+        Debugger.resume!(dbg)
+        assert_receive :paused_state_changed, 5000
+        click_call.()
+      end)
+
+    Debugger.once(dbg, :paused_state_changed, fn _ -> send(helper.pid, :paused_state_changed) end)
+    Page.click!(page, "button")
+
+    click_call = Task.await(helper)
+    assert click_call.location.file =~ "debugger_test"
+  end
 
   test "should keep pause working when api calls are enabled", %{context: context} do
     page = BrowserContext.new_page!(context)

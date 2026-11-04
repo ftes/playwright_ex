@@ -8,12 +8,18 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
+  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Screencast
+  alias PlaywrightEx.Utils
 
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
   # test.skip(mode !== 'default'), test.skip(video === 'on'), test.slow()  -- always default mode, no runner video
+
+  # Date.now()
+  defp now, do: System.os_time(:millisecond)
 
   # `frames.push(...)` from the listener process.
   defp collector do
@@ -47,8 +53,62 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: async onFrame (a listener awaiting a promise of its own)"
-  test "applies backpressure while async onFrame callback is pending"
+  test "applies backpressure while async onFrame callback is pending", %{browser: browser, server: server} do
+    context = Browser.new_context!(browser, viewport: %{width: 500, height: 400})
+    page = BrowserContext.new_page!(context)
+
+    # `new Promise(f => releaseCallback = f)`: a runtime promise (the public API creates none).
+    callback_done = EventLoop.with_baton(page.loop, fn -> Runtime.Promise.new() end)
+    {:ok, state} = Agent.start_link(fn -> %{frame_count: 0, last_frame_timestamp: 0} end)
+    me = self()
+
+    Screencast.start!(Page.screencast(page),
+      on_frame: fn _ ->
+        Agent.update(state, &%{&1 | frame_count: &1.frame_count + 1, last_frame_timestamp: now()})
+        send(me, :first_frame)
+        PlaywrightEx.Promise.await!(callback_done)
+      end
+    )
+
+    Page.goto!(page, server.empty_page)
+
+    Page.evaluate!(page, """
+    () => {
+      const animate = () => {
+        document.body.style.backgroundColor = document.body.style.backgroundColor === 'red' ? 'blue' : 'red';
+        requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }
+    """)
+
+    assert_receive :first_frame, 5000
+    Utils.poll(fn -> now() - Agent.get(state, & &1.last_frame_timestamp) end, &assert(&1 > 1000), timeout: 30_000)
+
+    frames_while_blocked = Agent.get(state, & &1.frame_count)
+    ensure_some_frames(page)
+    assert Agent.get(state, & &1.frame_count) == frames_while_blocked
+
+    Runtime.Promise.resolve(callback_done, nil)
+
+    Utils.poll(
+      fn ->
+        Page.evaluate!(page, """
+        () => {
+          document.body.style.backgroundColor = document.body.style.backgroundColor === 'red' ? 'blue' : 'red';
+        }
+        """)
+
+        ensure_some_frames(page)
+        Agent.get(state, & &1.frame_count)
+      end,
+      &assert(&1 > frames_while_blocked),
+      timeout: 30_000
+    )
+
+    Screencast.stop!(Page.screencast(page))
+    BrowserContext.close!(context)
+  end
 
   test "onFrame receives viewport size", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 1000, height: 400})

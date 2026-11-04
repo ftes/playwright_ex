@@ -868,7 +868,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert %{"method" => "POST", "url" => ^url} = req
   end
 
-  @tag skip: "not ported: the runner's tracesDir (artifactsFolderName), expect.toPass"
+  @tag skip: "not ported: the runner's tracesDir (artifactsFolderName)"
   test "should not flush console events"
 
   @tag :tmp_dir
