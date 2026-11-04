@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.DownloadTest do
   @upstream "tests/library/download.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.APIRequestContext
+  alias PlaywrightEx.APIResponse
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
@@ -11,6 +13,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
 
@@ -532,8 +535,16 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    @tag skip: "not ported: route"
-    test "should report downloads with interception"
+    test "should report downloads with interception", %{browser: browser, server: server} do
+      page = Browser.new_page!(browser)
+      Page.route!(page, ~r/.*/, fn r -> Route.continue(r) end)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+      download = click_download(page)
+      path = Download.path!(download)
+      assert File.exists?(path)
+      assert File.read!(path) == "Hello world"
+      Page.close!(page)
+    end
 
     @tag :tmp_dir
     test "should emit download event from nested iframes", %{server: server, browser: browser, tmp_dir: tmp_dir} do
@@ -573,8 +584,32 @@ defmodule PlaywrightEx.Library.DownloadTest do
     Page.close!(page)
   end
 
-  @tag skip: "not ported: route, APIRequestContext"
-  test "should be able to download a inline PDF file via response interception"
+  test "should be able to download a inline PDF file via response interception", %{
+    browser: browser,
+    server: server,
+    asset: asset,
+    browser_name: browser_name
+  } do
+    # it.fixme(browserName === 'webkit')
+    if browser_name != "webkit" do
+      page = Browser.new_page!(browser)
+      Page.goto!(page, server.empty_page)
+
+      Page.route!(page, "**/empty.pdf", fn route ->
+        response = APIRequestContext.fetch!(BrowserContext.request(Page.context(page)), Route.request(route))
+
+        Route.fulfill!(route,
+          response: response,
+          headers: Map.merge(APIResponse.headers(response), %{"Content-Disposition" => "attachment"})
+        )
+      end)
+
+      Page.set_content!(page, ~s(\n    <a href="/empty.pdf">open</a>\n  ))
+      download = click_download(page)
+      assert_download_to_pdf(download, asset.("empty.pdf"))
+      Page.close!(page)
+    end
+  end
 
   test "should be able to download a inline PDF file via navigation", %{
     browser: browser,
@@ -642,8 +677,22 @@ defmodule PlaywrightEx.Library.DownloadTest do
     assert Download.suggested_filename(download) == "SomeFile.txt"
   end
 
-  @tag skip: "not ported: route"
-  test "should download successfully when routing"
+  test "should download successfully when routing", %{browser: browser, server: server} do
+    page = Browser.new_page!(browser)
+    BrowserContext.route!(Page.context(page), "**/*", fn route -> Route.continue(route) end)
+    Page.goto!(page, server.prefix <> "/empty.html")
+
+    Page.set_content!(
+      page,
+      ~s(<a href="#{server.prefix}/chromium-linux.zip" download="foo.zip">download</a>)
+    )
+
+    download = click_download(page)
+    assert Download.suggested_filename(download) == "foo.zip"
+    assert Download.url(download) == "#{server.prefix}/chromium-linux.zip"
+    assert Download.failure!(download) == nil
+    Page.close!(page)
+  end
 
   defp assert_download_to_pdf(download, file_path) do
     assert Download.suggested_filename(download) == Path.basename(file_path)

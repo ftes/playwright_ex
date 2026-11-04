@@ -2,14 +2,27 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
   @upstream "tests/page/locator-convenience.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
 
   @moduletag :page
 
-  @tag skip: "not ported: Locator.toString"
-  test "should have a nice preview"
+  test "should have a nice preview", %{page: page, server: server} do
+    Page.goto!(page, "#{server.prefix}/dom.html")
+    outer = Page.locator(page, "#outer")
+    inner = Locator.locator(outer, "#inner")
+    check = Page.locator(page, "#check")
+    text = Locator.evaluate_handle!(inner, "e => e.firstChild")
+    # Give them a chance to calculate the preview.
+    Page.evaluate!(page, "() => 1")
+    # String(locator): Locator.to_string/1 (a locator is not a String.Chars).
+    assert Locator.to_string(outer) == "locator('#outer')"
+    assert Locator.to_string(inner) == "locator('#outer').locator('#inner')"
+    assert to_string(text) == "JSHandle@#text=Text,↵more text"
+    assert Locator.to_string(check) == "locator('#check')"
+  end
 
   test "getAttribute should work", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
@@ -144,8 +157,18 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Exception.message(error) =~ "Not a checkbox or radio button"
   end
 
-  @tag skip: "not ported: expect"
-  test "isChecked should work for indeterminate input"
+  test "isChecked should work for indeterminate input", %{page: page} do
+    Page.set_content!(page, ~s(<input type="checkbox" checked>))
+    Locator.evaluate!(Page.locator(page, "input"), "e => e.indeterminate = true")
+
+    assert Locator.is_checked!(Page.locator(page, "input")) == true
+    Expect.to_be_checked!(Page.locator(page, "input"))
+
+    Locator.uncheck!(Page.locator(page, "input"))
+
+    assert Locator.is_checked!(Page.locator(page, "input")) == false
+    Expect.not_to_be_checked!(Page.locator(page, "input"))
+  end
 
   test "allTextContents should work", %{page: page} do
     Page.set_content!(page, "<div>A</div><div>B</div><div>C</div>")

@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
 
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
+  alias PlaywrightEx.APIResponse
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
@@ -105,13 +107,13 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     Task.await(fetch)
   end
 
-  @tag skip: "not ported: ElementHandle"
+  @tag skip: "not ported: toMatchSnapshot"
   test "should allow mocking binary responses"
 
-  @tag skip: "not ported: ElementHandle"
+  @tag skip: "not ported: toMatchSnapshot"
   test "should allow mocking svg with charset"
 
-  @tag skip: "not ported: ElementHandle"
+  @tag skip: "not ported: toMatchSnapshot"
   test "should work with file path"
 
   test "should stringify intercepted request response headers", %{page: page, server: server} do
@@ -301,11 +303,69 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     end
   end
 
-  @tag skip: "not ported: expect"
-  test "should fulfill with har response"
+  test "should fulfill with har response", %{page: page, asset: asset} do
+    har_path = asset.("har-fulfill.har")
+    har = JSON.decode!(File.read!(har_path))
 
-  @tag skip: "not ported: waitForFunction"
-  test "should fulfill preload link requests"
+    Page.route!(page, "**/*", fn route ->
+      response = find_response(har, Request.url(Route.request(route)))
+      headers = Map.new(response["headers"], &{&1["name"], &1["value"]})
+      text = response["content"]["text"] || ""
+
+      Route.fulfill!(route,
+        status: response["status"],
+        headers: headers,
+        body: if(response["content"]["encoding"] == "base64", do: Base.decode64!(text), else: text)
+      )
+    end)
+
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    # HAR contains a POST for the css file but we match ignoring the method, so the file should be served.
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(0, 255, 255)")
+  end
+
+  defp find_response(har, url, entry \\ nil, original_url \\ nil)
+
+  defp find_response(har, url, entry, original_url) do
+    original_url = original_url || url
+
+    if is_binary(url) and String.trim(url) != "" do
+      entry = Enum.find(har["log"]["entries"], &(&1["request"]["url"] == url))
+      find_response(har, entry && entry["response"]["redirectURL"], entry, original_url)
+    else
+      assert entry, original_url
+      entry["response"]
+    end
+  end
+
+  test "should fulfill preload link requests", %{page: page, server: server} do
+    me = self()
+
+    Page.route!(page, "**/one-style.css", fn route ->
+      send(me, :intercepted)
+
+      Route.fulfill(route,
+        status: 200,
+        headers: %{
+          "content-type" => "text/css; charset=utf-8",
+          "cache-control" => "no-cache, no-store",
+          "custom" => "value"
+        },
+        body: "body { background-color: green; }"
+      )
+    end)
+
+    response_promise = Page.wait_for_response(page, "**/one-style.css")
+    Page.goto!(page, server.prefix <> "/preload.html")
+    response = Promise.await!(response_promise)
+    assert Response.header_value!(response, "custom") == "value"
+    Page.wait_for_function!(page, "() => window.preloadedStyles")
+    assert_received :intercepted
+    color = Page.evaluate!(page, "() => window.getComputedStyle(document.body).backgroundColor")
+    assert color == "rgb(0, 128, 0)"
+  end
 
   test "should fulfill json", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
@@ -322,8 +382,20 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert body == ~s({"bar":"baz"})
   end
 
-  @tag skip: "not ported: expect"
-  test "should fulfill with gzip and readback"
+  test "should fulfill with gzip and readback", %{page: page, server: server} do
+    TestServer.enable_gzip(server, "/one-style.html")
+
+    Page.route!(page, "**/one-style.html", fn route ->
+      response = Route.fetch!(route)
+      assert APIResponse.headers(response)["content-encoding"] == "gzip"
+      Route.fulfill!(route, response: response)
+    end)
+
+    response = Page.goto!(page, server.prefix <> "/one-style.html")
+    Expect.to_have_text!(Page.locator(page, "div"), "hello, world!")
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 192, 203)")
+    assert Response.text!(response) =~ "<div>hello, world!</div>"
+  end
 
   test "should not go to the network for fulfilled requests body", %{page: page, server: server} do
     Page.route!(page, "**/one-style.css", fn route ->

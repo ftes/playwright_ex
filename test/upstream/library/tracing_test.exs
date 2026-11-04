@@ -9,12 +9,17 @@ defmodule PlaywrightEx.Library.TracingTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Dialog
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Disposable
   alias PlaywrightEx.Keyboard
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Facade
   alias PlaywrightEx.Tracing
@@ -90,8 +95,44 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert script["snapshot"]["response"]["content"]["_file"] == nil
   end
 
-  @tag skip: "not ported: route"
-  test "should use the correct title for event driven callbacks"
+  @tag :tmp_dir
+  test "should use the correct title for event driven callbacks", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
+    Tracing.start!(tracing(context))
+    # route.* calls should not be included in the trace
+    Page.route!(page, "**/empty.html", fn route -> Route.continue(route) end)
+    Page.goto!(page, server.prefix <> "/empty.html")
+    Page.goto!(page, server.prefix <> "/grid.html")
+
+    # The default internal dialog handler should not provide an action.
+    Page.evaluate!(page, "() => alert('yo')")
+    Page.reload!(page)
+    # now we do it again with a dialog event listener attached which should produce an action.
+    Page.on(page, :dialog, fn dialog ->
+      Dialog.accept(dialog, "answer!")
+    end)
+
+    Page.evaluate!(page, "() => alert('yo')")
+
+    Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
+    %{events: events, actions: actions} = parse_trace_raw(Path.join(tmp_dir, "trace.zip"), context)
+    assert hd(events)["type"] == "context-options"
+
+    assert actions == [
+             "Route requests",
+             "Navigate #{host(server)}/empty.html",
+             "Continue request",
+             "Navigate #{host(server)}/grid.html",
+             "Evaluate",
+             "Reload",
+             "Evaluate",
+             "Accept dialog"
+           ]
+  end
 
   @tag :tmp_dir
   test "should not collect snapshots by default", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
@@ -221,8 +262,54 @@ defmodule PlaywrightEx.Library.TracingTest do
   @tag skip: "not ported: storageState"
   test "should exclude internal pages"
 
-  @tag skip: "not ported: APIRequestContext"
-  test "should record context API request trace independently"
+  @tag :tmp_dir
+  test "should record context API request trace independently", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
+    browser_trace_path = Path.join(tmp_dir, "browser-trace.zip")
+    api_trace_path = Path.join(tmp_dir, "api-trace.zip")
+    api_url = server.prefix <> "/simple.json"
+    assert APIRequestContext.tracing(BrowserContext.request(context)) != tracing(context)
+
+    Tracing.start!(tracing(context), snapshots: true)
+    Tracing.start!(APIRequestContext.tracing(BrowserContext.request(context)), snapshots: true)
+    Page.goto!(page, server.prefix <> "/one-style.html")
+    APIRequestContext.post!(Page.request(page), api_url, data: %{foo: "bar"})
+    Tracing.stop!(tracing(context), path: browser_trace_path)
+    Tracing.stop!(APIRequestContext.tracing(BrowserContext.request(context)), path: api_trace_path)
+
+    browser_trace = parse_trace_raw(browser_trace_path, context)
+    assert "Navigate #{host(server)}/one-style.html" in browser_trace.actions
+    refute "POST #{host(server)}/simple.json" in browser_trace.actions
+
+    assert Enum.any?(
+             browser_trace.events,
+             &(&1["type"] == "resource-snapshot" and String.ends_with?(&1["snapshot"]["request"]["url"], "/simple.json"))
+           ) == false
+
+    assert Enum.any?(
+             browser_trace.events,
+             &(&1["type"] == "resource-snapshot" and
+                 String.ends_with?(&1["snapshot"]["request"]["url"], "/one-style.html"))
+           ) == true
+
+    api_trace = parse_trace_raw(api_trace_path, context)
+    assert "POST #{host(server)}/simple.json" in api_trace.actions
+    refute "Navigate #{host(server)}/one-style.html" in api_trace.actions
+
+    api_action =
+      Enum.find(api_trace.actionObjects, &(&1["class"] == "APIRequestContext" and &1["method"] == "fetch"))
+
+    assert relative_stack(api_action, api_trace.stacks) == [Path.basename(__ENV__.file)]
+
+    snapshots = Enum.filter(api_trace.events, &(&1["type"] == "resource-snapshot"))
+    assert Enum.map(snapshots, & &1["snapshot"]["request"]["url"]) == [api_url]
+    assert [api_request_ref] = Enum.map(snapshots, & &1["snapshot"]["_apiRequestRef"])
+    assert api_request_ref =~ ~r/^request-context@/
+  end
 
   @tag :tmp_dir
   test "should collect two traces", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
@@ -384,8 +471,22 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert source_file == this_file
   end
 
-  @tag skip: "not ported: route"
-  test "should record network failures"
+  @tag :tmp_dir
+  test "should record network failures", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+    Tracing.start!(tracing(context), snapshots: true)
+    Page.route!(page, "**/*", fn route -> Route.abort(route, "connectionaborted") end)
+    Page.goto(page, server.empty_page)
+    Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace1.zip"))
+
+    %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), context)
+
+    request_event =
+      Enum.find(events, &(&1["type"] == "resource-snapshot" and !!&1["snapshot"]["response"]["_failureText"]))
+
+    assert request_event
+    assert request_event["snapshot"]["_monotonicTime"] > 0
+    assert request_event["snapshot"]["time"] >= 0
+  end
 
   @tag :tmp_dir
   test "should recover tracing after a failed stop", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
@@ -668,17 +769,103 @@ defmodule PlaywrightEx.Library.TracingTest do
     for action <- actions, do: assert(relative_stack(action, trace.stacks) == [Path.basename(__ENV__.file)])
   end
 
-  @tag skip: "not ported: expect"
-  test "should hide internal stack frames in expect"
+  @tag :tmp_dir
+  test "should hide internal stack frames in expect", %{context: context, page: page, tmp_dir: tmp_dir} do
+    Tracing.start!(tracing(context), screenshots: true, snapshots: true)
+    test = self()
 
-  @tag skip: "not ported: APIRequestContext"
-  test "should record global request trace"
+    # Deviation: no tail calls into the client, so that the BEAM keeps this file's frames.
+    Page.on(page, :dialog, fn dialog ->
+      send(test, {:expect, start(nil, page, fn -> [Expect.to_have_title(page, "Hello")] end)})
+      Dialog.dismiss(dialog)
+      :ok
+    end)
 
-  @tag skip: "not ported: APIRequestContext"
-  test "should store global request traces separately"
+    Page.set_content!(page, "<title>Hello</title><div onclick='window.alert(123)'>Click me</div>")
+    Page.click!(page, "div")
+    Expect.to_be_visible!(Page.locator(page, "div"))
+    assert_receive {:expect, expect_promise}
+    Promise.await!(expect_promise)
+    trace_path = Path.join(tmp_dir, "trace.zip")
+    Tracing.stop!(tracing(context), path: trace_path)
 
-  @tag skip: "not ported: APIRequestContext"
-  test "should store postData for global request"
+    trace = parse_trace_raw(trace_path, context)
+    actions = Enum.filter(trace.actionObjects, &(&1["class"] != "Tracing"))
+    assert length(actions) == 5
+    for action <- actions, do: assert(relative_stack(action, trace.stacks) == [Path.basename(__ENV__.file)])
+  end
+
+  @tag :request
+  @tag :tmp_dir
+  test "should record global request trace", %{request: request, context: context, server: server, tmp_dir: tmp_dir} do
+    Tracing.start!(APIRequestContext.tracing(request), snapshots: true)
+    url = server.prefix <> "/simple.json"
+    APIRequestContext.get!(request, url)
+    trace_path = Path.join(tmp_dir, "trace.zip")
+    Tracing.stop!(APIRequestContext.tracing(request), path: trace_path)
+
+    trace = parse_trace_raw(trace_path, context)
+    actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))
+    assert length(actions) == 1
+    assert %{"method" => "GET", "url" => ^url} = hd(actions)["snapshot"]["request"]
+
+    assert %{"status" => 200, "statusText" => "OK", "headers" => headers} = hd(actions)["snapshot"]["response"]
+    # Deviation: Bandit sends lowercase header names (Node's test server sends `Content-Length`).
+    assert Enum.any?(headers, &match?(%{"name" => "content-length", "value" => "15"}, &1))
+  end
+
+  @tag :request
+  @tag :tmp_dir
+  test "should store global request traces separately", %{
+    request: request,
+    server: server,
+    playwright: playwright,
+    tmp_dir: tmp_dir
+  } do
+    request2 = APIRequest.new_context!(Playwright.request(playwright))
+    # Promise.all([...]): run one after the other.
+    Tracing.start!(APIRequestContext.tracing(request), snapshots: true)
+    Tracing.start!(APIRequestContext.tracing(request2), snapshots: true)
+    url = server.prefix <> "/simple.json"
+    APIRequestContext.get!(request, url)
+    APIRequestContext.post!(request2, url)
+    trace_path = Path.join(tmp_dir, "trace.zip")
+    trace2_path = Path.join(tmp_dir, "trace2.zip")
+    Tracing.stop!(APIRequestContext.tracing(request), path: trace_path)
+    Tracing.stop!(APIRequestContext.tracing(request2), path: trace2_path)
+
+    trace = parse_trace_raw(trace_path, playwright)
+    actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))
+    assert length(actions) == 1
+    assert %{"method" => "GET", "url" => ^url} = hd(actions)["snapshot"]["request"]
+
+    trace = parse_trace_raw(trace2_path, playwright)
+    actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))
+    assert length(actions) == 1
+    assert %{"method" => "POST", "url" => ^url} = hd(actions)["snapshot"]["request"]
+  end
+
+  @tag :request
+  @tag :tmp_dir
+  test "should store postData for global request", %{
+    request: request,
+    server: server,
+    playwright: playwright,
+    tmp_dir: tmp_dir
+  } do
+    Tracing.start!(APIRequestContext.tracing(request), snapshots: true)
+    url = server.prefix <> "/simple.json"
+    APIRequestContext.post!(request, url, data: "test")
+    trace_path = Path.join(tmp_dir, "trace.zip")
+    Tracing.stop!(APIRequestContext.tracing(request), path: trace_path)
+
+    trace = parse_trace_raw(trace_path, playwright)
+    actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))
+    assert length(actions) == 1
+    req = hd(actions)["snapshot"]["request"]
+    assert req["postData"]["_file"]
+    assert %{"method" => "POST", "url" => ^url} = req
+  end
 
   @tag skip: "not ported: the runner's tracesDir (artifactsFolderName), expect.toPass"
   test "should not flush console events"

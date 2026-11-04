@@ -4,7 +4,9 @@ defmodule PlaywrightEx.Page.InterceptionTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.ConsoleMessage
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
@@ -210,11 +212,34 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert length(received()) == 3
   end
 
-  @tag skip: "not ported: ElementHandle"
-  test "should not break remote worker importScripts"
+  test "should not break remote worker importScripts", %{page: page, server: server} do
+    Page.route!(page, "**", fn route ->
+      Route.continue!(route)
+    end)
 
-  @tag skip: "not ported: expect"
-  test "should disable memory cache when intercepting"
+    Page.goto!(page, server.prefix <> "/worker/worker-http-import.html")
+    Page.wait_for_selector!(page, "#status:has-text('finished')")
+  end
+
+  test "should disable memory cache when intercepting", %{page: page, server: server} do
+    me = self()
+
+    Page.route!(page, "**/page.html", fn route ->
+      send(me, {:intercepted, 1})
+      Route.fulfill(route, body: "success")
+    end)
+
+    Page.goto!(page, server.prefix <> "/page.html")
+    assert Locator.text_content!(Page.locator(page, "body")) =~ "success"
+    Page.goto!(page, server.empty_page)
+    Expect.to_have_url!(page, server.empty_page)
+    interceted = length(received())
+    assert interceted == 1
+    Page.go_back!(page)
+    Expect.to_have_url!(page, server.prefix <> "/page.html")
+    interceted = interceted + length(received())
+    assert interceted == 2
+  end
 
   @tag skip: "upstream skip: browserName !== 'webkit'"
   test "should intercept blob url requests"

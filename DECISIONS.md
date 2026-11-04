@@ -124,3 +124,51 @@ Review these first: they shape the public API.
 - **Test server**: Bandit with `compress: false` (match Node); Bandit doesn't echo client
   close codes and sends fewer headers (`har` "should include sizes" stays skipped).
 - `recordHar` now works: closes the "Known gap" above.
+
+## 2026-11-05: Matchers (workstream E)
+
+Review: these shape the assertion API.
+- **One generated module `PlaywrightEx.Expect`**: ApiRules merges `LocatorAssertions`,
+  `PageAssertions`, `APIResponseAssertions`; matchers with several receivers (`toMatchAriaSnapshot`)
+  take a Locator or Page, as upstream's single matcher does.
+- **`not` is a separate function** (`not_to_have_text`, Python's name) running the matcher with
+  `isNot: true`; no `not:` option.
+- **`to_have_attribute(locator, name, value \\ nil, opts)`** merges the `(name, options)` overload:
+  `to_have_attribute(l, "disabled", nil, timeout: 1)`. Revisit if it reads badly.
+- **`ExpectError`** is `PlaywrightEx.Matchers.MatcherHint.ExpectError`; `matcherResult` drops keys
+  whose JS value is undefined (results compare with `==`). No ANSI colors (upstream tests strip them).
+- **`MatcherUtils`** stands in for jest-matcher-utils/pretty-format/jest-diff (not upstream code,
+  so not line-by-line).
+- **`ex_unit: :optional`** in `extra_applications` (`ExUnit.AssertionError`); test_helper sets the
+  expect timeout to 10 s as upstream's config. Revisit: no public way to change the 5 s default
+  (an `Expect.configure` or app env?).
+- **`to_have_screenshot(target, path: ...)`** (required `path` replaces the testInfo `name`);
+  `-actual`/`-diff`/`-previous`/`-expected` next to `path`; a missing snapshot is written and passes.
+  page-screenshot.spec (87 tests) not mirrored yet.
+- Not ported: `toPass`, `expect.poll`, soft asserts, `configure`/`extend`, jest generic matchers,
+  file aria snapshots.
+
+## 2026-11-05: Bindings, init scripts, Disposable, locator handlers (workstream H)
+
+- **Callbacks from the page**: `ClientHelper.call_function/2` pads/drops args to the closure's
+  arity (JS calls are variadic); bindings are `fn source, args` with `source = %{context, page,
+  frame}`; a returned `%Runtime.Promise{}` is awaited; `raise` becomes a page Error, `throw(v)`
+  throws `v` (`throw(:null)` is `null`).
+- **Init scripts**: a string with `arg` is function source (as evaluate); `script` is JS source
+  in the facade (ApiRules, like `expression`). `JSON.stringify` is `ClientHelper.json_stringify`.
+- **Disposable**: `Client.Disposable` (interface, `dispose/1` dispatches on the struct),
+  `DisposableObject` (ChannelOwner), `DisposableStub` (heap). `route`, `startHar`, tracing
+  `start`/`group` return them as upstream. `PlaywrightEx.Disposable.t()` is `term()` (revisit:
+  union of the two structs).
+- Locator handler `try/finally` is `rescue` + finally statements + `reraise`.
+
+## 2026-11-05: Artifacts, tracing, video, screencast (workstream I)
+
+- **Readable streams are `Enumerable`s of binary chunks** (`Stream.stream/1`,
+  `createReadStream`): each read takes the baton, halting sends `close`.
+- **Download, Video** are plain structs; Screencast a heap object whose `onFrame` gets
+  `%{data:, timestamp:, viewportWidth:, viewportHeight:}` and acks on return. Revisit:
+  await an `onFrame` that returns a promise (backpressure test not portable).
+- **Listener stacks**: in a handed-off listener, library frames at the bottom no longer count as
+  the outermost library frame (traces had empty stacks). BEAM tail calls still drop callers.
+- Tracing `coverage:` stays out of the facade (PLAN), the client forwards `_coverage` as upstream.
