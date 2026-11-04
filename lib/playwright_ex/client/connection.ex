@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Client.Connection do
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.APIRequestContext
+  alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
@@ -31,6 +32,7 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Route
+  alias PlaywrightEx.Client.Stream
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Client.Tracing
   alias PlaywrightEx.Client.WebSocket
@@ -91,7 +93,7 @@ defmodule PlaywrightEx.Client.Connection do
         "AndroidDevice" => dummy,
         "AndroidSocket" => dummy,
         "APIRequestContext" => &APIRequestContext.new/4,
-        "Artifact" => dummy,
+        "Artifact" => &Artifact.new/4,
         "BindingCall" => &BindingCall.new/4,
         "Browser" => &Browser.new/4,
         "BrowserContext" => &BrowserContext.new/4,
@@ -116,7 +118,7 @@ defmodule PlaywrightEx.Client.Connection do
         "Request" => &Request.new/4,
         "Response" => &Response.new/4,
         "Route" => &Route.new/4,
-        "Stream" => dummy,
+        "Stream" => &Stream.new/4,
         "SocksSupport" => dummy,
         "Tracing" => &Tracing.new/4,
         "WebSocket" => &WebSocket.new/4,

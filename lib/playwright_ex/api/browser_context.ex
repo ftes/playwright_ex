@@ -75,7 +75,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ### `:download`
 
-  *Since 1.60.* Emitted when attachment download started in any page belonging to this context. User can access basic file operations on downloaded content via the passed [`Download`](https://playwright.dev/docs/api/class-download) instance. See also [`Page.on(:download)`](PlaywrightEx.Page.html#module-download) to receive events about a specific page.
+  *Since 1.60.* Emitted when attachment download started in any page belonging to this context. User can access basic file operations on downloaded content via the passed [`Download`](`PlaywrightEx.Download`) instance. See also [`Page.on(:download)`](PlaywrightEx.Page.html#module-download) to receive events about a specific page.
 
   ### `:frame_attached`
 
@@ -1537,7 +1537,7 @@ defmodule PlaywrightEx.BrowserContext do
   @spec on(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec on(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec on(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
-  @spec on(t(), :download, (term() -> term())) :: t()
+  @spec on(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec on(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -1565,7 +1565,7 @@ defmodule PlaywrightEx.BrowserContext do
   @spec once(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec once(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec once(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
-  @spec once(t(), :download, (term() -> term())) :: t()
+  @spec once(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec once(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -1593,7 +1593,7 @@ defmodule PlaywrightEx.BrowserContext do
   @spec add_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec add_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec add_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
-  @spec add_listener(t(), :download, (term() -> term())) :: t()
+  @spec add_listener(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec add_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -1621,7 +1621,7 @@ defmodule PlaywrightEx.BrowserContext do
   @spec remove_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec remove_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec remove_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
-  @spec remove_listener(t(), :download, (term() -> term())) :: t()
+  @spec remove_listener(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -1649,7 +1649,7 @@ defmodule PlaywrightEx.BrowserContext do
   @spec off(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec off(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec off(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
-  @spec off(t(), :download, (term() -> term())) :: t()
+  @spec off(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec off(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -1677,7 +1677,7 @@ defmodule PlaywrightEx.BrowserContext do
   @spec prepend_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
   @spec prepend_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec prepend_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
-  @spec prepend_listener(t(), :download, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()

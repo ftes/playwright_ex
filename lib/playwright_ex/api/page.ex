@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Page do
   ### `:download`
 
   Emitted when attachment download started. User can access basic file operations on downloaded content via the passed
-  [`Download`](https://playwright.dev/docs/api/class-download) instance.
+  [`Download`](`PlaywrightEx.Download`) instance.
 
   ### `:file_chooser`
 
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `coverage`, `emulateMedia`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `removeAllListeners`, `screencast`, `video`, `webmcp`, `expect_download`.
+  Not ported yet: `clock`, `coverage`, `emulateMedia`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `removeAllListeners`, `webmcp`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -3702,6 +3702,26 @@ defmodule PlaywrightEx.Page do
     end)
   end
 
+  @doc since: "1.59"
+  @doc ~S"""
+  [`Screencast`](`PlaywrightEx.Screencast`) object associated with this page.
+
+  **Usage**
+
+  ```js
+  page.screencast.on('screencastFrame', data => {
+    console.log('received frame, jpeg size:', data.length);
+  });
+  await page.screencast.start();
+  // ... perform actions ...
+  await page.screencast.stop();
+  ```
+  """
+  @spec screencast(t()) :: PlaywrightEx.Screencast.t()
+  def screencast(page) do
+    PlaywrightEx.Client.Page.screencast(page)
+  end
+
   @screenshot_options {:object,
                        %{
                          animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
@@ -4789,6 +4809,15 @@ defmodule PlaywrightEx.Page do
   end
 
   @doc since: "1.8"
+  @doc ~S"""
+  Video object associated with this page. Can be used to access the video file when using the `recordVideo` context option.
+  """
+  @spec video(t()) :: nil | PlaywrightEx.Video.t()
+  def video(page) do
+    PlaywrightEx.Client.Page.video(page)
+  end
+
+  @doc since: "1.8"
   @doc ""
   @spec viewport_size(t()) :: nil | %{width: integer(), height: integer()}
   def viewport_size(page) do
@@ -5444,6 +5473,61 @@ defmodule PlaywrightEx.Page do
     )
   end
 
+  @expect_download_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_download`, see its docs."
+  @type expect_download_options ::
+          [predicate: (PlaywrightEx.Download.t() -> boolean()), timeout: number() | :infinity]
+          | %{
+              optional(:predicate) => (PlaywrightEx.Download.t() -> boolean()),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Performs action and waits for a new [`Download`](`PlaywrightEx.Download`). If predicate is provided, it passes
+  [`Download`](`PlaywrightEx.Download`) value into the `predicate` function and waits for `predicate(download)` to return a truthy value.
+  Will throw an error if the page is closed before the download event is fired.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`Download`](`PlaywrightEx.Download`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_download(t(), (-> term()), expect_download_options()) ::
+          {:ok, PlaywrightEx.Download.t()} | {:error, Exception.t()}
+  def expect_download(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_download_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "download", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.9"
+  @doc "Like `expect_download/3`, but returns the value and raises on error."
+  @spec expect_download!(t(), (-> term()), expect_download_options()) :: PlaywrightEx.Download.t()
+  def expect_download!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_download_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "download", options) end,
+      action
+    )
+  end
+
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `expect_event`, see its docs."
@@ -6042,7 +6126,7 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec on(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec on(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec on(t(), :download, (term() -> term())) :: t()
+  @spec on(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec on(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec on(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -6067,7 +6151,7 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec once(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec once(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec once(t(), :download, (term() -> term())) :: t()
+  @spec once(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec once(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec once(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -6092,7 +6176,7 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec add_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec add_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec add_listener(t(), :download, (term() -> term())) :: t()
+  @spec add_listener(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec add_listener(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec add_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -6117,7 +6201,7 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec remove_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec remove_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec remove_listener(t(), :download, (term() -> term())) :: t()
+  @spec remove_listener(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec remove_listener(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -6142,7 +6226,7 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec off(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec off(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec off(t(), :download, (term() -> term())) :: t()
+  @spec off(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec off(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec off(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
@@ -6167,7 +6251,7 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :dialog, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec prepend_listener(t(), :dialog_closed, (PlaywrightEx.Dialog.t() -> term())) :: t()
   @spec prepend_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec prepend_listener(t(), :download, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :download, (PlaywrightEx.Download.t() -> term())) :: t()
   @spec prepend_listener(t(), :file_chooser, (PlaywrightEx.FileChooser.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()

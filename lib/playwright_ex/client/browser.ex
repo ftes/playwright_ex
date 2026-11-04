@@ -3,8 +3,10 @@ defmodule PlaywrightEx.Client.Browser do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Page
 
   def from(browser) do
@@ -92,8 +94,8 @@ defmodule PlaywrightEx.Client.Browser do
 
   defp _setup_browser_context(this, context) do
     put(context, :_logger, get(this, :_logger))
-    # context.tracing._tracesDir = this._options.tracesDir;  -- not ported: trace recording
-    # context.request.tracing._tracesDir = this._options.tracesDir;  -- not ported: trace recording
+    put(get(context, :tracing), :_tracesDir, get(this, :_options)[:tracesDir])
+    put(get(get(context, :request), :tracing), :_tracesDir, get(this, :_options)[:tracesDir])
     set_add(get(this, :_browserType), :_contexts, context)
     # this._browserType._playwright.selectors._contextsForSelectors.add(context);  -- not ported: selectors
     playwright = get(get(this, :_browserType), :_playwright)
@@ -128,7 +130,28 @@ defmodule PlaywrightEx.Client.Browser do
     get(this, :_isConnected)
   end
 
-  # newBrowserCDPSession, startTracing, stopTracing  -- not ported
+  # newBrowserCDPSession  -- not ported: CDPSession
+
+  def start_tracing(this, page \\ nil, options \\ %{}) do
+    options = options || %{}
+    put(this, :_path, options[:path])
+    channel_call(this, :startTracing, Map.merge(options, %{page: page}), TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def stop_tracing(this) do
+    artifact = Artifact.from(channel_call(this, :stopTracing, %{}, TimeoutSettings.k_no_timeout()).artifact)
+    buffer = Artifact.read_into_buffer(artifact)
+    Artifact.delete(artifact)
+
+    if path = get(this, :_path) do
+      FileUtils.mkdir_if_needed(path)
+      File.write!(path, buffer)
+      put(this, :_path, nil)
+    end
+
+    buffer
+  end
 
   def close(this, options \\ %{}) do
     put(this, :_closeReason, options[:reason])

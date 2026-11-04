@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Client.APIRequest do
       if(options[:timeout] != nil, do: options.timeout, else: get(playwright, :_defaultContextTimeout))
     )
 
-    # context.tracing._tracesDir = this._playwright._defaultLaunchOptions?.tracesDir;  -- not ported: trace recording
+    put(get(context, :tracing), :_tracesDir, get(playwright, :_defaultLaunchOptions)[:tracesDir])
     # await context._instrumentation.runAfterCreateRequestContext(context);  -- not ported: instrumentation
     context
   end

@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Browser do
   * Browser application is closed or crashed.
   * The `PlaywrightEx.Browser.close/2` method was called.
 
-  Not ported yet: `newBrowserCDPSession`, `bind`, `removeAllListeners`, `startTracing`, `stopTracing`, `unbind`.
+  Not ported yet: `newBrowserCDPSession`, `bind`, `removeAllListeners`, `unbind`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1042,6 +1042,81 @@ defmodule PlaywrightEx.Browser do
   def new_page!(browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
     Facade.async!("browser.newPage", browser, fn -> PlaywrightEx.Client.Browser.new_page(browser, options) end)
+  end
+
+  @start_tracing_options {:object,
+                          %{categories: {:categories, nil}, path: {:path, nil}, screenshots: {:screenshots, nil}}}
+
+  @typedoc "Options of `start_tracing`, see its docs."
+  @type start_tracing_options ::
+          [categories: [String.t()], path: String.t(), screenshots: boolean()]
+          | %{optional(:categories) => [String.t()], optional(:path) => String.t(), optional(:screenshots) => boolean()}
+
+  @doc since: "1.11"
+  @doc ~S"""
+  > #### Note {: .info}
+  >
+  > This API controls [Chromium Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool) which is a low-level chromium-specific debugging tool. API to control [Playwright Tracing](https://playwright.dev/docs/trace-viewer) could be found [here](`PlaywrightEx.Tracing`).
+
+  You can use `PlaywrightEx.Browser.start_tracing/3` and `PlaywrightEx.Browser.stop_tracing/1` to create a trace file that can
+  be opened in Chrome DevTools performance panel.
+
+  **Usage**
+
+  ```js
+  await browser.startTracing(page, { path: 'trace.json' });
+  await page.goto('https://www.google.com');
+  await browser.stopTracing();
+  ```
+
+  ## Arguments
+
+  * `page` - Optional, if specified, tracing includes screenshots of the given page.
+
+  ## Options
+
+  * `:categories` - specify custom categories to use instead of default.
+  * `:path` - A path to write the trace file to.
+  * `:screenshots` - captures screenshots in the trace.
+  """
+  @spec start_tracing(t(), PlaywrightEx.Page.t() | nil, start_tracing_options()) :: :ok | {:error, Exception.t()}
+  def start_tracing(browser, page \\ nil, options \\ []) do
+    options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
+
+    Facade.async_void("browser.startTracing", browser, fn ->
+      PlaywrightEx.Client.Browser.start_tracing(browser, page, options)
+    end)
+  end
+
+  @doc since: "1.11"
+  @doc "Like `start_tracing/3`, but returns the value and raises on error."
+  @spec start_tracing!(t(), PlaywrightEx.Page.t() | nil, start_tracing_options()) :: :ok
+  def start_tracing!(browser, page \\ nil, options \\ []) do
+    options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
+
+    Facade.async_void!("browser.startTracing", browser, fn ->
+      PlaywrightEx.Client.Browser.start_tracing(browser, page, options)
+    end)
+  end
+
+  @doc since: "1.11"
+  @doc ~S"""
+  > #### Note {: .info}
+  >
+  > This API controls [Chromium Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool) which is a low-level chromium-specific debugging tool. API to control [Playwright Tracing](https://playwright.dev/docs/trace-viewer) could be found [here](`PlaywrightEx.Tracing`).
+
+  Returns the buffer with trace data.
+  """
+  @spec stop_tracing(t()) :: {:ok, binary()} | {:error, Exception.t()}
+  def stop_tracing(browser) do
+    Facade.async("browser.stopTracing", browser, fn -> PlaywrightEx.Client.Browser.stop_tracing(browser) end)
+  end
+
+  @doc since: "1.11"
+  @doc "Like `stop_tracing/1`, but returns the value and raises on error."
+  @spec stop_tracing!(t()) :: binary()
+  def stop_tracing!(browser) do
+    Facade.async!("browser.stopTracing", browser, fn -> PlaywrightEx.Client.Browser.stop_tracing(browser) end)
   end
 
   @doc since: "1.8"

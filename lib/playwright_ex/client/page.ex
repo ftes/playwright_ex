@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Page do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ClientHelper
@@ -10,6 +11,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.DisposableStub
+  alias PlaywrightEx.Client.Download
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FileChooser
@@ -24,8 +26,10 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Route
   alias PlaywrightEx.Client.RouteHandler
+  alias PlaywrightEx.Client.Screencast
   alias PlaywrightEx.Client.Touchscreen
   alias PlaywrightEx.Client.Tracing
+  alias PlaywrightEx.Client.Video
   alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Client.WebSocket
   alias PlaywrightEx.Client.WebSocketRoute
@@ -76,7 +80,14 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_viewportSize, initializer[:viewportSize])
     put(this, :_closed, initializer.isClosed)
     put(this, :_opener, from_nullable(initializer[:opener]))
-    # this._video = new Video(...); this.screencast = new Screencast(this);  -- not ported: Video, Screencast
+
+    put(
+      this,
+      :_video,
+      Video.new(get(this, :_connection), if(initializer[:video], do: Artifact.from(initializer.video)))
+    )
+
+    put(this, :screencast, Screencast.new(this))
 
     EventEmitter.on(_channel(this), "bindingCall", fn %{binding: binding} ->
       _on_binding(this, BindingCall.from(binding))
@@ -84,7 +95,18 @@ defmodule PlaywrightEx.Client.Page do
 
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
     EventEmitter.on(_channel(this), "crash", fn _ -> _on_crash(this) end)
-    # this._channel.on('download', ...)  -- not ported: Download
+
+    EventEmitter.on(_channel(this), "download", fn %{
+                                                     url: url,
+                                                     suggestedFilename: suggested_filename,
+                                                     artifact: artifact
+                                                   } ->
+      artifact_object = Artifact.from(artifact)
+      download = Download.new(this, url, suggested_filename, artifact_object)
+      emit(this, Events.Page.download(), download)
+      emit(get(this, :_browserContext), Events.BrowserContext.download(), download)
+    end)
+
     EventEmitter.on(_channel(this), "fileChooser", fn %{element: element, isMultiple: is_multiple} ->
       emit(this, Events.Page.file_chooser(), FileChooser.new(this, ElementHandle.from(element), is_multiple))
     end)
@@ -146,6 +168,7 @@ defmodule PlaywrightEx.Client.Page do
   def mouse(this), do: get(this, :mouse)
   def request(this), do: get(this, :request)
   def touchscreen(this), do: get(this, :touchscreen)
+  def screencast(this), do: get(this, :screencast)
 
   defp _on_frame_attached(this, frame) do
     put(frame, :_page, this)
@@ -278,7 +301,15 @@ defmodule PlaywrightEx.Client.Page do
     TimeoutSettings.set_default_timeout(get(this, :_timeoutSettings), timeout)
   end
 
-  # video  -- not ported: Video
+  def video(this) do
+    # Note: we are creating Video object lazily, because we do not know
+    # BrowserContextOptions when constructing the page - it is assigned
+    # too late during launchPersistentContext.
+    if !get(get(this, :_browserContext), :_options)[:recordVideo],
+      do: nil,
+      else: get(this, :_video)
+  end
+
   def pick_locator(this) do
     %{selector: selector} = channel_call(this, :pickLocator, %{}, TimeoutSettings.k_no_timeout())
     locator(this, selector)

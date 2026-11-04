@@ -37,7 +37,14 @@ defmodule PlaywrightEx.Client.LocalUtils do
     channel_call(this, :harUnzip, params, TimeoutSettings.k_no_timeout())
   end
 
-  # tracingStarted, traceDiscarded  -- not ported: trace recording
+  def tracing_started(this, params) do
+    channel_call(this, :tracingStarted, params, TimeoutSettings.k_no_timeout())
+  end
+
+  def trace_discarded(this, params) do
+    channel_call(this, :traceDiscarded, params, TimeoutSettings.k_no_timeout())
+    nil
+  end
 
   def add_stack_to_tracing_no_reply(this, params) do
     channel_call(this, :addStackToTracingNoReply, params, TimeoutSettings.k_no_timeout())

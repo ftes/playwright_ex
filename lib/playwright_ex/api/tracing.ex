@@ -22,14 +22,145 @@ defmodule PlaywrightEx.Tracing do
   expect(page.url()).toBe('https://playwright.dev');
   await context.tracing.stop({ path: 'trace.zip' });
   ```
-
-  Not ported yet: `start`, `startChunk`, `group`, `groupEnd`, `stop`, `stopChunk`.
   """
 
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Tracing` handle. Compare handles with `==`, their fields are internal."
   @type t :: %PlaywrightEx.Client.Tracing{}
+
+  @start_options {:object,
+                  %{
+                    live: {:live, nil},
+                    name: {:name, nil},
+                    screenshots: {:screenshots, nil},
+                    snapshots: {:snapshots, {:fields, %{dom: nil, aria: nil, screen: nil}}},
+                    sources: {:sources, nil},
+                    title: {:title, nil}
+                  }}
+
+  @typedoc "Options of `start`, see its docs."
+  @type start_options ::
+          [
+            live: boolean(),
+            name: String.t(),
+            screenshots: boolean(),
+            snapshots:
+              boolean() | %{optional(:dom) => boolean(), optional(:aria) => boolean(), optional(:screen) => boolean()},
+            sources: boolean(),
+            title: String.t()
+          ]
+          | %{
+              optional(:live) => boolean(),
+              optional(:name) => String.t(),
+              optional(:screenshots) => boolean(),
+              optional(:snapshots) =>
+                boolean() | %{optional(:dom) => boolean(), optional(:aria) => boolean(), optional(:screen) => boolean()},
+              optional(:sources) => boolean(),
+              optional(:title) => String.t()
+            }
+
+  @doc since: "1.12"
+  @doc ~S"""
+  Start tracing. Disposing the returned [`Disposable`](`PlaywrightEx.Disposable`) stops tracing without saving the trace, similarly to calling `PlaywrightEx.Tracing.stop/2` without a path.
+
+  > #### Note {: .info}
+  >
+  > You probably want to [enable tracing in your config file](https://playwright.dev/docs/api/class-testoptions#test-options-trace) instead of using `Tracing.start`.
+  >
+  > The `context.tracing` API captures browser operations and network activity, but it doesn't record test assertions (like `expect` calls). We recommend [enabling tracing through Playwright Test configuration](https://playwright.dev/docs/api/class-testoptions#test-options-trace), which includes those assertions and provides a more complete trace for debugging test failures.
+
+  **Usage**
+
+  ```js
+  await context.tracing.start({ screenshots: true, snapshots: true });
+  const page = await context.newPage();
+  await page.goto('https://playwright.dev');
+  expect(page.url()).toBe('https://playwright.dev');
+  await context.tracing.stop({ path: 'trace.zip' });
+  ```
+
+  ## Options
+
+  * `:live` - *Since 1.59.* When enabled, the trace is written to an unarchived file that is updated in real time as actions occur,
+    instead of caching changes and archiving them into a zip file at the end. This is useful for live trace
+    viewing during test execution.
+  * `:name` - If specified, intermediate trace files are going to be saved into the files with the
+    given name prefix inside the `tracesDir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
+    To specify the final trace zip file name, you need to pass `path` option to
+    `PlaywrightEx.Tracing.stop/2` instead.
+  * `:screenshots` - Whether to capture screenshots during tracing. Screenshots are used to build
+    a timeline preview.
+  * `:snapshots` - Which snapshots to capture on every action. Passing `true` is a shortcut for `{ dom: true }`.
+    * `:dom` - Capture DOM snapshot on every action and record network activity. Optional.
+    * `:aria` - Capture aria snapshot of the page on every action. Optional.
+    * `:screen` - Capture a screenshot of the page on every action. Optional.
+  * `:sources` - *Since 1.17.* Whether to include source files for trace actions.
+  * `:title` - *Since 1.17.* Trace name to be shown in the Trace Viewer.
+  """
+  @spec start(t(), start_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def start(tracing, options \\ []) do
+    options = Facade.options!(options, @start_options, "tracing.start")
+    Facade.async("tracing.start", tracing, fn -> PlaywrightEx.Client.Tracing.start(tracing, options) end)
+  end
+
+  @doc since: "1.12"
+  @doc "Like `start/2`, but returns the value and raises on error."
+  @spec start!(t(), start_options()) :: PlaywrightEx.Disposable.t()
+  def start!(tracing, options \\ []) do
+    options = Facade.options!(options, @start_options, "tracing.start")
+    Facade.async!("tracing.start", tracing, fn -> PlaywrightEx.Client.Tracing.start(tracing, options) end)
+  end
+
+  @start_chunk_options {:object, %{name: {:name, nil}, title: {:title, nil}}}
+
+  @typedoc "Options of `start_chunk`, see its docs."
+  @type start_chunk_options ::
+          [name: String.t(), title: String.t()] | %{optional(:name) => String.t(), optional(:title) => String.t()}
+
+  @doc since: "1.15"
+  @doc ~S"""
+  Start a new trace chunk. Disposing the returned [`Disposable`](`PlaywrightEx.Disposable`) stops the chunk without saving it, similarly to calling `PlaywrightEx.Tracing.stop_chunk/2` without a path. If you'd like to record multiple traces on the same [`BrowserContext`](`PlaywrightEx.BrowserContext`), use `PlaywrightEx.Tracing.start/2` once, and then create multiple trace chunks with `PlaywrightEx.Tracing.start_chunk/2` and `PlaywrightEx.Tracing.stop_chunk/2`.
+
+  **Usage**
+
+  ```js
+  await context.tracing.start({ screenshots: true, snapshots: true });
+  const page = await context.newPage();
+  await page.goto('https://playwright.dev');
+
+  await context.tracing.startChunk();
+  await page.getByText('Get Started').click();
+  // Everything between startChunk and stopChunk will be recorded in the trace.
+  await context.tracing.stopChunk({ path: 'trace1.zip' });
+
+  await context.tracing.startChunk();
+  await page.goto('http://example.com');
+  // Save a second trace file with different actions.
+  await context.tracing.stopChunk({ path: 'trace2.zip' });
+  ```
+
+  ## Options
+
+  * `:name` - *Since 1.32.* If specified, intermediate trace files are going to be saved into the files with the
+    given name prefix inside the `tracesDir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
+    To specify the final trace zip file name, you need to pass `path` option to
+    `PlaywrightEx.Tracing.stop_chunk/2` instead.
+  * `:title` - *Since 1.17.* Trace name to be shown in the Trace Viewer.
+  """
+  @spec start_chunk(t(), start_chunk_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def start_chunk(tracing, options \\ []) do
+    options = Facade.options!(options, @start_chunk_options, "tracing.startChunk")
+    Facade.async("tracing.startChunk", tracing, fn -> PlaywrightEx.Client.Tracing.start_chunk(tracing, options) end)
+  end
+
+  @doc since: "1.15"
+  @doc "Like `start_chunk/2`, but returns the value and raises on error."
+  @spec start_chunk!(t(), start_chunk_options()) :: PlaywrightEx.Disposable.t()
+  def start_chunk!(tracing, options \\ []) do
+    options = Facade.options!(options, @start_chunk_options, "tracing.startChunk")
+    Facade.async!("tracing.startChunk", tracing, fn -> PlaywrightEx.Client.Tracing.start_chunk(tracing, options) end)
+  end
 
   @start_har_options {:object,
                       %{
@@ -93,6 +224,131 @@ defmodule PlaywrightEx.Tracing do
   def start_har!(tracing, path, options \\ []) do
     options = Facade.options!(options, @start_har_options, "tracing.startHar")
     Facade.async!("tracing.startHar", tracing, fn -> PlaywrightEx.Client.Tracing.start_har(tracing, path, options) end)
+  end
+
+  @group_options {:object, %{location: {:location, {:fields, %{file: nil, line: nil, column: nil}}}}}
+
+  @typedoc "Options of `group`, see its docs."
+  @type group_options ::
+          [location: %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}]
+          | %{
+              optional(:location) => %{
+                required(:file) => String.t(),
+                optional(:line) => integer(),
+                optional(:column) => integer()
+              }
+            }
+
+  @doc since: "1.49"
+  @doc ~S"""
+  > #### Caution {: .warning}
+  >
+  > Use `test.step` instead when available.
+
+  Creates a new group within the trace, assigning any subsequent API calls to this group, until `PlaywrightEx.Tracing.group_end/1` is called. Groups can be nested and will be visible in the trace viewer.
+
+  **Usage**
+
+  ```js
+  // use test.step instead
+  await test.step('Log in', async () => {
+    // ...
+  });
+  ```
+
+  ## Arguments
+
+  * `name` - Group name shown in the trace viewer.
+
+  ## Options
+
+  * `:location` - Specifies a custom location for the group to be shown in the trace viewer. Defaults to the location of the `PlaywrightEx.Tracing.group/3` call.
+    * `:file`
+    * `:line`
+    * `:column`
+  """
+  @spec group(t(), String.t(), group_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  def group(tracing, name, options \\ []) do
+    options = Facade.options!(options, @group_options, "tracing.group")
+    Facade.async("tracing.group", tracing, fn -> PlaywrightEx.Client.Tracing.group(tracing, name, options) end)
+  end
+
+  @doc since: "1.49"
+  @doc "Like `group/3`, but returns the value and raises on error."
+  @spec group!(t(), String.t(), group_options()) :: PlaywrightEx.Disposable.t()
+  def group!(tracing, name, options \\ []) do
+    options = Facade.options!(options, @group_options, "tracing.group")
+    Facade.async!("tracing.group", tracing, fn -> PlaywrightEx.Client.Tracing.group(tracing, name, options) end)
+  end
+
+  @doc since: "1.49"
+  @doc ~S"""
+  Closes the last group created by `PlaywrightEx.Tracing.group/3`.
+  """
+  @spec group_end(t()) :: :ok | {:error, Exception.t()}
+  def group_end(tracing) do
+    Facade.async_void("tracing.groupEnd", tracing, fn -> PlaywrightEx.Client.Tracing.group_end(tracing) end)
+  end
+
+  @doc since: "1.49"
+  @doc "Like `group_end/1`, but returns the value and raises on error."
+  @spec group_end!(t()) :: :ok
+  def group_end!(tracing) do
+    Facade.async_void!("tracing.groupEnd", tracing, fn -> PlaywrightEx.Client.Tracing.group_end(tracing) end)
+  end
+
+  @stop_options {:object, %{path: {:path, nil}}}
+
+  @typedoc "Options of `stop`, see its docs."
+  @type stop_options :: [path: String.t()] | %{optional(:path) => String.t()}
+
+  @doc since: "1.12"
+  @doc ~S"""
+  Stop tracing.
+
+  ## Options
+
+  * `:path` - Export trace into the file with the given path.
+  """
+  @spec stop(t(), stop_options()) :: :ok | {:error, Exception.t()}
+  def stop(tracing, options \\ []) do
+    options = Facade.options!(options, @stop_options, "tracing.stop")
+    Facade.async_void("tracing.stop", tracing, fn -> PlaywrightEx.Client.Tracing.stop(tracing, options) end)
+  end
+
+  @doc since: "1.12"
+  @doc "Like `stop/2`, but returns the value and raises on error."
+  @spec stop!(t(), stop_options()) :: :ok
+  def stop!(tracing, options \\ []) do
+    options = Facade.options!(options, @stop_options, "tracing.stop")
+    Facade.async_void!("tracing.stop", tracing, fn -> PlaywrightEx.Client.Tracing.stop(tracing, options) end)
+  end
+
+  @stop_chunk_options {:object, %{path: {:path, nil}}}
+
+  @typedoc "Options of `stop_chunk`, see its docs."
+  @type stop_chunk_options :: [path: String.t()] | %{optional(:path) => String.t()}
+
+  @doc since: "1.15"
+  @doc ~S"""
+  Stop the trace chunk. See `PlaywrightEx.Tracing.start_chunk/2` for more details about multiple trace chunks.
+
+  ## Options
+
+  * `:path` - Export trace collected since the last `PlaywrightEx.Tracing.start_chunk/2` call into the file with the given path.
+  """
+  @spec stop_chunk(t(), stop_chunk_options()) :: :ok | {:error, Exception.t()}
+  def stop_chunk(tracing, options \\ []) do
+    options = Facade.options!(options, @stop_chunk_options, "tracing.stopChunk")
+    Facade.async_void("tracing.stopChunk", tracing, fn -> PlaywrightEx.Client.Tracing.stop_chunk(tracing, options) end)
+  end
+
+  @doc since: "1.15"
+  @doc "Like `stop_chunk/2`, but returns the value and raises on error."
+  @spec stop_chunk!(t(), stop_chunk_options()) :: :ok
+  def stop_chunk!(tracing, options \\ []) do
+    options = Facade.options!(options, @stop_chunk_options, "tracing.stopChunk")
+    Facade.async_void!("tracing.stopChunk", tracing, fn -> PlaywrightEx.Client.Tracing.stop_chunk(tracing, options) end)
   end
 
   @doc since: "1.60"
