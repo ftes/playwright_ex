@@ -3,11 +3,21 @@ defmodule Mix.PlaywrightEx.ApiRules do
   Elixir rules for `mix playwright_ex.gen.api`, applied to the JS view of `api.json`
   (the counterpart of the Python client's `python_rules`).
 
+  Every class and member left after these rules is generated, and the facade calls the client
+  directly, so a member the client lacks is a compile warning. What is out of scope is dropped
+  here, each with its reason.
+
     * Drops JS-only classes the Elixir client has no use for (`@dropped_classes`), and every
       member, argument and option whose type refers to one of them (`logger: Logger`, and the
       DOM `AbortSignal` of `signal:` options), also from unions (`URLPattern` of `url:`).
     * Drops JS-only members (`@dropped_members`), and options the JS client does not take
       (`@dropped_options`: `$eval` asserts at most 3 arguments).
+    * Exception classes (`TimeoutError`) are exception modules, not handles: dropped as classes, a
+      property holding one (`playwright.errors.TimeoutError`) holds the module.
+    * `removeAllListeners(type)` takes an `event`, as `on/3` does (atoms accepted).
+    * A storage state (`storageState/1` results, `storageState` options and arguments) is an open
+      object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
+      facade passes it back unchecked.
     * Documents the Elixir forms of `timeout`.
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
@@ -34,11 +44,21 @@ defmodule Mix.PlaywrightEx.ApiRules do
       the test runner resolves (`to_have_screenshot(page, path: "home.png")`).
   """
 
+  # BrowserServer: `launchServer` is out of scope (PLAN), browsers run in the driver or remote.
+  # Logger: `logger:` options, the driver logs instead (`DEBUG=pw:api`).
+  # GenericAssertions, SnapshotAssertions: jest's `expect(value)`, `toMatchSnapshot` (test runner).
+  # PlaywrightAssertions: `expect(locator)` itself; the matchers are functions of the receiver (`Expect`).
+  # AbortSignal: a DOM class (`signal:` options), not ported (PLAN).
   # URLPattern: a JS global (`url` matchers), dropped from unions.
-  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions AbortSignal URLPattern)
+  # Electron, Android and `connectOverCDP(transport)` are not in the JS view of api.json.
+  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions PlaywrightAssertions AbortSignal URLPattern)
 
   # "Class.member"
-  @dropped_members ~w()
+  # BrowserType.launchServer: out of scope (PLAN); also dropped with BrowserServer, its result.
+  @dropped_members ~w(BrowserType.launchServer)
+
+  # Exceptions (`PlaywrightEx.Client.Errors.TimeoutError`), JS classes in api.json.
+  @exception_classes ~w(TimeoutError)
 
   # `session.on("Network.requestWillBeSent", ...)`: types.d.ts overloads `on` per CDP event.
   @open_events ~w(CDPSession)
@@ -75,14 +95,19 @@ defmodule Mix.PlaywrightEx.ApiRules do
   def apply(classes, python) do
     classes = expect_class(classes)
 
-    for class <- classes, class["name"] not in @dropped_classes do
+    for class <- classes, class["name"] not in @dropped_classes, class["name"] not in @exception_classes do
       expects = expect_members(python, class["name"])
 
       members =
         for member <- class["members"],
             "#{class["name"]}.#{member["name"]}" not in @dropped_members,
             keep?(member["type"]),
-            do: member |> wait(expects) |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
+            do:
+              member
+              |> wait(expects)
+              |> event_type()
+              |> storage_state()
+              |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
 
       callbacks = for expect <- expects, do: expect |> callback(class, members) |> member(false)
       Map.merge(class, %{"members" => members ++ callbacks, "openEvents" => class["name"] in @open_events})
@@ -251,6 +276,28 @@ defmodule Mix.PlaywrightEx.ApiRules do
     Map.merge(expect, %{"callback" => %{"call" => call, "event" => event}, "type" => type})
   end
 
+  # `removeAllListeners(type)`: `type` is the event (`on(event, listener)`).
+  defp event_type(%{"name" => "removeAllListeners"} = member) do
+    args = for arg <- member["args"], do: if(arg["name"] == "type", do: %{arg | "name" => "event"}, else: arg)
+    %{member | "args" => args}
+  end
+
+  defp event_type(member), do: member
+
+  defp storage_state(%{"name" => "storageState", "kind" => "method"} = member),
+    do: %{member | "type" => open(member["type"])}
+
+  defp storage_state(member), do: member
+
+  # Nested objects too (an origin has `indexedDB`).
+  defp open(%{"union" => union} = type) when is_list(union), do: %{type | "union" => Enum.map(union, &open/1)}
+  defp open(%{"name" => "Array", "templates" => [item]} = type), do: %{type | "templates" => [open(item)]}
+
+  defp open(%{"properties" => props} = type) when is_list(props),
+    do: Map.merge(type, %{"open" => true, "properties" => Enum.map(props, &%{&1 | "type" => open(&1["type"])})})
+
+  defp open(type), do: type
+
   defp member(member, drop_options?) do
     args =
       for arg <- member["args"],
@@ -258,7 +305,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
           not (drop_options? and arg["name"] == "options"),
           do: arg |> expression() |> route_handler() |> property()
 
-    %{member | "args" => args}
+    %{
+      member
+      | "args" => args,
+        "type" => if(member["kind"] == "property", do: type_of(member["type"]), else: member["type"])
+    }
   end
 
   defp expression(%{"name" => name, "type" => %{"union" => union} = type} = arg)
@@ -281,6 +332,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()
 
+  # `errors: { TimeoutError: typeof TimeoutError }`: the exception module.
+  defp property(%{"name" => name, "type" => %{"name" => "function"}} = property) when name in @exception_classes,
+    do: %{property | "type" => %{"name" => "typeof", "templates" => [%{"name" => name}]}}
+
+  defp property(%{"name" => "storageState", "type" => type} = property), do: type(%{property | "type" => open(type)})
   defp property(property), do: type(property)
 
   defp type(%{"type" => type} = property) when is_map(type), do: %{property | "type" => type_of(type)}

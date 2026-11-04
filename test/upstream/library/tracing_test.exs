@@ -260,8 +260,25 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert screenshot_event["result"] == %{"binary" => "<Buffer>"}
   end
 
-  @tag skip: "not ported: storageState"
-  test "should exclude internal pages"
+  @tag :tmp_dir
+  test "should exclude internal pages", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+    Page.goto!(page, server.empty_page)
+
+    Tracing.start!(tracing(context))
+    BrowserContext.storage_state!(context)
+    Page.close!(page)
+    Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
+
+    trace = parse_trace_raw(Path.join(tmp_dir, "trace.zip"), context)
+
+    page_ids =
+      for e <- trace.events,
+          page_id = e["pageId"] || (is_map(e["params"]) && e["params"]["pageId"]),
+          into: MapSet.new(),
+          do: page_id
+
+    assert MapSet.size(page_ids) == 1
+  end
 
   @tag :tmp_dir
   test "should record context API request trace independently", %{

@@ -747,8 +747,8 @@ defmodule PlaywrightEx.BrowserType do
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
-    [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+    `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
   * `:downloads_path` - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
     deleted when browser is closed. In either case, the downloads are deleted when the browser context they were created in
@@ -762,7 +762,7 @@ defmodule PlaywrightEx.BrowserType do
     [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
     You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
-  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
   * `:geolocation`
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
@@ -801,7 +801,7 @@ defmodule PlaywrightEx.BrowserType do
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
   * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
-    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
+    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/2` for the HAR to be
     saved.
     * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
       `false`. Deprecated, use `content` policy instead.
@@ -810,7 +810,7 @@ defmodule PlaywrightEx.BrowserType do
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
     * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
   * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
-    sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
+    sure to await `PlaywrightEx.BrowserContext.close/2` for videos to be saved.
     * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
     * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
       scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
@@ -827,7 +827,7 @@ defmodule PlaywrightEx.BrowserType do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
     `viewport` is set.
     * `:width` - page width in pixels.

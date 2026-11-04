@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Client.Worker do
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Isomorphic.LongStandingScope
 
   def from_nullable(worker) do
@@ -86,7 +87,40 @@ defmodule PlaywrightEx.Client.Worker do
     JSHandle.from(result.handle)
   end
 
-  # waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
+  def wait_for_event(this, event, options_or_predicate \\ %{}) do
+    options_or_predicate = options_or_predicate || %{}
+
+    ChannelOwner._wrap_api_call(this, fn _ ->
+      page = get(this, :_page)
+      context = get(this, :_context)
+
+      timeout_settings =
+        (page && get(page, :_timeoutSettings)) || (context && get(context, :_timeoutSettings)) ||
+          TimeoutSettings.new()
+
+      timeout_options =
+        TimeoutSettings.timeout(
+          timeout_settings,
+          if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
+        )
+
+      predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
+      waiter = Waiter.create_for_event(this, event)
+
+      Waiter.reject_on_timeout(
+        waiter,
+        timeout_options,
+        ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+      )
+
+      if event != Events.Worker.close(),
+        do: Waiter.reject_on_event(waiter, this, Events.Worker.close(), fn -> _close_error_with_reason(this) end)
+
+      result = Waiter.wait_for_event(waiter, this, event, predicate)
+      Waiter.dispose(waiter)
+      result
+    end)
+  end
 
   def _disconnect(this, options \\ %{}) do
     options = options || %{}

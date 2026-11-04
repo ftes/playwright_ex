@@ -23,8 +23,8 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       Names built at runtime (template literals with `${`, concatenation) are not compared.
 
     * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
-      `api.json` and the compiled client must give the committed files, so a newly ported
-      client method shows up as a stale facade file.
+      `api.json` must give the committed files. It has every member, so a client function it
+      calls that is missing is a compile warning.
 
   Fails when anything is missing. `--extra` also lists public functions with no upstream
   counterpart (informational: Elixir-only helpers are expected).
@@ -59,7 +59,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   defp check_facade(upstream) do
     for path <- Mix.Tasks.PlaywrightEx.Gen.Api.check(upstream),
-        do: "#{path}: out of date with api.json and the client, run mix playwright_ex.gen.api"
+        do: "#{path}: out of date with api.json, run mix playwright_ex.gen.api"
   end
 
   # --- modules ---------------------------------------------------------------

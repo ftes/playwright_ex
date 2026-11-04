@@ -648,7 +648,29 @@ defmodule PlaywrightEx.Client.Page do
     )
   end
 
-  # requestGC, emulateMedia  -- not ported
+  def request_gc(this) do
+    channel_call(this, :requestGC, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  def emulate_media(this, options \\ %{}) do
+    options = options || %{}
+
+    channel_call(
+      this,
+      :emulateMedia,
+      %{
+        media: if(options[:media] == :null, do: "no-override", else: options[:media]),
+        colorScheme: if(options[:colorScheme] == :null, do: "no-override", else: options[:colorScheme]),
+        reducedMotion: if(options[:reducedMotion] == :null, do: "no-override", else: options[:reducedMotion]),
+        forcedColors: if(options[:forcedColors] == :null, do: "no-override", else: options[:forcedColors]),
+        contrast: if(options[:contrast] == :null, do: "no-override", else: options[:contrast])
+      },
+      TimeoutSettings.k_no_timeout()
+    )
+
+    nil
+  end
 
   def set_viewport_size(this, viewport_size) do
     put(this, :_viewportSize, viewport_size)
@@ -1052,7 +1074,52 @@ defmodule PlaywrightEx.Client.Page do
     get(this, :_workers)
   end
 
-  # pause, pdf  -- not ported
+  def pause(this, _options \\ nil) do
+    # const isJSDebuggerAttached = !!inspector.url(); if (isJSDebuggerAttached) return;  -- not ported: no JS debugger
+    context = get(this, :_browserContext)
+    default_navigation_timeout = TimeoutSettings.default_navigation_timeout(get(context, :_timeoutSettings))
+    default_timeout = TimeoutSettings.default_timeout(get(context, :_timeoutSettings))
+    BrowserContext.set_default_navigation_timeout(context, 0)
+    BrowserContext.set_default_timeout(context, 0)
+    # this._instrumentation?.onWillPause(...);  -- not ported: instrumentation
+
+    LongStandingScope.safe_race(
+      get(this, :_closedOrCrashedScope),
+      Promise.async(fn -> channel_call(context(this), :pause, %{}, TimeoutSettings.k_no_timeout()) end)
+    )
+
+    BrowserContext.set_default_navigation_timeout(context, default_navigation_timeout)
+    BrowserContext.set_default_timeout(context, default_timeout)
+    nil
+  end
+
+  def pdf(this, options \\ %{}) do
+    options = options || %{}
+    transport_options = options
+    # if (transportOptions.margin) transportOptions.margin = { ...transportOptions.margin };  -- maps are immutable
+
+    transport_options =
+      if is_number(options[:width]), do: %{transport_options | width: "#{options.width}px"}, else: transport_options
+
+    transport_options =
+      if is_number(options[:height]), do: %{transport_options | height: "#{options.height}px"}, else: transport_options
+
+    transport_options =
+      Enum.reduce([:top, :right, :bottom, :left], transport_options, fn index, transport_options ->
+        if options[:margin] && is_number(options.margin[index]),
+          do: put_in(transport_options, [:margin, index], "#{transport_options.margin[index]}px"),
+          else: transport_options
+      end)
+
+    result = channel_call(this, :pdf, transport_options, TimeoutSettings.k_no_timeout())
+
+    if options[:path] do
+      File.mkdir_p!(Path.dirname(options.path))
+      File.write!(options.path, result.pdf)
+    end
+
+    result.pdf
+  end
 
   def aria_snapshot(this, options \\ %{}) do
     options = options || %{}

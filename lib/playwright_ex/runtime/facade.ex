@@ -91,11 +91,13 @@ defmodule PlaywrightEx.Runtime.Facade do
   def arg!(value, type, api_name), do: convert!(value, type, api_name, [])
 
   @doc """
-  The JS event name for `event` (atom, or the JS name as a string) in `events`. With `open?`,
-  any string is an event too (CDP events of a `CDPSession`).
+  The JS event name for `event` (atom, or the JS name as a string) in `events`; `nil` (an optional
+  event left out) stays `nil`. With `open?`, any string is an event too (CDP events of a `CDPSession`).
   """
   def event!(event, events, api_name, open? \\ false) do
     cond do
+      # An optional event left out (`remove_all_listeners(page)`: every event).
+      event == nil -> nil
       is_atom(event) and Map.has_key?(events, event) -> Map.fetch!(events, event)
       is_binary(event) and (open? or event in Map.values(events)) -> event
       true -> raise ArgumentError, "#{api_name}: unknown event #{inspect(event)}, expected one of #{keys(events)}"

@@ -240,8 +240,24 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       Browser.close!(browser)
     end
 
-    @tag skip: "not ported: Page.pause"
-    test "should ignore page.pause when headed"
+    if match?({:unix, :linux}, :os.type()) and !System.get_env("DISPLAY"),
+      do: @tag(skip: "headed: no X server (upstream runs headed tests under xvfb)")
+
+    test "should ignore page.pause when headed", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind
+    } do
+      # test.skip(channel === 'chromium-headless-shell', 'shell is never headed');  -- we run no channel
+      # _defaultLaunchOptions.headless = false  -- the launch options the `connect` fixture sends
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server), [], launch_options: [headless: false])
+      browser_context = Browser.new_context!(browser)
+      page = BrowserContext.new_page!(browser_context)
+      # { __testHookKeepTestTimeout: true }  -- a test runner hook (instrumentation), not an API option
+      Page.pause!(page)
+      Browser.close!(browser)
+    end
 
     test "should be able to visit ipv6 through localhost", %{
       browser_type: browser_type,

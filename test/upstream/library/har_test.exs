@@ -742,8 +742,26 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry1["response"]["status"] == 200
   end
 
-  @tag skip: "not ported: storageState"
-  test "should not contain internal pages"
+  test "should not contain internal pages", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn |> put_set_cookies(["name=value"]) |> Plug.Conn.send_resp(200, "")
+    end)
+
+    %{page: page, context: context} = session = page_with_har(context_factory, output_path)
+    Page.goto!(page, server.empty_page)
+
+    cookies = BrowserContext.cookies!(context)
+    assert length(cookies) == 1
+    # Get storage state, this create internal page.
+    BrowserContext.storage_state!(context)
+
+    log = get_log(session)
+    assert length(log["pages"]) == 1
+  end
 
   test "should have connection details", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)

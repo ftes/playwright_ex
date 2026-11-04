@@ -2,9 +2,19 @@ defmodule PlaywrightEx.Page.WorkersTest do
   @upstream "tests/page/workers.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
+  alias PlaywrightEx.Worker
 
   @moduletag :page
+
+  @blob_worker """
+  () => {
+    window.worker = new Worker(URL.createObjectURL(new Blob(['42'], { type: 'application/javascript' })));
+  }
+  """
 
   @tag skip: "not ported: waitForEvent"
   test "Page.workers @smoke"
@@ -27,11 +37,40 @@ defmodule PlaywrightEx.Page.WorkersTest do
   @tag skip: "not ported: waitForEvent"
   test "should evaluate"
 
-  @tag skip: "not ported: waitForEvent"
-  test "should report console event on the worker"
+  test "should report console event on the worker", %{page: page} do
+    # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
+    worker =
+      Page.expect_event!(page, :worker, fn ->
+        Page.evaluate!(page, @blob_worker)
+      end)
 
-  @tag skip: "not ported: waitForEvent"
-  test "should report console event on the worker when not listening on page or context"
+    promises = [
+      Worker.wait_for_event(worker, :console),
+      Page.wait_for_event(page, :console),
+      BrowserContext.wait_for_event(Page.context(page), :console)
+    ]
+
+    Worker.evaluate!(worker, "() => { console.log('hello from worker'); }")
+    [message1, message2, message3] = Enum.map(promises, &Promise.await!/1)
+    assert ConsoleMessage.text(message1) == "hello from worker"
+    assert message1 == message2
+    assert message1 == message3
+  end
+
+  test "should report console event on the worker when not listening on page or context", %{page: page} do
+    # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
+    worker =
+      Page.expect_event!(page, :worker, fn ->
+        Page.evaluate!(page, @blob_worker)
+      end)
+
+    message =
+      Worker.expect_event!(worker, :console, fn ->
+        Worker.evaluate!(worker, "() => { console.log('hello from worker'); }")
+      end)
+
+    assert ConsoleMessage.text(message) == "hello from worker"
+  end
 
   test "should report errors", %{page: page} do
     test = self()

@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Debugger do
 
   Throws if the debugger is already paused. Use `PlaywrightEx.Debugger.next/1` or `PlaywrightEx.Debugger.run_to/2` to step while paused.
 
-  Note that [`Page.pause`](https://playwright.dev/docs/api/class-page#page-pause) is equivalent to a "debugger" statement — it pauses execution at the call site immediately. On the contrary, `PlaywrightEx.Debugger.request_pause/1` is equivalent to "pause on next statement" — it configures the debugger to pause before the next action is executed.
+  Note that `PlaywrightEx.Page.pause/1` is equivalent to a "debugger" statement — it pauses execution at the call site immediately. On the contrary, `PlaywrightEx.Debugger.request_pause/1` is equivalent to "pause on next statement" — it configures the debugger to pause before the next action is executed.
   """
   @spec request_pause(t()) :: :ok | {:error, Exception.t()}
   def request_pause(debugger) do

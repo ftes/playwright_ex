@@ -4,8 +4,9 @@ defmodule PlaywrightEx.Library.LauncherTest do
 
   alias PlaywrightEx.Playwright
 
-  @tag skip: "not ported: Playwright.errors"
-  test "should have an errors object"
+  test "should have an errors object", %{playwright: playwright} do
+    assert inspect(Playwright.errors(playwright)."TimeoutError") =~ "TimeoutError"
+  end
 
   test "should have a devices object", %{playwright: playwright} do
     assert Playwright.devices(playwright)["iPhone 6"]

@@ -392,7 +392,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should export cookies to storage state"
 
-  test "should preserve origin storage on import/export of storage state", %{playwright: playwright} do
+  test "should preserve origin storage on import/export of storage state", %{playwright: playwright, server: server} do
     storage_state = %{
       cookies: [
         %{
@@ -410,7 +410,6 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
         %{
           origin: "https://www.example.com",
           localStorage: [%{name: "name1", value: "value1"}],
-          # ...{ opfs, indexedDB } (untyped, as any): the facade rejects the unknown fields.
           opfs: [
             %{path: "hello.txt", type: "file", base64: "SGVsbG8sIHdvcmxkIQ=="},
             %{path: "empty", type: "directory"}
@@ -425,7 +424,8 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
                   keyPath: "id",
                   autoIncrement: false,
                   indexes: [],
-                  records: [%{value: %{id: "foo", name: "John Doe"}}]
+                  # A record value is a JS value: it comes back with string keys.
+                  records: [%{value: %{"id" => "foo", "name" => "John Doe"}}]
                 }
               ]
             }
@@ -434,9 +434,11 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
       ]
     }
 
-    assert_raise ArgumentError, ~r/unknown field/, fn ->
-      APIRequest.new_context(Playwright.request(playwright), storage_state: storage_state)
-    end
+    request = APIRequest.new_context!(Playwright.request(playwright), storage_state: storage_state)
+    APIRequestContext.get!(request, server.empty_page)
+    exported_state = APIRequestContext.storage_state!(request, indexed_db: true, opfs: true)
+    assert exported_state == storage_state
+    APIRequestContext.dispose!(request)
   end
 
   @tag skip: "not ported: __testHookLookup (in-process test hook)"

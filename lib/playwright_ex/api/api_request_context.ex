@@ -1183,19 +1183,29 @@ defmodule PlaywrightEx.APIRequestContext do
   @spec storage_state(t(), storage_state_options()) ::
           {:ok,
            %{
-             cookies: [
+             required(:cookies) => [
                %{
-                 name: String.t(),
-                 value: String.t(),
-                 domain: String.t(),
-                 path: String.t(),
-                 expires: number(),
-                 httpOnly: boolean(),
-                 secure: boolean(),
-                 sameSite: String.t()
+                 required(:name) => String.t(),
+                 required(:value) => String.t(),
+                 required(:domain) => String.t(),
+                 required(:path) => String.t(),
+                 required(:expires) => number(),
+                 required(:httpOnly) => boolean(),
+                 required(:secure) => boolean(),
+                 required(:sameSite) => String.t(),
+                 optional(atom()) => term()
                }
              ],
-             origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+             required(:origins) => [
+               %{
+                 required(:origin) => String.t(),
+                 required(:localStorage) => [
+                   %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                 ],
+                 optional(atom()) => term()
+               }
+             ],
+             optional(atom()) => term()
            }}
           | {:error, Exception.t()}
   def storage_state(api_request_context, options \\ []) do
@@ -1209,19 +1219,29 @@ defmodule PlaywrightEx.APIRequestContext do
   @doc since: "1.16"
   @doc "Like `storage_state/2`, but returns the value and raises on error."
   @spec storage_state!(t(), storage_state_options()) :: %{
-          cookies: [
+          required(:cookies) => [
             %{
-              name: String.t(),
-              value: String.t(),
-              domain: String.t(),
-              path: String.t(),
-              expires: number(),
-              httpOnly: boolean(),
-              secure: boolean(),
-              sameSite: String.t()
+              required(:name) => String.t(),
+              required(:value) => String.t(),
+              required(:domain) => String.t(),
+              required(:path) => String.t(),
+              required(:expires) => number(),
+              required(:httpOnly) => boolean(),
+              required(:secure) => boolean(),
+              required(:sameSite) => String.t(),
+              optional(atom()) => term()
             }
           ],
-          origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+          required(:origins) => [
+            %{
+              required(:origin) => String.t(),
+              required(:localStorage) => [
+                %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+              ],
+              optional(atom()) => term()
+            }
+          ],
+          optional(atom()) => term()
         }
   def storage_state!(api_request_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "apiRequestContext.storageState")

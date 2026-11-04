@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Library.VideoTest do
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.TestServer
   alias PlaywrightEx.Video
 
   # it.skip(({ video }) => video === 'on', 'conflicts with built-in video recording');  -- the runner records no video
@@ -201,8 +202,26 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert length(video_files) == 2
     end
 
-    @tag skip: "not ported: storageState"
-    test "should not create video for internal pages"
+    @tag :tmp_dir
+    test "should not create video for internal pages", %{browser: browser, server: server, tmp_dir: video_dir} do
+      TestServer.set_route(server, "/empty.html", fn conn ->
+        conn |> Plug.Conn.put_resp_header("set-cookie", "name=value") |> Plug.Conn.send_resp(200, "")
+      end)
+
+      context = Browser.new_context!(browser, record_video: %{dir: video_dir})
+
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.empty_page)
+      ensure_some_frames(page)
+
+      cookies = BrowserContext.cookies!(context)
+      assert length(cookies) == 1
+      BrowserContext.storage_state!(context)
+      BrowserContext.close!(context)
+
+      files = File.ls!(video_dir)
+      assert length(files) == 1
+    end
 
     @tag skip: "not ported: VideoPlayer (ffmpeg)"
     test "should capture full viewport"

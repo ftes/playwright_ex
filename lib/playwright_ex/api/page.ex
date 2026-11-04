@@ -215,8 +215,6 @@ defmodule PlaywrightEx.Page do
 
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
-
-  Not ported yet: `emulateMedia`, `requestGC`, `pause`, `pdf`, `removeAllListeners`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1071,6 +1069,91 @@ defmodule PlaywrightEx.Page do
     Facade.async_void!("page.dragAndDrop", page, fn ->
       PlaywrightEx.Client.Page.drag_and_drop(page, source, target, options)
     end)
+  end
+
+  @emulate_media_options {:object,
+                          %{
+                            color_scheme:
+                              {:colorScheme, {:enum, %{light: "light", dark: "dark", no_preference: "no-preference"}}},
+                            contrast: {:contrast, {:enum, %{no_preference: "no-preference", more: "more"}}},
+                            forced_colors: {:forcedColors, {:enum, %{active: "active", none: "none"}}},
+                            media: {:media, {:enum, %{screen: "screen", print: "print"}}},
+                            reduced_motion:
+                              {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}}
+                          }}
+
+  @typedoc "Options of `emulate_media`, see its docs."
+  @type emulate_media_options ::
+          [
+            color_scheme: :null | :light | :dark | :no_preference,
+            contrast: :null | :no_preference | :more,
+            forced_colors: :null | :active | :none,
+            media: :null | :screen | :print,
+            reduced_motion: :null | :reduce | :no_preference
+          ]
+          | %{
+              optional(:color_scheme) => :null | :light | :dark | :no_preference,
+              optional(:contrast) => :null | :no_preference | :more,
+              optional(:forced_colors) => :null | :active | :none,
+              optional(:media) => :null | :screen | :print,
+              optional(:reduced_motion) => :null | :reduce | :no_preference
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  This method changes the `CSS media type` through the `media` argument, and/or the `'prefers-colors-scheme'` media feature, using the `colorScheme` argument.
+
+  **Usage**
+
+  ```js
+  await page.evaluate(() => matchMedia('screen').matches);
+  // → true
+  await page.evaluate(() => matchMedia('print').matches);
+  // → false
+
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate(() => matchMedia('screen').matches);
+  // → false
+  await page.evaluate(() => matchMedia('print').matches);
+  // → true
+
+  await page.emulateMedia({});
+  await page.evaluate(() => matchMedia('screen').matches);
+  // → true
+  await page.evaluate(() => matchMedia('print').matches);
+  // → false
+  ```
+
+  ```js
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  // → true
+  await page.evaluate(() => matchMedia('(prefers-color-scheme: light)').matches);
+  // → false
+  ```
+
+  ## Options
+
+  * `:color_scheme` - *Since 1.9.* Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. Passing
+    `null` disables color scheme emulation. `'no-preference'` is deprecated.
+  * `:contrast` - *Since 1.51.* Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. Passing `null` disables contrast emulation.
+  * `:forced_colors` - *Since 1.15.* Emulates `'forced-colors'` media feature, supported values are `'active'` and `'none'`. Passing `null` disables forced colors emulation.
+  * `:media` - *Since 1.9.* Changes the CSS media type of the page. The only allowed values are `'screen'`, `'print'` and `null`.
+    Passing `null` disables CSS media emulation.
+  * `:reduced_motion` - *Since 1.12.* Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. Passing `null` disables reduced motion emulation.
+  """
+  @spec emulate_media(t(), emulate_media_options()) :: :ok | {:error, Exception.t()}
+  def emulate_media(page, options \\ []) do
+    options = Facade.options!(options, @emulate_media_options, "page.emulateMedia")
+    Facade.async_void("page.emulateMedia", page, fn -> PlaywrightEx.Client.Page.emulate_media(page, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `emulate_media/2`, but returns the value and raises on error."
+  @spec emulate_media!(t(), emulate_media_options()) :: :ok
+  def emulate_media!(page, options \\ []) do
+    options = Facade.options!(options, @emulate_media_options, "page.emulateMedia")
+    Facade.async_void!("page.emulateMedia", page, fn -> PlaywrightEx.Client.Page.emulate_media(page, options) end)
   end
 
   @doc since: "1.9"
@@ -2332,6 +2415,33 @@ defmodule PlaywrightEx.Page do
     Facade.async!("page.goForward", page, fn -> PlaywrightEx.Client.Page.go_forward(page, options) end)
   end
 
+  @doc since: "1.48"
+  @doc ~S"""
+  Request the page to perform garbage collection. Note that there is no guarantee that all unreachable objects will be collected.
+
+  This is useful to help detect memory leaks. For example, if your page has a large object `'suspect'` that might be leaked, you can check that it does not leak by using a [`WeakRef`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef).
+
+  ```js
+  // 1. In your page, save a WeakRef for the "suspect".
+  await page.evaluate(() => globalThis.suspectWeakRef = new WeakRef(suspect));
+  // 2. Request garbage collection.
+  await page.requestGC();
+  // 3. Check that weak ref does not deref to the original object.
+  expect(await page.evaluate(() => !globalThis.suspectWeakRef.deref())).toBe(true);
+  ```
+  """
+  @spec request_gc(t()) :: :ok | {:error, Exception.t()}
+  def request_gc(page) do
+    Facade.async_void("page.requestGC", page, fn -> PlaywrightEx.Client.Page.request_gc(page) end)
+  end
+
+  @doc since: "1.48"
+  @doc "Like `request_gc/1`, but returns the value and raises on error."
+  @spec request_gc!(t()) :: :ok
+  def request_gc!(page) do
+    Facade.async_void!("page.requestGC", page, fn -> PlaywrightEx.Client.Page.request_gc(page) end)
+  end
+
   @goto_options {:object,
                  %{
                    referer: {:referer, nil},
@@ -3141,6 +3251,198 @@ defmodule PlaywrightEx.Page do
     Facade.async!("page.opener", page, fn -> PlaywrightEx.Client.Page.opener(page) end)
   end
 
+  @doc since: "1.9"
+  @doc ~S"""
+  Pauses script execution. Playwright will stop executing the script and wait for the user to either press the 'Resume'
+  button in the page overlay or to call `playwright.resume()` in the DevTools console.
+
+  User can inspect selectors or perform manual steps while paused. Resume will continue running the original script from
+  the place it was paused.
+
+  > #### Note {: .info}
+  >
+  > This method requires Playwright to be started in a headed mode, with a falsy `headless` option.
+  """
+  @spec pause(t()) :: :ok | {:error, Exception.t()}
+  def pause(page) do
+    Facade.async_void("page.pause", page, fn -> PlaywrightEx.Client.Page.pause(page) end)
+  end
+
+  @doc since: "1.9"
+  @doc "Like `pause/1`, but returns the value and raises on error."
+  @spec pause!(t()) :: :ok
+  def pause!(page) do
+    Facade.async_void!("page.pause", page, fn -> PlaywrightEx.Client.Page.pause(page) end)
+  end
+
+  @pdf_options {:object,
+                %{
+                  display_header_footer: {:displayHeaderFooter, nil},
+                  footer_template: {:footerTemplate, nil},
+                  format: {:format, nil},
+                  header_template: {:headerTemplate, nil},
+                  height: {:height, nil},
+                  landscape: {:landscape, nil},
+                  margin: {:margin, {:fields, %{top: nil, right: nil, bottom: nil, left: nil}}},
+                  outline: {:outline, nil},
+                  page_ranges: {:pageRanges, nil},
+                  path: {:path, nil},
+                  prefer_css_page_size: {:preferCSSPageSize, nil},
+                  print_background: {:printBackground, nil},
+                  scale: {:scale, nil},
+                  tagged: {:tagged, nil},
+                  width: {:width, nil}
+                }}
+
+  @typedoc "Options of `pdf`, see its docs."
+  @type pdf_options ::
+          [
+            display_header_footer: boolean(),
+            footer_template: String.t(),
+            format: String.t(),
+            header_template: String.t(),
+            height: String.t() | number(),
+            landscape: boolean(),
+            margin: %{
+              optional(:top) => String.t() | number(),
+              optional(:right) => String.t() | number(),
+              optional(:bottom) => String.t() | number(),
+              optional(:left) => String.t() | number()
+            },
+            outline: boolean(),
+            page_ranges: String.t(),
+            path: String.t(),
+            prefer_css_page_size: boolean(),
+            print_background: boolean(),
+            scale: number(),
+            tagged: boolean(),
+            width: String.t() | number()
+          ]
+          | %{
+              optional(:display_header_footer) => boolean(),
+              optional(:footer_template) => String.t(),
+              optional(:format) => String.t(),
+              optional(:header_template) => String.t(),
+              optional(:height) => String.t() | number(),
+              optional(:landscape) => boolean(),
+              optional(:margin) => %{
+                optional(:top) => String.t() | number(),
+                optional(:right) => String.t() | number(),
+                optional(:bottom) => String.t() | number(),
+                optional(:left) => String.t() | number()
+              },
+              optional(:outline) => boolean(),
+              optional(:page_ranges) => String.t(),
+              optional(:path) => String.t(),
+              optional(:prefer_css_page_size) => boolean(),
+              optional(:print_background) => boolean(),
+              optional(:scale) => number(),
+              optional(:tagged) => boolean(),
+              optional(:width) => String.t() | number()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the PDF buffer.
+
+  `page.pdf()` generates a pdf of the page with `print` css media. To generate a pdf with `screen` media, call
+  `PlaywrightEx.Page.emulate_media/2` before calling `page.pdf()`:
+
+  > #### Note {: .info}
+  >
+  > By default, `page.pdf()` generates a pdf with modified colors for printing. Use the
+  > [`-webkit-print-color-adjust`](https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-print-color-adjust) property to
+  > force rendering of exact colors.
+
+  **Usage**
+
+  ```js
+  // Generates a PDF with 'screen' media type.
+  await page.emulateMedia({ media: 'screen' });
+  await page.pdf({ path: 'page.pdf' });
+  ```
+
+  The `width`, `height`, and `margin` options accept values labeled with units. Unlabeled
+  values are treated as pixels.
+
+  A few examples:
+
+  * `page.pdf({width: 100})` - prints with width set to 100 pixels
+  * `page.pdf({width: '100px'})` - prints with width set to 100 pixels
+  * `page.pdf({width: '10cm'})` - prints with width set to 10 centimeters.
+
+  All possible units are:
+
+  * `px` - pixel
+  * `in` - inch
+  * `cm` - centimeter
+  * `mm` - millimeter
+
+  The `format` options are:
+
+  * `Letter`: 8.5in x 11in
+  * `Legal`: 8.5in x 14in
+  * `Tabloid`: 11in x 17in
+  * `Ledger`: 17in x 11in
+  * `A0`: 33.1in x 46.8in
+  * `A1`: 23.4in x 33.1in
+  * `A2`: 16.54in x 23.4in
+  * `A3`: 11.7in x 16.54in
+  * `A4`: 8.27in x 11.7in
+  * `A5`: 5.83in x 8.27in
+  * `A6`: 4.13in x 5.83in
+
+  > #### Note {: .info}
+  >
+  > `headerTemplate` and `footerTemplate` markup have the following limitations: > 1. Script tags inside
+  > templates are not evaluated. > 2. Page styles are not visible inside templates.
+
+  ## Options
+
+  * `:display_header_footer` - Display header and footer. Defaults to `false`.
+  * `:footer_template` - HTML template for the print footer. Should use the same format as the `headerTemplate`.
+  * `:format` - Paper format. If set, takes priority over `width` or `height` options. Defaults to 'Letter'.
+  * `:header_template` - HTML template for the print header. Should be valid HTML markup with following classes used to inject printing values
+    into them:
+
+    * `'date'` formatted print date
+    * `'title'` document title
+    * `'url'` document location
+    * `'pageNumber'` current page number
+    * `'totalPages'` total pages in the document
+  * `:height` - Paper height, accepts values labeled with units.
+  * `:landscape` - Paper orientation. Defaults to `false`.
+  * `:margin` - Paper margins, defaults to none.
+    * `:top` - Top margin, accepts values labeled with units. Defaults to `0`.
+    * `:right` - Right margin, accepts values labeled with units. Defaults to `0`.
+    * `:bottom` - Bottom margin, accepts values labeled with units. Defaults to `0`.
+    * `:left` - Left margin, accepts values labeled with units. Defaults to `0`.
+  * `:outline` - *Since 1.42.* Whether or not to embed the document outline into the PDF. Defaults to `false`.
+  * `:page_ranges` - Paper ranges to print, e.g., '1-5, 8, 11-13'. Defaults to the empty string, which means print all pages.
+  * `:path` - The file path to save the PDF to. If `path` is a relative path, then it is resolved relative to the current
+    working directory. If no path is provided, the PDF won't be saved to the disk.
+  * `:prefer_css_page_size` - Give any CSS `@page` size declared in the page priority over what is declared in `width` and
+    `height` or `format` options. Defaults to `false`, which will scale the content to fit the paper
+    size.
+  * `:print_background` - Print background graphics. Defaults to `false`.
+  * `:scale` - Scale of the webpage rendering. Defaults to `1`. Scale amount must be between 0.1 and 2.
+  * `:tagged` - *Since 1.42.* Whether or not to generate tagged (accessible) PDF. Defaults to `false`.
+  * `:width` - Paper width, accepts values labeled with units.
+  """
+  @spec pdf(t(), pdf_options()) :: {:ok, binary()} | {:error, Exception.t()}
+  def pdf(page, options \\ []) do
+    options = Facade.options!(options, @pdf_options, "page.pdf")
+    Facade.async("page.pdf", page, fn -> PlaywrightEx.Client.Page.pdf(page, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `pdf/2`, but returns the value and raises on error."
+  @spec pdf!(t(), pdf_options()) :: binary()
+  def pdf!(page, options \\ []) do
+    options = Facade.options!(options, @pdf_options, "page.pdf")
+    Facade.async!("page.pdf", page, fn -> PlaywrightEx.Client.Page.pdf(page, options) end)
+  end
+
   @doc since: "1.59"
   @doc ~S"""
   Enters pick locator mode where hovering over page elements highlights them and shows the corresponding locator.
@@ -3457,6 +3759,66 @@ defmodule PlaywrightEx.Page do
     end)
   end
 
+  @remove_all_listeners_options {:object,
+                                 %{
+                                   behavior:
+                                     {:behavior,
+                                      {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
+                                 }}
+
+  @typedoc "Options of `remove_all_listeners`, see its docs."
+  @type remove_all_listeners_options ::
+          [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
+
+  @doc since: "1.47"
+  @doc ~S"""
+  Removes all the listeners of the given type (or all registered listeners if no type given).
+  Allows to wait for async listeners to complete or to ignore subsequent errors from these listeners.
+
+  **Usage**
+
+  ```js
+  page.on('request', async request => {
+    const response = await request.response();
+    const body = await response.body();
+    console.log(body.byteLength);
+  });
+  await page.goto('https://playwright.dev', { waitUntil: 'domcontentloaded' });
+  // Waits for all the reported 'request' events to resolve.
+  await page.removeAllListeners('request', { behavior: 'wait' });
+  ```
+
+  ## Options
+
+  * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
+
+    * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
+    * `'wait'` - wait for current listener calls (if any) to finish
+    * `'ignoreErrors'` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
+  """
+  @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
+          :ok | {:error, Exception.t()}
+  def remove_all_listeners(page, event \\ nil, options \\ []) do
+    event = Facade.event!(event, @events, "page.removeAllListeners")
+    options = Facade.options!(options, @remove_all_listeners_options, "page.removeAllListeners")
+
+    Facade.async_void("page.removeAllListeners", page, fn ->
+      PlaywrightEx.Client.Page.remove_all_listeners(page, event, options)
+    end)
+  end
+
+  @doc since: "1.47"
+  @doc "Like `remove_all_listeners/3`, but returns the value and raises on error."
+  @spec remove_all_listeners!(t(), event() | String.t() | nil, remove_all_listeners_options()) :: :ok
+  def remove_all_listeners!(page, event \\ nil, options \\ []) do
+    event = Facade.event!(event, @events, "page.removeAllListeners")
+    options = Facade.options!(options, @remove_all_listeners_options, "page.removeAllListeners")
+
+    Facade.async_void!("page.removeAllListeners", page, fn ->
+      PlaywrightEx.Client.Page.remove_all_listeners(page, event, options)
+    end)
+  end
+
   @doc since: "1.44"
   @doc ~S"""
   Removes all locator handlers added by `PlaywrightEx.Page.add_locator_handler/4` for a specific locator.
@@ -3690,7 +4052,7 @@ defmodule PlaywrightEx.Page do
     * If set to 'fallback' missing requests will be sent to the network.
 
     Defaults to abort.
-  * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/1` is called.
+  * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.
   * `:update_content` - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
   * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
   * `:url` - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.

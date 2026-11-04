@@ -16,6 +16,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.HarRouter
   alias PlaywrightEx.Client.JSHandle
@@ -567,7 +568,31 @@ defmodule PlaywrightEx.Client.BrowserContext do
     end)
   end
 
-  # storageState, setStorageState  -- not ported
+  def storage_state(this, options \\ %{}) do
+    options = options || %{}
+
+    state =
+      channel_call(
+        this,
+        :storageState,
+        %{indexedDB: options[:indexedDB], opfs: options[:opfs], credentials: options[:credentials]},
+        TimeoutSettings.k_no_timeout()
+      )
+
+    if options[:path] do
+      FileUtils.mkdir_if_needed(options.path)
+      # JSON.stringify(state, undefined, 2)  -- compact: Elixir's JSON has no indentation
+      File.write!(options.path, JSON.encode!(state))
+    end
+
+    state
+  end
+
+  def set_storage_state(this, storage_state) do
+    state = prepare_storage_state(storage_state)
+    channel_call(this, :setStorageState, %{storageState: state}, TimeoutSettings.k_no_timeout())
+    nil
+  end
 
   def background_pages(_this) do
     []

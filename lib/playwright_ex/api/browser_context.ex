@@ -163,8 +163,6 @@ defmodule PlaywrightEx.BrowserContext do
   > Service workers are only supported on Chromium-based browsers.
 
   Emitted when new service worker is created in the context.
-
-  Not ported yet: `removeAllListeners`, `storageState`, `setStorageState`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -844,6 +842,53 @@ defmodule PlaywrightEx.BrowserContext do
     PlaywrightEx.Client.BrowserContext.pages(browser_context)
   end
 
+  @remove_all_listeners_options {:object,
+                                 %{
+                                   behavior:
+                                     {:behavior,
+                                      {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
+                                 }}
+
+  @typedoc "Options of `remove_all_listeners`, see its docs."
+  @type remove_all_listeners_options ::
+          [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
+
+  @doc since: "1.47"
+  @doc ~S"""
+  Removes all the listeners of the given type (or all registered listeners if no type given).
+  Allows to wait for async listeners to complete or to ignore subsequent errors from these listeners.
+
+  ## Options
+
+  * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
+
+    * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
+    * `'wait'` - wait for current listener calls (if any) to finish
+    * `'ignoreErrors'` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
+  """
+  @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
+          :ok | {:error, Exception.t()}
+  def remove_all_listeners(browser_context, event \\ nil, options \\ []) do
+    event = Facade.event!(event, @events, "browserContext.removeAllListeners")
+    options = Facade.options!(options, @remove_all_listeners_options, "browserContext.removeAllListeners")
+
+    Facade.async_void("browserContext.removeAllListeners", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.remove_all_listeners(browser_context, event, options)
+    end)
+  end
+
+  @doc since: "1.47"
+  @doc "Like `remove_all_listeners/3`, but returns the value and raises on error."
+  @spec remove_all_listeners!(t(), event() | String.t() | nil, remove_all_listeners_options()) :: :ok
+  def remove_all_listeners!(browser_context, event \\ nil, options \\ []) do
+    event = Facade.event!(event, @events, "browserContext.removeAllListeners")
+    options = Facade.options!(options, @remove_all_listeners_options, "browserContext.removeAllListeners")
+
+    Facade.async_void!("browserContext.removeAllListeners", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.remove_all_listeners(browser_context, event, options)
+    end)
+  end
+
   @doc since: "1.16"
   @doc ~S"""
   API testing helper associated with this context. Requests made with this API will use context cookies.
@@ -992,7 +1037,7 @@ defmodule PlaywrightEx.BrowserContext do
     * If set to 'fallback' falls through to the next route handler in the handler chain.
 
     Defaults to abort.
-  * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/1` is called.
+  * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.
   * `:update_content` - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
   * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
   * `:url` - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
@@ -1289,6 +1334,223 @@ defmodule PlaywrightEx.BrowserContext do
   def set_offline!(browser_context, offline) do
     Facade.async_void!("browserContext.setOffline", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.set_offline(browser_context, offline)
+    end)
+  end
+
+  @storage_state_options {:object,
+                          %{
+                            credentials: {:credentials, nil},
+                            indexed_db: {:indexedDB, nil},
+                            opfs: {:opfs, nil},
+                            path: {:path, nil}
+                          }}
+
+  @typedoc "Options of `storage_state`, see its docs."
+  @type storage_state_options ::
+          [credentials: boolean(), indexed_db: boolean(), opfs: boolean(), path: String.t()]
+          | %{
+              optional(:credentials) => boolean(),
+              optional(:indexed_db) => boolean(),
+              optional(:opfs) => boolean(),
+              optional(:path) => String.t()
+            }
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns storage state for this browser context, contains current cookies, local storage snapshot, IndexedDB snapshot, origin private file system snapshot and virtual WebAuthn credentials.
+
+  ## Options
+
+  * `:credentials` - *Since 1.61.* Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage
+    state snapshot. The captured credentials carry their private keys and signature counters, so they can be re-seeded into a later context via the
+    `storageState` option or `PlaywrightEx.BrowserContext.set_storage_state/2`.
+    Note that restoring the storage state that contains credentials will automatically install the virtual WebAuthn authenticator (see `PlaywrightEx.Credentials.install/1`), and prevent all real authenticators from working in this context.
+  * `:indexed_db` - *Since 1.51.* Set to `true` to include [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) in the storage state snapshot.
+    If your application uses IndexedDB to store authentication tokens, like Firebase Authentication, enable this.
+  * `:opfs` - *Since 1.63.* Set to `true` to include the [origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system)
+    in the storage state snapshot.
+
+    > #### Note {: .info}
+    >
+    > OPFS is currently not supported in ephemeral WebKit contexts.
+  * `:path` - The file path to save the storage state to. If `path` is a relative path, then it is resolved relative to
+    current working directory. If no path is provided, storage
+    state is still returned, but won't be saved to the disk.
+  """
+  @spec storage_state(t(), storage_state_options()) ::
+          {:ok,
+           %{
+             required(:cookies) => [
+               %{
+                 required(:name) => String.t(),
+                 required(:value) => String.t(),
+                 required(:domain) => String.t(),
+                 required(:path) => String.t(),
+                 required(:expires) => number(),
+                 required(:httpOnly) => boolean(),
+                 required(:secure) => boolean(),
+                 required(:sameSite) => String.t(),
+                 optional(atom()) => term()
+               }
+             ],
+             required(:origins) => [
+               %{
+                 required(:origin) => String.t(),
+                 required(:localStorage) => [
+                   %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                 ],
+                 optional(atom()) => term()
+               }
+             ],
+             optional(atom()) => term()
+           }}
+          | {:error, Exception.t()}
+  def storage_state(browser_context, options \\ []) do
+    options = Facade.options!(options, @storage_state_options, "browserContext.storageState")
+
+    Facade.async("browserContext.storageState", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.storage_state(browser_context, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `storage_state/2`, but returns the value and raises on error."
+  @spec storage_state!(t(), storage_state_options()) :: %{
+          required(:cookies) => [
+            %{
+              required(:name) => String.t(),
+              required(:value) => String.t(),
+              required(:domain) => String.t(),
+              required(:path) => String.t(),
+              required(:expires) => number(),
+              required(:httpOnly) => boolean(),
+              required(:secure) => boolean(),
+              required(:sameSite) => String.t(),
+              optional(atom()) => term()
+            }
+          ],
+          required(:origins) => [
+            %{
+              required(:origin) => String.t(),
+              required(:localStorage) => [
+                %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+              ],
+              optional(atom()) => term()
+            }
+          ],
+          optional(atom()) => term()
+        }
+  def storage_state!(browser_context, options \\ []) do
+    options = Facade.options!(options, @storage_state_options, "browserContext.storageState")
+
+    Facade.async!("browserContext.storageState", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.storage_state(browser_context, options)
+    end)
+  end
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Clears the existing cookies, local storage, IndexedDB entries, origin private file system entries and virtual WebAuthn credentials, and sets the new storage
+  state. When the storage state contains credentials, the virtual WebAuthn authenticator is installed (equivalent to
+  `PlaywrightEx.Credentials.install/1`), preventing all real authenticators from working in this context.
+
+  **Usage**
+
+  ```js
+  // Load storage state from a file and apply it to the context.
+  await context.setStorageState('state.json');
+  ```
+
+  ## Arguments
+
+  * `storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `PlaywrightEx.BrowserContext.storage_state/2`.
+
+    * `:cookies` - Cookies to set for context
+      * `:name`
+      * `:value`
+      * `:domain` - Domain and path are required. For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com"
+      * `:path` - Domain and path are required
+      * `:expires` - Unix time in seconds.
+      * `:httpOnly`
+      * `:secure`
+      * `:sameSite` - sameSite flag
+    * `:origins`
+      * `:origin`
+      * `:localStorage` - localStorage to set for context
+        * `:name`
+        * `:value`
+  """
+  @spec set_storage_state(
+          t(),
+          String.t()
+          | %{
+              required(:cookies) => [
+                %{
+                  required(:name) => String.t(),
+                  required(:value) => String.t(),
+                  required(:domain) => String.t(),
+                  required(:path) => String.t(),
+                  required(:expires) => number(),
+                  required(:httpOnly) => boolean(),
+                  required(:secure) => boolean(),
+                  required(:sameSite) => String.t(),
+                  optional(atom()) => term()
+                }
+              ],
+              required(:origins) => [
+                %{
+                  required(:origin) => String.t(),
+                  required(:localStorage) => [
+                    %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                  ],
+                  optional(atom()) => term()
+                }
+              ],
+              optional(atom()) => term()
+            }
+        ) :: :ok | {:error, Exception.t()}
+  def set_storage_state(browser_context, storage_state) do
+    Facade.async_void("browserContext.setStorageState", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.set_storage_state(browser_context, storage_state)
+    end)
+  end
+
+  @doc since: "1.59"
+  @doc "Like `set_storage_state/2`, but returns the value and raises on error."
+  @spec set_storage_state!(
+          t(),
+          String.t()
+          | %{
+              required(:cookies) => [
+                %{
+                  required(:name) => String.t(),
+                  required(:value) => String.t(),
+                  required(:domain) => String.t(),
+                  required(:path) => String.t(),
+                  required(:expires) => number(),
+                  required(:httpOnly) => boolean(),
+                  required(:secure) => boolean(),
+                  required(:sameSite) => String.t(),
+                  optional(atom()) => term()
+                }
+              ],
+              required(:origins) => [
+                %{
+                  required(:origin) => String.t(),
+                  required(:localStorage) => [
+                    %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                  ],
+                  optional(atom()) => term()
+                }
+              ],
+              optional(atom()) => term()
+            }
+        ) :: :ok
+  def set_storage_state!(browser_context, storage_state) do
+    Facade.async_void!("browserContext.setStorageState", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.set_storage_state(browser_context, storage_state)
     end)
   end
 

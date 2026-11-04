@@ -1054,8 +1054,19 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "Unexpected 'data' type"
   end
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "context request should export same storage state as context"
+  test "context request should export same storage state as context", %{context: context, page: page, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      conn |> set_cookies(["a=b", "c=d"]) |> Plug.Conn.send_resp(200, "")
+    end)
+
+    APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/setcookie.html")
+    context_state = BrowserContext.storage_state!(context)
+    assert length(context_state.cookies) == 2
+    request_state = APIRequestContext.storage_state!(BrowserContext.request(context))
+    assert request_state == context_state
+    page_state = APIRequestContext.storage_state!(Page.request(page))
+    assert page_state == context_state
+  end
 
   test "should send secure cookie over http for localhost", %{page: page, server: server} do
     # it.skip(channel === 'webkit-wsl')  -- we run no channel

@@ -28,8 +28,6 @@ defmodule PlaywrightEx.Browser do
 
   * Browser application is closed or crashed.
   * The `PlaywrightEx.Browser.close/2` method was called.
-
-  Not ported yet: `removeAllListeners`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -64,7 +62,7 @@ defmodule PlaywrightEx.Browser do
 
   > #### Note {: .info}
   >
-  > This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close events, call `PlaywrightEx.BrowserContext.close/1` on any [`BrowserContext`](`PlaywrightEx.BrowserContext`) instances you explicitly created earlier using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
+  > This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close events, call `PlaywrightEx.BrowserContext.close/2` on any [`BrowserContext`](`PlaywrightEx.BrowserContext`) instances you explicitly created earlier using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
 
   The [`Browser`](`PlaywrightEx.Browser`) object itself is considered to be disposed and cannot be used anymore.
 
@@ -203,28 +201,7 @@ defmodule PlaywrightEx.Browser do
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                           screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                          storage_state:
-                            {:storageState,
-                             {:fields,
-                              %{
-                                cookies:
-                                  {:array,
-                                   {:fields,
-                                    %{
-                                      name: nil,
-                                      value: nil,
-                                      domain: nil,
-                                      path: nil,
-                                      expires: nil,
-                                      httpOnly: nil,
-                                      secure: nil,
-                                      sameSite: nil
-                                    }}},
-                                origins:
-                                  {:array,
-                                   {:fields,
-                                    %{origin: nil, localStorage: {:array, {:fields, %{name: nil, value: nil}}}}}}
-                              }}},
+                          storage_state: {:storageState, nil},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
@@ -316,19 +293,29 @@ defmodule PlaywrightEx.Browser do
             storage_state:
               String.t()
               | %{
-                  cookies: [
+                  required(:cookies) => [
                     %{
-                      name: String.t(),
-                      value: String.t(),
-                      domain: String.t(),
-                      path: String.t(),
-                      expires: number(),
-                      httpOnly: boolean(),
-                      secure: boolean(),
-                      sameSite: String.t()
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      required(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      required(:sameSite) => String.t(),
+                      optional(atom()) => term()
                     }
                   ],
-                  origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      required(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                      ],
+                      optional(atom()) => term()
+                    }
+                  ],
+                  optional(atom()) => term()
                 },
             strict_selectors: boolean(),
             timezone_id: String.t(),
@@ -418,19 +405,29 @@ defmodule PlaywrightEx.Browser do
               optional(:storage_state) =>
                 String.t()
                 | %{
-                    cookies: [
+                    required(:cookies) => [
                       %{
-                        name: String.t(),
-                        value: String.t(),
-                        domain: String.t(),
-                        path: String.t(),
-                        expires: number(),
-                        httpOnly: boolean(),
-                        secure: boolean(),
-                        sameSite: String.t()
+                        required(:name) => String.t(),
+                        required(:value) => String.t(),
+                        required(:domain) => String.t(),
+                        required(:path) => String.t(),
+                        required(:expires) => number(),
+                        required(:httpOnly) => boolean(),
+                        required(:secure) => boolean(),
+                        required(:sameSite) => String.t(),
+                        optional(atom()) => term()
                       }
                     ],
-                    origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                    required(:origins) => [
+                      %{
+                        required(:origin) => String.t(),
+                        required(:localStorage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                        ],
+                        optional(atom()) => term()
+                      }
+                    ],
+                    optional(atom()) => term()
                   },
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
@@ -444,7 +441,7 @@ defmodule PlaywrightEx.Browser do
 
   > #### Note {: .info}
   >
-  > If directly using this method to create [`BrowserContext`](`PlaywrightEx.BrowserContext`)s, it is best practice to explicitly close the returned context via `PlaywrightEx.BrowserContext.close/1` when your code is done with the [`BrowserContext`](`PlaywrightEx.BrowserContext`),
+  > If directly using this method to create [`BrowserContext`](`PlaywrightEx.BrowserContext`)s, it is best practice to explicitly close the returned context via `PlaywrightEx.BrowserContext.close/2` when your code is done with the [`BrowserContext`](`PlaywrightEx.BrowserContext`),
   > and before calling `PlaywrightEx.Browser.close/2`. This will ensure the `context` is closed gracefully and any artifacts—like HARs and videos—are fully flushed and saved.
 
   **Usage**
@@ -494,11 +491,11 @@ defmodule PlaywrightEx.Browser do
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
-    [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+    `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
   * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
   * `:geolocation`
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
@@ -527,7 +524,7 @@ defmodule PlaywrightEx.Browser do
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
   * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
-    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
+    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/2` for the HAR to be
     saved.
     * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
       `false`. Deprecated, use `content` policy instead.
@@ -536,7 +533,7 @@ defmodule PlaywrightEx.Browser do
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
     * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
   * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
-    sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
+    sure to await `PlaywrightEx.BrowserContext.close/2` for videos to be saved.
     * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
     * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
       scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
@@ -553,7 +550,7 @@ defmodule PlaywrightEx.Browser do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
     `viewport` is set.
     * `:width` - page width in pixels.
@@ -564,7 +561,7 @@ defmodule PlaywrightEx.Browser do
     * `'block'`: Playwright will block all registration of Service Workers.
   * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
 
-    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via [`BrowserContext.storageState`](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state).
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `PlaywrightEx.BrowserContext.storage_state/2`.
 
     * `:cookies` - Cookies to set for context
       * `:name`
@@ -677,27 +674,7 @@ defmodule PlaywrightEx.Browser do
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                        screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                       storage_state:
-                         {:storageState,
-                          {:fields,
-                           %{
-                             cookies:
-                               {:array,
-                                {:fields,
-                                 %{
-                                   name: nil,
-                                   value: nil,
-                                   domain: nil,
-                                   path: nil,
-                                   expires: nil,
-                                   httpOnly: nil,
-                                   secure: nil,
-                                   sameSite: nil
-                                 }}},
-                             origins:
-                               {:array,
-                                {:fields, %{origin: nil, localStorage: {:array, {:fields, %{name: nil, value: nil}}}}}}
-                           }}},
+                       storage_state: {:storageState, nil},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
@@ -789,19 +766,29 @@ defmodule PlaywrightEx.Browser do
             storage_state:
               String.t()
               | %{
-                  cookies: [
+                  required(:cookies) => [
                     %{
-                      name: String.t(),
-                      value: String.t(),
-                      domain: String.t(),
-                      path: String.t(),
-                      expires: number(),
-                      httpOnly: boolean(),
-                      secure: boolean(),
-                      sameSite: String.t()
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      required(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      required(:sameSite) => String.t(),
+                      optional(atom()) => term()
                     }
                   ],
-                  origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      required(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                      ],
+                      optional(atom()) => term()
+                    }
+                  ],
+                  optional(atom()) => term()
                 },
             strict_selectors: boolean(),
             timezone_id: String.t(),
@@ -891,19 +878,29 @@ defmodule PlaywrightEx.Browser do
               optional(:storage_state) =>
                 String.t()
                 | %{
-                    cookies: [
+                    required(:cookies) => [
                       %{
-                        name: String.t(),
-                        value: String.t(),
-                        domain: String.t(),
-                        path: String.t(),
-                        expires: number(),
-                        httpOnly: boolean(),
-                        secure: boolean(),
-                        sameSite: String.t()
+                        required(:name) => String.t(),
+                        required(:value) => String.t(),
+                        required(:domain) => String.t(),
+                        required(:path) => String.t(),
+                        required(:expires) => number(),
+                        required(:httpOnly) => boolean(),
+                        required(:secure) => boolean(),
+                        required(:sameSite) => String.t(),
+                        optional(atom()) => term()
                       }
                     ],
-                    origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                    required(:origins) => [
+                      %{
+                        required(:origin) => String.t(),
+                        required(:localStorage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                        ],
+                        optional(atom()) => term()
+                      }
+                    ],
+                    optional(atom()) => term()
                   },
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
@@ -949,11 +946,11 @@ defmodule PlaywrightEx.Browser do
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
-    [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+    `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
   * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
   * `:geolocation`
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
@@ -982,7 +979,7 @@ defmodule PlaywrightEx.Browser do
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
   * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
-    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
+    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/2` for the HAR to be
     saved.
     * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
       `false`. Deprecated, use `content` policy instead.
@@ -991,7 +988,7 @@ defmodule PlaywrightEx.Browser do
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
     * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
   * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
-    sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
+    sure to await `PlaywrightEx.BrowserContext.close/2` for videos to be saved.
     * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
     * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
       scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
@@ -1008,7 +1005,7 @@ defmodule PlaywrightEx.Browser do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
     `viewport` is set.
     * `:width` - page width in pixels.
@@ -1019,7 +1016,7 @@ defmodule PlaywrightEx.Browser do
     * `'block'`: Playwright will block all registration of Service Workers.
   * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
 
-    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via [`BrowserContext.storageState`](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state).
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `PlaywrightEx.BrowserContext.storage_state/2`.
 
     * `:cookies` - Cookies to set for context
       * `:name`
@@ -1113,6 +1110,53 @@ defmodule PlaywrightEx.Browser do
   def bind!(browser, title, options \\ []) do
     options = Facade.options!(options, @bind_options, "browser.bind")
     Facade.async!("browser.bind", browser, fn -> PlaywrightEx.Client.Browser.bind(browser, title, options) end)
+  end
+
+  @remove_all_listeners_options {:object,
+                                 %{
+                                   behavior:
+                                     {:behavior,
+                                      {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
+                                 }}
+
+  @typedoc "Options of `remove_all_listeners`, see its docs."
+  @type remove_all_listeners_options ::
+          [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
+
+  @doc since: "1.47"
+  @doc ~S"""
+  Removes all the listeners of the given type (or all registered listeners if no type given).
+  Allows to wait for async listeners to complete or to ignore subsequent errors from these listeners.
+
+  ## Options
+
+  * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
+
+    * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
+    * `'wait'` - wait for current listener calls (if any) to finish
+    * `'ignoreErrors'` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
+  """
+  @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
+          :ok | {:error, Exception.t()}
+  def remove_all_listeners(browser, event \\ nil, options \\ []) do
+    event = Facade.event!(event, @events, "browser.removeAllListeners")
+    options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
+
+    Facade.async_void("browser.removeAllListeners", browser, fn ->
+      PlaywrightEx.Client.Browser.remove_all_listeners(browser, event, options)
+    end)
+  end
+
+  @doc since: "1.47"
+  @doc "Like `remove_all_listeners/3`, but returns the value and raises on error."
+  @spec remove_all_listeners!(t(), event() | String.t() | nil, remove_all_listeners_options()) :: :ok
+  def remove_all_listeners!(browser, event \\ nil, options \\ []) do
+    event = Facade.event!(event, @events, "browser.removeAllListeners")
+    options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
+
+    Facade.async_void!("browser.removeAllListeners", browser, fn ->
+      PlaywrightEx.Client.Browser.remove_all_listeners(browser, event, options)
+    end)
   end
 
   @start_tracing_options {:object,

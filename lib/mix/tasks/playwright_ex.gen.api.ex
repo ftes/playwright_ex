@@ -11,13 +11,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   `filterForLanguage`, using the installed driver's Node (no npm install). Then
   `Mix.PlaywrightEx.ApiRules` applies the Elixir rules.
 
-  Writes `lib/playwright_ex/api/<class>.ex` for every class whose `PlaywrightEx.Client.<Class>`
-  is ported. A member is generated when the client exports it with the JS arity (receiver
-  plus JS arguments), so regenerate after porting a method; the others are listed in the
-  moduledoc as not ported. Each function sets the API name for errors, converts options
-  (`PlaywrightEx.Runtime.Facade`), carries docs and specs, and calls the client directly, so a
-  client function that disappears is a compile warning. Docs render from the `spec` markdown AST;
-  options get a `@type <member>_options`.
+  Writes `lib/playwright_ex/api/<class>.ex` for every class and member the rules keep (what is
+  out of scope is dropped there, with its reason). Each function sets the API name for errors,
+  converts options (`PlaywrightEx.Runtime.Facade`), carries docs and specs, and calls
+  `PlaywrightEx.Client.<Class>` with the JS arity (receiver plus JS arguments), so a client
+  function that is missing is a compile warning (`--warnings-as-errors` in CI). Docs render from
+  the `spec` markdown AST; options get a `@type <member>_options`.
 
     * `async: true` members: `name/n` returns `{:ok, value} | {:error, exception}` (`:ok` for
       `void`), `name!/n` returns the value or raises.
@@ -109,14 +108,13 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   @doc false
-  # %{path => source} for every ported class.
+  # %{path => source} for every class.
   def sources(repo) do
     api = api_json(repo)
-    classes = api |> ApiRules.apply(api_json(repo, "python")) |> Enum.filter(&Code.ensure_loaded?(impl(&1["name"])))
+    classes = ApiRules.apply(api, api_json(repo, "python"))
 
     ctx = %{
       classes: Map.new(classes, &{&1["name"], &1}),
-      exported: Map.new(classes, &{&1["name"], exported(&1)}),
       # Every upstream class, for links to playwright.dev.
       all: MapSet.new(api, & &1["name"])
     }
@@ -132,65 +130,28 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp impl(class_name), do: Module.concat(PlaywrightEx.Client, class_name)
   defp facade(class_name), do: Module.concat(PlaywrightEx, class_name)
 
-  # Members of `class` the client implements, by alias. A callback form (`expect_popup`) is
-  # generated when the client implements the wait it starts and its result class.
-  defp exported(class) do
-    impl = impl(class["name"])
+  # The matcher's function in `customAsyncMatchers`, with the JS arity (this, receiver, arguments).
+  defp matcher_function(%{"matcher" => %{"name" => name}} = member) do
+    fun = PlaywrightEx.Matchers.Expect.custom_async_matchers()[name]
 
-    for member <- class["members"],
-        member["kind"] in ["method", "property"],
-        exported?(impl, member),
-        into: MapSet.new(),
-        do: member["alias"]
+    if !is_function(fun, 2 + length(member["args"])),
+      do: Mix.raise("gen.api: matcher #{name} is missing from PlaywrightEx.Matchers.Expect.custom_async_matchers/0")
+
+    fun
   end
-
-  # A matcher is exported when `customAsyncMatchers` has it with the JS arity (this, receiver,
-  # arguments) and its receiver classes are ported.
-  defp exported?(_impl, %{"matcher" => matcher} = member) do
-    fun = matcher_function(member)
-
-    is_function(fun, 2 + length(member["args"])) and
-      Enum.all?(matcher["receivers"], &Code.ensure_loaded?(impl(&1)))
-  end
-
-  defp exported?(impl, member) do
-    {name, arity} = client_function(member)
-    function_exported?(impl, String.to_atom(name), arity) and result_ported?(member)
-  end
-
-  defp matcher_function(%{"matcher" => %{"name" => name}}),
-    do: PlaywrightEx.Matchers.Expect.custom_async_matchers()[name]
-
-  defp client_function(%{"callback" => %{"call" => call, "event" => nil}} = member),
-    do: {snake(call), 1 + length(member["args"])}
-
-  defp client_function(%{"callback" => %{"call" => call}} = member), do: {snake(call), 2 + length(member["args"])}
-  defp client_function(member), do: {snake(member["alias"]), 1 + length(member["args"])}
-
-  defp result_ported?(%{"callback" => _, "type" => %{"name" => name}}) when name not in ["any", "null", ""],
-    do: Code.ensure_loaded?(impl(name))
-
-  defp result_ported?(_member), do: true
 
   # --- modules -----------------------------------------------------------------
 
   defp class_source(ctx, class) do
     name = class["name"]
-    exported = ctx.exported[name]
     members = class["members"] |> Enum.reject(&(&1["kind"] == "event")) |> Enum.uniq_by(& &1["alias"])
-    {ported, unported} = Enum.split_with(members, &(&1["alias"] in exported))
     events = for m <- class["members"], m["kind"] == "event", do: m
-    receiver = receiver(name, ported)
-
-    listeners =
-      for method <- @listener_methods,
-          events != [],
-          function_exported?(impl(name), String.to_atom(snake(method)), 3),
-          do: method
+    receiver = receiver(name, members)
+    listeners = if events != [], do: @listener_methods, else: []
 
     # `@events` maps event atoms to JS names, for listeners and `event` arguments (`wait_for_event`).
     events_table =
-      if listeners != [] or Enum.any?(ported, &event_arg?/1),
+      if listeners != [] or Enum.any?(members, &event_arg?/1),
         do: "@events #{render({:map, Enum.map(events, &{event_atom(&1), String.downcase(&1["name"])})})}"
 
     handle_type =
@@ -205,7 +166,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     #{events_table}
 
-    #{Enum.map_join(ported, "\n\n", &member_source(ctx, class, &1, receiver))}
+    #{Enum.map_join(members, "\n\n", &member_source(ctx, class, &1, receiver))}
 
     #{listeners_source(ctx, class, events, listeners, receiver)}
     """
@@ -213,7 +174,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     """
     #{@header}
     defmodule #{inspect(facade(name))} do
-      #{String.replace(since(class), "@doc", "@moduledoc")}@moduledoc #{doc(module_doc(ctx, class, events, unported))}
+      #{String.replace(since(class), "@doc", "@moduledoc")}@moduledoc #{doc(module_doc(ctx, class, events))}
 
       #{if String.contains?(body, "Facade."), do: "alias PlaywrightEx.Runtime.Facade"}
 
@@ -226,20 +187,18 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp struct_type(ctx, name) do
     subclasses = for {sub, %{"extends" => ^name}} <- ctx.classes, do: sub
 
-    if function_exported?(impl(name), :__struct__, 0),
+    if Code.ensure_loaded?(impl(name)) and function_exported?(impl(name), :__struct__, 0),
       do: Enum.map_join([name | Enum.sort(subclasses)], " | ", &"%#{inspect(impl(&1))}{}"),
       else: "term()"
   end
 
-  defp module_doc(ctx, class, events, unported) do
+  defp module_doc(ctx, class, events) do
     sections([
       md(class["spec"], ctx),
       class["extends"] && extends_doc(ctx, class["extends"]),
       events != [] &&
         "## Events\n\n" <>
-          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"])),
-      unported != [] &&
-        "Not ported yet: " <> Enum.map_join(unported, ", ", &"`#{&1["alias"]}`") <> "."
+          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"]))
     ])
   end
 
@@ -445,9 +404,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     positional ++ [action | options]
   end
 
-  defp promise_doc(ctx, class, member, arity) do
+  defp promise_doc(_ctx, class, member, arity) do
     callback =
-      if member["promise"] in ctx.exported[class["name"]],
+      if Enum.any?(class["members"], &(&1["alias"] == member["promise"])),
         do: " The callback form is `#{member["promise"]}/#{arity + 1}`.",
         else: ""
 
@@ -597,6 +556,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # properties of an object value to it (`multipart`).
   defp schema(_ctx, %{"name" => "Object", "templates" => [_, _]}, _mode), do: nil
 
+  # An open object (a storage state, see `Mix.PlaywrightEx.ApiRules`): passed as it is.
+  defp schema(_ctx, %{"open" => true}, _mode), do: nil
+
   defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =
       for prop <- Enum.uniq_by(props, & &1["name"]),
@@ -621,6 +583,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     value = String.trim(quoted, "\"")
     {value |> String.replace("-", "_") |> Macro.underscore() |> String.to_atom(), value}
   end
+
+  # Exceptions by JS class name.
+  @errors %{"TimeoutError" => PlaywrightEx.Client.Errors.TimeoutError}
 
   @simple %{
     "string" => "String.t()",
@@ -648,7 +613,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # Inputs as the facade takes them (snake_case keys, enums as atoms), outputs as the client
   # returns them (JS keys, enums as strings).
   defp arg_spec(_ctx, %{"name" => "options"}, name), do: "#{name}_options()"
-  defp arg_spec(_ctx, %{"name" => "event", "type" => %{"name" => "string"}}, _name), do: "event() | String.t()"
+
+  defp arg_spec(_ctx, %{"name" => "event", "type" => %{"name" => "string"}} = arg, _name),
+    do: nullable(arg, "event() | String.t()")
+
   defp arg_spec(ctx, arg, _name), do: nullable(arg, prop_spec(ctx, arg))
 
   defp nullable(%{"required" => false}, spec), do: "#{spec} | nil"
@@ -687,8 +655,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # Objects are JS values both ways: results as the client returns them, inputs (nested in
   # options or positional) passed as they are, so a result can be passed back.
-  defp type_spec(ctx, %{"properties" => props}, dir) when is_list(props) and props != [],
-    do: object_spec(ctx, Enum.uniq_by(props, & &1["name"]), if(dir == :out, do: :out, else: :nested))
+  defp type_spec(ctx, %{"properties" => props} = type, dir) when is_list(props) and props != [],
+    do: object_spec(ctx, Enum.uniq_by(props, & &1["name"]), if(dir == :out, do: :out, else: :nested), type["open"])
 
   # `X | null` results are `nil` (`from_nullable`); `:null` is a JS value passed in.
   defp type_spec(_ctx, %{"name" => "null"}, :out), do: "nil"
@@ -697,6 +665,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp type_spec(_ctx, %{"name" => "Object"}, _dir), do: "map()"
   defp type_spec(ctx, %{"name" => "Promise", "templates" => [value]}, dir), do: type_spec(ctx, value, dir)
+
+  # `typeof TimeoutError` (`playwright.errors`): the exception module.
+  defp type_spec(_ctx, %{"name" => "typeof", "templates" => [%{"name" => name}]}, _dir),
+    do: inspect(Map.fetch!(@errors, name))
 
   # A callback: Playwright passes the arguments (outputs) and takes the result (an input).
   defp type_spec(ctx, %{"name" => "function", "args" => args} = fun, _dir) when is_list(args) do
@@ -720,12 +692,15 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   # JS keys, `%{width: number(), height: number()}`.
-  defp object_spec(ctx, props, dir) do
+  # An open object has more fields than documented: `optional(atom()) => term()`.
+  defp object_spec(ctx, props, dir, open?) do
     fields = for p <- props, do: {p["required"], String.to_atom(p["name"]), type_spec(ctx, p["type"], dir)}
 
-    if Enum.all?(fields, &elem(&1, 0)),
-      do: "%{#{Enum.map_join(fields, ", ", fn {_, k, t} -> "#{key(k)} #{t}" end)}}",
-      else: "%{#{Enum.map_join(fields, ", ", &map_field/1)}}"
+    cond do
+      open? -> "%{#{Enum.map_join(fields, ", ", &map_field/1)}, optional(atom()) => term()}"
+      Enum.all?(fields, &elem(&1, 0)) -> "%{#{Enum.map_join(fields, ", ", fn {_, k, t} -> "#{key(k)} #{t}" end)}}"
+      true -> "%{#{Enum.map_join(fields, ", ", &map_field/1)}}"
+    end
   end
 
   defp map_field({true, key, type}), do: "required(#{inspect(key)}) => #{type}"
@@ -836,8 +811,6 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # (`[Promise]`), in one pass so that code and link texts are left alone.
   @inline ~r/\[`(method|property|event): (\w+)\.(\w+)(?:#\w+)?`\]|\[([^\]]*)\]\(([^)]*)\)|`([^`]+)`|\[([A-Za-z]\w*)\]/
 
-  @errors %{"TimeoutError" => PlaywrightEx.Client.Errors.TimeoutError}
-
   # Upstream joins the lines of a paragraph with `↵` (soft line breaks).
   defp text(text, ctx) do
     text
@@ -870,8 +843,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp member_link(ctx, _kind, class, member) do
     with %{} = c <- ctx.classes[class],
-         true <- member in ctx.exported[class],
-         %{} = m <- Enum.find(c["members"], &(&1["alias"] == member)) do
+         %{} = m <- Enum.find(c["members"], &(&1["alias"] == member and &1["kind"] != "event")) do
       "`#{inspect(facade(class))}.#{snake(member)}/#{1 + length(m["args"])}`"
     else
       _ -> "[`#{class}.#{member}`](#{dev_url(class)}##{kebab(class)}-#{kebab(member)})"

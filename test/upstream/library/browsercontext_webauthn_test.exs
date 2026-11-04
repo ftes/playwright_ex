@@ -201,8 +201,31 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert got_id == created_id
   end
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "should reuse a page-created credential via the storageState option"
+  test "should reuse a page-created credential via the storageState option", %{
+    context_factory: context_factory,
+    server: server
+  } do
+    # Setup context: the app registers a passkey via navigator.credentials.create().
+    setup_context = context_factory.([])
+    Credentials.install!(BrowserContext.credentials(setup_context))
+    setup_page = BrowserContext.new_page!(setup_context)
+    Page.goto!(setup_page, server.empty_page)
+
+    created_id = Page.evaluate!(setup_page, @create_credential, %{rpId: server.hostname})
+
+    # Capture the passkey as part of the storage state.
+    storage_state = BrowserContext.storage_state!(setup_context, credentials: true)
+
+    # A context created from the storage state has the authenticator installed and signs in with
+    # the captured passkey — without calling install() again.
+    context = context_factory.(storage_state: storage_state)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+
+    got_id = Page.evaluate!(page, @get_discoverable_credential, %{rpId: server.hostname})
+
+    assert got_id == created_id
+  end
 
   test "should seed and report signCount", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
@@ -238,8 +261,32 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert Credentials.get!(BrowserContext.credentials(context)) == []
   end
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "should preserve signCount via the storageState option"
+  test "should preserve signCount via the storageState option", %{context_factory: context_factory, server: server} do
+    setup_context = context_factory.([])
+    Credentials.create!(BrowserContext.credentials(setup_context), server.hostname)
+    Credentials.install!(BrowserContext.credentials(setup_context))
+    setup_page = BrowserContext.new_page!(setup_context)
+    Page.goto!(setup_page, server.empty_page)
+    assert assert_and_get_sign_count(setup_page, server.hostname) == 1
+
+    storage_state = BrowserContext.storage_state!(setup_context, credentials: true)
+    [captured] = Credentials.get!(BrowserContext.credentials(setup_context))
+    assert captured.signCount == 1
+    assert storage_state == %{cookies: [], origins: [], credentials: [captured]}
+
+    context = context_factory.(storage_state: storage_state)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+    assert assert_and_get_sign_count(page, server.hostname) == 2
+
+    # Storage state saved by older versions has no signCount, the counter starts from zero.
+    legacy_credential = Map.delete(captured, :signCount)
+    legacy_storage_state = %{storage_state | credentials: [legacy_credential]}
+    legacy_context = context_factory.(storage_state: legacy_storage_state)
+    legacy_page = BrowserContext.new_page!(legacy_context)
+    Page.goto!(legacy_page, server.empty_page)
+    assert assert_and_get_sign_count(legacy_page, server.hostname) == 1
+  end
 
   test "should serialize credentials with toJSON", %{context_factory: context_factory, server: server} do
     context = context_factory.([])

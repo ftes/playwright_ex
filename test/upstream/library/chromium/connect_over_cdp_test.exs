@@ -402,8 +402,20 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "emulate media should not be affected by second connectOverCDP with noDefaults"
+  test "emulate media should not be affected by second connectOverCDP with noDefaults", %{browser_type: browser_type} do
+    {browser_server, port} = launch_with_port(browser_type)
+    is_print = fn page -> Page.evaluate!(page, "() => matchMedia('print').matches") end
+
+    browser1 = BrowserType.connect_over_cdp!(browser_type, "http://localhost:#{port}")
+    context1 = Browser.new_context!(browser1)
+    page1 = BrowserContext.new_page!(context1)
+    Page.emulate_media!(page1, media: :print)
+    assert is_print.(page1) == true
+    browser2 = BrowserType.connect_over_cdp!(browser_type, "http://localhost:#{port}", no_defaults: true)
+    assert is_print.(page1) == true
+    [browser1, browser2] |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many()
+    Browser.close!(browser_server)
+  end
 
   @tag :tmp_dir
   test "should allow tracing over cdp session", %{browser_type: browser_type, tmp_dir: tmp_dir} do

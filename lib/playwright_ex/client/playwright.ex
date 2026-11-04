@@ -38,6 +38,7 @@ defmodule PlaywrightEx.Client.Playwright do
   def devices(this), do: get(this, :devices)
   def request(this), do: get(this, :request)
   def selectors(this), do: get(this, :selectors)
+  def errors(this), do: get(this, :errors)
 
   def from(channel) do
     channel

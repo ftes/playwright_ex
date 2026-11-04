@@ -17,8 +17,6 @@ defmodule PlaywrightEx.Playwright do
     await browser.close();
   })();
   ```
-
-  Not ported yet: `errors`.
   """
 
   @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
@@ -56,6 +54,31 @@ defmodule PlaywrightEx.Playwright do
   @spec devices(t()) :: map()
   def devices(playwright) do
     PlaywrightEx.Client.Playwright.devices(playwright)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Playwright methods might throw errors if they are unable to fulfill a request. For example,
+  `PlaywrightEx.Locator.wait_for/2` might fail if the selector doesn't match any nodes during the given timeframe.
+
+  For certain types of errors Playwright uses specific error classes. These classes are available via
+  [`playwright.errors`](https://playwright.dev/docs/api/class-playwright#playwright-errors).
+
+  An example of handling a timeout error:
+
+  ```js
+  try {
+    await page.locator('.foo').waitFor();
+  } catch (e) {
+    if (e instanceof playwright.errors.TimeoutError) {
+      // Do something if this is a timeout.
+    }
+  }
+  ```
+  """
+  @spec errors(t()) :: %{TimeoutError: PlaywrightEx.Client.Errors.TimeoutError}
+  def errors(playwright) do
+    PlaywrightEx.Client.Playwright.errors(playwright)
   end
 
   @doc since: "1.8"

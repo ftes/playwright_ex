@@ -27,8 +27,6 @@ defmodule PlaywrightEx.Worker do
   ### `:console`
 
   *Since 1.57.* Emitted when JavaScript within the worker calls one of console API methods, e.g. `console.log` or `console.dir`.
-
-  Not ported yet: `waitForEvent`, `expect_event`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -103,6 +101,118 @@ defmodule PlaywrightEx.Worker do
   @spec url(t()) :: String.t()
   def url(worker) do
     PlaywrightEx.Client.Worker.url(worker)
+  end
+
+  @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_event`, see its docs."
+  @type wait_for_event_options ::
+          [predicate: fun(), timeout: number() | :infinity]
+          | %{optional(:predicate) => fun(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.57"
+  @doc ~S"""
+  Waits for event to fire and passes its value into the predicate function.
+  Returns when the predicate returns truthy value.
+  Will throw an error if the page is closed before the event is fired.
+  Returns the event data value.
+
+  **Usage**
+
+  ```js
+  // Start waiting for download before clicking. Note no await.
+  const consolePromise = worker.waitForEvent('console');
+  await worker.evaluate('console.log(42)');
+  const consoleMessage = await consolePromise;
+  ```
+
+  ## Arguments
+
+  * `event` - Event name, same one typically passed into `*.on(event)`.
+
+  ## Options
+
+  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_event/4`.
+  """
+  @spec wait_for_event(t(), event() | String.t(), wait_for_event_options()) :: PlaywrightEx.Promise.t()
+  def wait_for_event(worker, event, options \\ []) do
+    event = Facade.event!(event, @events, "worker.waitForEvent")
+    options = Facade.options!(options, @wait_for_event_options, "worker.waitForEvent")
+
+    Facade.promise("worker.waitForEvent", worker, fn ->
+      PlaywrightEx.Client.Worker.wait_for_event(worker, event, options)
+    end)
+  end
+
+  @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_event`, see its docs."
+  @type expect_event_options ::
+          [predicate: fun(), timeout: number() | :infinity]
+          | %{optional(:predicate) => fun(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.57"
+  @doc ~S"""
+  Waits for event to fire and passes its value into the predicate function.
+  Returns when the predicate returns truthy value.
+  Will throw an error if the page is closed before the event is fired.
+  Returns the event data value.
+
+  **Usage**
+
+  ```js
+  // Start waiting for download before clicking. Note no await.
+  const consolePromise = worker.waitForEvent('console');
+  await worker.evaluate('console.log(42)');
+  const consoleMessage = await consolePromise;
+  ```
+
+  ## Arguments
+
+  * `event` - Event name, same one typically passed into `*.on(event)`.
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options()) ::
+          {:ok, term()} | {:error, Exception.t()}
+  def expect_event(worker, event, action, options \\ []) do
+    event = Facade.event!(event, @events, "worker.waitForEvent")
+    options = Facade.options!(options, @expect_event_options, "worker.waitForEvent")
+
+    Facade.expect(
+      "worker.waitForEvent",
+      worker,
+      fn -> PlaywrightEx.Client.Worker.wait_for_event(worker, event, options) end,
+      action
+    )
+  end
+
+  @doc since: "1.57"
+  @doc "Like `expect_event/4`, but returns the value and raises on error."
+  @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options()) :: term()
+  def expect_event!(worker, event, action, options \\ []) do
+    event = Facade.event!(event, @events, "worker.waitForEvent")
+    options = Facade.options!(options, @expect_event_options, "worker.waitForEvent")
+
+    Facade.expect!(
+      "worker.waitForEvent",
+      worker,
+      fn -> PlaywrightEx.Client.Worker.wait_for_event(worker, event, options) end,
+      action
+    )
   end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."

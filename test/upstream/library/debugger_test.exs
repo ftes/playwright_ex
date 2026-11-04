@@ -88,8 +88,23 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert Debugger.paused_details(dbg) == nil
   end
 
-  @tag skip: "not ported: Page.pause"
-  test "should pause at pause call"
+  test "should pause at pause call", %{context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<div>click me</div>")
+    dbg = BrowserContext.debugger(context)
+    assert Debugger.paused_details(dbg) == nil
+
+    Debugger.request_pause!(dbg)
+    pause_promise = Task.async(fn -> Page.pause!(page) end)
+    once_paused(dbg)
+    assert_receive :paused_state_changed, 5000
+
+    assert %{title: title} = Debugger.paused_details(dbg)
+    assert title =~ "Pause"
+
+    Debugger.resume!(dbg)
+    Task.await(pause_promise)
+  end
 
   test "should run to location", %{context: context} do
     page = BrowserContext.new_page!(context)

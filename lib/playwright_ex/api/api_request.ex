@@ -43,28 +43,7 @@ defmodule PlaywrightEx.APIRequest do
                           ignore_https_errors: {:ignoreHTTPSErrors, nil},
                           max_redirects: {:maxRedirects, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
-                          storage_state:
-                            {:storageState,
-                             {:fields,
-                              %{
-                                cookies:
-                                  {:array,
-                                   {:fields,
-                                    %{
-                                      name: nil,
-                                      value: nil,
-                                      domain: nil,
-                                      path: nil,
-                                      expires: nil,
-                                      httpOnly: nil,
-                                      secure: nil,
-                                      sameSite: nil
-                                    }}},
-                                origins:
-                                  {:array,
-                                   {:fields,
-                                    %{origin: nil, localStorage: {:array, {:fields, %{name: nil, value: nil}}}}}}
-                              }}},
+                          storage_state: {:storageState, nil},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}
@@ -113,19 +92,29 @@ defmodule PlaywrightEx.APIRequest do
             storage_state:
               String.t()
               | %{
-                  cookies: [
+                  required(:cookies) => [
                     %{
-                      name: String.t(),
-                      value: String.t(),
-                      domain: String.t(),
-                      path: String.t(),
-                      expires: number(),
-                      httpOnly: boolean(),
-                      secure: boolean(),
-                      sameSite: String.t()
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      required(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      required(:sameSite) => String.t(),
+                      optional(atom()) => term()
                     }
                   ],
-                  origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      required(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                      ],
+                      optional(atom()) => term()
+                    }
+                  ],
+                  optional(atom()) => term()
                 },
             timeout: number() | :infinity,
             user_agent: String.t()
@@ -172,19 +161,29 @@ defmodule PlaywrightEx.APIRequest do
               optional(:storage_state) =>
                 String.t()
                 | %{
-                    cookies: [
+                    required(:cookies) => [
                       %{
-                        name: String.t(),
-                        value: String.t(),
-                        domain: String.t(),
-                        path: String.t(),
-                        expires: number(),
-                        httpOnly: boolean(),
-                        secure: boolean(),
-                        sameSite: String.t()
+                        required(:name) => String.t(),
+                        required(:value) => String.t(),
+                        required(:domain) => String.t(),
+                        required(:path) => String.t(),
+                        required(:expires) => number(),
+                        required(:httpOnly) => boolean(),
+                        required(:secure) => boolean(),
+                        required(:sameSite) => String.t(),
+                        optional(atom()) => term()
                       }
                     ],
-                    origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                    required(:origins) => [
+                      %{
+                        required(:origin) => String.t(),
+                        required(:localStorage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                        ],
+                        optional(atom()) => term()
+                      }
+                    ],
+                    optional(atom()) => term()
                   },
               optional(:timeout) => number() | :infinity,
               optional(:user_agent) => String.t()
@@ -245,8 +244,8 @@ defmodule PlaywrightEx.APIRequest do
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
   * `:storage_state` - Populates context with given storage state. This option can be used to initialize context with logged-in information
-    obtained via [`BrowserContext.storageState`](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state) or `PlaywrightEx.APIRequestContext.storage_state/2`. Either a path to the
-    file with saved storage, or the value returned by one of [`BrowserContext.storageState`](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state) or
+    obtained via `PlaywrightEx.BrowserContext.storage_state/2` or `PlaywrightEx.APIRequestContext.storage_state/2`. Either a path to the
+    file with saved storage, or the value returned by one of `PlaywrightEx.BrowserContext.storage_state/2` or
     `PlaywrightEx.APIRequestContext.storage_state/2` methods.
     * `:cookies`
       * `:name`
