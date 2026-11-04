@@ -7,16 +7,19 @@ defmodule PlaywrightEx.Runtime.Facade do
   call in `PlaywrightEx.Runtime.Api.call/3`:
 
     * Options: a keyword list or map with snake_case keys (`executable_path:`) becomes a map
-      with the JS names (`executablePath`). Nested objects convert the same way; the JS name is
-      accepted as a key too, so values returned by the client round-trip. Unknown keys raise
-      `ArgumentError`, as there are no options beyond the official ones.
-    * Enums: atoms (`:no_preference`) become the wire strings (`"no-preference"`); strings
-      pass through.
+      with the JS names (`executablePath`). Unknown keys raise `ArgumentError`, as there are
+      no options beyond the official ones.
+    * Nested objects (option values, positional arguments) are JS values, as in the Python
+      client: maps with the JS keys (`%{sameSite: "Lax"}`), passed as they are, so values
+      returned by the client round-trip. Only their keys are checked.
+    * Enums of options and positional arguments: atoms (`:no_preference`) become the wire
+      strings (`"no-preference"`); strings pass through.
     * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS), likewise a positional
       `timeout` (`set_default_timeout(context, :infinity)`).
 
-  A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`, `{:array, type}`,
-  `{:enum, %{atom => string}}` or `{:union, [type]}`.
+  A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
+  (options), `{:fields, %{js_key => type}}` (a nested object), `{:array, type}`, `{:enum, %{atom => string}}`
+  or `{:union, [type]}`.
   """
   alias PlaywrightEx.Runtime.Api
 
@@ -60,8 +63,9 @@ defmodule PlaywrightEx.Runtime.Facade do
   defp convert!(value, nil, _api_name, _path), do: value
   defp convert!(value, :timeout, _api_name, _path), do: timeout(:timeout, value)
 
-  defp convert!(value, {:object, schema}, api_name, path) do
-    if object?(value), do: object!(value, schema, api_name, path), else: value
+  defp convert!(value, {:fields, fields}, api_name, path) do
+    if object?(value), do: fields!(value, fields, api_name, path)
+    value
   end
 
   defp convert!(value, {:array, type}, api_name, path) when is_list(value),
@@ -81,7 +85,7 @@ defmodule PlaywrightEx.Runtime.Facade do
   defp convert!(value, {:union, types}, api_name, path) do
     type =
       cond do
-        object?(value) -> Enum.find(types, &match?({:object, _}, &1))
+        object?(value) -> Enum.find(types, &match?({:fields, _}, &1))
         is_list(value) -> Enum.find(types, &match?({:array, _}, &1))
         is_atom(value) -> Enum.find(types, &match?({:enum, _}, &1))
         true -> nil
@@ -94,7 +98,7 @@ defmodule PlaywrightEx.Runtime.Facade do
 
   defp object!(value, schema, api_name, path) do
     Map.new(value, fn {key, value} ->
-      case lookup(schema, key) do
+      case Map.get(schema, key) do
         {js_key, type} ->
           {js_key, timeout(js_key, convert!(value, type, api_name, [key | path]))}
 
@@ -105,15 +109,19 @@ defmodule PlaywrightEx.Runtime.Facade do
     end)
   end
 
-  defp lookup(schema, key) do
-    Map.get(schema, key) || Enum.find_value(schema, fn {_, {js_key, _} = entry} -> if js_key == key, do: entry end)
+  defp fields!(value, fields, api_name, path) do
+    for {key, value} <- value do
+      case fields do
+        %{^key => type} -> convert!(value, type, api_name, [key | path])
+        _ -> raise ArgumentError, "#{api_name}: unknown field #{name([key | path])}, expected one of #{keys(fields)}"
+      end
+    end
   end
 
   defp timeout(:timeout, :infinity), do: 0
   defp timeout(_key, value), do: value
 
-  defp object?(value) when is_map(value), do: not is_struct(value)
-  defp object?(value), do: value == [] or Keyword.keyword?(value)
+  defp object?(value), do: is_map(value) and not is_struct(value)
 
   # [:server, :proxy] is ":proxy.server"; [] is a positional argument.
   defp name([]), do: "argument"

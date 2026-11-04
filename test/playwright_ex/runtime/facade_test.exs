@@ -8,27 +8,27 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
              timeout: {:timeout, nil},
              color_scheme: {:colorScheme, {:enum, %{light: "light", no_preference: "no-preference"}}},
              env: {:env, nil},
-             viewport: {:viewport, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
-             cookies: {:cookies, {:array, {:object, %{same_site: {:sameSite, {:enum, %{lax: "Lax"}}}}}}},
-             storage_state: {:storageState, {:union, [{:object, %{origins: {:origins, nil}}}]}}
+             viewport: {:viewport, {:fields, %{width: nil, height: nil}}},
+             cookies: {:cookies, {:array, {:fields, %{sameSite: nil}}}},
+             storage_state: {:storageState, {:union, [{:fields, %{origins: nil}}]}}
            }}
 
-  test "converts keys and nested objects to JS names" do
+  test "converts option keys and enums to JS, nested objects pass as they are" do
     assert Facade.options!(
-             [color_scheme: :no_preference, viewport: [width: 1, height: 2], env: %{"FOO_BAR" => "1"}],
+             [color_scheme: :no_preference, viewport: %{width: 1, height: 2}, env: %{"FOO_BAR" => "1"}],
              @schema,
              "x.y"
            ) == %{colorScheme: "no-preference", viewport: %{width: 1, height: 2}, env: %{"FOO_BAR" => "1"}}
   end
 
-  test "accepts maps, JS names and wire strings, so returned values round-trip" do
-    assert Facade.options!(%{colorScheme: "light", cookies: [%{sameSite: "Lax"}, [same_site: :lax]]}, @schema, "x.y") ==
-             %{colorScheme: "light", cookies: [%{sameSite: "Lax"}, %{sameSite: "Lax"}]}
+  test "accepts maps and wire strings, nested objects have JS keys so returned values round-trip" do
+    assert Facade.options!(%{color_scheme: "light", cookies: [%{sameSite: "Lax"}]}, @schema, "x.y") ==
+             %{colorScheme: "light", cookies: [%{sameSite: "Lax"}]}
   end
 
-  test "unions convert the matching shape and pass the others through" do
+  test "unions check the matching shape and pass the others through" do
     assert Facade.options!([storage_state: "state.json"], @schema, "x.y") == %{storageState: "state.json"}
-    assert Facade.options!([storage_state: [origins: []]], @schema, "x.y") == %{storageState: %{origins: []}}
+    assert Facade.options!([storage_state: %{origins: []}], @schema, "x.y") == %{storageState: %{origins: []}}
   end
 
   test "timeout: :infinity is 0, :null and nil pass through" do
@@ -36,9 +36,13 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
              %{timeout: 0, colorScheme: :null, viewport: nil}
   end
 
-  test "rejects unknown options and enum values" do
+  test "rejects unknown options, fields and enum values" do
     assert_raise ArgumentError, ~r/^x\.y: unknown option :colour_scheme, expected one of :color_scheme, /, fn ->
       Facade.options!([colour_scheme: :light], @schema, "x.y")
+    end
+
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :colorScheme, /, fn ->
+      Facade.options!([colorScheme: "light"], @schema, "x.y")
     end
 
     assert_raise ArgumentError,
@@ -47,8 +51,12 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
                    Facade.options!([color_scheme: :dark], @schema, "x.y")
                  end
 
-    assert_raise ArgumentError, ~r/^x\.y: unknown option :viewport\.depth/, fn ->
-      Facade.options!([viewport: [depth: 1]], @schema, "x.y")
+    assert_raise ArgumentError, "x.y: unknown field :viewport.depth, expected one of :height, :width", fn ->
+      Facade.options!([viewport: %{depth: 1}], @schema, "x.y")
+    end
+
+    assert_raise ArgumentError, ~r/^x\.y: unknown field :cookies\.same_site/, fn ->
+      Facade.options!([cookies: [%{same_site: "Lax"}]], @schema, "x.y")
     end
   end
 

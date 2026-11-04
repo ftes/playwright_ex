@@ -192,18 +192,18 @@ defmodule PlaywrightEx.BrowserContext do
           | :service_worker
 
   @add_cookies_cookies {:array,
-                        {:object,
+                        {:fields,
                          %{
-                           name: {:name, nil},
-                           value: {:value, nil},
-                           url: {:url, nil},
-                           domain: {:domain, nil},
-                           path: {:path, nil},
-                           expires: {:expires, nil},
-                           http_only: {:httpOnly, nil},
-                           secure: {:secure, nil},
-                           same_site: {:sameSite, {:enum, %{strict: "Strict", lax: "Lax", none: "None"}}},
-                           partition_key: {:partitionKey, nil}
+                           name: nil,
+                           value: nil,
+                           url: nil,
+                           domain: nil,
+                           path: nil,
+                           expires: nil,
+                           httpOnly: nil,
+                           secure: nil,
+                           sameSite: nil,
+                           partitionKey: nil
                          }}}
 
   @doc since: "1.8"
@@ -226,10 +226,10 @@ defmodule PlaywrightEx.BrowserContext do
     * `:domain` - For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com". Either `url` or both `domain` and `path` are required. Optional.
     * `:path` - Either `url` or both `domain` and `path` are required. Optional.
     * `:expires` - Unix time in seconds. Optional.
-    * `:http_only` - Optional.
+    * `:httpOnly` - Optional.
     * `:secure` - Optional.
-    * `:same_site` - Optional.
-    * `:partition_key` - For partitioned third-party cookies (aka [CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)), the partition key. Optional.
+    * `:sameSite` - Optional.
+    * `:partitionKey` - For partitioned third-party cookies (aka [CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)), the partition key. Optional.
   """
   @spec add_cookies(t(), [
           %{
@@ -239,15 +239,11 @@ defmodule PlaywrightEx.BrowserContext do
             optional(:domain) => String.t(),
             optional(:path) => String.t(),
             optional(:expires) => number(),
-            optional(:http_only) => boolean(),
             optional(:httpOnly) => boolean(),
             optional(:secure) => boolean(),
-            optional(:same_site) => :strict | :lax | :none,
-            optional(:sameSite) => :strict | :lax | :none,
-            optional(:partition_key) => String.t(),
+            optional(:sameSite) => String.t(),
             optional(:partitionKey) => String.t()
           }
-          | keyword()
         ]) :: :ok | {:error, Exception.t()}
   def add_cookies(browser_context, cookies) do
     cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies")
@@ -267,15 +263,11 @@ defmodule PlaywrightEx.BrowserContext do
             optional(:domain) => String.t(),
             optional(:path) => String.t(),
             optional(:expires) => number(),
-            optional(:http_only) => boolean(),
             optional(:httpOnly) => boolean(),
             optional(:secure) => boolean(),
-            optional(:same_site) => :strict | :lax | :none,
-            optional(:sameSite) => :strict | :lax | :none,
-            optional(:partition_key) => String.t(),
+            optional(:sameSite) => String.t(),
             optional(:partitionKey) => String.t()
           }
-          | keyword()
         ]) :: :ok
   def add_cookies!(browser_context, cookies) do
     cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies")
@@ -662,8 +654,7 @@ defmodule PlaywrightEx.BrowserContext do
     end)
   end
 
-  @set_geolocation_geolocation {:object,
-                                %{latitude: {:latitude, nil}, longitude: {:longitude, nil}, accuracy: {:accuracy, nil}}}
+  @set_geolocation_geolocation {:fields, %{latitude: nil, longitude: nil, accuracy: nil}}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -689,9 +680,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @spec set_geolocation(
           t(),
-          :null
-          | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
-          | keyword()
+          :null | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
         ) :: :ok | {:error, Exception.t()}
   def set_geolocation(browser_context, geolocation) do
     geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation")
@@ -705,9 +694,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc "Like `set_geolocation/2`, but returns the value and raises on error."
   @spec set_geolocation!(
           t(),
-          :null
-          | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
-          | keyword()
+          :null | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
         ) :: :ok
   def set_geolocation!(browser_context, geolocation) do
     geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation")
@@ -719,19 +706,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   @set_http_credentials_http_credentials {:union,
                                           [
-                                            {:object,
-                                             %{
-                                               username: {:username, nil},
-                                               password: {:password, nil},
-                                               origin: {:origin, nil}
-                                             }},
-                                            {:array,
-                                             {:object,
-                                              %{
-                                                username: {:username, nil},
-                                                password: {:password, nil},
-                                                origin: {:origin, nil}
-                                              }}}
+                                            {:fields, %{username: nil, password: nil, origin: nil}},
+                                            {:array, {:fields, %{username: nil, password: nil, origin: nil}}}
                                           ]}
 
   @doc since: "1.8"
@@ -753,11 +729,7 @@ defmodule PlaywrightEx.BrowserContext do
           t(),
           :null
           | %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
-          | keyword()
-          | [
-              %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
-              | keyword()
-            ]
+          | [%{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}]
         ) :: :ok | {:error, Exception.t()}
   def set_http_credentials(browser_context, http_credentials) do
     http_credentials =
@@ -774,11 +746,7 @@ defmodule PlaywrightEx.BrowserContext do
           t(),
           :null
           | %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
-          | keyword()
-          | [
-              %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
-              | keyword()
-            ]
+          | [%{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}]
         ) :: :ok
   def set_http_credentials!(browser_context, http_credentials) do
     http_credentials =

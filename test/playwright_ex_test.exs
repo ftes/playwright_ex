@@ -68,13 +68,20 @@ defmodule PlaywrightExTest do
                  fn -> BrowserType.launch!(chromium, args: "--no-sandbox") end
   end
 
-  test "options: snake_case keys, nested objects, JS names, unknown keys", %{playwright: playwright} do
+  test "options: snake_case keys, nested objects with JS keys, unknown keys", %{playwright: playwright} do
     chromium = Playwright.chromium(playwright)
-    browser = BrowserType.launch!(chromium, timeout: :infinity, proxy: [server: "per-context"], chromiumSandbox: false)
+
+    browser =
+      BrowserType.launch!(chromium, timeout: :infinity, proxy: %{server: "per-context"}, chromium_sandbox: false)
+
     Browser.close!(browser)
 
-    assert_raise ArgumentError, ~r/browserType\.launch: unknown option :proxy\.servr, expected one of :bypass/, fn ->
-      BrowserType.launch(chromium, proxy: [servr: "x"])
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown field :proxy\.servr, expected one of :bypass/, fn ->
+      BrowserType.launch(chromium, proxy: %{servr: "x"})
+    end
+
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown option :chromiumSandbox/, fn ->
+      BrowserType.launch(chromium, chromiumSandbox: false)
     end
   end
 end

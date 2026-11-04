@@ -885,7 +885,7 @@ defmodule PlaywrightEx.Page do
     end)
   end
 
-  @set_viewport_size_viewport_size {:object, %{width: {:width, nil}, height: {:height, nil}}}
+  @set_viewport_size_viewport_size {:fields, %{width: nil, height: nil}}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -912,8 +912,7 @@ defmodule PlaywrightEx.Page do
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
   """
-  @spec set_viewport_size(t(), %{required(:width) => integer(), required(:height) => integer()} | keyword()) ::
-          :ok | {:error, Exception.t()}
+  @spec set_viewport_size(t(), %{width: integer(), height: integer()}) :: :ok | {:error, Exception.t()}
   def set_viewport_size(page, viewport_size) do
     viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize")
 
@@ -924,7 +923,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `set_viewport_size/2`, but returns the value and raises on error."
-  @spec set_viewport_size!(t(), %{required(:width) => integer(), required(:height) => integer()} | keyword()) :: :ok
+  @spec set_viewport_size!(t(), %{width: integer(), height: integer()}) :: :ok
   def set_viewport_size!(page, viewport_size) do
     viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize")
 

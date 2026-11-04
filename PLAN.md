@@ -39,7 +39,11 @@ a migration guide maps old calls to new ones.
   bounded by callers if needed; the guide shows a `Task.yield` recipe for cleanup code.
 - Arguments: optional positional args stay positional, options always last
   (`evaluate(frame, expr, arg \\ nil, opts \\ [])`). Enums are atoms mapped to wire strings
-  (`:no_preference`); `storage_state` round-trips. No options beyond the official ones.
+  (`:no_preference`). No options beyond the official ones.
+- Keys, as in the Python client: options (a keyword list or map) have snake_case keys; nested
+  objects (option values, positional args) are maps with the JS keys and values, passed as they
+  are (`cookies: [%{sameSite: "Lax"}]`), the same shape the client returns. So results
+  (`storage_state`) round-trip and each object has one type; no keyword lists nested.
 - Errors: one exception per JS class (`Error`, `TimeoutError`, `TargetClosedError`) with the
   JS `message` (API-name prefix, call log), plus a `log` field.
 - `on/3` returns the emitter and `off/3` takes the same fun, as in JS. The subscription
@@ -215,16 +219,10 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
      `[event: Page.dialog]` links there); `on/3` & co. form the "Events" doc group.
    - Links: generated members as facade functions, the rest and other classes to playwright.dev,
      `TimeoutError` to the exception, raw `[Type]` refs as code. JS examples stay until item 4.
-   - Types: `@type goto_options` per member (keyword or map, enums as atoms); inputs have
-     snake_case keys, nested objects also accept the JS keys (a result passed back, like
-     `storage_state`) and keyword lists; results have the JS keys and enums as strings, as the
-     client returns them. Listener specs per event, as in `types.d.ts`. Left `term()`: payloads
-     of unported classes (until ported) and JS values (`evaluate`, `json`).
-     Open: nested keys. Results keep the JS keys because the client returns protocol values as
-     is (`BrowserContext.storageState` -> `sameSite`, `httpOnly`), so nested inputs accept both
-     spellings. Options: snake_case both ways (a generated result converter, skipping JS values),
-     or Python's model (snake_case only for top-level options, JS keys nested both ways: its
-     `Cookie`/`ClientCertificate` dicts use `sameSite`, `certPath`). Decide before release.
+   - Types: `@type goto_options` per member (keyword or map, enums as atoms); objects have one
+     type for inputs and results, JS keys (see Keys above). Listener specs per event, as in
+     `types.d.ts`. Left `term()`: payloads of unported classes (until ported) and JS values
+     (`evaluate`, `json`).
    - No NimbleOptions: its validation can't do the conversion the schema already does.
 4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)

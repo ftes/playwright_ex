@@ -290,6 +290,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp option_bullet(ctx, prop, since), do: bullet(ctx, "`#{inspect(atom(prop["name"]))}`", prop, since)
+  defp field_bullet(ctx, prop, since), do: bullet(ctx, "`#{inspect(String.to_atom(prop["name"]))}`", prop, since)
 
   # "* name - doc", then the fields of an object type as nested bullets. Fields newer than
   # their parent say since when, as on playwright.dev.
@@ -310,7 +311,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
       fields ->
         separator = if item =~ "\n\n", do: "\n\n", else: "\n"
-        item <> separator <> indent(Enum.map_join(fields, "\n", &option_bullet(ctx, &1, prop["since"])), 2)
+        item <> separator <> indent(Enum.map_join(fields, "\n", &field_bullet(ctx, &1, prop["since"])), 2)
     end
   end
 
@@ -382,16 +383,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # Schemas keep api.json order: `{:map, pairs}` is written as a map literal in that order.
   # A positional `timeout` accepts `:infinity`, as the `timeout:` option does.
+  # Options have snake_case keys and atom enums; nested objects are JS values (`{:fields, _}`,
+  # JS keys, only checked), as in the Python client.
   defp arg_schema(_ctx, %{"name" => "timeout"}), do: :timeout
-  defp arg_schema(ctx, arg), do: schema(ctx, arg["type"])
 
-  defp schema(_ctx, nil), do: nil
+  defp arg_schema(ctx, %{"name" => "options", "type" => %{"properties" => props}}) do
+    pairs =
+      for prop <- Enum.uniq_by(props, & &1["name"]),
+          do: {atom(prop["name"]), {String.to_atom(prop["name"]), schema(ctx, prop["type"], :value)}}
 
-  defp schema(ctx, %{"union" => union}) when is_list(union) do
+    {:object, {:map, pairs}}
+  end
+
+  defp arg_schema(ctx, arg), do: schema(ctx, arg["type"], :value)
+
+  defp schema(_ctx, nil, _mode), do: nil
+
+  defp schema(ctx, %{"union" => union}, mode) when is_list(union) do
     {literals, others} = Enum.split_with(union, &literal?(&1["name"]))
     literals = for %{"name" => n} <- literals, n not in ["null", "undefined"], uniq: true, do: literal(n)
-    schemas = Enum.flat_map(others, &List.wrap(schema(ctx, &1)))
-    schemas = if literals == [], do: schemas, else: [{:enum, {:map, literals}} | schemas]
+    schemas = Enum.flat_map(others, &List.wrap(schema(ctx, &1, mode)))
+    schemas = if literals == [] or mode == :nested, do: schemas, else: [{:enum, {:map, literals}} | schemas]
 
     case schemas do
       [] -> nil
@@ -400,21 +412,23 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end
   end
 
-  defp schema(ctx, %{"properties" => props}) when is_list(props) and props != [] do
+  defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =
       for prop <- Enum.uniq_by(props, & &1["name"]),
-          do: {atom(prop["name"]), {String.to_atom(prop["name"]), schema(ctx, prop["type"])}}
+          do: {String.to_atom(prop["name"]), schema(ctx, prop["type"], :nested)}
 
-    {:object, {:map, pairs}}
+    {:fields, {:map, pairs}}
   end
 
-  defp schema(ctx, %{"name" => "Array", "templates" => [item]}) do
-    if s = schema(ctx, item), do: {:array, s}
+  defp schema(ctx, %{"name" => "Array", "templates" => [item]}, mode) do
+    if s = schema(ctx, item, mode), do: {:array, s}
   end
 
-  defp schema(_ctx, %{"name" => name}) do
+  defp schema(_ctx, %{"name" => name}, :value) do
     if literal?(name) and name not in ["null", "undefined"], do: {:enum, {:map, [literal(name)]}}
   end
+
+  defp schema(_ctx, _type, :nested), do: nil
 
   defp literal?(name), do: String.starts_with?(name, "\"") or name in ["null", "undefined"]
 
@@ -471,12 +485,14 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp type_spec(ctx, %{"union" => union}, dir) when is_list(union),
     do: union |> Enum.map(&type_spec(ctx, &1, dir)) |> Enum.uniq() |> Enum.join(" | ")
 
+  # Objects are JS values both ways: results as the client returns them, inputs (nested in
+  # options or positional) passed as they are, so a result can be passed back.
   defp type_spec(ctx, %{"properties" => props}, dir) when is_list(props) and props != [],
-    do: object_spec(ctx, Enum.uniq_by(props, & &1["name"]), dir)
+    do: object_spec(ctx, Enum.uniq_by(props, & &1["name"]), if(dir == :out, do: :out, else: :nested))
 
   # `X | null` results are `nil` (`from_nullable`); `:null` is a JS value passed in.
   defp type_spec(_ctx, %{"name" => "null"}, :out), do: "nil"
-  defp type_spec(_ctx, %{"name" => "\"" <> _}, :out), do: "String.t()"
+  defp type_spec(_ctx, %{"name" => "\"" <> _}, dir) when dir in [:out, :nested], do: "String.t()"
   defp type_spec(ctx, %{"name" => "Array", "templates" => [item]}, dir), do: "[#{type_spec(ctx, item, dir)}]"
 
   defp type_spec(ctx, %{"name" => "Object", "templates" => [key, value]}, dir),
@@ -506,25 +522,13 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end
   end
 
-  # Results have the JS keys, `%{width: number(), height: number()}`.
-  defp object_spec(ctx, props, :out) do
-    fields = for p <- props, do: {p["required"], String.to_atom(p["name"]), type_spec(ctx, p["type"], :out)}
+  # JS keys, `%{width: number(), height: number()}`.
+  defp object_spec(ctx, props, dir) do
+    fields = for p <- props, do: {p["required"], String.to_atom(p["name"]), type_spec(ctx, p["type"], dir)}
 
     if Enum.all?(fields, &elem(&1, 0)),
       do: "%{#{Enum.map_join(fields, ", ", fn {_, k, t} -> "#{key(k)} #{t}" end)}}",
       else: "%{#{Enum.map_join(fields, ", ", &map_field/1)}}"
-  end
-
-  # Nested inputs: a map or keyword list with snake_case keys, or the JS keys of a result
-  # passed back (`storage_state`), so either spelling is optional when they differ.
-  defp object_spec(ctx, props, :in) do
-    fields =
-      Enum.flat_map(props, fn p ->
-        {snake, js, t} = {atom(p["name"]), String.to_atom(p["name"]), prop_spec(ctx, p)}
-        if snake == js, do: [{p["required"], snake, t}], else: [{false, snake, t}, {false, js, t}]
-      end)
-
-    "%{#{Enum.map_join(fields, ", ", &map_field/1)}} | keyword()"
   end
 
   defp map_field({true, key, type}), do: "required(#{inspect(key)}) => #{type}"

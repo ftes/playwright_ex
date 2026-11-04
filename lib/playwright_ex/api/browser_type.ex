@@ -50,15 +50,7 @@ defmodule PlaywrightEx.BrowserType do
                      handle_sigterm: {:handleSIGTERM, nil},
                      headless: {:headless, nil},
                      ignore_default_args: {:ignoreDefaultArgs, nil},
-                     proxy:
-                       {:proxy,
-                        {:object,
-                         %{
-                           server: {:server, nil},
-                           bypass: {:bypass, nil},
-                           username: {:username, nil},
-                           password: {:password, nil}
-                         }}},
+                     proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                      slow_mo: {:slowMo, nil},
                      timeout: {:timeout, nil},
                      traces_dir: {:tracesDir, nil}
@@ -80,14 +72,12 @@ defmodule PlaywrightEx.BrowserType do
             handle_sigterm: boolean(),
             headless: boolean(),
             ignore_default_args: boolean() | [String.t()],
-            proxy:
-              %{
-                required(:server) => String.t(),
-                optional(:bypass) => String.t(),
-                optional(:username) => String.t(),
-                optional(:password) => String.t()
-              }
-              | keyword(),
+            proxy: %{
+              required(:server) => String.t(),
+              optional(:bypass) => String.t(),
+              optional(:username) => String.t(),
+              optional(:password) => String.t()
+            },
             slow_mo: number(),
             timeout: number() | :infinity,
             traces_dir: String.t()
@@ -106,14 +96,12 @@ defmodule PlaywrightEx.BrowserType do
               optional(:handle_sigterm) => boolean(),
               optional(:headless) => boolean(),
               optional(:ignore_default_args) => boolean() | [String.t()],
-              optional(:proxy) =>
-                %{
-                  required(:server) => String.t(),
-                  optional(:bypass) => String.t(),
-                  optional(:username) => String.t(),
-                  optional(:password) => String.t()
-                }
-                | keyword(),
+              optional(:proxy) => %{
+                required(:server) => String.t(),
+                optional(:bypass) => String.t(),
+                optional(:username) => String.t(),
+                optional(:password) => String.t()
+              },
               optional(:slow_mo) => number(),
               optional(:timeout) => number() | :infinity,
               optional(:traces_dir) => String.t()

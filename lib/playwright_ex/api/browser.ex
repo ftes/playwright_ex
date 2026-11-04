@@ -120,16 +120,16 @@ defmodule PlaywrightEx.Browser do
                           client_certificates:
                             {:clientCertificates,
                              {:array,
-                              {:object,
+                              {:fields,
                                %{
-                                 origin: {:origin, nil},
-                                 cert_path: {:certPath, nil},
-                                 cert: {:cert, nil},
-                                 key_path: {:keyPath, nil},
-                                 key: {:key, nil},
-                                 pfx_path: {:pfxPath, nil},
-                                 pfx: {:pfx, nil},
-                                 passphrase: {:passphrase, nil}
+                                 origin: nil,
+                                 certPath: nil,
+                                 cert: nil,
+                                 keyPath: nil,
+                                 key: nil,
+                                 pfxPath: nil,
+                                 pfx: nil,
+                                 passphrase: nil
                                }}}},
                           color_scheme:
                             {:colorScheme, {:enum, %{light: "light", dark: "dark", no_preference: "no-preference"}}},
@@ -137,30 +137,14 @@ defmodule PlaywrightEx.Browser do
                           device_scale_factor: {:deviceScaleFactor, nil},
                           extra_http_headers: {:extraHTTPHeaders, nil},
                           forced_colors: {:forcedColors, {:enum, %{active: "active", none: "none"}}},
-                          geolocation:
-                            {:geolocation,
-                             {:object,
-                              %{latitude: {:latitude, nil}, longitude: {:longitude, nil}, accuracy: {:accuracy, nil}}}},
+                          geolocation: {:geolocation, {:fields, %{latitude: nil, longitude: nil, accuracy: nil}}},
                           has_touch: {:hasTouch, nil},
                           http_credentials:
                             {:httpCredentials,
                              {:union,
                               [
-                                {:object,
-                                 %{
-                                   username: {:username, nil},
-                                   password: {:password, nil},
-                                   origin: {:origin, nil},
-                                   send: {:send, {:enum, %{unauthorized: "unauthorized", always: "always"}}}
-                                 }},
-                                {:array,
-                                 {:object,
-                                  %{
-                                    username: {:username, nil},
-                                    password: {:password, nil},
-                                    origin: {:origin, nil},
-                                    send: {:send, {:enum, %{unauthorized: "unauthorized", always: "always"}}}
-                                  }}}
+                                {:fields, %{username: nil, password: nil, origin: nil, send: nil}},
+                                {:array, {:fields, %{username: nil, password: nil, origin: nil, send: nil}}}
                               ]}},
                           ignore_https_errors: {:ignoreHTTPSErrors, nil},
                           is_mobile: {:isMobile, nil},
@@ -168,93 +152,57 @@ defmodule PlaywrightEx.Browser do
                           locale: {:locale, nil},
                           offline: {:offline, nil},
                           permissions: {:permissions, nil},
-                          proxy:
-                            {:proxy,
-                             {:object,
-                              %{
-                                server: {:server, nil},
-                                bypass: {:bypass, nil},
-                                username: {:username, nil},
-                                password: {:password, nil}
-                              }}},
+                          proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                           record_har:
                             {:recordHar,
-                             {:object,
-                              %{
-                                omit_content: {:omitContent, nil},
-                                content: {:content, {:enum, %{omit: "omit", embed: "embed", attach: "attach"}}},
-                                path: {:path, nil},
-                                mode: {:mode, {:enum, %{full: "full", minimal: "minimal"}}},
-                                url_filter: {:urlFilter, nil}
-                              }}},
+                             {:fields, %{omitContent: nil, content: nil, path: nil, mode: nil, urlFilter: nil}}},
                           record_video:
                             {:recordVideo,
-                             {:object,
+                             {:fields,
                               %{
-                                dir: {:dir, nil},
-                                size: {:size, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
-                                fps: {:fps, nil},
-                                show_actions:
-                                  {:showActions,
-                                   {:object,
-                                    %{
-                                      duration: {:duration, nil},
-                                      position:
-                                        {:position,
-                                         {:enum,
-                                          %{
-                                            top_left: "top-left",
-                                            top: "top",
-                                            top_right: "top-right",
-                                            bottom_left: "bottom-left",
-                                            bottom: "bottom",
-                                            bottom_right: "bottom-right"
-                                          }}},
-                                      font_size: {:fontSize, nil},
-                                      cursor: {:cursor, {:enum, %{none: "none", pointer: "pointer"}}},
-                                      style:
-                                        {:style,
-                                         {:object,
-                                          %{point: {:point, nil}, highlight: {:highlight, nil}, title: {:title, nil}}}}
-                                    }}}
+                                dir: nil,
+                                size: {:fields, %{width: nil, height: nil}},
+                                fps: nil,
+                                showActions:
+                                  {:fields,
+                                   %{
+                                     duration: nil,
+                                     position: nil,
+                                     fontSize: nil,
+                                     cursor: nil,
+                                     style: {:fields, %{point: nil, highlight: nil, title: nil}}
+                                   }}
                               }}},
                           reduced_motion:
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
-                          screen: {:screen, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
+                          screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
                           storage_state:
                             {:storageState,
-                             {:object,
+                             {:fields,
                               %{
                                 cookies:
-                                  {:cookies,
-                                   {:array,
-                                    {:object,
-                                     %{
-                                       name: {:name, nil},
-                                       value: {:value, nil},
-                                       domain: {:domain, nil},
-                                       path: {:path, nil},
-                                       expires: {:expires, nil},
-                                       http_only: {:httpOnly, nil},
-                                       secure: {:secure, nil},
-                                       same_site: {:sameSite, {:enum, %{strict: "Strict", lax: "Lax", none: "None"}}}
-                                     }}}},
+                                  {:array,
+                                   {:fields,
+                                    %{
+                                      name: nil,
+                                      value: nil,
+                                      domain: nil,
+                                      path: nil,
+                                      expires: nil,
+                                      httpOnly: nil,
+                                      secure: nil,
+                                      sameSite: nil
+                                    }}},
                                 origins:
-                                  {:origins,
-                                   {:array,
-                                    {:object,
-                                     %{
-                                       origin: {:origin, nil},
-                                       local_storage:
-                                         {:localStorage,
-                                          {:array, {:object, %{name: {:name, nil}, value: {:value, nil}}}}}
-                                     }}}}
+                                  {:array,
+                                   {:fields,
+                                    %{origin: nil, localStorage: {:array, {:fields, %{name: nil, value: nil}}}}}}
                               }}},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
-                          viewport: {:viewport, {:object, %{width: {:width, nil}, height: {:height, nil}}}}
+                          viewport: {:viewport, {:fields, %{width: nil, height: nil}}}
                         }}
 
   @typedoc "Options of `new_context`, see its docs."
@@ -266,44 +214,40 @@ defmodule PlaywrightEx.Browser do
             client_certificates: [
               %{
                 required(:origin) => String.t(),
-                optional(:cert_path) => String.t(),
                 optional(:certPath) => String.t(),
                 optional(:cert) => binary(),
-                optional(:key_path) => String.t(),
                 optional(:keyPath) => String.t(),
                 optional(:key) => binary(),
-                optional(:pfx_path) => String.t(),
                 optional(:pfxPath) => String.t(),
                 optional(:pfx) => binary(),
                 optional(:passphrase) => String.t()
               }
-              | keyword()
             ],
             color_scheme: :null | :light | :dark | :no_preference,
             contrast: :null | :no_preference | :more,
             device_scale_factor: number(),
             extra_http_headers: %{optional(String.t()) => String.t()},
             forced_colors: :null | :active | :none,
-            geolocation:
-              %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
-              | keyword(),
+            geolocation: %{
+              required(:latitude) => number(),
+              required(:longitude) => number(),
+              optional(:accuracy) => number()
+            },
             has_touch: boolean(),
             http_credentials:
               %{
                 required(:username) => String.t(),
                 required(:password) => String.t(),
                 optional(:origin) => String.t(),
-                optional(:send) => :unauthorized | :always
+                optional(:send) => String.t()
               }
-              | keyword()
               | [
                   %{
                     required(:username) => String.t(),
                     required(:password) => String.t(),
                     optional(:origin) => String.t(),
-                    optional(:send) => :unauthorized | :always
+                    optional(:send) => String.t()
                   }
-                  | keyword()
                 ],
             ignore_https_errors: boolean(),
             is_mobile: boolean(),
@@ -311,103 +255,59 @@ defmodule PlaywrightEx.Browser do
             locale: String.t(),
             offline: boolean(),
             permissions: [String.t()],
-            proxy:
-              %{
-                required(:server) => String.t(),
-                optional(:bypass) => String.t(),
-                optional(:username) => String.t(),
-                optional(:password) => String.t()
+            proxy: %{
+              required(:server) => String.t(),
+              optional(:bypass) => String.t(),
+              optional(:username) => String.t(),
+              optional(:password) => String.t()
+            },
+            record_har: %{
+              optional(:omitContent) => boolean(),
+              optional(:content) => String.t(),
+              required(:path) => String.t(),
+              optional(:mode) => String.t(),
+              optional(:urlFilter) => String.t() | Regex.t()
+            },
+            record_video: %{
+              optional(:dir) => String.t(),
+              optional(:size) => %{width: integer(), height: integer()},
+              optional(:fps) => integer(),
+              optional(:showActions) => %{
+                optional(:duration) => number(),
+                optional(:position) => String.t(),
+                optional(:fontSize) => integer(),
+                optional(:cursor) => String.t(),
+                optional(:style) => %{
+                  optional(:point) => String.t(),
+                  optional(:highlight) => String.t(),
+                  optional(:title) => String.t()
+                }
               }
-              | keyword(),
-            record_har:
-              %{
-                optional(:omit_content) => boolean(),
-                optional(:omitContent) => boolean(),
-                optional(:content) => :omit | :embed | :attach,
-                required(:path) => String.t(),
-                optional(:mode) => :full | :minimal,
-                optional(:url_filter) => String.t() | Regex.t(),
-                optional(:urlFilter) => String.t() | Regex.t()
-              }
-              | keyword(),
-            record_video:
-              %{
-                optional(:dir) => String.t(),
-                optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
-                optional(:fps) => integer(),
-                optional(:show_actions) =>
-                  %{
-                    optional(:duration) => number(),
-                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                    optional(:font_size) => integer(),
-                    optional(:fontSize) => integer(),
-                    optional(:cursor) => :none | :pointer,
-                    optional(:style) =>
-                      %{
-                        optional(:point) => String.t(),
-                        optional(:highlight) => String.t(),
-                        optional(:title) => String.t()
-                      }
-                      | keyword()
-                  }
-                  | keyword(),
-                optional(:showActions) =>
-                  %{
-                    optional(:duration) => number(),
-                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                    optional(:font_size) => integer(),
-                    optional(:fontSize) => integer(),
-                    optional(:cursor) => :none | :pointer,
-                    optional(:style) =>
-                      %{
-                        optional(:point) => String.t(),
-                        optional(:highlight) => String.t(),
-                        optional(:title) => String.t()
-                      }
-                      | keyword()
-                  }
-                  | keyword()
-              }
-              | keyword(),
+            },
             reduced_motion: :null | :reduce | :no_preference,
-            screen: %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+            screen: %{width: integer(), height: integer()},
             service_workers: :allow | :block,
             storage_state:
               String.t()
               | %{
-                  required(:cookies) => [
+                  cookies: [
                     %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      optional(:http_only) => boolean(),
-                      optional(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      optional(:same_site) => :strict | :lax | :none,
-                      optional(:sameSite) => :strict | :lax | :none
+                      name: String.t(),
+                      value: String.t(),
+                      domain: String.t(),
+                      path: String.t(),
+                      expires: number(),
+                      httpOnly: boolean(),
+                      secure: boolean(),
+                      sameSite: String.t()
                     }
-                    | keyword()
                   ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      optional(:local_storage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                      ],
-                      optional(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                      ]
-                    }
-                    | keyword()
-                  ]
-                }
-              | keyword(),
+                  origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                },
             strict_selectors: boolean(),
             timezone_id: String.t(),
             user_agent: String.t(),
-            viewport: :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+            viewport: :null | %{width: integer(), height: integer()}
           ]
           | %{
               optional(:accept_downloads) => boolean(),
@@ -416,44 +316,40 @@ defmodule PlaywrightEx.Browser do
               optional(:client_certificates) => [
                 %{
                   required(:origin) => String.t(),
-                  optional(:cert_path) => String.t(),
                   optional(:certPath) => String.t(),
                   optional(:cert) => binary(),
-                  optional(:key_path) => String.t(),
                   optional(:keyPath) => String.t(),
                   optional(:key) => binary(),
-                  optional(:pfx_path) => String.t(),
                   optional(:pfxPath) => String.t(),
                   optional(:pfx) => binary(),
                   optional(:passphrase) => String.t()
                 }
-                | keyword()
               ],
               optional(:color_scheme) => :null | :light | :dark | :no_preference,
               optional(:contrast) => :null | :no_preference | :more,
               optional(:device_scale_factor) => number(),
               optional(:extra_http_headers) => %{optional(String.t()) => String.t()},
               optional(:forced_colors) => :null | :active | :none,
-              optional(:geolocation) =>
-                %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
-                | keyword(),
+              optional(:geolocation) => %{
+                required(:latitude) => number(),
+                required(:longitude) => number(),
+                optional(:accuracy) => number()
+              },
               optional(:has_touch) => boolean(),
               optional(:http_credentials) =>
                 %{
                   required(:username) => String.t(),
                   required(:password) => String.t(),
                   optional(:origin) => String.t(),
-                  optional(:send) => :unauthorized | :always
+                  optional(:send) => String.t()
                 }
-                | keyword()
                 | [
                     %{
                       required(:username) => String.t(),
                       required(:password) => String.t(),
                       optional(:origin) => String.t(),
-                      optional(:send) => :unauthorized | :always
+                      optional(:send) => String.t()
                     }
-                    | keyword()
                   ],
               optional(:ignore_https_errors) => boolean(),
               optional(:is_mobile) => boolean(),
@@ -461,104 +357,59 @@ defmodule PlaywrightEx.Browser do
               optional(:locale) => String.t(),
               optional(:offline) => boolean(),
               optional(:permissions) => [String.t()],
-              optional(:proxy) =>
-                %{
-                  required(:server) => String.t(),
-                  optional(:bypass) => String.t(),
-                  optional(:username) => String.t(),
-                  optional(:password) => String.t()
+              optional(:proxy) => %{
+                required(:server) => String.t(),
+                optional(:bypass) => String.t(),
+                optional(:username) => String.t(),
+                optional(:password) => String.t()
+              },
+              optional(:record_har) => %{
+                optional(:omitContent) => boolean(),
+                optional(:content) => String.t(),
+                required(:path) => String.t(),
+                optional(:mode) => String.t(),
+                optional(:urlFilter) => String.t() | Regex.t()
+              },
+              optional(:record_video) => %{
+                optional(:dir) => String.t(),
+                optional(:size) => %{width: integer(), height: integer()},
+                optional(:fps) => integer(),
+                optional(:showActions) => %{
+                  optional(:duration) => number(),
+                  optional(:position) => String.t(),
+                  optional(:fontSize) => integer(),
+                  optional(:cursor) => String.t(),
+                  optional(:style) => %{
+                    optional(:point) => String.t(),
+                    optional(:highlight) => String.t(),
+                    optional(:title) => String.t()
+                  }
                 }
-                | keyword(),
-              optional(:record_har) =>
-                %{
-                  optional(:omit_content) => boolean(),
-                  optional(:omitContent) => boolean(),
-                  optional(:content) => :omit | :embed | :attach,
-                  required(:path) => String.t(),
-                  optional(:mode) => :full | :minimal,
-                  optional(:url_filter) => String.t() | Regex.t(),
-                  optional(:urlFilter) => String.t() | Regex.t()
-                }
-                | keyword(),
-              optional(:record_video) =>
-                %{
-                  optional(:dir) => String.t(),
-                  optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
-                  optional(:fps) => integer(),
-                  optional(:show_actions) =>
-                    %{
-                      optional(:duration) => number(),
-                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                      optional(:font_size) => integer(),
-                      optional(:fontSize) => integer(),
-                      optional(:cursor) => :none | :pointer,
-                      optional(:style) =>
-                        %{
-                          optional(:point) => String.t(),
-                          optional(:highlight) => String.t(),
-                          optional(:title) => String.t()
-                        }
-                        | keyword()
-                    }
-                    | keyword(),
-                  optional(:showActions) =>
-                    %{
-                      optional(:duration) => number(),
-                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                      optional(:font_size) => integer(),
-                      optional(:fontSize) => integer(),
-                      optional(:cursor) => :none | :pointer,
-                      optional(:style) =>
-                        %{
-                          optional(:point) => String.t(),
-                          optional(:highlight) => String.t(),
-                          optional(:title) => String.t()
-                        }
-                        | keyword()
-                    }
-                    | keyword()
-                }
-                | keyword(),
+              },
               optional(:reduced_motion) => :null | :reduce | :no_preference,
-              optional(:screen) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+              optional(:screen) => %{width: integer(), height: integer()},
               optional(:service_workers) => :allow | :block,
               optional(:storage_state) =>
                 String.t()
                 | %{
-                    required(:cookies) => [
+                    cookies: [
                       %{
-                        required(:name) => String.t(),
-                        required(:value) => String.t(),
-                        required(:domain) => String.t(),
-                        required(:path) => String.t(),
-                        required(:expires) => number(),
-                        optional(:http_only) => boolean(),
-                        optional(:httpOnly) => boolean(),
-                        required(:secure) => boolean(),
-                        optional(:same_site) => :strict | :lax | :none,
-                        optional(:sameSite) => :strict | :lax | :none
+                        name: String.t(),
+                        value: String.t(),
+                        domain: String.t(),
+                        path: String.t(),
+                        expires: number(),
+                        httpOnly: boolean(),
+                        secure: boolean(),
+                        sameSite: String.t()
                       }
-                      | keyword()
                     ],
-                    required(:origins) => [
-                      %{
-                        required(:origin) => String.t(),
-                        optional(:local_storage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                        ],
-                        optional(:localStorage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                        ]
-                      }
-                      | keyword()
-                    ]
-                  }
-                | keyword(),
+                    origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                  },
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
               optional(:user_agent) => String.t(),
-              optional(:viewport) =>
-                :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+              optional(:viewport) => :null | %{width: integer(), height: integer()}
             }
 
   @doc since: "1.8"
@@ -609,11 +460,11 @@ defmodule PlaywrightEx.Browser do
     > When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it work by replacing `localhost` with `local.playwright`.
 
     * `:origin` - Exact origin that the certificate is valid for. Origin includes `https` protocol, a hostname and optionally a port.
-    * `:cert_path` - Path to the file with the certificate in PEM format.
+    * `:certPath` - Path to the file with the certificate in PEM format.
     * `:cert` - Direct value of the certificate in PEM format.
-    * `:key_path` - Path to the file with the private key in PEM format.
+    * `:keyPath` - Path to the file with the private key in PEM format.
     * `:key` - Direct value of the private key in PEM format.
-    * `:pfx_path` - Path to the PFX or PKCS12 encoded private key and certificate chain.
+    * `:pfxPath` - Path to the PFX or PKCS12 encoded private key and certificate chain.
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
@@ -652,12 +503,12 @@ defmodule PlaywrightEx.Browser do
   * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
     specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
     saved.
-    * `:omit_content` - Optional setting to control whether to omit request content from the HAR. Defaults to
+    * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
       `false`. Deprecated, use `content` policy instead.
     * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `attach` for `.zip` output files and to `embed` for all other file extensions.
     * `:path` - Path on the filesystem to write the HAR file to. If the file name ends with `.zip`, `content: 'attach'` is used by default.
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
-    * `:url_filter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
+    * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
   * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
     sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
     * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
@@ -667,10 +518,10 @@ defmodule PlaywrightEx.Browser do
       * `:width` - Video frame width.
       * `:height` - Video frame height.
     * `:fps` - Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up to 25 frames per second.
-    * `:show_actions` - If specified, enables visual annotations on interacted elements during video recording.
+    * `:showActions` - If specified, enables visual annotations on interacted elements during video recording.
       * `:duration` - How long each annotation is displayed in milliseconds. Defaults to `500`.
       * `:position` - Position of the action title overlay. Defaults to `"top-right"`.
-      * `:font_size` - Font size of the action title in pixels. Defaults to `24`. Deprecated, use `style.title` instead.
+      * `:fontSize` - Font size of the action title in pixels. Defaults to `24`. Deprecated, use `style.title` instead.
       * `:cursor` - Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from the previous action point to the next one. `"none"` disables the cursor decoration.
       * `:style` - Styles of the action decorations.
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
@@ -695,12 +546,12 @@ defmodule PlaywrightEx.Browser do
       * `:domain` - Domain and path are required. For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com"
       * `:path` - Domain and path are required
       * `:expires` - Unix time in seconds.
-      * `:http_only`
+      * `:httpOnly`
       * `:secure`
-      * `:same_site` - sameSite flag
+      * `:sameSite` - sameSite flag
     * `:origins`
       * `:origin`
-      * `:local_storage` - localStorage to set for context
+      * `:localStorage` - localStorage to set for context
         * `:name`
         * `:value`
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
@@ -744,16 +595,16 @@ defmodule PlaywrightEx.Browser do
                        client_certificates:
                          {:clientCertificates,
                           {:array,
-                           {:object,
+                           {:fields,
                             %{
-                              origin: {:origin, nil},
-                              cert_path: {:certPath, nil},
-                              cert: {:cert, nil},
-                              key_path: {:keyPath, nil},
-                              key: {:key, nil},
-                              pfx_path: {:pfxPath, nil},
-                              pfx: {:pfx, nil},
-                              passphrase: {:passphrase, nil}
+                              origin: nil,
+                              certPath: nil,
+                              cert: nil,
+                              keyPath: nil,
+                              key: nil,
+                              pfxPath: nil,
+                              pfx: nil,
+                              passphrase: nil
                             }}}},
                        color_scheme:
                          {:colorScheme, {:enum, %{light: "light", dark: "dark", no_preference: "no-preference"}}},
@@ -761,30 +612,14 @@ defmodule PlaywrightEx.Browser do
                        device_scale_factor: {:deviceScaleFactor, nil},
                        extra_http_headers: {:extraHTTPHeaders, nil},
                        forced_colors: {:forcedColors, {:enum, %{active: "active", none: "none"}}},
-                       geolocation:
-                         {:geolocation,
-                          {:object,
-                           %{latitude: {:latitude, nil}, longitude: {:longitude, nil}, accuracy: {:accuracy, nil}}}},
+                       geolocation: {:geolocation, {:fields, %{latitude: nil, longitude: nil, accuracy: nil}}},
                        has_touch: {:hasTouch, nil},
                        http_credentials:
                          {:httpCredentials,
                           {:union,
                            [
-                             {:object,
-                              %{
-                                username: {:username, nil},
-                                password: {:password, nil},
-                                origin: {:origin, nil},
-                                send: {:send, {:enum, %{unauthorized: "unauthorized", always: "always"}}}
-                              }},
-                             {:array,
-                              {:object,
-                               %{
-                                 username: {:username, nil},
-                                 password: {:password, nil},
-                                 origin: {:origin, nil},
-                                 send: {:send, {:enum, %{unauthorized: "unauthorized", always: "always"}}}
-                               }}}
+                             {:fields, %{username: nil, password: nil, origin: nil, send: nil}},
+                             {:array, {:fields, %{username: nil, password: nil, origin: nil, send: nil}}}
                            ]}},
                        ignore_https_errors: {:ignoreHTTPSErrors, nil},
                        is_mobile: {:isMobile, nil},
@@ -792,91 +627,55 @@ defmodule PlaywrightEx.Browser do
                        locale: {:locale, nil},
                        offline: {:offline, nil},
                        permissions: {:permissions, nil},
-                       proxy:
-                         {:proxy,
-                          {:object,
-                           %{
-                             server: {:server, nil},
-                             bypass: {:bypass, nil},
-                             username: {:username, nil},
-                             password: {:password, nil}
-                           }}},
+                       proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                        record_har:
                          {:recordHar,
-                          {:object,
-                           %{
-                             omit_content: {:omitContent, nil},
-                             content: {:content, {:enum, %{omit: "omit", embed: "embed", attach: "attach"}}},
-                             path: {:path, nil},
-                             mode: {:mode, {:enum, %{full: "full", minimal: "minimal"}}},
-                             url_filter: {:urlFilter, nil}
-                           }}},
+                          {:fields, %{omitContent: nil, content: nil, path: nil, mode: nil, urlFilter: nil}}},
                        record_video:
                          {:recordVideo,
-                          {:object,
+                          {:fields,
                            %{
-                             dir: {:dir, nil},
-                             size: {:size, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
-                             fps: {:fps, nil},
-                             show_actions:
-                               {:showActions,
-                                {:object,
-                                 %{
-                                   duration: {:duration, nil},
-                                   position:
-                                     {:position,
-                                      {:enum,
-                                       %{
-                                         top_left: "top-left",
-                                         top: "top",
-                                         top_right: "top-right",
-                                         bottom_left: "bottom-left",
-                                         bottom: "bottom",
-                                         bottom_right: "bottom-right"
-                                       }}},
-                                   font_size: {:fontSize, nil},
-                                   cursor: {:cursor, {:enum, %{none: "none", pointer: "pointer"}}},
-                                   style:
-                                     {:style,
-                                      {:object,
-                                       %{point: {:point, nil}, highlight: {:highlight, nil}, title: {:title, nil}}}}
-                                 }}}
+                             dir: nil,
+                             size: {:fields, %{width: nil, height: nil}},
+                             fps: nil,
+                             showActions:
+                               {:fields,
+                                %{
+                                  duration: nil,
+                                  position: nil,
+                                  fontSize: nil,
+                                  cursor: nil,
+                                  style: {:fields, %{point: nil, highlight: nil, title: nil}}
+                                }}
                            }}},
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
-                       screen: {:screen, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
+                       screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
                        storage_state:
                          {:storageState,
-                          {:object,
+                          {:fields,
                            %{
                              cookies:
-                               {:cookies,
-                                {:array,
-                                 {:object,
-                                  %{
-                                    name: {:name, nil},
-                                    value: {:value, nil},
-                                    domain: {:domain, nil},
-                                    path: {:path, nil},
-                                    expires: {:expires, nil},
-                                    http_only: {:httpOnly, nil},
-                                    secure: {:secure, nil},
-                                    same_site: {:sameSite, {:enum, %{strict: "Strict", lax: "Lax", none: "None"}}}
-                                  }}}},
+                               {:array,
+                                {:fields,
+                                 %{
+                                   name: nil,
+                                   value: nil,
+                                   domain: nil,
+                                   path: nil,
+                                   expires: nil,
+                                   httpOnly: nil,
+                                   secure: nil,
+                                   sameSite: nil
+                                 }}},
                              origins:
-                               {:origins,
-                                {:array,
-                                 {:object,
-                                  %{
-                                    origin: {:origin, nil},
-                                    local_storage:
-                                      {:localStorage, {:array, {:object, %{name: {:name, nil}, value: {:value, nil}}}}}
-                                  }}}}
+                               {:array,
+                                {:fields, %{origin: nil, localStorage: {:array, {:fields, %{name: nil, value: nil}}}}}}
                            }}},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
-                       viewport: {:viewport, {:object, %{width: {:width, nil}, height: {:height, nil}}}}
+                       viewport: {:viewport, {:fields, %{width: nil, height: nil}}}
                      }}
 
   @typedoc "Options of `new_page`, see its docs."
@@ -888,44 +687,40 @@ defmodule PlaywrightEx.Browser do
             client_certificates: [
               %{
                 required(:origin) => String.t(),
-                optional(:cert_path) => String.t(),
                 optional(:certPath) => String.t(),
                 optional(:cert) => binary(),
-                optional(:key_path) => String.t(),
                 optional(:keyPath) => String.t(),
                 optional(:key) => binary(),
-                optional(:pfx_path) => String.t(),
                 optional(:pfxPath) => String.t(),
                 optional(:pfx) => binary(),
                 optional(:passphrase) => String.t()
               }
-              | keyword()
             ],
             color_scheme: :null | :light | :dark | :no_preference,
             contrast: :null | :no_preference | :more,
             device_scale_factor: number(),
             extra_http_headers: %{optional(String.t()) => String.t()},
             forced_colors: :null | :active | :none,
-            geolocation:
-              %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
-              | keyword(),
+            geolocation: %{
+              required(:latitude) => number(),
+              required(:longitude) => number(),
+              optional(:accuracy) => number()
+            },
             has_touch: boolean(),
             http_credentials:
               %{
                 required(:username) => String.t(),
                 required(:password) => String.t(),
                 optional(:origin) => String.t(),
-                optional(:send) => :unauthorized | :always
+                optional(:send) => String.t()
               }
-              | keyword()
               | [
                   %{
                     required(:username) => String.t(),
                     required(:password) => String.t(),
                     optional(:origin) => String.t(),
-                    optional(:send) => :unauthorized | :always
+                    optional(:send) => String.t()
                   }
-                  | keyword()
                 ],
             ignore_https_errors: boolean(),
             is_mobile: boolean(),
@@ -933,103 +728,59 @@ defmodule PlaywrightEx.Browser do
             locale: String.t(),
             offline: boolean(),
             permissions: [String.t()],
-            proxy:
-              %{
-                required(:server) => String.t(),
-                optional(:bypass) => String.t(),
-                optional(:username) => String.t(),
-                optional(:password) => String.t()
+            proxy: %{
+              required(:server) => String.t(),
+              optional(:bypass) => String.t(),
+              optional(:username) => String.t(),
+              optional(:password) => String.t()
+            },
+            record_har: %{
+              optional(:omitContent) => boolean(),
+              optional(:content) => String.t(),
+              required(:path) => String.t(),
+              optional(:mode) => String.t(),
+              optional(:urlFilter) => String.t() | Regex.t()
+            },
+            record_video: %{
+              optional(:dir) => String.t(),
+              optional(:size) => %{width: integer(), height: integer()},
+              optional(:fps) => integer(),
+              optional(:showActions) => %{
+                optional(:duration) => number(),
+                optional(:position) => String.t(),
+                optional(:fontSize) => integer(),
+                optional(:cursor) => String.t(),
+                optional(:style) => %{
+                  optional(:point) => String.t(),
+                  optional(:highlight) => String.t(),
+                  optional(:title) => String.t()
+                }
               }
-              | keyword(),
-            record_har:
-              %{
-                optional(:omit_content) => boolean(),
-                optional(:omitContent) => boolean(),
-                optional(:content) => :omit | :embed | :attach,
-                required(:path) => String.t(),
-                optional(:mode) => :full | :minimal,
-                optional(:url_filter) => String.t() | Regex.t(),
-                optional(:urlFilter) => String.t() | Regex.t()
-              }
-              | keyword(),
-            record_video:
-              %{
-                optional(:dir) => String.t(),
-                optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
-                optional(:fps) => integer(),
-                optional(:show_actions) =>
-                  %{
-                    optional(:duration) => number(),
-                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                    optional(:font_size) => integer(),
-                    optional(:fontSize) => integer(),
-                    optional(:cursor) => :none | :pointer,
-                    optional(:style) =>
-                      %{
-                        optional(:point) => String.t(),
-                        optional(:highlight) => String.t(),
-                        optional(:title) => String.t()
-                      }
-                      | keyword()
-                  }
-                  | keyword(),
-                optional(:showActions) =>
-                  %{
-                    optional(:duration) => number(),
-                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                    optional(:font_size) => integer(),
-                    optional(:fontSize) => integer(),
-                    optional(:cursor) => :none | :pointer,
-                    optional(:style) =>
-                      %{
-                        optional(:point) => String.t(),
-                        optional(:highlight) => String.t(),
-                        optional(:title) => String.t()
-                      }
-                      | keyword()
-                  }
-                  | keyword()
-              }
-              | keyword(),
+            },
             reduced_motion: :null | :reduce | :no_preference,
-            screen: %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+            screen: %{width: integer(), height: integer()},
             service_workers: :allow | :block,
             storage_state:
               String.t()
               | %{
-                  required(:cookies) => [
+                  cookies: [
                     %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      optional(:http_only) => boolean(),
-                      optional(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      optional(:same_site) => :strict | :lax | :none,
-                      optional(:sameSite) => :strict | :lax | :none
+                      name: String.t(),
+                      value: String.t(),
+                      domain: String.t(),
+                      path: String.t(),
+                      expires: number(),
+                      httpOnly: boolean(),
+                      secure: boolean(),
+                      sameSite: String.t()
                     }
-                    | keyword()
                   ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      optional(:local_storage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                      ],
-                      optional(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                      ]
-                    }
-                    | keyword()
-                  ]
-                }
-              | keyword(),
+                  origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                },
             strict_selectors: boolean(),
             timezone_id: String.t(),
             user_agent: String.t(),
-            viewport: :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+            viewport: :null | %{width: integer(), height: integer()}
           ]
           | %{
               optional(:accept_downloads) => boolean(),
@@ -1038,44 +789,40 @@ defmodule PlaywrightEx.Browser do
               optional(:client_certificates) => [
                 %{
                   required(:origin) => String.t(),
-                  optional(:cert_path) => String.t(),
                   optional(:certPath) => String.t(),
                   optional(:cert) => binary(),
-                  optional(:key_path) => String.t(),
                   optional(:keyPath) => String.t(),
                   optional(:key) => binary(),
-                  optional(:pfx_path) => String.t(),
                   optional(:pfxPath) => String.t(),
                   optional(:pfx) => binary(),
                   optional(:passphrase) => String.t()
                 }
-                | keyword()
               ],
               optional(:color_scheme) => :null | :light | :dark | :no_preference,
               optional(:contrast) => :null | :no_preference | :more,
               optional(:device_scale_factor) => number(),
               optional(:extra_http_headers) => %{optional(String.t()) => String.t()},
               optional(:forced_colors) => :null | :active | :none,
-              optional(:geolocation) =>
-                %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
-                | keyword(),
+              optional(:geolocation) => %{
+                required(:latitude) => number(),
+                required(:longitude) => number(),
+                optional(:accuracy) => number()
+              },
               optional(:has_touch) => boolean(),
               optional(:http_credentials) =>
                 %{
                   required(:username) => String.t(),
                   required(:password) => String.t(),
                   optional(:origin) => String.t(),
-                  optional(:send) => :unauthorized | :always
+                  optional(:send) => String.t()
                 }
-                | keyword()
                 | [
                     %{
                       required(:username) => String.t(),
                       required(:password) => String.t(),
                       optional(:origin) => String.t(),
-                      optional(:send) => :unauthorized | :always
+                      optional(:send) => String.t()
                     }
-                    | keyword()
                   ],
               optional(:ignore_https_errors) => boolean(),
               optional(:is_mobile) => boolean(),
@@ -1083,104 +830,59 @@ defmodule PlaywrightEx.Browser do
               optional(:locale) => String.t(),
               optional(:offline) => boolean(),
               optional(:permissions) => [String.t()],
-              optional(:proxy) =>
-                %{
-                  required(:server) => String.t(),
-                  optional(:bypass) => String.t(),
-                  optional(:username) => String.t(),
-                  optional(:password) => String.t()
+              optional(:proxy) => %{
+                required(:server) => String.t(),
+                optional(:bypass) => String.t(),
+                optional(:username) => String.t(),
+                optional(:password) => String.t()
+              },
+              optional(:record_har) => %{
+                optional(:omitContent) => boolean(),
+                optional(:content) => String.t(),
+                required(:path) => String.t(),
+                optional(:mode) => String.t(),
+                optional(:urlFilter) => String.t() | Regex.t()
+              },
+              optional(:record_video) => %{
+                optional(:dir) => String.t(),
+                optional(:size) => %{width: integer(), height: integer()},
+                optional(:fps) => integer(),
+                optional(:showActions) => %{
+                  optional(:duration) => number(),
+                  optional(:position) => String.t(),
+                  optional(:fontSize) => integer(),
+                  optional(:cursor) => String.t(),
+                  optional(:style) => %{
+                    optional(:point) => String.t(),
+                    optional(:highlight) => String.t(),
+                    optional(:title) => String.t()
+                  }
                 }
-                | keyword(),
-              optional(:record_har) =>
-                %{
-                  optional(:omit_content) => boolean(),
-                  optional(:omitContent) => boolean(),
-                  optional(:content) => :omit | :embed | :attach,
-                  required(:path) => String.t(),
-                  optional(:mode) => :full | :minimal,
-                  optional(:url_filter) => String.t() | Regex.t(),
-                  optional(:urlFilter) => String.t() | Regex.t()
-                }
-                | keyword(),
-              optional(:record_video) =>
-                %{
-                  optional(:dir) => String.t(),
-                  optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
-                  optional(:fps) => integer(),
-                  optional(:show_actions) =>
-                    %{
-                      optional(:duration) => number(),
-                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                      optional(:font_size) => integer(),
-                      optional(:fontSize) => integer(),
-                      optional(:cursor) => :none | :pointer,
-                      optional(:style) =>
-                        %{
-                          optional(:point) => String.t(),
-                          optional(:highlight) => String.t(),
-                          optional(:title) => String.t()
-                        }
-                        | keyword()
-                    }
-                    | keyword(),
-                  optional(:showActions) =>
-                    %{
-                      optional(:duration) => number(),
-                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
-                      optional(:font_size) => integer(),
-                      optional(:fontSize) => integer(),
-                      optional(:cursor) => :none | :pointer,
-                      optional(:style) =>
-                        %{
-                          optional(:point) => String.t(),
-                          optional(:highlight) => String.t(),
-                          optional(:title) => String.t()
-                        }
-                        | keyword()
-                    }
-                    | keyword()
-                }
-                | keyword(),
+              },
               optional(:reduced_motion) => :null | :reduce | :no_preference,
-              optional(:screen) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+              optional(:screen) => %{width: integer(), height: integer()},
               optional(:service_workers) => :allow | :block,
               optional(:storage_state) =>
                 String.t()
                 | %{
-                    required(:cookies) => [
+                    cookies: [
                       %{
-                        required(:name) => String.t(),
-                        required(:value) => String.t(),
-                        required(:domain) => String.t(),
-                        required(:path) => String.t(),
-                        required(:expires) => number(),
-                        optional(:http_only) => boolean(),
-                        optional(:httpOnly) => boolean(),
-                        required(:secure) => boolean(),
-                        optional(:same_site) => :strict | :lax | :none,
-                        optional(:sameSite) => :strict | :lax | :none
+                        name: String.t(),
+                        value: String.t(),
+                        domain: String.t(),
+                        path: String.t(),
+                        expires: number(),
+                        httpOnly: boolean(),
+                        secure: boolean(),
+                        sameSite: String.t()
                       }
-                      | keyword()
                     ],
-                    required(:origins) => [
-                      %{
-                        required(:origin) => String.t(),
-                        optional(:local_storage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                        ],
-                        optional(:localStorage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
-                        ]
-                      }
-                      | keyword()
-                    ]
-                  }
-                | keyword(),
+                    origins: [%{origin: String.t(), localStorage: [%{name: String.t(), value: String.t()}]}]
+                  },
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
               optional(:user_agent) => String.t(),
-              optional(:viewport) =>
-                :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+              optional(:viewport) => :null | %{width: integer(), height: integer()}
             }
 
   @doc since: "1.8"
@@ -1213,11 +915,11 @@ defmodule PlaywrightEx.Browser do
     > When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it work by replacing `localhost` with `local.playwright`.
 
     * `:origin` - Exact origin that the certificate is valid for. Origin includes `https` protocol, a hostname and optionally a port.
-    * `:cert_path` - Path to the file with the certificate in PEM format.
+    * `:certPath` - Path to the file with the certificate in PEM format.
     * `:cert` - Direct value of the certificate in PEM format.
-    * `:key_path` - Path to the file with the private key in PEM format.
+    * `:keyPath` - Path to the file with the private key in PEM format.
     * `:key` - Direct value of the private key in PEM format.
-    * `:pfx_path` - Path to the PFX or PKCS12 encoded private key and certificate chain.
+    * `:pfxPath` - Path to the PFX or PKCS12 encoded private key and certificate chain.
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
@@ -1256,12 +958,12 @@ defmodule PlaywrightEx.Browser do
   * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
     specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
     saved.
-    * `:omit_content` - Optional setting to control whether to omit request content from the HAR. Defaults to
+    * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
       `false`. Deprecated, use `content` policy instead.
     * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `attach` for `.zip` output files and to `embed` for all other file extensions.
     * `:path` - Path on the filesystem to write the HAR file to. If the file name ends with `.zip`, `content: 'attach'` is used by default.
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
-    * `:url_filter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
+    * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
   * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
     sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
     * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
@@ -1271,10 +973,10 @@ defmodule PlaywrightEx.Browser do
       * `:width` - Video frame width.
       * `:height` - Video frame height.
     * `:fps` - Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up to 25 frames per second.
-    * `:show_actions` - If specified, enables visual annotations on interacted elements during video recording.
+    * `:showActions` - If specified, enables visual annotations on interacted elements during video recording.
       * `:duration` - How long each annotation is displayed in milliseconds. Defaults to `500`.
       * `:position` - Position of the action title overlay. Defaults to `"top-right"`.
-      * `:font_size` - Font size of the action title in pixels. Defaults to `24`. Deprecated, use `style.title` instead.
+      * `:fontSize` - Font size of the action title in pixels. Defaults to `24`. Deprecated, use `style.title` instead.
       * `:cursor` - Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from the previous action point to the next one. `"none"` disables the cursor decoration.
       * `:style` - Styles of the action decorations.
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
@@ -1299,12 +1001,12 @@ defmodule PlaywrightEx.Browser do
       * `:domain` - Domain and path are required. For the cookie to apply to all subdomains as well, prefix domain with a dot, like this: ".example.com"
       * `:path` - Domain and path are required
       * `:expires` - Unix time in seconds.
-      * `:http_only`
+      * `:httpOnly`
       * `:secure`
-      * `:same_site` - sameSite flag
+      * `:sameSite` - sameSite flag
     * `:origins`
       * `:origin`
-      * `:local_storage` - localStorage to set for context
+      * `:localStorage` - localStorage to set for context
         * `:name`
         * `:value`
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations

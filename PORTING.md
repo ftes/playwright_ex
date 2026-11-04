@@ -81,7 +81,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   see `PlaywrightEx.UpstreamCase`. `PlaywrightEx.TestServer` ports `tests/config/testserver`;
   assets and certs come from `PlaywrightEx.Upstream` (the pinned release, not vendored).
 - Tests call the facade (`BrowserType.launch(browser_type, executable_path: path)`), with
-  `{:error, e} = ...` for `.catch(e => e)` and the bang form otherwise.
+  `{:error, e} = ...` for `.catch(e => e)` and the bang form otherwise. Options get snake_case
+  keys, nested objects stay as upstream writes them, as maps with the JS keys
+  (`new_context(browser, viewport: %{width: 456, height: 789}, record_video: %{dir: dir})`).
 - Keep assertions verbatim (we announce `sdkLanguage: "javascript"`, as upstream). Options
   passed `as any` are rejected by the facade: assert that, with a comment.
 
