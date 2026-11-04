@@ -223,3 +223,19 @@ Review: these shape the assertion API.
 - **page-autowaiting-basic "waitForLoadState(load)"** skipped: upstream's expected ordering
   depends on JS microtask depth (one extra `.then` hop), which Elixir tasks don't reproduce.
   Not a lib bug. Revisit if the baton runtime should order continuations across processes.
+
+## 2026-11-05: Stale-skip sweep and page specs group 5
+
+- **`to_pass(fun, opts)` / `poll(value_fun, assertion, opts)`** in `test/support/utils.ex`
+  (port of `tests/config/utils.ts` plus `expect.poll`/`toPass`): upstream intervals
+  100/250/500/1000 ms; deviation: default timeout 5000 ms (upstream: the test timeout).
+- **Listener state in tests** (JS arrays) is an `Agent`. Debugger tests use `Agent.cast`, so
+  events after the test ends are dropped instead of logging noproc errors.
+- **route-web-socket close-code tests (5) skipped**: Bandit (test server) answers a close frame
+  with 1000 and hides the client's code/reason. Test-server limit, not a lib bug. Revisit if the
+  test server moves off Bandit.
+- **firefox-network-response** uses a lower-case `date` header: Bandit's own `date` lookup is
+  case-sensitive and would duplicate it.
+- **Browser guards**: `it.skip`/`fixme` conditions inside a test are `if browser_name ...`
+  guards, so on the excluded browser the test reports as passed without asserting. Revisit:
+  could become `@tag skip` computed per browser.
