@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Result</title></head>
+<body>
+  <p data-testid="greeting"></p>
+  <a href="details.html" target="_blank">Open details</a>
+  <a href="data:text/csv,a%2Cb%0A1%2C2" download="report.csv">Download report</a>
+  <script>
+    const q = new URLSearchParams(location.search);
+    document.querySelector('[data-testid=greeting]').textContent = `Hello, ${q.get('name')} (${q.get('color')})`;
+  </script>
+</body>
+</html>

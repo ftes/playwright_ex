@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Sign up</title></head>
+<body>
+  <h1>Sign up</h1>
+  <form action="result.html" method="get">
+    <label for="name">Name</label>
+    <input id="name" name="name" type="text">
+    <label for="color">Color</label>
+    <select id="color" name="color">
+      <option value="red">Red</option>
+      <option value="blue">Blue</option>
+    </select>
+    <label><input id="agree" name="agree" type="checkbox" value="yes"> I agree</label>
+    <label for="upload">Attachment</label>
+    <input id="upload" name="upload" type="file">
+    <p id="file-info"></p>
+    <button type="submit">Submit</button>
+  </form>
+  <script>
+    document.getElementById('upload').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      document.getElementById('file-info').textContent = `${f.name} (${f.size} bytes)`;
+    });
+  </script>
+</body>
+</html>
