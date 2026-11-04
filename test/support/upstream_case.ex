@@ -14,6 +14,10 @@ defmodule PlaywrightEx.UpstreamCase do
       upstream creates fixtures lazily, here a tag asks for them.
     * `request` (`playwright.request.newContext()`, disposed after the test) for tests tagged
       `:request`, or `request: options` (`newContext` options, for specs that override the fixture)
+    * `create_user_data_dir` (`create_user_data_dir.()`, a fresh temp dir, removed after the test),
+      `launch_persistent` (`launch_persistent.(options)` returns `%{context: _, page: _}`, closed
+      after the test), `start_remote_server` (`start_remote_server.("run-server", options)`,
+      `PlaywrightEx.RemoteServer.RunServer`, killed after the test; `launchServer` is not ported)
 
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
   """
@@ -106,6 +110,38 @@ defmodule PlaywrightEx.UpstreamCase do
     else
       :ok
     end
+  end
+
+  setup %{browser_type: browser_type} do
+    create_user_data_dir = fn ->
+      dir = Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf(dir) end)
+      dir
+    end
+
+    launch_persistent = fn options ->
+      user_data_dir = create_user_data_dir.()
+      context = BrowserType.launch_persistent_context!(browser_type, user_data_dir, options)
+      on_exit(fn -> BrowserContext.close(context) end)
+      %{context: context, page: hd(BrowserContext.pages(context))}
+    end
+
+    start_remote_server = fn
+      "run-server", options ->
+        server = PlaywrightEx.RemoteServer.RunServer.start(options)
+        on_exit(fn -> PlaywrightEx.RemoteServer.RunServer.close(server) end)
+        server
+
+      "launchServer", _options ->
+        raise "not ported: launchServer"
+    end
+
+    %{
+      create_user_data_dir: create_user_data_dir,
+      launch_persistent: launch_persistent,
+      start_remote_server: start_remote_server
+    }
   end
 
   defp browser_type(playwright, "chromium"), do: Playwright.chromium(playwright)
