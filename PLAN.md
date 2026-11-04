@@ -48,7 +48,8 @@ a migration guide maps old calls to new ones.
   docs/specs and delegates to `Client.*`. `mix playwright_ex.gen.api` emits the members the
   client exports and lists the rest as not ported, so regenerate after porting a method
   (`mix playwright_ex.parity` flags a stale facade). The facade calls the client directly: a
-  client function that disappears is a compile warning.
+  client function that disappears is a compile warning. This is interim: before release the
+  generator emits every member (see Then, item 2).
 - Unknown options and enum values raise `ArgumentError` in both forms (programmer errors).
   Upstream tests that pass options `as any` assert that rejection instead.
 - `void` methods return `:ok` (`close/2`, `close!/2`). Handles stay the client structs
@@ -178,7 +179,12 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
 1. Done: generator for the `api.json` facade (`mix playwright_ex.gen.api`, phase 2). Callback
    forms (`expect_popup`) and matcher shapes land with the classes that need them.
 2. Core port (connection → page/frame/locator → network → matchers), then the remaining
-   classes, released as one breaking version with the migration guide.
+   classes, released as one breaking version with the migration guide. Release gate: "generate
+   all". Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
+   Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
+   generator stops checking client exports and emits every remaining member, so a missing
+   impl is a compile warning and fails CI. Classes can switch one at a time once complete
+   (a rules entry), so finished ones can't regress while the rest are ported.
 3. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
    with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match
