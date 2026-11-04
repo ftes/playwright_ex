@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchHappyEyeballsTest do
 
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -34,7 +35,6 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchHappyEyeballsTest do
     TestServer.set_extra_headers(server6, "/simple.json", %{"Connection" => "close"})
     response = APIRequestContext.get!(request, "http://[::1]:#{server6.port}/simple.json")
     assert APIResponse.url(response) == "http://[::1]:#{server6.port}/simple.json"
-    # await expect(response).toBeOK()  -- not ported: toBeOK (APIResponseAssertions); ok() is its pass condition
-    assert APIResponse.ok(response)
+    Expect.to_be_ok!(response)
   end
 end

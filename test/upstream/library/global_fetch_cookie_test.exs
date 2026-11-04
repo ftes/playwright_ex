@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.TestServer
 
@@ -482,8 +482,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
     state1 = APIRequestContext.storage_state!(request1)
     assert state1 == %{cookies: [], origins: []}
-    # await expect(...).toBeOK()  -- not ported: toBeOK (APIResponseAssertions); ok() is its pass condition
-    assert APIResponse.ok(APIRequestContext.get!(request1, server.empty_page))
+    Expect.to_be_ok!(APIRequestContext.get!(request1, server.empty_page))
     APIRequestContext.dispose!(request1)
   end
 end

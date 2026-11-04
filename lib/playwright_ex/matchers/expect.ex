@@ -39,8 +39,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   # throwUnsupportedExpectMatcherError  -- not ported: custom matchers (expect.extend)
 
   @doc false
-  # `customAsyncMatchers`, by JS name. `toBeOK` (APIResponse), `toHaveScreenshot` and `toPass`
-  # are not ported yet.
+  # `customAsyncMatchers`, by JS name. `toHaveScreenshot` and `toPass` are not ported yet.
   def custom_async_matchers do
     %{
       "toBeAttached" => &Matchers.to_be_attached/3,
@@ -52,6 +51,7 @@ defmodule PlaywrightEx.Matchers.Expect do
       "toBeFocused" => &Matchers.to_be_focused/3,
       "toBeHidden" => &Matchers.to_be_hidden/3,
       "toBeInViewport" => &Matchers.to_be_in_viewport/3,
+      "toBeOK" => &Matchers.to_be_ok/2,
       "toBeVisible" => &Matchers.to_be_visible/3,
       "toContainText" => &Matchers.to_contain_text/4,
       "toContainClass" => &Matchers.to_contain_class/4,

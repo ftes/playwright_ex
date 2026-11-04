@@ -9,16 +9,20 @@ defmodule PlaywrightEx.Matchers.Matchers do
   suffix are not ported).
   """
 
+  alias PlaywrightEx.Client.APIResponse
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.Isomorphic.MimeType
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Matchers.MatcherHint
   alias PlaywrightEx.Matchers.ToBeTruthy
   alias PlaywrightEx.Matchers.ToEqual
   alias PlaywrightEx.Matchers.ToHaveURL
   alias PlaywrightEx.Matchers.ToMatchText
   alias PlaywrightEx.Protocol.Serializers
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Runtime.Promise
 
   defp serialize_expected_text_values(items, options \\ %{}) do
     Enum.map(items, fn i ->
@@ -747,7 +751,43 @@ defmodule PlaywrightEx.Matchers.Matchers do
     end
   end
 
-  # toBeOK  -- not ported: APIResponse
+  def to_be_ok(this, response) do
+    matcher_name = "toBeOK"
+    MatcherHint.expect_types(response, ["APIResponse"], matcher_name)
+
+    content_type = APIResponse.headers(response)["content-type"]
+    is_text_encoding = content_type && MimeType.is_textual_mime_type(content_type)
+
+    [log, text] =
+      if !!this.isNot == APIResponse.ok(response) do
+        Promise.await(
+          Promise.all([
+            Promise.async(fn -> APIResponse._fetch_log(response) end),
+            Promise.async(fn -> if is_text_encoding, do: APIResponse.text(response), else: :null end)
+          ])
+        )
+      else
+        [nil, nil]
+      end
+
+    message = fn ->
+      MatcherHint.format_matcher_message(this.utils, %{
+        isNot: this.isNot,
+        promise: this.promise,
+        matcherName: matcher_name,
+        receiver: "response",
+        expectation: "",
+        log: log
+      }) <>
+        if text == :null,
+          do: "",
+          else: "\nResponse text:\n#{this.utils.dim_color(String.slice(text || "", 0, 1000))}"
+    end
+
+    pass = APIResponse.ok(response)
+    %{message: message, pass: pass}
+  end
+
   # toPass  -- not ported: test runner (expectConfig().testInfo, toPass config)
   # computeMatcherTitleSuffix  -- not ported: test steps (no testInfo; toHaveScreenshot)
   # deadlineForMatcher  -- not ported: toPass, expect.poll

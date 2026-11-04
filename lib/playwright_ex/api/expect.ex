@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Expect do
   });
   ```
 
-  Not ported yet: `toHaveScreenshot`, `notToHaveScreenshot`, `toBeOK`, `notToBeOK`.
+  Not ported yet: `toHaveScreenshot`, `notToHaveScreenshot`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -3618,6 +3618,72 @@ defmodule PlaywrightEx.Expect do
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchAriaSnapshot.to_match_aria_snapshot/4
       ).([expected, options])
+    end)
+  end
+
+  @doc since: "1.18"
+  @doc ~S"""
+  Ensures the response status code is within `200..299` range.
+
+  **Usage**
+
+  ```js
+  await expect(response).toBeOK();
+  ```
+  """
+  @spec to_be_ok(PlaywrightEx.APIResponse.t()) :: :ok | {:error, Exception.t()}
+  def to_be_ok(api_response) do
+    Facade.matcher(api_response, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toBeOK",
+        %{isNot: false},
+        api_response,
+        &PlaywrightEx.Matchers.Matchers.to_be_ok/2
+      ).([])
+    end)
+  end
+
+  @doc since: "1.18"
+  @doc "Like `to_be_ok/1`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @spec to_be_ok!(PlaywrightEx.APIResponse.t()) :: :ok
+  def to_be_ok!(api_response) do
+    Facade.matcher!(api_response, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toBeOK",
+        %{isNot: false},
+        api_response,
+        &PlaywrightEx.Matchers.Matchers.to_be_ok/2
+      ).([])
+    end)
+  end
+
+  @doc since: "1.18"
+  @doc ~S"""
+  The opposite of `to_be_ok/1`: `expect(x).not.toBeOK(...)` in JS.
+  """
+  @spec not_to_be_ok(PlaywrightEx.APIResponse.t()) :: :ok | {:error, Exception.t()}
+  def not_to_be_ok(api_response) do
+    Facade.matcher(api_response, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toBeOK",
+        %{isNot: true},
+        api_response,
+        &PlaywrightEx.Matchers.Matchers.to_be_ok/2
+      ).([])
+    end)
+  end
+
+  @doc since: "1.18"
+  @doc "Like `not_to_be_ok/1`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @spec not_to_be_ok!(PlaywrightEx.APIResponse.t()) :: :ok
+  def not_to_be_ok!(api_response) do
+    Facade.matcher!(api_response, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toBeOK",
+        %{isNot: true},
+        api_response,
+        &PlaywrightEx.Matchers.Matchers.to_be_ok/2
+      ).([])
     end)
   end
 

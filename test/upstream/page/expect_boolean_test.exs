@@ -2,10 +2,12 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
   @upstream "tests/page/expect-boolean.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Expect
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.TestServer
 
   @moduletag :page
 
@@ -522,27 +524,66 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
     assert Exception.message(error) =~ ~s(Unexpected token "]" while parsing css selector "row]")
   end
 
-  @tag skip: "not ported: APIResponse"
-  test "toBeOK"
+  test "toBeOK", %{page: page, server: server} do
+    res = APIRequestContext.get!(Page.request(page), server.empty_page)
+    Expect.to_be_ok!(res)
+  end
 
-  @tag skip: "not ported: APIResponse"
-  test "not.toBeOK"
+  test "not.toBeOK", %{page: page, server: server} do
+    res = APIRequestContext.get!(Page.request(page), "#{server.prefix}/unknown")
+    Expect.not_to_be_ok!(res)
+  end
 
-  @tag skip: "not ported: APIResponse"
-  test "toBeOK fail with invalid argument"
+  test "toBeOK fail with invalid argument", %{page: page} do
+    # (expect(page) as any): the facade's typespec says APIResponse, the matcher checks at runtime.
+    {:error, error} = Expect.to_be_ok(page)
+    assert Exception.message(error) =~ "toBeOK can be only used with APIResponse object"
+  end
 
-  @tag skip: "not ported: APIResponse"
+  @tag skip: "not ported: a pending promise as receiver (Elixir calls return values)"
   test "toBeOK fail with promise"
 
   describe "toBeOK should print response with text content type when fails" do
-    @tag skip: "not ported: APIResponse"
-    test "text content type"
+    setup %{server: server} do
+      TestServer.set_route(server, "/text-content-type", fn conn ->
+        conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(404, "Text error")
+      end)
 
-    @tag skip: "not ported: APIResponse"
-    test "no content type"
+      TestServer.set_route(server, "/no-content-type", &Plug.Conn.send_resp(&1, 404, "No content type error"))
 
-    @tag skip: "not ported: APIResponse"
-    test "image content type"
+      TestServer.set_route(server, "/binary-content-type", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "image/bmp")
+        |> Plug.Conn.send_resp(404, "Image content type error")
+      end)
+
+      :ok
+    end
+
+    test "text content type", %{page: page, server: server} do
+      res = APIRequestContext.get!(Page.request(page), "#{server.prefix}/text-content-type")
+      {:error, error} = Expect.to_be_ok(res)
+      assert Exception.message(error) =~ "expect(response).toBeOK() failed"
+      assert Exception.message(error) =~ "→ GET #{server.prefix}/text-content-type"
+      assert Exception.message(error) =~ "← 404 Not Found"
+      assert Exception.message(error) =~ "Response text:\nText error"
+    end
+
+    test "no content type", %{page: page, server: server} do
+      res = APIRequestContext.get!(Page.request(page), "#{server.prefix}/no-content-type")
+      {:error, error} = Expect.to_be_ok(res)
+      assert Exception.message(error) =~ "→ GET #{server.prefix}/no-content-type"
+      assert Exception.message(error) =~ "← 404 Not Found"
+      refute Exception.message(error) =~ "No content type error"
+    end
+
+    test "image content type", %{page: page, server: server} do
+      res = APIRequestContext.get!(Page.request(page), "#{server.prefix}/image-content-type")
+      {:error, error} = Expect.to_be_ok(res)
+      assert Exception.message(error) =~ "→ GET #{server.prefix}/image-content-type"
+      assert Exception.message(error) =~ "← 404 Not Found"
+      refute Exception.message(error) =~ "Image content type error"
+    end
   end
 
   describe "toBeAttached" do

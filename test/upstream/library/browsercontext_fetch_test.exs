@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.TestServer
@@ -1191,8 +1192,36 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     end
   end
 
-  @tag skip: "not ported: toBeOK (APIResponseAssertions)"
-  test "should update host header on redirect"
+  test "should update host header on redirect", %{context: context, server: server} do
+    # annotation: https://github.com/microsoft/playwright/issues/26743
+    {:ok, redirect_count} = Agent.start_link(fn -> 0 end)
+
+    TestServer.set_route(server, "/redirect", fn conn ->
+      Agent.update(redirect_count, &(&1 + 1))
+      path = if request_header(conn, "host") == URI.parse(server.prefix).authority, do: "/redirect", else: "/test"
+
+      conn
+      |> Plug.Conn.put_resp_header("host", URI.parse(server.cross_process_prefix).authority)
+      |> Plug.Conn.put_resp_header("location", server.cross_process_prefix <> path)
+      |> Plug.Conn.send_resp(302, "")
+    end)
+
+    TestServer.set_route(server, "/test", fn conn ->
+      conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(200, "Hello!")
+    end)
+
+    req_promise = TestServer.wait_for_request(server, "/test")
+
+    response =
+      APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/redirect",
+        headers: %{"HosT" => URI.parse(server.prefix).authority}
+      )
+
+    assert Agent.get(redirect_count, & &1) == 2
+    Expect.to_be_ok!(response)
+    assert APIResponse.text!(response) == "Hello!"
+    assert request_header(Task.await(req_promise), "host") == URI.parse(server.cross_process_prefix).authority
+  end
 
   test "should not work after dispose", %{context: context, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/27822
