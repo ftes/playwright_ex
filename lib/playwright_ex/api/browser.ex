@@ -443,7 +443,7 @@ defmodule PlaywrightEx.Browser do
   ## Options
 
   * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `PlaywrightEx.Page.route/4`, `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
@@ -898,7 +898,7 @@ defmodule PlaywrightEx.Browser do
   ## Options
 
   * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `PlaywrightEx.Page.route/4`, `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`

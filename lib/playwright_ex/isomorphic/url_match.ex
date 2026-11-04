@@ -10,11 +10,24 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
   """
 
   alias PlaywrightEx.Client.LocalUtils
+  alias PlaywrightEx.Protocol.Serializers
 
   # isHttpUrl  -- not ported: unused
   # globToRegexPattern  -- not ported: LocalUtils.globToRegex (PLAN)
   # isRegExp  -- ported as is_struct(match, Regex)
-  # isURLPattern, serializeURLPattern, serializeURLMatch, deserializeURLPattern, deserializeURLMatch  -- not ported: URLPattern
+  # isURLPattern, serializeURLPattern  -- not ported: URLPattern
+
+  def serialize_url_match(match) do
+    cond do
+      is_binary(match) -> %{glob: match}
+      is_struct(match, Regex) -> %{regexSource: Regex.source(match), regexFlags: Serializers.regex_flags(match)}
+      # if (isURLPattern(match)) return { urlPattern: serializeURLPattern(match) };  -- not ported: URLPattern
+      # Functions cannot be serialized
+      true -> nil
+    end
+  end
+
+  # deserializeURLPattern, deserializeURLMatch  -- not ported: URLPattern
 
   def url_matches_equal(match1, match2) do
     if is_struct(match1, Regex) and is_struct(match2, Regex),

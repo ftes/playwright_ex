@@ -53,6 +53,14 @@ defmodule PlaywrightEx.Client.Events do
     def worker, do: "worker"
   end
 
+  defmodule WebSocket do
+    @moduledoc false
+    def close, do: "close"
+    def error, do: "socketerror"
+    def frame_received, do: "framereceived"
+    def frame_sent, do: "framesent"
+  end
+
   defmodule Worker do
     @moduledoc false
     def close, do: "close"

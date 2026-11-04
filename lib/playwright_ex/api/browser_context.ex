@@ -96,7 +96,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
   popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
-  done and its response has started loading in the popup. If you would like to route/listen to this network request, use [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
+  done and its response has started loading in the popup. If you would like to route/listen to this network request, use `PlaywrightEx.BrowserContext.route/4` and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
 
   ```js
   const newPagePromise = context.waitForEvent('page');
@@ -129,8 +129,8 @@ defmodule PlaywrightEx.BrowserContext do
   The [request] object is read-only. To only listen for requests from a particular
   page, use [`Page.on(:request)`](PlaywrightEx.Page.html#module-request).
 
-  In order to intercept and mutate requests, see [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)
-  or [`Page.route`](https://playwright.dev/docs/api/class-page#page-route).
+  In order to intercept and mutate requests, see `PlaywrightEx.BrowserContext.route/4`
+  or `PlaywrightEx.Page.route/4`.
 
   ### `:request_failed`
 
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   Emitted when new service worker is created in the context.
 
-  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `route`, `routeFromHAR`, `routeWebSocket`, `storageState`, `setStorageState`, `tracing`, `unrouteAll`, `unroute`.
+  Not ported yet: `clock`, `credentials`, `debugger`, `addInitScript`, `exposeBinding`, `exposeFunction`, `newCDPSession`, `removeAllListeners`, `storageState`, `setStorageState`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -597,6 +597,216 @@ defmodule PlaywrightEx.BrowserContext do
     PlaywrightEx.Client.BrowserContext.request(browser_context)
   end
 
+  @route_options {:object, %{times: {:times, nil}}}
+
+  @typedoc "Options of `route`, see its docs."
+  @type route_options :: [times: integer()] | %{optional(:times) => integer()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Routing provides the capability to modify network requests that are made by any page in the browser context. Once route
+  is enabled, every request matching the url pattern will stall unless it's continued, fulfilled or aborted.
+
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.BrowserContext.route/4` will not intercept requests intercepted by Service Worker. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+
+  **Usage**
+
+  An example of a naive handler that aborts all image requests:
+
+  ```js
+  const context = await browser.newContext();
+  await context.route('**/*.{png,jpg,jpeg}', route => route.abort());
+  const page = await context.newPage();
+  await page.goto('https://example.com');
+  await browser.close();
+  ```
+
+  or the same snippet using a regex pattern instead:
+
+  ```js
+  const context = await browser.newContext();
+  await context.route(/(\.png$)|(\.jpg$)/, route => route.abort());
+  const page = await context.newPage();
+  await page.goto('https://example.com');
+  await browser.close();
+  ```
+
+  It is possible to examine the request to decide the route action. For example, mocking all requests that contain some post data, and leaving all other requests as is:
+
+  ```js
+  await context.route('/api/**', async route => {
+    if (route.request().postData().includes('my-string'))
+      await route.fulfill({ body: 'mocked-data' });
+    else
+      await route.continue();
+  });
+  ```
+
+  Page routes (set up with `PlaywrightEx.Page.route/4`) take precedence over browser context routes when request matches both
+  handlers.
+
+  To remove a route with its handler you can use `PlaywrightEx.BrowserContext.unroute/3`.
+
+  > #### Note {: .info}
+  >
+  > Enabling routing disables http cache.
+
+  ## Arguments
+
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `baseURL` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `handler` - handler function to route the request.
+
+  ## Options
+
+  * `:times` - *Since 1.15.* How often a route should be used. By default it will be used every time.
+  """
+  @spec route(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
+          route_options()
+        ) :: {:ok, term()} | {:error, Exception.t()}
+  def route(browser_context, url, handler, options \\ []) do
+    options = Facade.options!(options, @route_options, "browserContext.route")
+
+    Facade.async("browserContext.route", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.route(browser_context, url, handler, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `route/4`, but returns the value and raises on error."
+  @spec route!(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
+          route_options()
+        ) :: term()
+  def route!(browser_context, url, handler, options \\ []) do
+    options = Facade.options!(options, @route_options, "browserContext.route")
+
+    Facade.async!("browserContext.route", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.route(browser_context, url, handler, options)
+    end)
+  end
+
+  @route_from_har_options {:object,
+                           %{
+                             not_found: {:notFound, {:enum, %{abort: "abort", fallback: "fallback"}}},
+                             update: {:update, nil},
+                             update_content: {:updateContent, {:enum, %{embed: "embed", attach: "attach"}}},
+                             update_mode: {:updateMode, {:enum, %{full: "full", minimal: "minimal"}}},
+                             url: {:url, nil}
+                           }}
+
+  @typedoc "Options of `route_from_har`, see its docs."
+  @type route_from_har_options ::
+          [
+            not_found: :abort | :fallback,
+            update: boolean(),
+            update_content: :embed | :attach,
+            update_mode: :full | :minimal,
+            url: String.t() | Regex.t()
+          ]
+          | %{
+              optional(:not_found) => :abort | :fallback,
+              optional(:update) => boolean(),
+              optional(:update_content) => :embed | :attach,
+              optional(:update_mode) => :full | :minimal,
+              optional(:url) => String.t() | Regex.t()
+            }
+
+  @doc since: "1.23"
+  @doc ~S"""
+  If specified the network requests that are made in the context will be served from the HAR file. Read more about [Replaying from HAR](https://playwright.dev/docs/mock#replaying-from-har).
+
+  Playwright will not serve requests intercepted by Service Worker from the HAR file. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+
+  ## Arguments
+
+  * `har` - Path to a [HAR](http://www.softwareishard.com/blog/har-12-spec) file with prerecorded network data. If `path` is a relative path, then it is resolved relative to the current working directory.
+
+  ## Options
+
+  * `:not_found`
+
+    * If set to 'abort' any request not found in the HAR file will be aborted.
+    * If set to 'fallback' falls through to the next route handler in the handler chain.
+
+    Defaults to abort.
+  * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/1` is called.
+  * `:update_content` - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
+  * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
+  * `:url` - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
+  """
+  @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Exception.t()}
+  def route_from_har(browser_context, har, options \\ []) do
+    options = Facade.options!(options, @route_from_har_options, "browserContext.routeFromHAR")
+
+    Facade.async_void("browserContext.routeFromHAR", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.route_from_har(browser_context, har, options)
+    end)
+  end
+
+  @doc since: "1.23"
+  @doc "Like `route_from_har/3`, but returns the value and raises on error."
+  @spec route_from_har!(t(), String.t(), route_from_har_options()) :: :ok
+  def route_from_har!(browser_context, har, options \\ []) do
+    options = Facade.options!(options, @route_from_har_options, "browserContext.routeFromHAR")
+
+    Facade.async_void!("browserContext.routeFromHAR", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.route_from_har(browser_context, har, options)
+    end)
+  end
+
+  @doc since: "1.48"
+  @doc ~S"""
+  This method allows to modify websocket connections that are made by any page in the browser context.
+
+  Note that only [`WebSocket`](`PlaywrightEx.WebSocket`)s created after this method was called will be routed. It is recommended to call this method before creating any pages.
+
+  **Usage**
+
+  Below is an example of a simple handler that blocks some websocket messages.
+  See [`WebSocketRoute`](`PlaywrightEx.WebSocketRoute`) for more details and examples.
+
+  ```js
+  await context.routeWebSocket('/ws', async ws => {
+    ws.routeSend(message => {
+      if (message === 'to-be-blocked')
+        return;
+      ws.send(message);
+    });
+    await ws.connect();
+  });
+  ```
+
+  ## Arguments
+
+  * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `baseURL` context option.
+  * `handler` - Handler function to route the WebSocket.
+  """
+  @spec route_web_socket(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
+                                                                                     term())) ::
+          :ok | {:error, Exception.t()}
+  def route_web_socket(browser_context, url, handler) do
+    Facade.async_void("browserContext.routeWebSocket", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.route_web_socket(browser_context, url, handler)
+    end)
+  end
+
+  @doc since: "1.48"
+  @doc "Like `route_web_socket/3`, but returns the value and raises on error."
+  @spec route_web_socket!(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
+                                                                                      term())) :: :ok
+  def route_web_socket!(browser_context, url, handler) do
+    Facade.async_void!("browserContext.routeWebSocket", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.route_web_socket(browser_context, url, handler)
+    end)
+  end
+
   @doc since: "1.11"
   @doc ~S"""
   > #### Note {: .info}
@@ -823,6 +1033,90 @@ defmodule PlaywrightEx.BrowserContext do
   def set_offline!(browser_context, offline) do
     Facade.async_void!("browserContext.setOffline", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.set_offline(browser_context, offline)
+    end)
+  end
+
+  @doc since: "1.12"
+  @doc ""
+  @spec tracing(t()) :: PlaywrightEx.Tracing.t()
+  def tracing(browser_context) do
+    PlaywrightEx.Client.BrowserContext.tracing(browser_context)
+  end
+
+  @unroute_all_options {:object,
+                        %{
+                          behavior:
+                            {:behavior, {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
+                        }}
+
+  @typedoc "Options of `unroute_all`, see its docs."
+  @type unroute_all_options ::
+          [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
+
+  @doc since: "1.41"
+  @doc ~S"""
+  Removes all routes created with `PlaywrightEx.BrowserContext.route/4` and `PlaywrightEx.BrowserContext.route_from_har/3`.
+
+  ## Options
+
+  * `:behavior` - Specifies whether to wait for already running handlers and what to do if they throw errors:
+
+    * `'default'` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
+    * `'wait'` - wait for current handler calls (if any) to finish
+    * `'ignoreErrors'` - do not wait for current handler calls (if any) to finish, all errors thrown by the handlers after unrouting are silently caught
+  """
+  @spec unroute_all(t(), unroute_all_options()) :: :ok | {:error, Exception.t()}
+  def unroute_all(browser_context, options \\ []) do
+    options = Facade.options!(options, @unroute_all_options, "browserContext.unrouteAll")
+
+    Facade.async_void("browserContext.unrouteAll", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.unroute_all(browser_context, options)
+    end)
+  end
+
+  @doc since: "1.41"
+  @doc "Like `unroute_all/2`, but returns the value and raises on error."
+  @spec unroute_all!(t(), unroute_all_options()) :: :ok
+  def unroute_all!(browser_context, options \\ []) do
+    options = Facade.options!(options, @unroute_all_options, "browserContext.unrouteAll")
+
+    Facade.async_void!("browserContext.unrouteAll", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.unroute_all(browser_context, options)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Removes a route created with `PlaywrightEx.BrowserContext.route/4`. When `handler` is not specified, removes all
+  routes for the `url`.
+
+  ## Arguments
+
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` used to register a routing with
+    `PlaywrightEx.BrowserContext.route/4`.
+  * `handler` - Optional handler function used to register a routing with `PlaywrightEx.BrowserContext.route/4`.
+  """
+  @spec unroute(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
+        ) :: :ok | {:error, Exception.t()}
+  def unroute(browser_context, url, handler \\ nil) do
+    Facade.async_void("browserContext.unroute", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.unroute(browser_context, url, handler)
+    end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `unroute/3`, but returns the value and raises on error."
+  @spec unroute!(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
+        ) :: :ok
+  def unroute!(browser_context, url, handler \\ nil) do
+    Facade.async_void!("browserContext.unroute", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.unroute(browser_context, url, handler)
     end)
   end
 

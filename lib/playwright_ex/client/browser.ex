@@ -92,8 +92,8 @@ defmodule PlaywrightEx.Client.Browser do
 
   defp _setup_browser_context(this, context) do
     put(context, :_logger, get(this, :_logger))
-    # context.tracing._tracesDir = this._options.tracesDir;  -- not ported: Tracing
-    # context.request.tracing._tracesDir = this._options.tracesDir;  -- not ported: Tracing
+    # context.tracing._tracesDir = this._options.tracesDir;  -- not ported: trace recording
+    # context.request.tracing._tracesDir = this._options.tracesDir;  -- not ported: trace recording
     set_add(get(this, :_browserType), :_contexts, context)
     # this._browserType._playwright.selectors._contextsForSelectors.add(context);  -- not ported: selectors
     playwright = get(get(this, :_browserType), :_playwright)

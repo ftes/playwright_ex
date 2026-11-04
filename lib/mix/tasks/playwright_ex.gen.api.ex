@@ -597,8 +597,17 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp type_spec(_ctx, nil, _dir), do: "term()"
 
-  defp type_spec(ctx, %{"union" => union}, dir) when is_list(union),
-    do: union |> Enum.map(&type_spec(ctx, &1, dir)) |> Enum.uniq() |> Enum.join(" | ")
+  # `string|Buffer`: JS branches on Buffer, a Buffer is `{:binary, bytes}` (PLAN, Decisions).
+  defp type_spec(ctx, %{"union" => union}, dir) when is_list(union) do
+    string_or_buffer? = Enum.any?(union, &(&1["name"] == "string")) and Enum.any?(union, &(&1["name"] == "Buffer"))
+
+    union
+    |> Enum.map(
+      &if(string_or_buffer? and &1["name"] == "Buffer", do: "{:binary, binary()}", else: type_spec(ctx, &1, dir))
+    )
+    |> Enum.uniq()
+    |> Enum.join(" | ")
+  end
 
   defp type_spec(ctx, %{"name" => "Object", "templates" => [key, value]}, dir),
     do: "%{optional(#{type_spec(ctx, key, dir)}) => #{type_spec(ctx, value, dir)}}"

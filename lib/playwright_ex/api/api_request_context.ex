@@ -239,7 +239,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `delete`, see its docs."
   @type delete_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -260,7 +260,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},
@@ -389,7 +389,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `fetch`, see its docs."
   @type fetch_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -411,7 +411,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},
@@ -537,7 +537,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `get`, see its docs."
   @type get_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -558,7 +558,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},
@@ -678,7 +678,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `head`, see its docs."
   @type head_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -699,7 +699,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},
@@ -794,7 +794,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `patch`, see its docs."
   @type patch_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -815,7 +815,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},
@@ -910,7 +910,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `post`, see its docs."
   @type post_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -931,7 +931,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},
@@ -1064,7 +1064,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "Options of `put`, see its docs."
   @type put_options ::
           [
-            data: String.t() | binary() | term(),
+            data: String.t() | {:binary, binary()} | term(),
             fail_on_status_code: boolean(),
             form: %{optional(String.t()) => String.t() | number() | boolean()} | term(),
             headers: %{optional(String.t()) => String.t()},
@@ -1085,7 +1085,7 @@ defmodule PlaywrightEx.APIRequestContext do
             timeout: number() | :infinity
           ]
           | %{
-              optional(:data) => String.t() | binary() | term(),
+              optional(:data) => String.t() | {:binary, binary()} | term(),
               optional(:fail_on_status_code) => boolean(),
               optional(:form) => %{optional(String.t()) => String.t() | number() | boolean()} | term(),
               optional(:headers) => %{optional(String.t()) => String.t()},

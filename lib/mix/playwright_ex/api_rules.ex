@@ -14,6 +14,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `waitForRequest`, `waitForNavigation`, ...) return a promise handle (`"promise"`), as JS
       code starts them without `await`. `waitForEvent` takes Python's arguments (`event`, then
       options with `predicate` and `timeout`), not the JS `optionsOrPredicate`.
+    * Route handlers (`function(Route, Request)`) may also take only the route, as in the
+      Python client.
     * Callback forms: every Python `expect_*` member (`expect_popup`) is added as a member with
       a `"callback"`: the JS member it starts (`waitForEvent`), and the event for those that have
       none in JS (`@callback_events`).
@@ -105,7 +107,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       for arg <- member["args"],
           keep?(arg["type"]),
           not (drop_options? and arg["name"] == "options"),
-          do: arg |> expression() |> property()
+          do: arg |> expression() |> route_handler() |> property()
 
     %{member | "args" => args}
   end
@@ -118,6 +120,13 @@ defmodule Mix.PlaywrightEx.ApiRules do
   end
 
   defp expression(arg), do: arg
+
+  # `handler: function(Route, Request)`: a 1-arity function (the route) is accepted too.
+  defp route_handler(%{"name" => "handler", "type" => %{"name" => "function", "args" => [route, _]} = type} = arg)
+       when route == %{"name" => "Route"},
+       do: %{arg | "type" => %{"name" => "", "union" => [%{type | "args" => [route]}, type]}}
+
+  defp route_handler(arg), do: arg
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()

@@ -15,7 +15,27 @@ defmodule PlaywrightEx.Client.LocalUtils do
     this
   end
 
-  # zip, harOpen, harLookup, harClose, harUnzip, connect, tracingStarted, traceDiscarded  -- not ported
+  def zip(this, params) do
+    channel_call(this, :zip, params, TimeoutSettings.k_no_timeout())
+  end
+
+  def har_open(this, params) do
+    channel_call(this, :harOpen, params, TimeoutSettings.k_no_timeout())
+  end
+
+  def har_lookup(this, params) do
+    channel_call(this, :harLookup, params, TimeoutSettings.k_no_timeout())
+  end
+
+  def har_close(this, params) do
+    channel_call(this, :harClose, params, TimeoutSettings.k_no_timeout())
+  end
+
+  def har_unzip(this, params) do
+    channel_call(this, :harUnzip, params, TimeoutSettings.k_no_timeout())
+  end
+
+  # tracingStarted, traceDiscarded  -- not ported: trace recording
 
   def add_stack_to_tracing_no_reply(this, params) do
     channel_call(this, :addStackToTracingNoReply, params, TimeoutSettings.k_no_timeout())

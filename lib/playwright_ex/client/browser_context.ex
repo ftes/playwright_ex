@@ -6,15 +6,23 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Dialog
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.HarRouter
   alias PlaywrightEx.Client.Network
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Client.Route
+  alias PlaywrightEx.Client.RouteHandler
+  alias PlaywrightEx.Client.Tracing
   alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Client.WebError
+  alias PlaywrightEx.Client.WebSocketRoute
+  alias PlaywrightEx.Client.WebSocketRouteHandler
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
+  alias PlaywrightEx.Isomorphic.UrlMatch
 
   def from(context) do
     context
@@ -38,9 +46,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(this, :_harRouters, [])
     put(this, :_options, initializer.options)
     put(this, :_timeoutSettings, TimeoutSettings.new())
-    # Debugger.from / Tracing.from  -- not ported: DummyChannelOwners
+    # Debugger.from  -- not ported: a DummyChannelOwner
     put(this, :debugger, initializer.debugger)
-    put(this, :tracing, initializer.tracing)
+    put(this, :tracing, Tracing.from(initializer.tracing))
     put(this, :request, APIRequestContext.from(initializer.requestContext))
     put(get(this, :request), :_timeoutSettings, get(this, :_timeoutSettings))
     # this.clock = new Clock(this); this.credentials = new Credentials(this);  -- not ported
@@ -48,7 +56,12 @@ defmodule PlaywrightEx.Client.BrowserContext do
     # this._channel.on('bindingCall', ...)  -- not ported: BindingCall
     EventEmitter.on(_channel(this), "close", fn _ -> _on_close(this) end)
     EventEmitter.on(_channel(this), "page", fn %{page: page} -> _on_page(this, Page.from(page)) end)
-    # this._channel.on('route' | 'webSocketRoute', ...)  -- not ported: routing
+    EventEmitter.on(_channel(this), "route", fn %{route: route} -> _on_route(this, Route.from(route)) end)
+
+    EventEmitter.on(_channel(this), "webSocketRoute", fn %{webSocketRoute: web_socket_route} ->
+      _on_web_socket_route(this, WebSocketRoute.from(web_socket_route))
+    end)
+
     EventEmitter.on(_channel(this), "serviceWorker", fn %{worker: worker} ->
       service_worker = Worker.from(worker)
       put(service_worker, :_context, this)
@@ -151,12 +164,24 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
   # readonly properties
   def request(this), do: get(this, :request)
+  def tracing(this), do: get(this, :tracing)
 
-  def _initialize_har_from_options(_this, record_har) do
+  def _initialize_har_from_options(this, record_har) do
     if record_har do
-      # await this.tracing._recordIntoHAR(...)  -- not ported: Tracing
-      raise "recordHar is not supported yet"
+      default_content = if String.ends_with?(record_har.path, ".zip"), do: "attach", else: "embed"
+
+      Tracing._record_into_har(get(this, :tracing), record_har.path, nil, %{
+        url: record_har[:urlFilter],
+        updateContent:
+          if(record_har[:content] == nil,
+            do: if(record_har[:omitContent], do: "omit", else: default_content),
+            else: record_har.content
+          ),
+        updateMode: if(record_har[:mode] == nil, do: "full", else: record_har.mode)
+      })
     end
+
+    nil
   end
 
   defp _on_page(this, page) do
@@ -194,7 +219,63 @@ defmodule PlaywrightEx.Client.BrowserContext do
     if response, do: Promise.resolve(get(response, :_finishedPromise), nil)
   end
 
-  # _onRoute, _onWebSocketRoute  -- not ported: routing
+  def _on_route(this, route) do
+    put(route, :_context, this)
+    page = Request._safe_page(Route.request(route))
+    route_handlers = get(this, :_routes)
+
+    handled =
+      Enum.reduce_while(route_handlers, false, fn route_handler, _ ->
+        cond do
+          # If the page or the context was closed we stall all requests right away.
+          (page && get(page, :_closeWasCalled)) || is_closed(this) ->
+            {:halt, true}
+
+          !RouteHandler.matches(route_handler, Request.url(Route.request(route))) ->
+            {:cont, false}
+
+          route_handler not in get(this, :_routes) ->
+            {:cont, false}
+
+          true ->
+            if RouteHandler.will_expire(route_handler), do: update(this, :_routes, &List.delete(&1, route_handler))
+            handled = RouteHandler.handle(route_handler, route)
+
+            if get(this, :_routes) == [],
+              do:
+                Promise.catch_(
+                  Promise.async(fn -> _update_interception_patterns(this, %{internal: true}) end),
+                  fn _ -> nil end
+                )
+
+            if handled, do: {:halt, true}, else: {:cont, false}
+        end
+      end)
+
+    if !handled do
+      # If the page is closed or unrouteAll() was called without waiting and interception disabled,
+      # the method will throw an error - silence it.
+      try do
+        Route._inner_continue(route, true)
+      rescue
+        _ -> nil
+      end
+    end
+
+    nil
+  end
+
+  def _on_web_socket_route(this, web_socket_route) do
+    route_handler =
+      Enum.find(get(this, :_webSocketRoutes), &WebSocketRouteHandler.matches(&1, WebSocketRoute.url(web_socket_route)))
+
+    if route_handler,
+      do: WebSocketRouteHandler.handle(route_handler, web_socket_route),
+      else: WebSocketRoute.connect_to_server(web_socket_route)
+
+    nil
+  end
+
   # _onBinding  -- not ported: BindingCall
 
   defp _service_worker_scope(_this, service_worker) do
@@ -291,8 +372,113 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   # addInitScript, exposeBinding, _exposeCallbackBinding, exposeFunction  -- not ported: BindingCall, Disposable
-  # route, routeWebSocket, routeFromHAR, _disposeHarRouters, unrouteAll, unroute  -- not ported: routing
-  # _unrouteInternal, _updateInterceptionPatterns, _updateWebSocketInterceptionPatterns  -- not ported: routing
+  def route(this, url, handler, options \\ %{}) do
+    options = options || %{}
+
+    route_handler =
+      RouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
+        get(this, :_options)[:baseURL],
+        url,
+        handler,
+        options[:times]
+      )
+
+    update(this, :_routes, &[route_handler | &1])
+    _update_interception_patterns(this, %{title: "Route requests"})
+    # return new DisposableStub(() => this.unroute(url, handler));  -- not ported: Disposable
+    nil
+  end
+
+  def route_web_socket(this, url, handler) do
+    route_handler =
+      WebSocketRouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
+        get(this, :_options)[:baseURL],
+        url,
+        handler
+      )
+
+    update(this, :_webSocketRoutes, &[route_handler | &1])
+    _update_web_socket_interception_patterns(this, %{title: "Route WebSockets"})
+  end
+
+  def route_from_har(this, har, options \\ %{}) do
+    options = options || %{}
+    local_utils = Connection.local_utils(get(this, :_connection))
+    if !local_utils, do: raise("Route from har is not supported in thin clients")
+
+    if options[:update] do
+      Tracing._record_into_har(get(this, :tracing), har, nil, options)
+    else
+      har_router = HarRouter.create(local_utils, har, options[:notFound] || "abort", %{urlMatch: options[:url]})
+      update(this, :_harRouters, &(&1 ++ [har_router]))
+      HarRouter.add_context_route(har_router, this)
+    end
+
+    nil
+  end
+
+  defp _dispose_har_routers(this) do
+    for router <- get(this, :_harRouters), do: HarRouter.dispose(router)
+    put(this, :_harRouters, [])
+  end
+
+  def unroute_all(this, options \\ nil) do
+    _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
+    _dispose_har_routers(this)
+    nil
+  end
+
+  def unroute(this, url, handler \\ nil) do
+    {removed, remaining} =
+      Enum.split_with(get(this, :_routes), fn route ->
+        UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
+      end)
+
+    _unroute_internal(this, removed, remaining, "default")
+  end
+
+  defp _unroute_internal(this, removed, remaining, behavior) do
+    put(this, :_routes, remaining)
+
+    if behavior && behavior != "default" do
+      promises =
+        Enum.map(removed, fn route_handler -> Promise.async(fn -> RouteHandler.stop(route_handler, behavior) end) end)
+
+      Promise.await(Promise.all(promises))
+    end
+
+    _update_interception_patterns(this, %{title: "Unroute requests"})
+  end
+
+  defp _update_interception_patterns(this, options) do
+    patterns = RouteHandler.prepare_interception_patterns(get(this, :_routes))
+
+    _wrap_api_call(
+      this,
+      fn _ ->
+        channel_call(this, :setNetworkInterceptionPatterns, %{patterns: patterns}, TimeoutSettings.k_no_timeout())
+      end,
+      options
+    )
+
+    nil
+  end
+
+  defp _update_web_socket_interception_patterns(this, options) do
+    patterns = WebSocketRouteHandler.prepare_interception_patterns(get(this, :_webSocketRoutes))
+
+    _wrap_api_call(
+      this,
+      fn _ ->
+        channel_call(this, :setWebSocketInterceptionPatterns, %{patterns: patterns}, TimeoutSettings.k_no_timeout())
+      end,
+      options
+    )
+
+    nil
+  end
 
   def _effective_close_reason(this) do
     get(this, :_closeReason) || (get(this, :_browser) && get(get(this, :_browser), :_closeReason))
@@ -350,8 +536,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
     end
 
     # this._browser?._browserType._playwright.selectors._contextsForSelectors.delete(this);  -- not ported: selectors
-    # this._disposeHarRouters();  -- not ported: routing
-    # this.tracing._resetStackCounter(); this.request.tracing._resetStackCounter();  -- not ported: Tracing
+    _dispose_har_routers(this)
+    Tracing._reset_stack_counter(get(this, :tracing))
+    Tracing._reset_stack_counter(get(get(this, :request), :tracing))
     emit(this, Events.BrowserContext.close(), this)
   end
 
@@ -365,9 +552,17 @@ defmodule PlaywrightEx.Client.BrowserContext do
       put(this, :_closingStatus, "closing")
       APIRequestContext.dispose(get(this, :request), options)
       # await this._instrumentation.runBeforeCloseBrowserContext(this);  -- not ported: instrumentation
-      # const harError = await this.tracing._exportAllHars().catch(e => e);  -- not ported: Tracing
+      har_error =
+        try do
+          Tracing._export_all_hars(get(this, :tracing))
+          nil
+        rescue
+          e -> e
+        end
+
       channel_call(this, :close, options, TimeoutSettings.k_no_timeout())
       Promise.await(get(this, :_closedPromise))
+      if har_error, do: raise(har_error)
       nil
     end
   end

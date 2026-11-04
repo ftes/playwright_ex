@@ -2,7 +2,9 @@ defmodule PlaywrightEx.Client.Network do
   @upstream "packages/playwright-core/src/client/network.ts"
   @moduledoc """
   Port of the top-level functions of `#{@upstream}`. Its classes are modules named after them
-  (`PlaywrightEx.Client.Request`, `PlaywrightEx.Client.Response`, `PlaywrightEx.Client.RawHeaders`).
+  (`PlaywrightEx.Client.Request`, `PlaywrightEx.Client.Response`, `PlaywrightEx.Client.Route`,
+  `PlaywrightEx.Client.WebSocketRoute`, `PlaywrightEx.Client.WebSocketRouteHandler`,
+  `PlaywrightEx.Client.WebSocket`, `PlaywrightEx.Client.RouteHandler`, `PlaywrightEx.Client.RawHeaders`).
   """
   alias PlaywrightEx.Protocol.Serializers
 
@@ -19,8 +21,6 @@ defmodule PlaywrightEx.Client.Network do
       pathRegexFlags: if(is_struct(options[:path], Regex), do: Serializers.regex_flags(options.path))
     }
   end
-
-  # Route, WebSocketRoute, WebSocketRouteHandler, WebSocket, RouteHandler  -- not ported: routing
 
   def validate_headers(headers) do
     for {key, value} <- headers, value != nil, !is_binary(value) do

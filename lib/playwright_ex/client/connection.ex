@@ -28,7 +28,11 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.Playwright
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Client.Route
   alias PlaywrightEx.Client.TimeoutSettings
+  alias PlaywrightEx.Client.Tracing
+  alias PlaywrightEx.Client.WebSocket
+  alias PlaywrightEx.Client.WebSocketRoute
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Client.WritableStream
   alias PlaywrightEx.Protocol.Validator
@@ -109,12 +113,12 @@ defmodule PlaywrightEx.Client.Connection do
         "Playwright" => &Playwright.new/4,
         "Request" => &Request.new/4,
         "Response" => &Response.new/4,
-        "Route" => dummy,
+        "Route" => &Route.new/4,
         "Stream" => dummy,
         "SocksSupport" => dummy,
-        "Tracing" => dummy,
-        "WebSocket" => dummy,
-        "WebSocketRoute" => dummy,
+        "Tracing" => &Tracing.new/4,
+        "WebSocket" => &WebSocket.new/4,
+        "WebSocketRoute" => &WebSocketRoute.new/4,
         "Worker" => &Worker.new/4,
         "WritableStream" => &WritableStream.new/4
       })

@@ -1,24 +1,8 @@
 defmodule PlaywrightEx.Isomorphic.MimeType do
   @upstream "packages/isomorphic/mimeType.ts"
-  @moduledoc "Port of `#{@upstream}`: `getMimeTypeForPath` (screenshot types)."
+  @moduledoc "Port of `#{@upstream}`."
 
-  # isJsonMimeType, isXmlMimeType, isTextualMimeType  -- not ported: network
-
-  def get_mime_type_for_path(path) do
-    case :binary.matches(path, ".") do
-      [] ->
-        nil
-
-      matches ->
-        {dot_index, _} = List.last(matches)
-        extension = binary_part(path, dot_index + 1, byte_size(path) - dot_index - 1)
-        Map.get(types(), extension)
-    end
-  end
-
-  # getExtensionForMimeType  -- not ported: network
-
-  # `new Map([...])`: a later duplicate wins, as in JS.
+  # const types: Map<string, string> (defined at the end upstream; later entries win, as in a JS Map)
   @types Map.new([
            {"ez", "application/andrew-inset"},
            {"aw", "application/applixware"},
@@ -435,5 +419,52 @@ defmodule PlaywrightEx.Isomorphic.MimeType do
            {"webm", "video/webm"}
          ])
 
-  defp types, do: @types
+  def is_json_mime_type(mime_type) do
+    Regex.match?(~r/^(application\/json|application\/.*?\+json|text\/(x-)?json)(;\s*charset=.*)?$/, mime_type)
+  end
+
+  def is_xml_mime_type(mime_type) do
+    Regex.match?(~r/^(application\/xml|application\/.*?\+xml|text\/xml)(;\s*charset=.*)?$/, mime_type)
+  end
+
+  def is_textual_mime_type(mime_type) do
+    Regex.match?(
+      ~r/^(text\/.*?|application\/(json|(x-)?javascript|xml.*?|ecmascript|graphql|x-www-form-urlencoded)|image\/svg(\+xml)?|application\/.*?(\+json|\+xml))(;\s*charset=.*)?$/,
+      mime_type
+    )
+  end
+
+  def get_mime_type_for_path(path) do
+    case :binary.matches(path, ".") do
+      [] ->
+        nil
+
+      matches ->
+        {dot_index, _} = List.last(matches)
+        extension = binary_part(path, dot_index + 1, byte_size(path) - dot_index - 1)
+        @types[extension] || nil
+    end
+  end
+
+  def get_extension_for_mime_type(content_type) do
+    subtype =
+      case String.split(hd(String.split(content_type || "", ";")), "/") do
+        [_, subtype | _] -> subtype |> String.trim() |> String.downcase()
+        _ -> ""
+      end
+
+    if subtype == "" do
+      "bin"
+    else
+      # image/svg+xml → xml, application/ld+json → json
+      tail = if String.contains?(subtype, "+"), do: List.last(String.split(subtype, "+")), else: subtype
+
+      cond do
+        tail == "plain" -> "txt"
+        tail == "javascript" or tail == "ecmascript" -> "js"
+        tail == "jpeg" -> "jpg"
+        true -> if (t = String.replace(tail, ~r/[^a-z0-9]/, "")) != "", do: t, else: "bin"
+      end
+    end
+  end
 end

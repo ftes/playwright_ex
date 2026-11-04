@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Client.APIRequest do
       if(options[:timeout] != nil, do: options.timeout, else: get(playwright, :_defaultContextTimeout))
     )
 
-    # context.tracing._tracesDir = this._playwright._defaultLaunchOptions?.tracesDir;  -- not ported: Tracing
+    # context.tracing._tracesDir = this._playwright._defaultLaunchOptions?.tracesDir;  -- not ported: trace recording
     # await context._instrumentation.runAfterCreateRequestContext(context);  -- not ported: instrumentation
     context
   end
@@ -159,6 +159,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Network
   alias PlaywrightEx.Client.Request
+  alias PlaywrightEx.Client.Tracing
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Runtime.Heap
 
@@ -168,8 +169,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
-    # this.tracing = Tracing.from(initializer.tracing);  -- not ported: Tracing (a DummyChannelOwner)
-    Heap.put(this, :tracing, initializer.tracing)
+    Heap.put(this, :tracing, Tracing.from(initializer.tracing))
     Heap.put(this, :_timeoutSettings, TimeoutSettings.new())
     this
   end
@@ -180,10 +180,11 @@ defmodule PlaywrightEx.Client.APIRequestContext do
     options = options || %{}
     Heap.put(this, :_closeReason, options[:reason])
     # await this._instrumentation.runBeforeCloseRequestContext(this);  -- not ported: instrumentation
-    # await this.tracing._exportAllHars();  -- not ported: Tracing
+    Tracing._export_all_hars(get(this, :tracing))
+
     try do
       channel_call(this, :dispose, options, TimeoutSettings.k_no_timeout())
-      # this.tracing._resetStackCounter();  -- not ported: Tracing
+      Tracing._reset_stack_counter(get(this, :tracing))
       if request = get(this, :_request), do: set_delete(request, :_contexts, this)
       nil
     rescue

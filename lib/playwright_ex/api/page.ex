@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Page do
 
   The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
   popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
-  done and its response has started loading in the popup. If you would like to route/listen to this network request, use [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
+  done and its response has started loading in the popup. If you would like to route/listen to this network request, use `PlaywrightEx.BrowserContext.route/4` and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
 
   ```js
   // Start waiting for popup before clicking. Note no await.
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Page do
   ### `:request`
 
   Emitted when a page issues a request. The [request] object is read-only. In order to intercept and mutate requests, see
-  [`Page.route`](https://playwright.dev/docs/api/class-page#page-route) or [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route).
+  `PlaywrightEx.Page.route/4` or `PlaywrightEx.BrowserContext.route/4`.
 
   ### `:request_failed`
 
@@ -209,14 +209,14 @@ defmodule PlaywrightEx.Page do
 
   ### `:web_socket`
 
-  *Since 1.9.* Emitted when [`WebSocket`](https://playwright.dev/docs/api/class-websocket) request is sent.
+  *Since 1.9.* Emitted when [`WebSocket`](`PlaywrightEx.WebSocket`) request is sent.
 
   ### `:worker`
 
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `unrouteAll`, `unroute`, `video`, `webmcp`, `expect_download`, `expect_websocket`.
+  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `screencast`, `video`, `webmcp`, `expect_download`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -3156,6 +3156,210 @@ defmodule PlaywrightEx.Page do
     PlaywrightEx.Client.Page.request(page)
   end
 
+  @route_options {:object, %{times: {:times, nil}}}
+
+  @typedoc "Options of `route`, see its docs."
+  @type route_options :: [times: integer()] | %{optional(:times) => integer()}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Routing provides the capability to modify network requests that are made by a page.
+
+  Once routing is enabled, every request matching the url pattern will stall unless it's continued, fulfilled or aborted.
+
+  > #### Note {: .info}
+  >
+  > The handler will only be called for the first url if the response is a redirect.
+
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.route/4` will not intercept requests intercepted by Service Worker. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+
+  > #### Note {: .info}
+  >
+  > `PlaywrightEx.Page.route/4` will not intercept the first request of a popup page. Use `PlaywrightEx.BrowserContext.route/4` instead.
+
+  **Usage**
+
+  An example of a naive handler that aborts all image requests:
+
+  ```js
+  const page = await browser.newPage();
+  await page.route('**/*.{png,jpg,jpeg}', route => route.abort());
+  await page.goto('https://example.com');
+  await browser.close();
+  ```
+
+  or the same snippet using a regex pattern instead:
+
+  ```js
+  const page = await browser.newPage();
+  await page.route(/(\.png$)|(\.jpg$)/, route => route.abort());
+  await page.goto('https://example.com');
+  await browser.close();
+  ```
+
+  It is possible to examine the request to decide the route action. For example, mocking all requests that contain some post data, and leaving all other requests as is:
+
+  ```js
+  await page.route('/api/**', async route => {
+    if (route.request().postData().includes('my-string'))
+      await route.fulfill({ body: 'mocked-data' });
+    else
+      await route.continue();
+  });
+  ```
+
+  If a request matches multiple registered routes, the most recently registered route takes precedence.
+
+  Page routes take precedence over browser context routes (set up with `PlaywrightEx.BrowserContext.route/4`) when request
+  matches both handlers.
+
+  To remove a route with its handler you can use `PlaywrightEx.Page.unroute/3`.
+
+  > #### Note {: .info}
+  >
+  > Enabling routing disables http cache.
+
+  ## Arguments
+
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `baseURL` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `handler` - handler function to route the request.
+
+  ## Options
+
+  * `:times` - *Since 1.15.* How often a route should be used. By default it will be used every time.
+  """
+  @spec route(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
+          route_options()
+        ) :: {:ok, term()} | {:error, Exception.t()}
+  def route(page, url, handler, options \\ []) do
+    options = Facade.options!(options, @route_options, "page.route")
+    Facade.async("page.route", page, fn -> PlaywrightEx.Client.Page.route(page, url, handler, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `route/4`, but returns the value and raises on error."
+  @spec route!(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
+          route_options()
+        ) :: term()
+  def route!(page, url, handler, options \\ []) do
+    options = Facade.options!(options, @route_options, "page.route")
+    Facade.async!("page.route", page, fn -> PlaywrightEx.Client.Page.route(page, url, handler, options) end)
+  end
+
+  @route_from_har_options {:object,
+                           %{
+                             not_found: {:notFound, {:enum, %{abort: "abort", fallback: "fallback"}}},
+                             update: {:update, nil},
+                             update_content: {:updateContent, {:enum, %{embed: "embed", attach: "attach"}}},
+                             update_mode: {:updateMode, {:enum, %{full: "full", minimal: "minimal"}}},
+                             url: {:url, nil}
+                           }}
+
+  @typedoc "Options of `route_from_har`, see its docs."
+  @type route_from_har_options ::
+          [
+            not_found: :abort | :fallback,
+            update: boolean(),
+            update_content: :embed | :attach,
+            update_mode: :full | :minimal,
+            url: String.t() | Regex.t()
+          ]
+          | %{
+              optional(:not_found) => :abort | :fallback,
+              optional(:update) => boolean(),
+              optional(:update_content) => :embed | :attach,
+              optional(:update_mode) => :full | :minimal,
+              optional(:url) => String.t() | Regex.t()
+            }
+
+  @doc since: "1.23"
+  @doc ~S"""
+  If specified the network requests that are made in the page will be served from the HAR file. Read more about [Replaying from HAR](https://playwright.dev/docs/mock#replaying-from-har).
+
+  Playwright will not serve requests intercepted by Service Worker from the HAR file. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+
+  ## Arguments
+
+  * `har` - Path to a [HAR](http://www.softwareishard.com/blog/har-12-spec) file with prerecorded network data. If `path` is a relative path, then it is resolved relative to the current working directory.
+
+  ## Options
+
+  * `:not_found`
+
+    * If set to 'abort' any request not found in the HAR file will be aborted.
+    * If set to 'fallback' missing requests will be sent to the network.
+
+    Defaults to abort.
+  * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/1` is called.
+  * `:update_content` - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
+  * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
+  * `:url` - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
+  """
+  @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Exception.t()}
+  def route_from_har(page, har, options \\ []) do
+    options = Facade.options!(options, @route_from_har_options, "page.routeFromHAR")
+    Facade.async_void("page.routeFromHAR", page, fn -> PlaywrightEx.Client.Page.route_from_har(page, har, options) end)
+  end
+
+  @doc since: "1.23"
+  @doc "Like `route_from_har/3`, but returns the value and raises on error."
+  @spec route_from_har!(t(), String.t(), route_from_har_options()) :: :ok
+  def route_from_har!(page, har, options \\ []) do
+    options = Facade.options!(options, @route_from_har_options, "page.routeFromHAR")
+    Facade.async_void!("page.routeFromHAR", page, fn -> PlaywrightEx.Client.Page.route_from_har(page, har, options) end)
+  end
+
+  @doc since: "1.48"
+  @doc ~S"""
+  This method allows to modify websocket connections that are made by the page.
+
+  Note that only [`WebSocket`](`PlaywrightEx.WebSocket`)s created after this method was called will be routed. It is recommended to call this method before navigating the page.
+
+  **Usage**
+
+  Below is an example of a simple mock that responds to a single message. See [`WebSocketRoute`](`PlaywrightEx.WebSocketRoute`) for more details and examples.
+
+  ```js
+  await page.routeWebSocket('/ws', ws => {
+    ws.onMessage(message => {
+      if (message === 'request')
+        ws.send('response');
+    });
+  });
+  ```
+
+  ## Arguments
+
+  * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `baseURL` context option.
+  * `handler` - Handler function to route the WebSocket.
+  """
+  @spec route_web_socket(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
+                                                                                     term())) ::
+          :ok | {:error, Exception.t()}
+  def route_web_socket(page, url, handler) do
+    Facade.async_void("page.routeWebSocket", page, fn ->
+      PlaywrightEx.Client.Page.route_web_socket(page, url, handler)
+    end)
+  end
+
+  @doc since: "1.48"
+  @doc "Like `route_web_socket/3`, but returns the value and raises on error."
+  @spec route_web_socket!(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
+                                                                                      term())) :: :ok
+  def route_web_socket!(page, url, handler) do
+    Facade.async_void!("page.routeWebSocket", page, fn ->
+      PlaywrightEx.Client.Page.route_web_socket(page, url, handler)
+    end)
+  end
+
   @screenshot_options {:object,
                        %{
                          animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
@@ -4167,6 +4371,72 @@ defmodule PlaywrightEx.Page do
   def uncheck!(page, selector, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "page.uncheck")
     Facade.async_void!("page.uncheck", page, fn -> PlaywrightEx.Client.Page.uncheck(page, selector, options) end)
+  end
+
+  @unroute_all_options {:object,
+                        %{
+                          behavior:
+                            {:behavior, {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
+                        }}
+
+  @typedoc "Options of `unroute_all`, see its docs."
+  @type unroute_all_options ::
+          [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
+
+  @doc since: "1.41"
+  @doc ~S"""
+  Removes all routes created with `PlaywrightEx.Page.route/4` and `PlaywrightEx.Page.route_from_har/3`.
+
+  ## Options
+
+  * `:behavior` - Specifies whether to wait for already running handlers and what to do if they throw errors:
+
+    * `'default'` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
+    * `'wait'` - wait for current handler calls (if any) to finish
+    * `'ignoreErrors'` - do not wait for current handler calls (if any) to finish, all errors thrown by the handlers after unrouting are silently caught
+  """
+  @spec unroute_all(t(), unroute_all_options()) :: :ok | {:error, Exception.t()}
+  def unroute_all(page, options \\ []) do
+    options = Facade.options!(options, @unroute_all_options, "page.unrouteAll")
+    Facade.async_void("page.unrouteAll", page, fn -> PlaywrightEx.Client.Page.unroute_all(page, options) end)
+  end
+
+  @doc since: "1.41"
+  @doc "Like `unroute_all/2`, but returns the value and raises on error."
+  @spec unroute_all!(t(), unroute_all_options()) :: :ok
+  def unroute_all!(page, options \\ []) do
+    options = Facade.options!(options, @unroute_all_options, "page.unrouteAll")
+    Facade.async_void!("page.unrouteAll", page, fn -> PlaywrightEx.Client.Page.unroute_all(page, options) end)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Removes a route created with `PlaywrightEx.Page.route/4`. When `handler` is not specified, removes all routes for
+  the `url`.
+
+  ## Arguments
+
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while routing.
+  * `handler` - Optional handler function to route the request.
+  """
+  @spec unroute(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
+        ) :: :ok | {:error, Exception.t()}
+  def unroute(page, url, handler \\ nil) do
+    Facade.async_void("page.unroute", page, fn -> PlaywrightEx.Client.Page.unroute(page, url, handler) end)
+  end
+
+  @doc since: "1.8"
+  @doc "Like `unroute/3`, but returns the value and raises on error."
+  @spec unroute!(
+          t(),
+          String.t() | Regex.t() | (String.t() -> boolean()),
+          (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
+        ) :: :ok
+  def unroute!(page, url, handler \\ nil) do
+    Facade.async_void!("page.unroute", page, fn -> PlaywrightEx.Client.Page.unroute(page, url, handler) end)
   end
 
   @doc since: "1.8"
@@ -5312,6 +5582,61 @@ defmodule PlaywrightEx.Page do
     )
   end
 
+  @expect_websocket_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_websocket`, see its docs."
+  @type expect_websocket_options ::
+          [predicate: (PlaywrightEx.WebSocket.t() -> boolean()), timeout: number() | :infinity]
+          | %{
+              optional(:predicate) => (PlaywrightEx.WebSocket.t() -> boolean()),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Performs action and waits for a new [`WebSocket`](`PlaywrightEx.WebSocket`). If predicate is provided, it passes
+  [`WebSocket`](`PlaywrightEx.WebSocket`) value into the `predicate` function and waits for `predicate(webSocket)` to return a truthy value.
+  Will throw an error if the page is closed before the WebSocket event is fired.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`WebSocket`](`PlaywrightEx.WebSocket`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_websocket(t(), (-> term()), expect_websocket_options()) ::
+          {:ok, PlaywrightEx.WebSocket.t()} | {:error, Exception.t()}
+  def expect_websocket(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_websocket_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "websocket", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.9"
+  @doc "Like `expect_websocket/3`, but returns the value and raises on error."
+  @spec expect_websocket!(t(), (-> term()), expect_websocket_options()) :: PlaywrightEx.WebSocket.t()
+  def expect_websocket!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_websocket_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "websocket", options) end,
+      action
+    )
+  end
+
   @expect_worker_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `expect_worker`, see its docs."
@@ -5387,7 +5712,7 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec on(t(), :web_socket, (term() -> term())) :: t()
+  @spec on(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec on(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def on(page, event, listener),
     do: PlaywrightEx.Client.Page.on(page, Facade.event!(event, @events, "page.on"), listener)
@@ -5412,7 +5737,7 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec once(t(), :web_socket, (term() -> term())) :: t()
+  @spec once(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec once(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def once(page, event, listener),
     do: PlaywrightEx.Client.Page.once(page, Facade.event!(event, @events, "page.once"), listener)
@@ -5437,7 +5762,7 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec add_listener(t(), :web_socket, (term() -> term())) :: t()
+  @spec add_listener(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec add_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def add_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.add_listener(page, Facade.event!(event, @events, "page.addListener"), listener)
@@ -5462,7 +5787,7 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec remove_listener(t(), :web_socket, (term() -> term())) :: t()
+  @spec remove_listener(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec remove_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def remove_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.remove_listener(page, Facade.event!(event, @events, "page.removeListener"), listener)
@@ -5487,7 +5812,7 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec off(t(), :web_socket, (term() -> term())) :: t()
+  @spec off(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec off(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def off(page, event, listener),
     do: PlaywrightEx.Client.Page.off(page, Facade.event!(event, @events, "page.off"), listener)
@@ -5512,7 +5837,7 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
-  @spec prepend_listener(t(), :web_socket, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec prepend_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
   def prepend_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.prepend_listener(page, Facade.event!(event, @events, "page.prependListener"), listener)
