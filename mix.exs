@@ -4,7 +4,7 @@ defmodule PlaywrightEx.MixProject do
   @version "0.16.0"
   @source_url "https://github.com/ftes/playwright_ex"
   @description """
-  Elixir client for the Playwright node.js driver.
+  Elixir client for Playwright: a port of the official JavaScript client.
   """
 
   def project do
@@ -14,7 +14,6 @@ defmodule PlaywrightEx.MixProject do
       description: @description,
       elixir: "~> 1.18",
       deps: deps(),
-      elixirc_paths: elixirc_paths(Mix.env()),
       package: package(),
       name: "PlaywrightEx",
       source_url: @source_url,
@@ -24,7 +23,6 @@ defmodule PlaywrightEx.MixProject do
         plt_local_path: "priv/plts/project.plt",
         plt_core_path: "priv/plts/core.plt",
         plt_add_apps: [:ex_unit, :mix]
-        # flags: [:specdiffs]
       ]
     ]
   end
@@ -32,17 +30,14 @@ defmodule PlaywrightEx.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`).
+      extra_applications: [:logger, :inets, :ssl, :crypto, :public_key]
     ]
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nimble_options, "~> 1.1"},
-      {:mime, "~> 2.0", optional: true},
-      {:websockex, ">= 0.4.0 and < 1.0.0", optional: true},
-      {:testcontainers, "~> 2.0", only: :test},
       {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:styler, "~> 1.3", only: [:dev, :test], runtime: false},
@@ -50,14 +45,11 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
-
   defp package do
     [
       licenses: ["MIT"],
       links: %{"Github" => @source_url},
-      exclude_patterns: ~w(assets/node_modules priv/static/assets priv/plts)
+      exclude_patterns: ~w(priv/plts)
     ]
   end
 
@@ -66,9 +58,7 @@ defmodule PlaywrightEx.MixProject do
       preferred_envs: [
         format: :test,
         setup: :test,
-        check: :test,
-        "assets.setup": :test,
-        "test.websocket": :test
+        check: :test
       ]
     ]
   end
@@ -82,50 +72,17 @@ defmodule PlaywrightEx.MixProject do
         "CHANGELOG.md": [title: "Changelog"]
       ],
       nest_modules_by_prefix: [PlaywrightEx],
-      filter_modules: fn _, metadata ->
-        not String.contains?(to_string(metadata.source_path), "/processes/")
-      end,
-      default_group_for_doc: &group_for_doc/1,
       groups_for_modules: [
-        Channels:
-          if File.exists?("lib") do
-            for file <- File.ls!("lib/playwright_ex/channels") do
-              "PlaywrightEx.#{file |> Path.basename(".ex") |> Macro.camelize()}"
-            end
-          end,
-        Other: [
-          PlaywrightEx.Artifact,
-          PlaywrightEx.Download,
-          PlaywrightEx.EventWaiter,
-          PlaywrightEx.JsLogger,
-          PlaywrightEx.Supervisor
-        ]
+        Client: ~r/^PlaywrightEx\.Client\./,
+        Protocol: ~r/^PlaywrightEx\.Protocol\./,
+        Runtime: ~r/^PlaywrightEx\.(Runtime|Transport)\./
       ]
     ]
   end
 
-  defp group_for_doc(metadata) do
-    case metadata[:group] do
-      :composed ->
-        %{
-          title: "Client-Composed Functions",
-          description:
-            "Helpers composed in this client from multiple channel operations/events, primarily to keep API parity with other Playwright clients where no single server method maps directly."
-        }
-
-      group ->
-        group
-    end
-  end
-
   defp aliases do
     [
-      setup: ["deps.get", "assets.setup"],
-      "assets.setup": [
-        "cmd npm install --prefix assets",
-        "cmd npm exec --prefix assets playwright -- install chromium --with-deps --only-shell"
-      ],
-      "test.websocket": "playwright_ex.test.websocket",
+      setup: ["deps.get", "playwright_ex.install"],
       check: [
         "format --check-formatted",
         "credo",
