@@ -130,6 +130,12 @@ Conventions and the roll procedure: `PORTING.md`.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
   inspector; Electron/Android optional.
 
+## Open questions
+
+- `Waiter.waitForPromise`: keep the explicit `try do ... rescue` (upstream's `try {} catch`
+  shape; Styler had rewritten it to an implicit try) or go implicit. Same behaviour;
+  recommended: explicit.
+
 ## Spike results
 
 All passed in `js_spike/` (22 tests) and `driver_install/` (3 tests, no Node on PATH):
@@ -179,7 +185,11 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
 1. Done: generator for the `api.json` facade (`mix playwright_ex.gen.api`, phase 2). Callback
    forms (`expect_popup`) and matcher shapes land with the classes that need them.
 2. Core port (connection → page/frame/locator → network → matchers), then the remaining
-   classes, released as one breaking version with the migration guide. Release gate: "generate
+   classes, released as one breaking version with the migration guide. Next: a thin slice
+   through BrowserContext → Page → Frame (`new_context`/`new_page`, `goto`, `url`, `title`,
+   `close`, the `:page` event, the `Request`/`Response` that `goto` needs), with mirrored
+   `page-goto`/`browsercontext-basic` specs and the two launch specs waiting on Page and
+   BrowserContext. Release gate: "generate
    all". Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
    Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing
