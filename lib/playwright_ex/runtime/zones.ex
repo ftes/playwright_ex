@@ -8,9 +8,6 @@ defmodule PlaywrightEx.Runtime.Zones do
   """
   @key :playwright_ex_zone
 
-  # currentZone().data(type)
-  def data(type), do: Map.get(Process.get(@key, %{}), type)
-
   # currentZone().with(type, data).run(func)
   def with(type, data, func) do
     previous = Process.get(@key, %{})
@@ -49,6 +46,9 @@ defmodule PlaywrightEx.Runtime.Zones do
       Process.put(@key, previous)
     end
   end
+
+  # currentZone().data(type)
+  def data(type), do: Map.get(Process.get(@key, %{}), type)
 
   # Zone data objects are mutable in JS (e.g. `apiZone.reported = true`).
   def update(type, fun) do

@@ -128,14 +128,17 @@ defmodule PlaywrightEx.Client.EventEmitter do
     this
   end
 
+  # _removeAllListeners  -- ported as remove_all_listeners/2 (no behavior option)
+
   def listeners(this, type), do: Enum.map(map_get(this, :_events, type) || [], & &1.fun)
+
+  # rawListeners  -- not ported: listeners are stored unwrapped
 
   def listener_count(this, type), do: length(map_get(this, :_events, type) || [])
 
   def event_names(%{heap: heap, guid: guid}),
     do: heap |> :ets.match({{guid, :_events, :"$1"}, :_}) |> Enum.map(&hd/1)
 
-  # rawListeners  -- not ported: listeners are stored unwrapped
-  # _removeAllListeners, _waitFor, _listeners  -- ported as remove_all_listeners/2 and listeners/2 (no behavior option)
+  # _waitFor, _listeners  -- ported as remove_all_listeners/2 and listeners/2 (no behavior option)
   # checkListener, OnceWrapper, unwrapListener, unwrapListeners, wrappedListener  -- not ported: once/3 wraps with {id, fun}
 end

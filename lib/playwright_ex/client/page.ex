@@ -242,13 +242,15 @@ defmodule PlaywrightEx.Client.Page do
   end
 
   # waitForNavigation, waitForURL, waitForRequest, waitForResponse  -- not ported: urlMatch
-  # waitForEvent, _waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
+  # waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
 
   def _close_error_with_reason(this) do
     Errors.TargetClosedError.new(
       get(this, :_closeReason) || BrowserContext._effective_close_reason(get(this, :_browserContext))
     )
   end
+
+  # _waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
 
   def go_back(this, options \\ %{}) do
     wait_until =

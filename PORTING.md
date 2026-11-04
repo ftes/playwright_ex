@@ -25,7 +25,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 - Comment only deviations. A skipped statement or method keeps its upstream text with a marker,
   `# this._instrumentation.onApiCallEnd(apiZone);  -- not ported`, optionally `-- not ported: <reason>`.
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
-  `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered.
+  `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
+  and a module-level marker line counts for the upstream order.
   Markers are per line.
 - Upstream-shaped code has a few credo checks relaxed (`.credo.exs`), so statements stay in
   upstream order. Don't restructure ported code to please a linter.
@@ -57,6 +58,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 | `throw` / `try {} catch` / `instanceof` | `raise` / `rescue` / struct match (`Errors.is_playwright_error/1`); `new Error(msg)` is `raise msg` (`RuntimeError`) |
 | `e.message = ...` | `e = Errors.rewrite_error_message(e, ...)` (exceptions are immutable) |
 | `undefined` / `null` | `nil` / `:null` |
+| default parameter, omitted (`undefined`) optional argument | the facade passes `nil` for omitted optional positional args: apply the default in the body (`x = if x == nil, do: default, else: x`); JS `null` is `:null` |
 | `let x` reassigned inside a closure | a heap field, or restructure the closure to return the value |
 
 ## Traps

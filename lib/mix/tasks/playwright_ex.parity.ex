@@ -13,11 +13,14 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       `@upstream`; top-level functions map to that module too. An upstream method is
       covered when the module defines a function with its snake_case name, or when a line
       in the module's file containing "not ported" or "ported as" mentions it (or its class). Generated
-      files are skipped.
+      files are skipped. Ported methods must keep the upstream order: the module's functions and the
+      names on its module-level marker lines (before the marker), in file order, compared with the
+      upstream methods; names outside their longest common subsequence are out of order.
+      Functions with no upstream name are ignored.
     * Test modules with `@upstream "tests/<path>.spec.ts"`: upstream test names (`it`,
       `test`, `browserTest`, ... including `.skip`/`.fixme`, flattened over `describe`) must
-      equal the module's `test` names, compared as multisets. Names built at runtime
-      (template literals with `${`, concatenation) are not compared.
+      equal the module's `test` names, compared as multisets, and come in the same order.
+      Names built at runtime (template literals with `${`, concatenation) are not compared.
 
     * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
       `api.json` and the compiled client must give the committed files, so a newly ported
@@ -77,7 +80,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     if File.regular?(source) do
       ts = ts_members(File.read!(source))
       if extra?, do: report_extra(ts_path, ts, mods)
-      missing(ts_path, ts, mods)
+      missing(ts_path, ts, mods) ++ out_of_order(ts_path, ts, mods)
     else
       ["#{ts_path}: not found upstream (referenced by #{inspect(hd(mods).name)})"]
     end
@@ -94,6 +97,62 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         missing != [] do
       "#{ts_path}: #{inspect(mod.name)} is missing #{Enum.map_join(missing, ", ", &underscore/1)}"
     end
+  end
+
+  defp out_of_order(ts_path, ts, mods) do
+    root = Enum.find(mods, & &1.declares_upstream) || hd(mods)
+
+    for mod <- mods,
+        upstream_names = for({c, m} <- ts, module_for(c, mods, root) == mod, uniq: true, do: m),
+        to_upstream = Map.new(Enum.flat_map(upstream_names, &[{underscore(&1), &1}, {&1, &1}])),
+        ported = for(name <- ported_in_order(mod), Map.has_key?(to_upstream, name), uniq: true, do: to_upstream[name]),
+        wrong = unordered(upstream_names, ported),
+        wrong != [] do
+      "#{ts_path}: #{inspect(mod.name)} is out of upstream order at #{Enum.map_join(wrong, ", ", &underscore/1)}"
+    end
+  end
+
+  # Function names and names on module-level marker lines (before the marker), in file order.
+  @doc false
+  def ported_in_order(mod) do
+    markers =
+      for {line, n} <- mod.file |> File.stream!() |> Stream.with_index(1),
+          n in mod.lines,
+          [indent, comment] <- [Regex.run(~r/^(\s*)#(.*)/, line, capture: :all_but_first) || []],
+          String.length(indent) == mod.def_indent,
+          [before, _ | _] <- [Regex.split(~r/--|not ported|ported as/i, comment)],
+          [word] <- Regex.scan(~r/[A-Za-z_$][\w$]*/, before),
+          do: {n, word}
+
+    (mod.defs ++ markers) |> Enum.sort_by(&elem(&1, 0)) |> Enum.map(&elem(&1, 1))
+  end
+
+  # Elements of `actual` that are not in its longest common subsequence with `expected`.
+  @doc false
+  def unordered(expected, actual) do
+    expected = Enum.filter(expected, &(&1 in actual))
+    actual = Enum.filter(actual, &(&1 in expected))
+    actual -- lcs(expected, actual)
+  end
+
+  # Longest common subsequence, row by row: each cell holds {length, reversed subsequence}.
+  defp lcs(a, b) do
+    first_row = List.duplicate({0, []}, length(b) + 1)
+
+    a
+    |> Enum.reduce(first_row, &lcs_row(&1, b, &2))
+    |> List.last()
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  defp lcs_row(x, b, prev) do
+    row =
+      Enum.scan(Enum.zip([b, prev, tl(prev)]), {0, []}, fn {y, {n, diag}, up}, left ->
+        if x == y, do: {n + 1, [x | diag]}, else: Enum.max_by([up, left], &elem(&1, 0))
+      end)
+
+    [{0, []} | row]
   end
 
   defp report_extra(ts_path, ts, mods) do
@@ -163,18 +222,18 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   def elixir_modules(file) do
     source = File.read!(file)
     generated = String.starts_with?(source, "# This file is generated")
-    ast = Code.string_to_quoted!(source, file: file)
+    ast = Code.string_to_quoted!(source, file: file, columns: true, token_metadata: true)
     collect(ast, nil, nil, %{file: file, generated: generated})
   end
 
-  defp collect({:defmodule, _, [{:__aliases__, _, alias}, [do: body]]}, parent, inherited, info) do
+  defp collect({:defmodule, meta, [{:__aliases__, _, alias}, [do: body]]}, parent, inherited, info) do
     name = if parent, do: Module.concat([parent | alias]), else: Module.concat(alias)
     exprs = block(body)
     own = Enum.find_value(exprs, &upstream_attr/1)
 
     defs =
-      for {kind, _, [head | _]} <- exprs, kind in [:def, :defp, :defmacro, :defmacrop, :defdelegate], uniq: true do
-        {kind in [:def, :defmacro, :defdelegate], fun_name(head)}
+      for {kind, meta, [head | _]} <- exprs, kind in [:def, :defp, :defmacro, :defmacrop, :defdelegate] do
+        {kind in [:def, :defmacro, :defdelegate], fun_name(head), meta[:line]}
       end
 
     module =
@@ -182,8 +241,11 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         name: name,
         upstream: own || inherited,
         declares_upstream: own != nil,
-        functions: defs |> Enum.map(&elem(&1, 1)) |> Enum.uniq(),
-        public: for({true, n} <- defs, uniq: true, do: n),
+        functions: for({_, n, _} <- defs, uniq: true, do: n),
+        public: for({true, n, _} <- defs, uniq: true, do: n),
+        defs: for({_, n, line} <- defs, do: {line, n}),
+        lines: meta[:line]..meta[:end][:line],
+        def_indent: meta[:column] + 1,
         tests: test_names(body)
       })
 
@@ -227,10 +289,12 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       source = Path.join(upstream, mod.upstream)
 
       if File.regular?(source) do
-        {missing, extra} = multiset_diff(spec_tests(File.read!(source)), mod.tests)
+        expected = spec_tests(File.read!(source))
+        {missing, extra} = multiset_diff(expected, mod.tests)
 
         Enum.map(missing, &"#{mod.upstream}: missing test #{inspect(&1)}") ++
-          Enum.map(extra, &"#{mod.upstream}: test #{inspect(&1)} is not upstream")
+          Enum.map(extra, &"#{mod.upstream}: test #{inspect(&1)} is not upstream") ++
+          Enum.map(unordered(expected, mod.tests), &"#{mod.upstream}: test #{inspect(&1)} is out of upstream order")
       else
         ["#{mod.upstream}: not found upstream (referenced by #{inspect(mod.name)})"]
       end

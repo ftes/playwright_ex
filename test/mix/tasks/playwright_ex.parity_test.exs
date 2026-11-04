@@ -62,4 +62,38 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
              "should work"
            ]
   end
+
+  test "unordered/2: names outside the longest common subsequence, unknown names ignored" do
+    assert Parity.unordered(~w(a b c d e), ~w(a d b x c e)) == ["d"]
+    assert Parity.unordered(~w(a b c d), ~w(b c d a)) == ["a"]
+    assert Parity.unordered(~w(a b), ~w(a b)) == []
+  end
+
+  @tag :tmp_dir
+  test "ported_in_order/1: functions and module-level marker names, in file order", %{tmp_dir: tmp_dir} do
+    file = Path.join(tmp_dir, "page.ex")
+
+    File.write!(file, """
+    defmodule Page do
+      def b(this), do: this
+
+      # a, c  -- not ported: reason
+      def d(this) do
+        # e  -- not ported: inside a body
+        this
+      end
+
+      defp b(this, _), do: this
+
+      defmodule Nested do
+        # f  -- ported as g/1
+        def g(this), do: this
+      end
+    end
+    """)
+
+    [page, nested] = Parity.elixir_modules(file)
+    assert Parity.ported_in_order(page) == ~w(b a c d b)
+    assert Parity.ported_in_order(nested) == ~w(f g)
+  end
 end

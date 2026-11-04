@@ -25,3 +25,17 @@ Each entry: what, why, and what to revisit.
 - **`Client.ElementHandle` started with only `convertSelectOptionValues`**, so its facade is
   generated with every member listed as not ported.
 - **Upstream `TODO:` comments become `Upstream to-do:`**: `mix credo` (CI) fails on TODO tags.
+
+## 2026-11-04: Direction check 1 (fresh reviewer, read-only)
+
+Verdict: on track, client modules 1:1 statement for statement. Follow-ups taken:
+- **Facade `nil` vs JS defaults**: the facade passes omitted optional positional args as `nil`,
+  so client `\\` defaults never fire. Idiom (PORTING.md): apply JS defaults in the body; JS
+  `null` is `:null`, `undefined` is `nil`. Fixes for `dispatch_event`, `selectOption(null)`,
+  `description("")` go with the ElementHandle step.
+- **Parity enforces upstream order** (longest common subsequence of method names vs the TS
+  file, of test names vs the spec). Only module-level marker lines count. Why: order keeps
+  `git diff vA vB` hunks portable.
+- **Known gap**: `record_har`/`expose_functions` are in the facade but raise at runtime (the
+  context is created before `recordHar` raises). Fixed by porting HAR/bindings, not by hiding
+  the options.
