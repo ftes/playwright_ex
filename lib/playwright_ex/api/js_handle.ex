@@ -2,7 +2,7 @@
 
 defmodule PlaywrightEx.JSHandle do
   @moduledoc ~S"""
-  JSHandle represents an in-page JavaScript object. JSHandles can be created with the `Page.evaluateHandle`
+  JSHandle represents an in-page JavaScript object. JSHandles can be created with the [`Page.evaluateHandle`](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
   method.
 
   ```js
@@ -11,11 +11,11 @@ defmodule PlaywrightEx.JSHandle do
   ```
 
   JSHandle prevents the referenced JavaScript object being garbage collected unless the handle is exposed with
-  `JSHandle.dispose`. JSHandles are auto-disposed when their origin frame gets navigated or the parent context
+  [`JSHandle.dispose`](https://playwright.dev/docs/api/class-jshandle#js-handle-dispose). JSHandles are auto-disposed when their origin frame gets navigated or the parent context
   gets destroyed.
 
-  JSHandle instances can be used as an argument in `Page.evalOnSelector`, `PlaywrightEx.Page.evaluate/4` and
-  `Page.evaluateHandle` methods.
+  JSHandle instances can be used as an argument in [`Page.evalOnSelector`](https://playwright.dev/docs/api/class-page#page-eval-on-selector), `PlaywrightEx.Page.evaluate/4` and
+  [`Page.evaluateHandle`](https://playwright.dev/docs/api/class-page#page-evaluate-handle) methods.
 
   Not ported yet: `asElement`, `dispose`, `evaluate`, `evaluateHandle`, `getProperties`, `getProperty`, `jsonValue`.
   """

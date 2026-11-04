@@ -38,7 +38,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
 
-  The arguments passed into `console.log` and the page are available on the `ConsoleMessage` event handler argument.
+  The arguments passed into `console.log` and the page are available on the [`ConsoleMessage`](https://playwright.dev/docs/api/class-consolemessage) event handler argument.
 
   **Usage**
 
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ### `:dialog`
 
-  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either `Dialog.accept` or `Dialog.dismiss` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
+  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept) or [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss) the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
 
   **Usage**
 
@@ -66,36 +66,36 @@ defmodule PlaywrightEx.BrowserContext do
 
   > #### Note {: .info}
   >
-  > When no `Page.dialog` or `BrowserContext.dialog` listeners are present, all dialogs are automatically dismissed.
+  > When no [`Page.on(:dialog)`](PlaywrightEx.Page.html#module-dialog) or [`BrowserContext.on(:dialog)`](PlaywrightEx.BrowserContext.html#module-dialog) listeners are present, all dialogs are automatically dismissed.
 
   ### `:dialog_closed`
 
-  Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by `Dialog.accept`, by `Dialog.dismiss`, or manually by the user in the headed browser.
+  Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept), by [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the headed browser.
 
   ### `:download`
 
-  Emitted when attachment download started in any page belonging to this context. User can access basic file operations on downloaded content via the passed `Download` instance. See also `Page.download` to receive events about a specific page.
+  Emitted when attachment download started in any page belonging to this context. User can access basic file operations on downloaded content via the passed [`Download`](https://playwright.dev/docs/api/class-download) instance. See also [`Page.on(:download)`](PlaywrightEx.Page.html#module-download) to receive events about a specific page.
 
   ### `:frame_attached`
 
-  Emitted when a frame is attached in any page belonging to this context. See also `Page.frameAttached` to receive events about a specific page.
+  Emitted when a frame is attached in any page belonging to this context. See also [`Page.on(:frame_attached)`](PlaywrightEx.Page.html#module-frame_attached) to receive events about a specific page.
 
   ### `:frame_detached`
 
-  Emitted when a frame is detached in any page belonging to this context. See also `Page.frameDetached` to receive events about a specific page.
+  Emitted when a frame is detached in any page belonging to this context. See also [`Page.on(:frame_detached)`](PlaywrightEx.Page.html#module-frame_detached) to receive events about a specific page.
 
   ### `:frame_navigated`
 
-  Emitted when a frame is navigated to a new url in any page belonging to this context. See also `Page.frameNavigated` to receive events about navigations in a specific page.
+  Emitted when a frame is navigated to a new url in any page belonging to this context. See also [`Page.on(:frame_navigated)`](PlaywrightEx.Page.html#module-frame_navigated) to receive events about navigations in a specific page.
 
   ### `:page`
 
   The event is emitted when a new Page is created in the BrowserContext. The page may still be loading. The event will
-  also fire for popup pages. See also `Page.popup` to receive events about popups relevant to a specific page.
+  also fire for popup pages. See also [`Page.on(:popup)`](PlaywrightEx.Page.html#module-popup) to receive events about popups relevant to a specific page.
 
   The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
   popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
-  done and its response has started loading in the popup. If you would like to route/listen to this network request, use `BrowserContext.route` and `BrowserContext.request` respectively instead of similar methods on the `Page`.
+  done and its response has started loading in the popup. If you would like to route/listen to this network request, use [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
 
   ```js
   const newPagePromise = context.waitForEvent('page');
@@ -111,47 +111,47 @@ defmodule PlaywrightEx.BrowserContext do
 
   ### `:page_close`
 
-  Emitted when a page in this context is closed. See also `Page.close` to receive events about a specific page.
+  Emitted when a page in this context is closed. See also [`Page.on(:close)`](PlaywrightEx.Page.html#module-close) to receive events about a specific page.
 
   ### `:page_load`
 
-  Emitted when the JavaScript [`load`](https://developer.mozilla.org/en-US/docs/Web/Events/load) event is dispatched in any page belonging to this context. See also `Page.load` to receive events about a specific page.
+  Emitted when the JavaScript [`load`](https://developer.mozilla.org/en-US/docs/Web/Events/load) event is dispatched in any page belonging to this context. See also [`Page.on(:load)`](PlaywrightEx.Page.html#module-load) to receive events about a specific page.
 
   ### `:web_error`
 
   Emitted when exception is unhandled in any of the pages in this
-  context. To listen for errors from a particular page, use `Page.pageError` instead.
+  context. To listen for errors from a particular page, use [`Page.on(:page_error)`](PlaywrightEx.Page.html#module-page_error) instead.
 
   ### `:request`
 
   Emitted when a request is issued from any pages created through this context.
   The [request] object is read-only. To only listen for requests from a particular
-  page, use `Page.request`.
+  page, use [`Page.on(:request)`](PlaywrightEx.Page.html#module-request).
 
-  In order to intercept and mutate requests, see `BrowserContext.route`
-  or `Page.route`.
+  In order to intercept and mutate requests, see [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)
+  or [`Page.route`](https://playwright.dev/docs/api/class-page#page-route).
 
   ### `:request_failed`
 
   Emitted when a request fails, for example by timing out. To only listen for
-  failed requests from a particular page, use `Page.requestFailed`.
+  failed requests from a particular page, use [`Page.on(:request_failed)`](PlaywrightEx.Page.html#module-request_failed).
 
   > #### Note {: .info}
   >
   > HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request will complete
-  > with `BrowserContext.requestFinished` event and not with `BrowserContext.requestFailed`.
+  > with [`BrowserContext.on(:request_finished)`](PlaywrightEx.BrowserContext.html#module-request_finished) event and not with [`BrowserContext.on(:request_failed)`](PlaywrightEx.BrowserContext.html#module-request_failed).
 
   ### `:request_finished`
 
   Emitted when a request finishes successfully after downloading the response body. For a successful response, the
   sequence of events is `request`, `response` and `requestfinished`. To listen for
-  successful requests from a particular page, use `Page.requestFinished`.
+  successful requests from a particular page, use [`Page.on(:request_finished)`](PlaywrightEx.Page.html#module-request_finished).
 
   ### `:response`
 
   Emitted when [response] status and headers are received for a request. For a successful response, the sequence of events
   is `request`, `response` and `requestfinished`. To listen for response events
-  from a particular page, use `Page.response`.
+  from a particular page, use [`Page.on(:response)`](PlaywrightEx.Page.html#module-response).
 
   ### `:service_worker`
 
@@ -488,7 +488,7 @@ defmodule PlaywrightEx.BrowserContext do
   * `PlaywrightEx.Page.goto/3`
   * `PlaywrightEx.Page.reload/2`
   * `PlaywrightEx.Page.set_content/3`
-  * `Page.waitForNavigation`
+  * [`Page.waitForNavigation`](https://playwright.dev/docs/api/class-page#page-wait-for-navigation)
 
   > #### Note {: .info}
   >

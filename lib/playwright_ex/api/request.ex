@@ -2,14 +2,14 @@
 
 defmodule PlaywrightEx.Request do
   @moduledoc ~S"""
-  Whenever the page sends a request for a network resource the following sequence of events are emitted by `Page`:
+  Whenever the page sends a request for a network resource the following sequence of events are emitted by [`Page`](`PlaywrightEx.Page`):
 
-  * `Page.request` emitted when the request is issued by the page.
-  * `Page.response` emitted when/if the response status and headers are received for the request.
-  * `Page.requestFinished` emitted when the response body is downloaded and the request is complete.
+  * [`Page.on(:request)`](PlaywrightEx.Page.html#module-request) emitted when the request is issued by the page.
+  * [`Page.on(:response)`](PlaywrightEx.Page.html#module-response) emitted when/if the response status and headers are received for the request.
+  * [`Page.on(:request_finished)`](PlaywrightEx.Page.html#module-request_finished) emitted when the response body is downloaded and the request is complete.
 
   If request fails at some point, then instead of `'requestfinished'` event (and possibly instead of 'response' event),
-  the  `Page.requestFailed` event is emitted.
+  the  [`Page.on(:request_failed)`](PlaywrightEx.Page.html#module-request_failed) event is emitted.
 
   > #### Note {: .info}
   >
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  Returns the `Frame` that initiated this request.
+  Returns the [`Frame`](`PlaywrightEx.Frame`) that initiated this request.
 
   **Usage**
 
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   Request that was redirected by the server to this one, if any.
 
-  When the server responds with a redirect, Playwright creates a new `Request` object. The two requests are connected by
+  When the server responds with a redirect, Playwright creates a new [`Request`](`PlaywrightEx.Request`) object. The two requests are connected by
   `redirectedFrom()` and `redirectedTo()` methods. When multiple server redirects has happened, it is possible to
   construct the whole redirect chain by repeatedly calling `redirectedFrom()`.
 
@@ -233,7 +233,7 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  Returns the matching `Response` object, or `null` if the response was not received due to error.
+  Returns the matching [`Response`](`PlaywrightEx.Response`) object, or `null` if the response was not received due to error.
   """
   @spec response(t()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def response(request) do
@@ -247,7 +247,7 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  Returns the `Response` object if the response has already been received, `null` otherwise.
+  Returns the [`Response`](`PlaywrightEx.Response`) object if the response has already been received, `null` otherwise.
 
   Unlike `PlaywrightEx.Request.response/1`, this method does not wait for the response to arrive. It returns
   immediately with the response object if the response has been received, or `null` if the response
@@ -259,7 +259,7 @@ defmodule PlaywrightEx.Request do
   end
 
   @doc ~S"""
-  The Service `Worker` that is performing the request.
+  The Service [`Worker`](https://playwright.dev/docs/api/class-worker) that is performing the request.
 
   **Details**
 

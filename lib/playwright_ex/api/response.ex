@@ -2,7 +2,7 @@
 
 defmodule PlaywrightEx.Response do
   @moduledoc ~S"""
-  `Response` class represents responses which are received by page.
+  [`Response`](`PlaywrightEx.Response`) class represents responses which are received by page.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
-  Returns the `Frame` that initiated this response.
+  Returns the [`Frame`](`PlaywrightEx.Frame`) that initiated this response.
   """
   @spec frame(t()) :: PlaywrightEx.Frame.t()
   def frame(response) do
@@ -172,7 +172,7 @@ defmodule PlaywrightEx.Response do
   end
 
   @doc ~S"""
-  Returns the matching `Request` object.
+  Returns the matching [`Request`](`PlaywrightEx.Request`) object.
   """
   @spec request(t()) :: PlaywrightEx.Request.t()
   def request(response) do

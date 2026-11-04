@@ -2,9 +2,9 @@
 
 defmodule PlaywrightEx.Page do
   @moduledoc ~S"""
-  Page provides methods to interact with a single tab in a `Browser`, or an
-  [extension background page](https://developer.chrome.com/extensions/background_pages) in Chromium. One `Browser`
-  instance might have multiple `Page` instances.
+  Page provides methods to interact with a single tab in a [`Browser`](`PlaywrightEx.Browser`), or an
+  [extension background page](https://developer.chrome.com/extensions/background_pages) in Chromium. One [`Browser`](`PlaywrightEx.Browser`)
+  instance might have multiple [`Page`](`PlaywrightEx.Page`) instances.
 
   This example creates a page, navigates it to a URL, and then saves a screenshot:
 
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Page do
 
   Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`.
 
-  The arguments passed into `console.log` are available on the `ConsoleMessage` event handler argument.
+  The arguments passed into `console.log` are available on the [`ConsoleMessage`](https://playwright.dev/docs/api/class-consolemessage) event handler argument.
 
   **Usage**
 
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Page do
 
   ### `:dialog`
 
-  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either `Dialog.accept` or `Dialog.dismiss` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
+  Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept) or [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss) the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
 
   **Usage**
 
@@ -96,11 +96,11 @@ defmodule PlaywrightEx.Page do
 
   > #### Note {: .info}
   >
-  > When no `Page.dialog` or `BrowserContext.dialog` listeners are present, all dialogs are automatically dismissed.
+  > When no [`Page.on(:dialog)`](PlaywrightEx.Page.html#module-dialog) or [`BrowserContext.on(:dialog)`](PlaywrightEx.BrowserContext.html#module-dialog) listeners are present, all dialogs are automatically dismissed.
 
   ### `:dialog_closed`
 
-  Emitted when a JavaScript dialog has been closed, either by `Dialog.accept`, by `Dialog.dismiss`, or manually by the user in the headed browser.
+  Emitted when a JavaScript dialog has been closed, either by [`Dialog.accept`](https://playwright.dev/docs/api/class-dialog#dialog-accept), by [`Dialog.dismiss`](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the headed browser.
 
   ### `:dom_content_loaded`
 
@@ -110,12 +110,12 @@ defmodule PlaywrightEx.Page do
   ### `:download`
 
   Emitted when attachment download started. User can access basic file operations on downloaded content via the passed
-  `Download` instance.
+  [`Download`](https://playwright.dev/docs/api/class-download) instance.
 
   ### `:file_chooser`
 
   Emitted when a file chooser is supposed to appear, such as after clicking the  `<input type=file>`. Playwright can
-  respond to it via setting the input files using `FileChooser.setFiles` that can be uploaded after that.
+  respond to it via setting the input files using [`FileChooser.setFiles`](https://playwright.dev/docs/api/class-filechooser#file-chooser-set-files) that can be uploaded after that.
 
   ```js
   page.on('filechooser', async fileChooser => {
@@ -156,11 +156,11 @@ defmodule PlaywrightEx.Page do
   ### `:popup`
 
   Emitted when the page opens a new tab or window. This event is emitted in addition to the
-  `BrowserContext.page`, but only for popups relevant to this page.
+  [`BrowserContext.on(:page)`](PlaywrightEx.BrowserContext.html#module-page), but only for popups relevant to this page.
 
   The earliest moment that page is available is when it has navigated to the initial url. For example, when opening a
   popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
-  done and its response has started loading in the popup. If you would like to route/listen to this network request, use `BrowserContext.route` and `BrowserContext.request` respectively instead of similar methods on the `Page`.
+  done and its response has started loading in the popup. If you would like to route/listen to this network request, use [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route) and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
 
   ```js
   // Start waiting for popup before clicking. Note no await.
@@ -178,7 +178,7 @@ defmodule PlaywrightEx.Page do
   ### `:request`
 
   Emitted when a page issues a request. The [request] object is read-only. In order to intercept and mutate requests, see
-  `Page.route` or `BrowserContext.route`.
+  [`Page.route`](https://playwright.dev/docs/api/class-page#page-route) or [`BrowserContext.route`](https://playwright.dev/docs/api/class-browsercontext#browser-context-route).
 
   ### `:request_failed`
 
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Page do
   > #### Note {: .info}
   >
   > HTTP Error responses, such as 404 or 503, are still successful responses from HTTP standpoint, so request will complete
-  > with `Page.requestFinished` event and not with `Page.requestFailed`. A request will only be considered
+  > with [`Page.on(:request_finished)`](PlaywrightEx.Page.html#module-request_finished) event and not with [`Page.on(:request_failed)`](PlaywrightEx.Page.html#module-request_failed). A request will only be considered
   > failed when the client cannot get an HTTP response from the server, e.g. due to network error net::ERR_FAILED.
 
   ### `:request_finished`
@@ -208,7 +208,7 @@ defmodule PlaywrightEx.Page do
 
   ### `:web_socket`
 
-  Emitted when `WebSocket` request is sent.
+  Emitted when [`WebSocket`](https://playwright.dev/docs/api/class-websocket) request is sent.
 
   ### `:worker`
 
@@ -269,7 +269,7 @@ defmodule PlaywrightEx.Page do
   > #### Note {: .info}
   >
   > if `runBeforeUnload` is passed as true, a `beforeunload` dialog might be summoned and should be handled
-  > manually via `Page.dialog` event.
+  > manually via [`Page.on(:dialog)`](PlaywrightEx.Page.html#module-dialog) event.
 
   ## Options
 
@@ -326,10 +326,10 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns the value of the `pageFunction` invocation.
 
-  If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a [Promise], then `PlaywrightEx.Page.evaluate/4` would wait
+  If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a `Promise`, then `PlaywrightEx.Page.evaluate/4` would wait
   for the promise to resolve and return its value.
 
-  If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a non-[Serializable] value, then
+  If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a non-`Serializable` value, then
   `PlaywrightEx.Page.evaluate/4` resolves to `undefined`. Playwright also supports transferring some
   additional values that are not serializable by `JSON`: `-0`, `NaN`, `Infinity`, `-Infinity`.
 
@@ -352,7 +352,7 @@ defmodule PlaywrightEx.Page do
   console.log(await page.evaluate(`1 + ${x}`)); // prints "11"
   ```
 
-  `ElementHandle` instances can be passed as an argument to the `PlaywrightEx.Page.evaluate/4`:
+  [`ElementHandle`](https://playwright.dev/docs/api/class-elementhandle) instances can be passed as an argument to the `PlaywrightEx.Page.evaluate/4`:
 
   ```js
   const bodyHandle = await page.evaluateHandle('document.body');
@@ -369,7 +369,7 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:expose_functions` - When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a [Promise] of its result. Under the hood, each function is exposed via `Page.exposeFunction`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` - When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate(t(), String.t(), term() | nil, keyword() | map()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(page, expression, arg \\ nil, options \\ []) do
@@ -416,7 +416,7 @@ defmodule PlaywrightEx.Page do
   > #### Warning {: .warning}
   >
   > **Testing Back/Forward Cache (BFCache) is not supported.**
-  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized `Page` state.
+  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized [`Page`](`PlaywrightEx.Page`) state.
 
   ## Options
 
@@ -472,7 +472,7 @@ defmodule PlaywrightEx.Page do
   > #### Warning {: .warning}
   >
   > **Testing Back/Forward Cache (BFCache) is not supported.**
-  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized `Page` state.
+  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized [`Page`](`PlaywrightEx.Page`) state.
 
   ## Options
 
@@ -615,11 +615,11 @@ defmodule PlaywrightEx.Page do
   end
 
   @doc ~S"""
-  Returns up to (currently) 100 last network request from this page. See `Page.request` for more details.
+  Returns up to (currently) 100 last network request from this page. See [`Page.on(:request)`](PlaywrightEx.Page.html#module-request) for more details.
 
   Returned requests should be accessed immediately, otherwise they might be collected to prevent unbounded memory growth as new requests come in. Once collected, retrieving most information about the request is impossible.
 
-  Note that requests reported through the `Page.request` request are not collected, so there is a trade off between efficient memory usage with `PlaywrightEx.Page.requests/1` and the amount of available information reported through `Page.request`.
+  Note that requests reported through the [`Page.on(:request)`](PlaywrightEx.Page.html#module-request) request are not collected, so there is a trade off between efficient memory usage with `PlaywrightEx.Page.requests/1` and the amount of available information reported through [`Page.on(:request)`](PlaywrightEx.Page.html#module-request).
   """
   @spec requests(t()) :: {:ok, [PlaywrightEx.Request.t()]} | {:error, Exception.t()}
   def requests(page) do
@@ -744,8 +744,8 @@ defmodule PlaywrightEx.Page do
   * `PlaywrightEx.Page.goto/3`
   * `PlaywrightEx.Page.reload/2`
   * `PlaywrightEx.Page.set_content/3`
-  * `Page.waitForNavigation`
-  * `Page.waitForURL`
+  * [`Page.waitForNavigation`](https://playwright.dev/docs/api/class-page#page-wait-for-navigation)
+  * [`Page.waitForURL`](https://playwright.dev/docs/api/class-page#page-wait-for-url)
 
   > #### Note {: .info}
   >
@@ -972,7 +972,7 @@ defmodule PlaywrightEx.Page do
   > #### Discouraged {: .warning}
   >
   > Never wait for timeout in production. Tests that wait for time are
-  > inherently flaky. Use `Locator` actions and web assertions that wait automatically.
+  > inherently flaky. Use [`Locator`](https://playwright.dev/docs/api/class-locator) actions and web assertions that wait automatically.
 
   ## Arguments
 

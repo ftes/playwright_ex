@@ -108,12 +108,19 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   @doc false
   # %{path => source} for every ported class.
   def sources(repo) do
-    classes = repo |> api_json() |> ApiRules.apply() |> Enum.filter(&Code.ensure_loaded?(impl(&1["name"])))
-    ctx = %{classes: Map.new(classes, &{&1["name"], &1}), exported: Map.new(classes, &{&1["name"], exported(&1)})}
+    api = api_json(repo)
+    classes = api |> ApiRules.apply() |> Enum.filter(&Code.ensure_loaded?(impl(&1["name"])))
+
+    ctx = %{
+      classes: Map.new(classes, &{&1["name"], &1}),
+      exported: Map.new(classes, &{&1["name"], exported(&1)}),
+      # Every upstream class, for links to playwright.dev.
+      all: MapSet.new(api, & &1["name"])
+    }
 
     Map.new(classes, fn class ->
       path = Path.join(@dir, Macro.underscore(class["name"]) <> ".ex")
-      {path, format(class_source(ctx, class))}
+      {path, format(class_source(Map.put(ctx, :class, class["name"]), class))}
     end)
   end
 
@@ -521,21 +528,87 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp note(title, class, body), do: indent("#### #{title} {: .#{class}}\n\n#{body}", "> ")
 
+  # Member refs (`[method: Page.goto]`), markdown links, inline code and raw type refs
+  # (`[Promise]`), in one pass so that code and link texts are left alone.
+  @inline ~r/\[`(method|property|event): (\w+)\.(\w+)(?:#\w+)?`\]|\[([^\]]*)\]\(([^)]*)\)|`([^`]+)`|\[([A-Za-z]\w*)\]/
+
+  @errors %{"TimeoutError" => PlaywrightEx.Client.Errors.TimeoutError}
+
   # Upstream joins the lines of a paragraph with `↵` (soft line breaks).
-  # `[method: Class.member]` links as facade functions where generated.
   defp text(text, ctx) do
     text
     |> String.replace("↵", "\n")
-    |> String.replace(~r/\[`(method|property|event): (\w+)\.(\w+)`\]/, fn link ->
-      [_, kind, class, member] = Regex.run(~r/\[`(\w+): (\w+)\.(\w+)`\]/, link)
-      link(ctx, kind, class, member)
-    end)
-    |> String.replace(~r/\]\((\.\.\/|\.\/)?([\w\/-]+)\.md(#[\w-]*)?\)/, fn link ->
-      [_, rel, page | anchor] = Regex.run(~r/\]\((\.\.\/|\.\/)?([\w\/-]+)\.md(#[\w-]*)?\)/, link)
-      # Relative to docs/src/api/.
-      "](https://playwright.dev/docs/#{if rel == "../", do: page, else: "api/" <> page}#{anchor})"
-    end)
+    |> then(
+      &Regex.replace(@inline, &1, fn match, kind, class, member, label, href, code, type ->
+        cond do
+          kind != "" -> member_link(ctx, kind, class, member)
+          href != "" -> "[#{label}](#{href(ctx, href)})"
+          code != "" -> code_link(ctx, code) || match
+          type != "" -> code_link(ctx, type) || if(type =~ ~r/^[A-Z]|^string$/, do: "`#{type}`", else: match)
+        end
+      end)
+    )
   end
+
+  # A facade function where generated, else playwright.dev (`linkUtils.js` createMarkdownLink).
+  defp member_link(ctx, "event", class, event) do
+    label = "`#{class}.on(#{inspect(atom(event))})`"
+
+    if Map.has_key?(ctx.classes, class),
+      do: "[#{label}](#{inspect(facade(class))}.html#module-#{atom(event)})",
+      else: "[#{label}](#{dev_url(class)}##{kebab(class)}-event-#{kebab(event)})"
+  end
+
+  defp member_link(ctx, _kind, class, member) do
+    with %{} = c <- ctx.classes[class],
+         true <- member in ctx.exported[class],
+         %{} = m <- Enum.find(c["members"], &(&1["alias"] == member)) do
+      "`#{inspect(facade(class))}.#{snake(member)}/#{1 + length(m["args"])}`"
+    else
+      _ -> "[`#{class}.#{member}`](#{dev_url(class)}##{kebab(class)}-#{kebab(member)})"
+    end
+  end
+
+  # A class name in code (`Browser`), or an error class (`TimeoutError`).
+  defp code_link(ctx, name) do
+    cond do
+      Map.has_key?(@errors, name) -> "[`#{name}`](`#{inspect(@errors[name])}`)"
+      Map.has_key?(ctx.classes, name) -> "[`#{name}`](`#{inspect(facade(name))}`)"
+      name in ctx.all -> "[`#{name}`](#{dev_url(name)})"
+      true -> nil
+    end
+  end
+
+  # Links relative to docs/src/api/ (with or without `.md`) as playwright.dev URLs.
+  defp href(ctx, href) do
+    case Regex.run(~r/^(\.\.\/|\.\/)?([\w\/-]*?)(?:\.md)?(#[\w-]*)?$/, href) do
+      [_, "", "" | anchor] ->
+        "#{dev_url(ctx.class)}#{anchor}"
+
+      [_, "../", page | anchor] ->
+        "https://playwright.dev/docs/#{page}#{anchor}"
+
+      [_, _, "class-" <> name = page | anchor] ->
+        class_href(ctx, name, anchor) || "https://playwright.dev/docs/api/#{page}#{anchor}"
+
+      [_, _, page | anchor] ->
+        "https://playwright.dev/docs/api/#{page}#{anchor}"
+
+      nil ->
+        href
+    end
+  end
+
+  defp class_href(ctx, lower, []) do
+    if class = Enum.find(Map.keys(ctx.classes), &(String.downcase(&1) == lower)), do: "`#{inspect(facade(class))}`"
+  end
+
+  defp class_href(_ctx, _lower, _anchor), do: nil
+
+  defp dev_url(class), do: "https://playwright.dev/docs/api/class-#{String.downcase(class)}"
+
+  # lodash kebabCase: "waitForURL" -> "wait-for-url".
+  defp kebab(name), do: name |> Macro.underscore() |> String.replace("_", "-")
 
   defp sections(parts), do: parts |> Enum.filter(&(is_binary(&1) and &1 != "")) |> Enum.join("\n\n")
 
@@ -546,17 +619,6 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     [first | rest] = String.split(text, "\n")
     prefixed = Enum.map(rest, &if(&1 == "", do: String.trim_trailing(prefix), else: prefix <> &1))
     Enum.join([if(mode == :hanging, do: first, else: prefix <> first) | prefixed], "\n")
-  end
-
-  defp link(ctx, kind, class, member) do
-    with true <- kind in ["method", "property"],
-         %{} = c <- ctx.classes[class],
-         true <- member in ctx.exported[class],
-         %{} = m <- Enum.find(c["members"], &(&1["alias"] == member)) do
-      "`#{inspect(facade(class))}.#{snake(member)}/#{1 + length(m["args"])}`"
-    else
-      _ -> "`#{class}.#{member}`"
-    end
   end
 
   defp doc(""), do: inspect("")

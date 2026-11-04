@@ -2,7 +2,7 @@
 
 defmodule PlaywrightEx.Browser do
   @moduledoc ~S"""
-  A Browser is created via `PlaywrightEx.BrowserType.launch/2`. An example of using a `Browser` to create a `Page`:
+  A Browser is created via `PlaywrightEx.BrowserType.launch/2`. An example of using a [`Browser`](`PlaywrightEx.Browser`) to create a [`Page`](`PlaywrightEx.Page`):
 
   ```js
   const { firefox } = require('playwright');  // Or 'chromium' or 'webkit'.
@@ -56,9 +56,9 @@ defmodule PlaywrightEx.Browser do
 
   > #### Note {: .info}
   >
-  > This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close events, call `PlaywrightEx.BrowserContext.close/1` on any `BrowserContext` instances you explicitly created earlier using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
+  > This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close events, call `PlaywrightEx.BrowserContext.close/1` on any [`BrowserContext`](`PlaywrightEx.BrowserContext`) instances you explicitly created earlier using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
 
-  The `Browser` object itself is considered to be disposed and cannot be used anymore.
+  The [`Browser`](`PlaywrightEx.Browser`) object itself is considered to be disposed and cannot be used anymore.
 
   ## Options
 
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Browser do
 
   > #### Note {: .info}
   >
-  > If directly using this method to create `BrowserContext`s, it is best practice to explicitly close the returned context via `PlaywrightEx.BrowserContext.close/1` when your code is done with the `BrowserContext`,
+  > If directly using this method to create [`BrowserContext`](`PlaywrightEx.BrowserContext`)s, it is best practice to explicitly close the returned context via `PlaywrightEx.BrowserContext.close/1` when your code is done with the [`BrowserContext`](`PlaywrightEx.BrowserContext`),
   > and before calling `PlaywrightEx.Browser.close/2`. This will ensure the `context` is closed gracefully and any artifacts—like HARs and videos—are fully flushed and saved.
 
   **Usage**
@@ -276,7 +276,7 @@ defmodule PlaywrightEx.Browser do
   ## Options
 
   * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `Page.route`, `Page.waitForURL`, `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), [`Page.waitForURL`](https://playwright.dev/docs/api/class-page#page-wait-for-url), [`Page.waitForRequest`](https://playwright.dev/docs/api/class-page#page-wait-for-request), or [`Page.waitForResponse`](https://playwright.dev/docs/api/class-page#page-wait-for-response) it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
@@ -303,11 +303,11 @@ defmodule PlaywrightEx.Browser do
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
-    `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+    [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
   * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
   * `:geolocation`
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Browser do
     * `:username`
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
-    * `:send` - This option only applies to the requests sent from corresponding `APIRequestContext` and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+    * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
@@ -362,7 +362,7 @@ defmodule PlaywrightEx.Browser do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
     `viewport` is set.
     * `:width` - page width in pixels.
@@ -373,7 +373,7 @@ defmodule PlaywrightEx.Browser do
     * `'block'`: Playwright will block all registration of Service Workers.
   * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
 
-    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `BrowserContext.storageState`.
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via [`BrowserContext.storageState`](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state).
 
     * `:cookies` - Cookies to set for context
       * `:name`
@@ -392,12 +392,12 @@ defmodule PlaywrightEx.Browser do
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
     on selectors that imply single target DOM element will throw when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
-    See `Locator` to learn more about the strict mode.
+    See [`Locator`](https://playwright.dev/docs/api/class-locator) to learn more about the strict mode.
   * `:timezone_id` - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
     for a list of supported timezone IDs. Defaults to the system timezone.
   * `:user_agent` - Specific user agent to use in this context.
   * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
-    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
 
     > #### Note {: .info}
     >
@@ -574,7 +574,7 @@ defmodule PlaywrightEx.Browser do
   ## Options
 
   * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, `Page.route`, `Page.waitForURL`, `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), [`Page.waitForURL`](https://playwright.dev/docs/api/class-page#page-wait-for-url), [`Page.waitForRequest`](https://playwright.dev/docs/api/class-page#page-wait-for-request), or [`Page.waitForResponse`](https://playwright.dev/docs/api/class-page#page-wait-for-response) it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
@@ -601,11 +601,11 @@ defmodule PlaywrightEx.Browser do
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
-    `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+    [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
   * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
   * `:geolocation`
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
@@ -619,7 +619,7 @@ defmodule PlaywrightEx.Browser do
     * `:username`
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
-    * `:send` - This option only applies to the requests sent from corresponding `APIRequestContext` and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+    * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
@@ -660,7 +660,7 @@ defmodule PlaywrightEx.Browser do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See [`Page.emulateMedia`](https://playwright.dev/docs/api/class-page#page-emulate-media) for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
   * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
     `viewport` is set.
     * `:width` - page width in pixels.
@@ -671,7 +671,7 @@ defmodule PlaywrightEx.Browser do
     * `'block'`: Playwright will block all registration of Service Workers.
   * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
 
-    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `BrowserContext.storageState`.
+    Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via [`BrowserContext.storageState`](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state).
 
     * `:cookies` - Cookies to set for context
       * `:name`
@@ -690,12 +690,12 @@ defmodule PlaywrightEx.Browser do
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
     on selectors that imply single target DOM element will throw when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
-    See `Locator` to learn more about the strict mode.
+    See [`Locator`](https://playwright.dev/docs/api/class-locator) to learn more about the strict mode.
   * `:timezone_id` - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
     for a list of supported timezone IDs. Defaults to the system timezone.
   * `:user_agent` - Specific user agent to use in this context.
   * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
-    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
 
     > #### Note {: .info}
     >

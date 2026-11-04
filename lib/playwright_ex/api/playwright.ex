@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Playwright do
   @type t :: %PlaywrightEx.Client.Playwright{}
 
   @doc ~S"""
-  This object can be used to launch or connect to Chromium, returning instances of `Browser`.
+  This object can be used to launch or connect to Chromium, returning instances of [`Browser`](`PlaywrightEx.Browser`).
   """
   @spec chromium(t()) :: PlaywrightEx.BrowserType.t()
   def chromium(playwright) do
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Playwright do
   end
 
   @doc ~S"""
-  This object can be used to launch or connect to Firefox, returning instances of `Browser`.
+  This object can be used to launch or connect to Firefox, returning instances of [`Browser`](`PlaywrightEx.Browser`).
   """
   @spec firefox(t()) :: PlaywrightEx.BrowserType.t()
   def firefox(playwright) do
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Playwright do
   end
 
   @doc ~S"""
-  This object can be used to launch or connect to WebKit, returning instances of `Browser`.
+  This object can be used to launch or connect to WebKit, returning instances of [`Browser`](`PlaywrightEx.Browser`).
   """
   @spec webkit(t()) :: PlaywrightEx.BrowserType.t()
   def webkit(playwright) do

@@ -5,12 +5,12 @@ defmodule PlaywrightEx.Frame do
   At every point of time, page exposes its current frame tree via the `PlaywrightEx.Page.main_frame/1` and
   `PlaywrightEx.Frame.child_frames/1` methods.
 
-  `Frame` object's lifecycle is controlled by three events, dispatched on the page object:
+  [`Frame`](`PlaywrightEx.Frame`) object's lifecycle is controlled by three events, dispatched on the page object:
 
-  * `Page.frameAttached` - fired when the frame gets attached to the page. A Frame can be attached to the page
+  * [`Page.on(:frame_attached)`](PlaywrightEx.Page.html#module-frame_attached) - fired when the frame gets attached to the page. A Frame can be attached to the page
     only once.
-  * `Page.frameNavigated` - fired when the frame commits navigation to a different URL.
-  * `Page.frameDetached` - fired when the frame gets detached from the page.  A Frame can be detached from the
+  * [`Page.on(:frame_navigated)`](PlaywrightEx.Page.html#module-frame_navigated) - fired when the frame commits navigation to a different URL.
+  * [`Page.on(:frame_detached)`](PlaywrightEx.Page.html#module-frame_detached) - fired when the frame gets detached from the page.  A Frame can be detached from the
     page only once.
 
   An example of dumping frame tree:
@@ -75,10 +75,10 @@ defmodule PlaywrightEx.Frame do
   @doc ~S"""
   Returns the return value of `pageFunction`.
 
-  If the function passed to the `PlaywrightEx.Frame.evaluate/4` returns a [Promise], then `PlaywrightEx.Frame.evaluate/4` would wait for the promise to
+  If the function passed to the `PlaywrightEx.Frame.evaluate/4` returns a `Promise`, then `PlaywrightEx.Frame.evaluate/4` would wait for the promise to
   resolve and return its value.
 
-  If the function passed to the `PlaywrightEx.Frame.evaluate/4` returns a non-[Serializable] value, then
+  If the function passed to the `PlaywrightEx.Frame.evaluate/4` returns a non-`Serializable` value, then
   `PlaywrightEx.Frame.evaluate/4` returns `undefined`. Playwright also supports transferring some
   additional values that are not serializable by `JSON`: `-0`, `NaN`, `Infinity`, `-Infinity`.
 
@@ -97,7 +97,7 @@ defmodule PlaywrightEx.Frame do
   console.log(await frame.evaluate('1 + 2')); // prints "3"
   ```
 
-  `ElementHandle` instances can be passed as an argument to the `PlaywrightEx.Frame.evaluate/4`:
+  [`ElementHandle`](https://playwright.dev/docs/api/class-elementhandle) instances can be passed as an argument to the `PlaywrightEx.Frame.evaluate/4`:
 
   ```js
   const bodyHandle = await frame.evaluateHandle('document.body');
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:expose_functions` - When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a [Promise] of its result. Under the hood, each function is exposed via `Page.exposeFunction`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` - When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate(t(), String.t(), term() | nil, keyword() | map()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(frame, expression, arg \\ nil, options \\ []) do
@@ -393,7 +393,7 @@ defmodule PlaywrightEx.Frame do
   > #### Discouraged {: .warning}
   >
   > Never wait for timeout in production. Tests that wait for time are
-  > inherently flaky. Use `Locator` actions and web assertions that wait automatically.
+  > inherently flaky. Use [`Locator`](https://playwright.dev/docs/api/class-locator) actions and web assertions that wait automatically.
 
   ## Arguments
 
