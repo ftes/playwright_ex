@@ -39,7 +39,72 @@ defmodule PlaywrightEx.Utils do
   end
 
   # expectedSSLError, isBidiChannel, chromiumVersionLessThan, suppressCertificateWarning  -- not ported: not needed yet
-  # parseTraceCoverage, parseTraceRaw, parseTrace, parseHar  -- not ported: Tracing
+  # parseTraceCoverage  -- not ported: coverage
+
+  @doc """
+  `parseTraceRaw(file)`: `%{events, resources, actions, actionObjects, stacks}` with the JSON
+  events as string-keyed maps. Deviation: takes a handle (`playwright`, a page, ...) whose
+  connection renders selectors in titles (`LocalUtils.asLocatorDescription`, as
+  `isomorphic/protocolFormatter.ts` does with `locatorGenerators`).
+  """
+  def parse_trace_raw(file, handle) do
+    {:ok, entries} = :zip.unzip(String.to_charlist(file), [:memory])
+    entries = Enum.map(entries, fn {name, data} -> {to_string(name), data} end)
+    resources = Map.new(entries)
+
+    lines = fn suffix ->
+      for {name, data} <- entries,
+          String.ends_with?(name, suffix),
+          line <- String.split(data, "\n"),
+          line != "",
+          do: JSON.decode!(line)
+    end
+
+    trace_events = lines.(".trace")
+
+    action_map =
+      Enum.reduce(trace_events, %{order: [], map: %{}}, fn event, acc ->
+        case event["type"] do
+          "before" ->
+            action = Map.merge(event, %{"type" => "action", "endTime" => 0})
+            %{acc | order: acc.order ++ [event["callId"]], map: Map.put(acc.map, event["callId"], action)}
+
+          "input" ->
+            update_in(acc, [:map, event["callId"]], &Map.put(&1, "point", event["point"]))
+
+          "after" ->
+            update_in(acc, [:map, event["callId"]], fn existing ->
+              Map.merge(existing, %{
+                "endTime" => event["endTime"],
+                "error" => event["error"],
+                "result" => event["result"]
+              })
+            end)
+
+          _ ->
+            acc
+        end
+      end)
+
+    events = trace_events ++ lines.(".network")
+
+    stacks =
+      for {name, data} <- entries, String.ends_with?(name, ".stacks"), reduce: %{} do
+        acc -> Map.merge(acc, parse_client_side_call_metadata(JSON.decode!(data)))
+      end
+
+    action_objects = action_map.order |> Enum.map(&action_map.map[&1]) |> Enum.sort_by(& &1["startTime"])
+
+    %{
+      events: events,
+      resources: resources,
+      actions: Enum.map(action_objects, &render_full_title_for_call(&1, handle)),
+      actionObjects: action_objects,
+      stacks: stacks
+    }
+  end
+
+  # parseTrace, parseHar  -- not ported: trace viewer, HAR
   # waitForTestLog  -- not ported: ConsoleMessage
 
   def rafraf(target, count \\ 1) do
@@ -65,6 +130,93 @@ defmodule PlaywrightEx.Utils do
   end
 
   # unshift, stripAnsi, inheritAndCleanEnv  -- not ported: not needed yet
+
+  # isomorphic/trace/traceUtils.ts
+  defp parse_client_side_call_metadata(%{"files" => files, "stacks" => stacks}) do
+    Map.new(stacks, fn [id, ff] ->
+      {id,
+       Enum.map(ff, fn [file, line, column, function] ->
+         %{"file" => Enum.at(files, file), "line" => line, "column" => column, "function" => function}
+       end)}
+    end)
+  end
+
+  # isomorphic/protocolFormatter.ts renderFullTitleForCall({ ...action, type: action.class })
+  defp render_full_title_for_call(action, handle) do
+    meta = PlaywrightEx.Protocol.Metainfo.get_metainfo(%{type: action["class"], method: action["method"]}) || %{}
+    title = render_format(action["title"] || meta[:title] || action["method"], action["params"], handle)
+
+    subtitle =
+      if format = meta[:subtitle] do
+        rendered = render_format(format, action["params"], handle)
+        if !String.contains?(rendered, "{"), do: rendered
+      end
+
+    if subtitle, do: "#{title} #{subtitle}", else: title
+  end
+
+  defp render_format(format, params, handle) do
+    Regex.replace(~r/\{([^}]+)\}/, format, fn full_match, alternatives ->
+      format_protocol_param(params, alternatives, handle) || full_match
+    end)
+  end
+
+  defp format_protocol_param(nil, _alternatives, _handle), do: nil
+
+  defp format_protocol_param(params, alternatives, handle) do
+    alternatives
+    |> String.split("|")
+    |> Enum.find_value(fn name ->
+      value = deep_param(params, name)
+
+      cond do
+        name == "url" and is_binary(params["url"]) ->
+          uri = URI.parse(params["url"])
+
+          cond do
+            uri.scheme == "data" -> "data:"
+            uri.scheme in ["about", "chrome", "edge"] -> params["url"]
+            uri.host -> "#{uri.host}#{if uri.port, do: ":#{uri.port}"}#{uri.path}#{if uri.query, do: "?#{uri.query}"}"
+            true -> params["url"]
+          end
+
+        value == nil ->
+          nil
+
+        name == "selector" or String.ends_with?(name, ".selector") ->
+          as_locator_description(handle, value)
+
+        true ->
+          value
+      end
+    end)
+    |> then(&(&1 && String.replace(&1, "\n", "\\n")))
+  end
+
+  defp deep_param(params, name) do
+    name
+    |> String.split(".")
+    |> Enum.reduce_while(params, fn token, current ->
+      if is_map(current), do: {:cont, current[token]}, else: {:halt, nil}
+    end)
+    |> case do
+      nil -> nil
+      value when is_binary(value) -> value
+      value -> to_string(JSON.encode!(value))
+    end
+  end
+
+  defp as_locator_description(handle, selector) do
+    import PlaywrightEx.Runtime.Heap
+    local_utils = PlaywrightEx.Client.Connection.local_utils(get(handle, :_connection))
+
+    PlaywrightEx.Runtime.Api.call(nil, local_utils, fn ->
+      PlaywrightEx.Client.ChannelOwner.channel_call(local_utils, :asLocatorDescription, %{
+        selector: selector,
+        sdkLanguage: "javascript"
+      }).description
+    end)
+  end
 
   # `Page | Frame`: the facade module of a client handle.
   defp facade(PlaywrightEx.Client.Page), do: PlaywrightEx.Page

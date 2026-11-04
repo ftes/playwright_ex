@@ -7,7 +7,8 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
   Deviations: the API name recorded by `PlaywrightEx.Runtime.Api.call/3` wins over the stack
   (BEAM drops tail-call frames). Upstream's `filterStackFile` drops internal frames; here
   every frame up to the outermost library frame is dropped (that includes
-  `Process.info/2`), so the first frame is the caller's.
+  `Process.info/2`), so the first frame is the caller's; in a handed-off listener process,
+  the library frames it starts with don't count.
   """
   @library Enum.map(~w(Client Isomorphic Protocol Runtime Transport), &"Elixir.PlaywrightEx.#{&1}.")
 
@@ -41,8 +42,14 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
         end)
 
     # This is for the inspector so that it did not include the test runner stack frames.
+    # (The library frames a handed-off listener process starts with, `EventLoop.spawn_handoff/1`,
+    # are below the caller's: they don't count.)
+    parsed_frames = parsed_frames |> Enum.reverse() |> Enum.drop_while(& &1.isPlaywrightLibrary) |> Enum.reverse()
     outermost = parsed_frames |> Enum.with_index() |> Enum.filter(&elem(&1, 0).isPlaywrightLibrary) |> List.last()
-    parsed_frames = if outermost, do: Enum.drop(parsed_frames, elem(outermost, 1) + 1), else: tl(parsed_frames)
+
+    parsed_frames =
+      if outermost, do: Enum.drop(parsed_frames, elem(outermost, 1) + 1), else: Enum.drop(parsed_frames, 1)
+
     parsed_frames = Enum.reject(parsed_frames, &(&1.frame.file == ""))
 
     %{frames: Enum.map(parsed_frames, & &1.frame), apiName: api_name}
