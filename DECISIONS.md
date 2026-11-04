@@ -90,3 +90,20 @@ Review these first: they shape the public API.
   `waitFor`/`visibility` `as any` options assert the facade's `ArgumentError`, so
   "should tolerate waitFor=visible" expects an error where upstream expects none.
 - **`test/support/utils.ex`** ports `tests/config/utils.ts` (`attach_frame`, `verify_viewport`, ...).
+
+## 2026-11-04: fetch / APIRequestContext (workstream G)
+
+- **`fetch.ts` is one file, four modules** (`Client.Fetch` for the top-level functions first,
+  so parity maps them; `APIRequest`, `APIRequestContext`, `APIResponse`). `APIRequest` is a heap
+  object (mutable `_contexts`), `APIResponse` a plain struct whose `Inspect` is upstream's `_inspect`.
+- **HTTP verbs `get/3`/`put/3`** shadow `Heap.get/put`: the module imports Heap except `put/3`
+  and writes with `Heap.put`; the verbs take no `\\` default on `options`.
+- **Request data**: a binary is a JS string, `{:binary, b}` a Buffer, `:null` JSON `null`;
+  `FilePayload.buffer` is a plain binary, `fs.ReadStream` a `File.Stream`; multipart also takes
+  a keyword list (maps are unordered). Not ported: `URLSearchParams`, `FormData`.
+- **Generator**: an `Object<K,V>` dictionary type wins over properties api.json attaches to it.
+- **Revisit**: Buffer inputs are typed `binary()` in facade specs (no `{:binary, _}`);
+  `storage_state(path:)` writes compact JSON (Elixir JSON has no indent); a `:null` nested in
+  `data` encodes as the string "null".
+- **Tests**: `request` fixture (`@tag :request`); Plug lowercases response header names
+  (commented); upstream's Node socket tricks are private `:gen_tcp` helpers per test module.

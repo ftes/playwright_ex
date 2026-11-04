@@ -34,7 +34,7 @@ defmodule PlaywrightEx.TestServer do
   def create_https(dir_path, port \\ 0, loopback \\ nil),
     do: start!(dir_path: dir_path, port: port, loopback: loopback, ssl_options: cert_options())
 
-  @doc "Options: `:dir_path`, `:port`, `:loopback`, `:ssl_options`. See `server/1`."
+  @doc "Options: `:dir_path`, `:port`, `:loopback`, `:ssl_options`, `:ip` (default `{127, 0, 0, 1}`). See `server/1`."
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
   @doc "The `%TestServer{}` of a started server."
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.TestServer do
       Bandit.start_link(
         plug: {TestServer.Router, server: self()},
         scheme: if(ssl_options, do: :https, else: :http),
-        ip: {127, 0, 0, 1},
+        ip: opts[:ip] || {127, 0, 0, 1},
         port: opts[:port] || 0,
         startup_log: false,
         thousand_island_options: if(ssl_options, do: [transport_options: ssl_options], else: [])

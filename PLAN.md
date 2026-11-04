@@ -222,7 +222,9 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    page-wait-for-* and page-event-popup specs. Done: ElementHandle, the rest of JSHandle,
    WritableStream, FileChooser, `$`/`$$`/`waitForSelector`/`waitForFunction`, `setInputFiles`,
    `Page.screenshot`, the Locator `_withElement` methods, with mirrored elementhandle-*,
-   jshandle-*, page-wait-for-*, page-set-input-files, page-select-option specs. Not yet: routing,
+   jshandle-*, page-wait-for-*, page-set-input-files, page-select-option specs. Done: fetch
+   (`APIRequest`, `APIRequestContext`, `APIResponse`; `Playwright`/`BrowserContext`/`Page.request`)
+   with mirrored browsercontext-fetch*, global-fetch* specs. Not yet: routing,
    HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
    above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
    `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their

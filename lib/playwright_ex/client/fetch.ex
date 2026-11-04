@@ -281,6 +281,10 @@ defmodule PlaywrightEx.Client.APIRequestContext do
               match?({:binary, _}, data) ->
                 {nil, nil, nil, elem(data, 1)}
 
+              # typeof null === 'object'
+              data == :null ->
+                {JSON.encode!(nil), nil, nil, nil}
+
               is_map(data) or is_list(data) or is_number(data) or is_boolean(data) ->
                 {JSON.encode!(data), nil, nil, nil}
 
@@ -354,7 +358,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   end
 
   # isomorphic/assert.ts
-  defp assert(value, message), do: if(!value, do: raise(message || "Assertion error"))
+  defp assert(value, message), do: if(!value, do: raise(message))
 end
 
 defmodule PlaywrightEx.Client.APIResponse do
@@ -446,7 +450,9 @@ defmodule PlaywrightEx.Client.APIResponse do
           result.binary
         rescue
           e ->
-            if Errors.is_target_closed_error(e), do: raise("Response has been disposed")
+            if Errors.is_target_closed_error(e),
+              do: reraise(RuntimeError.exception("Response has been disposed"), __STACKTRACE__)
+
             reraise e, __STACKTRACE__
         end
       end,
