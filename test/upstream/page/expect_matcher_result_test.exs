@@ -308,6 +308,49 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
            """
   end
 
-  @tag skip: "not ported: toHaveScreenshot"
-  test "toHaveScreenshot should populate matcherResult"
+  @tag :tmp_dir
+  test "toHaveScreenshot should populate matcherResult",
+       %{page: page, server: server, browser_name: browser_name, tmp_dir: tmp_dir} do
+    # test.skip(isAndroid);
+    Page.set_viewport_size!(page, %{width: 500, height: 500})
+    Page.goto!(page, server.empty_page)
+
+    # The runner resolves 'screenshot-sanity.png' to the spec's snapshot; failures write next to the copy.
+    path = Path.join(tmp_dir, "screenshot-sanity.png")
+
+    File.cp!(
+      Path.join(
+        PlaywrightEx.Upstream.dir(),
+        "tests/page/expect-matcher-result.spec.ts-snapshots/screenshot-sanity-#{browser_name}.png"
+      ),
+      path
+    )
+
+    {:error, e} = Expect.to_have_screenshot(page, path: path)
+
+    assert %{
+             attachments: [%{}, %{}, %{}],
+             actual: actual,
+             expected: expected,
+             diff: diff,
+             message: message,
+             name: "toHaveScreenshot",
+             pass: false,
+             log: log
+           } = e.matcherResult
+
+    assert map_size(e.matcherResult) == 8
+    assert actual =~ "screenshot-sanity-actual"
+    # expect.stringContaining('screenshot-sanity-'): the runner's snapshot name has the project suffix.
+    assert expected =~ "screenshot-sanity"
+    assert diff =~ "screenshot-sanity-diff"
+    assert message =~ "expect(page).toHaveScreenshot(expected)"
+    assert is_list(log)
+
+    assert to_string_js(e) =~ """
+           Error: expect(page).toHaveScreenshot(expected) failed
+
+             23362 pixels (ratio 0.10 of all image pixels) are different.
+           """
+  end
 end

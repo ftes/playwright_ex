@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   @upstream "tests/page/page-add-locator-handler.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
@@ -81,8 +82,47 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   @tag skip: "not ported: expect"
   test "should work with locator.waitFor"
 
-  @tag skip: "not ported: expect"
-  test "should work with toHaveScreenshot"
+  @tag :tmp_dir
+  test "should work with toHaveScreenshot", %{page: page, server: server, browser_name: browser_name, tmp_dir: tmp_dir} do
+    # test.fixme(isAndroid, 'Screenshots are cut off on Android');
+    Page.set_viewport_size!(page, %{width: 500, height: 500})
+    Page.goto!(page, server.prefix <> "/grid.html")
+
+    Page.evaluate!(page, """
+    () => {
+      const overlay = document.createElement('div');
+      document.body.append(overlay);
+      overlay.style.position = 'absolute';
+      overlay.style.left = '0';
+      overlay.style.right = '0';
+      overlay.style.top = '0';
+      overlay.style.bottom = '0';
+      overlay.style.backgroundColor = 'red';
+
+      const closeButton = document.createElement('button');
+      overlay.appendChild(closeButton);
+      closeButton.textContent = 'close';
+      closeButton.addEventListener('click', () => overlay.remove());
+    }
+    """)
+
+    Page.add_locator_handler!(page, Page.get_by_role(page, :button, name: "close"), fn ->
+      Locator.click!(Page.get_by_role(page, :button, name: "close"))
+    end)
+
+    # The runner resolves 'screenshot-grid.png' to the spec's snapshot; failures write next to the copy.
+    path = Path.join(tmp_dir, "screenshot-grid.png")
+
+    File.cp!(
+      Path.join(
+        PlaywrightEx.Upstream.dir(),
+        "tests/page/page-add-locator-handler.spec.ts-snapshots/screenshot-grid-#{browser_name}.png"
+      ),
+      path
+    )
+
+    Expect.to_have_screenshot!(page, path: path)
+  end
 
   test "should work when owner frame detaches", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)

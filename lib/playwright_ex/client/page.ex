@@ -797,7 +797,39 @@ defmodule PlaywrightEx.Client.Page do
     result.binary
   end
 
-  # _expectScreenshot  -- not ported: matchers
+  def _expect_screenshot(this, options) do
+    %{timeout: timeout} = options
+    signal = options[:signal]
+    title = options[:title]
+    options_without_timeout = Map.drop(options, [:timeout, :signal, :title])
+
+    _wrap_api_call(
+      this,
+      fn _ ->
+        mask = if options[:mask], do: Enum.map(options.mask, &%{frame: &1._frame, selector: &1._selector})
+        locator = if options[:locator], do: %{frame: options.locator._frame, selector: options.locator._selector}
+
+        try do
+          result =
+            channel_call(
+              this,
+              :expectScreenshot,
+              Map.merge(options_without_timeout, %{isNot: !!options[:isNot], locator: locator, mask: mask}),
+              %{timeout: timeout, signal: signal}
+            )
+
+          %{actual: result[:actual]}
+        rescue
+          e ->
+            # if (e instanceof AbortError) return { errorMessage: ... };  -- not ported: AbortSignal
+            if !Errors.is_playwright_error(e), do: reraise(e, __STACKTRACE__)
+            details = Map.get(e, :details) || %{}
+            Map.merge(details, %{errorMessage: details[:customErrorMessage]})
+        end
+      end,
+      %{title: title}
+    )
+  end
 
   def title(this) do
     Frame.title(get(this, :_mainFrame))

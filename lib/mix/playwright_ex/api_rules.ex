@@ -28,8 +28,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `not` form (`not_to_have_text`, the Python name of `expect(x).not.toHaveText`). Matchers of
       both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is dropped, as
       are overloads, except that `toHaveAttribute(name, options)` makes `value` optional.
-
-  Still to come with the classes they need: the `to_have_screenshot` path rule.
+      `toHaveScreenshot` takes the snapshot file as a `path` option instead of the `name` that
+      the test runner resolves (`to_have_screenshot(page, path: "home.png")`).
   """
 
   # URLPattern: a JS global (`url` matchers), dropped from unions.
@@ -128,12 +128,53 @@ defmodule Mix.PlaywrightEx.ApiRules do
       end
 
     receiver = Map.fetch!(@assertions, class["name"])
+    {member, args} = screenshot_path(member, args)
 
     Map.merge(member, %{
       "args" => args,
       "matcher" => %{"name" => member["alias"], "isNot" => false, "receivers" => [receiver]}
     })
   end
+
+  # `toHaveScreenshot(name, options)`: no test runner resolves `name`, `path` is an option.
+  defp screenshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do
+    [%{"name" => "name"} = name, %{"name" => "options"} = options] = args
+
+    path = %{
+      name
+      | "name" => "path",
+        "alias" => "path",
+        "required" => false,
+        "type" => %{"expression" => "[string]", "name" => "string"},
+        "spec" => [
+          %{
+            "type" => "text",
+            "text" =>
+              "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
+                "corresponding format. Both formats are lossless. A missing snapshot is written (see `updateSnapshots` " <>
+                "of `PlaywrightEx.Matchers.Expect.set_expect_config/1`); on failure the `-actual`, `-diff` and " <>
+                "`-previous` images are written next to it."
+          }
+        ]
+    }
+
+    options = update_in(options, ["type", "properties"], &[path | &1])
+
+    usage = %{
+      "type" => "code",
+      "codeLang" => "elixir",
+      "lines" => [~s{Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")}]
+    }
+
+    spec =
+      member["spec"]
+      |> Enum.reject(&(&1["text"] == "Note that screenshot assertions only work with Playwright test runner."))
+      |> Enum.map(&if(&1["type"] == "code", do: usage, else: &1))
+
+    {%{member | "spec" => spec}, [options]}
+  end
+
+  defp screenshot_path(member, args), do: {member, args}
 
   # A matcher of several assertion classes: one member with every receiver and every option.
   defp merge_receivers([member]), do: member

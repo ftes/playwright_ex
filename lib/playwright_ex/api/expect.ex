@@ -16,8 +16,6 @@ defmodule PlaywrightEx.Expect do
     await expect(page.locator('.status')).toHaveText('Submitted');
   });
   ```
-
-  Not ported yet: `toHaveScreenshot`, `notToHaveScreenshot`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -3090,6 +3088,262 @@ defmodule PlaywrightEx.Expect do
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_role/4
       ).([role, options])
+    end)
+  end
+
+  @to_have_screenshot_options {:object,
+                               %{
+                                 path: {:path, nil},
+                                 animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
+                                 caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
+                                 mask: {:mask, nil},
+                                 mask_color: {:maskColor, nil},
+                                 max_diff_pixel_ratio: {:maxDiffPixelRatio, nil},
+                                 max_diff_pixels: {:maxDiffPixels, nil},
+                                 omit_background: {:omitBackground, nil},
+                                 scale: {:scale, {:enum, %{css: "css", device: "device"}}},
+                                 style_path: {:stylePath, nil},
+                                 threshold: {:threshold, nil},
+                                 timeout: {:timeout, nil},
+                                 clip: {:clip, {:fields, %{x: nil, y: nil, width: nil, height: nil}}},
+                                 full_page: {:fullPage, nil}
+                               }}
+
+  @typedoc "Options of `to_have_screenshot`, see its docs."
+  @type to_have_screenshot_options ::
+          [
+            path: String.t(),
+            animations: :disabled | :allow,
+            caret: :hide | :initial,
+            mask: [PlaywrightEx.Locator.t()],
+            mask_color: String.t(),
+            max_diff_pixel_ratio: number(),
+            max_diff_pixels: integer(),
+            omit_background: boolean(),
+            scale: :css | :device,
+            style_path: String.t() | [String.t()],
+            threshold: number(),
+            timeout: number() | :infinity,
+            clip: %{x: number(), y: number(), width: number(), height: number()},
+            full_page: boolean()
+          ]
+          | %{
+              optional(:path) => String.t(),
+              optional(:animations) => :disabled | :allow,
+              optional(:caret) => :hide | :initial,
+              optional(:mask) => [PlaywrightEx.Locator.t()],
+              optional(:mask_color) => String.t(),
+              optional(:max_diff_pixel_ratio) => number(),
+              optional(:max_diff_pixels) => integer(),
+              optional(:omit_background) => boolean(),
+              optional(:scale) => :css | :device,
+              optional(:style_path) => String.t() | [String.t()],
+              optional(:threshold) => number(),
+              optional(:timeout) => number() | :infinity,
+              optional(:clip) => %{x: number(), y: number(), width: number(), height: number()},
+              optional(:full_page) => boolean()
+            }
+
+  @doc since: "1.23"
+  @doc ~S"""
+  This function will wait until two consecutive locator screenshots
+  yield the same result, and then compare the last screenshot with the expectation.
+
+  **Usage**
+
+  ```elixir
+  Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")
+  ```
+
+  ## Options
+
+  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `updateSnapshots` of `PlaywrightEx.Matchers.Expect.set_expect_config/1`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+
+    * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
+    * infinite animations are canceled to initial state, and then played over after the screenshot.
+
+    Defaults to `"disabled"` that disables animations.
+  * `:caret` - When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, text caret behavior will not be changed.  Defaults to `"hide"`.
+  * `:mask` - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+    a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
+    The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
+  * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:max_diff_pixel_ratio` - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `TestConfig.expect`. Note that `threshold` defines which pixels are considered different.
+  * `:max_diff_pixels` - An acceptable amount of pixels that could be different. Default is configurable with `TestConfig.expect`. Note that `threshold` defines which pixels are considered different.
+  * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+    Defaults to `false`.
+  * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+
+    Defaults to `"css"`.
+  * `:style_path` - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
+  * `:threshold` - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
+    between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
+    `TestConfig.expect`. Defaults to `0.2`.
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `TestConfig.expect`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:clip` - An object which specifies clipping of the resulting image.
+    * `:x` - x-coordinate of top-left corner of clip area
+    * `:y` - y-coordinate of top-left corner of clip area
+    * `:width` - width of clipping area
+    * `:height` - height of clipping area
+  * `:full_page` - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
+    `false`.
+  """
+  @spec to_have_screenshot(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), to_have_screenshot_options()) ::
+          :ok | {:error, Exception.t()}
+  def to_have_screenshot(locator_or_page, options \\ []) do
+    options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
+
+    Facade.matcher(locator_or_page, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toHaveScreenshot",
+        %{isNot: false},
+        locator_or_page,
+        &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
+      ).([options])
+    end)
+  end
+
+  @doc since: "1.23"
+  @doc "Like `to_have_screenshot/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @spec to_have_screenshot!(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), to_have_screenshot_options()) :: :ok
+  def to_have_screenshot!(locator_or_page, options \\ []) do
+    options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
+
+    Facade.matcher!(locator_or_page, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toHaveScreenshot",
+        %{isNot: false},
+        locator_or_page,
+        &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
+      ).([options])
+    end)
+  end
+
+  @not_to_have_screenshot_options {:object,
+                                   %{
+                                     path: {:path, nil},
+                                     animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
+                                     caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
+                                     mask: {:mask, nil},
+                                     mask_color: {:maskColor, nil},
+                                     max_diff_pixel_ratio: {:maxDiffPixelRatio, nil},
+                                     max_diff_pixels: {:maxDiffPixels, nil},
+                                     omit_background: {:omitBackground, nil},
+                                     scale: {:scale, {:enum, %{css: "css", device: "device"}}},
+                                     style_path: {:stylePath, nil},
+                                     threshold: {:threshold, nil},
+                                     timeout: {:timeout, nil},
+                                     clip: {:clip, {:fields, %{x: nil, y: nil, width: nil, height: nil}}},
+                                     full_page: {:fullPage, nil}
+                                   }}
+
+  @typedoc "Options of `not_to_have_screenshot`, see its docs."
+  @type not_to_have_screenshot_options ::
+          [
+            path: String.t(),
+            animations: :disabled | :allow,
+            caret: :hide | :initial,
+            mask: [PlaywrightEx.Locator.t()],
+            mask_color: String.t(),
+            max_diff_pixel_ratio: number(),
+            max_diff_pixels: integer(),
+            omit_background: boolean(),
+            scale: :css | :device,
+            style_path: String.t() | [String.t()],
+            threshold: number(),
+            timeout: number() | :infinity,
+            clip: %{x: number(), y: number(), width: number(), height: number()},
+            full_page: boolean()
+          ]
+          | %{
+              optional(:path) => String.t(),
+              optional(:animations) => :disabled | :allow,
+              optional(:caret) => :hide | :initial,
+              optional(:mask) => [PlaywrightEx.Locator.t()],
+              optional(:mask_color) => String.t(),
+              optional(:max_diff_pixel_ratio) => number(),
+              optional(:max_diff_pixels) => integer(),
+              optional(:omit_background) => boolean(),
+              optional(:scale) => :css | :device,
+              optional(:style_path) => String.t() | [String.t()],
+              optional(:threshold) => number(),
+              optional(:timeout) => number() | :infinity,
+              optional(:clip) => %{x: number(), y: number(), width: number(), height: number()},
+              optional(:full_page) => boolean()
+            }
+
+  @doc since: "1.23"
+  @doc ~S"""
+  The opposite of `to_have_screenshot/2`: `expect(x).not.toHaveScreenshot(...)` in JS.
+
+  ## Options
+
+  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `updateSnapshots` of `PlaywrightEx.Matchers.Expect.set_expect_config/1`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+
+    * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
+    * infinite animations are canceled to initial state, and then played over after the screenshot.
+
+    Defaults to `"disabled"` that disables animations.
+  * `:caret` - When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, text caret behavior will not be changed.  Defaults to `"hide"`.
+  * `:mask` - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+    a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
+    The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
+  * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:max_diff_pixel_ratio` - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `TestConfig.expect`. Note that `threshold` defines which pixels are considered different.
+  * `:max_diff_pixels` - An acceptable amount of pixels that could be different. Default is configurable with `TestConfig.expect`. Note that `threshold` defines which pixels are considered different.
+  * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+    Defaults to `false`.
+  * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+
+    Defaults to `"css"`.
+  * `:style_path` - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
+  * `:threshold` - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
+    between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
+    `TestConfig.expect`. Defaults to `0.2`.
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `TestConfig.expect`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:clip` - An object which specifies clipping of the resulting image.
+    * `:x` - x-coordinate of top-left corner of clip area
+    * `:y` - y-coordinate of top-left corner of clip area
+    * `:width` - width of clipping area
+    * `:height` - height of clipping area
+  * `:full_page` - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
+    `false`.
+  """
+  @spec not_to_have_screenshot(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
+          :ok | {:error, Exception.t()}
+  def not_to_have_screenshot(locator_or_page, options \\ []) do
+    options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
+
+    Facade.matcher(locator_or_page, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toHaveScreenshot",
+        %{isNot: true},
+        locator_or_page,
+        &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
+      ).([options])
+    end)
+  end
+
+  @doc since: "1.23"
+  @doc "Like `not_to_have_screenshot/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @spec not_to_have_screenshot!(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
+          :ok
+  def not_to_have_screenshot!(locator_or_page, options \\ []) do
+    options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
+
+    Facade.matcher!(locator_or_page, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher(
+        "toHaveScreenshot",
+        %{isNot: true},
+        locator_or_page,
+        &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
+      ).([options])
     end)
   end
 

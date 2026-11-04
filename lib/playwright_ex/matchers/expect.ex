@@ -20,6 +20,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   alias PlaywrightEx.Matchers.MatcherUtils
   alias PlaywrightEx.Matchers.Matchers
   alias PlaywrightEx.Matchers.ToMatchAriaSnapshot
+  alias PlaywrightEx.Matchers.ToMatchSnapshot
 
   # unfilteredStackTrace  -- not ported: Elixir stack traces
 
@@ -39,7 +40,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   # throwUnsupportedExpectMatcherError  -- not ported: custom matchers (expect.extend)
 
   @doc false
-  # `customAsyncMatchers`, by JS name. `toHaveScreenshot` and `toPass` are not ported yet.
+  # `customAsyncMatchers`, by JS name. `toPass` is not ported.
   def custom_async_matchers do
     %{
       "toBeAttached" => &Matchers.to_be_attached/3,
@@ -70,6 +71,7 @@ defmodule PlaywrightEx.Matchers.Expect do
       "toHaveURL" => &Matchers.to_have_url/4,
       "toHaveValue" => &Matchers.to_have_value/4,
       "toHaveValues" => &Matchers.to_have_values/4,
+      "toHaveScreenshot" => &ToMatchSnapshot.to_have_screenshot/3,
       "toMatchAriaSnapshot" => &ToMatchAriaSnapshot.to_match_aria_snapshot/4
     }
   end
