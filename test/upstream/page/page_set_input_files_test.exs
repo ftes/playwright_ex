@@ -274,8 +274,30 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert file.size == data_size
   end
 
-  @tag skip: "not ported: exposeFunction"
-  test "should emit input and change events"
+  test "should emit input and change events", %{page: page, asset: asset} do
+    test = self()
+
+    Page.expose_function!(page, "eventHandled", fn e ->
+      send(test, {:event, e})
+      nil
+    end)
+
+    Page.set_content!(page, """
+    <input id=input type=file></input>
+    <script>
+      input.addEventListener('input', e => eventHandled({ type: e.type }));
+      input.addEventListener('change', e => eventHandled({ type: e.type }));
+    </script>
+    """)
+
+    ElementHandle.set_input_files!(Page.query_selector!(page, "input"), asset.("file-to-upload.txt"))
+    # The events are reported before setInputFiles returns.
+    assert_received {:event, first}
+    assert_received {:event, second}
+    refute_received {:event, _}
+    assert first["type"] == "input"
+    assert second["type"] == "change"
+  end
 
   test "input event.composed should be true and cross shadow dom boundary", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)

@@ -43,8 +43,56 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert received() == ["#PlaywrightEx.ConsoleMessage<Hello world>"]
   end
 
-  @tag skip: "not ported: exposeBinding"
-  test "should work for different console API calls"
+  test "should work for different console API calls", %{page: page} do
+    test = self()
+    Page.on(page, :console, fn msg -> send(test, {:event, msg}) end)
+    # All console events will be reported before `page.evaluate` is finished.
+    Page.evaluate!(page, """
+    () => {
+      // A pair of time/timeEnd generates only one Console API call.
+      console.time('calling console.time');
+      console.timeEnd('calling console.time');
+      console.trace('calling console.trace');
+      console.dir('calling console.dir');
+      console.warn('calling console.warn');
+      console.error('calling console.error');
+      console.info('calling console.info');
+      console.debug('calling console.debug');
+      console.log(Promise.resolve('should not wait until resolved!'));
+    }
+    """)
+
+    # WebKit uses console.debug() to report binding calls, make sure they don't get reported.
+    Page.expose_binding!(page, "foobar", fn _, value -> Page.evaluate!(page, "value => console.log(value)", value) end)
+    Page.evaluate!(page, "() => window['foobar']('Using bindings')")
+
+    messages = received()
+
+    assert Enum.map(messages, &ConsoleMessage.type/1) == [
+             "timeEnd",
+             "trace",
+             "dir",
+             "warning",
+             "error",
+             "info",
+             "debug",
+             "log",
+             "log"
+           ]
+
+    assert ConsoleMessage.text(hd(messages)) =~ "calling console.time"
+
+    assert Enum.map(tl(messages), &ConsoleMessage.text/1) == [
+             "calling console.trace",
+             "calling console.dir",
+             "calling console.warn",
+             "calling console.error",
+             "calling console.info",
+             "calling console.debug",
+             "Promise",
+             "Using bindings"
+           ]
+  end
 
   test "should format the message correctly with time/timeLog/timeEnd", %{page: page, browser_name: browser_name} do
     test = self()

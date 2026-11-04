@@ -79,8 +79,40 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  @tag skip: "not ported: exposeFunction"
-  test "should focus and blur a button"
+  test "should focus and blur a button", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/input/button.html")
+    button = Page.locator(page, "button")
+    assert Locator.evaluate!(button, "button => document.activeElement === button") == false
+
+    # `focused = true` / `blurred = true`: messages to the test process.
+    test = self()
+
+    Page.expose_function!(page, "focusEvent", fn ->
+      send(test, :focused)
+      true
+    end)
+
+    Page.expose_function!(page, "blurEvent", fn ->
+      send(test, :blurred)
+      true
+    end)
+
+    Locator.evaluate!(button, """
+    button => {
+      button.addEventListener('focus', window['focusEvent']);
+      button.addEventListener('blur', window['blurEvent']);
+    }
+    """)
+
+    Locator.focus!(button)
+    assert_received :focused
+    refute_received :blurred
+    assert Locator.evaluate!(button, "button => document.activeElement === button") == true
+
+    Locator.blur!(button)
+    assert_received :blurred
+    assert Locator.evaluate!(button, "button => document.activeElement === button") == false
+  end
 
   test "focus should respect strictness", %{page: page} do
     Page.set_content!(page, "<div>A</div><div>B</div>")

@@ -23,8 +23,17 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Task.await(watchdog)
   end
 
-  @tag skip: "not ported: addInitScript"
-  test "should work when resolved right before execution context disposal"
+  test "should work when resolved right before execution context disposal", %{page: page} do
+    Page.add_init_script!(page, "window['__RELOADED'] = true")
+
+    Page.wait_for_function!(page, """
+    () => {
+      if (!window['__RELOADED'])
+        window.location.reload();
+      return true;
+    }
+    """)
+  end
 
   test "should poll on interval", %{page: page} do
     polling = 100

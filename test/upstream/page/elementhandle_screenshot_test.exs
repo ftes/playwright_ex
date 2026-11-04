@@ -86,6 +86,23 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
     assert binary_part(buffer, 0, 3) == <<0xFF, 0xD8, 0xFF>>
   end
 
-  @tag skip: "not ported: exposeFunction"
-  test "should not issue resize event"
+  test "should not issue resize event", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/grid.html")
+    test = self()
+
+    Page.expose_function!(page, "resize", fn ->
+      send(test, :resize_triggered)
+      nil
+    end)
+
+    Page.evaluate!(page, """
+    () => {
+      window.addEventListener('resize', () => window.resize());
+    }
+    """)
+
+    element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
+    ElementHandle.screenshot!(element_handle)
+    refute_received :resize_triggered
+  end
 end
