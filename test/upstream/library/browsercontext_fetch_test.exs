@@ -1115,8 +1115,26 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert_receive :connection_closed, 5000
   end
 
-  @tag skip: "not ported: BrowserType.connectOverCDP"
-  test "should work with connectOverCDP"
+  test "should work with connectOverCDP", %{browser_name: browser_name, browser_type: browser_type, server: server} do
+    if browser_name == "chromium" do
+      # `9339 + testInfo.workerIndex`: a free port (modules run in parallel).
+      {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
+      {:ok, port} = :inet.port(socket)
+      :gen_tcp.close(socket)
+      browser_server = BrowserType.launch!(browser_type, args: ["--remote-debugging-port=#{port}"])
+
+      try do
+        cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
+        [context] = Browser.contexts(cdp_browser)
+        response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json")
+        assert APIResponse.url(response) == server.prefix <> "/simple.json"
+        assert APIResponse.status(response) == 200
+        assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
+      after
+        Browser.close(browser_server)
+      end
+    end
+  end
 
   test "should support SameSite cookie attribute over https", %{
     context_factory: context_factory,
