@@ -10,7 +10,6 @@ Evidence for the choice of client: `README.md`.
 PlaywrightEx                      entry: playwright/1 returns the root object
 PlaywrightEx.{Page, Locator, ...} generated facade from api.json (official names)
 PlaywrightEx.Expect               generated matcher facade (tuple + bang)
-PlaywrightEx.Extensions           small, documented non-official helpers (see Consumers)
 PlaywrightEx.Client.*             hand 1:1 port of playwright-core/src/client/*.ts
 PlaywrightEx.Matchers.*           hand 1:1 port of playwright/src/matchers (no jest fork)
 PlaywrightEx.Isomorphic.*         small isomorphic helpers (stringUtils, manualPromise, ...)
@@ -32,17 +31,19 @@ a migration guide maps old calls to new ones.
   JS-only classes (`BrowserServer`, `Logger`, jest assertions), callback forms.
 - `async: true` methods: `name/n` returns `{:ok, v} | {:error, e}`, `name!/n` raises.
   `async: false` (locators, `url`, `pages`): plain values, readable from any process
-  without the baton. Matchers: `to_have_text/3` returns `:ok | {:error, %ExpectError{}}`,
-  `to_have_text!/3` raises `ExUnit.AssertionError`; `%Regex{}` accepted as in JS.
-- Every async function accepts `timeout:`; where the official API has none (`close`,
-  `Dialog.accept`, `evaluate`, `save_as`), it bounds the client-side await. `timeout: 0`
-  means no timeout, as in JS; `:infinity` is accepted too.
+  without the baton. Matchers are async methods too: `to_have_text/3` returns
+  `:ok | {:error, %ExpectError{}}` (fields mirror JS `matcherResult`), `to_have_text!/3`
+  raises `ExUnit.AssertionError`; `%Regex{}` accepted as in JS.
+- Timeouts only where the official API has them; `timeout: 0` means no timeout, as in JS,
+  and `:infinity` is accepted too. Calls without one (`close`, `evaluate`, `save_as`) are
+  bounded by callers if needed; the guide shows a `Task.yield` recipe for cleanup code.
 - Arguments: optional positional args stay positional, options always last
   (`evaluate(frame, expr, arg \\ nil, opts \\ [])`). Enums are atoms mapped to wire strings
-  (`:no_preference`); `storage_state` round-trips. The rules file may allow protocol-only
-  options (`Tracing.start(coverage:)`).
-- Errors are exception structs with `name`, `message`, `log` and `api_name`.
-- `on/3` returns a ref for `off/3` and sends the subscription update before returning.
+  (`:no_preference`); `storage_state` round-trips. No options beyond the official ones.
+- Errors: one exception per JS class (`Error`, `TimeoutError`, `TargetClosedError`) with the
+  JS `message` (API-name prefix, call log), plus a `log` field.
+- `on/3` returns the emitter and `off/3` takes the same fun, as in JS. The subscription
+  update is sent before `on/3` returns.
 - The facade sets the API name for errors (`page.waitForURL`), validates options, carries
   docs/specs and delegates to `Client.*`. A missing impl function is a compile warning.
 - Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`) and the
@@ -108,8 +109,9 @@ shared token, since guids repeat across connections.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
 - GC: keep initializer in the struct, tombstone in ETS. AbortSignal: drop at first.
 - Zones: process dictionary, handed over with the baton.
-- testInfo-bound matchers (`toHaveScreenshot`, file aria snapshots, soft): behaviour for
-  ExUnit later. Skip `toMatchSnapshot` and generic jest assertions.
+- `to_have_screenshot(target, path: ...)`: port of `toHaveScreenshot` with an explicit path
+  instead of testInfo snapshot paths; stabilization and comparison stay on the server.
+  File aria snapshots and soft asserts: later. Skip `toMatchSnapshot` and jest assertions.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
   inspector; Electron/Android optional.
 
@@ -140,20 +142,22 @@ phoenix_test_playwright (~700 lines, 3-5 days) and fluffy (~700 lines, 4-6 days)
 mostly mechanically: handle structs instead of guids, `Locator.*` instead of `Frame.*`
 with selectors, `on/3` instead of subscriptions, `set_default_timeout` once instead of a
 timeout per call. Both shed code (PTP: two event GenServers; fluffy: protocol plumbing).
-Requirements they add, reflected above, plus:
+Their requests were reviewed against the official clients; only additive ones were kept
+(tuple matchers, the error `log` field, `to_have_screenshot` with a path), plus:
 
-- `PlaywrightEx.Extensions.Frame.navigation_state/1` returns `{url, document_request,
-  document_ref}` atomically (fluffy's document identity and status; the client already
-  sees `newDocument`). Kept outside the generated facade so parity stays clean.
-- `Expect.to_have_screenshot(target, expected: path, ...)` without testInfo (PTP baselines).
-- `PlaywrightEx.Driver.version/0`, `mix playwright_ex.cli` passthrough (`show-trace`,
-  `install --with-deps`), a monitorable connection pid.
+- `PlaywrightEx.Driver.version/0` and a `mix playwright_ex.cli` passthrough (`show-trace`,
+  `install --with-deps`), as Python's `__main__` and Java's `CLI` do.
+- Rejected, done by callers with the official API: per-call client timeouts (`Task.yield`);
+  fluffy's document identity (an `add_init_script` stamp read with `location.href` in one
+  `evaluate`) and document status (`on(:response)` for navigation requests); `on/3` refs;
+  a monitorable pid (monitor the named Supervisor or listen for Browser `:disconnected`).
 - `JsLogger` is dropped; the migration guide shows the `on(:console)` / `:weberror` recipe
   and recommends listeners that only `send/2` to the owning process.
 - `Page.locator(page, string)` passes raw selectors through (custom engines, `internal:`).
 
 Behaviour changes for the guide: `timeout: 0` now means no timeout; dialogs without a
-listener are auto-dismissed instead of hanging; error messages carry the API name prefix.
+listener are auto-dismissed instead of hanging; error messages carry the API name prefix;
+`Tracing` `coverage:` is removed.
 
 ## Then
 
