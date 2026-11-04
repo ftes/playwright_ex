@@ -1,0 +1,33 @@
+defmodule PlaywrightEx.Library.LauncherTest do
+  @upstream "tests/library/launcher.spec.ts"
+  use PlaywrightEx.UpstreamCase, async: true
+
+  alias PlaywrightEx.Playwright
+
+  @tag skip: "not ported: Playwright.errors"
+  test "should have an errors object"
+
+  test "should have a devices object", %{playwright: playwright} do
+    assert Playwright.devices(playwright)["iPhone 6"]
+    assert Playwright.devices(playwright)["iPhone 6"].defaultBrowserType == "webkit"
+  end
+
+  @tag skip: "not ported: __testHookGracefullyClose is a JS function"
+  test "should kill browser process on timeout after close"
+
+  if match?({:unix, :linux}, :os.type()) do
+    test "should throw a friendly error if its headed and there is no xserver on linux running", %{
+      browser_type: browser_type
+    } do
+      {:error, error} =
+        PlaywrightEx.BrowserType.launch(browser_type, headless: false, env: Map.delete(System.get_env(), "DISPLAY"))
+
+      assert is_exception(error)
+      assert Exception.message(error) =~ ~r/Looks like you launched a headed browser without having a XServer running./
+      assert Exception.message(error) =~ ~r/xvfb-run/
+    end
+  else
+    @tag skip: "linux only"
+    test "should throw a friendly error if its headed and there is no xserver on linux running"
+  end
+end

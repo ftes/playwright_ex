@@ -37,8 +37,11 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     assert Exception.message(error) =~ "browserType.launch: unknown option :port"
   end
 
-  @tag skip: "not ported: launchPersistentContext"
-  test "should throw if port option is passed for persistent context"
+  # `{ port: 1234 } as any`: the facade rejects options that are not in the API.
+  test "should throw if port option is passed for persistent context", %{browser_type: browser_type} do
+    error = catch_error(BrowserType.launch_persistent_context(browser_type, "foo", port: 1234))
+    assert Exception.message(error) =~ "browserType.launchPersistentContext: unknown option :port"
+  end
 
   test "should throw if page argument is passed", %{browser_type: browser_type} do
     {:error, wait_error} = BrowserType.launch(browser_type, args: ["http://example.com"])
