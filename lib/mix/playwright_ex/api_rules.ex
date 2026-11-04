@@ -4,7 +4,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
   (the counterpart of the Python client's `python_rules`).
 
     * Drops JS-only classes the Elixir client has no use for (`@dropped_classes`), and every
-      member, argument and option whose type refers to one of them (`logger: Logger`).
+      member, argument and option whose type refers to one of them (`logger: Logger`, and the
+      DOM `AbortSignal` of `signal:` options).
     * Drops JS-only members (`@dropped_members`).
     * Documents the Elixir forms of `timeout`.
     * Page functions (`expression`, a `[function]|[string]` in JS) are JS source strings.
@@ -13,7 +14,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   `to_have_screenshot` path rule.
   """
 
-  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions)
+  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions AbortSignal)
 
   # "Class.member"
   @dropped_members ~w()

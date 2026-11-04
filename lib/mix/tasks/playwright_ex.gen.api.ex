@@ -167,7 +167,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     """
     #{@header}
     defmodule #{inspect(facade(name))} do
-      @moduledoc #{doc(module_doc(ctx, class, events, unported))}
+      #{String.replace(since(class), "@doc", "@moduledoc")}@moduledoc #{doc(module_doc(ctx, class, events, unported))}
 
       #{if String.contains?(body, "Facade."), do: "alias PlaywrightEx.Runtime.Facade"}
 
@@ -186,10 +186,16 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       class["extends"] && "Extends `#{class["extends"]}`.",
       events != [] &&
         "## Events\n\n" <>
-          Enum.map_join(events, "\n\n", fn e -> sections(["### `#{inspect(event_atom(e))}`", md(e["spec"], ctx)]) end),
+          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"])),
       unported != [] &&
         "Not ported yet: " <> Enum.map_join(unported, ", ", &"`#{&1["alias"]}`") <> "."
     ])
+  end
+
+  defp event_doc(ctx, event, since) do
+    doc = md(event["spec"], ctx)
+    doc = if newer?(event["since"], since), do: inline_join("*Since #{version(event["since"])}.*", doc), else: doc
+    sections(["### `#{inspect(event_atom(event))}`", doc])
   end
 
   defp event_type([]), do: ""
@@ -228,7 +234,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     head = "#{name}(#{Enum.join(params, ", ")})"
     spec_args = Enum.join(["t()" | Enum.map(args, &spec(ctx, &1["type"], :in, &1))], ", ")
     return = if void?, do: ":ok", else: spec(ctx, member["type"], :out, nil)
-    docs = deprecated(member) <> "@doc #{doc(member_doc(ctx, member, args))}"
+    docs = since(member) <> deprecated(member) <> "@doc #{doc(member_doc(ctx, member, args))}"
 
     if member["async"] do
       fun = "fn -> #{call} end"
@@ -244,7 +250,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
         Facade.#{async}(#{inspect(api_name)}, #{receiver}, #{fun})
       end
 
-      #{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but returns the value and raises on error."
+      #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but returns the value and raises on error."
       @spec #{name}!(#{spec_args}) :: #{return}
       def #{name}!(#{Enum.join(params, ", ")}) do
         #{conversions}
@@ -273,21 +279,24 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       md(member["spec"], ctx),
       member["discouraged"] && note("Discouraged", "warning", text(member["discouraged"], ctx)),
       positional != [] &&
-        "## Arguments\n\n" <> Enum.map_join(positional, "\n", &bullet(ctx, "`#{var(&1["name"])}`", &1)),
-      options != [] && "## Options\n\n" <> Enum.map_join(options, "\n", &option_bullet(ctx, &1))
+        "## Arguments\n\n" <>
+          Enum.map_join(positional, "\n", &bullet(ctx, "`#{var(&1["name"])}`", &1, member["since"])),
+      options != [] && "## Options\n\n" <> Enum.map_join(options, "\n", &option_bullet(ctx, &1, member["since"]))
     ])
   end
 
-  defp option_bullet(ctx, prop), do: bullet(ctx, "`#{inspect(atom(prop["name"]))}`", prop)
+  defp option_bullet(ctx, prop, since), do: bullet(ctx, "`#{inspect(atom(prop["name"]))}`", prop, since)
 
-  # "* name - doc", then the fields of an object type as nested bullets.
-  defp bullet(ctx, name, prop) do
+  # "* name - doc", then the fields of an object type as nested bullets. Fields newer than
+  # their parent say since when, as on playwright.dev.
+  defp bullet(ctx, name, prop, since) do
     doc = md(prop["spec"], ctx)
+    doc = if newer?(prop["since"], since), do: inline_join("*Since #{version(prop["since"])}.*", doc), else: doc
 
     item =
       cond do
         doc == "" -> "* #{name}"
-        doc =~ ~r/^(```|> |\* |- |\||\d+\. )/ -> "* #{name}\n\n" <> indent(doc, 2)
+        block_start?(doc) -> "* #{name}\n\n" <> indent(doc, 2)
         true -> "* #{name} - " <> indent(doc, 2, :hanging)
       end
 
@@ -297,9 +306,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
       fields ->
         separator = if item =~ "\n\n", do: "\n\n", else: "\n"
-        item <> separator <> indent(Enum.map_join(fields, "\n", &option_bullet(ctx, &1)), 2)
+        item <> separator <> indent(Enum.map_join(fields, "\n", &option_bullet(ctx, &1, prop["since"])), 2)
     end
   end
+
+  defp block_start?(doc), do: doc =~ ~r/^(```|> |\* |- |\||\d+\. )/
+
+  defp inline_join(head, ""), do: head
+  defp inline_join(head, doc), do: if(block_start?(doc), do: head <> "\n\n" <> doc, else: head <> " " <> doc)
+
+  # api.json versions are "v1.8"; ours mirror upstream's (see PLAN.md).
+  defp version("v" <> version), do: version
+
+  defp newer?(since, parent) when is_binary(since) and is_binary(parent),
+    do: Version.compare(semver(since), semver(parent)) == :gt
+
+  defp newer?(_since, _parent), do: false
+
+  defp semver(since), do: since |> version() |> Kernel.<>(".0") |> Version.parse!()
+
+  defp since(%{"since" => since}) when is_binary(since), do: "@doc since: #{inspect(version(since))}\n"
+  defp since(_member), do: ""
 
   # Fields of an object type, also inside arrays and unions (`viewport: null|Object`).
   defp props(%{"properties" => props}) when is_list(props), do: Enum.uniq_by(props, & &1["name"])
