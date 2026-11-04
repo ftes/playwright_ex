@@ -1,3 +1,11 @@
+# The `dummyServerPort` / `ipV6ServerPort` servers: every request gets the body.
+defmodule PlaywrightEx.Library.BrowsertypeConnectTest.BodyPlug do
+  @moduledoc false
+  @behaviour Plug
+  def init(body), do: body
+  def call(conn, body), do: Plug.Conn.send_resp(conn, 200, body)
+end
+
 defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   @upstream "tests/library/browsertype-connect.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
@@ -25,17 +33,10 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
-  defmodule BodyPlug do
-    @moduledoc false
-    @behaviour Plug
-    def init(body), do: body
-    def call(conn, body), do: Plug.Conn.send_resp(conn, 200, body)
-  end
-
   # The `dummyServerPort` / `ipV6ServerPort` fixtures: every request gets `body`.
   defp body_server_port(ip, body) do
     pid =
-      start_supervised!({Bandit, plug: {BodyPlug, body}, ip: ip, port: 0, startup_log: false},
+      start_supervised!({Bandit, plug: {__MODULE__.BodyPlug, body}, ip: ip, port: 0, startup_log: false},
         id: make_ref()
       )
 
@@ -98,6 +99,16 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   end
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
+
+  # Keeps the response open (upstream: no `res.end()`) until the client closes the connection,
+  # then the handler dies with its socket.
+  defp wait_for_close(conn, on_close \\ fn -> nil end) do
+    %Plug.Conn{adapter: {Bandit.Adapter, adapter}} = conn
+    ThousandIsland.Socket.recv(adapter.transport.socket, 0, 30_000)
+    on_close.()
+    ThousandIsland.Socket.close(adapter.transport.socket)
+    Process.exit(self(), :kill)
+  end
 
   defp write_200mb(path) do
     str = String.duplicate("A", 4 * 1024)
@@ -252,10 +263,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
     # Upstream's TestServer leaves the `/ws-slow` upgrade unanswered; here a route does.
     test "should timeout in socket while connecting", %{browser_type: browser_type, server: server} do
-      TestServer.set_route(server, "/ws-slow", fn conn ->
-        Process.sleep(5000)
-        conn
-      end)
+      TestServer.set_route(server, "/ws-slow", fn conn -> wait_for_close(conn) end)
 
       {:error, e} = connect(browser_type, "ws://localhost:#{server.port}/ws-slow", timeout: 1000)
       assert Exception.message(e) =~ "browserType.connect: Timeout 1000ms exceeded"
@@ -555,20 +563,16 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     @tag skip: "not ported: Video"
     test "should name video file after page guid when connecting to remote browser with artifactsDir"
 
-    if match?({:unix, :linux}, :os.type()) do
-      # `process.on('warning')`: no Node warnings to listen for here.
-      test "should be able to connect 20 times to a single server without warnings", %{
-        browser_type: browser_type,
-        start_remote_server: start_remote_server,
-        kind: kind
-      } do
-        remote_server = start_remote_server.(kind, %{})
-        browsers = for _ <- 1..20, do: connect!(browser_type, RunServer.ws_endpoint(remote_server))
-        browsers |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many()
-      end
-    else
-      @tag skip: "Testing non-platform specific code"
-      test "should be able to connect 20 times to a single server without warnings"
+    if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "Testing non-platform specific code")
+    # `process.on('warning')`: no Node warnings to listen for here.
+    test "should be able to connect 20 times to a single server without warnings", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind
+    } do
+      remote_server = start_remote_server.(kind, %{})
+      browsers = for _ <- 1..20, do: connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      browsers |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many()
     end
 
     @tag skip: "not ported: Download"
@@ -1071,11 +1075,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     test = self()
 
     TestServer.set_route(server, "/connect/slow", fn conn ->
-      %Plug.Conn{adapter: {Bandit.Adapter, adapter}} = conn
       # `req.socket.on('close', () => aborted = true)`
-      ThousandIsland.Socket.recv(adapter.transport.socket, 0, 30_000)
-      send(test, :aborted)
-      Process.exit(self(), :kill)
+      wait_for_close(conn, fn -> send(test, :aborted) end)
     end)
 
     {:error, error} =

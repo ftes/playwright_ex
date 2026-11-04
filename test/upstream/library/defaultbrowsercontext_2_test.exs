@@ -94,9 +94,9 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   test "should accept userDataDir", %{create_user_data_dir: create_user_data_dir, browser_type: browser_type} do
     user_data_dir = create_user_data_dir.()
     context = BrowserType.launch_persistent_context!(browser_type, user_data_dir)
-    assert length(File.ls!(user_data_dir)) > 0
+    assert File.ls!(user_data_dir) != []
     BrowserContext.close!(context)
-    assert length(File.ls!(user_data_dir)) > 0
+    assert File.ls!(user_data_dir) != []
   end
 
   test "should accept relative userDataDir", %{create_user_data_dir: create_user_data_dir, browser_type: browser_type} do
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
         Path.relative_to(Path.join(user_data_dir, "foobar"), File.cwd!(), force: true)
       )
 
-    assert length(File.ls!(Path.join(user_data_dir, "foobar"))) > 0
+    assert File.ls!(Path.join(user_data_dir, "foobar")) != []
     BrowserContext.close!(context)
   end
 
@@ -149,7 +149,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     user_data_dir = Path.join(create_user_data_dir.(), "nonexisting")
     context = BrowserType.launch_persistent_context!(browser_type, user_data_dir)
     BrowserContext.close!(context)
-    assert length(File.ls!(user_data_dir)) > 0
+    assert File.ls!(user_data_dir) != []
   end
 
   test "should goto about:blank on relaunched persistent context", %{

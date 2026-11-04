@@ -24,7 +24,9 @@ defmodule PlaywrightEx.Client.Connect do
   end
 
   def connect_to_browser(playwright, params) do
-    deadline = if params[:timeout] && params.timeout != 0, do: System.monotonic_time(:millisecond) + params.timeout, else: 0
+    deadline =
+      if params[:timeout] && params.timeout != 0, do: System.monotonic_time(:millisecond) + params.timeout, else: 0
+
     name_param = if params[:browserName], do: %{"x-playwright-browser" => params.browserName}, else: %{}
     headers = Map.merge(name_param, params[:headers] || %{})
 
@@ -90,6 +92,7 @@ defmodule PlaywrightEx.Client.Connect do
 
   def connect_to_endpoint(parent_connection, params, timeout) do
     local_utils = Connection.local_utils(parent_connection)
+
     # const transport = localUtils ? new JsonPipeTransport(localUtils) : new WebSocketTransport();  -- the driver always has LocalUtils
     transport = __MODULE__.JsonPipeTransport.new(local_utils)
     connect_headers = __MODULE__.JsonPipeTransport.connect(transport, params, timeout)
@@ -103,6 +106,7 @@ defmodule PlaywrightEx.Client.Connect do
     on_transport_closed = fn reason ->
       Connection.close(connection, Enum.find([reason, get(close_error, :value)], &(&1 not in [nil, ""])))
     end
+
     __MODULE__.JsonPipeTransport.on_close(transport, fn reason -> on_transport_closed.(reason) end)
 
     put(connection, :onmessage, fn message ->

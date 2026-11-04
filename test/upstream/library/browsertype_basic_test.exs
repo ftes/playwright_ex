@@ -13,7 +13,10 @@ defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
     assert BrowserType.name(browser_type) == browser_name
   end
 
-  test "should throw when trying to connect with not-chromium", %{browser_type: browser_type, browser_name: browser_name} do
+  test "should throw when trying to connect with not-chromium", %{
+    browser_type: browser_type,
+    browser_name: browser_name
+  } do
     if browser_name not in ["chromium", "webkit"] do
       {:error, error} = BrowserType.connect_over_cdp(browser_type, "ws://foo")
       assert Exception.message(error) == "Connecting over CDP is only supported in Chromium and WebKit."

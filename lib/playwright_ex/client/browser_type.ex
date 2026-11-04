@@ -128,16 +128,15 @@ defmodule PlaywrightEx.Client.BrowserType do
 
   def connect_over_cdp(this, overloaded, options \\ %{}) do
     {endpoint_url, params} =
-      cond do
-        is_binary(overloaded) ->
-          {overloaded, options}
-
+      if is_binary(overloaded) do
+        {overloaded, options}
+      else
         # else if (isConnectionTransport(overloaded)) { ... }  -- not ported: connectOverCDP(transport) (PLAN: out of scope)
+        endpoint_url =
+          if Map.has_key?(overloaded, :endpointURL), do: overloaded.endpointURL, else: overloaded[:wsEndpoint]
 
-        true ->
-          endpoint_url = if Map.has_key?(overloaded, :endpointURL), do: overloaded.endpointURL, else: overloaded[:wsEndpoint]
-          if !endpoint_url, do: raise("Cannot connect over CDP without wsEndpoint.")
-          {endpoint_url, overloaded}
+        if !endpoint_url, do: raise("Cannot connect over CDP without wsEndpoint.")
+        {endpoint_url, overloaded}
       end
 
     # `endpointURL && ...`: always set here (no transport branch).
@@ -167,6 +166,7 @@ defmodule PlaywrightEx.Client.BrowserType do
   defp _browser_from_connect_result(this, result) do
     browser = Browser.from(result.browser)
     Browser._connect_to_browser_type(browser, this, %{}, nil)
+
     # if (result.defaultContext) await this._instrumentation.runAfterCreateBrowserContext(...)  -- not ported: instrumentation
     browser
   end
@@ -175,7 +175,12 @@ defmodule PlaywrightEx.Client.BrowserType do
     if name(this) != "chromium", do: raise("Connecting to workers is only supported in Chromium.")
 
     result =
-      channel_call(this, :connectToWorker, %{endpoint: endpoint}, TimeoutSettings.timeout(TimeoutSettings.new(nil), options))
+      channel_call(
+        this,
+        :connectToWorker,
+        %{endpoint: endpoint},
+        TimeoutSettings.timeout(TimeoutSettings.new(nil), options)
+      )
 
     Worker.from(result.worker)
   end
