@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Download
   alias PlaywrightEx.Page
@@ -83,10 +84,35 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
       Browser.close!(downloads_browser)
     end
 
-    @tag skip: "not ported: launchPersistentContext"
-    test "should accept downloads in persistent context"
+    @tag :tmp_dir
+    test "should accept downloads in persistent context", %{
+      launch_persistent: launch_persistent,
+      server: server,
+      tmp_dir: tmp_dir
+    } do
+      %{context: context, page: page} = launch_persistent.(downloads_path: tmp_dir)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+      download = click_download(page)
+      assert Download.url(download) == "#{server.prefix}/download"
+      assert Download.suggested_filename(download) == "file.txt"
+      path = Download.path!(download)
+      assert String.starts_with?(path, tmp_dir)
+      BrowserContext.close!(context)
+    end
 
-    @tag skip: "not ported: launchPersistentContext"
-    test "should delete downloads when persistent context closes"
+    @tag :tmp_dir
+    test "should delete downloads when persistent context closes", %{
+      launch_persistent: launch_persistent,
+      server: server,
+      tmp_dir: tmp_dir
+    } do
+      %{context: context, page: page} = launch_persistent.(downloads_path: tmp_dir)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+      download = click_download(page)
+      path = Download.path!(download)
+      assert File.exists?(path)
+      BrowserContext.close!(context)
+      refute File.exists?(path)
+    end
   end
 end

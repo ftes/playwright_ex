@@ -122,8 +122,19 @@ defmodule PlaywrightEx.Library.HarTest do
     assert page_entry["pageTimings"]["onLoad"] > 0
   end
 
-  @tag skip: "not ported: launchPersistentContext"
-  test "should have pages in persistent context"
+  test "should have pages in persistent context", %{launch_persistent: launch_persistent, output_path: output_path} do
+    har_path = output_path.("test.har")
+    %{context: context, page: page} = launch_persistent.(record_har: %{path: har_path})
+    Page.goto!(page, "data:text/html,<title>Hello</title>")
+    # For data: load comes before domcontentloaded...
+    Page.wait_for_load_state!(page, :domcontentloaded)
+    BrowserContext.close!(context)
+    log = read_log(har_path)
+    assert length(log["pages"]) == 1
+    page_entry = hd(log["pages"])
+    assert page_entry["id"]
+    assert page_entry["title"] == "Hello"
+  end
 
   test "should include request", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)

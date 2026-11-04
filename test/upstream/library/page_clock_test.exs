@@ -14,8 +14,19 @@ defmodule PlaywrightEx.Library.PageClockTest do
 
   # test.skip(!!process.env.PW_CLOCK);  -- not ported: no frozen-clock mode
 
-  # The `calls` fixture records `window.stub` calls through `page.exposeFunction`.
-  @calls "not ported: exposeFunction (the calls fixture)"
+  # The `calls` fixture (`test.extend`) records `window.stub` calls through `page.exposeFunction`:
+  # a `:calls` tag asks for it, `calls.()` returns the calls so far. Elixir functions have a fixed
+  # arity: `stub` takes the one `param` of its declared type (`stub()` records `params: [nil]`).
+  setup %{page: page} = tags do
+    if tags[:calls] do
+      # Not linked or stopped: a late `stub` call must not hit a dead process.
+      {:ok, calls} = Agent.start(fn -> [] end)
+      Page.expose_function!(page, "stub", fn param -> Agent.update(calls, &(&1 ++ [%{params: [param]}])) end)
+      %{calls: fn -> Agent.get(calls, & &1) end}
+    else
+      :ok
+    end
+  end
 
   defp pause_at_1000(%{page: page}) do
     Clock.install!(Page.clock(page), time: 0)
@@ -26,41 +37,160 @@ defmodule PlaywrightEx.Library.PageClockTest do
   describe "runFor" do
     setup :pause_at_1000
 
-    @tag skip: @calls
-    test "triggers immediately without specified delay"
+    @tag :calls
+    test "triggers immediately without specified delay", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub);
+      }
+      """)
 
-    @tag skip: @calls
-    test "does not trigger without sufficient delay"
+      Clock.run_for!(Page.clock(page), 0)
+      assert length(calls.()) == 1
+    end
 
-    @tag skip: @calls
-    test "triggers after sufficient delay"
+    @tag :calls
+    test "does not trigger without sufficient delay", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub, 100);
+      }
+      """)
 
-    @tag skip: @calls
-    test "triggers simultaneous timers"
+      Clock.run_for!(Page.clock(page), 10)
+      assert calls.() == []
+    end
 
-    @tag skip: @calls
-    test "triggers multiple simultaneous timers"
+    @tag :calls
+    test "triggers after sufficient delay", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub, 100);
+      }
+      """)
 
-    @tag skip: @calls
-    test "waits after setTimeout was called"
+      Clock.run_for!(Page.clock(page), 100)
+      assert length(calls.()) == 1
+    end
 
-    @tag skip: @calls
-    test "triggers event when some throw"
+    @tag :calls
+    test "triggers simultaneous timers", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub, 100);
+        setTimeout(window.stub, 100);
+      }
+      """)
 
-    @tag skip: @calls
-    test "creates updated Date while ticking"
+      Clock.run_for!(Page.clock(page), 100)
+      assert length(calls.()) == 2
+    end
 
-    @tag skip: @calls
-    test "passes 8 seconds"
+    @tag :calls
+    test "triggers multiple simultaneous timers", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub, 100);
+        setTimeout(window.stub, 100);
+        setTimeout(window.stub, 99);
+        setTimeout(window.stub, 100);
+      }
+      """)
 
-    @tag skip: @calls
-    test "passes 1 minute"
+      Clock.run_for!(Page.clock(page), 100)
+      assert length(calls.()) == 4
+    end
 
-    @tag skip: @calls
-    test "passes 2 hours, 34 minutes and 10 seconds"
+    @tag :calls
+    test "waits after setTimeout was called", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub, 150);
+      }
+      """)
 
-    @tag skip: @calls
-    test "throws for invalid format"
+      Clock.run_for!(Page.clock(page), 50)
+      assert calls.() == []
+      Clock.run_for!(Page.clock(page), 100)
+      assert length(calls.()) == 1
+    end
+
+    @tag :calls
+    test "triggers event when some throw", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(() => { throw new Error(); }, 100);
+        setTimeout(window.stub, 120);
+      }
+      """)
+
+      {:error, _} = Clock.run_for(Page.clock(page), 120)
+      assert length(calls.()) == 1
+    end
+
+    @tag :calls
+    test "creates updated Date while ticking", %{page: page, calls: calls} do
+      Clock.set_system_time!(Page.clock(page), 0)
+
+      Page.evaluate!(page, """
+      async () => {
+        setInterval(() => {
+          window.stub(new Date().getTime());
+        }, 10);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), 100)
+      assert calls.() == for(t <- 10..100//10, do: %{params: [t]})
+    end
+
+    @tag :calls
+    test "passes 8 seconds", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setInterval(window.stub, 4000);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), "08")
+      assert length(calls.()) == 2
+    end
+
+    @tag :calls
+    test "passes 1 minute", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setInterval(window.stub, 6000);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), "01:00")
+      assert length(calls.()) == 10
+    end
+
+    @tag :calls
+    test "passes 2 hours, 34 minutes and 10 seconds", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setInterval(window.stub, 10000);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), "02:34:10")
+      assert length(calls.()) == 925
+    end
+
+    @tag :calls
+    test "throws for invalid format", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setInterval(window.stub, 10000);
+      }
+      """)
+
+      {:error, _} = Clock.run_for(Page.clock(page), "12:02:34:10")
+      assert calls.() == []
+    end
 
     test "returns the current now value", %{page: page} do
       Clock.set_system_time!(Page.clock(page), 0)
@@ -73,21 +203,57 @@ defmodule PlaywrightEx.Library.PageClockTest do
   describe "fastForward" do
     setup :pause_at_1000
 
-    @tag skip: @calls
-    test "ignores timers which wouldn't be run"
+    @tag :calls
+    test "ignores timers which wouldn't be run", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(() => {
+          window.stub('should not be logged');
+        }, 1000);
+      }
+      """)
 
-    @tag skip: @calls
-    test "pushes back execution time for skipped timers"
+      Clock.fast_forward!(Page.clock(page), 500)
+      assert calls.() == []
+    end
 
-    @tag skip: @calls
-    test "supports string time arguments"
+    @tag :calls
+    test "pushes back execution time for skipped timers", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(() => {
+          window.stub(Date.now());
+        }, 1000);
+      }
+      """)
+
+      Clock.fast_forward!(Page.clock(page), 2000)
+      assert calls.() == [%{params: [1000 + 2000]}]
+    end
+
+    @tag :calls
+    test "supports string time arguments", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(() => {
+          window.stub(Date.now());
+        }, 100000);  // 100000 = 1:40
+      }
+      """)
+
+      Clock.fast_forward!(Page.clock(page), "01:50")
+      assert calls.() == [%{params: [1000 + 110_000]}]
+    end
   end
 
   describe "stubTimers" do
     setup :pause_at_1000
 
-    @tag skip: @calls
-    test "sets initial timestamp"
+    @tag :calls
+    test "sets initial timestamp", %{page: page} do
+      Clock.set_system_time!(Page.clock(page), 1400)
+      assert Page.evaluate!(page, "() => Date.now()") == 1400
+    end
 
     test "should throw for invalid date", %{page: page} do
       # setSystemTime(new Date('invalid')) rejects with 'Invalid date: Invalid Date'  -- not ported: a DateTime is always valid
@@ -95,20 +261,61 @@ defmodule PlaywrightEx.Library.PageClockTest do
       assert Exception.message(error) =~ "clock.setSystemTime: Invalid date: invalid"
     end
 
-    @tag skip: @calls
-    test "replaces global setTimeout"
+    @tag :calls
+    test "replaces global setTimeout", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(window.stub, 1000);
+      }
+      """)
 
-    @tag skip: @calls
-    test "global fake setTimeout should return id"
+      Clock.run_for!(Page.clock(page), 1000)
+      assert length(calls.()) == 1
+    end
 
-    @tag skip: @calls
-    test "replaces global clearTimeout"
+    @tag :calls
+    test "global fake setTimeout should return id", %{page: page} do
+      to = Page.evaluate!(page, "() => setTimeout(window.stub, 1000)")
+      assert is_number(to)
+    end
 
-    @tag skip: @calls
-    test "replaces global setInterval"
+    @tag :calls
+    test "replaces global clearTimeout", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        const to = setTimeout(window.stub, 1000);
+        clearTimeout(to);
+      }
+      """)
 
-    @tag skip: @calls
-    test "replaces global clearInterval"
+      Clock.run_for!(Page.clock(page), 1000)
+      assert calls.() == []
+    end
+
+    @tag :calls
+    test "replaces global setInterval", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        setInterval(window.stub, 500);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), 1000)
+      assert length(calls.()) == 2
+    end
+
+    @tag :calls
+    test "replaces global clearInterval", %{page: page, calls: calls} do
+      Page.evaluate!(page, """
+      async () => {
+        const to = setInterval(window.stub, 500);
+        clearInterval(to);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), 1000)
+      assert calls.() == []
+    end
 
     test "replaces global performance.now", %{page: page} do
       promise =
@@ -254,8 +461,21 @@ defmodule PlaywrightEx.Library.PageClockTest do
       assert Page.evaluate!(page, "() => Date.now()") == 100
     end
 
-    @tag skip: @calls
-    test "allows installing fake timers after settings time"
+    @tag :calls
+    test "allows installing fake timers after settings time", %{page: page, calls: calls} do
+      Clock.set_fixed_time!(Page.clock(page), 100)
+      assert Page.evaluate!(page, "() => Date.now()") == 100
+      Clock.set_fixed_time!(Page.clock(page), 200)
+
+      Page.evaluate!(page, """
+      async () => {
+        setTimeout(() => window.stub(Date.now()));
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), 0)
+      assert calls.() == [%{params: [200]}]
+    end
   end
 
   describe "while running" do
@@ -337,14 +557,68 @@ defmodule PlaywrightEx.Library.PageClockTest do
   end
 
   describe "while on pause" do
-    @tag skip: @calls
-    test "fastForward should not run nested immediate"
+    @tag :calls
+    test "fastForward should not run nested immediate", %{page: page, calls: calls} do
+      Clock.install!(Page.clock(page), time: 0)
+      Page.goto!(page, "data:text/html,")
+      Clock.pause_at!(Page.clock(page), 1000)
 
-    @tag skip: @calls
-    test "runFor should not run nested immediate"
+      Page.evaluate!(page, """
+      () => {
+        setTimeout(() => {
+          window.stub('outer');
+          setTimeout(() => window.stub('inner'), 0);
+        }, 1000);
+      }
+      """)
 
-    @tag skip: @calls
-    test "runFor should not run nested immediate from microtask"
+      Clock.fast_forward!(Page.clock(page), 1000)
+      assert calls.() == [%{params: ["outer"]}]
+      Clock.fast_forward!(Page.clock(page), 1)
+      assert calls.() == [%{params: ["outer"]}, %{params: ["inner"]}]
+    end
+
+    @tag :calls
+    test "runFor should not run nested immediate", %{page: page, calls: calls} do
+      Clock.install!(Page.clock(page), time: 0)
+      Page.goto!(page, "data:text/html,")
+      Clock.pause_at!(Page.clock(page), 1000)
+
+      Page.evaluate!(page, """
+      () => {
+        setTimeout(() => {
+          window.stub('outer');
+          setTimeout(() => window.stub('inner'), 0);
+        }, 1000);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), 1000)
+      assert calls.() == [%{params: ["outer"]}]
+      Clock.run_for!(Page.clock(page), 1)
+      assert calls.() == [%{params: ["outer"]}, %{params: ["inner"]}]
+    end
+
+    @tag :calls
+    test "runFor should not run nested immediate from microtask", %{page: page, calls: calls} do
+      Clock.install!(Page.clock(page), time: 0)
+      Page.goto!(page, "data:text/html,")
+      Clock.pause_at!(Page.clock(page), 1000)
+
+      Page.evaluate!(page, """
+      () => {
+        setTimeout(() => {
+          window.stub('outer');
+          void Promise.resolve().then(() => setTimeout(() => window.stub('inner'), 0));
+        }, 1000);
+      }
+      """)
+
+      Clock.run_for!(Page.clock(page), 1000)
+      assert calls.() == [%{params: ["outer"]}]
+      Clock.run_for!(Page.clock(page), 1)
+      assert calls.() == [%{params: ["outer"]}, %{params: ["inner"]}]
+    end
   end
 
   describe "Date.now" do

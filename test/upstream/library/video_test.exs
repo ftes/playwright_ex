@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     @tag skip: "not ported: VideoPlayer (ffmpeg)"
     test "should be 800x600 with null viewport"
 
-    @tag skip: "not ported: launchPersistentContext"
+    @tag skip: "not ported: VideoPlayer (ffmpeg)"
     test "should capture static page in persistent context @smoke"
 
     @tag skip: "not ported: VideoPlayer (ffmpeg)"

@@ -22,6 +22,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Facade
+  alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
 
   @moduletag :page
@@ -971,8 +972,88 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert call2after == call2before
   end
 
-  @tag skip: "not ported: TestServer.onceWebSocketConnection"
-  test "should save trace while a WebSocket keeps streaming frames"
+  @tag :tmp_dir
+  test "should save trace while a WebSocket keeps streaming frames", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
+    streaming = :atomics.new(1, [])
+    :atomics.put(streaming, 1, 1)
+
+    TestServer.once_web_socket_connection(server, fn ws ->
+      # setInterval(..., 1), cleared on ws close/error: a timer process that stops with `ws`.
+      spawn(fn ->
+        ref = Process.monitor(ws)
+
+        loop = fn loop ->
+          receive do
+            {:DOWN, ^ref, :process, _, _} -> :ok
+          after
+            1 ->
+              if :atomics.get(streaming, 1) == 1,
+                do: TestServer.WebSocket.send(ws, String.duplicate("x", 16 * 1024))
+
+              loop.(loop)
+          end
+        end
+
+        loop.(loop)
+      end)
+    end)
+
+    Tracing.start!(tracing(context), snapshots: true)
+
+    Tracing.start_chunk!(tracing(context))
+    Page.goto!(page, server.empty_page)
+
+    Page.evaluate!(
+      page,
+      """
+      url => {
+        window.ws = new WebSocket(url);
+        return new Promise(resolve => window.ws.addEventListener('open', () => resolve()));
+      }
+      """,
+      "ws://#{server.host}/ws"
+    )
+
+    Page.wait_for_timeout!(page, 100)
+    trace_path1 = Path.join(tmp_dir, "trace1.zip")
+    Tracing.stop_chunk!(tracing(context), path: trace_path1)
+
+    :atomics.put(streaming, 1, 0)
+    Tracing.start_chunk!(tracing(context))
+    Page.wait_for_timeout!(page, 100)
+    trace_path2 = Path.join(tmp_dir, "trace2.zip")
+    Tracing.stop_chunk!(tracing(context), path: trace_path2)
+
+    Page.evaluate!(page, """
+    () => new Promise(resolve => {
+      const ws = window.ws;
+      if (ws.readyState === WebSocket.CLOSED) {
+        resolve();
+        return;
+      }
+      ws.addEventListener('close', () => resolve(), { once: true });
+      ws.close();
+    })
+    """)
+
+    web_socket_lines =
+      for path <- [trace_path1, trace_path2] do
+        %{resources: resources} = parse_trace_raw(path, context)
+        {_name, buffer} = Enum.find(resources, fn {name, _buffer} -> String.ends_with?(name, ".jsonl") end)
+        lines = buffer |> String.split("\n") |> Enum.reject(&(&1 == ""))
+        assert lines != []
+        for line <- lines, do: assert({:ok, _} = JSON.decode(line))
+        %{path: path, lines: lines}
+      end
+
+    refute Enum.at(web_socket_lines, 0).path == Enum.at(web_socket_lines, 1).path
+    assert Enum.at(web_socket_lines, 1).lines == Enum.at(web_socket_lines, 1).lines
+  end
 
   # Deviation: the test file's frames by basename, without the ExUnit runner and OTP frames
   # below them (Playwright Test filters its own frames).

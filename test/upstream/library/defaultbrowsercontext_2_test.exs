@@ -6,10 +6,14 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Coverage
   alias PlaywrightEx.Dialog
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Response
+  alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestServer
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
@@ -210,17 +214,51 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     assert_received :closed
   end
 
-  @tag skip: "not ported: Coverage"
-  test "coverage should work"
+  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "chromium only")
+  test "coverage should work", %{server: server, launch_persistent: launch_persistent} do
+    %{page: page} = launch_persistent.([])
+    Coverage.start_js_coverage!(Page.coverage(page))
+    Page.goto!(page, server.prefix <> "/jscoverage/simple.html", wait_until: :load)
+    coverage = Coverage.stop_js_coverage!(Page.coverage(page))
+    assert length(coverage) == 1
+    assert hd(coverage).url =~ "/jscoverage/simple.html"
+    assert hd(Enum.find(hd(coverage).functions, &(&1.functionName == "foo")).ranges).count == 1
+  end
 
-  @tag skip: "not ported: Selectors"
-  test "should respect selectors"
+  test "should respect selectors", %{playwright: playwright, launch_persistent: launch_persistent} do
+    # Selector engines are JS source (PLAN: no function serialization).
+    default_context_css = """
+    (() => ({
+      query(root, selector) {
+        return root.querySelector(selector);
+      },
+      queryAll(root, selector) {
+        return Array.from(root.querySelectorAll(selector));
+      }
+    }))()
+    """
+
+    Selectors.register!(Playwright.selectors(playwright), "defaultContextCSS", default_context_css)
+
+    %{page: page} = launch_persistent.([])
+    Page.set_content!(page, "<div>hello</div>")
+    assert Page.inner_html!(page, "css=div") == "hello"
+    assert Page.inner_html!(page, "defaultContextCSS=div") == "hello"
+  end
 
   @tag skip: "not ported: __testHookOnConnectToBrowser is a JS function"
   test "should connect to a browser with the default page"
 
-  @tag skip: "not ported: routeFromHAR"
-  test "should support har option"
+  test "should support har option", %{launch_persistent: launch_persistent, asset: asset} do
+    path = asset.("har-fulfill.har")
+    %{page: page} = launch_persistent.([])
+    Page.route_from_har!(page, path)
+    Page.goto!(page, "http://no.playwright/")
+    # HAR contains a redirect for the script that should be followed automatically.
+    assert Page.evaluate!(page, "window.value") == "foo"
+    # HAR contains a POST for the css file that should not be used.
+    Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
+  end
 
   # `(browser as any)._channel.defaultUserAgentForTest()`: the client's channel call.
   test "user agent is up to date", %{launch_persistent: launch_persistent, browser: browser} do

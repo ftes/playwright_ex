@@ -1,28 +1,67 @@
 defmodule PlaywrightEx.Page.SelectorsGetByTest do
   @upstream "tests/page/selectors-get-by.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # Not async: `selectors.setTestIdAttribute` sets the client's global test id attribute (module
+  # state in JS), which would leak into `getByTestId` of concurrently running modules.
+  use PlaywrightEx.UpstreamCase, async: false
 
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Selectors
 
   @moduletag :page
 
-  @tag skip: "not ported: expect"
-  test "getByTestId should work"
+  # Upstream's `testIdAttribute` fixture sets it to `data-testid` for each test's context.
+  defp set_test_id_attribute(playwright, attribute_name) do
+    selectors = Playwright.selectors(playwright)
+    Selectors.set_test_id_attribute(selectors, attribute_name)
+    on_exit(fn -> Selectors.set_test_id_attribute(selectors, "data-testid") end)
+  end
 
-  # Also `playwright.selectors.setTestIdAttribute` (ported), which is global module state as in JS.
-  @tag skip: "not ported: expect"
-  test "getByTestId with custom testId should work"
+  test "getByTestId should work", %{page: page} do
+    Page.set_content!(page, ~s(<div><div data-testid="Hello">Hello world</div></div>))
+    Expect.to_have_text!(Page.get_by_test_id(page, "Hello"), "Hello world")
+    Expect.to_have_text!(Frame.get_by_test_id(Page.main_frame(page), "Hello"), "Hello world")
+    Expect.to_have_text!(Locator.get_by_test_id(Page.locator(page, "div"), "Hello"), "Hello world")
+  end
 
-  @tag skip: "not ported: expect"
-  test "getByTestId with comma-separated testIdAttributes should match any"
+  test "getByTestId with custom testId should work", %{page: page, playwright: playwright} do
+    Page.set_content!(page, ~s(<div><div data-my-custom-testid="Hello">Hello world</div></div>))
+    set_test_id_attribute(playwright, "data-my-custom-testid")
+    Expect.to_have_text!(Page.get_by_test_id(page, "Hello"), "Hello world")
+    Expect.to_have_text!(Frame.get_by_test_id(Page.main_frame(page), "Hello"), "Hello world")
+    Expect.to_have_text!(Locator.get_by_test_id(Page.locator(page, "div"), "Hello"), "Hello world")
+  end
 
-  @tag skip: "not ported: expect"
-  test "getByTestId should escape id"
+  test "getByTestId with comma-separated testIdAttributes should match any", %{page: page, playwright: playwright} do
+    Page.set_content!(page, """
+      <section>
+        <div data-pw="Hello">first</div>
+        <div data-ti="Hello">second</div>
+        <div data-testid="Hello">third</div>
+      </section>
+    """)
 
-  @tag skip: "not ported: expect"
-  test "getByTestId should work for regex"
+    set_test_id_attribute(playwright, "data-pw,data-ti")
+    Expect.to_have_count!(Page.get_by_test_id(page, "Hello"), 2)
+    Expect.to_have_text!(Page.get_by_test_id(page, "Hello"), ["first", "second"])
+    Expect.to_have_count!(Frame.get_by_test_id(Page.main_frame(page), "Hello"), 2)
+    Expect.to_have_count!(Locator.get_by_test_id(Page.locator(page, "section"), "Hello"), 2)
+  end
+
+  test "getByTestId should escape id", %{page: page} do
+    Page.set_content!(page, ~s(<div><div data-testid='He"llo'>Hello world</div></div>))
+    Expect.to_have_text!(Page.get_by_test_id(page, ~s(He"llo)), "Hello world")
+  end
+
+  test "getByTestId should work for regex", %{page: page} do
+    Page.set_content!(page, ~s(<div><div data-testid="Hello">Hello world</div></div>))
+    Expect.to_have_text!(Page.get_by_test_id(page, ~r/He[l]*o/), "Hello world")
+    Expect.to_have_text!(Frame.get_by_test_id(Page.main_frame(page), "Hello"), "Hello world")
+    Expect.to_have_text!(Locator.get_by_test_id(Page.locator(page, "div"), "Hello"), "Hello world")
+  end
 
   test "getByText should work", %{page: page} do
     Page.set_content!(page, "<div>yo</div><div>ya</div><div>\nye  </div>")
@@ -47,8 +86,21 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Locator.get_by_label(Page.locator(page, "div"), "Name"), "e => e.nodeName") == "INPUT"
   end
 
-  @tag skip: "not ported: expect"
-  test "getByLabel should work with nested elements"
+  test "getByLabel should work with nested elements", %{page: page} do
+    Page.set_content!(page, "<label for=target>Last <span>Name</span></label><input id=target type=text>")
+
+    Expect.to_have_attribute!(Page.get_by_label(page, "last name"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_label(page, "st na"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_label(page, "Name"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_label(page, "Last Name", exact: true), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_label(page, ~r/Last\s+name/i), "id", "target")
+
+    assert Locator.element_handles!(Page.get_by_label(page, "Last", exact: true)) == []
+    assert Locator.element_handles!(Page.get_by_label(page, "last name", exact: true)) == []
+    assert Locator.element_handles!(Page.get_by_label(page, "Name", exact: true)) == []
+    assert Locator.element_handles!(Page.get_by_label(page, "what?")) == []
+    assert Locator.element_handles!(Page.get_by_label(page, ~r/last name/)) == []
+  end
 
   test "getByLabel should work with multiply-labelled input", %{page: page} do
     Page.set_content!(
@@ -107,17 +159,131 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Page.get_by_label(page, "Other"), "e => e.id") == "target"
   end
 
-  @tag skip: "not ported: expect"
-  test "getByPlaceholder should work"
+  test "getByPlaceholder should work", %{page: page} do
+    Page.set_content!(page, """
+    <div>
+      <input placeholder='Hello'>
+      <input placeholder='Hello World'>
+    </div>
+    """)
 
-  @tag skip: "not ported: expect"
-  test "getByAltText should work"
+    Expect.to_have_count!(Page.get_by_placeholder(page, "hello"), 2)
+    Expect.to_have_count!(Page.get_by_placeholder(page, "Hello", exact: true), 1)
+    Expect.to_have_count!(Page.get_by_placeholder(page, ~r/wor/i), 1)
 
-  @tag skip: "not ported: expect"
-  test "getByTitle should work"
+    # Coverage
+    Expect.to_have_count!(Frame.get_by_placeholder(Page.main_frame(page), "hello"), 2)
+    Expect.to_have_count!(Locator.get_by_placeholder(Page.locator(page, "div"), "hello"), 2)
+  end
 
-  @tag skip: "not ported: expect"
-  test "getBy escaping"
+  test "getByAltText should work", %{page: page} do
+    Page.set_content!(page, """
+    <div>
+      <input alt='Hello'>
+      <input alt='Hello World'>
+    </div>
+    """)
+
+    Expect.to_have_count!(Page.get_by_alt_text(page, "hello"), 2)
+    Expect.to_have_count!(Page.get_by_alt_text(page, "Hello", exact: true), 1)
+    Expect.to_have_count!(Page.get_by_alt_text(page, ~r/wor/i), 1)
+
+    # Coverage
+    Expect.to_have_count!(Frame.get_by_alt_text(Page.main_frame(page), "hello"), 2)
+    Expect.to_have_count!(Locator.get_by_alt_text(Page.locator(page, "div"), "hello"), 2)
+  end
+
+  test "getByTitle should work", %{page: page} do
+    Page.set_content!(page, """
+    <div>
+      <input title='Hello'>
+      <input title='Hello World'>
+    </div>
+    """)
+
+    Expect.to_have_count!(Page.get_by_title(page, "hello"), 2)
+    Expect.to_have_count!(Page.get_by_title(page, "Hello", exact: true), 1)
+    Expect.to_have_count!(Page.get_by_title(page, ~r/wor/i), 1)
+
+    # Coverage
+    Expect.to_have_count!(Frame.get_by_title(Page.main_frame(page), "hello"), 2)
+    Expect.to_have_count!(Locator.get_by_title(Page.locator(page, "div"), "hello"), 2)
+  end
+
+  test "getBy escaping", %{page: page} do
+    # expect.soft: the bang form (the first failure ends the test).
+    Page.set_content!(page, """
+    <label id=label for=control>Hello my
+    wo"rld</label><input id=control />
+    """)
+
+    Page.eval_on_selector!(page, "input", """
+    input => {
+      input.setAttribute('placeholder', 'hello my\\nwo"rld');
+      input.setAttribute('title', 'hello my\\nwo"rld');
+      input.setAttribute('alt', 'hello my\\nwo"rld');
+    }
+    """)
+
+    Expect.to_have_attribute!(Page.get_by_text(page, "hello my\nwo\"rld"), "id", "label")
+    Expect.to_have_attribute!(Page.get_by_text(page, "hello       my     wo\"rld"), "id", "label")
+    Expect.to_have_attribute!(Page.get_by_label(page, "hello my\nwo\"rld"), "id", "control")
+    Expect.to_have_attribute!(Page.get_by_placeholder(page, "hello my\nwo\"rld"), "id", "control")
+    Expect.to_have_attribute!(Page.get_by_alt_text(page, "hello my\nwo\"rld"), "id", "control")
+    Expect.to_have_attribute!(Page.get_by_title(page, "hello my\nwo\"rld"), "id", "control")
+
+    Page.set_content!(page, """
+    <label id=label for=control>Hello my
+    world</label><input id=control />
+    """)
+
+    Page.eval_on_selector!(page, "input", """
+    input => {
+      input.setAttribute('placeholder', 'hello my\\nworld');
+      input.setAttribute('title', 'hello my\\nworld');
+      input.setAttribute('alt', 'hello my\\nworld');
+    }
+    """)
+
+    Expect.to_have_attribute!(Page.get_by_text(page, "hello my\nworld"), "id", "label")
+    Expect.to_have_attribute!(Page.get_by_text(page, "hello        my    world"), "id", "label")
+    Expect.to_have_attribute!(Page.get_by_label(page, "hello my\nworld"), "id", "control")
+    Expect.to_have_attribute!(Page.get_by_placeholder(page, "hello my\nworld"), "id", "control")
+    Expect.to_have_attribute!(Page.get_by_alt_text(page, "hello my\nworld"), "id", "control")
+    Expect.to_have_attribute!(Page.get_by_title(page, "hello my\nworld"), "id", "control")
+
+    Page.set_content!(page, ~s(<div id=target title="my title">Text here</div>))
+    Expect.to_have_count!(Page.get_by_title(page, "my title", exact: true), 1, timeout: 500)
+    # JS 'my t\itle' is "my title" (a useless escape).
+    Expect.to_have_count!(Page.get_by_title(page, "my title", exact: true), 1, timeout: 500)
+    Expect.to_have_count!(Page.get_by_title(page, "my t\\itle", exact: true), 0, timeout: 500)
+    # JS 'my t\\\itle' is "my t\\itle".
+    Expect.to_have_count!(Page.get_by_title(page, "my t\\itle", exact: true), 0, timeout: 500)
+    Expect.to_have_count!(Page.get_by_title(page, "my t\\\\itle", exact: true), 0, timeout: 500)
+
+    Page.set_content!(page, "<label for=target>foo &gt;&gt; bar</label><input id=target>")
+
+    Page.eval_on_selector!(page, "input", """
+    input => {
+      input.setAttribute('placeholder', 'foo >> bar');
+      input.setAttribute('title', 'foo >> bar');
+      input.setAttribute('alt', 'foo >> bar');
+    }
+    """)
+
+    assert Locator.text_content!(Page.get_by_text(page, "foo >> bar")) == "foo >> bar"
+    Expect.to_have_text!(Page.locator(page, "label"), "foo >> bar")
+    Expect.to_have_text!(Page.get_by_text(page, "foo >> bar"), "foo >> bar")
+    assert Locator.text_content!(Page.get_by_text(page, ~r/foo >> bar/)) == "foo >> bar"
+    Expect.to_have_attribute!(Page.get_by_label(page, "foo >> bar"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_label(page, ~r/foo >> bar/), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_placeholder(page, "foo >> bar"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_alt_text(page, "foo >> bar"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_title(page, "foo >> bar"), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_placeholder(page, ~r/foo >> bar/), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_alt_text(page, ~r/foo >> bar/), "id", "target")
+    Expect.to_have_attribute!(Page.get_by_title(page, ~r/foo >> bar/), "id", "target")
+  end
 
   @outer_html "els => els.map(e => e.outerHTML)"
 
@@ -171,7 +337,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate_all!(Page.get_by_role(page, :button, name: "Click \\\\me", exact: true), @outer_html) == []
   end
 
-  @tag skip: "not ported: expect"
+  @tag skip: "not ported: the JS RegExp v flag (Elixir Regex has no equivalent)"
   test "getByRole should accept regexp with v flag"
 
   @text_content "els => els.map(e => e.textContent)"
@@ -262,6 +428,6 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
            ) == ["Alert"]
   end
 
-  @tag skip: "not ported: expect"
+  @tag skip: "not ported: the JS RegExp g and y flags (Elixir Regex has no equivalent)"
   test "locators should not be affected by global and sticky regex flags"
 end

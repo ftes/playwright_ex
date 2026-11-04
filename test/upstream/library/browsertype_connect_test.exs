@@ -10,26 +10,35 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   @upstream "tests/library/browsertype-connect.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  import PlaywrightEx.Utils, only: [ensure_some_frames: 1, parse_trace_raw: 2]
+
+  alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Download
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
   alias PlaywrightEx.RemoteServer.RunServer
+  alias PlaywrightEx.Response
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Facade
+  alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Video
 
   # Deviations:
   #   * Only the `run-server` kind: `launchServer` is out of scope (PLAN), so the
   #     `for (const kind of ['launchServer', 'run-server'])` loop has one `describe`.
   #   * `remoteServer.close()` kills `run-server` with `kill -9` (it ignores SIGTERM).
-  #   * TestServer has no WebSocket: tests that need a WebSocket endpoint on it are skipped;
-  #     `waitForWebSocketConnectionRequest()` waits for the upgrade request.
+  #   * No `ws` client: tests that open a WebSocket from the test are skipped.
 
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
@@ -98,11 +107,20 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     browser
   end
 
+  defp download_route(server) do
+    TestServer.set_route(server, "/download", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/octet-stream")
+      |> Plug.Conn.put_resp_header("content-disposition", "attachment")
+      |> Plug.Conn.send_resp(200, "Hello world")
+    end)
+  end
+
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
   # Keeps the response open (upstream: no `res.end()`) until the client closes the connection,
   # then the handler dies with its socket.
-  defp wait_for_close(conn, on_close \\ fn -> nil end) do
+  defp wait_for_close(conn, on_close) do
     %Plug.Conn{adapter: {Bandit.Adapter, adapter}} = conn
     ThousandIsland.Socket.recv(adapter.transport.socket, 0, 30_000)
     on_close.()
@@ -153,12 +171,10 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   describe "run-server" do
     @describetag kind: "run-server"
 
-    @tag skip: "not ported: TestServer WebSocket"
+    @tag skip: "not ported: WebSocket client (ws)"
     test "should connect over wss"
 
-    # Upstream's TestServer answers the `/ws-401` upgrade itself; here a route does.
     test "should print HTTP error", %{browser_type: browser_type, server: server} do
-      TestServer.set_route(server, "/ws-401", fn conn -> Plug.Conn.send_resp(conn, 401, "Unauthorized body") end)
       {:error, error} = connect(browser_type, "ws://localhost:#{server.port}/ws-401")
       assert Exception.message(error) =~ "401"
       assert Exception.message(error) =~ "Unauthorized body"
@@ -172,8 +188,16 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       refute Exception.message(error) =~ "secret=MYSECRET"
     end
 
-    @tag skip: "not ported: TestServer WebSocket"
-    test "should print custom ws close error"
+    test "should print custom ws close error", %{browser_type: browser_type, server: server} do
+      TestServer.once_web_socket_connection(server, fn ws, _request ->
+        TestServer.WebSocket.on(ws, :message, fn _message ->
+          TestServer.WebSocket.close(ws, 4123, "Oh my!")
+        end)
+      end)
+
+      {:error, error} = connect(browser_type, "ws://localhost:#{server.port}/ws")
+      assert Exception.message(error) =~ "browserType.connect: Oh my!"
+    end
 
     test "should be able to reconnect to a browser", %{
       browser_type: browser_type,
@@ -261,16 +285,15 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       Browser.close!(browser2)
     end
 
-    # Upstream's TestServer leaves the `/ws-slow` upgrade unanswered; here a route does.
     test "should timeout in socket while connecting", %{browser_type: browser_type, server: server} do
-      TestServer.set_route(server, "/ws-slow", fn conn -> wait_for_close(conn) end)
-
       {:error, e} = connect(browser_type, "ws://localhost:#{server.port}/ws-slow", timeout: 1000)
       assert Exception.message(e) =~ "browserType.connect: Timeout 1000ms exceeded"
     end
 
-    @tag skip: "not ported: TestServer WebSocket"
-    test "should timeout in connect while connecting"
+    test "should timeout in connect while connecting", %{browser_type: browser_type, server: server} do
+      {:error, e} = connect(browser_type, "ws://localhost:#{server.port}/ws", timeout: 100)
+      assert Exception.message(e) =~ "browserType.connect: Timeout 100ms exceeded"
+    end
 
     test "should send extra headers with connect request", %{browser_type: browser_type, server: server} do
       request = TestServer.wait_for_web_socket_connection_request(server)
@@ -537,8 +560,59 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       assert [first, second] == ["rejected", "disconnected"]
     end
 
-    @tag skip: "not ported: Selectors"
-    test "should respect selectors"
+    test "should respect selectors", %{
+      playwright: playwright,
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind
+    } do
+      remote_server = start_remote_server.(kind, %{})
+
+      mycss1 = "mycss1-" <> kind
+      mycss2 = "mycss2-" <> kind
+      mycss3 = "mycss3-" <> kind
+
+      # Selector engines are JS source (PLAN: no function serialization).
+      mycss = """
+      (() => ({
+        query(root, selector) {
+          return root.querySelector(selector);
+        },
+        queryAll(root, selector) {
+          return Array.from(root.querySelectorAll(selector));
+        }
+      }))()
+      """
+
+      # Register one engine before connecting.
+      Selectors.register!(Playwright.selectors(playwright), mycss1, mycss)
+
+      browser1 = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      context1 = Browser.new_context!(browser1)
+
+      # Register another engine after creating context.
+      Selectors.register!(Playwright.selectors(playwright), mycss2, mycss)
+
+      page1 = BrowserContext.new_page!(context1)
+      Page.set_content!(page1, "<div>hello</div>")
+      assert Page.inner_html!(page1, "css=div") == "hello"
+      assert Page.inner_html!(page1, "#{mycss1}=div") == "hello"
+      assert Page.inner_html!(page1, "#{mycss2}=div") == "hello"
+
+      browser2 = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+
+      # Register third engine after second connect.
+      Selectors.register!(Playwright.selectors(playwright), mycss3, mycss)
+
+      page2 = Browser.new_page!(browser2)
+      Page.set_content!(page2, "<div>hello</div>")
+      assert Page.inner_html!(page2, "css=div") == "hello"
+      assert Page.inner_html!(page2, "#{mycss1}=div") == "hello"
+      assert Page.inner_html!(page2, "#{mycss2}=div") == "hello"
+      assert Page.inner_html!(page2, "#{mycss3}=div") == "hello"
+
+      Browser.close!(browser1)
+    end
 
     test "should not throw on close after disconnect", %{
       browser_type: browser_type,
@@ -554,14 +628,82 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       Browser.close!(browser)
     end
 
-    @tag skip: "not ported: Video"
-    test "should saveAs videos from remote browser"
+    @tag :tmp_dir
+    test "should saveAs videos from remote browser", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      videos_path = tmp_dir
 
-    @tag skip: "not ported: Video"
-    test "should save videos to artifactsDir"
+      context =
+        Browser.new_context!(browser, record_video: %{dir: videos_path, size: %{width: 320, height: 240}})
 
-    @tag skip: "not ported: Video"
-    test "should name video file after page guid when connecting to remote browser with artifactsDir"
+      page = BrowserContext.new_page!(context)
+      Page.evaluate!(page, "() => document.body.style.backgroundColor = 'red'")
+      ensure_some_frames(page)
+      BrowserContext.close!(context)
+
+      # https://github.com/microsoft/playwright/issues/36685
+      # recordVideo.dir might be unaccessible in server mode, so /tmp/artifacts should be used
+      assert File.ls!(videos_path) == []
+
+      saved_as_path = Path.join(tmp_dir, "my-video.webm")
+      Video.save_as!(Page.video(page), saved_as_path)
+      assert File.exists?(saved_as_path)
+    end
+
+    @tag :tmp_dir
+    test "should save videos to artifactsDir", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      artifacts_dir = Path.join(tmp_dir, "artifacts")
+      remote_server = start_remote_server.(kind, %{artifactsDir: artifacts_dir})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      local_dir = Path.join(tmp_dir, "random-dir")
+
+      context =
+        Browser.new_context!(browser, record_video: %{dir: local_dir, size: %{width: 320, height: 240}})
+
+      page = BrowserContext.new_page!(context)
+      Page.evaluate!(page, "() => document.body.style.backgroundColor = 'red'")
+      ensure_some_frames(page)
+      BrowserContext.close!(context)
+
+      saved_as_path = Path.join(tmp_dir, "my-video.webm")
+      Video.save_as!(Page.video(page), saved_as_path)
+      assert File.exists?(saved_as_path)
+      refute File.exists?(local_dir)
+
+      Browser.close!(browser)
+    end
+
+    @tag :tmp_dir
+    test "should name video file after page guid when connecting to remote browser with artifactsDir", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      artifacts_dir = Path.join(tmp_dir, "artifacts")
+      remote_server = start_remote_server.(kind, %{artifactsDir: artifacts_dir})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      context = Browser.new_context!(browser, record_video: %{size: %{width: 320, height: 240}})
+      page = BrowserContext.new_page!(context)
+      Page.evaluate!(page, "() => document.body.style.backgroundColor = 'red'")
+      ensure_some_frames(page)
+      BrowserContext.close!(context)
+
+      assert File.exists?(Path.join(artifacts_dir, page.guid <> ".webm"))
+
+      Browser.close!(browser)
+    end
 
     if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "Testing non-platform specific code")
     # `process.on('warning')`: no Node warnings to listen for here.
@@ -575,11 +717,58 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       browsers |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many()
     end
 
-    @tag skip: "not ported: Download"
-    test "should save download"
+    @tag :tmp_dir
+    test "should save download", %{
+      server: server,
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      download_route(server)
 
-    @tag skip: "not ported: Download"
-    test "should error when saving download after deletion"
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      page = Browser.new_page!(browser)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+      download = Page.wait_for_event(page, :download)
+      Page.click!(page, "a")
+      download = Promise.await!(download)
+      nested_path = Path.join([tmp_dir, "these", "are", "directories", "download.txt"])
+      Download.save_as!(download, nested_path)
+      assert File.exists?(nested_path)
+      assert File.read!(nested_path) == "Hello world"
+      {:error, error} = Download.path(download)
+
+      assert Exception.message(error) =~
+               "Path is not available when connecting remotely. Use saveAs() to save a local copy."
+
+      Browser.close!(browser)
+    end
+
+    @tag :tmp_dir
+    test "should error when saving download after deletion", %{
+      server: server,
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      download_route(server)
+
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      page = Browser.new_page!(browser)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+      download = Page.wait_for_event(page, :download)
+      Page.click!(page, "a")
+      download = Promise.await!(download)
+      user_path = Path.join(tmp_dir, "download.txt")
+      Download.delete!(download)
+      {:error, error} = Download.save_as(download, user_path)
+      assert Exception.message(error) =~ "Target page, context or browser has been closed"
+      Browser.close!(browser)
+    end
 
     # `(browser as any)._connection.close()`: the client's connection.
     test "should properly disconnect when connection closes from the client side", %{
@@ -635,17 +824,105 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       Browser.close!(browser)
     end
 
-    @tag skip: "not ported: HAR"
-    test "should save har"
+    @tag :tmp_dir
+    test "should save har", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      server: server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      har_path = Path.join(tmp_dir, "test.har")
+      context = Browser.new_context!(browser, record_har: %{path: har_path})
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.empty_page)
+      BrowserContext.close!(context)
+      Browser.close!(browser)
 
-    @tag skip: "not ported: Tracing (_defaultTracesDir)"
-    test "should filter launch options"
+      log = JSON.decode!(File.read!(har_path))["log"]
+      assert length(log["entries"]) == 1
+      [entry] = log["entries"]
+      assert entry["pageref"] == hd(log["pages"])["id"]
+      assert entry["request"]["url"] == server.empty_page
+    end
 
-    @tag skip: "not ported: Tracing"
-    test "should record trace with sources"
+    # `_playwright._defaultTracesDir` is no client field (any more): setting it changes nothing.
+    @tag :tmp_dir
+    test "should filter launch options", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      server: server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      traces_dir = Path.join(tmp_dir, "traces")
+      playwright = PlaywrightEx.Runtime.Heap.get(browser_type, :_playwright)
+      old_traces_dir = PlaywrightEx.Runtime.Heap.get(playwright, :_defaultTracesDir)
+      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultTracesDir, traces_dir)
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      page = Browser.new_page!(browser)
+      Page.goto!(page, server.empty_page)
+      Browser.close!(browser)
+      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultTracesDir, old_traces_dir)
+      assert File.exists?(traces_dir) == false
+    end
 
-    @tag skip: "not ported: routing"
-    test "should fulfill with global fetch result"
+    @tag :tmp_dir
+    test "should record trace with sources", %{
+      playwright: playwright,
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      server: server,
+      kind: kind,
+      tmp_dir: tmp_dir
+    } do
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      context = Browser.new_context!(browser)
+      page = BrowserContext.new_page!(context)
+
+      Tracing.start!(BrowserContext.tracing(context), sources: true)
+      Page.goto!(page, server.empty_page)
+      Page.set_content!(page, "<button>Click</button>")
+      Page.click!(page, ~s("Click"))
+      Tracing.stop!(BrowserContext.tracing(context), path: Path.join(tmp_dir, "trace1.zip"))
+
+      BrowserContext.close!(context)
+      Browser.close!(browser)
+
+      %{resources: resources} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), playwright)
+      source_names = resources |> Map.keys() |> Enum.filter(&String.starts_with?(&1, "src/"))
+      assert length(source_names) == 1
+      source_file = resources[hd(source_names)]
+      this_file = File.read!(__ENV__.file)
+      assert source_file == this_file
+    end
+
+    test "should fulfill with global fetch result", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      playwright: playwright,
+      server: server,
+      kind: kind
+    } do
+      remote_server = start_remote_server.(kind, %{})
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      context = Browser.new_context!(browser)
+      page = BrowserContext.new_page!(context)
+
+      Page.route!(page, "**/*", fn route ->
+        request = APIRequest.new_context!(Playwright.request(playwright))
+        response = APIRequestContext.get!(request, server.prefix <> "/simple.json")
+        Route.fulfill!(route, response: response)
+      end)
+
+      response = Page.goto!(page, server.empty_page)
+      assert Response.status(response) == 200
+      assert Response.json!(response) == %{"foo" => "bar"}
+    end
 
     @tag :tmp_dir
     @tag timeout: 360_000
@@ -1067,8 +1344,43 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     assert Exception.message(error) =~ "client version: v#{major}.#{minor}"
   end
 
-  @tag skip: "not ported: Download, Tracing"
-  test "should filter local paths from unsafe launch options"
+  # https://github.com/microsoft/playwright/issues/42394
+  @tag :tmp_dir
+  test "should filter local paths from unsafe launch options", %{
+    playwright: playwright,
+    browser_type: browser_type,
+    start_remote_server: start_remote_server,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
+    download_route(server)
+    artifacts_dir = Path.join(tmp_dir, "artifacts")
+    downloads_path = Path.join(tmp_dir, "downloads")
+    File.write!(artifacts_dir, "not a directory")
+    File.write!(downloads_path, "not a directory")
+    remote_server = start_remote_server.("run-server", %{unsafe: true, env: %{"PWTEST_UNDER_TEST" => nil}})
+
+    browser =
+      connect!(browser_type, RunServer.ws_endpoint(remote_server), [],
+        launch_options: %{artifactsDir: artifacts_dir, downloadsPath: downloads_path}
+      )
+
+    context = Browser.new_context!(browser)
+    Tracing.start!(BrowserContext.tracing(context), snapshots: true)
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+    download = Page.wait_for_event(page, :download)
+    Page.click!(page, "a")
+    download = Promise.await!(download)
+    assert Download.failure!(download) == nil
+    trace_path = Path.join(tmp_dir, "trace.zip")
+    Tracing.stop!(BrowserContext.tracing(context), path: trace_path)
+    BrowserContext.close!(context)
+    Browser.close!(browser)
+
+    %{actions: actions} = parse_trace_raw(trace_path, playwright)
+    assert "Set content" in actions
+  end
 
   test "should timeout after redirect when connecting over http", %{browser_type: browser_type, server: server} do
     TestServer.set_redirect(server, "/connect/json", "/connect/slow")

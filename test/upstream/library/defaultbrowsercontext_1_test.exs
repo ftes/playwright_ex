@@ -5,7 +5,9 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
   import PlaywrightEx.Utils
 
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Download
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
   alias PlaywrightEx.TestServer
 
@@ -145,6 +147,23 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
     assert error
   end
 
-  @tag skip: "not ported: Download"
-  test "should support acceptDownloads option"
+  test "should support acceptDownloads option", %{server: server, launch_persistent: launch_persistent} do
+    # it.skip(mode !== 'default', 'download.path() is not available in remote mode');  -- always default mode
+    %{page: page} = launch_persistent.([])
+
+    TestServer.set_route(server, "/download", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/octet-stream")
+      |> Plug.Conn.put_resp_header("content-disposition", "attachment")
+      |> Plug.Conn.send_resp(200, "Hello world")
+    end)
+
+    Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+    download = Page.wait_for_event(page, :download)
+    Page.click!(page, "a")
+    download = Promise.await!(download)
+    path = Download.path!(download)
+    assert File.exists?(path)
+    assert File.read!(path) == "Hello world"
+  end
 end

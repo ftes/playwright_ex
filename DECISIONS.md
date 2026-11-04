@@ -172,3 +172,29 @@ Review: these shape the assertion API.
 - **Listener stacks**: in a handed-off listener, library frames at the bottom no longer count as
   the outermost library frame (traces had empty stacks). BEAM tail calls still drop callers.
 - Tracing `coverage:` stays out of the facade (PLAN), the client forwards `_coverage` as upstream.
+
+## 2026-11-05: Clock, Coverage, WebStorage, CDPSession, Selectors, Debugger, Credentials, WebMCP (workstream J)
+
+- **CDP events by name**: `session.on("Network.requestWillBeSent", ...)`; ApiRules `@open_events
+  ~w(CDPSession)` lets the facade accept any string event; payloads are raw params, string keys.
+- **`CDPSession.send/3` keeps its name** (shadows `Kernel.send` only inside those modules).
+- **A JS `Date` is a `DateTime`** (Clock); the invalid-Date check is dropped.
+- **Sync members that start promises take the baton** (`Selectors.setTestIdAttribute`); the test id
+  attribute is global, so `selectors_get_by` runs `async: false`.
+- **Revisit**: `credentials.create(rpId, knownCredential)` can't take the returned JS-keyed map as
+  snake_case options (tests convert by hand); debugger locations inside `Task.async` point at Task
+  (tail call).
+
+## 2026-11-05: Browser lifecycle, connect (workstream K)
+
+- **Remote**: `connect`/`connectOverCDP` through the driver's LocalUtils `connect` + `JsonPipe`
+  (no Elixir WebSocket client); each connection has its own heap on the shared baton.
+  `WebSocketTransport` (browser builds only) and `connectOverCDP(transport)` not ported.
+- **JS `||` on the pipe close reason**: `""` is falsy (else the error message was empty).
+- **Tests**: only the `run-server` kind of browsertype-connect is mirrored (no `launchServer`);
+  the connect fixture calls the client directly when `__testHook*` keys are present (the facade
+  rejects them, upstream uses `as any`); ephemeral ports instead of `9339 + workerIndex`;
+  user agents asserted by the `Playwright/<pin> (` prefix.
+- **Revisit**: nested-connection heap tables are never deleted (one ETS table per `connect`);
+  `Playwright.errors` not exposed (the generator would mistype it).
+- Electron/Android are not in the JS api.json view at this pin; nothing to drop.

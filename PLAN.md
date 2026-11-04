@@ -229,7 +229,9 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `routeWebSocket`, `recordHar`) with mirrored page-route, page-request-*, browsercontext-route,
    network, har and web-socket specs. Done: matchers (`PlaywrightEx.Expect`, incl.
    `to_be_ok`, `to_have_screenshot`), bindings/`exposeFunction`/`addInitScript`/Disposable/
-   locator handlers, artifacts (Artifact, Stream, Download, Video, Screencast, Tracing). Not yet: routing,
+   locator handlers, artifacts (Artifact, Stream, Download, Video, Screencast, Tracing). Done:
+   Clock, Coverage, WebStorage, CDPSession, Selectors, Debugger, Credentials, WebMCP,
+   `launchPersistentContext`, `connect`, `connectOverCDP` (url). Not yet: routing,
    HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/`waitForNavigation` (promise handle
    above), ElementHandle (`$`, `waitForSelector`, `Locator.evaluate`/`boundingBox`/
    `screenshot`), `convertInputFiles` (`setInputFiles`, `drop`), `Locator.toString`, so their
