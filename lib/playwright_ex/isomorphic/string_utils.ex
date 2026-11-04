@@ -46,7 +46,20 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
     end
   end
 
-  # trimString, trimStringWithEllipsis, truncateDataUrl, escapeRegExp, escapeHTMLAttribute, escapeHTML  -- not ported
+  def trim_string(input, cap, suffix \\ "") do
+    # `input.length` counts UTF-16 units, `[...input]` code points: both checks are on code points here.
+    chars = String.codepoints(input)
+
+    if length(chars) <= cap,
+      do: input,
+      else: Enum.join(Enum.take(chars, cap - length(String.codepoints(suffix)))) <> suffix
+  end
+
+  def trim_string_with_ellipsis(input, cap) do
+    trim_string(input, cap, "\u2026")
+  end
+
+  # truncateDataUrl, escapeRegExp, escapeHTMLAttribute, escapeHTML  -- not ported
   # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString, stripAnsiEscapes  -- not ported
 
   # String(re)

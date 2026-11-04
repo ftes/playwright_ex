@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Client.WebError
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
@@ -293,7 +294,37 @@ defmodule PlaywrightEx.Client.BrowserContext do
     get(this, :_closeReason) || (get(this, :_browser) && get(get(this, :_browser), :_closeReason))
   end
 
-  # waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
+  def wait_for_event(this, event, options_or_predicate \\ %{}) do
+    options_or_predicate = options_or_predicate || %{}
+
+    ChannelOwner._wrap_api_call(this, fn _ ->
+      timeout_options =
+        TimeoutSettings.timeout(
+          get(this, :_timeoutSettings),
+          if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
+        )
+
+      predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
+      waiter = Waiter.create_for_event(this, event)
+
+      Waiter.reject_on_timeout(
+        waiter,
+        timeout_options,
+        ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+      )
+
+      if event != Events.BrowserContext.close(),
+        do:
+          Waiter.reject_on_event(waiter, this, Events.BrowserContext.close(), fn ->
+            Errors.TargetClosedError.new(_effective_close_reason(this))
+          end)
+
+      result = Waiter.wait_for_event(waiter, this, event, predicate)
+      Waiter.dispose(waiter)
+      result
+    end)
+  end
+
   # storageState, setStorageState  -- not ported
 
   def background_pages(_this) do

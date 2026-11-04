@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Frame do
   })();
   ```
 
-  Not ported yet: `addScriptTag`, `addStyleTag`, `evaluateHandle`, `frameElement`, `$`, `$$`, `setInputFiles`, `waitForFunction`, `waitForNavigation`, `waitForSelector`, `waitForURL`, `webmcp`.
+  Not ported yet: `addScriptTag`, `addStyleTag`, `evaluateHandle`, `frameElement`, `$`, `$$`, `setInputFiles`, `waitForFunction`, `waitForSelector`, `webmcp`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -2855,6 +2855,87 @@ defmodule PlaywrightEx.Frame do
     end)
   end
 
+  @wait_for_navigation_options {:object,
+                                %{
+                                  timeout: {:timeout, nil},
+                                  url: {:url, nil},
+                                  wait_until:
+                                    {:waitUntil,
+                                     {:enum,
+                                      %{
+                                        load: "load",
+                                        domcontentloaded: "domcontentloaded",
+                                        networkidle: "networkidle",
+                                        commit: "commit"
+                                      }}}
+                                }}
+
+  @typedoc "Options of `wait_for_navigation`, see its docs."
+  @type wait_for_navigation_options ::
+          [
+            timeout: number() | :infinity,
+            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            wait_until: :load | :domcontentloaded | :networkidle | :commit
+          ]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc ~S"""
+  Waits for the frame navigation and returns the main resource response. In case of multiple redirects, the navigation
+  will resolve with the response of the last redirect. In case of navigation to a different anchor or navigation due to
+  History API usage, the navigation will resolve with `null`.
+
+  **Usage**
+
+  This method waits for the frame to navigate to a new URL. It is useful for when you run code which will indirectly cause
+  the frame to navigate. Consider this example:
+
+  ```js
+  // Start waiting for navigation before clicking. Note no await.
+  const navigationPromise = page.waitForNavigation();
+  await page.getByText('Navigate after timeout').click();
+  await navigationPromise;
+  ```
+
+  > #### Note {: .info}
+  >
+  > Usage of the [History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API) to change the URL is considered
+  > a navigation.
+
+  ## Options
+
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+    the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+    equal to the string.
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_navigation/3`.
+  """
+  @spec wait_for_navigation(t(), wait_for_navigation_options()) :: PlaywrightEx.Promise.t()
+  def wait_for_navigation(frame, options \\ []) do
+    options = Facade.options!(options, @wait_for_navigation_options, "frame.waitForNavigation")
+
+    Facade.promise("frame.waitForNavigation", frame, fn ->
+      PlaywrightEx.Client.Frame.wait_for_navigation(frame, options)
+    end)
+  end
+
   @wait_for_timeout_timeout :timeout
 
   @doc since: "1.8"
@@ -2893,5 +2974,178 @@ defmodule PlaywrightEx.Frame do
     Facade.async_void!("frame.waitForTimeout", frame, fn ->
       PlaywrightEx.Client.Frame.wait_for_timeout(frame, timeout)
     end)
+  end
+
+  @wait_for_url_options {:object,
+                         %{
+                           timeout: {:timeout, nil},
+                           wait_until:
+                             {:waitUntil,
+                              {:enum,
+                               %{
+                                 load: "load",
+                                 domcontentloaded: "domcontentloaded",
+                                 networkidle: "networkidle",
+                                 commit: "commit"
+                               }}}
+                         }}
+
+  @typedoc "Options of `wait_for_url`, see its docs."
+  @type wait_for_url_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
+  @doc since: "1.11"
+  @doc ~S"""
+  Waits for the frame to navigate to the given URL.
+
+  **Usage**
+
+  ```js
+  await frame.click('a.delayed-navigation'); // Clicking the link will indirectly cause a navigation
+  await frame.waitForURL('**/target.html');
+  ```
+
+  ## Arguments
+
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+    the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+    equal to the string.
+
+  ## Options
+
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+  """
+  @spec wait_for_url(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) ::
+          :ok | {:error, Exception.t()}
+  def wait_for_url(frame, url, options \\ []) do
+    options = Facade.options!(options, @wait_for_url_options, "frame.waitForURL")
+    Facade.async_void("frame.waitForURL", frame, fn -> PlaywrightEx.Client.Frame.wait_for_url(frame, url, options) end)
+  end
+
+  @doc since: "1.11"
+  @doc "Like `wait_for_url/3`, but returns the value and raises on error."
+  @spec wait_for_url!(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) :: :ok
+  def wait_for_url!(frame, url, options \\ []) do
+    options = Facade.options!(options, @wait_for_url_options, "frame.waitForURL")
+    Facade.async_void!("frame.waitForURL", frame, fn -> PlaywrightEx.Client.Frame.wait_for_url(frame, url, options) end)
+  end
+
+  @expect_navigation_options {:object,
+                              %{
+                                timeout: {:timeout, nil},
+                                url: {:url, nil},
+                                wait_until:
+                                  {:waitUntil,
+                                   {:enum,
+                                    %{
+                                      load: "load",
+                                      domcontentloaded: "domcontentloaded",
+                                      networkidle: "networkidle",
+                                      commit: "commit"
+                                    }}}
+                              }}
+
+  @typedoc "Options of `expect_navigation`, see its docs."
+  @type expect_navigation_options ::
+          [
+            timeout: number() | :infinity,
+            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            wait_until: :load | :domcontentloaded | :networkidle | :commit
+          ]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc ~S"""
+  Waits for the frame navigation and returns the main resource response. In case of multiple redirects, the navigation
+  will resolve with the response of the last redirect. In case of navigation to a different anchor or navigation due to
+  History API usage, the navigation will resolve with `null`.
+
+  **Usage**
+
+  This method waits for the frame to navigate to a new URL. It is useful for when you run code which will indirectly cause
+  the frame to navigate. Consider this example:
+
+  ```js
+  // Start waiting for navigation before clicking. Note no await.
+  const navigationPromise = page.waitForNavigation();
+  await page.getByText('Navigate after timeout').click();
+  await navigationPromise;
+  ```
+
+  > #### Note {: .info}
+  >
+  > Usage of the [History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API) to change the URL is considered
+  > a navigation.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:url` - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+    the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+    equal to the string.
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+  """
+  @spec expect_navigation(t(), (-> term()), expect_navigation_options()) ::
+          {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  def expect_navigation(frame, action, options \\ []) do
+    options = Facade.options!(options, @expect_navigation_options, "frame.waitForNavigation")
+
+    Facade.expect(
+      "frame.waitForNavigation",
+      frame,
+      fn -> PlaywrightEx.Client.Frame.wait_for_navigation(frame, options) end,
+      action
+    )
+  end
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc "Like `expect_navigation/3`, but returns the value and raises on error."
+  @spec expect_navigation!(t(), (-> term()), expect_navigation_options()) :: nil | PlaywrightEx.Response.t()
+  def expect_navigation!(frame, action, options \\ []) do
+    options = Facade.options!(options, @expect_navigation_options, "frame.waitForNavigation")
+
+    Facade.expect!(
+      "frame.waitForNavigation",
+      frame,
+      fn -> PlaywrightEx.Client.Frame.wait_for_navigation(frame, options) end,
+      action
+    )
   end
 end

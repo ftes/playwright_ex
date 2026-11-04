@@ -38,6 +38,8 @@ defmodule PlaywrightEx.Browser do
   @type t :: %PlaywrightEx.Client.Browser{}
   @type event :: :context | :disconnected
 
+  @events %{context: "context", disconnected: "disconnected"}
+
   @doc since: "1.23"
   @doc ~S"""
   Get the browser type (chromium, firefox or webkit) that the browser belongs to.
@@ -441,7 +443,7 @@ defmodule PlaywrightEx.Browser do
   ## Options
 
   * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), [`Page.waitForURL`](https://playwright.dev/docs/api/class-page#page-wait-for-url), [`Page.waitForRequest`](https://playwright.dev/docs/api/class-page#page-wait-for-request), or [`Page.waitForResponse`](https://playwright.dev/docs/api/class-page#page-wait-for-response) it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
@@ -896,7 +898,7 @@ defmodule PlaywrightEx.Browser do
   ## Options
 
   * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), [`Page.waitForURL`](https://playwright.dev/docs/api/class-page#page-wait-for-url), [`Page.waitForRequest`](https://playwright.dev/docs/api/class-page#page-wait-for-request), or [`Page.waitForResponse`](https://playwright.dev/docs/api/class-page#page-wait-for-response) it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:base_url` - When using `PlaywrightEx.Page.goto/3`, [`Page.route`](https://playwright.dev/docs/api/class-page#page-route), `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
@@ -1050,8 +1052,6 @@ defmodule PlaywrightEx.Browser do
   def version(browser) do
     PlaywrightEx.Client.Browser.version(browser)
   end
-
-  @events %{context: "context", disconnected: "disconnected"}
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"

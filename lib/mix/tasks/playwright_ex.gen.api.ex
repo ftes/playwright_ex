@@ -52,7 +52,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   const parseApi = apiParser.parseApi;
   apiParser.parseApi = (...args) => {
     const documentation = parseApi(...args);
-    documentation.filterForLanguage('js');
+    documentation.filterForLanguage(process.argv[2]);
     return documentation;
   };
   require(path.join(repo, 'utils', 'doclint', 'generateApiJson.js'));
@@ -100,9 +100,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   @doc false
-  def api_json(repo) do
+  # `lang`: the client whose view of the docs to load ("js", "python" for the callback forms).
+  def api_json(repo, lang \\ "js") do
     {node, _} = PlaywrightEx.Driver.ensure_installed()
-    {json, 0} = System.cmd(node, ["-e", @load_api, Path.expand(repo)])
+    {json, 0} = System.cmd(node, ["-e", @load_api, Path.expand(repo), lang])
     JSON.decode!(json)
   end
 
@@ -110,7 +111,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # %{path => source} for every ported class.
   def sources(repo) do
     api = api_json(repo)
-    classes = api |> ApiRules.apply() |> Enum.filter(&Code.ensure_loaded?(impl(&1["name"])))
+    classes = api |> ApiRules.apply(api_json(repo, "python")) |> Enum.filter(&Code.ensure_loaded?(impl(&1["name"])))
 
     ctx = %{
       classes: Map.new(classes, &{&1["name"], &1}),
@@ -128,16 +129,30 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp impl(class_name), do: Module.concat(PlaywrightEx.Client, class_name)
   defp facade(class_name), do: Module.concat(PlaywrightEx, class_name)
 
-  # Members of `class` the client implements, by alias.
+  # Members of `class` the client implements, by alias. A callback form (`expect_popup`) is
+  # generated when the client implements the wait it starts and its result class.
   defp exported(class) do
     impl = impl(class["name"])
 
     for member <- class["members"],
         member["kind"] in ["method", "property"],
-        function_exported?(impl, String.to_atom(snake(member["alias"])), 1 + length(member["args"])),
+        {name, arity} = client_function(member),
+        function_exported?(impl, String.to_atom(name), arity),
+        result_ported?(member),
         into: MapSet.new(),
         do: member["alias"]
   end
+
+  defp client_function(%{"callback" => %{"call" => call, "event" => nil}} = member),
+    do: {snake(call), 1 + length(member["args"])}
+
+  defp client_function(%{"callback" => %{"call" => call}} = member), do: {snake(call), 2 + length(member["args"])}
+  defp client_function(member), do: {snake(member["alias"]), 1 + length(member["args"])}
+
+  defp result_ported?(%{"callback" => _, "type" => %{"name" => name}}) when name not in ["any", "null", ""],
+    do: Code.ensure_loaded?(impl(name))
+
+  defp result_ported?(_member), do: true
 
   # --- modules -----------------------------------------------------------------
 
@@ -155,10 +170,17 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
           function_exported?(impl(name), String.to_atom(snake(method)), 3),
           do: method
 
+    # `@events` maps event atoms to JS names, for listeners and `event` arguments (`wait_for_event`).
+    events_table =
+      if listeners != [] or Enum.any?(ported, &event_arg?/1),
+        do: "@events #{render({:map, Enum.map(events, &{event_atom(&1), String.downcase(&1["name"])})})}"
+
     body = """
     @typedoc "A `#{name}` handle. Compare handles with `==`, their fields are internal."
     @type t :: #{struct_type(name)}
     #{event_type(events)}
+
+    #{events_table}
 
     #{Enum.map_join(ported, "\n\n", &member_source(ctx, class, &1, receiver))}
 
@@ -208,8 +230,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp member_source(ctx, class, member, receiver) do
     name = snake(member["alias"])
-    api_name = api_name(class["name"], member["alias"])
-    args = member["args"]
+    # A callback form (`expect_popup`) is named after the wait it starts (`page.waitForEvent`).
+    callback = member["callback"]
+    api_name = api_name(class["name"], if(callback, do: callback["call"], else: member["alias"]))
+    args = if callback, do: with_action(member["args"]), else: member["args"]
     vars = Enum.map(args, &var(&1["name"]))
     attrs = for {arg, var} <- Enum.zip(args, vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
 
@@ -224,56 +248,128 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     conversions =
       Enum.map_join(attrs, "\n", fn
         {%{"name" => "options"}, var, _} -> "#{var} = Facade.options!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
+        {arg, var, :event} when is_map(arg) -> "#{var} = Facade.event!(#{var}, @events, #{inspect(api_name)})"
         {_, var, _} -> "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
       end)
 
     attributes =
-      Enum.map_join(attrs, "\n", fn {_, var, schema} -> "@#{name}_#{var} #{render(schema)}" end)
+      Enum.map_join(attrs, "\n", fn
+        {_, _, :event} -> ""
+        {_, var, schema} -> "@#{name}_#{var} #{render(schema)}"
+      end)
 
-    call = "#{inspect(impl(class["name"]))}.#{name}(#{Enum.join([receiver | vars], ", ")})"
+    call =
+      case callback do
+        nil ->
+          "#{inspect(impl(class["name"]))}.#{name}(#{Enum.join([receiver | vars], ", ")})"
+
+        %{"call" => call, "event" => event} ->
+          call_args = [receiver | List.wrap(event && inspect(event))] ++ (vars -- ["action"])
+          "#{inspect(impl(class["name"]))}.#{snake(call)}(#{Enum.join(call_args, ", ")})"
+      end
+
     void? = get_in(member, ["type", "name"]) == "void"
     head = "#{name}(#{Enum.join(params, ", ")})"
     spec_args = Enum.join(["t()" | Enum.map(args, &arg_spec(ctx, &1, name))], ", ")
     return = if void?, do: ":ok", else: type_spec(ctx, member["type"], :out)
-    docs = since(member) <> deprecated(member) <> "@doc #{doc(member_doc(ctx, member, args))}"
+    doc = member_doc(ctx, member, args)
+    doc = if member["promise"], do: sections([doc, promise_doc(ctx, class, member, length(params))]), else: doc
+    docs = since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
 
     attributes =
       Enum.join([attributes | for(%{"name" => "options"} = arg <- args, do: options_type(ctx, name, arg))], "\n\n")
 
-    if member["async"] do
-      fun = "fn -> #{call} end"
-      {async, async!} = if void?, do: {"async_void", "async_void!"}, else: {"async", "async!"}
+    fun = "fn -> #{call} end"
 
-      """
-      #{attributes}
+    cond do
+      member["promise"] ->
+        """
+        #{attributes}
 
-      #{docs}
-      @spec #{name}(#{spec_args}) :: #{if void?, do: ":ok", else: "{:ok, #{return}}"} | {:error, Exception.t()}
-      def #{head} do
-        #{conversions}
-        Facade.#{async}(#{inspect(api_name)}, #{receiver}, #{fun})
-      end
+        #{docs}
+        @spec #{name}(#{spec_args}) :: PlaywrightEx.Promise.t()
+        def #{head} do
+          #{conversions}
+          Facade.promise(#{inspect(api_name)}, #{receiver}, #{fun})
+        end
+        """
 
-      #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but returns the value and raises on error."
-      @spec #{name}!(#{spec_args}) :: #{return}
-      def #{name}!(#{Enum.join(params, ", ")}) do
-        #{conversions}
-        Facade.#{async!}(#{inspect(api_name)}, #{receiver}, #{fun})
-      end
-      """
-    else
-      """
-      #{attributes}
+      member["async"] ->
+        {async, async!} =
+          cond do
+            callback -> {"expect", "expect!"}
+            void? -> {"async_void", "async_void!"}
+            true -> {"async", "async!"}
+          end
 
-      #{docs}
-      @spec #{name}(#{spec_args}) :: #{return}
-      def #{head} do
-        #{conversions}
-        #{call}#{if void?, do: "\n:ok"}
-      end
-      """
+        extra = if callback, do: ", action", else: ""
+
+        """
+        #{attributes}
+
+        #{docs}
+        @spec #{name}(#{spec_args}) :: #{if void?, do: ":ok", else: "{:ok, #{return}}"} | {:error, Exception.t()}
+        def #{head} do
+          #{conversions}
+          Facade.#{async}(#{inspect(api_name)}, #{receiver}, #{fun}#{extra})
+        end
+
+        #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but returns the value and raises on error."
+        @spec #{name}!(#{spec_args}) :: #{return}
+        def #{name}!(#{Enum.join(params, ", ")}) do
+          #{conversions}
+          Facade.#{async!}(#{inspect(api_name)}, #{receiver}, #{fun}#{extra})
+        end
+        """
+
+      true ->
+        """
+        #{attributes}
+
+        #{docs}
+        @spec #{name}(#{spec_args}) :: #{return}
+        def #{head} do
+          #{conversions}
+          #{call}#{if void?, do: "\n:ok"}
+        end
+        """
     end
   end
+
+  # The `action` of a callback form, before the options (C#'s `RunAndWaitForPopupAsync(action, options)`).
+  defp with_action(args) do
+    action = %{
+      "name" => "action",
+      "required" => true,
+      "type" => %{"name" => "function", "args" => []},
+      "spec" => [
+        %{
+          "type" => "text",
+          "text" =>
+            "A function that performs the action triggering the wait. It runs once the wait is set up; " <>
+              "its result is ignored and what it raises propagates."
+        }
+      ]
+    }
+
+    {options, positional} = Enum.split_with(args, &(&1["name"] == "options"))
+    positional ++ [action | options]
+  end
+
+  defp promise_doc(ctx, class, member, arity) do
+    callback =
+      if member["promise"] in ctx.exported[class["name"]],
+        do: " The callback form is `#{member["promise"]}/#{arity + 1}`.",
+        else: ""
+
+    "Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it " <>
+      "without `await`. Await it with `PlaywrightEx.Promise.await/1`." <> callback
+  end
+
+  defp event_arg?(member), do: Enum.any?(member["args"], &event_arg_type?/1)
+
+  defp event_arg_type?(%{"name" => "event", "type" => %{"name" => "string"}}), do: true
+  defp event_arg_type?(_arg), do: false
 
   defp member_doc(ctx, member, args) do
     positional = for arg <- args, arg["name"] != "options", arg["spec"] != [] or props(arg["type"]) != [], do: arg
@@ -348,30 +444,25 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # One spec per event, as the overloads in upstream's types.d.ts.
   defp listeners_source(ctx, class, events, listeners, receiver) do
-    table = {:map, Enum.map(events, &{event_atom(&1), String.downcase(&1["name"])})}
+    Enum.map_join(listeners, "\n\n", fn method ->
+      name = snake(method)
+      api_name = api_name(class["name"], method)
 
-    funs =
-      Enum.map_join(listeners, "\n\n", fn method ->
-        name = snake(method)
-        api_name = api_name(class["name"], method)
+      doc =
+        case method do
+          m when m in ~w(off removeListener) -> "Removes an event listener added by `on/3` or `add_listener/3`."
+          "once" -> "Adds an event listener that is removed after it is triggered once. See `on/3`."
+          _ -> "Adds an event listener for `event`, see the module docs for the events."
+        end
 
-        doc =
-          case method do
-            m when m in ~w(off removeListener) -> "Removes an event listener added by `on/3` or `add_listener/3`."
-            "once" -> "Adds an event listener that is removed after it is triggered once. See `on/3`."
-            _ -> "Adds an event listener for `event`, see the module docs for the events."
-          end
-
-        """
-        @doc #{inspect(doc)}
-        @doc group: "Events"
-        #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}
-        def #{name}(#{receiver}, event, listener),
-          do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}), listener)
-        """
-      end)
-
-    "@events #{render(table)}\n\n" <> funs
+      """
+      @doc #{inspect(doc)}
+      @doc group: "Events"
+      #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}
+      def #{name}(#{receiver}, event, listener),
+        do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}), listener)
+      """
+    end)
   end
 
   defp listener_spec(ctx, name, event) do
@@ -386,6 +477,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # Options have snake_case keys and atom enums; nested objects are JS values (`{:fields, _}`,
   # JS keys, only checked), as in the Python client.
   defp arg_schema(_ctx, %{"name" => "timeout"}), do: :timeout
+  defp arg_schema(_ctx, %{"name" => "event", "type" => %{"name" => "string"}}), do: :event
 
   defp arg_schema(ctx, %{"name" => "options", "type" => %{"properties" => props}}) do
     pairs =
@@ -461,6 +553,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # Inputs as the facade takes them (snake_case keys, enums as atoms), outputs as the client
   # returns them (JS keys, enums as strings).
   defp arg_spec(_ctx, %{"name" => "options"}, name), do: "#{name}_options()"
+  defp arg_spec(_ctx, %{"name" => "event", "type" => %{"name" => "string"}}, _name), do: "event() | String.t()"
   defp arg_spec(ctx, arg, _name), do: nullable(arg, prop_spec(ctx, arg))
 
   defp nullable(%{"required" => false}, spec), do: "#{spec} | nil"

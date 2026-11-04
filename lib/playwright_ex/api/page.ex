@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `addScriptTag`, `addStyleTag`, `coverage`, `emulateMedia`, `evaluateHandle`, `exposeBinding`, `exposeFunction`, `frame`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `$`, `$$`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `screenshot`, `setInputFiles`, `ariaSnapshot`, `ariaSnapshotJSON`, `unrouteAll`, `unroute`, `video`, `waitForEvent`, `waitForFunction`, `waitForNavigation`, `waitForRequest`, `waitForResponse`, `waitForSelector`, `waitForURL`, `webmcp`.
+  Not ported yet: `clock`, `addInitScript`, `addScriptTag`, `addStyleTag`, `coverage`, `emulateMedia`, `evaluateHandle`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `$`, `$$`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `screenshot`, `setInputFiles`, `ariaSnapshot`, `ariaSnapshotJSON`, `unrouteAll`, `unroute`, `video`, `waitForFunction`, `waitForSelector`, `webmcp`, `expect_download`, `expect_file_chooser`, `expect_websocket`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -244,6 +244,29 @@ defmodule PlaywrightEx.Page do
           | :response
           | :web_socket
           | :worker
+
+  @events %{
+    close: "close",
+    console: "console",
+    crash: "crash",
+    dialog: "dialog",
+    dialog_closed: "dialogclosed",
+    dom_content_loaded: "domcontentloaded",
+    download: "download",
+    file_chooser: "filechooser",
+    frame_attached: "frameattached",
+    frame_detached: "framedetached",
+    frame_navigated: "framenavigated",
+    load: "load",
+    page_error: "pageerror",
+    popup: "popup",
+    request: "request",
+    request_failed: "requestfailed",
+    request_finished: "requestfinished",
+    response: "response",
+    web_socket: "websocket",
+    worker: "worker"
+  }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -1125,6 +1148,39 @@ defmodule PlaywrightEx.Page do
   def focus!(page, selector, options \\ []) do
     options = Facade.options!(options, @focus_options, "page.focus")
     Facade.async_void!("page.focus", page, fn -> PlaywrightEx.Client.Page.focus(page, selector, options) end)
+  end
+
+  @frame_frame_selector {:fields, %{name: nil, url: nil}}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns frame matching the specified criteria. Either `name` or `url` must be specified.
+
+  **Usage**
+
+  ```js
+  const frame = page.frame('frame-name');
+  ```
+
+  ```js
+  const frame = page.frame({ url: /.*domain.*/ });
+  ```
+
+  ## Arguments
+
+  * `frame_selector` - Frame name or other frame lookup options.
+    * `:name` - Frame name specified in the `iframe`'s `name` attribute. Optional.
+    * `:url` - A glob pattern, regex pattern, URL pattern, or predicate receiving
+      frame's `url` as a `URL` object. Optional.
+  """
+  @spec frame(
+          t(),
+          String.t()
+          | %{optional(:name) => String.t(), optional(:url) => String.t() | Regex.t() | (String.t() -> boolean())}
+        ) :: nil | PlaywrightEx.Frame.t()
+  def frame(page, frame_selector) do
+    frame_selector = Facade.arg!(frame_selector, @frame_frame_selector, "page.frame")
+    PlaywrightEx.Client.Page.frame(page, frame_selector)
   end
 
   @doc since: "1.17"
@@ -3171,8 +3227,8 @@ defmodule PlaywrightEx.Page do
   * `PlaywrightEx.Page.goto/3`
   * `PlaywrightEx.Page.reload/2`
   * `PlaywrightEx.Page.set_content/3`
-  * [`Page.waitForNavigation`](https://playwright.dev/docs/api/class-page#page-wait-for-navigation)
-  * [`Page.waitForURL`](https://playwright.dev/docs/api/class-page#page-wait-for-url)
+  * `PlaywrightEx.Page.wait_for_navigation/2`
+  * `PlaywrightEx.Page.wait_for_url/3`
 
   > #### Note {: .info}
   >
@@ -3623,6 +3679,48 @@ defmodule PlaywrightEx.Page do
     PlaywrightEx.Client.Page.viewport_size(page)
   end
 
+  @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_event`, see its docs."
+  @type wait_for_event_options ::
+          [predicate: fun(), timeout: number() | :infinity]
+          | %{optional(:predicate) => fun(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Waits for event to fire and passes its value into the predicate function. Returns when the predicate returns truthy
+  value. Will throw an error if the page is closed before the event is fired. Returns the event data value.
+
+  **Usage**
+
+  ```js
+  // Start waiting for download before clicking. Note no await.
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByText('Download file').click();
+  const download = await downloadPromise;
+  ```
+
+  ## Arguments
+
+  * `event` - Event name, same one typically passed into `*.on(event)`.
+
+  ## Options
+
+  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_event/4`.
+  """
+  @spec wait_for_event(t(), event() | String.t(), wait_for_event_options()) :: PlaywrightEx.Promise.t()
+  def wait_for_event(page, event, options \\ []) do
+    event = Facade.event!(event, @events, "page.waitForEvent")
+    options = Facade.options!(options, @wait_for_event_options, "page.waitForEvent")
+    Facade.promise("page.waitForEvent", page, fn -> PlaywrightEx.Client.Page.wait_for_event(page, event, options) end)
+  end
+
   @wait_for_load_state_state {:enum, %{load: "load", domcontentloaded: "domcontentloaded", networkidle: "networkidle"}}
   @wait_for_load_state_options {:object, %{timeout: {:timeout, nil}}}
 
@@ -3696,6 +3794,191 @@ defmodule PlaywrightEx.Page do
     end)
   end
 
+  @wait_for_navigation_options {:object,
+                                %{
+                                  timeout: {:timeout, nil},
+                                  url: {:url, nil},
+                                  wait_until:
+                                    {:waitUntil,
+                                     {:enum,
+                                      %{
+                                        load: "load",
+                                        domcontentloaded: "domcontentloaded",
+                                        networkidle: "networkidle",
+                                        commit: "commit"
+                                      }}}
+                                }}
+
+  @typedoc "Options of `wait_for_navigation`, see its docs."
+  @type wait_for_navigation_options ::
+          [
+            timeout: number() | :infinity,
+            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            wait_until: :load | :domcontentloaded | :networkidle | :commit
+          ]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc ~S"""
+  Waits for the main frame navigation and returns the main resource response. In case of multiple redirects, the navigation
+  will resolve with the response of the last redirect. In case of navigation to a different anchor or navigation due to
+  History API usage, the navigation will resolve with `null`.
+
+  **Usage**
+
+  This resolves when the page navigates to a new URL or reloads. It is useful for when you run code which will indirectly
+  cause the page to navigate. e.g. The click target has an `onclick` handler that triggers navigation from a `setTimeout`.
+  Consider this example:
+
+  ```js
+  // Start waiting for navigation before clicking. Note no await.
+  const navigationPromise = page.waitForNavigation();
+  await page.getByText('Navigate after timeout').click();
+  await navigationPromise;
+  ```
+
+  > #### Note {: .info}
+  >
+  > Usage of the [History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API) to change the URL is considered
+  > a navigation.
+
+  ## Options
+
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+    the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+    equal to the string.
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_navigation/3`.
+  """
+  @spec wait_for_navigation(t(), wait_for_navigation_options()) :: PlaywrightEx.Promise.t()
+  def wait_for_navigation(page, options \\ []) do
+    options = Facade.options!(options, @wait_for_navigation_options, "page.waitForNavigation")
+
+    Facade.promise("page.waitForNavigation", page, fn -> PlaywrightEx.Client.Page.wait_for_navigation(page, options) end)
+  end
+
+  @wait_for_request_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_request`, see its docs."
+  @type wait_for_request_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Waits for the matching request and returns it. See [waiting for event](https://playwright.dev/docs/events#waiting-for-event) for more details about events.
+
+  **Usage**
+
+  ```js
+  // Start waiting for request before clicking. Note no await.
+  const requestPromise = page.waitForRequest('https://example.com/resource');
+  await page.getByText('trigger request').click();
+  const request = await requestPromise;
+
+  // Alternative way with a predicate. Note no await.
+  const requestPromise = page.waitForRequest(request =>
+    request.url() === 'https://example.com' && request.method() === 'GET',
+  );
+  await page.getByText('trigger request').click();
+  const request = await requestPromise;
+  ```
+
+  ## Arguments
+
+  * `url_or_predicate` - Request URL string, regex or predicate receiving [`Request`](`PlaywrightEx.Request`) object.
+
+  ## Options
+
+  * `:timeout` - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
+    changed by using the `PlaywrightEx.Page.set_default_timeout/2` method.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_request/4`.
+  """
+  @spec wait_for_request(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          wait_for_request_options()
+        ) :: PlaywrightEx.Promise.t()
+  def wait_for_request(page, url_or_predicate, options \\ []) do
+    options = Facade.options!(options, @wait_for_request_options, "page.waitForRequest")
+
+    Facade.promise("page.waitForRequest", page, fn ->
+      PlaywrightEx.Client.Page.wait_for_request(page, url_or_predicate, options)
+    end)
+  end
+
+  @wait_for_response_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_response`, see its docs."
+  @type wait_for_response_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the matched response. See [waiting for event](https://playwright.dev/docs/events#waiting-for-event) for more details about events.
+
+  **Usage**
+
+  ```js
+  // Start waiting for response before clicking. Note no await.
+  const responsePromise = page.waitForResponse('https://example.com/resource');
+  await page.getByText('trigger response').click();
+  const response = await responsePromise;
+
+  // Alternative way with a predicate. Note no await.
+  const responsePromise = page.waitForResponse(response =>
+    response.url() === 'https://example.com' && response.status() === 200
+        && response.request().method() === 'GET'
+  );
+  await page.getByText('trigger response').click();
+  const response = await responsePromise;
+  ```
+
+  ## Arguments
+
+  * `url_or_predicate` - Request URL string, regex or predicate receiving [`Response`](`PlaywrightEx.Response`) object.
+    When a `baseURL` via the context options was provided and the passed URL is a path,
+    it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+
+  ## Options
+
+  * `:timeout` - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
+    changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_response/4`.
+  """
+  @spec wait_for_response(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          wait_for_response_options()
+        ) :: PlaywrightEx.Promise.t()
+  def wait_for_response(page, url_or_predicate, options \\ []) do
+    options = Facade.options!(options, @wait_for_response_options, "page.waitForResponse")
+
+    Facade.promise("page.waitForResponse", page, fn ->
+      PlaywrightEx.Client.Page.wait_for_response(page, url_or_predicate, options)
+    end)
+  end
+
   @wait_for_timeout_timeout :timeout
 
   @doc since: "1.8"
@@ -3737,6 +4020,75 @@ defmodule PlaywrightEx.Page do
     Facade.async_void!("page.waitForTimeout", page, fn -> PlaywrightEx.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
+  @wait_for_url_options {:object,
+                         %{
+                           timeout: {:timeout, nil},
+                           wait_until:
+                             {:waitUntil,
+                              {:enum,
+                               %{
+                                 load: "load",
+                                 domcontentloaded: "domcontentloaded",
+                                 networkidle: "networkidle",
+                                 commit: "commit"
+                               }}}
+                         }}
+
+  @typedoc "Options of `wait_for_url`, see its docs."
+  @type wait_for_url_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
+  @doc since: "1.11"
+  @doc ~S"""
+  Waits for the main frame to navigate to the given URL.
+
+  **Usage**
+
+  ```js
+  await page.click('a.delayed-navigation'); // Clicking the link will indirectly cause a navigation
+  await page.waitForURL('**/target.html');
+  ```
+
+  ## Arguments
+
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+    the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+    equal to the string.
+
+  ## Options
+
+  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+  """
+  @spec wait_for_url(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) ::
+          :ok | {:error, Exception.t()}
+  def wait_for_url(page, url, options \\ []) do
+    options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
+    Facade.async_void("page.waitForURL", page, fn -> PlaywrightEx.Client.Page.wait_for_url(page, url, options) end)
+  end
+
+  @doc since: "1.11"
+  @doc "Like `wait_for_url/3`, but returns the value and raises on error."
+  @spec wait_for_url!(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) :: :ok
+  def wait_for_url!(page, url, options \\ []) do
+    options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
+    Facade.async_void!("page.waitForURL", page, fn -> PlaywrightEx.Client.Page.wait_for_url(page, url, options) end)
+  end
+
   @doc since: "1.8"
   @doc ~S"""
   This method returns all of the dedicated [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
@@ -3751,28 +4103,540 @@ defmodule PlaywrightEx.Page do
     PlaywrightEx.Client.Page.workers(page)
   end
 
-  @events %{
-    close: "close",
-    console: "console",
-    crash: "crash",
-    dialog: "dialog",
-    dialog_closed: "dialogclosed",
-    dom_content_loaded: "domcontentloaded",
-    download: "download",
-    file_chooser: "filechooser",
-    frame_attached: "frameattached",
-    frame_detached: "framedetached",
-    frame_navigated: "framenavigated",
-    load: "load",
-    page_error: "pageerror",
-    popup: "popup",
-    request: "request",
-    request_failed: "requestfailed",
-    request_finished: "requestfinished",
-    response: "response",
-    web_socket: "websocket",
-    worker: "worker"
-  }
+  @expect_console_message_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_console_message`, see its docs."
+  @type expect_console_message_options ::
+          [predicate: (PlaywrightEx.ConsoleMessage.t() -> boolean()), timeout: number() | :infinity]
+          | %{
+              optional(:predicate) => (PlaywrightEx.ConsoleMessage.t() -> boolean()),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Performs action and waits for a [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) to be logged by in the page. If predicate is provided, it passes
+  [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) value into the `predicate` function and waits for `predicate(message)` to return a truthy value.
+  Will throw an error if the page is closed before the [`Page.on(:console)`](PlaywrightEx.Page.html#module-console) event is fired.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_console_message(t(), (-> term()), expect_console_message_options()) ::
+          {:ok, PlaywrightEx.ConsoleMessage.t()} | {:error, Exception.t()}
+  def expect_console_message(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_console_message_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "console", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.9"
+  @doc "Like `expect_console_message/3`, but returns the value and raises on error."
+  @spec expect_console_message!(t(), (-> term()), expect_console_message_options()) :: PlaywrightEx.ConsoleMessage.t()
+  def expect_console_message!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_console_message_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "console", options) end,
+      action
+    )
+  end
+
+  @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_event`, see its docs."
+  @type expect_event_options ::
+          [predicate: fun(), timeout: number() | :infinity]
+          | %{optional(:predicate) => fun(), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Waits for event to fire and passes its value into the predicate function. Returns when the predicate returns truthy
+  value. Will throw an error if the page is closed before the event is fired. Returns the event data value.
+
+  **Usage**
+
+  ```js
+  // Start waiting for download before clicking. Note no await.
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByText('Download file').click();
+  const download = await downloadPromise;
+  ```
+
+  ## Arguments
+
+  * `event` - Event name, same one typically passed into `*.on(event)`.
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options()) ::
+          {:ok, term()} | {:error, Exception.t()}
+  def expect_event(page, event, action, options \\ []) do
+    event = Facade.event!(event, @events, "page.waitForEvent")
+    options = Facade.options!(options, @expect_event_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, event, options) end,
+      action
+    )
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expect_event/4`, but returns the value and raises on error."
+  @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options()) :: term()
+  def expect_event!(page, event, action, options \\ []) do
+    event = Facade.event!(event, @events, "page.waitForEvent")
+    options = Facade.options!(options, @expect_event_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, event, options) end,
+      action
+    )
+  end
+
+  @expect_navigation_options {:object,
+                              %{
+                                timeout: {:timeout, nil},
+                                url: {:url, nil},
+                                wait_until:
+                                  {:waitUntil,
+                                   {:enum,
+                                    %{
+                                      load: "load",
+                                      domcontentloaded: "domcontentloaded",
+                                      networkidle: "networkidle",
+                                      commit: "commit"
+                                    }}}
+                              }}
+
+  @typedoc "Options of `expect_navigation`, see its docs."
+  @type expect_navigation_options ::
+          [
+            timeout: number() | :infinity,
+            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            wait_until: :load | :domcontentloaded | :networkidle | :commit
+          ]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc ~S"""
+  Waits for the main frame navigation and returns the main resource response. In case of multiple redirects, the navigation
+  will resolve with the response of the last redirect. In case of navigation to a different anchor or navigation due to
+  History API usage, the navigation will resolve with `null`.
+
+  **Usage**
+
+  This resolves when the page navigates to a new URL or reloads. It is useful for when you run code which will indirectly
+  cause the page to navigate. e.g. The click target has an `onclick` handler that triggers navigation from a `setTimeout`.
+  Consider this example:
+
+  ```js
+  // Start waiting for navigation before clicking. Note no await.
+  const navigationPromise = page.waitForNavigation();
+  await page.getByText('Navigate after timeout').click();
+  await navigationPromise;
+  ```
+
+  > #### Note {: .info}
+  >
+  > Usage of the [History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API) to change the URL is considered
+  > a navigation.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+    `PlaywrightEx.BrowserContext.set_default_timeout/2`,
+    `PlaywrightEx.Page.set_default_navigation_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:url` - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+    the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
+    equal to the string.
+  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+
+    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `'load'` - consider operation to be finished when the `load` event is fired.
+    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+  """
+  @spec expect_navigation(t(), (-> term()), expect_navigation_options()) ::
+          {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  def expect_navigation(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_navigation_options, "page.waitForNavigation")
+
+    Facade.expect(
+      "page.waitForNavigation",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_navigation(page, options) end,
+      action
+    )
+  end
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc "Like `expect_navigation/3`, but returns the value and raises on error."
+  @spec expect_navigation!(t(), (-> term()), expect_navigation_options()) :: nil | PlaywrightEx.Response.t()
+  def expect_navigation!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_navigation_options, "page.waitForNavigation")
+
+    Facade.expect!(
+      "page.waitForNavigation",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_navigation(page, options) end,
+      action
+    )
+  end
+
+  @expect_popup_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_popup`, see its docs."
+  @type expect_popup_options ::
+          [predicate: (PlaywrightEx.Page.t() -> boolean()), timeout: number() | :infinity]
+          | %{optional(:predicate) => (PlaywrightEx.Page.t() -> boolean()), optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Performs action and waits for a popup [`Page`](`PlaywrightEx.Page`). If predicate is provided, it passes
+  `Popup` value into the `predicate` function and waits for `predicate(page)` to return a truthy value.
+  Will throw an error if the page is closed before the popup event is fired.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`Page`](`PlaywrightEx.Page`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_popup(t(), (-> term()), expect_popup_options()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
+  def expect_popup(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_popup_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "popup", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.9"
+  @doc "Like `expect_popup/3`, but returns the value and raises on error."
+  @spec expect_popup!(t(), (-> term()), expect_popup_options()) :: PlaywrightEx.Page.t()
+  def expect_popup!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_popup_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "popup", options) end,
+      action
+    )
+  end
+
+  @expect_request_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_request`, see its docs."
+  @type expect_request_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Waits for the matching request and returns it. See [waiting for event](https://playwright.dev/docs/events#waiting-for-event) for more details about events.
+
+  **Usage**
+
+  ```js
+  // Start waiting for request before clicking. Note no await.
+  const requestPromise = page.waitForRequest('https://example.com/resource');
+  await page.getByText('trigger request').click();
+  const request = await requestPromise;
+
+  // Alternative way with a predicate. Note no await.
+  const requestPromise = page.waitForRequest(request =>
+    request.url() === 'https://example.com' && request.method() === 'GET',
+  );
+  await page.getByText('trigger request').click();
+  const request = await requestPromise;
+  ```
+
+  ## Arguments
+
+  * `url_or_predicate` - Request URL string, regex or predicate receiving [`Request`](`PlaywrightEx.Request`) object.
+    When a `baseURL` via the context options was provided and the passed URL is a path,
+    it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:timeout` - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
+    changed by using the `PlaywrightEx.Page.set_default_timeout/2` method.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_request(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          (-> term()),
+          expect_request_options()
+        ) :: {:ok, PlaywrightEx.Request.t()} | {:error, Exception.t()}
+  def expect_request(page, url_or_predicate, action, options \\ []) do
+    options = Facade.options!(options, @expect_request_options, "page.waitForRequest")
+
+    Facade.expect(
+      "page.waitForRequest",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_request(page, url_or_predicate, options) end,
+      action
+    )
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expect_request/4`, but returns the value and raises on error."
+  @spec expect_request!(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          (-> term()),
+          expect_request_options()
+        ) :: PlaywrightEx.Request.t()
+  def expect_request!(page, url_or_predicate, action, options \\ []) do
+    options = Facade.options!(options, @expect_request_options, "page.waitForRequest")
+
+    Facade.expect!(
+      "page.waitForRequest",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_request(page, url_or_predicate, options) end,
+      action
+    )
+  end
+
+  @expect_request_finished_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_request_finished`, see its docs."
+  @type expect_request_finished_options ::
+          [predicate: (PlaywrightEx.Request.t() -> boolean()), timeout: number() | :infinity]
+          | %{
+              optional(:predicate) => (PlaywrightEx.Request.t() -> boolean()),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.12"
+  @doc ~S"""
+  Performs action and waits for a [`Request`](`PlaywrightEx.Request`) to finish loading. If predicate is provided, it passes
+  [`Request`](`PlaywrightEx.Request`) value into the `predicate` function and waits for `predicate(request)` to return a truthy value.
+  Will throw an error if the page is closed before the [`Page.on(:request_finished)`](PlaywrightEx.Page.html#module-request_finished) event is fired.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`Request`](`PlaywrightEx.Request`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_request_finished(t(), (-> term()), expect_request_finished_options()) ::
+          {:ok, PlaywrightEx.Request.t()} | {:error, Exception.t()}
+  def expect_request_finished(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_request_finished_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "requestfinished", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.12"
+  @doc "Like `expect_request_finished/3`, but returns the value and raises on error."
+  @spec expect_request_finished!(t(), (-> term()), expect_request_finished_options()) :: PlaywrightEx.Request.t()
+  def expect_request_finished!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_request_finished_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "requestfinished", options) end,
+      action
+    )
+  end
+
+  @expect_response_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_response`, see its docs."
+  @type expect_response_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Returns the matched response. See [waiting for event](https://playwright.dev/docs/events#waiting-for-event) for more details about events.
+
+  **Usage**
+
+  ```js
+  // Start waiting for response before clicking. Note no await.
+  const responsePromise = page.waitForResponse('https://example.com/resource');
+  await page.getByText('trigger response').click();
+  const response = await responsePromise;
+
+  // Alternative way with a predicate. Note no await.
+  const responsePromise = page.waitForResponse(response =>
+    response.url() === 'https://example.com' && response.status() === 200
+        && response.request().method() === 'GET'
+  );
+  await page.getByText('trigger response').click();
+  const response = await responsePromise;
+  ```
+
+  ## Arguments
+
+  * `url_or_predicate` - Request URL string, regex or predicate receiving [`Response`](`PlaywrightEx.Response`) object.
+    When a `baseURL` via the context options was provided and the passed URL is a path,
+    it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:timeout` - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
+    changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_response(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          (-> term()),
+          expect_response_options()
+        ) :: {:ok, PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  def expect_response(page, url_or_predicate, action, options \\ []) do
+    options = Facade.options!(options, @expect_response_options, "page.waitForResponse")
+
+    Facade.expect(
+      "page.waitForResponse",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_response(page, url_or_predicate, options) end,
+      action
+    )
+  end
+
+  @doc since: "1.8"
+  @doc "Like `expect_response/4`, but returns the value and raises on error."
+  @spec expect_response!(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          (-> term()),
+          expect_response_options()
+        ) :: PlaywrightEx.Response.t()
+  def expect_response!(page, url_or_predicate, action, options \\ []) do
+    options = Facade.options!(options, @expect_response_options, "page.waitForResponse")
+
+    Facade.expect!(
+      "page.waitForResponse",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_response(page, url_or_predicate, options) end,
+      action
+    )
+  end
+
+  @expect_worker_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `expect_worker`, see its docs."
+  @type expect_worker_options ::
+          [predicate: (PlaywrightEx.Worker.t() -> boolean()), timeout: number() | :infinity]
+          | %{
+              optional(:predicate) => (PlaywrightEx.Worker.t() -> boolean()),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.9"
+  @doc ~S"""
+  Performs action and waits for a new [`Worker`](`PlaywrightEx.Worker`). If predicate is provided, it passes
+  [`Worker`](`PlaywrightEx.Worker`) value into the `predicate` function and waits for `predicate(worker)` to return a truthy value.
+  Will throw an error if the page is closed before the worker event is fired.
+
+  ## Arguments
+
+  * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
+
+  ## Options
+
+  * `:predicate` - Receives the [`Worker`](`PlaywrightEx.Worker`) object and resolves to truthy value when the waiting should resolve.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec expect_worker(t(), (-> term()), expect_worker_options()) ::
+          {:ok, PlaywrightEx.Worker.t()} | {:error, Exception.t()}
+  def expect_worker(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_worker_options, "page.waitForEvent")
+
+    Facade.expect(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "worker", options) end,
+      action
+    )
+  end
+
+  @doc since: "1.9"
+  @doc "Like `expect_worker/3`, but returns the value and raises on error."
+  @spec expect_worker!(t(), (-> term()), expect_worker_options()) :: PlaywrightEx.Worker.t()
+  def expect_worker!(page, action, options \\ []) do
+    options = Facade.options!(options, @expect_worker_options, "page.waitForEvent")
+
+    Facade.expect!(
+      "page.waitForEvent",
+      page,
+      fn -> PlaywrightEx.Client.Page.wait_for_event(page, "worker", options) end,
+      action
+    )
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"

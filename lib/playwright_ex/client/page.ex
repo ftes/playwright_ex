@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Client.Page do
 
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ConsoleMessage
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.Keyboard
@@ -13,9 +14,13 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Touchscreen
+  alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
+  alias PlaywrightEx.Isomorphic.StringUtils
+  alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Protocol.Serializers
 
   def from(page) do
     page
@@ -158,7 +163,23 @@ defmodule PlaywrightEx.Client.Page do
     get(this, :_mainFrame)
   end
 
-  # frame  -- not ported: urlMatch
+  def frame(this, frame_selector) do
+    name = if is_binary(frame_selector), do: frame_selector, else: frame_selector[:name]
+    url = if is_map(frame_selector), do: frame_selector[:url]
+    if !(name || url), do: raise("Either name or url matcher should be specified")
+
+    Enum.find(frames(this), fn f ->
+      if name,
+        do: Frame.name(f) == name,
+        else:
+          UrlMatch.url_matches(
+            Connection.local_utils(get(this, :_connection)),
+            get(get(this, :_browserContext), :_options)[:baseURL],
+            Frame.url(f),
+            url
+          )
+    end)
+  end
 
   def frames(this) do
     get(this, :_frames)
@@ -259,8 +280,57 @@ defmodule PlaywrightEx.Client.Page do
     Frame.wait_for_load_state(get(this, :_mainFrame), state, options)
   end
 
-  # waitForNavigation, waitForURL, waitForRequest, waitForResponse  -- not ported: urlMatch
-  # waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
+  def wait_for_navigation(this, options \\ nil) do
+    Frame.wait_for_navigation(get(this, :_mainFrame), options || %{})
+  end
+
+  def wait_for_url(this, url, options \\ nil) do
+    Frame.wait_for_url(get(this, :_mainFrame), url, options)
+  end
+
+  def wait_for_request(this, url_or_predicate, options \\ %{}) do
+    options = options || %{}
+
+    predicate = fn request ->
+      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex),
+        do: _url_matches(this, Request.url(request), url_or_predicate),
+        else: url_or_predicate.(request)
+    end
+
+    trimmed_url = trim_url(url_or_predicate)
+    log_line = if trimmed_url, do: "waiting for request #{trimmed_url}"
+    # signal: options.signal  -- not ported: AbortSignal
+    _wait_for_event(this, Events.Page.request(), %{predicate: predicate, timeout: options[:timeout]}, log_line)
+  end
+
+  def wait_for_response(this, url_or_predicate, options \\ %{}) do
+    options = options || %{}
+
+    predicate = fn response ->
+      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex),
+        do: _url_matches(this, Response.url(response), url_or_predicate),
+        else: url_or_predicate.(response)
+    end
+
+    trimmed_url = trim_url(url_or_predicate)
+    log_line = if trimmed_url, do: "waiting for response #{trimmed_url}"
+    # signal: options.signal  -- not ported: AbortSignal
+    _wait_for_event(this, Events.Page.response(), %{predicate: predicate, timeout: options[:timeout]}, log_line)
+  end
+
+  # urlMatches(this._browserContext._options.baseURL, url, match), with the LocalUtils (UrlMatch).
+  defp _url_matches(this, url, match) do
+    UrlMatch.url_matches(
+      Connection.local_utils(get(this, :_connection)),
+      get(get(this, :_browserContext), :_options)[:baseURL],
+      url,
+      match
+    )
+  end
+
+  def wait_for_event(this, event, options_or_predicate \\ %{}) do
+    _wait_for_event(this, event, options_or_predicate || %{}, ~s(waiting for event "#{event}"))
+  end
 
   def _close_error_with_reason(this) do
     Errors.TargetClosedError.new(
@@ -268,7 +338,35 @@ defmodule PlaywrightEx.Client.Page do
     )
   end
 
-  # _waitForEvent  -- not ported: waits for the promise handle (PLAN, Public API)
+  defp _wait_for_event(this, event, options_or_predicate, log_line) do
+    ChannelOwner._wrap_api_call(this, fn _ ->
+      timeout_options =
+        TimeoutSettings.timeout(
+          get(this, :_timeoutSettings),
+          if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
+        )
+
+      predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
+      waiter = Waiter.create_for_event(this, event)
+      if log_line, do: Waiter.log(waiter, log_line)
+
+      Waiter.reject_on_timeout(
+        waiter,
+        timeout_options,
+        ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+      )
+
+      if event != Events.Page.crash(),
+        do: Waiter.reject_on_event(waiter, this, Events.Page.crash(), %RuntimeError{message: "Page crashed"})
+
+      if event != Events.Page.close(),
+        do: Waiter.reject_on_event(waiter, this, Events.Page.close(), fn -> _close_error_with_reason(this) end)
+
+      result = Waiter.wait_for_event(waiter, this, event, predicate)
+      Waiter.dispose(waiter)
+      result
+    end)
+  end
 
   def go_back(this, options \\ %{}) do
     wait_until =
@@ -529,6 +627,20 @@ defmodule PlaywrightEx.Client.Page do
   end
 
   # pause, pdf, ariaSnapshot, ariaSnapshotJSON, _setDockTile  -- not ported
+
+  # function trimUrl(param: any): string | undefined
+  defp trim_url(param) do
+    cond do
+      is_struct(param, Regex) ->
+        "/#{StringUtils.trim_string_with_ellipsis(Regex.source(param), 50)}/#{Serializers.regex_flags(param)}"
+
+      is_binary(param) ->
+        ~s("#{StringUtils.trim_string_with_ellipsis(param, 50)}")
+
+      true ->
+        nil
+    end
+  end
 end
 
-# BindingCall, trimUrl, addInitScriptWithExposedFunctions  -- not ported: BindingCall
+# BindingCall, addInitScriptWithExposedFunctions  -- not ported: BindingCall

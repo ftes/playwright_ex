@@ -3,14 +3,17 @@ defmodule PlaywrightEx.Client.Frame do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.FrameLocator
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Isomorphic.LocatorUtils
+  alias PlaywrightEx.Isomorphic.UrlMatch
 
   # types.ts kLifecycleEvents
   @k_lifecycle_events ["load", "domcontentloaded", "networkidle", "commit"]
@@ -130,7 +133,67 @@ defmodule PlaywrightEx.Client.Frame do
     waiter
   end
 
-  # waitForNavigation  -- not ported: urlMatch
+  def wait_for_navigation(this, options \\ %{}) do
+    options = options || %{}
+    page = get(this, :_page)
+
+    ChannelOwner._wrap_api_call(
+      page,
+      fn _ ->
+        wait_until =
+          verify_load_state("waitUntil", if(options[:waitUntil] == nil, do: "load", else: options.waitUntil))
+
+        waiter = _setup_navigation_waiter(this, options)
+
+        to_url = if is_binary(options[:url]), do: ~s( to "#{options.url}"), else: ""
+        Waiter.log(waiter, ~s(waiting for navigation#{to_url} until "#{wait_until}"))
+
+        navigated_event =
+          Waiter.wait_for_event(waiter, get(this, :_eventEmitter), "navigated", fn event ->
+            # Any failed navigation results in a rejection.
+            if event[:error] do
+              true
+            else
+              Waiter.log(waiter, ~s(  navigated to "#{event.url}"))
+
+              UrlMatch.url_matches(
+                Connection.local_utils(get(this, :_connection)),
+                page && get(Page.context(page), :_options)[:baseURL],
+                event.url,
+                options[:url]
+              )
+            end
+          end)
+
+        if navigated_event[:error] do
+          e = %RuntimeError{message: navigated_event.error}
+          # e.stack = '';  -- n/a: Elixir exceptions carry no stack
+          Waiter.wait_for_promise(waiter, Promise.rejected(e))
+        end
+
+        if !set_has(this, :_loadStates, wait_until) do
+          Waiter.wait_for_event(waiter, get(this, :_eventEmitter), "loadstate", fn s ->
+            Waiter.log(waiter, ~s(  "#{s}" event fired))
+            s == wait_until
+          end)
+        end
+
+        request = if navigated_event[:newDocument], do: Request.from_nullable(navigated_event.newDocument[:request])
+
+        response =
+          if request,
+            do:
+              Waiter.wait_for_promise(
+                waiter,
+                Promise.async(fn -> Request._internal_response(Request._final_request(request)) end)
+              )
+
+        Waiter.dispose(waiter)
+        response
+      end,
+      %{title: "Wait for navigation"}
+    )
+  end
 
   def wait_for_load_state(this, state \\ "load", options \\ nil) do
     state = verify_load_state("state", state || "load")
@@ -161,7 +224,24 @@ defmodule PlaywrightEx.Client.Frame do
     )
   end
 
-  # waitForURL  -- not ported: urlMatch
+  def wait_for_url(this, url, options \\ nil) do
+    wait_options = options || %{}
+    page = get(this, :_page)
+
+    if UrlMatch.url_matches(
+         Connection.local_utils(get(this, :_connection)),
+         page && get(Page.context(page), :_options)[:baseURL],
+         url(this),
+         url
+       ) do
+      wait_for_load_state(this, wait_options[:waitUntil], wait_options)
+    else
+      wait_for_navigation(this, Map.merge(%{url: url}, wait_options))
+    end
+
+    nil
+  end
+
   # frameElement, evaluateHandle  -- not ported: ElementHandle, JSHandle
 
   def evaluate(this, page_function, arg \\ nil, options \\ nil) do

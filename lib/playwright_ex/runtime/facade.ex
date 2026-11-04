@@ -22,6 +22,7 @@ defmodule PlaywrightEx.Runtime.Facade do
   or `{:union, [type]}`.
   """
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.Runtime.Promise
 
   @doc "Runs an async call: `{:ok, value}`, or `{:error, exception}` for anything it raises."
   def async(api_name, receiver, fun) do
@@ -42,6 +43,30 @@ defmodule PlaywrightEx.Runtime.Facade do
   def async_void!(api_name, receiver, fun) do
     async!(api_name, receiver, fun)
     :ok
+  end
+
+  @doc """
+  Starts an async call without awaiting it, as JS does with `const p = page.waitForEvent(...)`:
+  the call runs until its first `await` (the wait is set up), then a promise handle is returned,
+  awaited with `PlaywrightEx.Promise.await/1`.
+  """
+  def promise(api_name, receiver, fun), do: Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+
+  @doc """
+  The callback form of a wait (`expect_popup`): starts the wait (`promise/3`), runs `action`, then
+  awaits the wait: `{:ok, value}` or `{:error, exception}`. Exceptions raised by `action` propagate.
+  """
+  def expect(api_name, receiver, fun, action) do
+    promise = promise(api_name, receiver, fun)
+    action.()
+    PlaywrightEx.Promise.await(promise)
+  end
+
+  @doc "Like `expect/4`, but returns the value and raises on error."
+  def expect!(api_name, receiver, fun, action) do
+    promise = promise(api_name, receiver, fun)
+    action.()
+    PlaywrightEx.Promise.await!(promise)
   end
 
   @doc "Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`."

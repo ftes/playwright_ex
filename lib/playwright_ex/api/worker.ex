@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Worker do
 
   *Since 1.57.* Emitted when JavaScript within the worker calls one of console API methods, e.g. `console.log` or `console.dir`.
 
-  Not ported yet: `waitForEvent`.
+  Not ported yet: `waitForEvent`, `expect_event`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -36,6 +36,8 @@ defmodule PlaywrightEx.Worker do
   @typedoc "A `Worker` handle. Compare handles with `==`, their fields are internal."
   @type t :: %PlaywrightEx.Client.Worker{}
   @type event :: :close | :console
+
+  @events %{close: "close", console: "console"}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -102,8 +104,6 @@ defmodule PlaywrightEx.Worker do
   def url(worker) do
     PlaywrightEx.Client.Worker.url(worker)
   end
-
-  @events %{close: "close", console: "console"}
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
