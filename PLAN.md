@@ -118,6 +118,8 @@ Conventions and the roll procedure: `PORTING.md`.
 
 ## Decisions
 
+- Versions mirror upstream major.minor from the breaking release on (`1.64.x` drives
+  Playwright 1.64), the patch is ours, as in playwright-python. So upstream `since` is ours.
 - Locator rendering and URL globs via the driver's `LocalUtils.asLocatorDescription` and
   `globToRegex` (as non-JS clients do; regex cached per route), instead of porting ~3.3k
   lines of locator/selector/CSS parsers.
@@ -207,9 +209,9 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    with upstream; all in the generator): typed options (a `@type goto_options` per member from
    the facade schema, keyword or map, enums as atoms, nested fields as nested bullets), return
    and event payload shapes, links for class and event refs, notes as admonitions (`{: .info}`,
-   from the `spec` AST), upstream "Added in" as a `Playwright 1.8` badge (custom `@doc` metadata
-   rendered by `annotations_for_docs`; `since:` would read as our version), an "API" module group
-   and an "Events" doc group, and the event list's broken code blocks fixed. JS examples stay
+   from the `spec` AST), upstream "Added in" as `@doc since:` (versions are in sync, see
+   Decisions), an "API" module group and an "Events" doc group, and the event list's broken
+   code blocks fixed. JS examples stay
    until item 4 rewrites them. CI runs `mix docs --warnings-as-errors`. No NimbleOptions: its
    validation can't do the conversion the schema already does (JS names, enum strings,
    `:infinity`), and rendering docs and specs from our own schema is less work than mapping
