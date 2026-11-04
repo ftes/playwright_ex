@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(this, :_closingStatus, "none")
     put(this, :_harRouters, [])
     put(this, :_options, initializer.options)
-    put(this, :_timeoutSettings, TimeoutSettings.new(this.baton))
+    put(this, :_timeoutSettings, TimeoutSettings.new())
     # Debugger.from / Tracing.from / APIRequestContext.from  -- not ported: DummyChannelOwners
     put(this, :debugger, initializer.debugger)
     put(this, :tracing, initializer.tracing)
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(
       this,
       :_closedPromise,
-      Promise.new(this.baton, fn f, _ -> once(this, Events.BrowserContext.close(), f) end)
+      Promise.new(fn f, _ -> once(this, Events.BrowserContext.close(), f) end)
     )
 
     _set_event_to_subscription_mapping(this, %{

@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Client.Request do
         put(
           this,
           :_actualHeadersPromise,
-          Promise.async(this.baton, fn ->
+          Promise.async(fn ->
             _wrap_api_call(
               this,
               fn _ ->
@@ -238,6 +238,6 @@ defmodule PlaywrightEx.Client.Request do
     page = _safe_page(this)
 
     (service_worker && get(service_worker, :_closedScope)) || (page && get(page, :_closedOrCrashedScope)) ||
-      LongStandingScope.new(this.baton)
+      LongStandingScope.new()
   end
 end

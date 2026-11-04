@@ -21,10 +21,10 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
   alias PlaywrightEx.Isomorphic.ManualPromise
   alias PlaywrightEx.Runtime.Promise
 
-  defstruct [:guid, :baton]
+  defstruct [:guid, :loop, :heap]
 
-  def new(baton) do
-    this = new_object(baton, __MODULE__)
+  def new do
+    this = new_object(__MODULE__)
     put(this, :_isClosed, false)
     this
   end
@@ -48,8 +48,7 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
   end
 
   def race_multiple(scopes, promise) do
-    %{baton: baton} = hd(scopes)
-    Promise.await(Promise.race(baton, Enum.map(scopes, fn s -> Promise.async(baton, fn -> race(s, promise) end) end)))
+    Promise.await(Promise.race(Enum.map(scopes, fn s -> Promise.async(fn -> race(s, promise) end) end)))
   end
 
   def race(this, promise) do
@@ -61,7 +60,7 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
   end
 
   defp _race(this, promises, safe, default_value \\ nil) do
-    terminate_promise = Promise.new(this.baton)
+    terminate_promise = Promise.new()
     # const frames = (new Error().stack || '').split('\n');  -- not ported: stack rewriting
     frames = []
     if get(this, :_terminateError), do: Promise.resolve(terminate_promise, get(this, :_terminateError))
@@ -75,7 +74,7 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
 
     try do
       Promise.await(
-        Promise.race(this.baton, [
+        Promise.race([
           Promise.then_(terminate_promise, fn e -> if safe, do: default_value, else: raise(e) end) | promises
         ])
       )

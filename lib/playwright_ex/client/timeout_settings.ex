@@ -3,16 +3,15 @@ defmodule PlaywrightEx.Client.TimeoutSettings do
   @moduledoc "Port of `#{@upstream}`."
   import PlaywrightEx.Runtime.Heap
 
-  defstruct [:guid, :baton]
+  defstruct [:guid, :loop, :heap]
 
   @default_playwright_timeout 30_000
   @default_playwright_launch_timeout 180_000
 
   def k_no_timeout, do: %{signal: nil, timeout: 0}
 
-  # `new TimeoutSettings()` without a loop yields an immutable value object.
-  def new(loop, parent \\ nil) do
-    this = if loop, do: new_object(loop, __MODULE__), else: %__MODULE__{}
+  def new(parent \\ nil) do
+    this = new_object(__MODULE__)
     if parent, do: put(this, :_parent, parent)
     this
   end

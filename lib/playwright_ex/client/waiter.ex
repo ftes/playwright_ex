@@ -6,14 +6,14 @@ defmodule PlaywrightEx.Client.Waiter do
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
-  alias PlaywrightEx.Runtime.Baton
+  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
 
-  defstruct [:guid, :baton]
+  defstruct [:guid, :loop, :heap]
 
   def new(channel_owner, event) do
-    this = new_object(channel_owner.baton, __MODULE__)
+    this = new_object(__MODULE__)
     put(this, :_failures, [])
     put(this, :_logs, [])
     put(this, :_waitId, create_guid())
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Client.Waiter do
     # if (signal) { ... }  -- not ported: AbortSignal
 
     if timeout != 0 do
-      {promise, dispose} = wait_for_timeout(this.baton, timeout)
+      {promise, dispose} = wait_for_timeout(timeout)
       _reject_on(this, Promise.then_(promise, fn _ -> raise Errors.TimeoutError, message: timeout_message end), dispose)
     end
   end
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Client.Waiter do
   def wait_for_promise(this, promise, dispose \\ nil) do
     try do
       if get(this, :_immediateError), do: raise(get(this, :_immediateError))
-      result = Promise.await(Promise.race(this.baton, [promise | get(this, :_failures)]))
+      result = Promise.await(Promise.race([promise | get(this, :_failures)]))
       if dispose, do: dispose.()
       result
     rescue
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Client.Waiter do
     listener = make_ref()
 
     promise =
-      Promise.new(emitter.baton, fn resolve, reject ->
+      Promise.new(fn resolve, reject ->
         listener_fun = fn event_arg ->
           try do
             if predicate && !predicate.(event_arg) do
@@ -164,11 +164,11 @@ defmodule PlaywrightEx.Client.Waiter do
     {promise, dispose}
   end
 
-  defp wait_for_timeout(loop, timeout) do
+  defp wait_for_timeout(timeout) do
     # `new Promise(resolve => timeoutId = setTimeout(resolve, timeout))`: closures cannot assign outer variables.
-    promise = Promise.new(loop)
-    timeout_id = Baton.set_timeout(loop, fn -> Promise.resolve(promise, nil) end, timeout)
-    dispose = fn -> Baton.clear_timeout(timeout_id) end
+    promise = Promise.new()
+    timeout_id = EventLoop.set_timeout(fn -> Promise.resolve(promise, nil) end, timeout)
+    dispose = fn -> EventLoop.clear_timeout(timeout_id) end
     {promise, dispose}
   end
 

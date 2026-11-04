@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Client.Frame do
     put(this, :_name, "")
     put(this, :_detached, false)
     put(this, :_childFrames, [])
-    put(this, :_eventEmitter, EventEmitter.new(this.baton))
+    put(this, :_eventEmitter, EventEmitter.new())
     # this._eventEmitter.setMaxListeners(0);  -- not ported: no leak warnings
     # this.webmcp = new WebMCP(this);  -- not ported: WebMCP
     put(this, :_parentFrame, from_nullable(initializer[:parentFrame]))
@@ -77,13 +77,13 @@ defmodule PlaywrightEx.Client.Frame do
 
   def _timeout(this, options \\ nil) do
     page = get(this, :_page)
-    timeout_settings = (page && get(page, :_timeoutSettings)) || TimeoutSettings.new(nil)
+    timeout_settings = (page && get(page, :_timeoutSettings)) || TimeoutSettings.new()
     TimeoutSettings.timeout(timeout_settings, options || %{})
   end
 
   def _navigation_timeout(this, options \\ nil) do
     page = get(this, :_page)
-    timeout_settings = (page && get(page, :_timeoutSettings)) || TimeoutSettings.new(nil)
+    timeout_settings = (page && get(page, :_timeoutSettings)) || TimeoutSettings.new()
     TimeoutSettings.navigation_timeout(timeout_settings, options || %{})
   end
 

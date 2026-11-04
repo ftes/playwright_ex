@@ -27,14 +27,14 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_frames, [])
     put(this, :_workers, [])
     put(this, :_closed, false)
-    put(this, :_closedOrCrashedScope, LongStandingScope.new(this.baton))
+    put(this, :_closedOrCrashedScope, LongStandingScope.new())
     put(this, :_routes, [])
     put(this, :_webSocketRoutes, [])
     put(this, :_closeWasCalled, false)
     put(this, :_harRouters, [])
     # this._instrumentation.onPage(this);  -- not ported: instrumentation
     put(this, :_browserContext, parent)
-    put(this, :_timeoutSettings, TimeoutSettings.new(this.baton, get(parent, :_timeoutSettings)))
+    put(this, :_timeoutSettings, TimeoutSettings.new(get(parent, :_timeoutSettings)))
 
     # this.keyboard / mouse / touchscreen = new ...(this);  -- not ported: input
     put(this, :request, get(parent, :request))

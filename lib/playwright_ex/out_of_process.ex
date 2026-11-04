@@ -15,7 +15,7 @@ defmodule PlaywrightEx.OutOfProcess do
 
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Driver
-  alias PlaywrightEx.Runtime.Baton
+  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Transport.Pipe
 
@@ -28,9 +28,9 @@ defmodule PlaywrightEx.OutOfProcess do
   @impl true
   def init(opts) do
     Process.flag(:trap_exit, true)
-    baton = Baton.get(Keyword.fetch!(opts, :baton))
+    loop = EventLoop.get(Keyword.fetch!(opts, :event_loop))
     executable = Driver.ensure_installed(Keyword.take(opts, [:executable, :node, :cache_dir]))
-    connection = Connection.new(baton)
+    connection = Connection.new(loop)
     parent = self()
 
     {:ok, transport} =
@@ -38,7 +38,9 @@ defmodule PlaywrightEx.OutOfProcess do
         executable: executable,
         env: Driver.driver_env() ++ Enum.to_list(Keyword.get(opts, :env, [])),
         # transport.onmessage = message => connection.dispatch(JSON.parse(message));
-        on_message: fn message -> Baton.post(connection.baton, fn -> Connection.dispatch(connection, message) end) end,
+        on_message: fn message ->
+          EventLoop.post(connection.loop, fn -> Connection.dispatch(connection, message) end)
+        end,
         # transport.onclose = () => this._closePromise.resolve();
         on_close: fn -> send(parent, :transport_closed) end
       )
@@ -46,7 +48,7 @@ defmodule PlaywrightEx.OutOfProcess do
     # connection.onmessage = message => transport.send(JSON.stringify(message));
     Heap.put(connection, :onmessage, fn message -> Pipe.send_message(transport, message) end)
 
-    playwright = Baton.with_baton(connection.baton, fn -> Connection.initialize_playwright(connection) end)
+    playwright = EventLoop.with_baton(connection.loop, fn -> Connection.initialize_playwright(connection) end)
     Heap.put(playwright, :driverProcess, transport)
     {:ok, %{connection: connection, transport: transport, playwright: playwright}}
   end
@@ -78,6 +80,6 @@ defmodule PlaywrightEx.OutOfProcess do
   end
 
   defp close_connection(state) do
-    Baton.post(state.connection.baton, fn -> Connection.close(state.connection, "Playwright driver closed") end)
+    EventLoop.post(state.connection.loop, fn -> Connection.close(state.connection, "Playwright driver closed") end)
   end
 end

@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Client.Response do
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
-    put(this, :_finishedPromise, Promise.new(this.baton))
+    put(this, :_finishedPromise, Promise.new())
     put(this, :_provisionalHeaders, RawHeaders.new(initializer.headers))
     put(this, :_request, Request.from(get(this, :_initializer).request))
     put(get(this, :_request), :_response, this)
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Client.Response do
       put(
         this,
         :_actualHeadersPromise,
-        Promise.async(this.baton, fn ->
+        Promise.async(fn ->
           RawHeaders.new(channel_call(this, :rawResponseHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
         end)
       )

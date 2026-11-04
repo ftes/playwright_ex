@@ -37,7 +37,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 
 | JS | Elixir |
 |---|---|
-| ChannelOwner instance | `%Page{guid, baton}` handle; fields live in the connection's ETS heap |
+| ChannelOwner instance | `%Page{guid, loop, heap}` handle; fields live in the connection's ETS heap |
+| `new X()` for a runtime class (EventEmitter, TimeoutSettings, Waiter) | `X.new(...)` via `Heap.new_object(__MODULE__)`: in the loop's heap |
 | `this._x` / `this._x = v` | `get(this, :_x)` / `put(this, :_x, v)` (`PlaywrightEx.Runtime.Heap`) |
 | `Set` / `Map` fields | `set_add/3`, `set_has/3` / `map_get/3`, `map_set/4`, `map_values/2` |
 | class without mutable state (Locator) | plain struct with JS field names (`locator._selector`) |
@@ -49,9 +50,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 | `X.from(channel)` | identity: channels and owners are the same handle |
 | `X.fromNullable(channel)` | `X.from_nullable(channel)`: `nil` when absent (`X \| null` results are `nil`) |
 | `await p` | `Promise.await(p)` (releases the baton while pending) |
-| async function called without `await` | `Promise.async(this.baton, fn -> ... end)` |
-| `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all` | `Promise.new/2`, `then_/2`, `catch_/2`, `race/2`, `all/2` |
-| `setTimeout` / `clearTimeout` | `Baton.set_timeout/3` / `Baton.clear_timeout/1` |
+| async function called without `await` | `Promise.async(fn -> ... end)` |
+| `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all` | `Promise.new/0,1`, `then_/2`, `catch_/2`, `race/1`, `all/1` (the loop is implicit, as in JS) |
+| `setTimeout` / `clearTimeout` | `EventLoop.set_timeout/2` / `EventLoop.clear_timeout/1` |
 | `currentZone().data(...)`, `.with(...).run(...)` | `Zones.data/1`, `Zones.with/3` |
 | `throw` / `try {} catch` / `instanceof` | `raise` / `rescue` / struct match (`Errors.is_playwright_error/1`); `new Error(msg)` is `raise msg` (`RuntimeError`) |
 | `e.message = ...` | `e = Errors.rewrite_error_message(e, ...)` (exceptions are immutable) |
@@ -61,11 +62,12 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 ## Traps
 
 - `Heap.update/3`: the function must not await (compute first, then update).
-- Listener and handler code runs handed off under the baton (`Baton.spawn_handoff/1`).
+- Listener and handler code runs handed off under the baton (`EventLoop.spawn_handoff/1`).
   Blocking on non-Playwright work there stalls the driver, as it would in JS.
 - Public entry points run inside `PlaywrightEx.Runtime.Api.call/3` (the generated facade does
   this for async methods). It holds the baton for the whole call and names the call for error
-  messages. Sync methods are called without it.
+  messages. Sync methods are called without it: a sync method that starts promises takes the
+  baton itself (`EventLoop.with_baton(this.loop, ...)`, as in `ChannelOwner._update_subscription`).
 
 ## Tests
 

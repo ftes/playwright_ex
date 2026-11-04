@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   Port of `#{@upstream}`.
 
   `abstract class ChannelOwner extends EventEmitter` becomes `use PlaywrightEx.Client.ChannelOwner`,
-  which injects the struct (`guid` + `baton`) and the inherited methods; `super(...)` in a
+  which injects the struct (`guid`, `loop`, `heap`) and the inherited methods; `super(...)` in a
   subclass constructor is `ChannelOwner.new(__MODULE__, parent, type, guid, initializer)`.
 
   Deviations: the `this._channel` Proxy is `channel_call(this, :method, params, options)`,
@@ -19,6 +19,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   alias PlaywrightEx.Protocol.Metainfo
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
+  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
 
@@ -37,7 +38,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       alias PlaywrightEx.Client.TimeoutSettings
       alias PlaywrightEx.Runtime.Promise
 
-      defstruct [:guid, :baton]
+      defstruct [:guid, :loop, :heap]
 
       # Elixir only: `#PlaywrightEx.Browser<browser@...>`, named after the public module.
       defimpl Inspect do
@@ -67,7 +68,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   def new(module, parent, type, guid, initializer) do
     connection = if is_channel_owner(parent), do: get(parent, :_connection), else: parent
-    this = struct(module, guid: guid, baton: connection.baton)
+    this = struct(module, guid: guid, loop: connection.loop, heap: connection.heap)
     # super(); this.setMaxListeners(0);  -- EventEmitter state is implicit
     put(this, :_connection, connection)
     put(this, :_type, type)
@@ -88,7 +89,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   end
 
   # The EventEmitter behind `this._channel` (protocol events).
-  def _channel(this), do: %EventEmitter{guid: {:channel, this.guid}, baton: this.baton}
+  def _channel(this), do: %EventEmitter{guid: {:channel, this.guid}, loop: this.loop, heap: this.heap}
 
   def _set_event_to_subscription_mapping(this, mapping) do
     put(this, :_eventToSubscriptionMapping, mapping)
@@ -97,17 +98,19 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   defp _update_subscription(this, event, enabled) do
     protocol_event = (get(this, :_eventToSubscriptionMapping) || %{})[event]
 
+    # Under the baton: `on`/`off` are sync members, called without it.
     if protocol_event do
-      this.baton
-      |> Promise.async(fn ->
-        channel_call(
-          this,
-          :updateSubscription,
-          %{event: protocol_event, enabled: enabled},
-          PlaywrightEx.Client.TimeoutSettings.k_no_timeout()
-        )
+      EventLoop.with_baton(this.loop, fn ->
+        Promise.async(fn ->
+          channel_call(
+            this,
+            :updateSubscription,
+            %{event: protocol_event, enabled: enabled},
+            PlaywrightEx.Client.TimeoutSettings.k_no_timeout()
+          )
+        end)
+        |> Promise.catch_(fn _ -> nil end)
       end)
-      |> Promise.catch_(fn _ -> nil end)
     end
   end
 

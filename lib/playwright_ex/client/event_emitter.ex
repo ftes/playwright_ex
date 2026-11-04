@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
   This keeps the public surface (same names, same order) on top of the heap.
 
   `emit` runs under the baton and hands it to each listener in turn (fresh process, see
-  `PlaywrightEx.Runtime.Baton.spawn_handoff/1`) until the listener returns or awaits, as JS
+  `PlaywrightEx.Runtime.EventLoop.spawn_handoff/1`) until the listener returns or awaits, as JS
   runs listeners synchronously inside `emit`. A listener is a 1-arity function or an
   `{id, fun}` pair (so a closure can remove itself: JS `let listener = ...`).
 
@@ -15,9 +15,9 @@ defmodule PlaywrightEx.Client.EventEmitter do
   """
   import PlaywrightEx.Runtime.Heap
 
-  alias PlaywrightEx.Runtime.Baton
+  alias PlaywrightEx.Runtime.EventLoop
 
-  defstruct [:guid, :baton]
+  defstruct [:guid, :loop, :heap]
 
   # "class Foo extends EventEmitter": inject the inherited methods.
   defmacro __using__(_opts) do
@@ -38,10 +38,10 @@ defmodule PlaywrightEx.Client.EventEmitter do
     end
   end
 
-  def new(loop), do: new_object(loop, __MODULE__)
+  def new, do: new_object(__MODULE__)
 
   def emit(this, type, arg \\ nil) do
-    Baton.with_baton(this.baton, fn ->
+    EventLoop.with_baton(this.loop, fn ->
       handler = map_get(this, :_events, type) || []
 
       for entry <- handler, do: _call_handler(this, type, entry.fun, arg)
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
     end)
   end
 
-  defp _call_handler(_this, _type, handler, arg), do: Baton.spawn_handoff(fn -> handler.(arg) end)
+  defp _call_handler(_this, _type, handler, arg), do: EventLoop.spawn_handoff(fn -> handler.(arg) end)
 
   def add_listener(this, type, listener), do: _add_listener(this, type, listener, false)
 
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
     {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
     entry = %{id: id, fun: fun}
 
-    Baton.with_baton(this.baton, fn ->
+    EventLoop.with_baton(this.loop, fn ->
       map_set(
         this,
         :_events,
@@ -95,7 +95,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
   end
 
   def remove_listener(this, type, listener) do
-    Baton.with_baton(this.baton, fn ->
+    EventLoop.with_baton(this.loop, fn ->
       list = map_get(this, :_events, type) || []
 
       case list |> Enum.reverse() |> Enum.find(&(&1.id == listener or &1.fun == listener)) do
@@ -132,8 +132,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   def listener_count(this, type), do: length(map_get(this, :_events, type) || [])
 
-  def event_names(%{baton: %{table: table}, guid: guid}),
-    do: table |> :ets.match({{guid, :_events, :"$1"}, :_}) |> Enum.map(&hd/1)
+  def event_names(%{heap: heap, guid: guid}),
+    do: heap |> :ets.match({{guid, :_events, :"$1"}, :_}) |> Enum.map(&hd/1)
 
   # rawListeners  -- not ported: listeners are stored unwrapped
   # _removeAllListeners, _waitFor, _listeners  -- ported as remove_all_listeners/2 and listeners/2 (no behavior option)

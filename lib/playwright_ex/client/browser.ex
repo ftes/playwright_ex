@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Client.Browser do
     end)
 
     EventEmitter.on(_channel(this), "close", fn _ -> _did_close(this) end)
-    put(this, :_closedPromise, Promise.new(this.baton, fn f, _ -> once(this, Events.Browser.disconnected(), f) end))
+    put(this, :_closedPromise, Promise.new(fn f, _ -> once(this, Events.Browser.disconnected(), f) end))
     this
   end
 

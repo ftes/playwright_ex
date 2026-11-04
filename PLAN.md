@@ -14,7 +14,7 @@ PlaywrightEx.Client.*             hand 1:1 port of playwright-core/src/client/*.
 PlaywrightEx.Matchers.*           hand 1:1 port of playwright/src/matchers (no jest fork)
 PlaywrightEx.Isomorphic.*         small isomorphic helpers (stringUtils, manualPromise, ...)
 PlaywrightEx.Protocol.*           generated from protocol.yml + hand port of serializers.ts
-PlaywrightEx.Runtime.*            Elixir-only engine: baton, ETS heap, promises, zones
+PlaywrightEx.Runtime.*            Elixir-only engine: event loop (baton), ETS heap, promises, zones
 PlaywrightEx.Transport.Pipe       port of pipeTransport (JSON encode/decode off the baton)
 PlaywrightEx.Driver               pinned driver: install, locate, start
 PlaywrightEx.Supervisor           OTP form of Playwright.create(): driver, engine, tasks
@@ -70,6 +70,12 @@ async calls do on Node's single thread. True parallel client code would need per
 locks and a concurrency review of every ported line, so it is not a goal. Nested
 `connect()` connections share the driver's baton. Object state lives in ETS; reads are
 lock-free. A callback blocking on non-Playwright work stalls the driver, as in JS.
+
+`PlaywrightEx.Runtime.EventLoop` is the loop: the token server with `post`, `set_timeout`
+and the micro/macrotask queues. Ported code names no loop (`Promise.new()`, `race([..])`,
+`set_timeout(fn, ms)`): the holder finds it in its process dictionary. Objects carry their
+`loop` (for the baton) and `heap` (the table) separately: connections get their own heap,
+runtime objects (promises, emitters) live in the loop's.
 
 Proven in `js_spike/` (`lib/runtime/baton.ex`, ~300 lines): a scheduler process owns the
 token and never runs client code; settled promises resume before new macrotasks (API

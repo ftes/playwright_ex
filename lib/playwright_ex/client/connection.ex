@@ -29,11 +29,11 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
-  alias PlaywrightEx.Runtime.Baton
+  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
 
-  defstruct [:guid, :baton]
+  defstruct [:guid, :loop, :heap]
 
   defmodule Root do
     @moduledoc false
@@ -57,11 +57,11 @@ defmodule PlaywrightEx.Client.Connection do
     def new(parent, type, guid, initializer), do: ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
   end
 
-  def new(%Baton{} = baton, local_utils \\ nil, _instrumentation \\ nil, headers \\ []) do
-    baton = Baton.new_heap(baton)
+  def new(%EventLoop{} = loop, local_utils \\ nil, _instrumentation \\ nil, headers \\ []) do
+    heap = EventLoop.new_heap(loop)
 
-    Baton.with_baton(baton, fn ->
-      this = %__MODULE__{guid: :connection, baton: baton}
+    EventLoop.with_baton(loop, fn ->
+      this = %__MODULE__{guid: :connection, loop: loop, heap: heap}
       # super();
       put(this, :onmessage, fn _message -> nil end)
       put(this, :_nextCallId, create_call_id_generator())
@@ -186,8 +186,7 @@ defmodule PlaywrightEx.Client.Connection do
 
         if get(this, :_tracingCount) > 0 and options[:frames] != nil and type != "LocalUtils" do
           if local_utils = get(this, :_localUtils) do
-            this.baton
-            |> Promise.async(fn ->
+            Promise.async(fn ->
               LocalUtils.add_stack_to_tracing_no_reply(local_utils, %{
                 callData: %{stack: options[:frames] || [], id: id}
               })
@@ -203,7 +202,7 @@ defmodule PlaywrightEx.Client.Connection do
         if method != "__waitInfo__" do
           # let abortListener ...  -- not ported: AbortSignal
           Promise.await(
-            Promise.new(this.baton, fn resolve, reject ->
+            Promise.new(fn resolve, reject ->
               map_set(this, :_callbacks, id, %{
                 resolve: resolve,
                 reject: reject,

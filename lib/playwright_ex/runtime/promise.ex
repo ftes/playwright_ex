@@ -4,51 +4,51 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   * Heap promises (`new Promise(executor)`, `ManualPromise`): state in the heap, executors
     and reactions run synchronously by the holder that creates/settles them.
-  * `await/1` releases the baton while pending (`Baton.suspend/0`); the settling holder
+  * `await/1` releases the baton while pending (`EventLoop.suspend/0`); the settling holder
     schedules the awaiting process, which resumes before the next macrotask.
-  * `async/2` mirrors calling a JS `async` function without awaiting it: the function runs
+  * `async/1` mirrors calling a JS `async` function without awaiting it: the function runs
     in a fresh process holding the baton until its first `await`, then the caller
-    continues (`Baton.spawn_handoff/1`).
-  * `async/1` is the same for callers that hold no baton handle (test code): Task-backed,
-    returns once the task reaches its first suspension point.
+    continues (`EventLoop.spawn_handoff/1`). Outside the baton (test code) it is Task-backed
+    and returns once the task reaches its first suspension point.
+
+  Like JS, ported code names no loop: `new/0,1`, `race/1`, `all/1`, `rejected/1` and
+  `async/1` use the loop of the baton holder (`EventLoop.current!/0`).
   """
-  alias PlaywrightEx.Runtime.Baton
+  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Heap
 
   require Logger
 
-  defstruct [:guid, :baton, :task]
+  defstruct [:guid, :loop, :heap, :task]
 
   # new Promise((resolve, reject) => ...)
-  def new(%Baton{} = baton, executor \\ fn _resolve, _reject -> nil end) do
-    Baton.with_baton(baton, fn ->
-      promise = Heap.new_object(baton, __MODULE__)
-      Heap.put(promise, :state, :pending)
-      Heap.put(promise, :reactions, [])
-      Heap.put(promise, :awaiters, [])
+  def new(executor \\ fn _resolve, _reject -> nil end) do
+    promise = Heap.new_object(__MODULE__)
+    Heap.put(promise, :state, :pending)
+    Heap.put(promise, :reactions, [])
+    Heap.put(promise, :awaiters, [])
 
-      try do
-        executor.(fn value -> resolve(promise, value) end, fn error -> reject(promise, error) end)
-      rescue
-        e -> reject(promise, e)
-      end
+    try do
+      executor.(fn value -> resolve(promise, value) end, fn error -> reject(promise, error) end)
+    rescue
+      e -> reject(promise, e)
+    end
 
-      promise
-    end)
+    promise
   end
 
   def resolve(promise, value), do: settle(promise, {:ok, value})
   def reject(promise, error), do: settle(promise, {:error, error})
 
-  defp settle(%__MODULE__{baton: baton} = promise, result) do
-    Baton.with_baton(baton, fn ->
+  defp settle(%__MODULE__{loop: loop} = promise, result) do
+    EventLoop.with_baton(loop, fn ->
       if Heap.get(promise, :state) == :pending do
         Heap.put(promise, :state, result)
         reactions = Heap.get(promise, :reactions)
         awaiters = Heap.get(promise, :awaiters)
         Heap.put(promise, :reactions, [])
         Heap.put(promise, :awaiters, [])
-        Enum.each(awaiters, &Baton.ready/1)
+        Enum.each(awaiters, &EventLoop.ready/1)
         Enum.each(reactions, fn reaction -> run_reaction(reaction, result) end)
       end
 
@@ -63,8 +63,8 @@ defmodule PlaywrightEx.Runtime.Promise do
   end
 
   @doc false
-  def on_settled(%__MODULE__{baton: baton} = promise, reaction) do
-    Baton.with_baton(baton, fn ->
+  def on_settled(%__MODULE__{loop: loop} = promise, reaction) do
+    EventLoop.with_baton(loop, fn ->
       case Heap.get(promise, :state) do
         :pending -> Heap.update(promise, :reactions, &(&1 ++ [reaction]))
         result -> run_reaction(reaction, result)
@@ -73,35 +73,39 @@ defmodule PlaywrightEx.Runtime.Promise do
   end
 
   # promise.then(onFulfilled)
-  def then_(%__MODULE__{baton: baton} = promise, on_fulfilled) do
-    new(baton, fn resolve, reject ->
-      on_settled(promise, fn
-        {:ok, value} ->
-          try do
-            resolve.(on_fulfilled.(value))
-          rescue
-            e -> reject.(e)
-          end
+  def then_(%__MODULE__{loop: loop} = promise, on_fulfilled) do
+    EventLoop.with_baton(loop, fn ->
+      new(fn resolve, reject ->
+        on_settled(promise, fn
+          {:ok, value} ->
+            try do
+              resolve.(on_fulfilled.(value))
+            rescue
+              e -> reject.(e)
+            end
 
-        {:error, error} ->
-          reject.(error)
+          {:error, error} ->
+            reject.(error)
+        end)
       end)
     end)
   end
 
   # promise.catch(onRejected)
-  def catch_(%__MODULE__{baton: baton} = promise, on_rejected) do
-    new(baton, fn resolve, _reject ->
-      on_settled(promise, fn
-        {:ok, value} -> resolve.(value)
-        {:error, error} -> resolve.(on_rejected.(error))
+  def catch_(%__MODULE__{loop: loop} = promise, on_rejected) do
+    EventLoop.with_baton(loop, fn ->
+      new(fn resolve, _reject ->
+        on_settled(promise, fn
+          {:ok, value} -> resolve.(value)
+          {:error, error} -> resolve.(on_rejected.(error))
+        end)
       end)
     end)
   end
 
   # Promise.race([...])
-  def race(%Baton{} = baton, promises) do
-    new(baton, fn resolve, reject ->
+  def race(promises) do
+    new(fn resolve, reject ->
       for promise <- promises do
         on_settled(promise, fn
           {:ok, value} -> resolve.(value)
@@ -112,11 +116,11 @@ defmodule PlaywrightEx.Runtime.Promise do
   end
 
   # Promise.all([...])
-  def all(%Baton{} = baton, []), do: new(baton, fn resolve, _ -> resolve.([]) end)
+  def all([]), do: new(fn resolve, _ -> resolve.([]) end)
 
-  def all(%Baton{} = baton, promises) do
-    new(baton, fn resolve, reject ->
-      acc = Heap.new_object(baton, __MODULE__)
+  def all(promises) do
+    new(fn resolve, reject ->
+      acc = Heap.new_object(__MODULE__)
       Heap.put(acc, :values, %{})
       count = length(promises)
 
@@ -134,24 +138,24 @@ defmodule PlaywrightEx.Runtime.Promise do
   end
 
   # Promise.reject(e)
-  def rejected(%Baton{} = baton, error), do: new(baton, fn _resolve, reject -> reject.(error) end)
+  def rejected(error), do: new(fn _resolve, reject -> reject.(error) end)
 
   # await promise
   def await(%__MODULE__{task: %Task{} = task}) do
-    case Baton.blocking(fn -> Task.await(task, :infinity) end) do
+    case EventLoop.blocking(fn -> Task.await(task, :infinity) end) do
       {:ok, value} -> value
       {:error, kind, reason, stacktrace} -> :erlang.raise(kind, reason, stacktrace)
     end
   end
 
-  def await(%__MODULE__{baton: baton} = promise) do
+  def await(%__MODULE__{loop: loop} = promise) do
     result =
       case Heap.get(promise, :state) do
         :pending ->
-          Baton.with_baton(baton, fn ->
+          EventLoop.with_baton(loop, fn ->
             if Heap.get(promise, :state) == :pending do
               Heap.update(promise, :awaiters, &(&1 ++ [self()]))
-              Baton.suspend()
+              EventLoop.suspend()
             end
 
             Heap.get(promise, :state)
@@ -169,25 +173,29 @@ defmodule PlaywrightEx.Runtime.Promise do
     end
   end
 
-  @doc "Call an async function without awaiting it (heap promise: race-able, awaitable by any process)."
-  def async(%Baton{} = baton, fun) when is_function(fun, 0) do
-    Baton.with_baton(baton, fn ->
-      promise = new(baton)
-
-      Baton.spawn_handoff(fn ->
-        try do
-          resolve(promise, fun.())
-        catch
-          kind, reason -> reject(promise, Exception.normalize(kind, reason, __STACKTRACE__))
-        end
-      end)
-
-      promise
-    end)
+  @doc """
+  Call an async function without awaiting it. Under the baton: a heap promise (race-able,
+  awaitable by any process); outside it (test code): Task-backed.
+  """
+  def async(fun) when is_function(fun, 0) do
+    if EventLoop.held?(), do: heap_async(fun), else: task_async(fun)
   end
 
-  @doc "Call an async function without awaiting it, from code that holds no baton handle (Task-backed)."
-  def async(fun) when is_function(fun, 0) do
+  defp heap_async(fun) do
+    promise = new()
+
+    EventLoop.spawn_handoff(fn ->
+      try do
+        resolve(promise, fun.())
+      catch
+        kind, reason -> reject(promise, Exception.normalize(kind, reason, __STACKTRACE__))
+      end
+    end)
+
+    promise
+  end
+
+  defp task_async(fun) do
     parent = self()
     ref = make_ref()
 
@@ -202,7 +210,7 @@ defmodule PlaywrightEx.Runtime.Promise do
             kind, reason -> {:error, kind, reason, __STACKTRACE__}
           end
 
-        Baton.notify_async_parent()
+        EventLoop.notify_async_parent()
         result
       end)
 
