@@ -127,14 +127,10 @@ Conventions and the roll procedure: `PORTING.md`.
   `toHaveScreenshot` matcher on top of `page._expectScreenshot`; stabilization and
   comparison stay on the server. `toMatchAriaSnapshot` (inline) is a regular matcher.
   File aria snapshots and soft asserts: later. Skip `toMatchSnapshot` and jest assertions.
+- Ported `try {} catch` stays an explicit `try do ... rescue` even when it is the whole function
+  body (`Waiter.waitForPromise`), not an implicit try: same behaviour, upstream's shape.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
   inspector; Electron/Android optional.
-
-## Open questions
-
-- `Waiter.waitForPromise`: keep the explicit `try do ... rescue` (upstream's `try {} catch`
-  shape; Styler had rewritten it to an implicit try) or go implicit. Same behaviour;
-  recommended: explicit.
 
 ## Spike results
 
