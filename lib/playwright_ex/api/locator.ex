@@ -2622,7 +2622,7 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  An agent can pick an element by its ref from an [`Page.ariaSnapshot`](https://playwright.dev/docs/api/class-page#page-aria-snapshot) taken in the `"ai"` mode. Refs only
+  An agent can pick an element by its ref from an `PlaywrightEx.Page.aria_snapshot/2` taken in the `"ai"` mode. Refs only
   work for the latest snapshot. Normalize the ref locator and convert it to a string to get resilient locator code
   in your language, the same way `codegen` does.
 

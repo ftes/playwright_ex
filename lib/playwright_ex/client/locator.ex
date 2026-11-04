@@ -112,7 +112,8 @@ defmodule PlaywrightEx.Client.Locator do
     nil
   end
 
-  def dispatch_event(this, type, event_init \\ %{}, options \\ nil) do
+  def dispatch_event(this, type, event_init \\ nil, options \\ nil) do
+    event_init = if event_init == nil, do: %{}, else: event_init
     Frame.dispatch_event(this._frame, this._selector, type, event_init, Map.merge(%{strict: true}, options || %{}))
   end
 
@@ -232,7 +233,11 @@ defmodule PlaywrightEx.Client.Locator do
   end
 
   def description(this) do
-    locator_custom_description(this._selector)
+    # locatorCustomDescription(this._selector) || null
+    case locator_custom_description(this._selector) do
+      "" -> nil
+      description -> description
+    end
   end
 
   def first(this) do

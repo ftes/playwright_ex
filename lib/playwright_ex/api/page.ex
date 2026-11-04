@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `ariaSnapshot`, `ariaSnapshotJSON`, `unrouteAll`, `unroute`, `video`, `webmcp`, `expect_download`, `expect_websocket`.
+  Not ported yet: `clock`, `addInitScript`, `coverage`, `emulateMedia`, `exposeBinding`, `exposeFunction`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `addLocatorHandler`, `removeAllListeners`, `removeLocatorHandler`, `request`, `route`, `routeFromHAR`, `routeWebSocket`, `screencast`, `unrouteAll`, `unroute`, `video`, `webmcp`, `expect_download`, `expect_websocket`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1531,7 +1531,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.64"
   @doc ~S"""
-  Locate element by its aria ref. Refs like `[ref=e2]` are reported by [`Page.ariaSnapshot`](https://playwright.dev/docs/api/class-page#page-aria-snapshot) when called with
+  Locate element by its aria ref. Refs like `[ref=e2]` are reported by `PlaywrightEx.Page.aria_snapshot/2` when called with
   the `"ai"` mode, and resolve against the latest snapshot taken in the element's frame.
 
   **Usage**
@@ -3740,6 +3740,104 @@ defmodule PlaywrightEx.Page do
     Facade.async_void!("page.setViewportSize", page, fn ->
       PlaywrightEx.Client.Page.set_viewport_size(page, viewport_size)
     end)
+  end
+
+  @aria_snapshot_options {:object,
+                          %{
+                            boxes: {:boxes, nil},
+                            depth: {:depth, nil},
+                            mode: {:mode, {:enum, %{ai: "ai", default: "default"}}},
+                            timeout: {:timeout, nil}
+                          }}
+
+  @typedoc "Options of `aria_snapshot`, see its docs."
+  @type aria_snapshot_options ::
+          [boxes: boolean(), depth: integer(), mode: :ai | :default, timeout: number() | :infinity]
+          | %{
+              optional(:boxes) => boolean(),
+              optional(:depth) => integer(),
+              optional(:mode) => :ai | :default,
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Captures the aria snapshot of the page. Read more about [aria snapshots](https://playwright.dev/docs/aria-snapshots).
+
+  ## Options
+
+  * `:boxes` - *Since 1.60.* When `true`, appends each element's bounding box as `[box=x,y,width,height]` to the snapshot. Coordinates are
+    relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+    Defaults to `false`.
+  * `:depth` - When specified, limits the depth of the snapshot.
+  * `:mode` - When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `"default"`.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec aria_snapshot(t(), aria_snapshot_options()) :: {:ok, String.t()} | {:error, Exception.t()}
+  def aria_snapshot(page, options \\ []) do
+    options = Facade.options!(options, @aria_snapshot_options, "page.ariaSnapshot")
+    Facade.async("page.ariaSnapshot", page, fn -> PlaywrightEx.Client.Page.aria_snapshot(page, options) end)
+  end
+
+  @doc since: "1.59"
+  @doc "Like `aria_snapshot/2`, but returns the value and raises on error."
+  @spec aria_snapshot!(t(), aria_snapshot_options()) :: String.t()
+  def aria_snapshot!(page, options \\ []) do
+    options = Facade.options!(options, @aria_snapshot_options, "page.ariaSnapshot")
+    Facade.async!("page.ariaSnapshot", page, fn -> PlaywrightEx.Client.Page.aria_snapshot(page, options) end)
+  end
+
+  @aria_snapshot_json_options {:object,
+                               %{
+                                 boxes: {:boxes, nil},
+                                 depth: {:depth, nil},
+                                 mode: {:mode, {:enum, %{ai: "ai", default: "default"}}},
+                                 timeout: {:timeout, nil}
+                               }}
+
+  @typedoc "Options of `aria_snapshot_json`, see its docs."
+  @type aria_snapshot_json_options ::
+          [boxes: boolean(), depth: integer(), mode: :ai | :default, timeout: number() | :infinity]
+          | %{
+              optional(:boxes) => boolean(),
+              optional(:depth) => integer(),
+              optional(:mode) => :ai | :default,
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc since: "1.63"
+  @doc ~S"""
+  Captures the aria snapshot of the page as a free form JSON object.
+  Returns the same tree as `PlaywrightEx.Page.aria_snapshot/2`, serialized as a JSON value instead of YAML markup.
+  See `PlaywrightEx.Locator.aria_snapshot_json/2` for the details of the format.
+
+  ## Options
+
+  * `:boxes` - When `true`, includes each element's bounding box as a `box` property with `x`, `y`, `width` and `height`. Coordinates are
+    relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+    Defaults to `false`.
+  * `:depth` - When specified, limits the depth of the snapshot.
+  * `:mode` - When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `"default"`.
+  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+    `PlaywrightEx.Page.set_default_timeout/2` methods.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
+  """
+  @spec aria_snapshot_json(t(), aria_snapshot_json_options()) :: {:ok, term()} | {:error, Exception.t()}
+  def aria_snapshot_json(page, options \\ []) do
+    options = Facade.options!(options, @aria_snapshot_json_options, "page.ariaSnapshotJSON")
+    Facade.async("page.ariaSnapshotJSON", page, fn -> PlaywrightEx.Client.Page.aria_snapshot_json(page, options) end)
+  end
+
+  @doc since: "1.63"
+  @doc "Like `aria_snapshot_json/2`, but returns the value and raises on error."
+  @spec aria_snapshot_json!(t(), aria_snapshot_json_options()) :: term()
+  def aria_snapshot_json!(page, options \\ []) do
+    options = Facade.options!(options, @aria_snapshot_json_options, "page.ariaSnapshotJSON")
+    Facade.async!("page.ariaSnapshotJSON", page, fn -> PlaywrightEx.Client.Page.aria_snapshot_json(page, options) end)
   end
 
   @tap_options {:object,

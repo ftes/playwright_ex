@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Client.Page do
       _on_frame_detached(this, Frame.from(frame))
     end)
 
-    # this._channel.on('locatorHandlerTriggered', ...)  -- not ported: Locator
+    # this._channel.on('locatorHandlerTriggered', ...)  -- not ported: locator handlers (not yet)
     # this._channel.on('route' | 'webSocketRoute', ...)  -- not ported: routing
 
     EventEmitter.on(_channel(this), "viewportSizeChanged", fn event ->
@@ -301,7 +301,7 @@ defmodule PlaywrightEx.Client.Page do
     )
   end
 
-  # addLocatorHandler, _onLocatorHandlerTriggered, removeLocatorHandler  -- not ported: Locator
+  # addLocatorHandler, _onLocatorHandlerTriggered, removeLocatorHandler  -- not ported: locator handlers (not yet)
 
   def wait_for_load_state(this, state \\ nil, options \\ nil) do
     Frame.wait_for_load_state(get(this, :_mainFrame), state, options)
@@ -677,7 +677,37 @@ defmodule PlaywrightEx.Client.Page do
     get(this, :_workers)
   end
 
-  # pause, pdf, ariaSnapshot, ariaSnapshotJSON, _setDockTile  -- not ported
+  # pause, pdf  -- not ported
+
+  def aria_snapshot(this, options \\ %{}) do
+    options = options || %{}
+
+    result =
+      channel_call(
+        main_frame(this),
+        :ariaSnapshot,
+        %{mode: options[:mode], depth: options[:depth], boxes: options[:boxes]},
+        TimeoutSettings.timeout(get(this, :_timeoutSettings), options)
+      )
+
+    result.snapshot
+  end
+
+  def aria_snapshot_json(this, options \\ %{}) do
+    options = options || %{}
+
+    result =
+      channel_call(
+        main_frame(this),
+        :ariaSnapshotJSON,
+        %{mode: options[:mode], depth: options[:depth], boxes: options[:boxes]},
+        TimeoutSettings.timeout(get(this, :_timeoutSettings), options)
+      )
+
+    result.snapshot
+  end
+
+  # _setDockTile  -- not ported
 
   # function trimUrl(param: any): string | undefined
   defp trim_url(param) do

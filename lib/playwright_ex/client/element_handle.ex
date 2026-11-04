@@ -91,7 +91,9 @@ defmodule PlaywrightEx.Client.ElementHandle do
     channel_call(this, :isVisible, %{}, TimeoutSettings.k_no_timeout()).value
   end
 
-  def dispatch_event(this, type, event_init \\ %{}) do
+  def dispatch_event(this, type, event_init \\ nil) do
+    event_init = if event_init == nil, do: %{}, else: event_init
+
     channel_call(
       this,
       :dispatchEvent,
@@ -291,10 +293,11 @@ defmodule PlaywrightEx.Client.ElementHandle do
   # elementHandle.ts module functions
 
   def convert_select_option_values(values) do
-    values = if is_list(values) or values == nil, do: values, else: [values]
+    # JS `null` is `:null`; `undefined` (`nil`) is wrapped, as in JS.
+    values = if is_list(values) or values == :null, do: values, else: [values]
 
     cond do
-      values == nil ->
+      values == :null ->
         %{}
 
       values == [] ->
@@ -302,7 +305,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
 
       true ->
         for {value, i} <- Enum.with_index(values),
-            value == nil,
+            value == :null,
             do: raise("options[#{i}]: expected object, got null")
 
         cond do
