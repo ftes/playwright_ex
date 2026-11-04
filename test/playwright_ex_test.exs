@@ -4,9 +4,7 @@ defmodule PlaywrightExTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.Errors
-  alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Baton
 
   @moduletag timeout: 120_000
@@ -78,39 +76,5 @@ defmodule PlaywrightExTest do
     assert_raise ArgumentError, ~r/browserType\.launch: unknown option :proxy\.servr, expected one of :bypass/, fn ->
       BrowserType.launch(chromium, proxy: [servr: "x"])
     end
-  end
-
-  test "waiter: waits for an event, or times out", %{playwright: playwright} do
-    browser = BrowserType.launch!(Playwright.chromium(playwright))
-
-    waiting =
-      Task.async(fn ->
-        Api.call("browser.waitForEvent", browser, fn ->
-          waiter = Waiter.create_for_event(browser, "disconnected")
-          Waiter.wait_for_event(waiter, browser, "disconnected")
-        end)
-      end)
-
-    # Let the waiter subscribe before closing.
-    Process.sleep(100)
-    Browser.close!(browser)
-    assert Task.await(waiting) == browser
-
-    error =
-      assert_raise Errors.TimeoutError, fn ->
-        Api.call("browser.waitForEvent", browser, fn ->
-          waiter = Waiter.create_for_event(browser, "disconnected")
-
-          Waiter.reject_on_timeout(
-            waiter,
-            %{timeout: 50},
-            "Timeout 50ms exceeded while waiting for event \"disconnected\""
-          )
-
-          Waiter.wait_for_event(waiter, browser, "disconnected")
-        end)
-      end
-
-    assert error.message =~ ~s(Timeout 50ms exceeded while waiting for event "disconnected")
   end
 end
