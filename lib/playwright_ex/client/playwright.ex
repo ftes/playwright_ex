@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Client.Playwright do
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.Selectors
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
@@ -25,7 +26,7 @@ defmodule PlaywrightEx.Client.Playwright do
     put(get(this, :_electron), :_playwright, this)
     local_utils = Connection.local_utils(get(this, :_connection))
     put(this, :devices, (local_utils && get(local_utils, :devices)) || %{})
-    # this.selectors = new Selectors();  -- not ported: selectors
+    put(this, :selectors, Selectors.new())
     put(this, :errors, %{TimeoutError: PlaywrightEx.Client.Errors.TimeoutError})
     this
   end
@@ -36,6 +37,7 @@ defmodule PlaywrightEx.Client.Playwright do
   def webkit(this), do: get(this, :webkit)
   def devices(this), do: get(this, :devices)
   def request(this), do: get(this, :request)
+  def selectors(this), do: get(this, :selectors)
 
   def from(channel) do
     channel

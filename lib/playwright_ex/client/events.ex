@@ -8,6 +8,12 @@ defmodule PlaywrightEx.Client.Events do
     def disconnected, do: "disconnected"
   end
 
+  defmodule Debugger do
+    @moduledoc false
+    def paused_state_changed, do: "pausedstatechanged"
+    def api_calls_updated, do: "apicallsupdated"
+  end
+
   defmodule BrowserContext do
     @moduledoc false
     def console, do: "console"

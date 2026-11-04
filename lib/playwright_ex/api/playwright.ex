@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Playwright do
   })();
   ```
 
-  Not ported yet: `errors`, `selectors`.
+  Not ported yet: `errors`.
   """
 
   @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
@@ -74,6 +74,16 @@ defmodule PlaywrightEx.Playwright do
   @spec request(t()) :: PlaywrightEx.APIRequest.t()
   def request(playwright) do
     PlaywrightEx.Client.Playwright.request(playwright)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Selectors can be used to install custom selector engines. See
+  [extensibility](https://playwright.dev/docs/extensibility) for more information.
+  """
+  @spec selectors(t()) :: PlaywrightEx.Selectors.t()
+  def selectors(playwright) do
+    PlaywrightEx.Client.Playwright.selectors(playwright)
   end
 
   @doc since: "1.8"

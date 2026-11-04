@@ -18,7 +18,9 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
+  alias PlaywrightEx.Client.CDPSession
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.Debugger
   alias PlaywrightEx.Client.Dialog
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.ElementHandle
@@ -98,8 +100,8 @@ defmodule PlaywrightEx.Client.Connection do
         "Browser" => &Browser.new/4,
         "BrowserContext" => &BrowserContext.new/4,
         "BrowserType" => &BrowserType.new/4,
-        "CDPSession" => dummy,
-        "Debugger" => dummy,
+        "CDPSession" => &CDPSession.new/4,
+        "Debugger" => &Debugger.new/4,
         "Dialog" => &Dialog.new/4,
         "Disposable" => &DisposableObject.new/4,
         "Electron" => dummy,

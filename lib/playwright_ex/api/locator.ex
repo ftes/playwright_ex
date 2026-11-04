@@ -1967,7 +1967,7 @@ defmodule PlaywrightEx.Locator do
 
   **Details**
 
-  By default, the `data-testid` attribute is used as a test id. Use [`Selectors.setTestIdAttribute`](https://playwright.dev/docs/api/class-selectors#selectors-set-test-id-attribute) to configure a different test id attribute if necessary.
+  By default, the `data-testid` attribute is used as a test id. Use `PlaywrightEx.Selectors.set_test_id_attribute/2` to configure a different test id attribute if necessary.
 
   ```js
   // Set custom test id attribute from @playwright/test config:

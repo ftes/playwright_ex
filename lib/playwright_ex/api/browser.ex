@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Browser do
   * Browser application is closed or crashed.
   * The `PlaywrightEx.Browser.close/2` method was called.
 
-  Not ported yet: `newBrowserCDPSession`, `bind`, `removeAllListeners`, `unbind`.
+  Not ported yet: `bind`, `removeAllListeners`, `unbind`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -112,6 +112,30 @@ defmodule PlaywrightEx.Browser do
   @spec is_connected(t()) :: boolean()
   def is_connected(browser) do
     PlaywrightEx.Client.Browser.is_connected(browser)
+  end
+
+  @doc since: "1.11"
+  @doc ~S"""
+  > #### Note {: .info}
+  >
+  > CDP Sessions are only supported on Chromium-based browsers.
+
+  Returns the newly created browser session.
+  """
+  @spec new_browser_cdp_session(t()) :: {:ok, PlaywrightEx.CDPSession.t()} | {:error, Exception.t()}
+  def new_browser_cdp_session(browser) do
+    Facade.async("browser.newBrowserCDPSession", browser, fn ->
+      PlaywrightEx.Client.Browser.new_browser_cdp_session(browser)
+    end)
+  end
+
+  @doc since: "1.11"
+  @doc "Like `new_browser_cdp_session/1`, but returns the value and raises on error."
+  @spec new_browser_cdp_session!(t()) :: PlaywrightEx.CDPSession.t()
+  def new_browser_cdp_session!(browser) do
+    Facade.async!("browser.newBrowserCDPSession", browser, fn ->
+      PlaywrightEx.Client.Browser.new_browser_cdp_session(browser)
+    end)
   end
 
   @new_context_options {:object,

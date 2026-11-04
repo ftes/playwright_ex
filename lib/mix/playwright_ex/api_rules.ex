@@ -11,6 +11,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
     * Documents the Elixir forms of `timeout`.
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
+    * Classes whose emitters take any string as an event (`@open_events`: a `CDPSession` emits
+      every CDP event under its method name) are marked `"openEvents"`.
     * Waits: the JS members that the Python client has as `expect_*` (`waitForEvent`,
       `waitForRequest`, `waitForNavigation`, ...) return a promise handle (`"promise"`), as JS
       code starts them without `await`. `waitForEvent` takes Python's arguments (`event`, then
@@ -37,6 +39,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   # "Class.member"
   @dropped_members ~w()
+
+  # `session.on("Network.requestWillBeSent", ...)`: types.d.ts overloads `on` per CDP event.
+  @open_events ~w(CDPSession)
 
   # "Class.member" whose `options` argument the client rejects.
   @dropped_options ~w(Frame.evalOnSelector Page.evalOnSelector ElementHandle.inputValue)
@@ -80,7 +85,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
             do: member |> wait(expects) |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
 
       callbacks = for expect <- expects, do: expect |> callback(class, members) |> member(false)
-      %{class | "members" => members ++ callbacks}
+      Map.merge(class, %{"members" => members ++ callbacks, "openEvents" => class["name"] in @open_events})
     end
   end
 

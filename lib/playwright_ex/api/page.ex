@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page do
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
 
-  Not ported yet: `clock`, `coverage`, `emulateMedia`, `requestGC`, `localStorage`, `sessionStorage`, `pause`, `pdf`, `removeAllListeners`, `webmcp`.
+  Not ported yet: `emulateMedia`, `requestGC`, `pause`, `pdf`, `removeAllListeners`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -267,6 +267,15 @@ defmodule PlaywrightEx.Page do
     web_socket: "websocket",
     worker: "worker"
   }
+
+  @doc since: "1.45"
+  @doc ~S"""
+  Playwright has ability to mock clock and passage of time.
+  """
+  @spec clock(t()) :: PlaywrightEx.Clock.t()
+  def clock(page) do
+    PlaywrightEx.Client.Page.clock(page)
+  end
 
   @add_init_script_script {:fields, %{path: nil, content: nil}}
   @add_init_script_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
@@ -745,6 +754,19 @@ defmodule PlaywrightEx.Page do
   @spec context(t()) :: PlaywrightEx.BrowserContext.t()
   def context(page) do
     PlaywrightEx.Client.Page.context(page)
+  end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  > #### Note {: .info}
+  >
+  > Only available for Chromium atm.
+
+  Browser-specific Coverage implementation. See [`Coverage`](`PlaywrightEx.Coverage`) for more details.
+  """
+  @spec coverage(t()) :: PlaywrightEx.Coverage.t()
+  def coverage(page) do
+    PlaywrightEx.Client.Page.coverage(page)
   end
 
   @dblclick_options {:object,
@@ -2066,7 +2088,7 @@ defmodule PlaywrightEx.Page do
 
   **Details**
 
-  By default, the `data-testid` attribute is used as a test id. Use [`Selectors.setTestIdAttribute`](https://playwright.dev/docs/api/class-selectors#selectors-set-test-id-attribute) to configure a different test id attribute if necessary.
+  By default, the `data-testid` attribute is used as a test id. Use `PlaywrightEx.Selectors.set_test_id_attribute/2` to configure a different test id attribute if necessary.
 
   ```js
   // Set custom test id attribute from @playwright/test config:
@@ -2944,6 +2966,34 @@ defmodule PlaywrightEx.Page do
   @spec clear_page_errors!(t()) :: :ok
   def clear_page_errors!(page) do
     Facade.async_void!("page.clearPageErrors", page, fn -> PlaywrightEx.Client.Page.clear_page_errors(page) end)
+  end
+
+  @doc since: "1.61"
+  @doc ~S"""
+  Provides access to the page's `localStorage` for the current origin. See [`WebStorage`](`PlaywrightEx.WebStorage`).
+
+  ```js
+  await page.localStorage.setItem('token', 'abc');
+  const token = await page.localStorage.getItem('token');
+  ```
+  """
+  @spec local_storage(t()) :: PlaywrightEx.WebStorage.t()
+  def local_storage(page) do
+    PlaywrightEx.Client.Page.local_storage(page)
+  end
+
+  @doc since: "1.61"
+  @doc ~S"""
+  Provides access to the page's `sessionStorage` for the current origin. See [`WebStorage`](`PlaywrightEx.WebStorage`).
+
+  ```js
+  await page.sessionStorage.setItem('flag', '1');
+  const flag = await page.sessionStorage.getItem('flag');
+  ```
+  """
+  @spec session_storage(t()) :: PlaywrightEx.WebStorage.t()
+  def session_storage(page) do
+    PlaywrightEx.Client.Page.session_storage(page)
   end
 
   @console_messages_options {:object,
@@ -5402,6 +5452,22 @@ defmodule PlaywrightEx.Page do
   def wait_for_url!(page, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
     Facade.async_void!("page.waitForURL", page, fn -> PlaywrightEx.Client.Page.wait_for_url(page, url, options) end)
+  end
+
+  @doc since: "1.64"
+  @doc ~S"""
+  Tools that the main frame registers through the experimental [`WebMCP`](`PlaywrightEx.WebMCP`) browser API. Shortcut for `PlaywrightEx.Frame.webmcp/1` of `PlaywrightEx.Page.main_frame/1`, see [`WebMCP`](`PlaywrightEx.WebMCP`) for details.
+
+  **Usage**
+
+  ```js
+  const tools = await page.webmcp.tools();
+  const result = await page.webmcp.callTool('add', { a: 2, b: 40 });
+  ```
+  """
+  @spec webmcp(t()) :: PlaywrightEx.WebMCP.t()
+  def webmcp(page) do
+    PlaywrightEx.Client.Page.webmcp(page)
   end
 
   @doc since: "1.8"

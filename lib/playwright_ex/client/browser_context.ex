@@ -5,13 +5,18 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.BindingCall
+  alias PlaywrightEx.Client.CDPSession
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.Clock
   alias PlaywrightEx.Client.ConsoleMessage
+  alias PlaywrightEx.Client.Credentials
+  alias PlaywrightEx.Client.Debugger
   alias PlaywrightEx.Client.Dialog
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.HarRouter
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Network
@@ -51,12 +56,12 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(this, :_harRouters, [])
     put(this, :_options, initializer.options)
     put(this, :_timeoutSettings, TimeoutSettings.new())
-    # Debugger.from  -- not ported: a DummyChannelOwner
-    put(this, :debugger, initializer.debugger)
+    put(this, :debugger, Debugger.from(initializer.debugger))
     put(this, :tracing, Tracing.from(initializer.tracing))
     put(this, :request, APIRequestContext.from(initializer.requestContext))
     put(get(this, :request), :_timeoutSettings, get(this, :_timeoutSettings))
-    # this.clock = new Clock(this); this.credentials = new Credentials(this);  -- not ported
+    put(this, :clock, Clock.new(this))
+    put(this, :credentials, Credentials.new(this))
 
     EventEmitter.on(_channel(this), "bindingCall", fn %{binding: binding} ->
       _on_binding(this, BindingCall.from(binding))
@@ -171,8 +176,11 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   # readonly properties
+  def debugger(this), do: get(this, :debugger)
   def request(this), do: get(this, :request)
   def tracing(this), do: get(this, :tracing)
+  def clock(this), do: get(this, :clock)
+  def credentials(this), do: get(this, :credentials)
 
   def _initialize_har_from_options(this, record_har) do
     if record_har do
@@ -569,7 +577,20 @@ defmodule PlaywrightEx.Client.BrowserContext do
     get(this, :_serviceWorkers)
   end
 
-  # newCDPSession  -- not ported: CDPSession
+  def new_cdp_session(this, page) do
+    # channelOwner.ts's validation messages don't handle the pseudo-union type, so we're explicit here
+    if !match?(%Page{}, page) and !match?(%Frame{}, page), do: raise("page: expected Page or Frame")
+
+    result =
+      channel_call(
+        this,
+        :newCDPSession,
+        if(match?(%Page{}, page), do: %{page: page}, else: %{frame: page}),
+        TimeoutSettings.k_no_timeout()
+      )
+
+    CDPSession.from(result.session)
+  end
 
   def _on_close(this) do
     put(this, :_closingStatus, "closed")
@@ -577,9 +598,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
     if browser = get(this, :_browser) do
       set_delete(browser, :_contexts, this)
       set_delete(get(browser, :_browserType), :_contexts, this)
+      set_delete(get(get(get(browser, :_browserType), :_playwright), :selectors), :_contextsForSelectors, this)
     end
 
-    # this._browser?._browserType._playwright.selectors._contextsForSelectors.delete(this);  -- not ported: selectors
     _dispose_har_routers(this)
     Tracing._reset_stack_counter(get(this, :tracing))
     Tracing._reset_stack_counter(get(get(this, :request), :tracing))

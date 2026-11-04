@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.Coverage
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.Download
@@ -34,6 +35,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.WebSocket
   alias PlaywrightEx.Client.WebSocketRoute
   alias PlaywrightEx.Client.WebSocketRouteHandler
+  alias PlaywrightEx.Client.WebStorage
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
@@ -70,12 +72,13 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :mouse, Mouse.new(this))
     put(this, :request, get(parent, :request))
     put(this, :touchscreen, Touchscreen.new(this))
-    # this.clock = this._browserContext.clock;  -- not ported: Clock
-    # this.localStorage / sessionStorage = new WebStorage(...);  -- not ported: WebStorage
+    put(this, :clock, get(get(this, :_browserContext), :clock))
+    put(this, :localStorage, WebStorage.new(this, "local"))
+    put(this, :sessionStorage, WebStorage.new(this, "session"))
 
     put(this, :_mainFrame, Frame.from(initializer.mainFrame))
     put(get(this, :_mainFrame), :_page, this)
-    # this.webmcp = this._mainFrame.webmcp;  -- not ported: WebMCP
+    put(this, :webmcp, get(get(this, :_mainFrame), :webmcp))
     set_add(this, :_frames, get(this, :_mainFrame))
     put(this, :_viewportSize, initializer[:viewportSize])
     put(this, :_closed, initializer.isClosed)
@@ -139,7 +142,7 @@ defmodule PlaywrightEx.Client.Page do
 
     EventEmitter.on(_channel(this), "worker", fn %{worker: worker} -> _on_worker(this, Worker.from(worker)) end)
 
-    # this.coverage = new Coverage(this._channel);  -- not ported: Coverage
+    put(this, :coverage, Coverage.new(this))
 
     once(this, Events.Page.close(), fn _ ->
       LongStandingScope.close(get(this, :_closedOrCrashedScope), _close_error_with_reason(this))
@@ -168,7 +171,12 @@ defmodule PlaywrightEx.Client.Page do
   def mouse(this), do: get(this, :mouse)
   def request(this), do: get(this, :request)
   def touchscreen(this), do: get(this, :touchscreen)
+  def coverage(this), do: get(this, :coverage)
+  def clock(this), do: get(this, :clock)
   def screencast(this), do: get(this, :screencast)
+  def local_storage(this), do: get(this, :localStorage)
+  def session_storage(this), do: get(this, :sessionStorage)
+  def webmcp(this), do: get(this, :webmcp)
 
   defp _on_frame_attached(this, frame) do
     put(frame, :_page, this)

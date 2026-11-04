@@ -5,9 +5,11 @@ defmodule PlaywrightEx.Client.Browser do
 
   alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BrowserContext
+  alias PlaywrightEx.Client.CDPSession
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.Client.Selectors
 
   def from(browser) do
     browser
@@ -55,8 +57,9 @@ defmodule PlaywrightEx.Client.Browser do
   end
 
   def _inner_new_context(this, user_options, for_reuse) do
-    # const options = this._browserType._playwright.selectors._withSelectorOptions(userOptions);  -- not ported: selectors
-    options = user_options
+    options =
+      Selectors._with_selector_options(get(get(get(this, :_browserType), :_playwright), :selectors), user_options)
+
     # await this._instrumentation.runBeforeCreateBrowserContext(options);  -- not ported: instrumentation
     context_options = BrowserContext.prepare_browser_context_params(options)
 
@@ -97,7 +100,7 @@ defmodule PlaywrightEx.Client.Browser do
     put(get(context, :tracing), :_tracesDir, get(this, :_options)[:tracesDir])
     put(get(get(context, :request), :tracing), :_tracesDir, get(this, :_options)[:tracesDir])
     set_add(get(this, :_browserType), :_contexts, context)
-    # this._browserType._playwright.selectors._contextsForSelectors.add(context);  -- not ported: selectors
+    set_add(get(get(get(this, :_browserType), :_playwright), :selectors), :_contextsForSelectors, context)
     playwright = get(get(this, :_browserType), :_playwright)
     BrowserContext.set_default_timeout(context, get(playwright, :_defaultContextTimeout))
     BrowserContext.set_default_navigation_timeout(context, get(playwright, :_defaultContextNavigationTimeout))
@@ -130,7 +133,9 @@ defmodule PlaywrightEx.Client.Browser do
     get(this, :_isConnected)
   end
 
-  # newBrowserCDPSession  -- not ported: CDPSession
+  def new_browser_cdp_session(this) do
+    CDPSession.from(channel_call(this, :newBrowserCDPSession, %{}, TimeoutSettings.k_no_timeout()).session)
+  end
 
   def start_tracing(this, page \\ nil, options \\ %{}) do
     options = options || %{}

@@ -164,7 +164,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   Emitted when new service worker is created in the context.
 
-  Not ported yet: `clock`, `credentials`, `debugger`, `newCDPSession`, `removeAllListeners`, `storageState`, `setStorageState`.
+  Not ported yet: `removeAllListeners`, `storageState`, `setStorageState`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -211,6 +211,34 @@ defmodule PlaywrightEx.BrowserContext do
     response: "response",
     service_worker: "serviceworker"
   }
+
+  @doc since: "1.45"
+  @doc ~S"""
+  Playwright has ability to mock clock and passage of time.
+  """
+  @spec clock(t()) :: PlaywrightEx.Clock.t()
+  def clock(browser_context) do
+    PlaywrightEx.Client.BrowserContext.clock(browser_context)
+  end
+
+  @doc since: "1.61"
+  @doc ~S"""
+  Virtual WebAuthn authenticator for this context. Lets tests seed credentials and intercept
+  `navigator.credentials.create()` / `navigator.credentials.get()` ceremonies.
+  """
+  @spec credentials(t()) :: PlaywrightEx.Credentials.t()
+  def credentials(browser_context) do
+    PlaywrightEx.Client.BrowserContext.credentials(browser_context)
+  end
+
+  @doc since: "1.59"
+  @doc ~S"""
+  Debugger allows to pause and resume the execution.
+  """
+  @spec debugger(t()) :: PlaywrightEx.Debugger.t()
+  def debugger(browser_context) do
+    PlaywrightEx.Client.BrowserContext.debugger(browser_context)
+  end
 
   @add_cookies_cookies {:array,
                         {:fields,
@@ -755,6 +783,36 @@ defmodule PlaywrightEx.BrowserContext do
   @spec is_closed(t()) :: boolean()
   def is_closed(browser_context) do
     PlaywrightEx.Client.BrowserContext.is_closed(browser_context)
+  end
+
+  @doc since: "1.11"
+  @doc ~S"""
+  > #### Note {: .info}
+  >
+  > CDP sessions are only supported on Chromium-based browsers.
+
+  Returns the newly created session.
+
+  ## Arguments
+
+  * `page` - Target to create new session for. For backwards-compatibility, this parameter is
+    named `page`, but it can be a [`Page`](`PlaywrightEx.Page`) or [`Frame`](`PlaywrightEx.Frame`) type.
+  """
+  @spec new_cdp_session(t(), PlaywrightEx.Page.t() | PlaywrightEx.Frame.t()) ::
+          {:ok, PlaywrightEx.CDPSession.t()} | {:error, Exception.t()}
+  def new_cdp_session(browser_context, page) do
+    Facade.async("browserContext.newCDPSession", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.new_cdp_session(browser_context, page)
+    end)
+  end
+
+  @doc since: "1.11"
+  @doc "Like `new_cdp_session/2`, but returns the value and raises on error."
+  @spec new_cdp_session!(t(), PlaywrightEx.Page.t() | PlaywrightEx.Frame.t()) :: PlaywrightEx.CDPSession.t()
+  def new_cdp_session!(browser_context, page) do
+    Facade.async!("browserContext.newCDPSession", browser_context, fn ->
+      PlaywrightEx.Client.BrowserContext.new_cdp_session(browser_context, page)
+    end)
   end
 
   @doc since: "1.8"

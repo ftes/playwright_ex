@@ -119,6 +119,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   defp find(%{_page: page}), do: find(page)
   defp find(%{_request: request}), do: find(request)
   defp find(%{_artifact: artifact}), do: find(artifact)
+  defp find(%{_browserContext: context}), do: find(context)
+  defp find(%{_channel: channel}), do: find(channel)
   defp find(_), do: nil
 
   def acquire(%__MODULE__{pid: pid} = loop) do

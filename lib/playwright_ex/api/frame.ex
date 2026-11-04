@@ -33,8 +33,6 @@ defmodule PlaywrightEx.Frame do
     }
   })();
   ```
-
-  Not ported yet: `webmcp`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -1514,7 +1512,7 @@ defmodule PlaywrightEx.Frame do
 
   **Details**
 
-  By default, the `data-testid` attribute is used as a test id. Use [`Selectors.setTestIdAttribute`](https://playwright.dev/docs/api/class-selectors#selectors-set-test-id-attribute) to configure a different test id attribute if necessary.
+  By default, the `data-testid` attribute is used as a test id. Use `PlaywrightEx.Selectors.set_test_id_attribute/2` to configure a different test id attribute if necessary.
 
   ```js
   // Set custom test id attribute from @playwright/test config:
@@ -3548,6 +3546,15 @@ defmodule PlaywrightEx.Frame do
   def wait_for_url!(frame, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "frame.waitForURL")
     Facade.async_void!("frame.waitForURL", frame, fn -> PlaywrightEx.Client.Frame.wait_for_url(frame, url, options) end)
+  end
+
+  @doc since: "1.64"
+  @doc ~S"""
+  Tools that the frame registers through the experimental [`WebMCP`](`PlaywrightEx.WebMCP`) browser API. See [`WebMCP`](`PlaywrightEx.WebMCP`) for details.
+  """
+  @spec webmcp(t()) :: PlaywrightEx.WebMCP.t()
+  def webmcp(frame) do
+    PlaywrightEx.Client.Frame.webmcp(frame)
   end
 
   @expect_navigation_options {:object,

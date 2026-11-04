@@ -23,7 +23,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       `void`), `name!/n` returns the value or raises.
     * `async: false` members and properties: plain values, called without the baton.
     * Classes with events: `on/3`, `once/3`, `add_listener/3`, `remove_listener/3`, `off/3`,
-      `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them.
+      `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
+      string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`).
 
   `--check` writes nothing and fails if a file is out of date (`mix playwright_ex.parity` runs it).
   """
@@ -546,9 +547,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       """
       @doc #{inspect(doc)}
       @doc group: "Events"
-      #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}
+      #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}#{if class["openEvents"], do: "\n@spec #{name}(t(), String.t(), (term() -> term())) :: t()"}
       def #{name}(#{receiver}, event, listener),
-        do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}), listener)
+        do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}#{if class["openEvents"], do: ", true"}), listener)
       """
     end)
   end

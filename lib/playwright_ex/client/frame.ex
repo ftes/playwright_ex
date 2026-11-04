@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Client.Frame do
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Waiter
+  alias PlaywrightEx.Client.WebMCP
   alias PlaywrightEx.Isomorphic.LocatorUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
 
@@ -36,7 +37,7 @@ defmodule PlaywrightEx.Client.Frame do
     put(this, :_childFrames, [])
     put(this, :_eventEmitter, EventEmitter.new())
     # this._eventEmitter.setMaxListeners(0);  -- not ported: no leak warnings
-    # this.webmcp = new WebMCP(this);  -- not ported: WebMCP
+    put(this, :webmcp, WebMCP.new(this))
     put(this, :_parentFrame, from_nullable(initializer[:parentFrame]))
     if get(this, :_parentFrame), do: set_add(get(this, :_parentFrame), :_childFrames, this)
     put(this, :_name, initializer.name)
@@ -78,6 +79,9 @@ defmodule PlaywrightEx.Client.Frame do
 
     this
   end
+
+  # readonly properties
+  def webmcp(this), do: get(this, :webmcp)
 
   def page(this) do
     get(this, :_page)

@@ -90,11 +90,14 @@ defmodule PlaywrightEx.Runtime.Facade do
   @doc "Converts a positional argument of `type`."
   def arg!(value, type, api_name), do: convert!(value, type, api_name, [])
 
-  @doc "The JS event name for `event` (atom, or the JS name as a string) in `events`."
-  def event!(event, events, api_name) do
+  @doc """
+  The JS event name for `event` (atom, or the JS name as a string) in `events`. With `open?`,
+  any string is an event too (CDP events of a `CDPSession`).
+  """
+  def event!(event, events, api_name, open? \\ false) do
     cond do
       is_atom(event) and Map.has_key?(events, event) -> Map.fetch!(events, event)
-      is_binary(event) and event in Map.values(events) -> event
+      is_binary(event) and (open? or event in Map.values(events)) -> event
       true -> raise ArgumentError, "#{api_name}: unknown event #{inspect(event)}, expected one of #{keys(events)}"
     end
   end
