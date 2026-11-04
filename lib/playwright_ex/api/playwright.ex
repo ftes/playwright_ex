@@ -20,7 +20,8 @@ defmodule PlaywrightEx.Playwright do
   Not ported yet: `errors`, `request`, `selectors`.
   """
 
-  @type t :: %PlaywrightEx.Client.Playwright{}
+  @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
+  @opaque t :: %PlaywrightEx.Client.Playwright{}
 
   @doc ~S"""
   This object can be used to launch or connect to Chromium, returning instances of `Browser`.

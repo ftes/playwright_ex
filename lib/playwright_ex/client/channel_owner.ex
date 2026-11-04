@@ -39,6 +39,11 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
       defstruct [:guid, :baton]
 
+      # Elixir only: `#PlaywrightEx.Browser<browser@...>`, named after the public module.
+      defimpl Inspect do
+        def inspect(this, _opts), do: PlaywrightEx.Client.ChannelOwner.inspect_handle(this)
+      end
+
       defdelegate on(this, event, listener), to: ChannelOwner
       defdelegate add_listener(this, event, listener), to: ChannelOwner
       defdelegate prepend_listener(this, event, listener), to: ChannelOwner
@@ -49,6 +54,11 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       defdelegate _set_event_to_subscription_mapping(this, mapping), to: ChannelOwner
       def __channel_owner__, do: true
     end
+  end
+
+  @doc false
+  def inspect_handle(%module{guid: guid}) do
+    "#" <> (module |> Module.split() |> List.delete("Client") |> Enum.join(".")) <> "<#{guid}>"
   end
 
   # `x instanceof ChannelOwner`

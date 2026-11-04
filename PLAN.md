@@ -52,7 +52,8 @@ a migration guide maps old calls to new ones.
 - Unknown options and enum values raise `ArgumentError` in both forms (programmer errors).
   Upstream tests that pass options `as any` assert that rejection instead.
 - `void` methods return `:ok` (`close/2`, `close!/2`). Handles stay the client structs
-  (`PlaywrightEx.Browser.t()` is `%PlaywrightEx.Client.Browser{}`).
+  (no conversion at every boundary, one term per object), behind an opaque
+  `PlaywrightEx.Browser.t()` and inspected as `#PlaywrightEx.Browser<guid>`.
 - Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`) and the
   callback form (`Page.expect_popup(page, fn -> ... end)`).
 

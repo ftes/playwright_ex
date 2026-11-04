@@ -25,6 +25,7 @@ defmodule PlaywrightExTest do
 
   test "launches and closes chromium", %{playwright: playwright} do
     assert {:ok, browser} = BrowserType.launch(Playwright.chromium(playwright))
+    assert inspect(browser) =~ ~r/^#PlaywrightEx\.Browser<browser@\w+>$/
     assert Browser.version(browser) =~ ~r/^\d+\.\d+/
     assert Browser.is_connected(browser)
     assert Browser.browser_type(browser) == Playwright.chromium(playwright)
