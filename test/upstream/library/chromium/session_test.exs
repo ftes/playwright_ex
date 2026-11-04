@@ -166,7 +166,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     CDPSession.on(client, :event, fn event -> send(test_pid, {:event, event}) end)
     Page.goto!(page, server.empty_page)
     events = received_events()
-    assert length(events) > 0
+    assert events != []
     request_event = Enum.find(events, &(&1.method == "Network.requestWillBeSent"))
     assert request_event
     assert request_event.params["request"]["url"] == server.empty_page
