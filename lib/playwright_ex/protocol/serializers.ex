@@ -276,7 +276,8 @@ defmodule PlaywrightEx.Protocol.Serializers do
   # RegExp flags <-> Regex options. JS-only flags (g, y, d, v) have no Regex equivalent.
   defp regex_options(flags), do: for(<<flag <- flags>>, flag in ~c"imsu", into: "", do: <<flag>>)
 
-  defp regex_flags(regex) do
+  @doc false
+  def regex_flags(regex) do
     opts = Regex.opts(regex)
     for {opt, flag} <- [caseless: "i", multiline: "m", dotall: "s", unicode: "u"], opt in opts, into: "", do: flag
   end

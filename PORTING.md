@@ -47,6 +47,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 | `this._channel.foo(params, options)` | `channel_call(this, :foo, params, options)`; the generated validator converts to the wire |
 | `this._channel.on('event', ...)` | `EventEmitter.on(_channel(this), "event", ...)` |
 | `X.from(channel)` | identity: channels and owners are the same handle |
+| `X.fromNullable(channel)` | `X.from_nullable(channel)`: `nil` when absent (`X \| null` results are `nil`) |
 | `await p` | `Promise.await(p)` (releases the baton while pending) |
 | async function called without `await` | `Promise.async(this.baton, fn -> ... end)` |
 | `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all` | `Promise.new/2`, `then_/2`, `catch_/2`, `race/2`, `all/2` |

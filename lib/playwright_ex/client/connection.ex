@@ -19,6 +19,8 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.Client.Playwright
+  alias PlaywrightEx.Client.Request
+  alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives
@@ -96,8 +98,8 @@ defmodule PlaywrightEx.Client.Connection do
         end,
         "Page" => dummy,
         "Playwright" => &Playwright.new/4,
-        "Request" => dummy,
-        "Response" => dummy,
+        "Request" => &Request.new/4,
+        "Response" => &Response.new/4,
         "Route" => dummy,
         "Stream" => dummy,
         "SocksSupport" => dummy,

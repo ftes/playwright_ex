@@ -127,6 +127,9 @@ Conventions and the roll procedure: `PORTING.md`.
   `toHaveScreenshot` matcher on top of `page._expectScreenshot`; stabilization and
   comparison stay on the server. `toMatchAriaSnapshot` (inline) is a regular matcher.
   File aria snapshots and soft asserts: later. Skip `toMatchSnapshot` and jest assertions.
+- `X | null` results are `nil` (`from_nullable`, `goto`, `opener`): handles are Elixir values,
+  not JS ones. `:null` stays for JS values (evaluate results) and inputs that distinguish
+  `null` from `undefined` (`viewport: :null`).
 - Ported `try {} catch` stays an explicit `try do ... rescue` even when it is the whole function
   body (`Waiter.waitForPromise`), not an implicit try: same behaviour, upstream's shape.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
@@ -185,7 +188,8 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    through BrowserContext → Page → Frame (`new_context`/`new_page`, `goto`, `url`, `title`,
    `close`, the `:page` event, the `Request`/`Response` that `goto` needs), with mirrored
    `page-goto`/`browsercontext-basic` specs and the two launch specs waiting on Page and
-   BrowserContext. Release gate: "generate
+   BrowserContext. Done so far: `Request`/`Response`/`RawHeaders` (network.ts, without
+   routing and `finished`). Release gate: "generate
    all". Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
    Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing

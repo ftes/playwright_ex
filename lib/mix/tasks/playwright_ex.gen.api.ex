@@ -392,6 +392,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp type_spec(_ctx, %{"properties" => props}, dir) when is_list(props) and props != [],
     do: if(dir == :in, do: "keyword() | map()", else: "map()")
 
+  # `X | null` results are `nil` (`from_nullable`); `:null` is a JS value passed in.
+  defp type_spec(_ctx, %{"name" => "null"}, :out), do: "nil"
   defp type_spec(ctx, %{"name" => "Array", "templates" => [item]}, dir), do: "[#{type_spec(ctx, item, dir)}]"
   defp type_spec(_ctx, %{"name" => "Object"}, _dir), do: "map()"
 
