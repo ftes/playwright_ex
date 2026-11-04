@@ -64,6 +64,61 @@ defmodule PlaywrightEx.BrowserType do
                      traces_dir: {:tracesDir, nil}
                    }}
 
+  @typedoc "Options of `launch`, see its docs."
+  @type launch_options ::
+          [
+            args: [String.t()],
+            artifacts_dir: String.t(),
+            channel: String.t(),
+            chromium_sandbox: boolean(),
+            downloads_path: String.t(),
+            env: %{optional(String.t()) => String.t() | nil},
+            executable_path: String.t(),
+            firefox_user_prefs: %{optional(String.t()) => String.t() | number() | boolean()},
+            handle_sighup: boolean(),
+            handle_sigint: boolean(),
+            handle_sigterm: boolean(),
+            headless: boolean(),
+            ignore_default_args: boolean() | [String.t()],
+            proxy:
+              %{
+                required(:server) => String.t(),
+                optional(:bypass) => String.t(),
+                optional(:username) => String.t(),
+                optional(:password) => String.t()
+              }
+              | keyword(),
+            slow_mo: number(),
+            timeout: number() | :infinity,
+            traces_dir: String.t()
+          ]
+          | %{
+              optional(:args) => [String.t()],
+              optional(:artifacts_dir) => String.t(),
+              optional(:channel) => String.t(),
+              optional(:chromium_sandbox) => boolean(),
+              optional(:downloads_path) => String.t(),
+              optional(:env) => %{optional(String.t()) => String.t() | nil},
+              optional(:executable_path) => String.t(),
+              optional(:firefox_user_prefs) => %{optional(String.t()) => String.t() | number() | boolean()},
+              optional(:handle_sighup) => boolean(),
+              optional(:handle_sigint) => boolean(),
+              optional(:handle_sigterm) => boolean(),
+              optional(:headless) => boolean(),
+              optional(:ignore_default_args) => boolean() | [String.t()],
+              optional(:proxy) =>
+                %{
+                  required(:server) => String.t(),
+                  optional(:bypass) => String.t(),
+                  optional(:username) => String.t(),
+                  optional(:password) => String.t()
+                }
+                | keyword(),
+              optional(:slow_mo) => number(),
+              optional(:timeout) => number() | :infinity,
+              optional(:traces_dir) => String.t()
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   Returns the browser instance.
@@ -141,7 +196,7 @@ defmodule PlaywrightEx.BrowserType do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:traces_dir` - If specified, traces are saved into this directory.
   """
-  @spec launch(t(), keyword() | map()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
+  @spec launch(t(), launch_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
   def launch(browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
 
@@ -152,7 +207,7 @@ defmodule PlaywrightEx.BrowserType do
 
   @doc since: "1.8"
   @doc "Like `launch/2`, but returns the value and raises on error."
-  @spec launch!(t(), keyword() | map()) :: PlaywrightEx.Browser.t()
+  @spec launch!(t(), launch_options()) :: PlaywrightEx.Browser.t()
   def launch!(browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
 

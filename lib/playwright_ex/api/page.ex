@@ -263,6 +263,11 @@ defmodule PlaywrightEx.Page do
 
   @close_options {:object, %{reason: {:reason, nil}, run_before_unload: {:runBeforeUnload, nil}}}
 
+  @typedoc "Options of `close`, see its docs."
+  @type close_options ::
+          [reason: String.t(), run_before_unload: boolean()]
+          | %{optional(:reason) => String.t(), optional(:run_before_unload) => boolean()}
+
   @doc since: "1.8"
   @doc ~S"""
   If `runBeforeUnload` is `false`, does not run any unload handlers and waits for the page to be closed. If
@@ -281,7 +286,7 @@ defmodule PlaywrightEx.Page do
   * `:run_before_unload` - Defaults to `false`. Whether to run the
     [before unload](https://developer.mozilla.org/en-US/docs/Web/Events/beforeunload) page handlers.
   """
-  @spec close(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec close(t(), close_options()) :: :ok | {:error, Exception.t()}
   def close(page, options \\ []) do
     options = Facade.options!(options, @close_options, "page.close")
     Facade.async_void("page.close", page, fn -> PlaywrightEx.Client.Page.close(page, options) end)
@@ -289,13 +294,16 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `close/2`, but returns the value and raises on error."
-  @spec close!(t(), keyword() | map()) :: :ok
+  @spec close!(t(), close_options()) :: :ok
   def close!(page, options \\ []) do
     options = Facade.options!(options, @close_options, "page.close")
     Facade.async_void!("page.close", page, fn -> PlaywrightEx.Client.Page.close(page, options) end)
   end
 
   @content_options {:object, %{include_shadow: {:includeShadow, nil}}}
+
+  @typedoc "Options of `content`, see its docs."
+  @type content_options :: [include_shadow: boolean()] | %{optional(:include_shadow) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -306,7 +314,7 @@ defmodule PlaywrightEx.Page do
   * `:include_shadow` - *Since 1.64.* When true, contents of open shadow roots are included as [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
     i.e. `<template shadowrootmode="open">` elements nested inside their host elements. Closed shadow roots are never included. Defaults to `false`.
   """
-  @spec content(t(), keyword() | map()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec content(t(), content_options()) :: {:ok, String.t()} | {:error, Exception.t()}
   def content(page, options \\ []) do
     options = Facade.options!(options, @content_options, "page.content")
     Facade.async("page.content", page, fn -> PlaywrightEx.Client.Page.content(page, options) end)
@@ -314,7 +322,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `content/2`, but returns the value and raises on error."
-  @spec content!(t(), keyword() | map()) :: String.t()
+  @spec content!(t(), content_options()) :: String.t()
   def content!(page, options \\ []) do
     options = Facade.options!(options, @content_options, "page.content")
     Facade.async!("page.content", page, fn -> PlaywrightEx.Client.Page.content(page, options) end)
@@ -330,6 +338,9 @@ defmodule PlaywrightEx.Page do
   end
 
   @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `evaluate`, see its docs."
+  @type evaluate_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -380,7 +391,7 @@ defmodule PlaywrightEx.Page do
 
   * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
-  @spec evaluate(t(), String.t(), term() | nil, keyword() | map()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "page.evaluate")
     Facade.async("page.evaluate", page, fn -> PlaywrightEx.Client.Page.evaluate(page, expression, arg, options) end)
@@ -388,7 +399,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `evaluate/4`, but returns the value and raises on error."
-  @spec evaluate!(t(), String.t(), term() | nil, keyword() | map()) :: term()
+  @spec evaluate!(t(), String.t(), term() | nil, evaluate_options()) :: term()
   def evaluate!(page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "page.evaluate")
     Facade.async!("page.evaluate", page, fn -> PlaywrightEx.Client.Page.evaluate(page, expression, arg, options) end)
@@ -417,6 +428,14 @@ defmodule PlaywrightEx.Page do
                           }}}
                     }}
 
+  @typedoc "Options of `go_back`, see its docs."
+  @type go_back_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
@@ -444,7 +463,7 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec go_back(t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec go_back(t(), go_back_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def go_back(page, options \\ []) do
     options = Facade.options!(options, @go_back_options, "page.goBack")
     Facade.async("page.goBack", page, fn -> PlaywrightEx.Client.Page.go_back(page, options) end)
@@ -452,7 +471,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `go_back/2`, but returns the value and raises on error."
-  @spec go_back!(t(), keyword() | map()) :: nil | PlaywrightEx.Response.t()
+  @spec go_back!(t(), go_back_options()) :: nil | PlaywrightEx.Response.t()
   def go_back!(page, options \\ []) do
     options = Facade.options!(options, @go_back_options, "page.goBack")
     Facade.async!("page.goBack", page, fn -> PlaywrightEx.Client.Page.go_back(page, options) end)
@@ -471,6 +490,14 @@ defmodule PlaywrightEx.Page do
                                commit: "commit"
                              }}}
                        }}
+
+  @typedoc "Options of `go_forward`, see its docs."
+  @type go_forward_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -499,7 +526,7 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec go_forward(t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec go_forward(t(), go_forward_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def go_forward(page, options \\ []) do
     options = Facade.options!(options, @go_forward_options, "page.goForward")
     Facade.async("page.goForward", page, fn -> PlaywrightEx.Client.Page.go_forward(page, options) end)
@@ -507,7 +534,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `go_forward/2`, but returns the value and raises on error."
-  @spec go_forward!(t(), keyword() | map()) :: nil | PlaywrightEx.Response.t()
+  @spec go_forward!(t(), go_forward_options()) :: nil | PlaywrightEx.Response.t()
   def go_forward!(page, options \\ []) do
     options = Facade.options!(options, @go_forward_options, "page.goForward")
     Facade.async!("page.goForward", page, fn -> PlaywrightEx.Client.Page.go_forward(page, options) end)
@@ -527,6 +554,19 @@ defmodule PlaywrightEx.Page do
                          commit: "commit"
                        }}}
                  }}
+
+  @typedoc "Options of `goto`, see its docs."
+  @type goto_options ::
+          [
+            referer: String.t(),
+            timeout: number() | :infinity,
+            wait_until: :load | :domcontentloaded | :networkidle | :commit
+          ]
+          | %{
+              optional(:referer) => String.t(),
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -578,7 +618,7 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec goto(t(), String.t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec goto(t(), String.t(), goto_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def goto(page, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "page.goto")
     Facade.async("page.goto", page, fn -> PlaywrightEx.Client.Page.goto(page, url, options) end)
@@ -586,7 +626,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `goto/3`, but returns the value and raises on error."
-  @spec goto!(t(), String.t(), keyword() | map()) :: nil | PlaywrightEx.Response.t()
+  @spec goto!(t(), String.t(), goto_options()) :: nil | PlaywrightEx.Response.t()
   def goto!(page, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "page.goto")
     Facade.async!("page.goto", page, fn -> PlaywrightEx.Client.Page.goto(page, url, options) end)
@@ -660,6 +700,14 @@ defmodule PlaywrightEx.Page do
                          }}}
                    }}
 
+  @typedoc "Options of `reload`, see its docs."
+  @type reload_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   This method reloads the current page, in the same way as if the user had triggered a browser refresh.
@@ -681,7 +729,7 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec reload(t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec reload(t(), reload_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def reload(page, options \\ []) do
     options = Facade.options!(options, @reload_options, "page.reload")
     Facade.async("page.reload", page, fn -> PlaywrightEx.Client.Page.reload(page, options) end)
@@ -689,7 +737,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `reload/2`, but returns the value and raises on error."
-  @spec reload!(t(), keyword() | map()) :: nil | PlaywrightEx.Response.t()
+  @spec reload!(t(), reload_options()) :: nil | PlaywrightEx.Response.t()
   def reload!(page, options \\ []) do
     options = Facade.options!(options, @reload_options, "page.reload")
     Facade.async!("page.reload", page, fn -> PlaywrightEx.Client.Page.reload(page, options) end)
@@ -708,6 +756,14 @@ defmodule PlaywrightEx.Page do
                                 commit: "commit"
                               }}}
                         }}
+
+  @typedoc "Options of `set_content`, see its docs."
+  @type set_content_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -732,7 +788,7 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec set_content(t(), String.t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec set_content(t(), String.t(), set_content_options()) :: :ok | {:error, Exception.t()}
   def set_content(page, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "page.setContent")
     Facade.async_void("page.setContent", page, fn -> PlaywrightEx.Client.Page.set_content(page, html, options) end)
@@ -740,7 +796,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `set_content/3`, but returns the value and raises on error."
-  @spec set_content!(t(), String.t(), keyword() | map()) :: :ok
+  @spec set_content!(t(), String.t(), set_content_options()) :: :ok
   def set_content!(page, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "page.setContent")
     Facade.async_void!("page.setContent", page, fn -> PlaywrightEx.Client.Page.set_content(page, html, options) end)
@@ -813,7 +869,7 @@ defmodule PlaywrightEx.Page do
 
   * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
   """
-  @spec set_extra_http_headers(t(), map()) :: :ok | {:error, Exception.t()}
+  @spec set_extra_http_headers(t(), %{optional(String.t()) => String.t()}) :: :ok | {:error, Exception.t()}
   def set_extra_http_headers(page, headers) do
     Facade.async_void("page.setExtraHTTPHeaders", page, fn ->
       PlaywrightEx.Client.Page.set_extra_http_headers(page, headers)
@@ -822,7 +878,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `set_extra_http_headers/2`, but returns the value and raises on error."
-  @spec set_extra_http_headers!(t(), map()) :: :ok
+  @spec set_extra_http_headers!(t(), %{optional(String.t()) => String.t()}) :: :ok
   def set_extra_http_headers!(page, headers) do
     Facade.async_void!("page.setExtraHTTPHeaders", page, fn ->
       PlaywrightEx.Client.Page.set_extra_http_headers(page, headers)
@@ -856,7 +912,8 @@ defmodule PlaywrightEx.Page do
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
   """
-  @spec set_viewport_size(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec set_viewport_size(t(), %{required(:width) => integer(), required(:height) => integer()} | keyword()) ::
+          :ok | {:error, Exception.t()}
   def set_viewport_size(page, viewport_size) do
     viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize")
 
@@ -867,7 +924,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `set_viewport_size/2`, but returns the value and raises on error."
-  @spec set_viewport_size!(t(), keyword() | map()) :: :ok
+  @spec set_viewport_size!(t(), %{required(:width) => integer(), required(:height) => integer()} | keyword()) :: :ok
   def set_viewport_size!(page, viewport_size) do
     viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize")
 
@@ -901,13 +958,16 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ""
-  @spec viewport_size(t()) :: nil | map()
+  @spec viewport_size(t()) :: nil | %{width: integer(), height: integer()}
   def viewport_size(page) do
     PlaywrightEx.Client.Page.viewport_size(page)
   end
 
   @wait_for_load_state_state {:enum, %{load: "load", domcontentloaded: "domcontentloaded", networkidle: "networkidle"}}
   @wait_for_load_state_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_load_state`, see its docs."
+  @type wait_for_load_state_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -953,7 +1013,7 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, keyword() | map()) ::
+  @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) ::
           :ok | {:error, Exception.t()}
   def wait_for_load_state(page, state \\ nil, options \\ []) do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
@@ -966,7 +1026,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc "Like `wait_for_load_state/3`, but returns the value and raises on error."
-  @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil, keyword() | map()) :: :ok
+  @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) :: :ok
   def wait_for_load_state!(page, state \\ nil, options \\ []) do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
@@ -1042,37 +1102,151 @@ defmodule PlaywrightEx.Page do
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec on(t(), event(), (term() -> term())) :: t()
+  @spec on(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :console, (term() -> term())) :: t()
+  @spec on(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :dialog, (term() -> term())) :: t()
+  @spec on(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec on(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :download, (term() -> term())) :: t()
+  @spec on(t(), :file_chooser, (term() -> term())) :: t()
+  @spec on(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec on(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec on(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec on(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec on(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec on(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec on(t(), :web_socket, (term() -> term())) :: t()
+  @spec on(t(), :worker, (term() -> term())) :: t()
   def on(page, event, listener),
     do: PlaywrightEx.Client.Page.on(page, Facade.event!(event, @events, "page.on"), listener)
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
-  @spec once(t(), event(), (term() -> term())) :: t()
+  @spec once(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :console, (term() -> term())) :: t()
+  @spec once(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :dialog, (term() -> term())) :: t()
+  @spec once(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec once(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :download, (term() -> term())) :: t()
+  @spec once(t(), :file_chooser, (term() -> term())) :: t()
+  @spec once(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec once(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec once(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec once(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec once(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec once(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec once(t(), :web_socket, (term() -> term())) :: t()
+  @spec once(t(), :worker, (term() -> term())) :: t()
   def once(page, event, listener),
     do: PlaywrightEx.Client.Page.once(page, Facade.event!(event, @events, "page.once"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec add_listener(t(), event(), (term() -> term())) :: t()
+  @spec add_listener(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :console, (term() -> term())) :: t()
+  @spec add_listener(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :dialog, (term() -> term())) :: t()
+  @spec add_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec add_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :download, (term() -> term())) :: t()
+  @spec add_listener(t(), :file_chooser, (term() -> term())) :: t()
+  @spec add_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec add_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec add_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec add_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec add_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec add_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec add_listener(t(), :web_socket, (term() -> term())) :: t()
+  @spec add_listener(t(), :worker, (term() -> term())) :: t()
   def add_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.add_listener(page, Facade.event!(event, @events, "page.addListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
-  @spec remove_listener(t(), event(), (term() -> term())) :: t()
+  @spec remove_listener(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :console, (term() -> term())) :: t()
+  @spec remove_listener(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :dialog, (term() -> term())) :: t()
+  @spec remove_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec remove_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :download, (term() -> term())) :: t()
+  @spec remove_listener(t(), :file_chooser, (term() -> term())) :: t()
+  @spec remove_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec remove_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec remove_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec remove_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec remove_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec remove_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec remove_listener(t(), :web_socket, (term() -> term())) :: t()
+  @spec remove_listener(t(), :worker, (term() -> term())) :: t()
   def remove_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.remove_listener(page, Facade.event!(event, @events, "page.removeListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
-  @spec off(t(), event(), (term() -> term())) :: t()
+  @spec off(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :console, (term() -> term())) :: t()
+  @spec off(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :dialog, (term() -> term())) :: t()
+  @spec off(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec off(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :download, (term() -> term())) :: t()
+  @spec off(t(), :file_chooser, (term() -> term())) :: t()
+  @spec off(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec off(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec off(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec off(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec off(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec off(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec off(t(), :web_socket, (term() -> term())) :: t()
+  @spec off(t(), :worker, (term() -> term())) :: t()
   def off(page, event, listener),
     do: PlaywrightEx.Client.Page.off(page, Facade.event!(event, @events, "page.off"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec prepend_listener(t(), event(), (term() -> term())) :: t()
+  @spec prepend_listener(t(), :close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :console, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :crash, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :dom_content_loaded, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :download, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :file_chooser, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec prepend_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec prepend_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec prepend_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec prepend_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec prepend_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec prepend_listener(t(), :web_socket, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :worker, (term() -> term())) :: t()
   def prepend_listener(page, event, listener),
     do: PlaywrightEx.Client.Page.prepend_listener(page, Facade.event!(event, @events, "page.prependListener"), listener)
 end

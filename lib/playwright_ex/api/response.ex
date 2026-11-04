@@ -15,14 +15,14 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   An object with all the response HTTP headers associated with this response.
   """
-  @spec all_headers(t()) :: {:ok, map()} | {:error, Exception.t()}
+  @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Exception.t()}
   def all_headers(response) do
     Facade.async("response.allHeaders", response, fn -> PlaywrightEx.Client.Response.all_headers(response) end)
   end
 
   @doc since: "1.15"
   @doc "Like `all_headers/1`, but returns the value and raises on error."
-  @spec all_headers!(t()) :: map()
+  @spec all_headers!(t()) :: %{optional(String.t()) => String.t()}
   def all_headers!(response) do
     Facade.async!("response.allHeaders", response, fn -> PlaywrightEx.Client.Response.all_headers(response) end)
   end
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Response do
   Note that this method does not return security-related headers, including cookie-related ones.
   You can use `PlaywrightEx.Response.all_headers/1` for complete list of headers that include `cookie` information.
   """
-  @spec headers(t()) :: map()
+  @spec headers(t()) :: %{optional(String.t()) => String.t()}
   def headers(response) do
     PlaywrightEx.Client.Response.headers(response)
   end
@@ -94,14 +94,14 @@ defmodule PlaywrightEx.Response do
   Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
   Some browser network stacks combine multiple field values before reporting them, so separate entries are not always available.
   """
-  @spec headers_array(t()) :: {:ok, [map()]} | {:error, Exception.t()}
+  @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Exception.t()}
   def headers_array(response) do
     Facade.async("response.headersArray", response, fn -> PlaywrightEx.Client.Response.headers_array(response) end)
   end
 
   @doc since: "1.15"
   @doc "Like `headers_array/1`, but returns the value and raises on error."
-  @spec headers_array!(t()) :: [map()]
+  @spec headers_array!(t()) :: [%{name: String.t(), value: String.t()}]
   def headers_array!(response) do
     Facade.async!("response.headersArray", response, fn -> PlaywrightEx.Client.Response.headers_array(response) end)
   end
@@ -205,14 +205,32 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns SSL and other security information.
   """
-  @spec security_details(t()) :: {:ok, nil | map()} | {:error, Exception.t()}
+  @spec security_details(t()) ::
+          {:ok,
+           nil
+           | %{
+               optional(:issuer) => String.t(),
+               optional(:protocol) => String.t(),
+               optional(:subjectName) => String.t(),
+               optional(:validFrom) => number(),
+               optional(:validTo) => number()
+             }}
+          | {:error, Exception.t()}
   def security_details(response) do
     Facade.async("response.securityDetails", response, fn -> PlaywrightEx.Client.Response.security_details(response) end)
   end
 
   @doc since: "1.13"
   @doc "Like `security_details/1`, but returns the value and raises on error."
-  @spec security_details!(t()) :: nil | map()
+  @spec security_details!(t()) ::
+          nil
+          | %{
+              optional(:issuer) => String.t(),
+              optional(:protocol) => String.t(),
+              optional(:subjectName) => String.t(),
+              optional(:validFrom) => number(),
+              optional(:validTo) => number()
+            }
   def security_details!(response) do
     Facade.async!("response.securityDetails", response, fn ->
       PlaywrightEx.Client.Response.security_details(response)
@@ -223,14 +241,14 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns the IP address and port of the server.
   """
-  @spec server_addr(t()) :: {:ok, nil | map()} | {:error, Exception.t()}
+  @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Exception.t()}
   def server_addr(response) do
     Facade.async("response.serverAddr", response, fn -> PlaywrightEx.Client.Response.server_addr(response) end)
   end
 
   @doc since: "1.13"
   @doc "Like `server_addr/1`, but returns the value and raises on error."
-  @spec server_addr!(t()) :: nil | map()
+  @spec server_addr!(t()) :: nil | %{ipAddress: String.t(), port: integer()}
   def server_addr!(response) do
     Facade.async!("response.serverAddr", response, fn -> PlaywrightEx.Client.Response.server_addr(response) end)
   end

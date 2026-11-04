@@ -231,7 +231,24 @@ defmodule PlaywrightEx.BrowserContext do
     * `:same_site` - Optional.
     * `:partition_key` - For partitioned third-party cookies (aka [CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)), the partition key. Optional.
   """
-  @spec add_cookies(t(), [keyword() | map()]) :: :ok | {:error, Exception.t()}
+  @spec add_cookies(t(), [
+          %{
+            required(:name) => String.t(),
+            required(:value) => String.t(),
+            optional(:url) => String.t(),
+            optional(:domain) => String.t(),
+            optional(:path) => String.t(),
+            optional(:expires) => number(),
+            optional(:http_only) => boolean(),
+            optional(:httpOnly) => boolean(),
+            optional(:secure) => boolean(),
+            optional(:same_site) => :strict | :lax | :none,
+            optional(:sameSite) => :strict | :lax | :none,
+            optional(:partition_key) => String.t(),
+            optional(:partitionKey) => String.t()
+          }
+          | keyword()
+        ]) :: :ok | {:error, Exception.t()}
   def add_cookies(browser_context, cookies) do
     cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies")
 
@@ -242,7 +259,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `add_cookies/2`, but returns the value and raises on error."
-  @spec add_cookies!(t(), [keyword() | map()]) :: :ok
+  @spec add_cookies!(t(), [
+          %{
+            required(:name) => String.t(),
+            required(:value) => String.t(),
+            optional(:url) => String.t(),
+            optional(:domain) => String.t(),
+            optional(:path) => String.t(),
+            optional(:expires) => number(),
+            optional(:http_only) => boolean(),
+            optional(:httpOnly) => boolean(),
+            optional(:secure) => boolean(),
+            optional(:same_site) => :strict | :lax | :none,
+            optional(:sameSite) => :strict | :lax | :none,
+            optional(:partition_key) => String.t(),
+            optional(:partitionKey) => String.t()
+          }
+          | keyword()
+        ]) :: :ok
   def add_cookies!(browser_context, cookies) do
     cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies")
 
@@ -272,6 +306,15 @@ defmodule PlaywrightEx.BrowserContext do
 
   @clear_cookies_options {:object, %{domain: {:domain, nil}, name: {:name, nil}, path: {:path, nil}}}
 
+  @typedoc "Options of `clear_cookies`, see its docs."
+  @type clear_cookies_options ::
+          [domain: String.t() | Regex.t(), name: String.t() | Regex.t(), path: String.t() | Regex.t()]
+          | %{
+              optional(:domain) => String.t() | Regex.t(),
+              optional(:name) => String.t() | Regex.t(),
+              optional(:path) => String.t() | Regex.t()
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   Removes cookies from context. Accepts optional filter.
@@ -293,7 +336,7 @@ defmodule PlaywrightEx.BrowserContext do
   * `:name` - *Since 1.43.* Only removes cookies with the given name.
   * `:path` - *Since 1.43.* Only removes cookies with the given path.
   """
-  @spec clear_cookies(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, Exception.t()}
   def clear_cookies(browser_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "browserContext.clearCookies")
 
@@ -304,7 +347,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `clear_cookies/2`, but returns the value and raises on error."
-  @spec clear_cookies!(t(), keyword() | map()) :: :ok
+  @spec clear_cookies!(t(), clear_cookies_options()) :: :ok
   def clear_cookies!(browser_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "browserContext.clearCookies")
 
@@ -344,6 +387,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   @close_options {:object, %{reason: {:reason, nil}}}
 
+  @typedoc "Options of `close`, see its docs."
+  @type close_options :: [reason: String.t()] | %{optional(:reason) => String.t()}
+
   @doc since: "1.8"
   @doc ~S"""
   Closes the browser context. All the pages that belong to the browser context will be closed.
@@ -356,7 +402,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `:reason` - *Since 1.40.* The reason to be reported to the operations interrupted by the context closure.
   """
-  @spec close(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec close(t(), close_options()) :: :ok | {:error, Exception.t()}
   def close(browser_context, options \\ []) do
     options = Facade.options!(options, @close_options, "browserContext.close")
 
@@ -367,7 +413,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `close/2`, but returns the value and raises on error."
-  @spec close!(t(), keyword() | map()) :: :ok
+  @spec close!(t(), close_options()) :: :ok
   def close!(browser_context, options \\ []) do
     options = Facade.options!(options, @close_options, "browserContext.close")
 
@@ -385,7 +431,22 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `urls` - Optional list of URLs.
   """
-  @spec cookies(t(), String.t() | [String.t()] | nil) :: {:ok, [map()]} | {:error, Exception.t()}
+  @spec cookies(t(), String.t() | [String.t()] | nil) ::
+          {:ok,
+           [
+             %{
+               required(:name) => String.t(),
+               required(:value) => String.t(),
+               required(:domain) => String.t(),
+               required(:path) => String.t(),
+               required(:expires) => number(),
+               required(:httpOnly) => boolean(),
+               required(:secure) => boolean(),
+               required(:sameSite) => String.t(),
+               optional(:partitionKey) => String.t()
+             }
+           ]}
+          | {:error, Exception.t()}
   def cookies(browser_context, urls \\ nil) do
     Facade.async("browserContext.cookies", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.cookies(browser_context, urls)
@@ -394,7 +455,19 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `cookies/2`, but returns the value and raises on error."
-  @spec cookies!(t(), String.t() | [String.t()] | nil) :: [map()]
+  @spec cookies!(t(), String.t() | [String.t()] | nil) :: [
+          %{
+            required(:name) => String.t(),
+            required(:value) => String.t(),
+            required(:domain) => String.t(),
+            required(:path) => String.t(),
+            required(:expires) => number(),
+            required(:httpOnly) => boolean(),
+            required(:secure) => boolean(),
+            required(:sameSite) => String.t(),
+            optional(:partitionKey) => String.t()
+          }
+        ]
   def cookies!(browser_context, urls \\ nil) do
     Facade.async!("browserContext.cookies", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.cookies(browser_context, urls)
@@ -402,6 +475,9 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @grant_permissions_options {:object, %{origin: {:origin, nil}}}
+
+  @typedoc "Options of `grant_permissions`, see its docs."
+  @type grant_permissions_options :: [origin: String.t()] | %{optional(:origin) => String.t()}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -441,7 +517,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `:origin` - The [origin] to grant permissions to, e.g. "https://example.com".
   """
-  @spec grant_permissions(t(), [String.t()], keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec grant_permissions(t(), [String.t()], grant_permissions_options()) :: :ok | {:error, Exception.t()}
   def grant_permissions(browser_context, permissions, options \\ []) do
     options = Facade.options!(options, @grant_permissions_options, "browserContext.grantPermissions")
 
@@ -452,7 +528,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `grant_permissions/3`, but returns the value and raises on error."
-  @spec grant_permissions!(t(), [String.t()], keyword() | map()) :: :ok
+  @spec grant_permissions!(t(), [String.t()], grant_permissions_options()) :: :ok
   def grant_permissions!(browser_context, permissions, options \\ []) do
     options = Facade.options!(options, @grant_permissions_options, "browserContext.grantPermissions")
 
@@ -570,7 +646,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
   """
-  @spec set_extra_http_headers(t(), map()) :: :ok | {:error, Exception.t()}
+  @spec set_extra_http_headers(t(), %{optional(String.t()) => String.t()}) :: :ok | {:error, Exception.t()}
   def set_extra_http_headers(browser_context, headers) do
     Facade.async_void("browserContext.setExtraHTTPHeaders", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.set_extra_http_headers(browser_context, headers)
@@ -579,7 +655,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `set_extra_http_headers/2`, but returns the value and raises on error."
-  @spec set_extra_http_headers!(t(), map()) :: :ok
+  @spec set_extra_http_headers!(t(), %{optional(String.t()) => String.t()}) :: :ok
   def set_extra_http_headers!(browser_context, headers) do
     Facade.async_void!("browserContext.setExtraHTTPHeaders", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.set_extra_http_headers(browser_context, headers)
@@ -611,7 +687,12 @@ defmodule PlaywrightEx.BrowserContext do
     * `:longitude` - Longitude between -180 and 180.
     * `:accuracy` - Non-negative accuracy value. Defaults to `0`.
   """
-  @spec set_geolocation(t(), :null | keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec set_geolocation(
+          t(),
+          :null
+          | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+          | keyword()
+        ) :: :ok | {:error, Exception.t()}
   def set_geolocation(browser_context, geolocation) do
     geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation")
 
@@ -622,7 +703,12 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `set_geolocation/2`, but returns the value and raises on error."
-  @spec set_geolocation!(t(), :null | keyword() | map()) :: :ok
+  @spec set_geolocation!(
+          t(),
+          :null
+          | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+          | keyword()
+        ) :: :ok
   def set_geolocation!(browser_context, geolocation) do
     geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation")
 
@@ -663,7 +749,16 @@ defmodule PlaywrightEx.BrowserContext do
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
   """
-  @spec set_http_credentials(t(), :null | keyword() | map() | [keyword() | map()]) :: :ok | {:error, Exception.t()}
+  @spec set_http_credentials(
+          t(),
+          :null
+          | %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
+          | keyword()
+          | [
+              %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
+              | keyword()
+            ]
+        ) :: :ok | {:error, Exception.t()}
   def set_http_credentials(browser_context, http_credentials) do
     http_credentials =
       Facade.arg!(http_credentials, @set_http_credentials_http_credentials, "browserContext.setHTTPCredentials")
@@ -675,7 +770,16 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `set_http_credentials/2`, but returns the value and raises on error."
-  @spec set_http_credentials!(t(), :null | keyword() | map() | [keyword() | map()]) :: :ok
+  @spec set_http_credentials!(
+          t(),
+          :null
+          | %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
+          | keyword()
+          | [
+              %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
+              | keyword()
+            ]
+        ) :: :ok
   def set_http_credentials!(browser_context, http_credentials) do
     http_credentials =
       Facade.arg!(http_credentials, @set_http_credentials_http_credentials, "browserContext.setHTTPCredentials")
@@ -734,7 +838,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec on(t(), event(), (term() -> term())) :: t()
+  @spec on(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec on(t(), :console, (term() -> term())) :: t()
+  @spec on(t(), :dialog, (term() -> term())) :: t()
+  @spec on(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec on(t(), :download, (term() -> term())) :: t()
+  @spec on(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec on(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec on(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec on(t(), :web_error, (term() -> term())) :: t()
+  @spec on(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec on(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec on(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec on(t(), :service_worker, (term() -> term())) :: t()
   def on(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.on(
@@ -745,7 +866,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
-  @spec once(t(), event(), (term() -> term())) :: t()
+  @spec once(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec once(t(), :console, (term() -> term())) :: t()
+  @spec once(t(), :dialog, (term() -> term())) :: t()
+  @spec once(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec once(t(), :download, (term() -> term())) :: t()
+  @spec once(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec once(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec once(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec once(t(), :web_error, (term() -> term())) :: t()
+  @spec once(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec once(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec once(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec once(t(), :service_worker, (term() -> term())) :: t()
   def once(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.once(
@@ -756,7 +894,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec add_listener(t(), event(), (term() -> term())) :: t()
+  @spec add_listener(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec add_listener(t(), :console, (term() -> term())) :: t()
+  @spec add_listener(t(), :dialog, (term() -> term())) :: t()
+  @spec add_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec add_listener(t(), :download, (term() -> term())) :: t()
+  @spec add_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec add_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec add_listener(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec add_listener(t(), :web_error, (term() -> term())) :: t()
+  @spec add_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec add_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec add_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec add_listener(t(), :service_worker, (term() -> term())) :: t()
   def add_listener(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.add_listener(
@@ -767,7 +922,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
-  @spec remove_listener(t(), event(), (term() -> term())) :: t()
+  @spec remove_listener(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec remove_listener(t(), :console, (term() -> term())) :: t()
+  @spec remove_listener(t(), :dialog, (term() -> term())) :: t()
+  @spec remove_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec remove_listener(t(), :download, (term() -> term())) :: t()
+  @spec remove_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec remove_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec remove_listener(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec remove_listener(t(), :web_error, (term() -> term())) :: t()
+  @spec remove_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec remove_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec remove_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec remove_listener(t(), :service_worker, (term() -> term())) :: t()
   def remove_listener(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.remove_listener(
@@ -778,7 +950,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
-  @spec off(t(), event(), (term() -> term())) :: t()
+  @spec off(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec off(t(), :console, (term() -> term())) :: t()
+  @spec off(t(), :dialog, (term() -> term())) :: t()
+  @spec off(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec off(t(), :download, (term() -> term())) :: t()
+  @spec off(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec off(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec off(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec off(t(), :web_error, (term() -> term())) :: t()
+  @spec off(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec off(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec off(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec off(t(), :service_worker, (term() -> term())) :: t()
   def off(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.off(
@@ -789,7 +978,24 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec prepend_listener(t(), event(), (term() -> term())) :: t()
+  @spec prepend_listener(t(), :background_page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :close, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec prepend_listener(t(), :console, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :dialog_closed, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :download, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :frame_attached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec prepend_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
+  @spec prepend_listener(t(), :page, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :page_close, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :page_load, (PlaywrightEx.Page.t() -> term())) :: t()
+  @spec prepend_listener(t(), :web_error, (term() -> term())) :: t()
+  @spec prepend_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec prepend_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec prepend_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
+  @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
+  @spec prepend_listener(t(), :service_worker, (term() -> term())) :: t()
   def prepend_listener(browser_context, event, listener),
     do:
       PlaywrightEx.Client.BrowserContext.prepend_listener(

@@ -201,29 +201,26 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `LongStandingScope`), with mirrored `page-goto`/`browsercontext-basic` specs and both launch
    specs. Not yet: routing, HAR, bindings/`exposeFunction`, tracing, `waitForEvent`/
    `waitForNavigation` (promise handle above), selectors and locators, so their specs stay
-   skipped. Next: locators on Frame/Page, after item 3. Release gate: "generate all".
+   skipped. Next: locators on Frame/Page. Release gate: "generate all".
    Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
    Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing impl
    is a compile warning and fails CI. Classes can switch one at a time once complete
    (a rules entry), so finished ones can't regress while the rest are ported.
-3. Next: docs and specs on par with playwright.dev for the generated modules (gaps found by
-   comparing `mix docs` with upstream; all in the generator, independent of item 2). Specs
-   today: 179, but all 50 options are `keyword() | map()`, object values `map()`, 48 `term()`
-   (listener callbacks, `evaluate` args). Wanted:
-   - Types: a `@type goto_options` per member from the facade schema (keyword or map, enums as
-     atoms), object types (`%{width: number(), height: number()}`), return and event payload
-     shapes, listener callbacks typed by event.
-   - Docs: nested option fields as nested bullets, links for class and event refs and raw
-     `[Type]` refs, relative links without `.md`, notes as admonitions (`{: .info}`, from the
-     `spec` AST), errors named (`TimeoutError`), the event list's broken code blocks and the
-     literal `↵` in discouraged notes fixed, the JS `signal` (AbortSignal) option dropped in
-     `ApiRules`. Upstream "Added in" as `@doc since:` (versions are in sync, see Decisions).
-   - ExDoc: an "API" module group, an "Events" doc group, CI runs `mix docs
-     --warnings-as-errors`. JS examples stay until item 4 rewrites them.
-   - No NimbleOptions: its validation can't do the conversion the schema already does (JS
-     names, enum strings, `:infinity`), and rendering docs and specs from our own schema is
-     less work than mapping api.json types onto its types.
+3. Done: docs and specs on par with playwright.dev for the generated modules, all in the
+   generator (`mix docs --warnings-as-errors` in CI).
+   - Docs render from the `spec` AST, not `comment`: notes as admonitions, nested option fields
+     as nested bullets, newer options and events tagged `*Since 1.x.*`, `@doc since:` from
+     "Added in". Events are `###` headings in the moduledoc (anchors `module-<event>`, so
+     `[event: Page.dialog]` links there); `on/3` & co. form the "Events" doc group.
+   - Links: generated members as facade functions, the rest and other classes to playwright.dev,
+     `TimeoutError` to the exception, raw `[Type]` refs as code. JS examples stay until item 4.
+   - Types: `@type goto_options` per member (keyword or map, enums as atoms); inputs have
+     snake_case keys, nested objects also accept the JS keys (a result passed back, like
+     `storage_state`) and keyword lists; results have the JS keys and enums as strings, as the
+     client returns them. Listener specs per event, as in `types.d.ts`. Left `term()`: payloads
+     of unported classes (until ported) and JS values (`evaluate`, `json`).
+   - No NimbleOptions: its validation can't do the conversion the schema already does.
 4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
    `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
    with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match

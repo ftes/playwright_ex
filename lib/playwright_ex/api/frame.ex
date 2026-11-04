@@ -51,6 +51,9 @@ defmodule PlaywrightEx.Frame do
 
   @content_options {:object, %{include_shadow: {:includeShadow, nil}}}
 
+  @typedoc "Options of `content`, see its docs."
+  @type content_options :: [include_shadow: boolean()] | %{optional(:include_shadow) => boolean()}
+
   @doc since: "1.8"
   @doc ~S"""
   Gets the full HTML contents of the frame, including the doctype.
@@ -60,7 +63,7 @@ defmodule PlaywrightEx.Frame do
   * `:include_shadow` - *Since 1.64.* When true, contents of open shadow roots are included as [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
     i.e. `<template shadowrootmode="open">` elements nested inside their host elements. Closed shadow roots are never included. Defaults to `false`.
   """
-  @spec content(t(), keyword() | map()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec content(t(), content_options()) :: {:ok, String.t()} | {:error, Exception.t()}
   def content(frame, options \\ []) do
     options = Facade.options!(options, @content_options, "frame.content")
     Facade.async("frame.content", frame, fn -> PlaywrightEx.Client.Frame.content(frame, options) end)
@@ -68,13 +71,16 @@ defmodule PlaywrightEx.Frame do
 
   @doc since: "1.8"
   @doc "Like `content/2`, but returns the value and raises on error."
-  @spec content!(t(), keyword() | map()) :: String.t()
+  @spec content!(t(), content_options()) :: String.t()
   def content!(frame, options \\ []) do
     options = Facade.options!(options, @content_options, "frame.content")
     Facade.async!("frame.content", frame, fn -> PlaywrightEx.Client.Frame.content(frame, options) end)
   end
 
   @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
+
+  @typedoc "Options of `evaluate`, see its docs."
+  @type evaluate_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -121,7 +127,7 @@ defmodule PlaywrightEx.Frame do
 
   * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via [`Page.exposeFunction`](https://playwright.dev/docs/api/class-page#page-expose-function), so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
-  @spec evaluate(t(), String.t(), term() | nil, keyword() | map()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(frame, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "frame.evaluate")
     Facade.async("frame.evaluate", frame, fn -> PlaywrightEx.Client.Frame.evaluate(frame, expression, arg, options) end)
@@ -129,7 +135,7 @@ defmodule PlaywrightEx.Frame do
 
   @doc since: "1.8"
   @doc "Like `evaluate/4`, but returns the value and raises on error."
-  @spec evaluate!(t(), String.t(), term() | nil, keyword() | map()) :: term()
+  @spec evaluate!(t(), String.t(), term() | nil, evaluate_options()) :: term()
   def evaluate!(frame, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "frame.evaluate")
 
@@ -150,6 +156,19 @@ defmodule PlaywrightEx.Frame do
                          commit: "commit"
                        }}}
                  }}
+
+  @typedoc "Options of `goto`, see its docs."
+  @type goto_options ::
+          [
+            referer: String.t(),
+            timeout: number() | :infinity,
+            wait_until: :load | :domcontentloaded | :networkidle | :commit
+          ]
+          | %{
+              optional(:referer) => String.t(),
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -199,7 +218,7 @@ defmodule PlaywrightEx.Frame do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec goto(t(), String.t(), keyword() | map()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec goto(t(), String.t(), goto_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def goto(frame, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "frame.goto")
     Facade.async("frame.goto", frame, fn -> PlaywrightEx.Client.Frame.goto(frame, url, options) end)
@@ -207,7 +226,7 @@ defmodule PlaywrightEx.Frame do
 
   @doc since: "1.8"
   @doc "Like `goto/3`, but returns the value and raises on error."
-  @spec goto!(t(), String.t(), keyword() | map()) :: nil | PlaywrightEx.Response.t()
+  @spec goto!(t(), String.t(), goto_options()) :: nil | PlaywrightEx.Response.t()
   def goto!(frame, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "frame.goto")
     Facade.async!("frame.goto", frame, fn -> PlaywrightEx.Client.Frame.goto(frame, url, options) end)
@@ -269,6 +288,14 @@ defmodule PlaywrightEx.Frame do
                               }}}
                         }}
 
+  @typedoc "Options of `set_content`, see its docs."
+  @type set_content_options ::
+          [timeout: number() | :infinity, wait_until: :load | :domcontentloaded | :networkidle | :commit]
+          | %{
+              optional(:timeout) => number() | :infinity,
+              optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   This method internally calls [document.write()](https://developer.mozilla.org/en-US/docs/Web/API/Document/write), inheriting all its specific characteristics and behaviors.
@@ -292,7 +319,7 @@ defmodule PlaywrightEx.Frame do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec set_content(t(), String.t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec set_content(t(), String.t(), set_content_options()) :: :ok | {:error, Exception.t()}
   def set_content(frame, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "frame.setContent")
     Facade.async_void("frame.setContent", frame, fn -> PlaywrightEx.Client.Frame.set_content(frame, html, options) end)
@@ -300,7 +327,7 @@ defmodule PlaywrightEx.Frame do
 
   @doc since: "1.8"
   @doc "Like `set_content/3`, but returns the value and raises on error."
-  @spec set_content!(t(), String.t(), keyword() | map()) :: :ok
+  @spec set_content!(t(), String.t(), set_content_options()) :: :ok
   def set_content!(frame, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "frame.setContent")
     Facade.async_void!("frame.setContent", frame, fn -> PlaywrightEx.Client.Frame.set_content(frame, html, options) end)
@@ -333,6 +360,9 @@ defmodule PlaywrightEx.Frame do
 
   @wait_for_load_state_state {:enum, %{load: "load", domcontentloaded: "domcontentloaded", networkidle: "networkidle"}}
   @wait_for_load_state_options {:object, %{timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `wait_for_load_state`, see its docs."
+  @type wait_for_load_state_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -370,7 +400,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, keyword() | map()) ::
+  @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) ::
           :ok | {:error, Exception.t()}
   def wait_for_load_state(frame, state \\ nil, options \\ []) do
     state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
@@ -383,7 +413,7 @@ defmodule PlaywrightEx.Frame do
 
   @doc since: "1.8"
   @doc "Like `wait_for_load_state/3`, but returns the value and raises on error."
-  @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil, keyword() | map()) :: :ok
+  @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) :: :ok
   def wait_for_load_state!(frame, state \\ nil, options \\ []) do
     state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")

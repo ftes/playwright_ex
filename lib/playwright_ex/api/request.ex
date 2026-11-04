@@ -30,14 +30,14 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   An object with all the request HTTP headers associated with this request. The header names are lower-cased.
   """
-  @spec all_headers(t()) :: {:ok, map()} | {:error, Exception.t()}
+  @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Exception.t()}
   def all_headers(request) do
     Facade.async("request.allHeaders", request, fn -> PlaywrightEx.Client.Request.all_headers(request) end)
   end
 
   @doc since: "1.15"
   @doc "Like `all_headers/1`, but returns the value and raises on error."
-  @spec all_headers!(t()) :: map()
+  @spec all_headers!(t()) :: %{optional(String.t()) => String.t()}
   def all_headers!(request) do
     Facade.async!("request.allHeaders", request, fn -> PlaywrightEx.Client.Request.all_headers(request) end)
   end
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Request do
   });
   ```
   """
-  @spec failure(t()) :: nil | map()
+  @spec failure(t()) :: nil | %{errorText: String.t()}
   def failure(request) do
     PlaywrightEx.Client.Request.failure(request)
   end
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Request do
   Note that this method does not return security-related headers, including cookie-related ones.
   You can use `PlaywrightEx.Request.all_headers/1` for complete list of headers that include `cookie` information.
   """
-  @spec headers(t()) :: map()
+  @spec headers(t()) :: %{optional(String.t()) => String.t()}
   def headers(request) do
     PlaywrightEx.Client.Request.headers(request)
   end
@@ -110,14 +110,14 @@ defmodule PlaywrightEx.Request do
   An array with all the request HTTP headers associated with this request. Unlike `PlaywrightEx.Request.all_headers/1`, header names are NOT lower-cased.
   Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
   """
-  @spec headers_array(t()) :: {:ok, [map()]} | {:error, Exception.t()}
+  @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Exception.t()}
   def headers_array(request) do
     Facade.async("request.headersArray", request, fn -> PlaywrightEx.Client.Request.headers_array(request) end)
   end
 
   @doc since: "1.15"
   @doc "Like `headers_array/1`, but returns the value and raises on error."
-  @spec headers_array!(t()) :: [map()]
+  @spec headers_array!(t()) :: [%{name: String.t(), value: String.t()}]
   def headers_array!(request) do
     Facade.async!("request.headersArray", request, fn -> PlaywrightEx.Client.Request.headers_array(request) end)
   end
@@ -298,14 +298,27 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   Returns resource size information for given request.
   """
-  @spec sizes(t()) :: {:ok, map()} | {:error, Exception.t()}
+  @spec sizes(t()) ::
+          {:ok,
+           %{
+             requestBodySize: integer(),
+             requestHeadersSize: integer(),
+             responseBodySize: integer(),
+             responseHeadersSize: integer()
+           }}
+          | {:error, Exception.t()}
   def sizes(request) do
     Facade.async("request.sizes", request, fn -> PlaywrightEx.Client.Request.sizes(request) end)
   end
 
   @doc since: "1.15"
   @doc "Like `sizes/1`, but returns the value and raises on error."
-  @spec sizes!(t()) :: map()
+  @spec sizes!(t()) :: %{
+          requestBodySize: integer(),
+          requestHeadersSize: integer(),
+          responseBodySize: integer(),
+          responseHeadersSize: integer()
+        }
   def sizes!(request) do
     Facade.async!("request.sizes", request, fn -> PlaywrightEx.Client.Request.sizes(request) end)
   end
@@ -325,7 +338,17 @@ defmodule PlaywrightEx.Request do
   console.log(request.timing());
   ```
   """
-  @spec timing(t()) :: map()
+  @spec timing(t()) :: %{
+          startTime: number(),
+          domainLookupStart: number(),
+          domainLookupEnd: number(),
+          connectStart: number(),
+          secureConnectionStart: number(),
+          connectEnd: number(),
+          requestStart: number(),
+          responseStart: number(),
+          responseEnd: number()
+        }
   def timing(request) do
     PlaywrightEx.Client.Request.timing(request)
   end

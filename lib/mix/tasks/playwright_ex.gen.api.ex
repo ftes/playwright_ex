@@ -16,7 +16,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   plus JS arguments), so regenerate after porting a method; the others are listed in the
   moduledoc as not ported. Each function sets the API name for errors, converts options
   (`PlaywrightEx.Runtime.Facade`), carries docs and specs, and calls the client directly, so a
-  client function that disappears is a compile warning.
+  client function that disappears is a compile warning. Docs render from the `spec` markdown AST;
+  options get a `@type <member>_options`.
 
     * `async: true` members: `name/n` returns `{:ok, value} | {:error, exception}` (`:ok` for
       `void`), `name!/n` returns the value or raises.
@@ -161,7 +162,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     #{Enum.map_join(ported, "\n\n", &member_source(ctx, class, &1, receiver))}
 
-    #{listeners_source(class, events, listeners, receiver)}
+    #{listeners_source(ctx, class, events, listeners, receiver)}
     """
 
     """
@@ -232,9 +233,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     call = "#{inspect(impl(class["name"]))}.#{name}(#{Enum.join([receiver | vars], ", ")})"
     void? = get_in(member, ["type", "name"]) == "void"
     head = "#{name}(#{Enum.join(params, ", ")})"
-    spec_args = Enum.join(["t()" | Enum.map(args, &spec(ctx, &1["type"], :in, &1))], ", ")
-    return = if void?, do: ":ok", else: spec(ctx, member["type"], :out, nil)
+    spec_args = Enum.join(["t()" | Enum.map(args, &arg_spec(ctx, &1, name))], ", ")
+    return = if void?, do: ":ok", else: type_spec(ctx, member["type"], :out)
     docs = since(member) <> deprecated(member) <> "@doc #{doc(member_doc(ctx, member, args))}"
+
+    attributes =
+      Enum.join([attributes | for(%{"name" => "options"} = arg <- args, do: options_type(ctx, name, arg))], "\n\n")
 
     if member["async"] do
       fun = "fn -> #{call} end"
@@ -339,9 +343,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp deprecated(_member), do: ""
 
-  defp listeners_source(_class, _events, [], _receiver), do: ""
+  defp listeners_source(_ctx, _class, _events, [], _receiver), do: ""
 
-  defp listeners_source(class, events, listeners, receiver) do
+  # One spec per event, as the overloads in upstream's types.d.ts.
+  defp listeners_source(ctx, class, events, listeners, receiver) do
     table = {:map, Enum.map(events, &{event_atom(&1), String.downcase(&1["name"])})}
 
     funs =
@@ -359,13 +364,18 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
         """
         @doc #{inspect(doc)}
         @doc group: "Events"
-        @spec #{name}(t(), event(), (term() -> term())) :: t()
+        #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}
         def #{name}(#{receiver}, event, listener),
           do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}), listener)
         """
       end)
 
     "@events #{render(table)}\n\n" <> funs
+  end
+
+  defp listener_spec(ctx, name, event) do
+    payload = if event["type"], do: type_spec(ctx, event["type"], :out), else: "nil"
+    "@spec #{name}(t(), #{inspect(event_atom(event))}, (#{payload} -> term())) :: t()"
   end
 
   # --- types ---------------------------------------------------------------------
@@ -434,29 +444,58 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     "void" => "nil"
   }
 
-  defp spec(ctx, type, dir, arg) do
-    base = type_spec(ctx, type, dir)
+  # Inputs as the facade takes them (snake_case keys, enums as atoms), outputs as the client
+  # returns them (JS keys, enums as strings).
+  defp arg_spec(_ctx, %{"name" => "options"}, name), do: "#{name}_options()"
+  defp arg_spec(ctx, arg, _name), do: nullable(arg, prop_spec(ctx, arg))
 
-    case arg do
-      %{"name" => "options"} -> "keyword() | map()"
-      %{"name" => "timeout"} -> "#{base} | :infinity"
-      %{"required" => false} -> "#{base} | nil"
-      _ -> base
-    end
+  defp nullable(%{"required" => false}, spec), do: "#{spec} | nil"
+  defp nullable(_arg, spec), do: spec
+
+  defp prop_spec(_ctx, %{"name" => "timeout"}), do: "number() | :infinity"
+  defp prop_spec(ctx, prop), do: type_spec(ctx, prop["type"], :in)
+
+  defp options_type(ctx, name, arg) do
+    props = Enum.uniq_by(arg["type"]["properties"], & &1["name"])
+    keyword = Enum.map_join(props, ", ", &"#{key(atom(&1["name"]))} #{prop_spec(ctx, &1)}")
+    map = Enum.map_join(props, ", ", &"optional(#{inspect(atom(&1["name"]))}) => #{prop_spec(ctx, &1)}")
+
+    """
+    @typedoc "Options of `#{name}`, see its docs."
+    @type #{name}_options :: [#{keyword}] | %{#{map}}
+    """
   end
 
-  defp type_spec(_ctx, nil, _dir), do: "nil"
+  defp type_spec(_ctx, nil, _dir), do: "term()"
 
   defp type_spec(ctx, %{"union" => union}, dir) when is_list(union),
     do: union |> Enum.map(&type_spec(ctx, &1, dir)) |> Enum.uniq() |> Enum.join(" | ")
 
-  defp type_spec(_ctx, %{"properties" => props}, dir) when is_list(props) and props != [],
-    do: if(dir == :in, do: "keyword() | map()", else: "map()")
+  defp type_spec(ctx, %{"properties" => props}, dir) when is_list(props) and props != [],
+    do: object_spec(ctx, Enum.uniq_by(props, & &1["name"]), dir)
 
   # `X | null` results are `nil` (`from_nullable`); `:null` is a JS value passed in.
   defp type_spec(_ctx, %{"name" => "null"}, :out), do: "nil"
+  defp type_spec(_ctx, %{"name" => "\"" <> _}, :out), do: "String.t()"
   defp type_spec(ctx, %{"name" => "Array", "templates" => [item]}, dir), do: "[#{type_spec(ctx, item, dir)}]"
+
+  defp type_spec(ctx, %{"name" => "Object", "templates" => [key, value]}, dir),
+    do: "%{optional(#{type_spec(ctx, key, dir)}) => #{type_spec(ctx, value, dir)}}"
+
   defp type_spec(_ctx, %{"name" => "Object"}, _dir), do: "map()"
+  defp type_spec(ctx, %{"name" => "Promise", "templates" => [value]}, dir), do: type_spec(ctx, value, dir)
+
+  # A callback: Playwright passes the arguments (outputs) and takes the result (an input).
+  defp type_spec(ctx, %{"name" => "function", "args" => args} = fun, _dir) when is_list(args) do
+    result =
+      case fun["returnType"] do
+        %{"name" => name} when name in ["void", "any", "Promise"] -> "term()"
+        nil -> "term()"
+        type -> type_spec(ctx, type, :in)
+      end
+
+    "(#{Enum.map_join(args, ", ", &type_spec(ctx, &1, :out))} -> #{result})"
+  end
 
   defp type_spec(ctx, %{"name" => name}, _dir) do
     cond do
@@ -466,6 +505,30 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       true -> "term()"
     end
   end
+
+  # Results have the JS keys, `%{width: number(), height: number()}`.
+  defp object_spec(ctx, props, :out) do
+    fields = for p <- props, do: {p["required"], String.to_atom(p["name"]), type_spec(ctx, p["type"], :out)}
+
+    if Enum.all?(fields, &elem(&1, 0)),
+      do: "%{#{Enum.map_join(fields, ", ", fn {_, k, t} -> "#{key(k)} #{t}" end)}}",
+      else: "%{#{Enum.map_join(fields, ", ", &map_field/1)}}"
+  end
+
+  # Nested inputs: a map or keyword list with snake_case keys, or the JS keys of a result
+  # passed back (`storage_state`), so either spelling is optional when they differ.
+  defp object_spec(ctx, props, :in) do
+    fields =
+      Enum.flat_map(props, fn p ->
+        {snake, js, t} = {atom(p["name"]), String.to_atom(p["name"]), prop_spec(ctx, p)}
+        if snake == js, do: [{p["required"], snake, t}], else: [{false, snake, t}, {false, js, t}]
+      end)
+
+    "%{#{Enum.map_join(fields, ", ", &map_field/1)}} | keyword()"
+  end
+
+  defp map_field({true, key, type}), do: "required(#{inspect(key)}) => #{type}"
+  defp map_field({_, key, type}), do: "optional(#{inspect(key)}) => #{type}"
 
   # --- names and docs --------------------------------------------------------------
 

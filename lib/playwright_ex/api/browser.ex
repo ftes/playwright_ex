@@ -49,6 +49,9 @@ defmodule PlaywrightEx.Browser do
 
   @close_options {:object, %{reason: {:reason, nil}}}
 
+  @typedoc "Options of `close`, see its docs."
+  @type close_options :: [reason: String.t()] | %{optional(:reason) => String.t()}
+
   @doc since: "1.8"
   @doc ~S"""
   In case this browser is obtained using `PlaywrightEx.BrowserType.launch/2`, closes the browser and all of its pages (if any
@@ -67,7 +70,7 @@ defmodule PlaywrightEx.Browser do
 
   * `:reason` - *Since 1.40.* The reason to be reported to the operations interrupted by the browser closure.
   """
-  @spec close(t(), keyword() | map()) :: :ok | {:error, Exception.t()}
+  @spec close(t(), close_options()) :: :ok | {:error, Exception.t()}
   def close(browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
     Facade.async_void("browser.close", browser, fn -> PlaywrightEx.Client.Browser.close(browser, options) end)
@@ -75,7 +78,7 @@ defmodule PlaywrightEx.Browser do
 
   @doc since: "1.8"
   @doc "Like `close/2`, but returns the value and raises on error."
-  @spec close!(t(), keyword() | map()) :: :ok
+  @spec close!(t(), close_options()) :: :ok
   def close!(browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
     Facade.async_void!("browser.close", browser, fn -> PlaywrightEx.Client.Browser.close(browser, options) end)
@@ -254,6 +257,310 @@ defmodule PlaywrightEx.Browser do
                           viewport: {:viewport, {:object, %{width: {:width, nil}, height: {:height, nil}}}}
                         }}
 
+  @typedoc "Options of `new_context`, see its docs."
+  @type new_context_options ::
+          [
+            accept_downloads: boolean(),
+            base_url: String.t(),
+            bypass_csp: boolean(),
+            client_certificates: [
+              %{
+                required(:origin) => String.t(),
+                optional(:cert_path) => String.t(),
+                optional(:certPath) => String.t(),
+                optional(:cert) => binary(),
+                optional(:key_path) => String.t(),
+                optional(:keyPath) => String.t(),
+                optional(:key) => binary(),
+                optional(:pfx_path) => String.t(),
+                optional(:pfxPath) => String.t(),
+                optional(:pfx) => binary(),
+                optional(:passphrase) => String.t()
+              }
+              | keyword()
+            ],
+            color_scheme: :null | :light | :dark | :no_preference,
+            contrast: :null | :no_preference | :more,
+            device_scale_factor: number(),
+            extra_http_headers: %{optional(String.t()) => String.t()},
+            forced_colors: :null | :active | :none,
+            geolocation:
+              %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+              | keyword(),
+            has_touch: boolean(),
+            http_credentials:
+              %{
+                required(:username) => String.t(),
+                required(:password) => String.t(),
+                optional(:origin) => String.t(),
+                optional(:send) => :unauthorized | :always
+              }
+              | keyword()
+              | [
+                  %{
+                    required(:username) => String.t(),
+                    required(:password) => String.t(),
+                    optional(:origin) => String.t(),
+                    optional(:send) => :unauthorized | :always
+                  }
+                  | keyword()
+                ],
+            ignore_https_errors: boolean(),
+            is_mobile: boolean(),
+            java_script_enabled: boolean(),
+            locale: String.t(),
+            offline: boolean(),
+            permissions: [String.t()],
+            proxy:
+              %{
+                required(:server) => String.t(),
+                optional(:bypass) => String.t(),
+                optional(:username) => String.t(),
+                optional(:password) => String.t()
+              }
+              | keyword(),
+            record_har:
+              %{
+                optional(:omit_content) => boolean(),
+                optional(:omitContent) => boolean(),
+                optional(:content) => :omit | :embed | :attach,
+                required(:path) => String.t(),
+                optional(:mode) => :full | :minimal,
+                optional(:url_filter) => String.t() | Regex.t(),
+                optional(:urlFilter) => String.t() | Regex.t()
+              }
+              | keyword(),
+            record_video:
+              %{
+                optional(:dir) => String.t(),
+                optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+                optional(:fps) => integer(),
+                optional(:show_actions) =>
+                  %{
+                    optional(:duration) => number(),
+                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                    optional(:font_size) => integer(),
+                    optional(:fontSize) => integer(),
+                    optional(:cursor) => :none | :pointer,
+                    optional(:style) =>
+                      %{
+                        optional(:point) => String.t(),
+                        optional(:highlight) => String.t(),
+                        optional(:title) => String.t()
+                      }
+                      | keyword()
+                  }
+                  | keyword(),
+                optional(:showActions) =>
+                  %{
+                    optional(:duration) => number(),
+                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                    optional(:font_size) => integer(),
+                    optional(:fontSize) => integer(),
+                    optional(:cursor) => :none | :pointer,
+                    optional(:style) =>
+                      %{
+                        optional(:point) => String.t(),
+                        optional(:highlight) => String.t(),
+                        optional(:title) => String.t()
+                      }
+                      | keyword()
+                  }
+                  | keyword()
+              }
+              | keyword(),
+            reduced_motion: :null | :reduce | :no_preference,
+            screen: %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+            service_workers: :allow | :block,
+            storage_state:
+              String.t()
+              | %{
+                  required(:cookies) => [
+                    %{
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      optional(:http_only) => boolean(),
+                      optional(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      optional(:same_site) => :strict | :lax | :none,
+                      optional(:sameSite) => :strict | :lax | :none
+                    }
+                    | keyword()
+                  ],
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      optional(:local_storage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                      ],
+                      optional(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                      ]
+                    }
+                    | keyword()
+                  ]
+                }
+              | keyword(),
+            strict_selectors: boolean(),
+            timezone_id: String.t(),
+            user_agent: String.t(),
+            viewport: :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+          ]
+          | %{
+              optional(:accept_downloads) => boolean(),
+              optional(:base_url) => String.t(),
+              optional(:bypass_csp) => boolean(),
+              optional(:client_certificates) => [
+                %{
+                  required(:origin) => String.t(),
+                  optional(:cert_path) => String.t(),
+                  optional(:certPath) => String.t(),
+                  optional(:cert) => binary(),
+                  optional(:key_path) => String.t(),
+                  optional(:keyPath) => String.t(),
+                  optional(:key) => binary(),
+                  optional(:pfx_path) => String.t(),
+                  optional(:pfxPath) => String.t(),
+                  optional(:pfx) => binary(),
+                  optional(:passphrase) => String.t()
+                }
+                | keyword()
+              ],
+              optional(:color_scheme) => :null | :light | :dark | :no_preference,
+              optional(:contrast) => :null | :no_preference | :more,
+              optional(:device_scale_factor) => number(),
+              optional(:extra_http_headers) => %{optional(String.t()) => String.t()},
+              optional(:forced_colors) => :null | :active | :none,
+              optional(:geolocation) =>
+                %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+                | keyword(),
+              optional(:has_touch) => boolean(),
+              optional(:http_credentials) =>
+                %{
+                  required(:username) => String.t(),
+                  required(:password) => String.t(),
+                  optional(:origin) => String.t(),
+                  optional(:send) => :unauthorized | :always
+                }
+                | keyword()
+                | [
+                    %{
+                      required(:username) => String.t(),
+                      required(:password) => String.t(),
+                      optional(:origin) => String.t(),
+                      optional(:send) => :unauthorized | :always
+                    }
+                    | keyword()
+                  ],
+              optional(:ignore_https_errors) => boolean(),
+              optional(:is_mobile) => boolean(),
+              optional(:java_script_enabled) => boolean(),
+              optional(:locale) => String.t(),
+              optional(:offline) => boolean(),
+              optional(:permissions) => [String.t()],
+              optional(:proxy) =>
+                %{
+                  required(:server) => String.t(),
+                  optional(:bypass) => String.t(),
+                  optional(:username) => String.t(),
+                  optional(:password) => String.t()
+                }
+                | keyword(),
+              optional(:record_har) =>
+                %{
+                  optional(:omit_content) => boolean(),
+                  optional(:omitContent) => boolean(),
+                  optional(:content) => :omit | :embed | :attach,
+                  required(:path) => String.t(),
+                  optional(:mode) => :full | :minimal,
+                  optional(:url_filter) => String.t() | Regex.t(),
+                  optional(:urlFilter) => String.t() | Regex.t()
+                }
+                | keyword(),
+              optional(:record_video) =>
+                %{
+                  optional(:dir) => String.t(),
+                  optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+                  optional(:fps) => integer(),
+                  optional(:show_actions) =>
+                    %{
+                      optional(:duration) => number(),
+                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                      optional(:font_size) => integer(),
+                      optional(:fontSize) => integer(),
+                      optional(:cursor) => :none | :pointer,
+                      optional(:style) =>
+                        %{
+                          optional(:point) => String.t(),
+                          optional(:highlight) => String.t(),
+                          optional(:title) => String.t()
+                        }
+                        | keyword()
+                    }
+                    | keyword(),
+                  optional(:showActions) =>
+                    %{
+                      optional(:duration) => number(),
+                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                      optional(:font_size) => integer(),
+                      optional(:fontSize) => integer(),
+                      optional(:cursor) => :none | :pointer,
+                      optional(:style) =>
+                        %{
+                          optional(:point) => String.t(),
+                          optional(:highlight) => String.t(),
+                          optional(:title) => String.t()
+                        }
+                        | keyword()
+                    }
+                    | keyword()
+                }
+                | keyword(),
+              optional(:reduced_motion) => :null | :reduce | :no_preference,
+              optional(:screen) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+              optional(:service_workers) => :allow | :block,
+              optional(:storage_state) =>
+                String.t()
+                | %{
+                    required(:cookies) => [
+                      %{
+                        required(:name) => String.t(),
+                        required(:value) => String.t(),
+                        required(:domain) => String.t(),
+                        required(:path) => String.t(),
+                        required(:expires) => number(),
+                        optional(:http_only) => boolean(),
+                        optional(:httpOnly) => boolean(),
+                        required(:secure) => boolean(),
+                        optional(:same_site) => :strict | :lax | :none,
+                        optional(:sameSite) => :strict | :lax | :none
+                      }
+                      | keyword()
+                    ],
+                    required(:origins) => [
+                      %{
+                        required(:origin) => String.t(),
+                        optional(:local_storage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                        ],
+                        optional(:localStorage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                        ]
+                      }
+                      | keyword()
+                    ]
+                  }
+                | keyword(),
+              optional(:strict_selectors) => boolean(),
+              optional(:timezone_id) => String.t(),
+              optional(:user_agent) => String.t(),
+              optional(:viewport) =>
+                :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   Creates a new browser context. It won't share cookies/cache with other browser contexts.
@@ -415,7 +722,7 @@ defmodule PlaywrightEx.Browser do
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
   """
-  @spec new_context(t(), keyword() | map()) :: {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
+  @spec new_context(t(), new_context_options()) :: {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
   def new_context(browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
     Facade.async("browser.newContext", browser, fn -> PlaywrightEx.Client.Browser.new_context(browser, options) end)
@@ -423,7 +730,7 @@ defmodule PlaywrightEx.Browser do
 
   @doc since: "1.8"
   @doc "Like `new_context/2`, but returns the value and raises on error."
-  @spec new_context!(t(), keyword() | map()) :: PlaywrightEx.BrowserContext.t()
+  @spec new_context!(t(), new_context_options()) :: PlaywrightEx.BrowserContext.t()
   def new_context!(browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
     Facade.async!("browser.newContext", browser, fn -> PlaywrightEx.Client.Browser.new_context(browser, options) end)
@@ -572,6 +879,310 @@ defmodule PlaywrightEx.Browser do
                        viewport: {:viewport, {:object, %{width: {:width, nil}, height: {:height, nil}}}}
                      }}
 
+  @typedoc "Options of `new_page`, see its docs."
+  @type new_page_options ::
+          [
+            accept_downloads: boolean(),
+            base_url: String.t(),
+            bypass_csp: boolean(),
+            client_certificates: [
+              %{
+                required(:origin) => String.t(),
+                optional(:cert_path) => String.t(),
+                optional(:certPath) => String.t(),
+                optional(:cert) => binary(),
+                optional(:key_path) => String.t(),
+                optional(:keyPath) => String.t(),
+                optional(:key) => binary(),
+                optional(:pfx_path) => String.t(),
+                optional(:pfxPath) => String.t(),
+                optional(:pfx) => binary(),
+                optional(:passphrase) => String.t()
+              }
+              | keyword()
+            ],
+            color_scheme: :null | :light | :dark | :no_preference,
+            contrast: :null | :no_preference | :more,
+            device_scale_factor: number(),
+            extra_http_headers: %{optional(String.t()) => String.t()},
+            forced_colors: :null | :active | :none,
+            geolocation:
+              %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+              | keyword(),
+            has_touch: boolean(),
+            http_credentials:
+              %{
+                required(:username) => String.t(),
+                required(:password) => String.t(),
+                optional(:origin) => String.t(),
+                optional(:send) => :unauthorized | :always
+              }
+              | keyword()
+              | [
+                  %{
+                    required(:username) => String.t(),
+                    required(:password) => String.t(),
+                    optional(:origin) => String.t(),
+                    optional(:send) => :unauthorized | :always
+                  }
+                  | keyword()
+                ],
+            ignore_https_errors: boolean(),
+            is_mobile: boolean(),
+            java_script_enabled: boolean(),
+            locale: String.t(),
+            offline: boolean(),
+            permissions: [String.t()],
+            proxy:
+              %{
+                required(:server) => String.t(),
+                optional(:bypass) => String.t(),
+                optional(:username) => String.t(),
+                optional(:password) => String.t()
+              }
+              | keyword(),
+            record_har:
+              %{
+                optional(:omit_content) => boolean(),
+                optional(:omitContent) => boolean(),
+                optional(:content) => :omit | :embed | :attach,
+                required(:path) => String.t(),
+                optional(:mode) => :full | :minimal,
+                optional(:url_filter) => String.t() | Regex.t(),
+                optional(:urlFilter) => String.t() | Regex.t()
+              }
+              | keyword(),
+            record_video:
+              %{
+                optional(:dir) => String.t(),
+                optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+                optional(:fps) => integer(),
+                optional(:show_actions) =>
+                  %{
+                    optional(:duration) => number(),
+                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                    optional(:font_size) => integer(),
+                    optional(:fontSize) => integer(),
+                    optional(:cursor) => :none | :pointer,
+                    optional(:style) =>
+                      %{
+                        optional(:point) => String.t(),
+                        optional(:highlight) => String.t(),
+                        optional(:title) => String.t()
+                      }
+                      | keyword()
+                  }
+                  | keyword(),
+                optional(:showActions) =>
+                  %{
+                    optional(:duration) => number(),
+                    optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                    optional(:font_size) => integer(),
+                    optional(:fontSize) => integer(),
+                    optional(:cursor) => :none | :pointer,
+                    optional(:style) =>
+                      %{
+                        optional(:point) => String.t(),
+                        optional(:highlight) => String.t(),
+                        optional(:title) => String.t()
+                      }
+                      | keyword()
+                  }
+                  | keyword()
+              }
+              | keyword(),
+            reduced_motion: :null | :reduce | :no_preference,
+            screen: %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+            service_workers: :allow | :block,
+            storage_state:
+              String.t()
+              | %{
+                  required(:cookies) => [
+                    %{
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      optional(:http_only) => boolean(),
+                      optional(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      optional(:same_site) => :strict | :lax | :none,
+                      optional(:sameSite) => :strict | :lax | :none
+                    }
+                    | keyword()
+                  ],
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      optional(:local_storage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                      ],
+                      optional(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                      ]
+                    }
+                    | keyword()
+                  ]
+                }
+              | keyword(),
+            strict_selectors: boolean(),
+            timezone_id: String.t(),
+            user_agent: String.t(),
+            viewport: :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+          ]
+          | %{
+              optional(:accept_downloads) => boolean(),
+              optional(:base_url) => String.t(),
+              optional(:bypass_csp) => boolean(),
+              optional(:client_certificates) => [
+                %{
+                  required(:origin) => String.t(),
+                  optional(:cert_path) => String.t(),
+                  optional(:certPath) => String.t(),
+                  optional(:cert) => binary(),
+                  optional(:key_path) => String.t(),
+                  optional(:keyPath) => String.t(),
+                  optional(:key) => binary(),
+                  optional(:pfx_path) => String.t(),
+                  optional(:pfxPath) => String.t(),
+                  optional(:pfx) => binary(),
+                  optional(:passphrase) => String.t()
+                }
+                | keyword()
+              ],
+              optional(:color_scheme) => :null | :light | :dark | :no_preference,
+              optional(:contrast) => :null | :no_preference | :more,
+              optional(:device_scale_factor) => number(),
+              optional(:extra_http_headers) => %{optional(String.t()) => String.t()},
+              optional(:forced_colors) => :null | :active | :none,
+              optional(:geolocation) =>
+                %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+                | keyword(),
+              optional(:has_touch) => boolean(),
+              optional(:http_credentials) =>
+                %{
+                  required(:username) => String.t(),
+                  required(:password) => String.t(),
+                  optional(:origin) => String.t(),
+                  optional(:send) => :unauthorized | :always
+                }
+                | keyword()
+                | [
+                    %{
+                      required(:username) => String.t(),
+                      required(:password) => String.t(),
+                      optional(:origin) => String.t(),
+                      optional(:send) => :unauthorized | :always
+                    }
+                    | keyword()
+                  ],
+              optional(:ignore_https_errors) => boolean(),
+              optional(:is_mobile) => boolean(),
+              optional(:java_script_enabled) => boolean(),
+              optional(:locale) => String.t(),
+              optional(:offline) => boolean(),
+              optional(:permissions) => [String.t()],
+              optional(:proxy) =>
+                %{
+                  required(:server) => String.t(),
+                  optional(:bypass) => String.t(),
+                  optional(:username) => String.t(),
+                  optional(:password) => String.t()
+                }
+                | keyword(),
+              optional(:record_har) =>
+                %{
+                  optional(:omit_content) => boolean(),
+                  optional(:omitContent) => boolean(),
+                  optional(:content) => :omit | :embed | :attach,
+                  required(:path) => String.t(),
+                  optional(:mode) => :full | :minimal,
+                  optional(:url_filter) => String.t() | Regex.t(),
+                  optional(:urlFilter) => String.t() | Regex.t()
+                }
+                | keyword(),
+              optional(:record_video) =>
+                %{
+                  optional(:dir) => String.t(),
+                  optional(:size) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+                  optional(:fps) => integer(),
+                  optional(:show_actions) =>
+                    %{
+                      optional(:duration) => number(),
+                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                      optional(:font_size) => integer(),
+                      optional(:fontSize) => integer(),
+                      optional(:cursor) => :none | :pointer,
+                      optional(:style) =>
+                        %{
+                          optional(:point) => String.t(),
+                          optional(:highlight) => String.t(),
+                          optional(:title) => String.t()
+                        }
+                        | keyword()
+                    }
+                    | keyword(),
+                  optional(:showActions) =>
+                    %{
+                      optional(:duration) => number(),
+                      optional(:position) => :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right,
+                      optional(:font_size) => integer(),
+                      optional(:fontSize) => integer(),
+                      optional(:cursor) => :none | :pointer,
+                      optional(:style) =>
+                        %{
+                          optional(:point) => String.t(),
+                          optional(:highlight) => String.t(),
+                          optional(:title) => String.t()
+                        }
+                        | keyword()
+                    }
+                    | keyword()
+                }
+                | keyword(),
+              optional(:reduced_motion) => :null | :reduce | :no_preference,
+              optional(:screen) => %{required(:width) => integer(), required(:height) => integer()} | keyword(),
+              optional(:service_workers) => :allow | :block,
+              optional(:storage_state) =>
+                String.t()
+                | %{
+                    required(:cookies) => [
+                      %{
+                        required(:name) => String.t(),
+                        required(:value) => String.t(),
+                        required(:domain) => String.t(),
+                        required(:path) => String.t(),
+                        required(:expires) => number(),
+                        optional(:http_only) => boolean(),
+                        optional(:httpOnly) => boolean(),
+                        required(:secure) => boolean(),
+                        optional(:same_site) => :strict | :lax | :none,
+                        optional(:sameSite) => :strict | :lax | :none
+                      }
+                      | keyword()
+                    ],
+                    required(:origins) => [
+                      %{
+                        required(:origin) => String.t(),
+                        optional(:local_storage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                        ],
+                        optional(:localStorage) => [
+                          %{required(:name) => String.t(), required(:value) => String.t()} | keyword()
+                        ]
+                      }
+                      | keyword()
+                    ]
+                  }
+                | keyword(),
+              optional(:strict_selectors) => boolean(),
+              optional(:timezone_id) => String.t(),
+              optional(:user_agent) => String.t(),
+              optional(:viewport) =>
+                :null | %{required(:width) => integer(), required(:height) => integer()} | keyword()
+            }
+
   @doc since: "1.8"
   @doc ~S"""
   Creates a new page in a new browser context. Closing this page will close the context as well.
@@ -715,7 +1326,7 @@ defmodule PlaywrightEx.Browser do
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
   """
-  @spec new_page(t(), keyword() | map()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
+  @spec new_page(t(), new_page_options()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
   def new_page(browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
     Facade.async("browser.newPage", browser, fn -> PlaywrightEx.Client.Browser.new_page(browser, options) end)
@@ -723,7 +1334,7 @@ defmodule PlaywrightEx.Browser do
 
   @doc since: "1.8"
   @doc "Like `new_page/2`, but returns the value and raises on error."
-  @spec new_page!(t(), keyword() | map()) :: PlaywrightEx.Page.t()
+  @spec new_page!(t(), new_page_options()) :: PlaywrightEx.Page.t()
   def new_page!(browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
     Facade.async!("browser.newPage", browser, fn -> PlaywrightEx.Client.Browser.new_page(browser, options) end)
@@ -742,26 +1353,30 @@ defmodule PlaywrightEx.Browser do
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec on(t(), event(), (term() -> term())) :: t()
+  @spec on(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec on(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
   def on(browser, event, listener),
     do: PlaywrightEx.Client.Browser.on(browser, Facade.event!(event, @events, "browser.on"), listener)
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
-  @spec once(t(), event(), (term() -> term())) :: t()
+  @spec once(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec once(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
   def once(browser, event, listener),
     do: PlaywrightEx.Client.Browser.once(browser, Facade.event!(event, @events, "browser.once"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec add_listener(t(), event(), (term() -> term())) :: t()
+  @spec add_listener(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec add_listener(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
   def add_listener(browser, event, listener),
     do:
       PlaywrightEx.Client.Browser.add_listener(browser, Facade.event!(event, @events, "browser.addListener"), listener)
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
-  @spec remove_listener(t(), event(), (term() -> term())) :: t()
+  @spec remove_listener(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec remove_listener(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
   def remove_listener(browser, event, listener),
     do:
       PlaywrightEx.Client.Browser.remove_listener(
@@ -772,13 +1387,15 @@ defmodule PlaywrightEx.Browser do
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
-  @spec off(t(), event(), (term() -> term())) :: t()
+  @spec off(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec off(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
   def off(browser, event, listener),
     do: PlaywrightEx.Client.Browser.off(browser, Facade.event!(event, @events, "browser.off"), listener)
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
-  @spec prepend_listener(t(), event(), (term() -> term())) :: t()
+  @spec prepend_listener(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
+  @spec prepend_listener(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
   def prepend_listener(browser, event, listener),
     do:
       PlaywrightEx.Client.Browser.prepend_listener(
