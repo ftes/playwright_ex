@@ -189,7 +189,9 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `close`, the `:page` event, the `Request`/`Response` that `goto` needs), with mirrored
    `page-goto`/`browsercontext-basic` specs and the two launch specs waiting on Page and
    BrowserContext. Done so far: `Request`/`Response`/`RawHeaders` (network.ts, without
-   routing and `finished`). Release gate: "generate
+   routing and `finished`), `BrowserContext` and `Browser.new_context` (without pages,
+   routing, bindings, tracing; `waitForEvent` waits for the promise handle above).
+   Release gate: "generate
    all". Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
    Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
    generator stops checking client exports and emits every remaining member, so a missing

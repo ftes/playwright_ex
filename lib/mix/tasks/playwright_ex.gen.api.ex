@@ -254,7 +254,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       @spec #{name}(#{spec_args}) :: #{return}
       def #{head} do
         #{conversions}
-        #{call}
+        #{call}#{if void?, do: "\n:ok"}
       end
       """
     end
@@ -313,6 +313,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # --- types ---------------------------------------------------------------------
 
   # Schemas keep api.json order: `{:map, pairs}` is written as a map literal in that order.
+  # A positional `timeout` accepts `:infinity`, as the `timeout:` option does.
+  defp arg_schema(_ctx, %{"name" => "timeout"}), do: :timeout
   defp arg_schema(ctx, arg), do: schema(ctx, arg["type"])
 
   defp schema(_ctx, nil), do: nil
@@ -379,6 +381,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     case arg do
       %{"name" => "options"} -> "keyword() | map()"
+      %{"name" => "timeout"} -> "#{base} | :infinity"
       %{"required" => false} -> "#{base} | nil"
       _ -> base
     end

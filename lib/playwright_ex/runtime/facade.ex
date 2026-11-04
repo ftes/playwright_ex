@@ -12,9 +12,10 @@ defmodule PlaywrightEx.Runtime.Facade do
       `ArgumentError`, as there are no options beyond the official ones.
     * Enums: atoms (`:no_preference`) become the wire strings (`"no-preference"`); strings
       pass through.
-    * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS).
+    * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS), likewise a positional
+      `timeout` (`set_default_timeout(context, :infinity)`).
 
-  A type is `nil` (passed through), `{:object, %{key => {js_key, type}}}`, `{:array, type}`,
+  A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`, `{:array, type}`,
   `{:enum, %{atom => string}}` or `{:union, [type]}`.
   """
   alias PlaywrightEx.Runtime.Api
@@ -57,6 +58,7 @@ defmodule PlaywrightEx.Runtime.Facade do
 
   defp convert!(nil, _type, _api_name, _path), do: nil
   defp convert!(value, nil, _api_name, _path), do: value
+  defp convert!(value, :timeout, _api_name, _path), do: timeout(:timeout, value)
 
   defp convert!(value, {:object, schema}, api_name, path) do
     if object?(value), do: object!(value, schema, api_name, path), else: value

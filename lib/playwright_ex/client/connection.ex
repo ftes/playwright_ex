@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Client.Connection do
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.Browser
+  alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Errors
@@ -79,7 +80,7 @@ defmodule PlaywrightEx.Client.Connection do
         "Artifact" => dummy,
         "BindingCall" => dummy,
         "Browser" => &Browser.new/4,
-        "BrowserContext" => dummy,
+        "BrowserContext" => &BrowserContext.new/4,
         "BrowserType" => &BrowserType.new/4,
         "CDPSession" => dummy,
         "Debugger" => dummy,

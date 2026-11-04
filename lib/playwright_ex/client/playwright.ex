@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Client.Playwright do
   use PlaywrightEx.Client.ChannelOwner
 
   alias PlaywrightEx.Client.Browser
+  alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.BrowserType
   alias PlaywrightEx.Client.Connection
 
@@ -53,7 +54,6 @@ defmodule PlaywrightEx.Client.Playwright do
   end
 
   def _all_pages(this) do
-    # context.pages()  -- not ported: BrowserContext
-    Enum.flat_map(_all_contexts(this), fn _context -> [] end)
+    Enum.flat_map(_all_contexts(this), &BrowserContext.pages/1)
   end
 end

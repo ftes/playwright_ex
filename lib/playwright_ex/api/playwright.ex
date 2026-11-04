@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Playwright do
   end
 
   @doc ~S"""
-  Returns a dictionary of devices to be used with `Browser.newContext` or `Browser.newPage`.
+  Returns a dictionary of devices to be used with `PlaywrightEx.Browser.new_context/2` or `Browser.newPage`.
 
   ```js
   const { webkit, devices } = require('playwright');

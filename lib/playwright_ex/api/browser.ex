@@ -23,7 +23,7 @@ defmodule PlaywrightEx.Browser do
       - Browser application is closed or crashed.
       - The `PlaywrightEx.Browser.close/2` method was called.
 
-  Not ported yet: `newBrowserCDPSession`, `newContext`, `newPage`, `bind`, `removeAllListeners`, `startTracing`, `stopTracing`, `unbind`.
+  Not ported yet: `newBrowserCDPSession`, `newPage`, `bind`, `removeAllListeners`, `startTracing`, `stopTracing`, `unbind`.
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -50,8 +50,8 @@ defmodule PlaywrightEx.Browser do
   the browser server.
 
   **NOTE** This is similar to force-quitting the browser. To close pages gracefully and ensure you receive page close
-  events, call `BrowserContext.close` on any `BrowserContext` instances you explicitly created earlier
-  using `Browser.newContext` **before** calling `PlaywrightEx.Browser.close/2`.
+  events, call `PlaywrightEx.BrowserContext.close/1` on any `BrowserContext` instances you explicitly created earlier
+  using `PlaywrightEx.Browser.new_context/2` **before** calling `PlaywrightEx.Browser.close/2`.
 
   The `Browser` object itself is considered to be disposed and cannot be used anymore.
 
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Browser do
   console.log(browser.contexts().length); // prints `1`
   ```
   """
-  @spec contexts(t()) :: [term()]
+  @spec contexts(t()) :: [PlaywrightEx.BrowserContext.t()]
   def contexts(browser) do
     PlaywrightEx.Client.Browser.contexts(browser)
   end
@@ -96,6 +96,283 @@ defmodule PlaywrightEx.Browser do
   @spec is_connected(t()) :: boolean()
   def is_connected(browser) do
     PlaywrightEx.Client.Browser.is_connected(browser)
+  end
+
+  @new_context_options {:object,
+                        %{
+                          accept_downloads: {:acceptDownloads, nil},
+                          base_url: {:baseURL, nil},
+                          bypass_csp: {:bypassCSP, nil},
+                          client_certificates:
+                            {:clientCertificates,
+                             {:array,
+                              {:object,
+                               %{
+                                 origin: {:origin, nil},
+                                 cert_path: {:certPath, nil},
+                                 cert: {:cert, nil},
+                                 key_path: {:keyPath, nil},
+                                 key: {:key, nil},
+                                 pfx_path: {:pfxPath, nil},
+                                 pfx: {:pfx, nil},
+                                 passphrase: {:passphrase, nil}
+                               }}}},
+                          color_scheme:
+                            {:colorScheme, {:enum, %{light: "light", dark: "dark", no_preference: "no-preference"}}},
+                          contrast: {:contrast, {:enum, %{no_preference: "no-preference", more: "more"}}},
+                          device_scale_factor: {:deviceScaleFactor, nil},
+                          extra_http_headers: {:extraHTTPHeaders, nil},
+                          forced_colors: {:forcedColors, {:enum, %{active: "active", none: "none"}}},
+                          geolocation:
+                            {:geolocation,
+                             {:object,
+                              %{latitude: {:latitude, nil}, longitude: {:longitude, nil}, accuracy: {:accuracy, nil}}}},
+                          has_touch: {:hasTouch, nil},
+                          http_credentials:
+                            {:httpCredentials,
+                             {:union,
+                              [
+                                {:object,
+                                 %{
+                                   username: {:username, nil},
+                                   password: {:password, nil},
+                                   origin: {:origin, nil},
+                                   send: {:send, {:enum, %{unauthorized: "unauthorized", always: "always"}}}
+                                 }},
+                                {:array,
+                                 {:object,
+                                  %{
+                                    username: {:username, nil},
+                                    password: {:password, nil},
+                                    origin: {:origin, nil},
+                                    send: {:send, {:enum, %{unauthorized: "unauthorized", always: "always"}}}
+                                  }}}
+                              ]}},
+                          ignore_https_errors: {:ignoreHTTPSErrors, nil},
+                          is_mobile: {:isMobile, nil},
+                          java_script_enabled: {:javaScriptEnabled, nil},
+                          locale: {:locale, nil},
+                          offline: {:offline, nil},
+                          permissions: {:permissions, nil},
+                          proxy:
+                            {:proxy,
+                             {:object,
+                              %{
+                                server: {:server, nil},
+                                bypass: {:bypass, nil},
+                                username: {:username, nil},
+                                password: {:password, nil}
+                              }}},
+                          record_har:
+                            {:recordHar,
+                             {:object,
+                              %{
+                                omit_content: {:omitContent, nil},
+                                content: {:content, {:enum, %{omit: "omit", embed: "embed", attach: "attach"}}},
+                                path: {:path, nil},
+                                mode: {:mode, {:enum, %{full: "full", minimal: "minimal"}}},
+                                url_filter: {:urlFilter, nil}
+                              }}},
+                          record_video:
+                            {:recordVideo,
+                             {:object,
+                              %{
+                                dir: {:dir, nil},
+                                size: {:size, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
+                                fps: {:fps, nil},
+                                show_actions:
+                                  {:showActions,
+                                   {:object,
+                                    %{
+                                      duration: {:duration, nil},
+                                      position:
+                                        {:position,
+                                         {:enum,
+                                          %{
+                                            top_left: "top-left",
+                                            top: "top",
+                                            top_right: "top-right",
+                                            bottom_left: "bottom-left",
+                                            bottom: "bottom",
+                                            bottom_right: "bottom-right"
+                                          }}},
+                                      font_size: {:fontSize, nil},
+                                      cursor: {:cursor, {:enum, %{none: "none", pointer: "pointer"}}},
+                                      style:
+                                        {:style,
+                                         {:object,
+                                          %{point: {:point, nil}, highlight: {:highlight, nil}, title: {:title, nil}}}}
+                                    }}}
+                              }}},
+                          reduced_motion:
+                            {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
+                          screen: {:screen, {:object, %{width: {:width, nil}, height: {:height, nil}}}},
+                          service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
+                          storage_state:
+                            {:storageState,
+                             {:object,
+                              %{
+                                cookies:
+                                  {:cookies,
+                                   {:array,
+                                    {:object,
+                                     %{
+                                       name: {:name, nil},
+                                       value: {:value, nil},
+                                       domain: {:domain, nil},
+                                       path: {:path, nil},
+                                       expires: {:expires, nil},
+                                       http_only: {:httpOnly, nil},
+                                       secure: {:secure, nil},
+                                       same_site: {:sameSite, {:enum, %{strict: "Strict", lax: "Lax", none: "None"}}}
+                                     }}}},
+                                origins:
+                                  {:origins,
+                                   {:array,
+                                    {:object,
+                                     %{
+                                       origin: {:origin, nil},
+                                       local_storage:
+                                         {:localStorage,
+                                          {:array, {:object, %{name: {:name, nil}, value: {:value, nil}}}}}
+                                     }}}}
+                              }}},
+                          strict_selectors: {:strictSelectors, nil},
+                          timezone_id: {:timezoneId, nil},
+                          user_agent: {:userAgent, nil},
+                          viewport: {:viewport, {:object, %{width: {:width, nil}, height: {:height, nil}}}}
+                        }}
+
+  @doc ~S"""
+  Creates a new browser context. It won't share cookies/cache with other browser contexts.
+
+  **NOTE** If directly using this method to create `BrowserContext`s, it is best practice to explicitly close the
+  returned context via `PlaywrightEx.BrowserContext.close/1` when your code is done with the `BrowserContext`, and before
+  calling `PlaywrightEx.Browser.close/2`. This will ensure the `context` is closed gracefully and any artifacts—like HARs
+  and videos—are fully flushed and saved.
+
+  **Usage**
+
+  ```js
+  (async () => {
+    const browser = await playwright.firefox.launch();  // Or 'chromium' or 'webkit'.
+    // Create a new incognito browser context.
+    const context = await browser.newContext();
+    // Create a new page in a pristine context.
+    const page = await context.newPage();
+    await page.goto('https://example.com');
+
+    // Gracefully close up everything
+    await context.close();
+    await browser.close();
+  })();
+  ```
+
+  ## Options
+
+    * `:accept_downloads` - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
+    * `:base_url` - When using `Page.goto`, `Page.route`, `Page.waitForURL`,
+      `Page.waitForRequest`, or `Page.waitForResponse` it takes the base URL in consideration by
+      using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the
+      corresponding URL. Unset by default. Examples:
+      - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
+      - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
+      `http://localhost:3000/foo/bar.html`
+      - baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in
+      `http://localhost:3000/bar.html`
+    * `:bypass_csp` - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
+    * `:client_certificates` - TLS Client Authentication allows the server to request a client certificate and verify it.
+
+      **Details**
+
+      An array of client certificates to be used. Each certificate object must have either both `certPath` and `keyPath`,
+      a single `pfxPath`, or their corresponding direct value equivalents (`cert` and `key`, or `pfx`). Optionally,
+      `passphrase` property should be provided if the certificate is encrypted. The `origin` property should be provided
+      with an exact match to the request origin that the certificate is valid for.
+
+      Client certificate authentication is only active when at least one client certificate is provided. If you want to
+      reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
+      does not match any of the domains you plan to visit.
+
+      **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
+      work by replacing `localhost` with `local.playwright`.
+    * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme)
+      media feature, supported values are `'light'` and `'dark'`. See `Page.emulateMedia` for more details.
+      Passing `null` resets emulation to system defaults. Defaults to `'light'`.
+    * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See
+      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
+      `'no-preference'`.
+    * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
+      [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
+    * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
+    * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See
+      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
+      `'none'`.
+    * `:geolocation`
+    * `:has_touch` - Specifies if viewport supports touch events. Defaults to false. Learn more about
+      [mobile emulation](https://playwright.dev/docs/emulation#devices).
+    * `:http_credentials` - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+      origin is specified, the username and password are sent to any servers upon unauthorized responses.
+
+      Pass an array to use different credentials for different origins. The first entry that matches the request origin
+      is used, and entries with no origin match any request.
+    * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+    * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
+      so you don't actually need to set it manually. Defaults to `false`. Learn more about
+      [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
+    * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
+      [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
+    * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
+      `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
+      locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+    * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about
+      [network emulation](https://playwright.dev/docs/emulation#offline).
+    * `:permissions` - A list of permissions to grant to all pages in this context. See `PlaywrightEx.BrowserContext.grant_permissions/3` for
+      more details. Defaults to none.
+    * `:proxy` - Network proxy settings to use with this context. Defaults to none.
+    * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file.
+      If not specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/1` for the HAR to be
+      saved.
+    * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded.
+      Make sure to await `PlaywrightEx.BrowserContext.close/1` for videos to be saved.
+    * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See
+      `Page.emulateMedia` for more details. Passing `null` resets emulation to system defaults. Defaults to
+      `'no-preference'`.
+    * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
+      `viewport` is set.
+    * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `'allow'`.
+      - `'allow'`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be
+      registered.
+      - `'block'`: Playwright will block all registration of Service Workers.
+    * `:storage_state` - Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+
+      Populates context with given storage state. This option can be used to initialize context with logged-in
+      information obtained via `BrowserContext.storageState`.
+    * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
+      selectors that imply single target DOM element will throw when more than one element matches the selector. This
+      option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See `Locator` to learn
+      more about the strict mode.
+    * `:timezone_id` - Changes the timezone of the context. See
+      [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
+      for a list of supported timezone IDs. Defaults to the system timezone.
+    * `:user_agent` - Specific user agent to use in this context.
+    * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
+      viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
+
+      **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
+      by the operating system. It makes the execution of the tests non-deterministic.
+  """
+  @spec new_context(t(), keyword() | map()) :: {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
+  def new_context(browser, options \\ []) do
+    options = Facade.options!(options, @new_context_options, "browser.newContext")
+    Facade.async("browser.newContext", browser, fn -> PlaywrightEx.Client.Browser.new_context(browser, options) end)
+  end
+
+  @doc "Like `new_context/2`, but returns the value and raises on error."
+  @spec new_context!(t(), keyword() | map()) :: PlaywrightEx.BrowserContext.t()
+  def new_context!(browser, options \\ []) do
+    options = Facade.options!(options, @new_context_options, "browser.newContext")
+    Facade.async!("browser.newContext", browser, fn -> PlaywrightEx.Client.Browser.new_context(browser, options) end)
   end
 
   @doc ~S"""

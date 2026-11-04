@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
 
   @tag skip: "not ported: Page"
@@ -54,8 +55,14 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   @tag skip: "not ported: `process` is not a launch option (@ts-expect-error), the facade rejects it"
   test "should accept objects as options"
 
-  @tag skip: "not ported: BrowserContext"
-  test "should fire close event for all contexts"
+  test "should fire close event for all contexts", %{browser_type: browser_type} do
+    browser = BrowserType.launch!(browser_type)
+    context = Browser.new_context!(browser)
+    test = self()
+    BrowserContext.on(context, :close, fn _ -> send(test, :closed) end)
+    Browser.close!(browser)
+    assert_received :closed
+  end
 
   test "should be callable twice", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
