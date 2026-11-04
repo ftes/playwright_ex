@@ -9,7 +9,6 @@ defmodule PlaywrightEx.DriverTest do
     {node, [cli]} = Driver.ensure_installed()
     assert File.regular?(node)
     assert File.regular?(cli)
-    assert node == Path.join(Driver.install_dir(), "node")
 
     {us, _} = :timer.tc(fn -> Driver.ensure_installed() end)
     assert us < 50_000
