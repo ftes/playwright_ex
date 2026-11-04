@@ -115,8 +115,22 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert Exception.message(error) =~ "[webkitdirectory] input requires passing a path to a directory"
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should upload a file after popup"
+  test "should upload a file after popup", %{page: page, server: server, asset: asset} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/29923' }
+    Page.goto!(page, server.prefix <> "/input/fileupload.html")
+
+    popup =
+      Page.expect_event!(page, :popup, fn ->
+        Page.evaluate!(page, "() => window['__popup'] = window.open('about:blank')")
+      end)
+
+    Page.close!(popup)
+
+    file_path = Path.relative_to_cwd(asset.("file-to-upload.txt"))
+    input = Page.query_selector!(page, "input")
+    ElementHandle.set_input_files!(input, file_path)
+    assert Page.evaluate!(page, "e => e.files[0].name", input) == "file-to-upload.txt"
+  end
 
   @tag :tmp_dir
   @tag timeout: 300_000

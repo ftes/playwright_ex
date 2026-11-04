@@ -24,8 +24,41 @@ defmodule PlaywrightEx.Page.ElementhandleQuerySelectorTest do
     assert second == nil
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should work for adopted elements"
+  test "should work for adopted elements", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+
+    popup =
+      Page.expect_event!(page, :popup, fn ->
+        Page.evaluate!(page, "url => window['__popup'] = window.open(url)", server.empty_page)
+      end)
+
+    div_handle =
+      Page.evaluate_handle!(page, """
+      () => {
+        const div = document.createElement('div');
+        document.body.appendChild(div);
+        const span = document.createElement('span');
+        span.textContent = 'hello';
+        div.appendChild(span);
+        return div;
+      }
+      """)
+
+    assert ElementHandle.query_selector!(div_handle, "span")
+    assert ElementHandle.eval_on_selector!(div_handle, "span", "e => e.textContent") == "hello"
+
+    Page.wait_for_load_state!(popup, :domcontentloaded)
+
+    Page.evaluate!(page, """
+    () => {
+      const div = document.querySelector('div');
+      window['__popup'].document.body.appendChild(div);
+    }
+    """)
+
+    assert ElementHandle.query_selector!(div_handle, "span")
+    assert ElementHandle.eval_on_selector!(div_handle, "span", "e => e.textContent") == "hello"
+  end
 
   test "should query existing elements", %{page: page} do
     Page.set_content!(page, "<html><body><div>A</div><br/><div>B</div></body></html>")

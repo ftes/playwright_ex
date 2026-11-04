@@ -77,6 +77,33 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(div_handle) == Page.main_frame(page)
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should work for adopted elements"
+  test "should work for adopted elements", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+
+    popup =
+      Page.expect_event!(page, :popup, fn ->
+        Page.evaluate!(page, "url => window['__popup'] = window.open(url)", server.empty_page)
+      end)
+
+    div_handle =
+      Page.evaluate_handle!(page, """
+      () => {
+        const div = document.createElement('div');
+        document.body.appendChild(div);
+        return div;
+      }
+      """)
+
+    assert ElementHandle.owner_frame!(div_handle) == Page.main_frame(page)
+    Page.wait_for_load_state!(popup, :domcontentloaded)
+
+    Page.evaluate!(page, """
+    () => {
+      const div = document.querySelector('div');
+      window['__popup'].document.body.appendChild(div);
+    }
+    """)
+
+    assert ElementHandle.owner_frame!(div_handle) == Page.main_frame(popup)
+  end
 end

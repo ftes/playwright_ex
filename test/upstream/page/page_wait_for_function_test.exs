@@ -3,12 +3,31 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Client.Errors.TimeoutError
+  alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
   alias PlaywrightEx.Utils
 
   @moduletag :page
+
+  # `page.on('console', msg => { if (msg.text().startsWith('waitForFunction')) messages.push(msg.text()); })`
+  defp on_wait_for_function_message(page) do
+    test = self()
+
+    Page.on(page, :console, fn msg ->
+      if String.starts_with?(ConsoleMessage.text(msg), "waitForFunction"),
+        do: send(test, {:message, ConsoleMessage.text(msg)})
+    end)
+  end
+
+  defp messages(acc \\ []) do
+    receive do
+      {:message, text} -> messages([text | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
 
   test "should timeout", %{page: page} do
     start_time = System.monotonic_time(:millisecond)
@@ -57,8 +76,31 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     refute JSHandle.json_value!(time_delta) < polling
   end
 
-  @tag skip: "not ported: ConsoleMessage"
-  test "should avoid side effects after timeout"
+  test "should avoid side effects after timeout", %{page: page} do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+    Page.on(page, :console, fn _ -> Agent.update(counter, &(&1 + 1)) end)
+
+    {:error, error} =
+      Page.wait_for_function(
+        page,
+        """
+        () => {
+          window['counter'] = (window['counter'] || 0) + 1;
+          console.log(window['counter']);
+        }
+        """,
+        %{},
+        polling: 1,
+        timeout: 1000
+      )
+
+    saved_counter = Agent.get(counter, & &1)
+    # Give it some time to produce more logs.
+    Page.wait_for_timeout!(page, 2000)
+
+    assert Exception.message(error) =~ "page.waitForFunction: Timeout 1000ms exceeded"
+    assert Agent.get(counter, & &1) == saved_counter
+  end
 
   test "should throw on polling:mutation", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "() => true", %{}, polling: "mutation")
@@ -208,11 +250,69 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Page.wait_for_function!(page, "({ arg1, arg2 }) => arg1 + arg2 === 3", %{arg1: 1, arg2: 2})
   end
 
-  @tag skip: "not ported: ConsoleMessage"
-  test "should not be called after finishing successfully"
+  test "should not be called after finishing successfully", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    on_wait_for_function_message(page)
 
-  @tag skip: "not ported: ConsoleMessage"
-  test "should not be called after finishing unsuccessfully"
+    Page.wait_for_function!(page, """
+    () => {
+      console.log('waitForFunction1');
+      return true;
+    }
+    """)
+
+    Page.reload!(page)
+
+    Page.wait_for_function!(page, """
+    () => {
+      console.log('waitForFunction2');
+      return true;
+    }
+    """)
+
+    Page.reload!(page)
+
+    Page.wait_for_function!(page, """
+    () => {
+      console.log('waitForFunction3');
+      return true;
+    }
+    """)
+
+    assert Enum.join(messages(), "|") == "waitForFunction1|waitForFunction2|waitForFunction3"
+  end
+
+  test "should not be called after finishing unsuccessfully", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    on_wait_for_function_message(page)
+
+    Page.wait_for_function(page, """
+    () => {
+      console.log('waitForFunction1');
+      throw new Error('waitForFunction1');
+    }
+    """)
+
+    Page.reload!(page)
+
+    Page.wait_for_function(page, """
+    () => {
+      console.log('waitForFunction2');
+      throw new Error('waitForFunction2');
+    }
+    """)
+
+    Page.reload!(page)
+
+    Page.wait_for_function(page, """
+    () => {
+      console.log('waitForFunction3');
+      throw new Error('waitForFunction3');
+    }
+    """)
+
+    assert Enum.join(messages(), "|") == "waitForFunction1|waitForFunction2|waitForFunction3"
+  end
 
   test "should throw when frame is detached", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)

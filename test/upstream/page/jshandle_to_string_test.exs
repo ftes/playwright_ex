@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
   @upstream "tests/page/jshandle-to-string.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
 
@@ -24,8 +25,24 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
       else: assert(to_string(a_handle) == "JSHandle@object")
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should beautifully render sparse arrays"
+  test "should beautifully render sparse arrays", %{page: page, browser_name: browser_name} do
+    msg =
+      Page.expect_event!(page, :console, fn ->
+        Page.evaluate_handle!(page, """
+        () => {
+          const a = [];
+          a[1] = 1;
+          a[10] = 2;
+          a[100] = 3;
+          console.log(a);
+        }
+        """)
+      end)
+
+    if browser_name == "firefox",
+      do: assert(ConsoleMessage.text(msg) == "Array"),
+      else: assert(ConsoleMessage.text(msg) == "[empty, 1, empty x 8, 2, empty x 89, 3]")
+  end
 
   test "should work for promises", %{page: page} do
     # wrap the promise in an object, otherwise we will await.

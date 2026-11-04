@@ -3,8 +3,10 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.ConsoleMessage
+  alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -17,8 +19,20 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     end
   end
 
-  @tag skip: "not ported: waitForEvent, JSHandle.jsonValue"
-  test "should work @smoke"
+  test "should work @smoke", %{page: page, browser_name: browser_name} do
+    message =
+      Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => console.log('hello', 5, { foo: 'bar' })") end)
+
+    if browser_name != "firefox",
+      do: assert(ConsoleMessage.text(message) == "hello 5 {foo: bar}"),
+      else: assert(ConsoleMessage.text(message) == "hello 5 JSHandle@object")
+
+    assert ConsoleMessage.type(message) == "log"
+    [arg0, arg1, arg2] = ConsoleMessage.args(message)
+    assert JSHandle.json_value!(arg0) == "hello"
+    assert JSHandle.json_value!(arg1) == 5
+    assert JSHandle.json_value!(arg2) == %{"foo" => "bar"}
+  end
 
   test "should emit same log twice", %{page: page} do
     test = self()
@@ -125,20 +139,86 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert ConsoleMessage.text(Enum.at(messages, 1)) =~ ~r/foo time: \d+(.\d+)? ?ms/
   end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should not fail for window object"
+  test "should not fail for window object", %{page: page, browser_name: browser_name} do
+    message = Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => console.error(window)") end)
 
-  @tag skip: "not ported: waitForEvent"
-  test "should not fail for object that can't be coerced to a primitive"
+    if browser_name != "firefox",
+      do: assert(ConsoleMessage.text(message) == "Window"),
+      else: assert(ConsoleMessage.text(message) == "JSHandle@object")
+  end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should trigger correct Log"
+  test "should not fail for object that can't be coerced to a primitive", %{page: page, browser_name: browser_name} do
+    message =
+      Page.expect_event!(page, :console, fn ->
+        Page.evaluate!(page, "() => console.log({ toString() { return {}; }, valueOf() { return {}; } })")
+      end)
 
-  @tag skip: "not ported: waitForEvent"
-  test "should have location for console API calls"
+    if browser_name != "firefox",
+      do: assert(ConsoleMessage.text(message) =~ ~r/\{toString: (Function)?, valueOf: (Function)?\}/),
+      else: assert(ConsoleMessage.text(message) == "JSHandle@object")
+  end
 
-  @tag skip: "not ported: waitForEvent"
-  test "should not throw when there are console messages in detached iframes"
+  test "should trigger correct Log", %{page: page, server: server, browser_name: browser_name} do
+    # it.skip(browserName === 'webkit' && isWindows, 'Upstream issue https://bugs.webkit.org/show_bug.cgi?id=229515');
+    if !(browser_name == "webkit" and match?({:win32, _}, :os.type())) do
+      Page.goto!(page, "about:blank")
+
+      message =
+        Page.expect_event!(page, :console, fn ->
+          Page.evaluate!(page, "async url => fetch(url).catch(e => {})", server.empty_page)
+        end)
+
+      assert ConsoleMessage.text(message) =~ ~r/Access-Control-Allow-Origin|CORS/
+      assert ConsoleMessage.type(message) == "error"
+    end
+  end
+
+  test "should have location for console API calls", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+
+    message =
+      Page.expect_event!(page, :console, fn -> Page.goto!(page, server.prefix <> "/consolelog.html") end,
+        predicate: &String.starts_with?(ConsoleMessage.text(&1), "here:")
+      )
+
+    assert ConsoleMessage.type(message) == "log"
+    # Engines have different column notion.
+    location = ConsoleMessage.location(message)
+
+    assert Map.take(location, [:url, :line, :lineNumber]) == %{
+             url: server.prefix <> "/consolelog.html",
+             line: 7,
+             lineNumber: 7
+           }
+  end
+
+  test "should not throw when there are console messages in detached iframes", %{page: page, server: server} do
+    # @see https://github.com/GoogleChrome/puppeteer/issues/3865
+    Page.goto!(page, server.empty_page)
+
+    popup =
+      Page.expect_event!(page, :popup, fn ->
+        Page.evaluate!(page, """
+        async () => {
+          // 1. Create a popup that Playwright is not connected to.
+          const win = window.open('');
+          window['_popup'] = win;
+          if (window.document.readyState !== 'complete')
+            await new Promise(f => window.addEventListener('load', f));
+          // 2. In this popup, create an iframe that console.logs a message.
+          win.document.body.innerHTML = `<iframe src='/consolelog.html'></iframe>`;
+          const frame = win.document.querySelector('iframe');
+          if (!frame.contentDocument || frame.contentDocument.readyState !== 'complete')
+            await new Promise(f => frame.addEventListener('load', f));
+          // 3. After that, remove the iframe.
+          frame.remove();
+        }
+        """)
+      end)
+
+    # 4. Connect to the popup and make sure it doesn't throw.
+    assert Page.evaluate!(popup, "1 + 1") == 2
+  end
 
   test "should use object previews for arrays and objects", %{page: page, browser_name: browser_name} do
     test = self()
@@ -164,11 +244,38 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     end
   end
 
-  @tag skip: "not ported: expect.poll"
-  test "do not update console count on unhandled rejections"
+  test "do not update console count on unhandled rejections", %{page: page} do
+    {:ok, messages} = Agent.start_link(fn -> [] end)
+    console_event_listener = fn m -> Agent.update(messages, &(&1 ++ [ConsoleMessage.text(m)])) end
+    Page.add_listener(page, :console, console_event_listener)
 
-  @tag skip: "not ported: waitForEvent"
-  test "should have timestamp"
+    Page.evaluate!(page, """
+    () => {
+      const fail = async () => Promise.reject(new Error('error'));
+      console.log('begin');
+      void fail();
+      void fail();
+      fail().catch(() => {
+        console.log('end');
+      });
+    }
+    """)
+
+    Utils.poll(fn -> Agent.get(messages, & &1) end, &assert(&1 == ["begin", "end"]))
+  end
+
+  test "should have timestamp", %{page: page} do
+    # Generous slack to absorb host wall-clock resolution (e.g. ~15.6ms on Windows)
+    # vs sub-millisecond browser timestamps.
+    before = System.system_time(:millisecond) - 100
+
+    message =
+      Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => console.log('timestamp test')") end)
+
+    after_ = System.system_time(:millisecond) + 100
+    assert ConsoleMessage.timestamp(message) >= before
+    assert ConsoleMessage.timestamp(message) <= after_
+  end
 
   test "should have increasing timestamps", %{page: page} do
     test = self()

@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageEventPopupTest do
   @upstream "tests/page/page-event-popup.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Dialog
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -63,8 +65,28 @@ defmodule PlaywrightEx.Page.PageEventPopupTest do
     assert popup
   end
 
-  @tag skip: "not ported: Dialog"
-  test "should be able to capture alert"
+  test "should be able to capture alert", %{page: page} do
+    # Deviation: the waits are set up before the evaluate starts (JS attaches them in the same tick).
+    popup_promise = Page.wait_for_event(page, :popup)
+    dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
+
+    evaluate_promise =
+      Task.async(fn ->
+        Page.evaluate!(page, """
+        () => {
+          const win = window.open('');
+          win.alert('hello');
+        }
+        """)
+      end)
+
+    popup = Promise.await!(popup_promise)
+    dialog = Promise.await!(dialog_promise)
+    assert Dialog.message(dialog) == "hello"
+    assert Dialog.page(dialog) == popup
+    Dialog.dismiss!(dialog)
+    Task.await(evaluate_promise)
+  end
 
   test "should work with empty url", %{page: page} do
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => window['__popup'] = window.open('')") end)
