@@ -953,3 +953,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   close reason is `"Error: <message>"` (JS `String(e)`). A relative userDataDir resolves as Node's
   `path.resolve` (no `~` expansion). The page_event_crash chromium tests run on ubuntu CI although
   upstream skips ubuntu24.04: they pass there. BT-047 is ported (north-star: nothing ruled out).
+- VF-C2 (expect/aria, S1 C2a-06/07): without a test runner, an inline aria snapshot that upstream
+  would rebaseline now fails, with the new snapshot in the message, instead of passing uncompared
+  (`""` under `:default`/`:missing`, any under `:all`, a mismatch under `:changed`). Revisit if
+  source rewriting is ever ported. C2a-05 rejected on both sides (the predicate runs in the
+  awaiting process).
