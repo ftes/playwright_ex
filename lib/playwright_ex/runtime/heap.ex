@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Runtime.Heap do
   A handle carries the immutable part of its object (`guid`, `type`, `initializer`, its
   connection): `:_type`, `:_guid`, `:_initializer` and `:_connection` stay readable after dispose.
   A disposed object keeps its rows until its anchor is freed (see
-  `PlaywrightEx.Client.ChannelOwner._dispose/2`), so it reads and writes as in JS. Fields of a
+  `_dispose` in `PlaywrightEx.Client.ChannelOwner`), so it reads and writes as in JS. Fields of a
   freed object raise `PlaywrightEx.TargetClosedError`; writes to it are dropped.
 
   `new_object(module)` is a process-local object: its fields live in the process dictionary of
