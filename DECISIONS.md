@@ -334,3 +334,16 @@ drift). Blockers for release, assigned to follow-up workstreams:
   dep); event subclasses as top-level modules (parity treats nested modules as specs).
 - **Not portable**: slowmo (patches the in-process `_doSlowMo`), selenium (grid, jars, test hook),
   playwright-client (bundle not built), har-websocket env test (driver env fixed at launch).
+
+## 2026-11-05: Migration guide
+
+- **`guides/migration.md`** ("Migrating to 1.64": versions follow upstream major.minor from the
+  breaking release), snippets checked by `test/guides/migration_test.exs`. Driven by
+  phoenix_test_playwright (selectors, `subscribe`, dialogs, `Frame.expect`, tracing groups) and
+  fluffy (named supervisors, document snapshots, downloads).
+- **Awkward for migrating** (revisit before release): exceptions live under `Client.Errors`
+  (`PlaywrightEx.Client.Errors.TimeoutError`; Python exposes `TimeoutError` at the top level):
+  consider public aliases. Handle structs are `%PlaywrightEx.Client.Page{}` while the type is
+  `PlaywrightEx.Page.t()`. `Selectors.register` is once per driver (PTP registers per context).
+  PLAN's `mix playwright_ex.cli` (show-trace) doesn't exist yet. `Download` from a routed
+  `fulfill` with `content-disposition` gave `saveAs: canceled` in chromium (not investigated).
