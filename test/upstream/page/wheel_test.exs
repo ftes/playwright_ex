@@ -18,21 +18,8 @@ defmodule PlaywrightEx.Page.WheelTest do
     %{ignore_delta: browser_name == "chromium" and :os.type() == {:unix, :darwin}}
   end
 
-  # await expect.poll(() => page.evaluate('window.lastEvent')).toBeTruthy()
-  defp poll_last_event(page, tries \\ 100) do
-    case Page.evaluate!(page, "window.lastEvent") do
-      received when received in [nil, false] and tries > 0 ->
-        Process.sleep(100)
-        poll_last_event(page, tries - 1)
-
-      received ->
-        received
-    end
-  end
-
   defp expect_event(page, expected, ignore_delta) do
-    received = poll_last_event(page)
-    assert received
+    received = Utils.poll(fn -> Page.evaluate!(page, "window.lastEvent") end, &Utils.assert_truthy/1)
 
     {received, expected} =
       if ignore_delta,

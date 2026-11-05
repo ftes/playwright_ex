@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -119,7 +120,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
 
     {:error, error} = page |> Page.locator("button") |> Locator.click(scroll: :none, timeout: 2000)
     assert Exception.message(error) =~ "element is outside of the viewport"
-    refute Page.evaluate!(page, "window._clicked")
+    Utils.assert_falsy(Page.evaluate!(page, "window._clicked"))
     assert Page.evaluate!(page, "() => window.scrollY") == 0
   end
 
@@ -148,7 +149,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
     # The button is scrolled out of the nested overflow container.
     {:error, error} = Locator.click(button, scroll: :none, timeout: 2000)
     assert error
-    refute Page.evaluate!(page, "window._clicked")
+    Utils.assert_falsy(Page.evaluate!(page, "window._clicked"))
     # Default behavior scrolls the nested container into view and succeeds.
     Locator.click!(button, timeout: 2000)
     assert Page.evaluate!(page, "window._clicked") == true
@@ -162,7 +163,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
 
     {:error, error} = page |> Page.locator("div >> text=hover me") |> Locator.hover(scroll: :none, timeout: 2000)
     assert Exception.message(error) =~ "element is outside of the viewport"
-    refute Page.evaluate!(page, "window._hovered")
+    Utils.assert_falsy(Page.evaluate!(page, "window._hovered"))
     assert Page.evaluate!(page, "() => window.scrollY") == 0
   end
 

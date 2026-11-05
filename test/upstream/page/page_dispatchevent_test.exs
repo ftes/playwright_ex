@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Selectors
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -22,9 +23,9 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
   test "should dispatch click event properties", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.dispatch_event!(page, "button", "click")
-    assert Page.evaluate!(page, "bubbles")
-    assert Page.evaluate!(page, "cancelable")
-    assert Page.evaluate!(page, "composed")
+    Utils.assert_truthy(Page.evaluate!(page, "bubbles"))
+    Utils.assert_truthy(Page.evaluate!(page, "cancelable"))
+    Utils.assert_truthy(Page.evaluate!(page, "composed"))
   end
 
   test "should dispatch click svg", %{page: page} do
@@ -83,7 +84,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     """)
 
     Page.dispatch_event!(page, "button", "click")
-    assert Page.evaluate!(page, "() => window['clicked']")
+    Utils.assert_truthy(Page.evaluate!(page, "() => window['clicked']"))
   end
 
   test "should dispatch click when node is added in shadow dom", %{page: page, server: server} do
@@ -145,11 +146,13 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     source = Page.query_selector!(page, "#source")
     target = Page.query_selector!(page, "#target")
 
-    assert Page.evaluate!(
-             page,
-             "({ source, target }) => { return source.parentElement === target; }",
-             %{source: source, target: target}
-           )
+    Utils.assert_truthy(
+      Page.evaluate!(
+        page,
+        "({ source, target }) => { return source.parentElement === target; }",
+        %{source: source, target: target}
+      )
+    )
   end
 
   test "should dispatch drag drop events via ElementHandles", %{page: page, server: server} do
@@ -160,11 +163,13 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     target = Page.query_selector!(page, "#target")
     ElementHandle.dispatch_event!(target, "drop", %{dataTransfer: data_transfer})
 
-    assert Page.evaluate!(
-             page,
-             "({ source, target }) => { return source.parentElement === target; }",
-             %{source: source, target: target}
-           )
+    Utils.assert_truthy(
+      Page.evaluate!(
+        page,
+        "({ source, target }) => { return source.parentElement === target; }",
+        %{source: source, target: target}
+      )
+    )
   end
 
   test "should dispatch click event via ElementHandles", %{page: page, server: server} do
@@ -194,7 +199,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
 
     Locator.dispatch_event!(Page.locator(page, "body"), "wheel", %{deltaX: 100, deltaY: 200})
     assert JSHandle.evaluate!(events_handle, "e => e.length") == 1
-    assert JSHandle.evaluate!(events_handle, "e => e[0] instanceof WheelEvent")
+    Utils.assert_truthy(JSHandle.evaluate!(events_handle, "e => e[0] instanceof WheelEvent"))
 
     assert JSHandle.evaluate!(
              events_handle,
@@ -217,8 +222,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "alpha") == 10
     assert Page.evaluate!(page, "beta") == 20
     assert Page.evaluate!(page, "gamma") == 30
-    # toBeFalsy(): WebKit's `absolute` is `null`.
-    assert Page.evaluate!(page, "absolute") in [false, :null]
+    Utils.assert_falsy(Page.evaluate!(page, "absolute"))
   end
 
   test "should dispatch absolute device orientation event", %{page: page, server: server} do
@@ -236,7 +240,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "alpha") == 10
     assert Page.evaluate!(page, "beta") == 20
     assert Page.evaluate!(page, "gamma") == 30
-    assert Page.evaluate!(page, "absolute")
+    Utils.assert_truthy(Page.evaluate!(page, "absolute"))
   end
 
   test "should dispatch device motion event", %{page: page, server: server} do

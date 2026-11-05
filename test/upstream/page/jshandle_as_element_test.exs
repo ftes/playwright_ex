@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Page.JshandleAsElementTest do
 
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -24,7 +25,7 @@ defmodule PlaywrightEx.Page.JshandleAsElementTest do
     a_handle = Page.evaluate_handle!(page, "() => document.querySelector('div').firstChild")
     element = JSHandle.as_element(a_handle)
     assert element
-    assert Page.evaluate!(page, "e => e.nodeType === Node.TEXT_NODE", element)
+    Utils.assert_truthy(Page.evaluate!(page, "e => e.nodeType === Node.TEXT_NODE", element))
   end
 
   test "should work with nullified Node", %{page: page} do
