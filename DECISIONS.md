@@ -239,3 +239,21 @@ Review: these shape the assertion API.
 - **Browser guards**: `it.skip`/`fixme` conditions inside a test are `if browser_name ...`
   guards, so on the excluded browser the test reports as passed without asserting. Revisit:
   could become `@tag skip` computed per browser.
+
+## 2026-11-05: Remaining members, release gate, teardown (workstream L)
+
+- **Release gate in**: the generator emits every api.json member; `ApiRules` drops
+  `PlaywrightAssertions` (ported as `PlaywrightEx.Expect`) and `BrowserType.launchServer`.
+  Electron/Android/`connectOverCDP(transport)` are not in the JS api.json.
+- **Storage state is an open map** (`optional(atom()) => term()`): docs omit `credentials`,
+  `indexedDB`, `opfs`, and results must round-trip into `setStorageState`. Nested JS values
+  (IndexedDB records) keep string keys. Revisit: type the documented keys.
+- **`removeAllListeners(type)`**: arg named `event` so atoms work; with options the facade
+  returns `:ok`. Each listener call creates a heap promise that is never freed (same gap as
+  other calls). Revisit with heap GC.
+- **Calls on a stopped loop** return `{:error, %TargetClosedError{}}` instead of exiting; work
+  abandoned with a dead process or stopped loop is dropped silently.
+- **Client modules are preloaded** by `PlaywrightEx.Supervisor` (like `require('playwright')`):
+  lazy code loading delayed a `wait_for_event` subscription past the event it waits for.
+- **`Page.pause`** skips the `inspector.url()` check (no JS debugger). **`pdf`** formats numeric
+  sizes as `"#{n}px"` (`100.0` gives `"100.0px"`, JS `"100px"`).

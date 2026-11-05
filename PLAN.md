@@ -49,11 +49,10 @@ a migration guide maps old calls to new ones.
 - `on/3` returns the emitter and `off/3` takes the same fun, as in JS. The subscription
   update is sent before `on/3` returns.
 - The facade sets the API name for errors (`page.waitForURL`), validates options, carries
-  docs/specs and delegates to `Client.*`. `mix playwright_ex.gen.api` emits the members the
-  client exports and lists the rest as not ported, so regenerate after porting a method
-  (`mix playwright_ex.parity` flags a stale facade). The facade calls the client directly: a
-  client function that disappears is a compile warning. This is interim: before release the
-  generator emits every member (see Then, item 2).
+  docs/specs and delegates to `Client.*`. `mix playwright_ex.gen.api` emits every api.json member
+  except those dropped explicitly in `Mix.PlaywrightEx.ApiRules`, so a missing client impl is
+  a compile warning (`mix playwright_ex.parity` flags a stale facade). The facade calls the
+  client directly.
 - Unknown options and enum values raise `ArgumentError` in both forms (programmer errors).
   The facade checks only keys and enums; value types are checked by the generated protocol
   validator at `channel_call`, as upstream's client does (messages use the JS names).
@@ -231,14 +230,12 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `to_be_ok`, `to_have_screenshot`), bindings/`exposeFunction`/`addInitScript`/Disposable/
    locator handlers, artifacts (Artifact, Stream, Download, Video, Screencast, Tracing). Done:
    Clock, Coverage, WebStorage, CDPSession, Selectors, Debugger, Credentials, WebMCP,
-   `launchPersistentContext`, `connect`, `connectOverCDP` (url). In progress: remaining members (`removeAllListeners`,
-   `storageState`, `emulateMedia`, `requestGC`, `pause`, `pdf`), mirroring the remaining
-   upstream page/library specs (see DECISIONS "Which upstream specs to mirror"). Release gate: "generate all".
-   Out-of-scope classes and members (`launchServer`, `connectOverCDP(transport)`,
-   Electron/Android unless ported) are dropped explicitly in `Mix.PlaywrightEx.ApiRules`, the
-   generator stops checking client exports and emits every remaining member, so a missing impl
-   is a compile warning and fails CI. Classes can switch one at a time once complete
-   (a rules entry), so finished ones can't regress while the rest are ported.
+   `launchPersistentContext`, `connect`, `connectOverCDP` (url). Done: remaining members
+   (`removeAllListeners`, `storageState`, `emulateMedia`, `requestGC`, `pause`, `pdf`,
+   `Playwright.errors`) and the release gate: the generator emits every member, out-of-scope
+   ones (`launchServer`, `PlaywrightAssertions`) are dropped in `Mix.PlaywrightEx.ApiRules`.
+   In progress: mirroring the remaining upstream page/library specs (see DECISIONS "Which
+   upstream specs to mirror").
 3. Done: docs and specs on par with playwright.dev for the generated modules, all in the
    generator (`mix docs --warnings-as-errors` in CI).
    - Docs render from the `spec` AST, not `comment`: notes as admonitions, nested option fields
