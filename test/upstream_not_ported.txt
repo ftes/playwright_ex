@@ -44,9 +44,8 @@ library/browsers-path               Tests importing the Node.js package on an un
 library/playwright-client           packages/playwright-client browser bundle (lib/index.mjs) is not built in the upstream cache
 library/browsertype-launch-selenium Selenium Grid jars and chromedriver (PWTEST_SELENIUM), the __testHookSeleniumRemoteURL test hook, the in-process oop.start driver
 
-# JS-only API, or driver setup the specs change per test.
+# JS-only API.
 library/browsertype-launch-server   BrowserType.launchServer is JS-only (api.json langs: js); specs that only need a launched server run on the launch-server fixture.
-library/browser-server              Sets PWTEST_SERVER_REGISTRY in the in-process env per test, where Browser.bind writes its descriptors (the driver's env is fixed at launch).
 
 # Features of the @playwright/test runner.
 page/expect-builtins                Generic matchers of @playwright/test, such as toBe().
