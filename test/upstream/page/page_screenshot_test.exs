@@ -861,7 +861,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       }
       """)
 
-      console = Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == "transitionend"))
+      console = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "transitionend"))
       Page.screenshot!(page, animations: :disabled)
       PlaywrightEx.Promise.await!(console)
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "transitionend"]
@@ -886,7 +886,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       }
       """)
 
-      console = Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == "animationcancel"))
+      console = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "animationcancel"))
       Page.screenshot!(page, animations: :disabled)
       PlaywrightEx.Promise.await!(console)
       assert Page.evaluate!(page, "() => window._EVENTS") == ["oncancel", "animationcancel"]
@@ -919,7 +919,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
                "async el => Number.isFinite(el.getAnimations()[0].effect.getComputedTiming().endTime)"
              ) == true
 
-      console = Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == "animationend"))
+      console = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "animationend"))
       Page.screenshot!(page, animations: :disabled)
       PlaywrightEx.Promise.await!(console)
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "animationend"]

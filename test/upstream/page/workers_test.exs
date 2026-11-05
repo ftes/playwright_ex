@@ -94,8 +94,8 @@ defmodule PlaywrightEx.Page.WorkersTest do
   test "should not report console logs from workers twice", %{page: page} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:message, ConsoleMessage.text(msg)}) end)
-    one = Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == "1"))
-    two = Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == "2"))
+    one = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "1"))
+    two = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "2"))
 
     Page.evaluate!(
       page,
@@ -295,8 +295,8 @@ defmodule PlaywrightEx.Page.WorkersTest do
   # annotation: issues 33107, 35678
   test "should report worker script as network request", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
-    request1_promise = Page.wait_for_event(page, :request, predicate: &(Request.url(&1) =~ "worker.js"))
-    request2_promise = Page.wait_for_event(page, :request_finished, predicate: &(Request.url(&1) =~ "worker.js"))
+    request1_promise = Page.wait_for_event(page, :request, &(Request.url(&1) =~ "worker.js"))
+    request2_promise = Page.wait_for_event(page, :request_finished, &(Request.url(&1) =~ "worker.js"))
     Page.evaluate!(page, "() => window.w = new Worker('/worker/worker.js')")
     request1 = Promise.await!(request1_promise)
     request2 = Promise.await!(request2_promise)
@@ -322,10 +322,10 @@ defmodule PlaywrightEx.Page.WorkersTest do
       |> Plug.Conn.send_resp(200, "console.log('hello from the worker');")
     end)
 
-    request_promise = Page.wait_for_event(page, :request, predicate: &(Request.url(&1) =~ "worker.js"))
+    request_promise = Page.wait_for_event(page, :request, &(Request.url(&1) =~ "worker.js"))
 
     console_promise =
-      Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) =~ "hello from the worker"))
+      Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) =~ "hello from the worker"))
 
     Page.evaluate!(page, "() => window.w = new Worker('/worker.js')")
     request = Promise.await!(request_promise)
@@ -412,7 +412,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     worker_promise = Page.wait_for_event(page, :worker)
 
     console_promise =
-      Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) =~ "hello from the worker"))
+      Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) =~ "hello from the worker"))
 
     Page.goto!(page, server.prefix <> "/worker/worker.html")
     worker = Promise.await!(worker_promise)
@@ -467,7 +467,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   test "should resolve worker script allHeaders in nested worker inside iframe", %{page: page, server: server} do
     url = server.prefix <> "/worker/worker.js"
     worker_promise = Page.wait_for_event(page, :worker)
-    finished_promise = Page.wait_for_event(page, :request_finished, predicate: &(Request.url(&1) == url))
+    finished_promise = Page.wait_for_event(page, :request_finished, &(Request.url(&1) == url))
     Utils.attach_frame(page, "frame1", server.prefix <> "/worker/worker.html")
     worker = Promise.await!(worker_promise)
     Promise.await!(finished_promise)

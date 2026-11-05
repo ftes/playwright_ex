@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     |> Plug.Conn.send_resp(200, body)
   end
 
-  defp console_text(page, text), do: Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == text))
+  defp console_text(page, text), do: Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == text))
 
   defp file_url(path), do: "file://" <> path
 

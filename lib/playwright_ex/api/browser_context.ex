@@ -1657,9 +1657,10 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
+  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+
   * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
-  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` method.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
@@ -1669,8 +1670,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_event/4`.
   """
-  @spec wait_for_event(t(), event() | String.t(), wait_for_event_options()) :: PlaywrightEx.Promise.t()
-  def wait_for_event(browser_context, event, options \\ []) do
+  @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: PlaywrightEx.Promise.t()
+  def wait_for_event(browser_context, event, options \\ [])
+
+  def wait_for_event(browser_context, event, predicate) when is_function(predicate),
+    do: wait_for_event(browser_context, event, predicate: predicate)
+
+  def wait_for_event(browser_context, event, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
     options = Facade.options!(options, @wait_for_event_options, "browserContext.waitForEvent")
 
@@ -1707,6 +1713,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
+  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+
   * `:predicate` - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and resolves to truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
@@ -1719,9 +1727,14 @@ defmodule PlaywrightEx.BrowserContext do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
-  @spec expect_console_message(t(), (-> term()), expect_console_message_options()) ::
+  @spec expect_console_message(t(), (-> term()), expect_console_message_options() | fun()) ::
           {:ok, PlaywrightEx.ConsoleMessage.t()} | {:error, Exception.t()}
-  def expect_console_message(browser_context, action, options \\ []) do
+  def expect_console_message(browser_context, action, options \\ [])
+
+  def expect_console_message(browser_context, action, predicate) when is_function(predicate),
+    do: expect_console_message(browser_context, action, predicate: predicate)
+
+  def expect_console_message(browser_context, action, options) do
     options = Facade.options!(options, @expect_console_message_options, "browserContext.waitForEvent")
 
     Facade.expect(
@@ -1734,8 +1747,14 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.34"
   @doc "Like `expect_console_message/3`, but returns the value and raises on error."
-  @spec expect_console_message!(t(), (-> term()), expect_console_message_options()) :: PlaywrightEx.ConsoleMessage.t()
-  def expect_console_message!(browser_context, action, options \\ []) do
+  @spec expect_console_message!(t(), (-> term()), expect_console_message_options() | fun()) ::
+          PlaywrightEx.ConsoleMessage.t()
+  def expect_console_message!(browser_context, action, options \\ [])
+
+  def expect_console_message!(browser_context, action, predicate) when is_function(predicate),
+    do: expect_console_message!(browser_context, action, predicate: predicate)
+
+  def expect_console_message!(browser_context, action, options) do
     options = Facade.options!(options, @expect_console_message_options, "browserContext.waitForEvent")
 
     Facade.expect!(
@@ -1777,6 +1796,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
+  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+
   * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
@@ -1789,9 +1810,14 @@ defmodule PlaywrightEx.BrowserContext do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
-  @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options()) ::
+  @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) ::
           {:ok, term()} | {:error, Exception.t()}
-  def expect_event(browser_context, event, action, options \\ []) do
+  def expect_event(browser_context, event, action, options \\ [])
+
+  def expect_event(browser_context, event, action, predicate) when is_function(predicate),
+    do: expect_event(browser_context, event, action, predicate: predicate)
+
+  def expect_event(browser_context, event, action, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "browserContext.waitForEvent")
 
@@ -1805,8 +1831,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc "Like `expect_event/4`, but returns the value and raises on error."
-  @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options()) :: term()
-  def expect_event!(browser_context, event, action, options \\ []) do
+  @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
+  def expect_event!(browser_context, event, action, options \\ [])
+
+  def expect_event!(browser_context, event, action, predicate) when is_function(predicate),
+    do: expect_event!(browser_context, event, action, predicate: predicate)
+
+  def expect_event!(browser_context, event, action, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "browserContext.waitForEvent")
 
@@ -1845,6 +1876,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
+  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+
   * `:predicate` - Receives the [`Page`](`PlaywrightEx.Page`) object and resolves to truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
@@ -1857,8 +1890,14 @@ defmodule PlaywrightEx.BrowserContext do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
-  @spec expect_page(t(), (-> term()), expect_page_options()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
-  def expect_page(browser_context, action, options \\ []) do
+  @spec expect_page(t(), (-> term()), expect_page_options() | fun()) ::
+          {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
+  def expect_page(browser_context, action, options \\ [])
+
+  def expect_page(browser_context, action, predicate) when is_function(predicate),
+    do: expect_page(browser_context, action, predicate: predicate)
+
+  def expect_page(browser_context, action, options) do
     options = Facade.options!(options, @expect_page_options, "browserContext.waitForEvent")
 
     Facade.expect(
@@ -1871,8 +1910,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.9"
   @doc "Like `expect_page/3`, but returns the value and raises on error."
-  @spec expect_page!(t(), (-> term()), expect_page_options()) :: PlaywrightEx.Page.t()
-  def expect_page!(browser_context, action, options \\ []) do
+  @spec expect_page!(t(), (-> term()), expect_page_options() | fun()) :: PlaywrightEx.Page.t()
+  def expect_page!(browser_context, action, options \\ [])
+
+  def expect_page!(browser_context, action, predicate) when is_function(predicate),
+    do: expect_page!(browser_context, action, predicate: predicate)
+
+  def expect_page!(browser_context, action, options) do
     options = Facade.options!(options, @expect_page_options, "browserContext.waitForEvent")
 
     Facade.expect!(

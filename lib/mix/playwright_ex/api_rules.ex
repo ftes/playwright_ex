@@ -30,8 +30,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
       every CDP event under its method name) are marked `"openEvents"`.
     * Waits: the JS members that the Python client has as `expect_*` (`waitForEvent`,
       `waitForRequest`, `waitForNavigation`, ...) return a promise handle (`"promise"`), as JS
-      code starts them without `await`. `waitForEvent` takes Python's arguments (`event`, then
-      options with `predicate` and `timeout`, plus the JS `signal`), not the JS `optionsOrPredicate`.
+      code starts them without `await`.
+    * An `optionsOr<Name>` argument (`[function]|[Object]`, `waitForEvent(event, optionsOrPredicate)`)
+      becomes the `options` (the object's properties, then the options'), marked `"function"`:
+      the facade takes a function in their place as option `<name>`. So do the callback forms
+      that start the member (`expect_event(page, event, action, predicate)`).
     * Route handlers (`function(Route, Request)`) may also take only the route, as in the
       Python client.
     * Device descriptors (`Playwright.devices`) have the option keys of `Browser.newContext`
@@ -128,6 +131,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
             keep?(member["type"]),
             do:
               member
+              |> options_or_function()
               |> wait(expects)
               |> event_type()
               |> storage_state()
@@ -340,33 +344,63 @@ defmodule Mix.PlaywrightEx.ApiRules do
     end || []
   end
 
-  defp wait(member, expects) do
-    case Enum.find(expects, &(&1["name"] == member["name"])) do
-      nil ->
+  # `optionsOrPredicate`: one `options` argument whose place a function also takes (`"function"`).
+  defp options_or_function(member) do
+    case Enum.split_with(member["args"], &options_or?/1) do
+      {[], _} ->
         member
 
-      expect ->
-        args =
-          if Enum.any?(member["args"], &(&1["name"] == "optionsOrPredicate")),
-            do: js_options(expect["args"], member["args"]),
-            else: member["args"]
+      {[%{"name" => "optionsOr" <> fun} = union], args} ->
+        {options, positional} = Enum.split_with(args, &(&1["name"] == "options"))
+        %{"properties" => object} = Enum.find(union["type"]["union"], &(&1["name"] == "Object"))
+        own = for %{"type" => %{"properties" => props}} <- options, p <- props, do: p
+        # An option of both keeps the options' docs.
+        props =
+          for p <- Enum.uniq_by(object ++ own, & &1["name"]),
+              do: Map.put(Enum.find(own, p, &(&1["name"] == p["name"])), "required", false)
 
-        Map.merge(member, %{"promise" => expect["alias"], "args" => args})
+        options = List.first(options) || %{union | "name" => "options", "alias" => "options"}
+        {first, rest} = String.split_at(fun, 1)
+
+        options =
+          Map.merge(options, %{
+            "type" => %{"name" => "Object", "properties" => props},
+            "function" => String.downcase(first) <> rest
+          })
+
+        %{member | "args" => positional ++ [options]}
     end
   end
 
-  # Python's arguments, with the JS-only options of the JS member (`signal`).
+  defp options_or?(%{"name" => "optionsOr" <> _, "type" => %{"union" => union}}),
+    do: Enum.map(union, & &1["name"]) |> Enum.sort() == ["Object", "function"]
+
+  defp options_or?(_arg), do: false
+
+  defp wait(member, expects) do
+    case Enum.find(expects, &(&1["name"] == member["name"])) do
+      nil -> member
+      expect -> Map.put(member, "promise", expect["alias"])
+    end
+  end
+
+  # Python's arguments, with the JS-only options of the JS member (`signal`), which also take its
+  # function in their place (`"function"`).
   defp js_options(args, js_args) do
-    js_props = for %{"name" => "options"} = arg <- js_args, p <- arg["type"]["properties"], do: p
-    Enum.map(args, &add_missing_options(&1, js_props))
+    js_options = Enum.find(js_args, &(&1["name"] == "options")) || %{}
+    js_props = get_in(js_options, ["type", "properties"]) || []
+    Enum.map(args, &add_missing_options(&1, js_props, Map.take(js_options, ["function"])))
   end
 
-  defp add_missing_options(%{"name" => "options"} = arg, props) do
+  defp add_missing_options(%{"name" => "options"} = arg, props, function) do
     names = for p <- arg["type"]["properties"], do: p["name"]
-    update_in(arg, ["type", "properties"], &(&1 ++ Enum.reject(props, fn p -> p["name"] in names end)))
+
+    arg
+    |> update_in(["type", "properties"], &(&1 ++ Enum.reject(props, fn p -> p["name"] in names end)))
+    |> Map.merge(function)
   end
 
-  defp add_missing_options(arg, _props), do: arg
+  defp add_missing_options(arg, _props, _function), do: arg
 
   # `expect_popup(page, action, options)`: starts the JS member (or `waitForEvent(event)`), runs `action`.
   defp callback(expect, class, members) do

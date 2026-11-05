@@ -39,10 +39,10 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   defp wait_for_service_worker(context), do: BrowserContext.wait_for_event(context, :service_worker)
 
-  defp wait_for_request(context, predicate), do: BrowserContext.wait_for_event(context, :request, predicate: predicate)
+  defp wait_for_request(context, predicate), do: BrowserContext.wait_for_event(context, :request, predicate)
 
   defp wait_for_response(context, predicate),
-    do: BrowserContext.wait_for_event(context, :response, predicate: predicate)
+    do: BrowserContext.wait_for_event(context, :response, predicate)
 
   # `r.url().endsWith(suffix)` of a request or response.
   defp url_ends_with?(%PlaywrightEx.Request{} = r, suffix), do: String.ends_with?(Request.url(r), suffix)

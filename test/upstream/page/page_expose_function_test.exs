@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
   test "should await returned promise", %{page: page} do
     # Promise.resolve(a * b): a returned promise handle is awaited, here one of a wait.
     Page.expose_function!(page, "compute", fn a, b ->
-      promise = Page.wait_for_event(page, :console, predicate: fn _ -> true end)
+      promise = Page.wait_for_event(page, :console, fn _ -> true end)
       Page.evaluate!(page, "() => console.log('hi')")
       PlaywrightEx.Promise.await!(promise)
       a * b

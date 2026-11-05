@@ -207,7 +207,9 @@ FileChooser.set_files!(chooser, path)
 `expect_*` exists where the Python client has one (`expect_popup`, `expect_download`,
 `expect_request`, `expect_response`, `expect_navigation`, `expect_event`, ...); the matching
 `wait_for_*` returns a `PlaywrightEx.Promise`. EventWaiter's `:predicate` is the `predicate:`
-option; its `:transform` is code after the await.
+option, or the function itself in place of the options, as JS `waitForEvent(event, predicate)`
+(`Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"))`); its `:transform`
+is code after the await.
 
 ```elixir
 # before

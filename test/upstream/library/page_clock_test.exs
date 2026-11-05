@@ -815,7 +815,7 @@ defmodule PlaywrightEx.Library.PageClockTest do
       """)
     end)
 
-    wait_for_done = Page.wait_for_event(page, :console, predicate: &(ConsoleMessage.text(&1) == "done"))
+    wait_for_done = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "done"))
     Page.goto!(page, server.prefix <> "/repro.html")
     PlaywrightEx.Promise.await!(wait_for_done)
   end

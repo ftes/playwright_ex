@@ -178,6 +178,15 @@ defmodule PlaywrightEx.Guides.MigrationTest do
     {:ok, popup} = Page.expect_popup(page, fn -> Page.get_by_text(page, "Open") |> Locator.click!() end)
     assert Page.url(popup) == "http://app.test/popup"
 
+    ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"))
+    Page.evaluate!(page, "() => { console.log('not yet'); console.log('ready') }")
+    assert ConsoleMessage.text(Promise.await!(ready)) == "ready"
+
+    log_ready = fn -> Page.evaluate!(page, "() => { console.log('not yet'); console.log('ready') }") end
+    message = Page.expect_event!(page, :console, log_ready, &(ConsoleMessage.text(&1) == "ready"))
+
+    assert ConsoleMessage.text(message) == "ready"
+
     download = Page.expect_download!(page, fn -> Page.get_by_text(page, "Export") |> Locator.click!() end)
     assert Download.suggested_filename(download) == "report.csv"
     :ok = Download.save_as(download, Path.join(tmp_dir, "report.csv"))

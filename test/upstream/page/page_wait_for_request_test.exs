@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
 
   test "should work with predicate", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
-    promise = Page.wait_for_event(page, :request, predicate: &(Request.url(&1) == server.prefix <> "/digits/2.png"))
+    promise = Page.wait_for_event(page, :request, &(Request.url(&1) == server.prefix <> "/digits/2.png"))
     Page.evaluate!(page, @fetch_digits)
     request = Promise.await!(promise)
     assert Request.url(request) == server.prefix <> "/digits/2.png"
@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
   test "should respect default timeout", %{page: page} do
     Page.set_default_timeout(page, 1)
     # `waitForEvent('request', () => false)`: the predicate is an option.
-    {:error, error} = page |> Page.wait_for_event(:request, predicate: fn _ -> false end) |> Promise.await()
+    {:error, error} = page |> Page.wait_for_event(:request, fn _ -> false end) |> Promise.await()
     assert %TimeoutError{} = error
   end
 

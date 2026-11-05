@@ -300,7 +300,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
 
     # Promise.race([...requestfailed..., ...requestfinished...])
     for {event, label} <- [request_failed: "requestfailed", request_finished: "requestfinished"] do
-      promise = Page.wait_for_event(page, event, predicate: ends_with_204)
+      promise = Page.wait_for_event(page, event, ends_with_204)
       spawn(fn -> with {:ok, _} <- Promise.await(promise), do: send(me, {:race, label}) end)
     end
 
