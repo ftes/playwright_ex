@@ -2,7 +2,7 @@ defmodule PlaywrightEx.Matchers.ToEqual do
   @upstream "packages/playwright/src/matchers/toEqual.ts"
   @moduledoc """
   Port of `#{@upstream}`. `this` is the matcher state (`PlaywrightEx.Matchers.Expect`);
-  `query` takes `(isNot, timeout)` (no AbortSignal).
+  `query` takes `(isNot, timeout, signal)`.
   """
 
   alias PlaywrightEx.Client.Locator
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Matchers.ToEqual do
 
     timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
 
-    %{matches: pass} = result = query.(!!this.isNot, timeout)
+    %{matches: pass} = result = query.(!!this.isNot, timeout, options[:signal])
 
     %{received: received, log: log, timedOut: timed_out, errorMessage: error_message} =
       Map.merge(%{log: nil, timedOut: nil, received: nil, errorMessage: nil}, result)

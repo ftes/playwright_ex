@@ -55,7 +55,13 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
             do: "- /children: #{global_children}\n" <> expected,
             else: expected
 
-        expect_params = %{expectedValue: expected, isNot: this.isNot, timeout: timeout, title: this.title}
+        expect_params = %{
+          expectedValue: expected,
+          isNot: this.isNot,
+          timeout: timeout,
+          signal: options[:signal],
+          title: this.title
+        }
 
         %{matches: pass} =
           result =

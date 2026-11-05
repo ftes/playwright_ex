@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.Isomorphic.AbortSignal
   alias PlaywrightEx.Isomorphic.UrlMatch
   alias PlaywrightEx.Matchers.MatcherHint
   alias PlaywrightEx.Runtime.EventLoop
@@ -41,24 +42,43 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
             !this.isNot == UrlMatch.url_matches(local_utils, base_url, last_checked_url_string, expected)
           end
         end,
-        %{timeout: timeout}
+        %{timeout: timeout, signal: options[:signal]}
       )
 
       %{name: matcher_name, pass: !this.isNot, message: fn -> "" end}
     rescue
-      _e ->
-        # if (e instanceof Error && e.name === 'AbortError') return { ... };  -- not ported: AbortSignal
+      e ->
         last_checked_url_string = Heap.get(last_checked, :value)
 
-        %{
-          name: matcher_name,
-          pass: this.isNot,
-          message: fn ->
-            to_have_url_message(this, matcher_name, expected, last_checked_url_string, this.isNot, true, timeout)
-          end,
-          actual: last_checked_url_string,
-          timeout: timeout
-        }
+        if Map.get(e, :name) == "AbortError" do
+          %{
+            name: matcher_name,
+            pass: this.isNot,
+            message: fn ->
+              MatcherHint.format_matcher_message(this.utils, %{
+                isNot: this.isNot,
+                promise: this.promise,
+                matcherName: matcher_name,
+                expectation: "expected",
+                timeout: timeout,
+                printedExpected: "Expected: predicate to #{if !this.isNot, do: "succeed", else: "fail"}",
+                errorMessage: "Error: " <> AbortSignal.assertion_aborted_message(Map.get(e, :cause))
+              })
+            end,
+            actual: last_checked_url_string,
+            timeout: timeout
+          }
+        else
+          %{
+            name: matcher_name,
+            pass: this.isNot,
+            message: fn ->
+              to_have_url_message(this, matcher_name, expected, last_checked_url_string, this.isNot, true, timeout)
+            end,
+            actual: last_checked_url_string,
+            timeout: timeout
+          }
+        end
     end
   end
 

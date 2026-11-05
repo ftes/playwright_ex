@@ -5,8 +5,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
   (`PlaywrightEx.Matchers.Expect`), options are maps with the JS keys, `RegExp` is `Regex`.
   The public form is the generated `PlaywrightEx.Expect`.
 
-  Deviations: no AbortSignal (`signal` options), no test runner (`toPass` and the step title
-  suffix are not ported).
+  Deviations: no test runner (`toPass` and the step title suffix are not ported).
   """
 
   alias PlaywrightEx.Client.APIResponse
@@ -49,10 +48,11 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       expected,
       arg,
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, if(attached, do: "to.be.attached", else: "to.be.detached"), %{
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -80,11 +80,12 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       expected,
       arg,
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, "to.be.checked", %{
           isNot: is_not,
           timeout: timeout,
           expectedValue: expected_value,
+          signal: signal,
           title: this.title
         })
       end,
@@ -100,8 +101,8 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       "disabled",
       "",
-      fn is_not, timeout ->
-        Locator._expect(locator, "to.be.disabled", %{isNot: is_not, timeout: timeout, title: this.title})
+      fn is_not, timeout, signal ->
+        Locator._expect(locator, "to.be.disabled", %{isNot: is_not, timeout: timeout, signal: signal, title: this.title})
       end,
       options
     )
@@ -119,10 +120,11 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       expected,
       arg,
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, if(editable, do: "to.be.editable", else: "to.be.readonly"), %{
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -138,8 +140,8 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       "empty",
       "",
-      fn is_not, timeout ->
-        Locator._expect(locator, "to.be.empty", %{isNot: is_not, timeout: timeout, title: this.title})
+      fn is_not, timeout, signal ->
+        Locator._expect(locator, "to.be.empty", %{isNot: is_not, timeout: timeout, signal: signal, title: this.title})
       end,
       options
     )
@@ -157,10 +159,11 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       expected,
       arg,
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, if(enabled, do: "to.be.enabled", else: "to.be.disabled"), %{
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -176,8 +179,8 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       "focused",
       "",
-      fn is_not, timeout ->
-        Locator._expect(locator, "to.be.focused", %{isNot: is_not, timeout: timeout, title: this.title})
+      fn is_not, timeout, signal ->
+        Locator._expect(locator, "to.be.focused", %{isNot: is_not, timeout: timeout, signal: signal, title: this.title})
       end,
       options
     )
@@ -191,8 +194,8 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       "hidden",
       "",
-      fn is_not, timeout ->
-        Locator._expect(locator, "to.be.hidden", %{isNot: is_not, timeout: timeout, title: this.title})
+      fn is_not, timeout, signal ->
+        Locator._expect(locator, "to.be.hidden", %{isNot: is_not, timeout: timeout, signal: signal, title: this.title})
       end,
       options
     )
@@ -210,10 +213,11 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       expected,
       arg,
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, if(visible, do: "to.be.visible", else: "to.be.hidden"), %{
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -229,11 +233,12 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "Locator",
       "in viewport",
       "",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, "to.be.in.viewport", %{
           isNot: is_not,
           expectedNumber: options[:ratio],
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -250,7 +255,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toContainText",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text =
             serialize_expected_text_values(expected, %{
               matchSubstring: true,
@@ -263,6 +268,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
             isNot: is_not,
             useInnerText: options[:useInnerText],
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -275,7 +281,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toContainText",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text =
             serialize_expected_text_values([expected], %{
               matchSubstring: true,
@@ -288,6 +294,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
             isNot: is_not,
             useInnerText: options[:useInnerText],
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -303,7 +310,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveAccessibleDescription",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text =
           serialize_expected_text_values([expected], %{ignoreCase: options[:ignoreCase], normalizeWhiteSpace: true})
 
@@ -311,6 +318,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -325,7 +333,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveAccessibleName",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text =
           serialize_expected_text_values([expected], %{ignoreCase: options[:ignoreCase], normalizeWhiteSpace: true})
 
@@ -333,6 +341,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -347,7 +356,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveAccessibleErrorMessage",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text =
           serialize_expected_text_values([expected], %{ignoreCase: options[:ignoreCase], normalizeWhiteSpace: true})
 
@@ -355,6 +364,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -378,11 +388,12 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "Locator",
         "have attribute",
         "",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           Locator._expect(locator, "to.have.attribute", %{
             expressionArg: name,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -394,7 +405,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toHaveAttribute",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text = serialize_expected_text_values([expected], %{ignoreCase: options[:ignoreCase]})
 
           Locator._expect(locator, "to.have.attribute.value", %{
@@ -402,6 +413,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
             expectedText: expected_text,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -418,13 +430,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toHaveClass",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text = serialize_expected_text_values(expected)
 
           Locator._expect(locator, "to.have.class.array", %{
             expectedText: expected_text,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -437,13 +450,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toHaveClass",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text = serialize_expected_text_values([expected])
 
           Locator._expect(locator, "to.have.class", %{
             expectedText: expected_text,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -463,13 +477,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toContainClass",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text = serialize_expected_text_values(expected)
 
           Locator._expect(locator, "to.contain.class.array", %{
             expectedText: expected_text,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -485,13 +500,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toContainClass",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text = serialize_expected_text_values([expected])
 
           Locator._expect(locator, "to.contain.class", %{
             expectedText: expected_text,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -507,11 +523,12 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveCount",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, "to.have.count", %{
           expectedNumber: expected,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -526,7 +543,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveCSS",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text = serialize_expected_text_values([expected])
 
         Locator._expect(locator, "to.have.css", %{
@@ -535,6 +552,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
           isNot: is_not,
           pseudo: options[:pseudo],
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -549,13 +567,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveId",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text = serialize_expected_text_values([expected])
 
         Locator._expect(locator, "to.have.id", %{
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -570,12 +589,13 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveJSProperty",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         Locator._expect(locator, "to.have.property", %{
           expressionArg: name,
           expectedValue: expected,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -592,13 +612,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveRole",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text = serialize_expected_text_values([expected])
 
         Locator._expect(locator, "to.have.role", %{
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -616,7 +637,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toHaveText",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text =
             serialize_expected_text_values(expected, %{normalizeWhiteSpace: true, ignoreCase: options[:ignoreCase]})
 
@@ -625,6 +646,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
             isNot: is_not,
             useInnerText: options[:useInnerText],
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -637,7 +659,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toHaveText",
         locator,
         "Locator",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text =
             serialize_expected_text_values([expected], %{normalizeWhiteSpace: true, ignoreCase: options[:ignoreCase]})
 
@@ -646,6 +668,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
             isNot: is_not,
             useInnerText: options[:useInnerText],
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
@@ -661,13 +684,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveValue",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text = serialize_expected_text_values([expected])
 
         Locator._expect(locator, "to.have.value", %{
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -682,13 +706,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveValues",
       locator,
       "Locator",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text = serialize_expected_text_values(expected)
 
         Locator._expect(locator, "to.have.values", %{
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -703,13 +728,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
       "toHaveTitle",
       page,
       "Page",
-      fn is_not, timeout ->
+      fn is_not, timeout, signal ->
         expected_text = serialize_expected_text_values([expected], %{normalizeWhiteSpace: true})
 
         Frame._expect(Page.main_frame(page), "to.have.title", %{
           expectedText: expected_text,
           isNot: is_not,
           timeout: timeout,
+          signal: signal,
           title: this.title
         })
       end,
@@ -735,13 +761,14 @@ defmodule PlaywrightEx.Matchers.Matchers do
         "toHaveURL",
         page,
         "Page",
-        fn is_not, timeout ->
+        fn is_not, timeout, signal ->
           expected_text = serialize_expected_text_values([expected], %{ignoreCase: options[:ignoreCase]})
 
           Frame._expect(Page.main_frame(page), "to.have.url", %{
             expectedText: expected_text,
             isNot: is_not,
             timeout: timeout,
+            signal: signal,
             title: this.title
           })
         end,
