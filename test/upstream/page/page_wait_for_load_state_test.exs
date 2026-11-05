@@ -43,9 +43,18 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
   test "should respect timeout", %{page: page, server: server} do
     TestServer.set_route(server, "/one-style.css", &hang/1)
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
-    {:error, error} = Page.wait_for_load_state(page, :load, timeout: 1)
+
+    {error, stacktrace} =
+      try do
+        Page.wait_for_load_state!(page, :load, timeout: 1)
+        {nil, nil}
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
     assert Exception.message(error) =~ "page.waitForLoadState: Timeout 1ms exceeded."
-    # expect(error.stack.split('\n')[1]).toContain(__filename);  -- not ported: JS error.stack
+    # error.stack: the Elixir stacktrace.
+    assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
   end
 
   test "should resolve immediately if loaded", %{page: page, server: server} do
@@ -55,7 +64,8 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
 
   test "should throw for bad state", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/one-style.html")
-    # Deviation: the facade rejects the invalid state before the call (upstream: the protocol validator).
+    # Deviation: the facade rejects the invalid state before the call (upstream: the client's
+    # verifyLoadState).
     error = assert_raise ArgumentError, fn -> Page.wait_for_load_state(page, :bad) end
     assert Exception.message(error) =~ "expected one of :domcontentloaded, :load, :networkidle"
   end

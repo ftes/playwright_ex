@@ -35,10 +35,18 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
   end
 
   test "should respect timeout", %{page: page} do
-    {:error, error} = page |> Page.wait_for_event(:request, predicate: fn _ -> false end, timeout: 1) |> Promise.await()
+    {error, stacktrace} =
+      try do
+        page |> Page.wait_for_event(:request, predicate: fn _ -> false end, timeout: 1) |> Promise.await!()
+        {nil, nil}
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
     assert %TimeoutError{} = error
     assert Exception.message(error) =~ ~s(Timeout 1ms exceeded while waiting for event "request")
-    # Error stack should point to the api call.  -- not ported: Elixir exceptions carry no JS stack
+    # Error stack should point to the api call (error.stack: the Elixir stacktrace).
+    assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
   end
 
   test "should respect default timeout", %{page: page} do
