@@ -106,7 +106,8 @@ defmodule PlaywrightEx.Client.Waiter do
     )
   end
 
-  def reject_on_timeout(this, %{timeout: timeout} = options, timeout_message) do
+  def reject_on_timeout(this, options, timeout_message) do
+    timeout = options[:timeout]
     signal = options[:signal]
 
     if signal && AbortSignal.aborted(signal) do
@@ -125,7 +126,8 @@ defmodule PlaywrightEx.Client.Waiter do
         end)
       end
 
-      if timeout != 0 do
+      # `if (timeout)`
+      if timeout not in [nil, 0] do
         {promise, dispose} = wait_for_timeout(timeout)
 
         _reject_on(

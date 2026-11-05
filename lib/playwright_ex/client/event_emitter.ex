@@ -30,8 +30,11 @@ defmodule PlaywrightEx.Client.EventEmitter do
   Elixir has no variadic functions, so `emit` takes one event argument and listeners one
   parameter (as every listener in the client and the facade).
 
-  Deviation: an async user listener queues later events of its subscription behind it; JS
-  interleaves them.
+  Deviations: an async user listener queues later events of its subscription behind it; JS
+  interleaves them. A listener that raises is caught alone: the later listeners still run, and
+  the error goes to `_rejectionHandler` or the log (JS: a synchronous throw leaves `emit`, only
+  async rejections reach `_rejectionHandler`). `removeAllListeners(type, %{behavior: "wait"})`
+  also waits for invocations that start after the call (JS: a snapshot of `_pendingHandlers`).
   """
   import PlaywrightEx.Runtime.Heap
 

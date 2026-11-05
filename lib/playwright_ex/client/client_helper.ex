@@ -81,7 +81,12 @@ defmodule PlaywrightEx.Client.ClientHelper do
   defp to_json(value) when is_boolean(value) or is_nil(value), do: value
   defp to_json(value) when is_atom(value), do: Atom.to_string(value)
   defp to_json(value) when is_list(value), do: Enum.map(value, &if(is_function(&1), do: nil, else: to_json(&1)))
-  defp to_json(%DateTime{} = value), do: value
+  # `toISOString()`: UTC, always milliseconds.
+  defp to_json(%DateTime{} = value) do
+    value = DateTime.shift_zone!(value, "Etc/UTC")
+    {microsecond, _precision} = value.microsecond
+    DateTime.to_iso8601(%{value | microsecond: {div(microsecond, 1000) * 1000, 3}})
+  end
 
   defp to_json(value) when is_map(value) and not is_struct(value) do
     for {k, v} <- value, v != nil and not is_function(v), into: %{}, do: {k, to_json(v)}

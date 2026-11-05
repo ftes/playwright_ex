@@ -67,7 +67,9 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
         nil -> function
       end
 
-    String.downcase(String.first(class)) <> String.slice(class, 1..-1//1) <> "." <> camelize(function)
+    # name.match(/(API|JS|CDP|[A-Z])([^\d]+)\d?\.(.*)/): a leading API, JS or CDP lowercased as a whole.
+    [_, first, rest] = Regex.run(~r/^(API|JS|CDP|[A-Z]?)(.*)$/s, class)
+    String.downcase(first) <> rest <> "." <> camelize(function)
   end
 
   defp camelize("_" <> rest), do: "_" <> camelize(rest)

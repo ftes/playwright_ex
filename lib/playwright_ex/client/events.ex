@@ -2,6 +2,10 @@
 defmodule PlaywrightEx.Client.Events do
   @upstream "packages/playwright-core/src/client/events.ts"
   @moduledoc "Port of `#{@upstream}`."
+  # AndroidDevice: { WebView: 'webview', Close: 'close' },  -- not ported: no Android
+  # AndroidSocket: { Data: 'data', Close: 'close' },  -- not ported: no Android
+  # AndroidWebView: { Close: 'close' },  -- not ported: no Android
+
   defmodule Browser do
     @moduledoc false
     def context, do: "context"
@@ -28,12 +32,15 @@ defmodule PlaywrightEx.Client.Events do
     def page_close, do: "pageclose"
     def page_load, do: "pageload"
     def web_error, do: "weberror"
+    # BackgroundPage: 'backgroundpage',  -- not ported: deprecated in v1.56, never emitted anymore
     def service_worker, do: "serviceworker"
     def request, do: "request"
     def response, do: "response"
     def request_failed, do: "requestfailed"
     def request_finished, do: "requestfinished"
   end
+
+  # BrowserServer: { Close: 'close' },  -- not ported: launchServer is JS-only
 
   defmodule Page do
     @moduledoc false
@@ -72,4 +79,6 @@ defmodule PlaywrightEx.Client.Events do
     def close, do: "close"
     def console, do: "console"
   end
+
+  # ElectronApplication: { Close: 'close', Console: 'console', Window: 'window' },  -- not ported: no Electron
 end

@@ -6,7 +6,8 @@ defmodule PlaywrightEx.Isomorphic.TimeoutRunner do
 
   def race_against_deadline(cb, deadline) do
     # `let timer` assigned in the executor: the executor runs synchronously, so it is computed first.
-    timer = if deadline != 0, do: Promise.timer(max(0, round(deadline - monotonic_time())))
+    # `if (!deadline)`: 0 and undefined mean no deadline.
+    timer = if deadline not in [nil, 0], do: Promise.timer(max(0, round(deadline - monotonic_time())))
     timed_out = if timer, do: [Promise.then_(timer, fn _ -> %{timedOut: true} end)], else: []
 
     # Note: not including "await" here truncates the async stack inside cb(), so always include it.
