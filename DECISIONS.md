@@ -311,3 +311,11 @@ drift). Blockers for release, assigned to follow-up workstreams:
   silently on excluded browsers. Final test sweep, plus a parity check that fails when a skip
   reason names an exported client function.
 - `signal:` (AbortSignal) stays dropped for release; documented as a known gap.
+
+## 2026-11-05: Flaky tag
+
+- **`@tag skip: "flaky: <cause>"`** for tests that pass locally but race on CI or under load:
+  popup "should not throw when click closes popup" (driver returns TargetClosedError on Linux
+  CI), page-screenshot "fullPage screenshots during navigation" (30s screenshot timeout under
+  load), chromium/connect-to-worker console race. Revisit each before release: find the race
+  or confirm it upstream.
