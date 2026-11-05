@@ -56,9 +56,9 @@ page/matchers.misc                  Generic matchers of @playwright/test.
 BR-007      __testHookBeforeSetStorageState is a JS function
 # library/browsercontext-fetch
 # library/browsercontext-fetch-happy-eyeballs
-FE-185      __testHookLookup (in-process test hook)
-FE-186      __testHookLookup (in-process test hook)
-FE-187      __testHookLookup (in-process test hook)
+FE-185      __testHookLookup (in-process test hook): the test checks the driver's own Happy Eyeballs connection through the unreachable addresses the hook returns; a resolving proxy (how the fetch cookie tests and playwright-python stand in for the hook) replaces that connection with the proxy agent's, so Python rules these out too
+FE-186      __testHookLookup (in-process test hook): the test checks the driver's own Happy Eyeballs connection through the unreachable addresses the hook returns; a resolving proxy (how the fetch cookie tests and playwright-python stand in for the hook) replaces that connection with the proxy agent's, so Python rules these out too
+FE-187      __testHookLookup (in-process test hook): the test checks the driver's own Happy Eyeballs connection through the unreachable addresses the hook returns; a resolving proxy (how the fetch cookie tests and playwright-python stand in for the hook) replaces that connection with the proxy agent's, so Python rules these out too
 # library/browsercontext-route
 RO-185      URLPattern
 # library/browsertype-connect
