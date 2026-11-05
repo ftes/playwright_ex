@@ -559,10 +559,14 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `ClientHelper.json_stringify_indented/2`: `:json.format` folds single-member objects onto
   one line. Key order follows Elixir maps.
 - `globToRegex` follow-up: done in workstream AA (below).
-- Linux firefox without a DISPLAY: the webgl screenshot differs from the golden, and the GC
-  steady-state loop stops getting `newPage` replies. Both are tagged `env:` (no DISPLAY), and the
-  firefox/webkit CI job now runs under `xvfb-run` like upstream, so they run there. The
-  older no-DISPLAY skips (capabilities, oopif, connect) also run under xvfb now.
+- The firefox/webkit CI job runs under `xvfb-run` like upstream. Linux firefox WebGL (webgl
+  screenshot, capabilities, oopif, connect) now runs and passes there; the no-DISPLAY `env:`
+  skips remain for headless Linux boxes.
+- GC steady-state loop: Linux firefox stops answering `newPage` after ~100 pages, with or
+  without xvfb (passes on macOS). Tagged `env:` for firefox on Linux. Revisit with the upstream
+  Node client in the same loop to confirm it is browser-side.
+- webkit "should await form-post on click": on CI once, the click reply came before WebKit sent
+  the POST (driver timing). Tagged `flaky:` for webkit on CI.
 
 ## 2026-11-05: Local URL glob matching (workstream AA)
 - `urlMatch.ts` is fully ported (`globToRegexPattern`, `resolveGlobBase`, `toWebSocketBaseUrl`).
