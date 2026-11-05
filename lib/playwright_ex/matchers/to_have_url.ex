@@ -17,7 +17,8 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
     timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
     base_url = Heap.get(Page.context(page), :_options)[:baseURL]
     local_utils = Connection.local_utils(Heap.get(page, :_connection))
-    # `let lastCheckedURLString`, assigned in the predicate (which runs in this process).
+    # `let lastCheckedURLString`, assigned in the predicate (which runs in this process); freed
+    # below.
     last_checked = Heap.new_object(PlaywrightEx.Client.Connect.Cell)
 
     try do
@@ -77,6 +78,8 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
             timeout: timeout
           }
         end
+    after
+      Heap.free(last_checked)
     end
   end
 
