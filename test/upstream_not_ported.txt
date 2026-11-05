@@ -61,7 +61,7 @@ FE-187      __testHookLookup (in-process test hook): the test checks the driver'
 # library/browsercontext-route
 RO-185      URLPattern
 # library/browsertype-connect
-BT-047      connect(options) overload: a types.d.ts overload that api.json lacks (connect(endpoint, options)), so the facade has no object form; playwright-python's counterpart passes every argument by name (endpoint=...), which Elixir's positional arguments can not, so it is BT-046's call
+BT-047      connect(options): a types.d.ts overload, api.json has only connect(endpoint, options), so the facade has no object form; playwright-python's counterpart names every argument (endpoint=...), Elixir's positional arguments have no names (the call would be BT-046's)
 # library/browsertype-launch
 BT-012      __testHookBeforeCreateBrowser is a JS function
 BT-013      __testHookBeforeCreateBrowser is a JS function
@@ -104,12 +104,10 @@ SS-080      __testHookBeforeScreenshot (JS-only test hook)
 SS-086      __testHookBeforeScreenshot (JS-only test hook)
 SS-087      __testHookAfterScreenshot (JS-only test hook)
 SS-089      __testHookBeforeScreenshot (JS-only test hook)
-# library/selectors-register
 # library/signals
 SI-007      Needs the stallOnClose launch hook: __testHookGracefullyClose is a JS function in the launch options, which the client cannot send to the driver; the double-SIGINT kill runs in the signal handlers of the Node.js process that launched the browser (the driver, which does not get the signals sent to the BEAM).
 SI-008      Needs the stallOnClose launch hook: __testHookGracefullyClose is a JS function in the launch options, which the client cannot send to the driver; the SIGINT + SIGTERM kill runs in the signal handlers of the Node.js process that launched the browser (the driver, which does not get the signals sent to the BEAM).
 SI-009      Needs the stallOnClose launch hook: __testHookGracefullyClose is a JS function in the launch options, which the client cannot send to the driver; the SIGTERM + SIGINT kill runs in the signal handlers of the Node.js process that launched the browser (the driver, which does not get the signals sent to the BEAM).
-# library/tracing
 # page/expect-boolean
 EX-069      a pending promise as receiver (Elixir calls return values)
 # page/expect-misc
@@ -119,7 +117,6 @@ FR-003      toImpl (in-process server internals: page delegate _contextIdToConte
 FR-004      toImpl (in-process server internals: page delegate _contextIdToContext)
 # page/page-autowaiting-basic
 AW-010      __testHookAfterPointerAction (JS-only test hook)
-# page/page-basic
 # page/page-click
 CL-067      JS-only test hooks (__testHookBeforeStable)
 CL-068      JS-only test hooks (__testHookBeforeStable)
