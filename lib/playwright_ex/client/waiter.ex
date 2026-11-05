@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Client.Waiter do
       ChannelOwner._wrap_api_call(
         owner,
         fn api_zone ->
-          if api_zone.internal or api_zone.reported do
+          if api_zone.internal or !ChannelOwner._report(api_zone) do
             Connection.send_message_to_server(get(owner, :_connection), owner, "__waitInfo__", info, %{
               internal: true,
               timeout: 0

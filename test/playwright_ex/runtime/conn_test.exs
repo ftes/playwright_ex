@@ -16,6 +16,8 @@ defmodule PlaywrightEx.RuntimeConnTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Conn
+  alias PlaywrightEx.Runtime.Promise, as: RuntimePromise
+  alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -417,6 +419,35 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert metadata.internal == false or metadata.internal == nil
       assert params == %{url: server.empty_page, waitUntil: "load"}
       flush()
+    end
+  end
+
+  describe "apiZone" do
+    # JS: one apiZone object per `_wrapApiCall`; only its first channel call is reported, the
+    # others go out internal, whichever async chain makes them.
+    test "one API call is reported once across the processes it starts", %{page: page} do
+      test = self()
+      frame = Page.main_frame(page)
+      guid = frame.guid
+
+      :persistent_term.put({Conn, :on_send}, fn
+        %{guid: ^guid, method: "title", metadata: metadata} -> send(test, {:internal, metadata.internal})
+        _ -> :ok
+      end)
+
+      PlaywrightEx.Runtime.Api.call("frame.title", frame, fn ->
+        ChannelOwner._wrap_api_call(frame, fn _ ->
+          children = for _ <- 1..2, do: RuntimePromise.async(fn -> ChannelOwner.channel_call(frame, :title, %{}) end)
+          RuntimePromise.await(RuntimePromise.all(children))
+          ChannelOwner.channel_call(frame, :title, %{})
+        end)
+      end)
+
+      :persistent_term.erase({Conn, :on_send})
+      assert_received {:internal, first}
+      assert_received {:internal, second}
+      assert_received {:internal, third}
+      assert Enum.count([first, second, third], &(&1 != true)) == 1
     end
   end
 

@@ -351,7 +351,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
         validated_params = validator.(params, "", _validator_to_wire_context(this))
         %{signal: signal, timeout: timeout} = Map.merge(%{signal: nil, timeout: 0}, options)
 
-        if !api_zone.internal and !api_zone.reported do
+        if !api_zone.internal and _report(api_zone) do
           # Reporting/tracing/logging this api call for the first time.
           api_zone = Zones.update(:apiZone, &%{&1 | reported: true}) || api_zone
 
@@ -408,6 +408,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
         frames: stack_trace.frames,
         internal: options[:internal] || false,
         reported: false,
+        # Elixir only: `reported` shared by the processes the call starts (see `_report/1`).
+        _reportedCell: :atomics.new(1, []),
         userData: nil,
         callId: nil
       }
@@ -442,6 +444,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       end
     end
   end
+
+  @doc false
+  # Elixir only: `!apiZone.reported` then `apiZone.reported = true`, for the zone's one object in
+  # JS. The zone is copied into each process the call starts (`Promise.async`), so the flag is a
+  # shared cell, set once: true for the first caller only.
+  def _report(%{_reportedCell: cell}), do: :atomics.compare_exchange(cell, 1, 0, 1) == :ok
+  def _report(api_zone), do: !api_zone.reported
 
   # toJSON  -- not ported (Inspect shows the handle)
 
