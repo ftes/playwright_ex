@@ -7,13 +7,16 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Disposable
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Screencast
   alias PlaywrightEx.Utils
+  alias PlaywrightEx.VideoPlayer
 
   @browser_name System.get_env("BROWSER", "chromium")
+  @ffmpeg_skip VideoPlayer.skip_reason()
 
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
@@ -243,8 +246,18 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     assert length(video_files2) == 1
   end
 
-  @tag skip: "not ported: VideoPlayer (ffmpeg)"
-  test "start should record video with the requested fps"
+  @tag skip: @ffmpeg_skip
+  @tag :tmp_dir
+  test "start should record video with the requested fps", %{browser: browser, tmp_dir: tmp_dir} do
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+    video_path = Path.join(tmp_dir, "video.webm")
+    Screencast.start!(Page.screencast(page), path: video_path, fps: 60)
+    ensure_some_frames(page)
+    Screencast.stop!(Page.screencast(page))
+    assert VideoPlayer.new(video_path).fps == 60
+    BrowserContext.close!(context)
+  end
 
   @tag :page
   @tag :tmp_dir
@@ -283,11 +296,74 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: VideoPlayer (ffmpeg)"
-  test "empty video"
+  @tag skip: @ffmpeg_skip
+  @tag :tmp_dir
+  test "empty video", %{browser: browser, tmp_dir: tmp_dir} do
+    size = %{width: 800, height: 800}
+    context = Browser.new_context!(browser, viewport: size)
+    page = BrowserContext.new_page!(context)
+    video_path = Path.join(tmp_dir, "empty-video.webm")
+    Screencast.start!(Page.screencast(page), path: video_path, size: size)
+    Screencast.stop!(Page.screencast(page))
+    BrowserContext.close!(context)
+    expect_frames(video_path, size, &is_almost_white/1)
+  end
 
-  @tag skip: "not ported: VideoPlayer (ffmpeg)"
-  test "start dispose stops recording"
+  @tag skip: @ffmpeg_skip
+  @tag :tmp_dir
+  test "start dispose stops recording", %{browser: browser, tmp_dir: tmp_dir} do
+    size = %{width: 800, height: 800}
+    context = Browser.new_context!(browser, viewport: size)
+    page = BrowserContext.new_page!(context)
+    video_path = Path.join(tmp_dir, "dispose-video.webm")
+    disposable = Screencast.start!(Page.screencast(page), path: video_path, size: size)
+    Page.evaluate!(page, "() => document.body.style.backgroundColor = 'red'")
+    ensure_some_frames(page)
+    Disposable.dispose!(disposable)
+    expect_red_frames(video_path, size)
+    BrowserContext.close!(context)
+  end
+
+  defp is_almost_white(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g > 185 and b > 185 and alpha == 255
+
+  defp is_almost_red(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g < 70 and b < 70 and alpha == 255
+
+  defp find_pixel(pixels, pixel_predicate),
+    do: Enum.find(for(<<r, g, b, alpha <- pixels>>, do: %{r: r, g: g, b: b, alpha: alpha}), pixel_predicate)
+
+  defp expect_all(pixels, pixel_predicate) do
+    if bad_pixel = find_pixel(pixels, &(!pixel_predicate.(&1))) do
+      rgba = Enum.join([bad_pixel.r, bad_pixel.g, bad_pixel.b, bad_pixel.alpha], ", ")
+      {:name, name} = Function.info(pixel_predicate, :name)
+
+      flunk(
+        Enum.join(
+          [
+            "Expected all pixels to satisfy #{name}, found bad pixel (#{rgba})",
+            "Actual pixels=[#{Enum.join(:binary.bin_to_list(pixels), ",")}]"
+          ],
+          "\n"
+        )
+      )
+    end
+  end
+
+  defp expect_red_frames(video_file, size), do: expect_frames(video_file, size, &is_almost_red/1)
+
+  defp expect_frames(video_file, size, pixel_predicate) do
+    video_player = VideoPlayer.new(video_file)
+    duration = video_player.duration
+    assert duration > 0
+
+    assert video_player.videoWidth == size.width
+    assert video_player.videoHeight == size.height
+
+    pixels = VideoPlayer.seek_last_frame(video_player).data
+    expect_all(pixels, pixel_predicate)
+
+    pixels = VideoPlayer.seek_last_frame(video_player, %{x: size.width - 20, y: 10}).data
+    expect_all(pixels, pixel_predicate)
+  end
 
   defp jpeg_dimensions(buffer), do: jpeg_dimensions(buffer, 2)
 
