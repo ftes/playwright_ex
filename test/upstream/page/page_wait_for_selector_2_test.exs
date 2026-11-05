@@ -142,7 +142,20 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_selector, :infinity)) == "anything"
   end
 
-  test "should have correct stack trace for timeout"
+  # `error.stack` is the stack trace of the raised error (the bang form; `{:error, e}` has none).
+  # 'wait-for-selector' is this file's name: here its path, as the library's `wait_for_selector`
+  # frames would match the name alone.
+  test "should have correct stack trace for timeout", %{page: page} do
+    {error, stacktrace} =
+      try do
+        Page.wait_for_selector!(page, ".zombo", timeout: 10)
+        {nil, nil}
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
+    assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
+  end
 
   test "should throw for unknown state option", %{page: page} do
     Page.set_content!(page, "<section>test</section>")

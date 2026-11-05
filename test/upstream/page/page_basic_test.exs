@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageBasicTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.TestServer
 
   @moduletag :page
 
@@ -16,7 +17,26 @@ defmodule PlaywrightEx.Page.PageBasicTest do
     Promise.await!(load)
   end
 
-  test "async stacks should work"
+  # `error.stack` is the stack trace of the raised error (the bang form; `{:error, e}` has none),
+  # `__filename` this file.
+  test "async stacks should work", %{page: page, server: server} do
+    # req.socket.end(): close the connection without a response.
+    TestServer.set_route(server, "/empty.html", fn %Plug.Conn{adapter: {Bandit.Adapter, adapter}} ->
+      ThousandIsland.Socket.close(adapter.transport.socket)
+      Process.exit(self(), :kill)
+    end)
+
+    {error, stacktrace} =
+      try do
+        Page.goto!(page, server.empty_page)
+        {nil, nil}
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
+    assert error != nil
+    assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
+  end
 
   test "should provide access to the opener page", %{page: page} do
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => window.open('about:blank')") end)
@@ -165,5 +185,9 @@ defmodule PlaywrightEx.Page.PageBasicTest do
     assert Page.evaluate!(page, "() => navigator.webdriver") == true
   end
 
-  test "should iterate over page properties"
+  # for..in over the page: the fields of its struct, each object value asked for its iterator
+  # (`Enumerable.impl_for/1`).
+  test "should iterate over page properties", %{page: page} do
+    _props = for {_prop, value} <- Map.from_struct(page), is_map(value), do: Enumerable.impl_for(value)
+  end
 end

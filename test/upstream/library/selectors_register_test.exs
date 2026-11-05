@@ -46,7 +46,29 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     BrowserContext.close!(context)
   end
 
-  test "should work when registered on global"
+  test "should work when registered on global", %{playwright: playwright, browser: browser} do
+    # it.skip(mode === 'driver', ...)  -- always default mode
+    # require('@playwright/test').selectors: the selectors of the Playwright instance that launched
+    # the browser (in default mode). There are no global selectors here: that is `playwright`'s.
+    Selectors.register!(Playwright.selectors(playwright), "oop-tag", "(#{@create_tag_selector})()")
+
+    context = Browser.new_context!(browser)
+    # Register another engine after creating context.
+    Selectors.register!(Playwright.selectors(playwright), "oop-tag2", "(#{@create_tag_selector})()")
+
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<div><span></span></div><div></div>")
+
+    assert Page.eval_on_selector!(page, "oop-tag=DIV", "e => e.nodeName") == "DIV"
+    assert Page.eval_on_selector!(page, "oop-tag=SPAN", "e => e.nodeName") == "SPAN"
+    assert Page.eval_on_selector_all!(page, "oop-tag=DIV", "es => es.length") == 2
+
+    assert Page.eval_on_selector!(page, "oop-tag2=DIV", "e => e.nodeName") == "DIV"
+    assert Page.eval_on_selector!(page, "oop-tag2=SPAN", "e => e.nodeName") == "SPAN"
+    assert Page.eval_on_selector_all!(page, "oop-tag2=DIV", "es => es.length") == 2
+
+    BrowserContext.close!(context)
+  end
 
   test "should work with path", %{playwright: playwright, browser: browser, asset: asset} do
     Selectors.register!(Playwright.selectors(playwright), "foo", %{path: asset.("sectionselectorengine.js")})

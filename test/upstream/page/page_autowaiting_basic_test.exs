@@ -116,7 +116,24 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     Page.dblclick!(page, "a")
   end
 
-  test "should work with waitForLoadState(load)"
+  # Promise.all([page.click('a').then(() => page.waitForLoadState('load')).then(() => messages.push('clickload')),
+  #              page.waitForEvent('load').then(() => messages.push('load'))])
+  # Test port: as in `click_and_wait_for_navigated/2`, the 'load' push runs in a `once` listener
+  # (which also stands for the waitForEvent, as in playwright-python). JS runs it as a microtask
+  # of the event that resolves waitForLoadState, before the 'clickload' continuation; here it runs
+  # in its own process, so `removeAllListeners` with `behavior: 'wait'` (the fired `once` left no
+  # listener to remove) awaits it before 'clickload' is pushed.
+  test "should work with waitForLoadState(load)", %{page: page, server: server} do
+    init_server(server)
+    Page.set_content!(page, ~s(<a id="anchor" href="#{server.empty_page}">empty.html</a>))
+    test = self()
+    Page.once(page, :load, fn _ -> send(test, {:message, "load"}) end)
+    Page.click!(page, "a")
+    Page.wait_for_load_state!(page, "load")
+    Page.remove_all_listeners!(page, :load, behavior: :wait)
+    send(test, {:message, "clickload"})
+    assert messages() == "route|load|clickload"
+  end
 
   test "should work with goto following click", %{page: page, server: server} do
     TestServer.set_route(server, "/login.html", fn conn ->

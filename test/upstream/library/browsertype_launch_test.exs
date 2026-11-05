@@ -88,5 +88,32 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     refute Browser.is_connected(browser)
   end
 
-  test "should allow await using"
+  # `{ await using x = value; body }`: Elixir has no using declarations, `await_using/3` is their
+  # try/finally with `x[Symbol.asyncDispose]()`, which is `x.close()` for a browser, a context and
+  # a page. `let b` (assigned in the block) is the block's result.
+  defp await_using(value, async_dispose, body) do
+    body.(value)
+  after
+    async_dispose.(value)
+  end
+
+  test "should allow await using", %{browser_type: browser_type} do
+    # it.skip(nodeVersion.major < 18)  -- not Node
+
+    b =
+      await_using(BrowserType.launch!(browser_type), &Browser.close!/1, fn browser ->
+        c =
+          await_using(Browser.new_context!(browser), &BrowserContext.close!/1, fn context ->
+            p = await_using(BrowserContext.new_page!(context), &Page.close!/1, & &1)
+            assert Page.is_closed(p)
+            context
+          end)
+
+        {:error, error} = BrowserContext.clear_cookies(c)
+        assert Exception.message(error) =~ "Target page, context or browser has been closed"
+        browser
+      end)
+
+    refute Browser.is_connected(b)
+  end
 end

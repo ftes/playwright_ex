@@ -676,7 +676,27 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       Expect.not_to_be_in_viewport!(Page.locator(page, "div"), ratio: 0.8)
     end
 
-    test "should have good stack"
+    # `error.stack` is the stack trace of the raised error. Its `at` frames are the frames outside
+    # the libraries (`@playwright/test` hides its own): here the frames of modules in no OTP
+    # application (the library, ExUnit and OTP frames are).
+    test "should have good stack", %{page: page} do
+      {error, stacktrace} =
+        try do
+          Expect.not_to_be_in_viewport!(Page.locator(page, "body"), timeout: 3000)
+          {nil, nil}
+        rescue
+          e -> {e, __STACKTRACE__}
+        end
+
+      assert error
+      assert Exception.format(:error, error, stacktrace) =~ ~r/unexpected value "viewport ratio \d+/
+
+      stack_frames =
+        Enum.filter(stacktrace, fn {module, _, _, _} -> :application.get_application(module) == :undefined end)
+
+      assert length(stack_frames) == 1
+      assert Exception.format_stacktrace(stack_frames) =~ Path.relative_to_cwd(__ENV__.file)
+    end
 
     test "should report intersection even if fully covered by other element", %{page: page} do
       Page.set_content!(page, """
