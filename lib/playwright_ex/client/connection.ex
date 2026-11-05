@@ -397,13 +397,16 @@ defmodule PlaywrightEx.Client.Connection do
     end
   end
 
+  # One atomic step, as JS runs this synchronously: concurrent closers emit "close" once.
   def close(this, cause \\ nil) do
-    if !get(this, :_closedError) do
-      put(this, :_closedError, TargetClosedError.new(cause))
-      for callback <- map_values(this, :_callbacks), do: callback.reject.(get(this, :_closedError))
-      map_clear(this, :_callbacks)
-      emit(this, "close")
-    end
+    atomic(this, fn ->
+      if !get(this, :_closedError) do
+        put(this, :_closedError, TargetClosedError.new(cause))
+        for callback <- map_values(this, :_callbacks), do: callback.reject.(get(this, :_closedError))
+        map_clear(this, :_callbacks)
+        emit(this, "close")
+      end
+    end)
   end
 
   # Returns the object itself: channels and owners are the same handle (JS: `object._channel`).
