@@ -363,3 +363,34 @@ drift). Blockers for release, assigned to follow-up workstreams:
   object's listeners and fields, so handlers ran twice. Revisit with M's heap delete API.
 - **Parity root module** for split files is the module named after the file.
 - `highlight(style:)` also takes a keyword list (keeps key order, like a JS object literal).
+
+## 2026-11-05: Heap GC and Map order (workstream M)
+
+- **Tracing GC** (`Runtime.GC`) instead of free-on-settle: freeing on settle breaks late awaits
+  (`_closedPromise`, user handles, `expect_*` where the event fires before the await). Runs
+  under the baton at the end of a unit (API call, handed-off callback, macrotask) once
+  allocations reach twice the reachable objects (min 2000); ~13-25 ms at steady state.
+- **Roots**: open connections, units in flight, pending timers/posts, promises with suspended
+  awaiters, handles returned to a caller (until it exits or `GC.unroot`, max 1000 per process,
+  then awaiting raises "garbage collected"), and a graveyard of the last 500 disposed owners
+  (handles keep reading fields after close, as in JS).
+- **Two-collection freeing**: locals of suspended units are invisible, so an object is freed only
+  after every unit in flight at the first collection ended. Revisit: a listener awaiting forever
+  postpones all freeing.
+- **Settled promises** keep only `:state`; awaiters get the result in their wake-up message.
+- **Closed connection heaps** are deleted once nothing in them is reachable; reading a handle
+  from one raises `TargetClosedError`.
+- **Map order**: heaps are `ordered_set`, map rows carry an insertion `seq` (JS Map semantics).
+  Header order in `raw_headers`/`route.fulfill` is unchanged: those are Elixir maps in the API.
+- Measured: 1000 evaluates return to baseline +10 rows; 300 pages level off.
+- Watch: two tracing specs failed once in a full run after the merge (passed alone and in the
+  next full run). Revisit if CI shows it again.
+
+## 2026-11-05: Final skip sweep
+
+- 77 in-body browser guards became `@tag skip: if(<browser cond>, do: "upstream skip|fixme|fail:
+  ...")`, and 21 missing upstream skips were added, so reports are honest per browser.
+- Proxy specs run on `TestProxy` (ipv6 via an `ip:` option). Glob specs go through the driver's
+  glob conversion (not the same function as upstream's `globToRegexPattern`; commented).
+- Firefox: client-certificates "fetch should work in the browser with request interception"
+  fails (no upstream skip). Revisit: lib or environment.
