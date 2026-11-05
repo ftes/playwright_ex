@@ -111,6 +111,8 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
   end
 
   # `new URL(url, base)`: raises unless the result is absolute.
+  # Deviation: `URI` is RFC 3986, not WHATWG: no percent-encoding (a space raises, so the given
+  # URL is returned as is) and, without a base, no dot-segment removal (DECISIONS, workstream LL).
   defp new_url(url, nil), do: absolute!(URI.new!(url))
   defp new_url(url, base), do: absolute!(URI.merge(absolute!(URI.new!(base)), url))
 
