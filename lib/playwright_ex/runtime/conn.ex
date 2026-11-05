@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Runtime.Conn do
        frames: [],
        # monitor ref => inv of a listener or async process the barrier may wait for
        procs: %{},
-       # subscription pid => invocations sent and not done
+       # subscription pid => invocations sent and not done (oldest first)
        busy: %{},
        # inv => {emitter guid, type}: listener invocations still running (`_pendingHandlers`)
        pending: %{},
@@ -205,7 +205,7 @@ defmodule PlaywrightEx.Runtime.Conn do
   def handle_info({:pw_yield, inv}, state), do: {:noreply, state |> unblock(inv) |> drain() |> flush_out()}
 
   def handle_info({:pw_done, inv, pid}, state) do
-    busy = if state.busy[pid], do: Map.update!(state.busy, pid, &max(&1 - 1, 0)), else: state.busy
+    busy = if state.busy[pid], do: Map.update!(state.busy, pid, &List.delete(&1, inv)), else: state.busy
     {:noreply, %{state | busy: busy} |> done(inv) |> drain() |> flush_out()}
   end
 
@@ -225,8 +225,14 @@ defmodule PlaywrightEx.Runtime.Conn do
 
     state =
       case Map.pop(state.procs, mref) do
-        {nil, _} -> %{state | busy: Map.delete(state.busy, pid)}
-        {inv, procs} -> done(%{state | procs: procs}, inv)
+        # A subscription process exited (killed, or a linked process crashed) with invocations
+        # sent to it: they are done, else dispatch would wait for them forever.
+        {nil, _} ->
+          {invs, busy} = Map.pop(state.busy, pid, [])
+          Enum.reduce(invs, %{state | busy: busy}, &done(&2, &1))
+
+        {inv, procs} ->
+          done(%{state | procs: procs}, inv)
       end
 
     {:noreply, state |> drain() |> flush_out()}
@@ -367,12 +373,12 @@ defmodule PlaywrightEx.Runtime.Conn do
   defp run_step({:user, pid, fun, arg, emitter, type, zone}, state) do
     inv = make_ref()
     send(pid, {:pw_invoke, inv, fun, arg, emitter, zone})
-    was_busy = Map.get(state.busy, pid, 0) > 0
+    was_busy = Map.get(state.busy, pid, []) != []
     if !Map.has_key?(state.busy, pid), do: Process.monitor(pid)
 
     state = %{
       state
-      | busy: Map.update(state.busy, pid, 1, &(&1 + 1)),
+      | busy: Map.update(state.busy, pid, [inv], &(&1 ++ [inv])),
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 

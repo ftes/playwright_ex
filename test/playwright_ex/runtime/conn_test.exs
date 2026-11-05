@@ -162,6 +162,14 @@ defmodule PlaywrightEx.RuntimeConnTest do
       flush()
     end
 
+    test "a listener process that dies while dispatch waits for it does not stall dispatch", %{page: page} do
+      Page.on(page, :console, fn _ -> Process.exit(self(), :kill) end)
+      task = Task.async(fn -> Page.evaluate!(page, "() => { console.log('x'); return 1; }") end)
+      assert (Task.yield(task, 10_000) || Task.shutdown(task)) == {:ok, 1}
+      wait = Task.async(fn -> Page.remove_all_listeners!(page, :console, behavior: "wait") end)
+      assert {:ok, _} = Task.yield(wait, 10_000) || Task.shutdown(wait)
+    end
+
     test "off stops the listener", %{page: page, server: server} do
       test = self()
       listener = fn _ -> send(test, :request) end
