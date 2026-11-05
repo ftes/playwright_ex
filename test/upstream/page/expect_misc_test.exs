@@ -5,6 +5,8 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -762,9 +764,12 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
 
   test "should report page close reason when page closes during expect", %{page: page} do
     Page.set_content!(page, "<div>hello</div>")
-    promise = Task.async(fn -> Expect.to_have_text(Page.locator(page, "non-existent"), "world", timeout: 10_000) end)
+    # `Runtime.Promise.async/1` returns once the expect is sent: a `Task` could start it after the close.
+    promise =
+      Runtime.Promise.async(fn -> Expect.to_have_text(Page.locator(page, "non-existent"), "world", timeout: 10_000) end)
+
     Page.close!(page, reason: "Bye bye.")
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Promise.await!(promise)
     assert Exception.message(error) =~ "expect(locator).toHaveText(expected) failed"
     assert Exception.message(error) =~ "Bye bye."
     refute Exception.message(error) =~ "Internal server error"

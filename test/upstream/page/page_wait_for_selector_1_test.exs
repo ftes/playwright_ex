@@ -6,9 +6,14 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Utils
 
   @moduletag :page
+
+  # A call without `await` is `Runtime.Promise.async/1`: it returns once the call is sent, so the
+  # logs of the first poll are not lost to a late start (as with `Task.async`).
 
   @add_element "tag => document.body.appendChild(document.createElement(tag))"
 
@@ -94,7 +99,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
   test "should report logs while waiting for visible", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
-    watchdog = Task.async(fn -> Frame.wait_for_selector(frame, "div", timeout: 5000) end)
+    watchdog = Runtime.Promise.async(fn -> Frame.wait_for_selector(frame, "div", timeout: 5000) end)
 
     Frame.evaluate!(frame, """
     () => {
@@ -124,7 +129,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
 
     give_it_time_to_log(frame)
 
-    {:error, error} = Task.await(watchdog, 10_000)
+    {:error, error} = Promise.await!(watchdog)
     message = Exception.message(error)
     assert message =~ "frame.waitForSelector: Timeout 5000ms exceeded."
     assert message =~ "waiting for locator('div') to be visible"
@@ -149,7 +154,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     }
     """)
 
-    watchdog = Task.async(fn -> Frame.wait_for_selector(frame, "div", state: :hidden, timeout: 5000) end)
+    watchdog = Runtime.Promise.async(fn -> Frame.wait_for_selector(frame, "div", state: :hidden, timeout: 5000) end)
     give_it_time_to_log(frame)
 
     Frame.evaluate!(frame, """
@@ -164,7 +169,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
 
     give_it_time_to_log(frame)
 
-    {:error, error} = Task.await(watchdog, 10_000)
+    {:error, error} = Promise.await!(watchdog)
     message = Exception.message(error)
     assert message =~ "frame.waitForSelector: Timeout 5000ms exceeded."
     assert message =~ "waiting for locator('div') to be hidden"
