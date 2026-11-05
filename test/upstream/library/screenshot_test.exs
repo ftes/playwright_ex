@@ -2,11 +2,17 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
   @upstream "tests/library/screenshot.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
+  import PlaywrightEx.UpstreamSnapshot
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
 
   # PNG.sync.read (pngjs): enough of a decoder for the browsers' screenshots (8-bit, not
@@ -86,26 +92,96 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
   describe "page screenshot" do
     # browserTest.skip(browserName === 'firefox' && !headless)  -- we run headless
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should run in parallel in multiple pages"
+    test "should run in parallel in multiple pages", %{server: server, context_factory: context_factory} do
+      context = context_factory.([])
+      n = 5
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with a mobile viewport"
+      pages =
+        Task.await_many(
+          for _ <- 1..n do
+            Task.async(fn ->
+              page = BrowserContext.new_page!(context)
+              Page.goto!(page, server.prefix <> "/grid.html")
+              page
+            end)
+          end
+        )
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with a mobile viewport and clip"
+      promises =
+        for i <- 0..(n - 1) do
+          Task.async(fn ->
+            Page.screenshot!(Enum.at(pages, i), clip: %{x: 50 * rem(i, 2), y: 0, width: 50, height: 50})
+          end)
+        end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with a mobile viewport and fullPage"
+      screenshots = Task.await_many(promises)
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with device scale factor"
+      for i <- 0..(n - 1) do
+        to_match_snapshot(Enum.at(screenshots, i), "grid-cell-#{rem(i, 2)}.png")
+      end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with device scale factor and clip"
+      pages |> Enum.map(&Task.async(fn -> Page.close!(&1) end)) |> Task.await_many()
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with device scale factor and scale:css"
+    @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
+    test "should work with a mobile viewport", %{browser: browser, server: server} do
+      # browserTest.skip(browserName === 'firefox')
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/overflow.html")
+      screenshot = Page.screenshot!(page)
+      to_match_snapshot(screenshot, "screenshot-mobile.png")
+      BrowserContext.close!(context)
+    end
+
+    @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
+    test "should work with a mobile viewport and clip", %{browser: browser, server: server} do
+      # browserTest.skip(browserName === 'firefox')
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/overflow.html")
+      screenshot = Page.screenshot!(page, clip: %{x: 10, y: 10, width: 100, height: 150})
+      to_match_snapshot(screenshot, "screenshot-mobile-clip.png")
+      BrowserContext.close!(context)
+    end
+
+    @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
+    test "should work with a mobile viewport and fullPage", %{browser: browser, server: server} do
+      # browserTest.skip(browserName === 'firefox')
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/overflow-large.html")
+      screenshot = Page.screenshot!(page, full_page: true)
+      to_match_snapshot(screenshot, "screenshot-mobile-fullpage.png")
+      BrowserContext.close!(context)
+    end
+
+    test "should work with device scale factor", %{browser: browser, server: server} do
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, device_scale_factor: 2)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page)
+      to_match_snapshot(screenshot, "screenshot-device-scale-factor.png")
+      BrowserContext.close!(context)
+    end
+
+    test "should work with device scale factor and clip", %{browser: browser, server: server} do
+      context = Browser.new_context!(browser, viewport: %{width: 500, height: 500}, device_scale_factor: 3)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, clip: %{x: 50, y: 100, width: 150, height: 100})
+      to_match_snapshot(screenshot, "screenshot-device-scale-factor-clip.png")
+      BrowserContext.close!(context)
+    end
+
+    test "should work with device scale factor and scale:css", %{browser: browser, server: server} do
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, device_scale_factor: 2)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, scale: :css)
+      to_match_snapshot(screenshot, "screenshot-device-scale-factor-css-size.png")
+      BrowserContext.close!(context)
+    end
 
     test "should produce screenshot of correct size with scale:css and null viewport", %{
       browser: browser,
@@ -122,8 +198,14 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with device scale factor, clip and scale:css"
+    test "should work with device scale factor, clip and scale:css", %{browser: browser, server: server} do
+      context = Browser.new_context!(browser, viewport: %{width: 500, height: 500}, device_scale_factor: 3)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, clip: %{x: 50, y: 100, width: 150, height: 100}, scale: :css)
+      to_match_snapshot(screenshot, "screenshot-device-scale-factor-clip-css-size.png")
+      BrowserContext.close!(context)
+    end
 
     test "should throw if screenshot size is too large with device scale factor", %{
       browser: browser,
@@ -228,11 +310,31 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
   describe "element screenshot" do
     # browserTest.skip(browserName === 'firefox' && !headless)  -- we run headless
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "element screenshot should work with a mobile viewport"
+    @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
+    test "element screenshot should work with a mobile viewport", %{browser: browser, server: server} do
+      # browserTest.skip(browserName === 'firefox' && !isBidi)  -- isBidi is false here
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/grid.html")
+      Page.evaluate!(page, "() => window.scrollBy(50, 100)")
+      element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
+      screenshot = ElementHandle.screenshot!(element_handle)
+      to_match_snapshot(screenshot, "screenshot-element-mobile.png")
+      BrowserContext.close!(context)
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "element screenshot should work with device scale factor"
+    @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
+    test "element screenshot should work with device scale factor", %{browser: browser, server: server} do
+      # browserTest.skip(browserName === 'firefox' && !isBidi)  -- isBidi is false here
+      context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, device_scale_factor: 2)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/grid.html")
+      Page.evaluate!(page, "() => window.scrollBy(50, 100)")
+      element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
+      screenshot = ElementHandle.screenshot!(element_handle)
+      to_match_snapshot(screenshot, "screenshot-element-mobile-dsf.png")
+      BrowserContext.close!(context)
+    end
 
     test "should take screenshots when default viewport is null", %{browser: browser} do
       context = Browser.new_context!(browser, viewport: :null)
@@ -350,14 +452,84 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       assert pixel(decoded, 0, 999).b > 128
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work if the main resource hangs"
+    @tag skip: if(@browser_name == "chromium", do: "upstream skip: https://github.com/microsoft/playwright/issues/9757")
+    test "should work if the main resource hangs", %{browser: browser, server: server} do
+      # browserTest.skip(mode !== 'default')  -- default mode here
+      page = Browser.new_page!(browser)
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should capture full element when larger than viewport with device scale factor"
+      TestServer.set_route(server, "/slow", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-length", "4096")
+        |> Plug.Conn.put_resp_header("content-type", "text/html")
+        |> Plug.Conn.send_chunked(200)
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should capture full element when larger than viewport with device scale factor and scale:css"
+        Process.sleep(:infinity)
+      end)
+
+      try do
+        Page.goto(page, server.prefix <> "/slow", timeout: 1000)
+        screenshot = Page.screenshot!(page)
+        to_match_snapshot(screenshot, "hanging-main-resource.png")
+      after
+        Page.close!(page)
+      end
+    end
+
+    test "should capture full element when larger than viewport with device scale factor", %{browser: browser} do
+      context = Browser.new_context!(browser, viewport: %{width: 501, height: 501}, device_scale_factor: 2.5)
+      page = BrowserContext.new_page!(context)
+
+      Page.set_content!(page, """
+      <div style="height: 14px">oooo</div>
+      <style>
+      div.to-screenshot {
+        border: 4px solid red;
+        box-sizing: border-box;
+        width: 600px;
+        height: 600px;
+        margin-left: 50px;
+        background: rgb(0, 100, 200);
+      }
+      ::-webkit-scrollbar{
+        display: none;
+      }
+      </style>
+      <div class="to-screenshot"></div>
+      """)
+
+      screenshot = page |> Page.locator("div.to-screenshot") |> Locator.screenshot!()
+      to_match_snapshot(screenshot, "element-larger-than-viewport-dsf.png")
+      BrowserContext.close!(context)
+    end
+
+    test "should capture full element when larger than viewport with device scale factor and scale:css", %{
+      browser: browser
+    } do
+      context = Browser.new_context!(browser, viewport: %{width: 501, height: 501}, device_scale_factor: 2.5)
+      page = BrowserContext.new_page!(context)
+
+      Page.set_content!(page, """
+      <div style="height: 14px">oooo</div>
+      <style>
+      div.to-screenshot {
+        border: 4px solid red;
+        box-sizing: border-box;
+        width: 600px;
+        height: 600px;
+        margin-left: 50px;
+        background: rgb(0, 100, 200);
+      }
+      ::-webkit-scrollbar{
+        display: none;
+      }
+      </style>
+      <div class="to-screenshot"></div>
+      """)
+
+      screenshot = page |> Page.locator("div.to-screenshot") |> Locator.screenshot!(scale: :css)
+      to_match_snapshot(screenshot, "element-larger-than-viewport-dsf-css-size.png")
+      BrowserContext.close!(context)
+    end
 
     # annotation: https://github.com/microsoft/playwright/issues/26447
     if System.get_env("BROWSER") == "webkit", do: @tag(skip: "upstream fixme: webkit")
