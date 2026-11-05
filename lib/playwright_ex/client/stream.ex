@@ -3,8 +3,7 @@ defmodule PlaywrightEx.Client.Stream.ReadableStreamImpl do
   @moduledoc """
   Port of `#{@upstream}` (`class ReadableStreamImpl`), an `Enumerable` of binary chunks
   (Node's `Readable`): each chunk is a `read`, the end of the stream (or a halted
-  enumeration) a `close`. Enumerating it outside the baton (test code) takes the baton per
-  read, so any process can consume it (`Enum.into(stream, File.stream!(path))`).
+  enumeration) a `close`. Each read is a protocol call, so any process can consume it (`Enum.into(stream, File.stream!(path))`).
   """
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.TimeoutSettings

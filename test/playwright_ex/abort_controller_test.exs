@@ -4,14 +4,8 @@ defmodule PlaywrightEx.AbortControllerTest do
   alias PlaywrightEx.AbortController
   alias PlaywrightEx.AbortError
   alias PlaywrightEx.AbortSignal
-  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.ProcessOwner
   alias PlaywrightEx.Runtime.Promise
-
-  setup do
-    %{loop: EventLoop.get(start_supervised!(EventLoop))}
-  end
-
-  defp baton(loop, fun), do: EventLoop.with_baton(loop, fun)
 
   test "a new signal is not aborted; abort sets the reason once" do
     controller = AbortController.new()
@@ -37,70 +31,34 @@ defmodule PlaywrightEx.AbortControllerTest do
     assert_raise RuntimeError, "stop", fn -> AbortSignal.throw_if_aborted(AbortController.signal(controller)) end
   end
 
-  test "a controller belongs to no driver: listeners run under the baton of the loop that added them", %{loop: loop} do
-    other = EventLoop.get(start_supervised!(EventLoop, id: :other))
+  test "listeners run in the aborting process; a late listener does not run" do
     controller = AbortController.new()
     signal = AbortController.signal(controller)
     test = self()
-    listener = fn tag -> fn -> send(test, {tag, EventLoop.held?() && EventLoop.current!().pid}) end end
+    AbortSignal.add_event_listener(signal, "abort", fn -> send(test, {:early, self()}) end)
 
-    baton(loop, fn -> AbortSignal.add_event_listener(signal, "abort", listener.(:loop)) end)
-    baton(other, fn -> AbortSignal.add_event_listener(signal, "abort", listener.(:other)) end)
-    AbortSignal.add_event_listener(signal, "abort", listener.(:none))
+    aborter = Task.async(fn -> AbortController.abort(controller) && self() end)
+    aborter_pid = Task.await(aborter)
+    assert_received {:early, ^aborter_pid}
 
-    AbortController.abort(controller)
-    assert_received {:loop, pid} when pid == loop.pid
-    assert_received {:other, pid} when pid == other.pid
-    # Added outside any baton: runs in the aborting process.
-    assert_received {:none, false}
+    AbortSignal.add_event_listener(signal, "abort", fn -> send(test, {:late, self()}) end)
+    refute_received {:late, _}
   end
 
-  test "an abort under one baton runs that loop's listeners at once, other loops' as their tasks", %{loop: loop} do
-    other = EventLoop.get(start_supervised!(EventLoop, id: :other))
-    controller = AbortController.new()
-    signal = AbortController.signal(controller)
-    test = self()
-
-    baton(loop, fn ->
-      AbortSignal.add_event_listener(signal, "abort", fn -> send(test, {:loop, EventLoop.current!().pid}) end)
-    end)
-
-    baton(other, fn ->
-      AbortSignal.add_event_listener(signal, "abort", fn -> send(test, {:other, EventLoop.current!().pid}) end)
-    end)
-
-    baton(loop, fn ->
-      AbortController.abort(controller)
-      send(test, :aborted)
-    end)
-
-    assert_received {:loop, pid} when pid == loop.pid
-    assert_received :aborted
-    assert_receive {:other, pid} when pid == other.pid
+  test "a signal's rows are freed when its creator exits" do
+    signal = Task.await(Task.async(fn -> AbortController.signal(AbortController.new()) end))
+    # The owner handles the creator's exit asynchronously.
+    :sys.get_state(AbortSignal)
+    refute AbortSignal.aborted(signal)
+    assert :ets.select(AbortSignal, [{{{signal.id, :_, :_}, :_}, [], [true]}]) == []
   end
 
-  test "a listener of a stopped loop is dropped" do
-    stopped = EventLoop.get(start_supervised!(EventLoop, id: :stopped))
+  test "any process aborts a signal another process awaits through a listener" do
     controller = AbortController.new()
     signal = AbortController.signal(controller)
-    test = self()
-    baton(stopped, fn -> AbortSignal.add_event_listener(signal, "abort", fn -> send(test, :ran) end) end)
-    stop_supervised!(:stopped)
-
-    assert AbortController.abort(controller) == :ok
-    refute_received :ran
-  end
-
-  test "any process aborts a signal another process awaits through a listener", %{loop: loop} do
-    controller = AbortController.new()
-    signal = AbortController.signal(controller)
-
-    promise =
-      baton(loop, fn ->
-        promise = Promise.new()
-        AbortSignal.add_event_listener(signal, "abort", fn -> Promise.reject(promise, AbortSignal.reason(signal)) end)
-        promise
-      end)
+    # A latch: awaitable from any process.
+    promise = Promise.new(ProcessOwner.owner())
+    AbortSignal.add_event_listener(signal, "abort", fn -> Promise.reject(promise, AbortSignal.reason(signal)) end)
 
     waiter =
       Task.async(fn ->
@@ -119,7 +77,7 @@ defmodule PlaywrightEx.AbortControllerTest do
     assert %RuntimeError{message: "from a task"} = Task.await(waiter, :infinity)
   end
 
-  test "listeners run once, in order; removed and late listeners do not run", %{loop: loop} do
+  test "listeners run once, in order; removed listeners do not run" do
     controller = AbortController.new()
     signal = AbortController.signal(controller)
     test = self()
@@ -127,22 +85,18 @@ defmodule PlaywrightEx.AbortControllerTest do
     second = fn -> send(test, :second) end
     removed = fn -> send(test, :removed) end
 
-    baton(loop, fn ->
-      AbortSignal.add_event_listener(signal, "abort", first, once: true)
-      AbortSignal.add_event_listener(signal, :abort, second)
-      AbortSignal.add_event_listener(signal, "abort", first)
-      AbortSignal.add_event_listener(signal, "abort", removed)
-      AbortSignal.remove_event_listener(signal, "abort", removed)
-    end)
+    AbortSignal.add_event_listener(signal, "abort", first, once: true)
+    AbortSignal.add_event_listener(signal, :abort, second)
+    AbortSignal.add_event_listener(signal, "abort", first)
+    AbortSignal.add_event_listener(signal, "abort", removed)
+    AbortSignal.remove_event_listener(signal, "abort", removed)
 
     AbortController.abort(controller)
-    AbortSignal.add_event_listener(signal, "abort", fn -> send(test, :late) end)
     AbortController.abort(controller)
     assert_received :first
     assert_received :second
     refute_received :first
     refute_received :removed
-    refute_received :late
     assert {:messages, []} = Process.info(self(), :messages)
   end
 end

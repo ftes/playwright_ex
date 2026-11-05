@@ -6,13 +6,12 @@ defmodule PlaywrightEx.Page.PageListenersTest do
 
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Runtime.EventLoop
 
   @moduletag :page
 
-  # `new ManualPromise()`: a runtime promise (the public API creates none). A call without
-  # `await` is `Runtime.Promise.async/1` (it returns at the call's first suspension point).
-  defp manual_promise(page), do: EventLoop.with_baton(page.loop, fn -> Runtime.Promise.new() end)
+  # `new ManualPromise()`: a runtime promise (the public API creates none), a latch owned by the
+  # page, so the listener process and the test both await it.
+  defp manual_promise(page), do: Runtime.Promise.new(page)
 
   # This test is mostly for type checking, the actual tests are in the library/events.
 

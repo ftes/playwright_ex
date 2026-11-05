@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
         end)
 
     # This is for the inspector so that it did not include the test runner stack frames.
-    # (The library frames a handed-off listener process starts with, `EventLoop.spawn_handoff/1`,
+    # (The library frames a listener or async process starts with (`PlaywrightEx.Runtime.Conn`)
     # are below the caller's: they don't count.)
     parsed_frames = parsed_frames |> Enum.reverse() |> Enum.drop_while(& &1.isPlaywrightLibrary) |> Enum.reverse()
     outermost = parsed_frames |> Enum.with_index() |> Enum.filter(&elem(&1, 0).isPlaywrightLibrary) |> List.last()

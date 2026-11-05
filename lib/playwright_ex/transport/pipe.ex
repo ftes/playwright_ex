@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Transport.Pipe do
 
   Deviations:
 
-    * JSON encoding and decoding happen in this process, off the baton (upstream:
+    * JSON encoding and decoding happen in this process, off the connection (upstream:
       `JSON.stringify`/`JSON.parse` on the JS thread). `send_message/2` takes a term,
       `on_message` receives one. Like `JSON.stringify`, `nil` (`undefined`) properties are
       dropped and `:null` is sent as `null`. Object keys of incoming messages stay strings:

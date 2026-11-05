@@ -14,7 +14,7 @@ defmodule PlaywrightEx.AbortSignal do
 
   Listeners run synchronously in the aborting process (as `dispatchEvent` runs them), so they
   must not block: the client's listeners only send messages. A listener added after the abort
-  runs at once, in the adding process.
+  never runs (as in the DOM).
 
   Deviation: a signal's rows (its reason, its listeners) are freed when the process that created
   it exits; JS frees them with the signal.

@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Runtime.Zones do
   @moduledoc """
   Port of `#{@upstream}` (AsyncLocalStorage). Zones become process-dictionary entries:
   an async function runs (and awaits) in a single process, so per-process storage has the
-  same scoping as an async context. `EventLoop.spawn_handoff/1` copies the zone into the new
+  same scoping as an async context. `PlaywrightEx.Runtime.Promise.async/2` and listener processes copy the zone into the new
   process (an async function called without `await` inherits its caller's context).
   """
   @key :playwright_ex_zone

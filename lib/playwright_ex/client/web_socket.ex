@@ -60,7 +60,8 @@ defmodule PlaywrightEx.Client.WebSocket do
   end
 
   def is_closed(this) do
-    get(this, :_isClosed)
+    # deviation: a disposed web socket reads its last state (its rows are gone).
+    get(this, :_isClosed, true)
   end
 
   def wait_for_event(this, event, options_or_predicate \\ %{}) do

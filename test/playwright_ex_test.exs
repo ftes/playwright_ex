@@ -5,7 +5,7 @@ defmodule PlaywrightExTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.PlaywrightError
-  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.TestBrowser
 
   @moduletag timeout: 120_000
@@ -28,7 +28,7 @@ defmodule PlaywrightExTest do
     assert Browser.version(browser) =~ ~r/^\d+\.\d+/
     assert Browser.is_connected(browser)
     assert Browser.browser_type(browser) == TestBrowser.browser_type(playwright)
-    refute EventLoop.held?()
+    refute Conn.in_conn?()
 
     assert Browser.close(browser) == :ok
     refute Browser.is_connected(browser)
@@ -39,10 +39,10 @@ defmodule PlaywrightExTest do
   test "disconnected listeners run during close", %{playwright: playwright} do
     test = self()
     browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
-    listener = fn b -> send(test, {:disconnected, b, EventLoop.held?()}) end
+    listener = fn b -> send(test, {:disconnected, b}) end
     assert Browser.on(browser, :disconnected, listener) == browser
     Browser.close!(browser)
-    assert_received {:disconnected, ^browser, true}
+    assert_received {:disconnected, ^browser}
 
     assert_raise ArgumentError, ~r/browser\.on: unknown event :closed, expected one of :context, :disconnected/, fn ->
       Browser.on(browser, :closed, listener)

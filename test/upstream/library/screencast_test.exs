@@ -10,7 +10,6 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   alias PlaywrightEx.Disposable
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Screencast
   alias PlaywrightEx.Utils
   alias PlaywrightEx.VideoPlayer
@@ -67,7 +66,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     page = BrowserContext.new_page!(context)
 
     # `new Promise(f => releaseCallback = f)`: a runtime promise (the public API creates none).
-    callback_done = EventLoop.with_baton(page.loop, fn -> Runtime.Promise.new() end)
+    callback_done = Runtime.Promise.new(page)
     {:ok, state} = Agent.start_link(fn -> %{frame_count: 0, last_frame_timestamp: 0} end)
     me = self()
 

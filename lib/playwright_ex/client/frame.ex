@@ -417,7 +417,8 @@ defmodule PlaywrightEx.Client.Frame do
   end
 
   def is_detached(this) do
-    get(this, :_detached)
+    # deviation: a disposed frame reads its last state (its rows are gone).
+    get(this, :_detached, true)
   end
 
   def add_script_tag(this, options \\ %{}) do

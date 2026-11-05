@@ -23,7 +23,7 @@ defmodule PlaywrightEx.AbortControllerDriverTest do
   end
 
   test "one signal aborts calls on two drivers", %{pages: [a, b]} do
-    refute a.loop.pid == b.loop.pid
+    refute a.conn == b.conn
     controller = AbortController.new()
     signal = AbortController.signal(controller)
 

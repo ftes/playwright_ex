@@ -916,7 +916,8 @@ defmodule PlaywrightEx.Client.Page do
   end
 
   def is_closed(this) do
-    get(this, :_closed)
+    # deviation: a disposed page reads its last state (its rows are gone).
+    get(this, :_closed, true)
   end
 
   def click(this, selector, options \\ %{}) do

@@ -90,6 +90,17 @@ defmodule PlaywrightEx.Runtime.Heap do
     end
   end
 
+  @doc """
+  `get/2`, but `disposed` for a field of a disposed object (instead of raising): for a state flag
+  whose last value JS reads after close (`isConnected()`, `isClosed()`), which dispose fixes.
+  """
+  def get(obj, field, disposed) do
+    case lookup(obj, key(obj, field)) do
+      [{_, value}] -> value
+      [] -> if alive?(obj), do: nil, else: disposed
+    end
+  end
+
   defp special(%{type: type}, :_type), do: type
   defp special(%{guid: guid}, :_guid), do: guid
   defp special(%{initializer: initializer}, :_initializer), do: initializer

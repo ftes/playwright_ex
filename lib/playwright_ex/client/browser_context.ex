@@ -317,7 +317,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   def is_closed(this) do
-    get(this, :_closingStatus) != "none"
+    # deviation: a disposed context reads its last state (its rows are gone).
+    get(this, :_closingStatus, "closed") != "none"
   end
 
   def new_page(this) do
