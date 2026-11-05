@@ -717,14 +717,14 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   end
 
   test "should report raw buffer for main resource", %{page: page, server: server, browser_name: browser_name} do
-    TestServer.set_route(server, "/empty.html", fn conn -> Plug.Conn.send_resp(conn, 200, "Ü (lowercase ü)") end)
-    response = Page.goto!(page, server.prefix <> "/empty.html")
-    body = Response.body!(response)
-
     # it.fail(browserName === 'chromium', 'Chromium sends main resource as text')
-    if browser_name == "chromium",
-      do: refute(body == "Ü (lowercase ü)"),
-      else: assert(body == "Ü (lowercase ü)")
+    # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl', 'Same here')
+    expected_failure(browser_name == "chromium" or (browser_name == "webkit" and match?({:win32, _}, :os.type())), fn ->
+      TestServer.set_route(server, "/empty.html", fn conn -> Plug.Conn.send_resp(conn, 200, "Ü (lowercase ü)") end)
+      response = Page.goto!(page, server.prefix <> "/empty.html")
+      body = Response.body!(response)
+      assert body == "Ü (lowercase ü)"
+    end)
   end
 
   test "should not throw unhandled rejections on invalid url", %{page: page} do

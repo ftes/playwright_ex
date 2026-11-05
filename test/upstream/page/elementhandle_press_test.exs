@@ -50,11 +50,12 @@ defmodule PlaywrightEx.Page.ElementhandlePressTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "hewo"
   end
 
-  @tag skip: if(@browser_name == "webkit", do: "upstream fail: webkit")
   test "should work with number input", %{page: page} do
-    # it.fail(browserName === 'webkit')
-    Page.set_content!(page, "<input type='number' value=2 />")
-    Page.press!(page, "input", "1")
-    assert Page.eval_on_selector!(page, "input", "input => input.value") == "12"
+    expected_failure(@browser_name == "webkit", fn ->
+      # it.fail(browserName === 'webkit')
+      Page.set_content!(page, "<input type='number' value=2 />")
+      Page.press!(page, "input", "1")
+      assert Page.eval_on_selector!(page, "input", "input => input.value") == "12"
+    end)
   end
 end

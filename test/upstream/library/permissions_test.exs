@@ -113,31 +113,33 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_permission(page, "geolocation") == "prompt"
     end
 
-    @tag skip: if(@browser_name == "webkit", do: "upstream fail: webkit")
     test "should trigger permission onchange", %{page: page, context: context, server: server} do
-      Page.goto!(page, server.empty_page)
+      # it.fail(browserName === 'webkit')
+      expected_failure(@browser_name == "webkit", fn ->
+        Page.goto!(page, server.empty_page)
 
-      Page.evaluate!(page, """
-      () => {
-        window['events'] = [];
-        return navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
-          window['events'].push(result.state);
-          result.onchange = function() {
+        Page.evaluate!(page, """
+        () => {
+          window['events'] = [];
+          return navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
             window['events'].push(result.state);
-          };
-        });
-      }
-      """)
+            result.onchange = function() {
+              window['events'].push(result.state);
+            };
+          });
+        }
+        """)
 
-      events = fn -> Page.evaluate!(page, "() => window['events']") end
-      assert events.() == ["prompt"]
-      BrowserContext.grant_permissions!(context, [], origin: server.empty_page)
-      # isBidi: no 'denied'
-      assert events.() == ["prompt", "denied"]
-      BrowserContext.grant_permissions!(context, ["geolocation"], origin: server.empty_page)
-      assert events.() == ["prompt", "denied", "granted"]
-      BrowserContext.clear_permissions!(context)
-      assert events.() == ["prompt", "denied", "granted", "prompt"]
+        events = fn -> Page.evaluate!(page, "() => window['events']") end
+        assert events.() == ["prompt"]
+        BrowserContext.grant_permissions!(context, [], origin: server.empty_page)
+        # isBidi: no 'denied'
+        assert events.() == ["prompt", "denied"]
+        BrowserContext.grant_permissions!(context, ["geolocation"], origin: server.empty_page)
+        assert events.() == ["prompt", "denied", "granted"]
+        BrowserContext.clear_permissions!(context)
+        assert events.() == ["prompt", "denied", "granted", "prompt"]
+      end)
     end
 
     test "should isolate permissions between browser contexts",
@@ -191,26 +193,28 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     end
   end
 
-  @tag skip: if(@browser_name == "firefox", do: "upstream fail: No such permissions (requires flag) in Firefox")
   test "should support clipboard read", %{page: page, context: context, server: server, browser_name: browser_name} do
-    # https://github.com/microsoft/playwright/issues/27475
-    Page.goto!(page, server.empty_page)
-    # There is no 'clipboard-read' permission in WebKit Web API.
-    if browser_name != "webkit", do: assert(get_permission(page, "clipboard-read") == "prompt")
+    # it.fail(browserName === 'firefox', 'No such permissions (requires flag) in Firefox')
+    expected_failure(@browser_name == "firefox", fn ->
+      # https://github.com/microsoft/playwright/issues/27475
+      Page.goto!(page, server.empty_page)
+      # There is no 'clipboard-read' permission in WebKit Web API.
+      if browser_name != "webkit", do: assert(get_permission(page, "clipboard-read") == "prompt")
 
-    # isHeadlessShell: headless chromium is the headless shell.
-    if browser_name == "chromium" do
-      # Chromium (but not headless-shell) shows a dialog and does not resolve the promise.
-      {:error, error} = Page.evaluate(page, "() => navigator.clipboard.readText()")
-      assert Exception.message(error) =~ "denied"
-    end
+      # isHeadlessShell: headless chromium is the headless shell.
+      if browser_name == "chromium" do
+        # Chromium (but not headless-shell) shows a dialog and does not resolve the promise.
+        {:error, error} = Page.evaluate(page, "() => navigator.clipboard.readText()")
+        assert Exception.message(error) =~ "denied"
+      end
 
-    BrowserContext.grant_permissions!(context, ["clipboard-read"])
-    if browser_name != "webkit", do: assert(get_permission(page, "clipboard-read") == "granted")
-    # There is no 'clipboard-write' permission in WebKit Web API.
-    if browser_name == "chromium", do: BrowserContext.grant_permissions!(context, ["clipboard-write"])
-    Page.evaluate!(page, "() => navigator.clipboard.writeText('test content')")
-    assert Page.evaluate!(page, "() => navigator.clipboard.readText()") == "test content"
+      BrowserContext.grant_permissions!(context, ["clipboard-read"])
+      if browser_name != "webkit", do: assert(get_permission(page, "clipboard-read") == "granted")
+      # There is no 'clipboard-write' permission in WebKit Web API.
+      if browser_name == "chromium", do: BrowserContext.grant_permissions!(context, ["clipboard-write"])
+      Page.evaluate!(page, "() => navigator.clipboard.writeText('test content')")
+      assert Page.evaluate!(page, "() => navigator.clipboard.readText()") == "test content"
+    end)
   end
 
   test "should isolate the headless clipboard from the operating system",

@@ -308,14 +308,17 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         start_remote_server: start_remote_server,
         kind: kind
       } do
-        ipv6_server_port = ipv6_server_port()
-        remote_server = start_remote_server.(kind, %{})
-        browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
-        page = Browser.new_page!(browser)
-        ipv6_url = "http://[::1]:#{ipv6_server_port}"
-        Page.goto!(page, ipv6_url)
-        assert Page.content!(page) =~ "from-ipv6-server"
-        Browser.close!(browser)
+        # test.fail(!!process.env.INSIDE_DOCKER, 'docker does not support IPv6 by default')
+        expected_failure(System.get_env("INSIDE_DOCKER", "") != "", fn ->
+          ipv6_server_port = ipv6_server_port()
+          remote_server = start_remote_server.(kind, %{})
+          browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
+          page = Browser.new_page!(browser)
+          ipv6_url = "http://[::1]:#{ipv6_server_port}"
+          Page.goto!(page, ipv6_url)
+          assert Page.content!(page) =~ "from-ipv6-server"
+          Browser.close!(browser)
+        end)
       end
 
       if match?({:unix, :linux}, :os.type()) and !System.get_env("DISPLAY"),
@@ -346,14 +349,17 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         start_remote_server: start_remote_server,
         kind: kind
       } do
-        ipv6_server_port = ipv6_server_port()
-        remote_server = start_remote_server.(kind, %{})
-        browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
-        page = Browser.new_page!(browser)
-        ipv6_url = "http://localhost:#{ipv6_server_port}"
-        Page.goto!(page, ipv6_url)
-        assert Page.content!(page) =~ "from-ipv6-server"
-        Browser.close!(browser)
+        # test.fail(!!process.env.INSIDE_DOCKER, 'docker does not support IPv6 by default')
+        expected_failure(System.get_env("INSIDE_DOCKER", "") != "", fn ->
+          ipv6_server_port = ipv6_server_port()
+          remote_server = start_remote_server.(kind, %{})
+          browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
+          page = Browser.new_page!(browser)
+          ipv6_url = "http://localhost:#{ipv6_server_port}"
+          Page.goto!(page, ipv6_url)
+          assert Page.content!(page) =~ "from-ipv6-server"
+          Browser.close!(browser)
+        end)
       end
 
       test "should be able to connect two browsers at the same time", %{

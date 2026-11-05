@@ -202,24 +202,25 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       verify_viewport(page, 500, 500)
     end
 
-    @tag skip: if(@browser_name == "firefox", do: "upstream fail: firefox")
     test "should allow transparency", %{page: page} do
-      # it.fail(browserName === 'firefox' || isBidi)  -- see the tag; isBidi is false here
-      Page.set_viewport_size!(page, %{width: 300, height: 300})
+      expected_failure(@browser_name == "firefox", fn ->
+        # it.fail(browserName === 'firefox' || isBidi)  -- see the tag; isBidi is false here
+        Page.set_viewport_size!(page, %{width: 300, height: 300})
 
-      Page.set_content!(page, """
-      <style>
-        body { margin: 0 }
-        div { width: 300px; height: 100px; }
-      </style>
-      <div style="background:black"></div>
-      <div style="background:white"></div>
-      <div style="background:transparent"></div>
-      """)
+        Page.set_content!(page, """
+        <style>
+          body { margin: 0 }
+          div { width: 300px; height: 100px; }
+        </style>
+        <div style="background:black"></div>
+        <div style="background:white"></div>
+        <div style="background:transparent"></div>
+        """)
 
-      screenshot = Page.screenshot!(page, omit_background: true)
+        screenshot = Page.screenshot!(page, omit_background: true)
 
-      to_match_snapshot(screenshot, "transparent.png")
+        to_match_snapshot(screenshot, "transparent.png")
+      end)
     end
 
     test "should render white background on jpeg file", %{page: page, server: server} do
@@ -261,30 +262,31 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert lossless_webp?(Page.screenshot!(page, type: :webp, quality: 80)) == false
     end
 
-    @tag skip: if(@browser_name == "firefox", do: "upstream fail: firefox")
     test "should allow transparency with webp", %{page: page} do
-      # it.skip(isBidi)  -- isBidi is false here
-      # it.fail(browserName === 'firefox')  -- see the tag
-      Page.set_viewport_size!(page, %{width: 300, height: 300})
+      expected_failure(@browser_name == "firefox", fn ->
+        # it.skip(isBidi)  -- isBidi is false here
+        # it.fail(browserName === 'firefox')  -- see the tag
+        Page.set_viewport_size!(page, %{width: 300, height: 300})
 
-      Page.set_content!(page, """
-      <style>
-        body { margin: 0 }
-        div { width: 300px; height: 100px; }
-      </style>
-      <div style="background:black"></div>
-      <div style="background:white"></div>
-      <div style="background:transparent"></div>
-      """)
+        Page.set_content!(page, """
+        <style>
+          body { margin: 0 }
+          div { width: 300px; height: 100px; }
+        </style>
+        <div style="background:black"></div>
+        <div style="background:white"></div>
+        <div style="background:transparent"></div>
+        """)
 
-      screenshot = Page.screenshot!(page, omit_background: true, type: :webp)
-      %{width: width, height: height, data: data} = decode_image(:webp, screenshot)
-      assert width == 300
-      assert height == 300
-      pixel = fn x, y -> :binary.bin_to_list(data, (y * width + x) * 4, 4) end
-      assert pixel.(150, 50) == [0, 0, 0, 255]
-      assert pixel.(150, 150) == [255, 255, 255, 255]
-      assert Enum.at(pixel.(150, 250), 3) == 0
+        screenshot = Page.screenshot!(page, omit_background: true, type: :webp)
+        %{width: width, height: height, data: data} = decode_image(:webp, screenshot)
+        assert width == 300
+        assert height == 300
+        pixel = fn x, y -> :binary.bin_to_list(data, (y * width + x) * 4, 4) end
+        assert pixel.(150, 50) == [0, 0, 0, 255]
+        assert pixel.(150, 150) == [255, 255, 255, 255]
+        assert Enum.at(pixel.(150, 250), 3) == 0
+      end)
     end
 
     test "quality option should throw for webp when out of range", %{page: page} do

@@ -48,13 +48,12 @@ defmodule PlaywrightEx.Page.PageSetExtraHttpHeadersTest do
 
   test "should not duplicate referer header",
        %{page: page, server: server, browser_name: browser_name, browser: browser} do
-    Page.set_extra_http_headers!(page, %{"referer" => server.empty_page})
-    response = Page.goto!(page, server.empty_page)
-    assert Response.ok(response) == true
-
     # it.fail(browserName === 'chromium' && browserMajorVersion < 154, 'Request has referer and Referer')
-    if browser_name == "chromium" and major_version(browser) < 154,
-      do: refute(Request.headers(Response.request(response))["referer"] == server.empty_page),
-      else: assert(Request.headers(Response.request(response))["referer"] == server.empty_page)
+    expected_failure(browser_name == "chromium" and major_version(browser) < 154, fn ->
+      Page.set_extra_http_headers!(page, %{"referer" => server.empty_page})
+      response = Page.goto!(page, server.empty_page)
+      assert Response.ok(response) == true
+      assert Request.headers(Response.request(response))["referer"] == server.empty_page
+    end)
   end
 end

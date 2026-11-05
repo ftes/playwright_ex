@@ -319,49 +319,51 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     end
   end
 
-  @tag skip: if(@browser_name == "webkit", do: "upstream fail: https://github.com/microsoft/playwright/issues/8796")
   test "should work with Cross-Origin-Opener-Policy", %{page: page, server: server, browser_name: browser_name} do
-    me = self()
+    # it.fail(browserName === 'webkit', 'https://github.com/microsoft/playwright/issues/8796')
+    expected_failure(@browser_name == "webkit", fn ->
+      me = self()
 
-    TestServer.set_route(server, "/empty.html", fn conn ->
-      send(me, {:server_request, {conn.request_path, conn.req_headers}})
+      TestServer.set_route(server, "/empty.html", fn conn ->
+        send(me, {:server_request, {conn.request_path, conn.req_headers}})
 
-      # Note: without 'onload', Firefox sometimes does not fire the load event
-      # over the protocol. The reason is unclear.
-      conn
-      |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
-      |> Plug.Conn.send_resp(200, """
+        # Note: without 'onload', Firefox sometimes does not fire the load event
+        # over the protocol. The reason is unclear.
+        conn
+        |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
+        |> Plug.Conn.send_resp(200, """
 
-        <div>Hello there!</div>
-        <script>window.onload = () => console.log('onload')</script>
-      """)
+          <div>Hello there!</div>
+          <script>window.onload = () => console.log('onload')</script>
+        """)
+      end)
+
+      Page.route!(page, "**/*", fn route, req ->
+        send(me, {:intercepted, Request.url(req)})
+        Route.continue(route, headers: %{"foo" => "bar"})
+      end)
+
+      Page.on(page, :request, fn r -> send(me, {:event, {"request", r}}) end)
+      Page.on(page, :request_failed, fn r -> send(me, {:event, {"requestfailed", r}}) end)
+      Page.on(page, :request_finished, fn r -> send(me, {:event, {"requestfinished", r}}) end)
+      Page.on(page, :response, fn r -> send(me, {:event, {"response", Response.request(r)}}) end)
+      response = Page.goto!(page, server.empty_page)
+      assert received(:intercepted) == [server.empty_page]
+      server_requests = received(:server_request)
+      # There should be only one request to the server.
+      if browser_name == "webkit",
+        do: assert(Enum.map(server_requests, &elem(&1, 0)) == ["/empty.html", "/empty.html"]),
+        else: assert(Enum.map(server_requests, &elem(&1, 0)) == ["/empty.html"])
+
+      {_, server_headers} = hd(server_requests)
+      assert :proplists.get_value("foo", server_headers) == "bar"
+      assert Page.url(page) == server.empty_page
+      Response.finished!(response)
+      events = received(:event)
+      assert Enum.map(events, &elem(&1, 0)) == ["request", "response", "requestfinished"]
+      assert events |> MapSet.new(&elem(&1, 1)) |> MapSet.size() == 1
+      assert Request.failure(Response.request(response)) == nil
     end)
-
-    Page.route!(page, "**/*", fn route, req ->
-      send(me, {:intercepted, Request.url(req)})
-      Route.continue(route, headers: %{"foo" => "bar"})
-    end)
-
-    Page.on(page, :request, fn r -> send(me, {:event, {"request", r}}) end)
-    Page.on(page, :request_failed, fn r -> send(me, {:event, {"requestfailed", r}}) end)
-    Page.on(page, :request_finished, fn r -> send(me, {:event, {"requestfinished", r}}) end)
-    Page.on(page, :response, fn r -> send(me, {:event, {"response", Response.request(r)}}) end)
-    response = Page.goto!(page, server.empty_page)
-    assert received(:intercepted) == [server.empty_page]
-    server_requests = received(:server_request)
-    # There should be only one request to the server.
-    if browser_name == "webkit",
-      do: assert(Enum.map(server_requests, &elem(&1, 0)) == ["/empty.html", "/empty.html"]),
-      else: assert(Enum.map(server_requests, &elem(&1, 0)) == ["/empty.html"])
-
-    {_, server_headers} = hd(server_requests)
-    assert :proplists.get_value("foo", server_headers) == "bar"
-    assert Page.url(page) == server.empty_page
-    Response.finished!(response)
-    events = received(:event)
-    assert Enum.map(events, &elem(&1, 0)) == ["request", "response", "requestfinished"]
-    assert events |> MapSet.new(&elem(&1, 1)) |> MapSet.size() == 1
-    assert Request.failure(Response.request(response)) == nil
   end
 
   test "should not delete the origin header", %{page: page, server: server} do

@@ -53,7 +53,7 @@ defmodule PlaywrightEx.UpstreamCase do
   using do
     quote do
       import ExUnit.Case, only: [describe: 2]
-      import PlaywrightEx.UpstreamCase, only: [test: 1, test: 2, test: 3, start_playwright: 2]
+      import PlaywrightEx.UpstreamCase, only: [test: 1, test: 2, test: 3, start_playwright: 2, expected_failure: 2]
 
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
       @moduletag upstream: @upstream
@@ -71,6 +71,27 @@ defmodule PlaywrightEx.UpstreamCase do
         String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64")
 
     if darwin_x64, do: 60_000, else: 30_000
+  end
+
+  @doc """
+  `test.fail(condition)`: when `condition` holds, runs `body` and fails the test unless `body`
+  fails (raises, exits or throws), as Playwright Test fails a `test.fail` test that passes;
+  otherwise runs `body` as is. Wrap the whole test body, so any failing step counts, as upstream.
+  """
+  def expected_failure(condition, body) when is_function(body, 0) do
+    if condition do
+      try do
+        body.()
+      rescue
+        _ -> :ok
+      catch
+        _kind, _reason -> :ok
+      else
+        _ -> ExUnit.Assertions.flunk("expected to fail (test.fail), but passed")
+      end
+    else
+      body.()
+    end
   end
 
   @doc "`ExUnit.Case.test/1`, skipped when a rule rules it out."

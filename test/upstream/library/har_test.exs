@@ -801,61 +801,62 @@ defmodule PlaywrightEx.Library.HarTest do
     assert security_details == %{}
   end
 
-  @tag skip: if(@browser_name == "webkit" and match?({:win32, _}, :os.type()), do: "upstream fail: webkit on Windows")
   test "should have security details", %{
     context_factory: context_factory,
     output_path: output_path,
     https_server: https_server,
     browser_name: browser_name
   } do
-    # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl');
-    # it.skip(isFrozenWebkit);  -- not ported: no frozen WebKit
-    %{page: page, context: context} = session = page_with_har(context_factory, output_path)
-    api_har_path = output_path.("api.har")
-    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), api_har_path)
-    Page.goto!(page, https_server.empty_page)
-    APIRequestContext.get!(Page.request(page), https_server.empty_page)
-    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
-    log = get_log(session)
-    assert length(log["entries"]) == 1
+    expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
+      # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl');
+      # it.skip(isFrozenWebkit);  -- not ported: no frozen WebKit
+      %{page: page, context: context} = session = page_with_har(context_factory, output_path)
+      api_har_path = output_path.("api.har")
+      Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), api_har_path)
+      Page.goto!(page, https_server.empty_page)
+      APIRequestContext.get!(Page.request(page), https_server.empty_page)
+      Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+      log = get_log(session)
+      assert length(log["entries"]) == 1
 
-    %{"serverIPAddress" => server_ip_address, "_serverPort" => port, "_securityDetails" => security_details} =
-      hd(log["entries"])
+      %{"serverIPAddress" => server_ip_address, "_serverPort" => port, "_securityDetails" => security_details} =
+        hd(log["entries"])
 
-    assert server_ip_address =~ ~r/^127\.0\.0\.1|\[::1\]/
-    assert port == https_server.port
+      assert server_ip_address =~ ~r/^127\.0\.0\.1|\[::1\]/
+      assert port == https_server.port
 
-    if browser_name == "webkit",
-      do:
-        assert(
-          security_details == %{
-            "protocol" => "TLS 1.3",
-            "subjectName" => "playwright-test",
-            "validFrom" => 1_691_708_270,
-            "validTo" => 2_007_068_270
-          }
-        ),
-      else:
-        assert(
-          security_details == %{
-            "issuer" => "playwright-test",
-            "protocol" => "TLS 1.3",
-            "subjectName" => "playwright-test",
-            "validFrom" => 1_691_708_270,
-            "validTo" => 2_007_068_270
-          }
-        )
+      if browser_name == "webkit",
+        do:
+          assert(
+            security_details == %{
+              "protocol" => "TLS 1.3",
+              "subjectName" => "playwright-test",
+              "validFrom" => 1_691_708_270,
+              "validTo" => 2_007_068_270
+            }
+          ),
+        else:
+          assert(
+            security_details == %{
+              "issuer" => "playwright-test",
+              "protocol" => "TLS 1.3",
+              "subjectName" => "playwright-test",
+              "validFrom" => 1_691_708_270,
+              "validTo" => 2_007_068_270
+            }
+          )
 
-    api_log = read_log(api_har_path)
-    assert length(api_log["entries"]) == 1
+      api_log = read_log(api_har_path)
+      assert length(api_log["entries"]) == 1
 
-    assert hd(api_log["entries"])["_securityDetails"] == %{
-             "issuer" => "playwright-test",
-             "protocol" => "TLSv1.3",
-             "subjectName" => "playwright-test",
-             "validFrom" => 1_691_708_270,
-             "validTo" => 2_007_068_270
-           }
+      assert hd(api_log["entries"])["_securityDetails"] == %{
+               "issuer" => "playwright-test",
+               "protocol" => "TLSv1.3",
+               "subjectName" => "playwright-test",
+               "validFrom" => 1_691_708_270,
+               "validTo" => 2_007_068_270
+             }
+    end)
   end
 
   test "should have connection details for redirects", %{
@@ -971,8 +972,59 @@ defmodule PlaywrightEx.Library.HarTest do
     Supervisor.stop(http2_server)
   end
 
-  @tag skip: "upstream skip: headless browsers, except firefox, do not request favicons"
-  test "should filter favicon and favicon redirects"
+  # it.skip(!headless && browserName === 'webkit', ...)  -- we run headless
+  @tag skip:
+         if(@browser_name != "firefox", do: "upstream skip: headless browsers, except firefox, do not request favicons")
+  test "should filter favicon and favicon redirects", %{
+    server: server,
+    asset: asset,
+    context_factory: context_factory,
+    output_path: output_path
+  } do
+    %{page: page} = session = page_with_har(context_factory, output_path)
+
+    # Browsers aggressively cache favicons, so force bust with the
+    # `d` parameter to make iterating on this test more predictable and isolated.
+    favicon = "/no-cache-2/favicon.ico"
+    hashed_favicon_url = "/favicon-hashed.ico"
+    TestServer.set_redirect(server, favicon, hashed_favicon_url)
+
+    TestServer.set_route(server, hashed_favicon_url, fn conn ->
+      TestServer.serve_file(server, conn, asset.("media-query-prefers-color-scheme.svg"))
+    end)
+
+    TestServer.set_route(server, "/page.html", fn conn ->
+      Plug.Conn.send_resp(conn, 200, """
+
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <link rel="icon" type="image/svg+xml" href="#{favicon}">
+          <title>SVG Favicon Test</title>
+        </head>
+        <body>
+          favicons
+        </body>
+      </html>
+      """)
+    end)
+
+    favicon_request = TestServer.wait_for_request(server, favicon)
+    hashed_favicon_request = TestServer.wait_for_request(server, hashed_favicon_url)
+    Page.goto!(page, server.prefix <> "/page.html")
+    Task.await_many([favicon_request, hashed_favicon_request], :infinity)
+
+    Page.wait_for_timeout!(page, 500)
+    # Text still being around ensures we haven't actually lost our browser to a crash.
+    Page.wait_for_selector!(page, "text=favicons")
+
+    # favicon and 302 redirects to favicons should be filtered out of request logs
+    log = get_log(session)
+    assert length(log["entries"]) == 1
+    entry = hd(log["entries"])
+    assert entry["request"]["url"] == server.prefix <> "/page.html"
+  end
 
   test "should have different hars for concurrent contexts", %{
     context_factory: context_factory,

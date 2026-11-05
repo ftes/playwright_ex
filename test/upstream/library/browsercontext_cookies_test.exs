@@ -166,15 +166,14 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     server: server,
     browser_name: browser_name
   } do
-    set_cookie_route(server, "/empty.html", "name=value;SameSite=Strict")
-    Page.goto!(page, server.empty_page)
-    cookies = BrowserContext.cookies!(context)
-    assert length(cookies) == 1
-
     # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl')
-    if browser_name == "webkit" and windows?(),
-      do: refute(hd(cookies).sameSite == "Strict"),
-      else: assert(hd(cookies).sameSite == "Strict")
+    expected_failure(browser_name == "webkit" and windows?(), fn ->
+      set_cookie_route(server, "/empty.html", "name=value;SameSite=Strict")
+      Page.goto!(page, server.empty_page)
+      cookies = BrowserContext.cookies!(context)
+      assert length(cookies) == 1
+      assert hd(cookies).sameSite == "Strict"
+    end)
   end
 
   test "should properly report \"Lax\" sameSite cookie", %{
@@ -183,15 +182,14 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     server: server,
     browser_name: browser_name
   } do
-    set_cookie_route(server, "/empty.html", "name=value;SameSite=Lax")
-    Page.goto!(page, server.empty_page)
-    cookies = BrowserContext.cookies!(context)
-    assert length(cookies) == 1
-
     # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl')
-    if browser_name == "webkit" and windows?(),
-      do: refute(hd(cookies).sameSite == "Lax"),
-      else: assert(hd(cookies).sameSite == "Lax")
+    expected_failure(browser_name == "webkit" and windows?(), fn ->
+      set_cookie_route(server, "/empty.html", "name=value;SameSite=Lax")
+      Page.goto!(page, server.empty_page)
+      cookies = BrowserContext.cookies!(context)
+      assert length(cookies) == 1
+      assert hd(cookies).sameSite == "Lax"
+    end)
   end
 
   test "should get multiple cookies", %{

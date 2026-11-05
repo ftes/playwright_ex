@@ -130,6 +130,18 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 - Keep assertions verbatim (we announce `sdkLanguage: "javascript"`, as upstream). Options
   passed `as any` are rejected by the facade: assert that, with a comment.
 - CI-only failure or flake under load? Reproduce in the Linux container: `scripts/linux/README.md`.
+- Annotations keep their conditions: `it.skip(browserName === 'webkit')` is `@tag skip:
+  if(@browser_name == "webkit", do: "upstream skip: ...")` on the ported body (an unconditional tag
+  only when the condition holds in every run here: headless, out-of-process driver; parity flags
+  the others). `it.fail(cond)` wraps the whole body in `expected_failure(cond, fn -> ... end)`
+  (`PlaywrightEx.UpstreamCase`): where `cond` holds the test passes only if the body fails, as
+  Playwright Test fails an unexpected pass; elsewhere the body runs as is. No `refute` of the
+  last assertion.
+- Contexts get Playwright Test's default options (`locale: "en-US"`, 1280x720 viewport, `light`
+  color scheme, ...) and launches its default launch options (`tracesDir`, `artifactsDir`, ...)
+  from `PlaywrightEx.UpstreamCase.setup_playwright/2`, as upstream's fixtures register them; a
+  test that drops one passes it as upstream does (`launch(browser_type, artifacts_dir: nil)` for
+  `{ artifactsDir: undefined }`). A driver of the test's own: `start_playwright/2`.
 - Headed: `HEADED=1` is upstream's `--headed` (the `headless` fixture, `_defaultLaunchOptions`).
   Tag every test that launches headed (or that upstream skips when headless) `@tag :headed`: CI
   runs `HEADED=1 mix test --only headed` (Linux: under `xvfb-run`). Other specs' `!headless`

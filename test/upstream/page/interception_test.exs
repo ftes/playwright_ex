@@ -19,6 +19,8 @@ defmodule PlaywrightEx.Page.InterceptionTest do
 
   @moduletag :page
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   # `const intercepted = []; ... intercepted.push(x)`: the handlers send to the test process.
   defp received(acc \\ []) do
     receive do
@@ -392,6 +394,20 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert interceted == 2
   end
 
-  @tag skip: "upstream skip: browserName !== 'webkit'"
-  test "should intercept blob url requests"
+  @tag skip: if(@browser_name != "webkit", do: "upstream skip: browserName !== 'webkit'")
+  test "should intercept blob url requests", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    Page.route!(page, "**/*", fn route -> Route.fulfill(route, status: 200, body: "intercepted") end)
+    Page.on(page, :console, fn msg -> IO.puts(ConsoleMessage.text(msg)) end)
+
+    response =
+      Page.evaluate!(page, """
+      async () => {
+        const blobUrl = URL.createObjectURL(new Blob(['failed to intercept'], { type: 'text/plain' }));
+        return await fetch(blobUrl).then(response => response.text());
+      }
+      """)
+
+    assert response == "intercepted"
+  end
 end

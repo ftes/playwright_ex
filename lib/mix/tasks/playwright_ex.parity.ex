@@ -95,6 +95,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         check_modules(upstream, lib_modules, opts[:extra]) ++
         check_tests(upstream, test_modules) ++
         check_registry(registry) ++
+        check_conditional_annotations(upstream, registry.tests) ++
         check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
         check_rule_reasons(registry.rules, &ported?/2) ++
         check_facade(upstream)
@@ -548,6 +549,64 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       end
 
     registry.rule_problems ++ Enum.sort(row_problems) ++ Enum.sort(unmirrored) ++ unregistered ++ unused
+  end
+
+  @doc false
+  # Problems: an unconditional `upstream skip:` / `upstream fixme:` / `upstream fail:` tag on a test
+  # whose upstream annotation of that kind has a condition (`it.skip(browserName !== 'webkit')`):
+  # tag it under that condition (and port the body), so it runs where upstream runs it.
+  def check_conditional_annotations(upstream, tests) do
+    for test <- tests,
+        is_binary(test.name),
+        kind <- unconditional_kinds(test.tag_skips),
+        source = Path.join(upstream, test.spec),
+        File.regular?(source),
+        bodies = upstream_test_bodies(File.read!(source), test.name),
+        bodies != [],
+        Enum.all?(bodies, &conditional_annotation?(&1, kind)),
+        uniq: true do
+      "#{test.file}:#{test.line}: #{inspect(test.name)} has an unconditional `upstream #{kind}:` tag, " <>
+        "but upstream's `#{kind}` annotation has a condition: tag it under that condition"
+    end
+  end
+
+  defp unconditional_kinds(skips) do
+    for skip <- skips, [_, kind] <- [Regex.run(~r/^upstream (skip|fixme|fail):/, skip)], uniq: true, do: kind
+  end
+
+  # The source of each upstream test named `name`, up to the next test.
+  @doc false
+  def upstream_test_bodies(source, name) do
+    starts =
+      for [{start, _} | groups] <- Regex.scan(@spec_test, source, return: :index) do
+        title = groups |> Enum.take(3) |> Enum.map_join(&group_text(source, &1))
+        {start, unescape(title)}
+      end
+
+    ends = Enum.map(tl(starts), &elem(&1, 0)) ++ [byte_size(source)]
+
+    for {{start, title}, stop} <- Enum.zip(starts, ends), title == name, do: binary_part(source, start, stop - start)
+  end
+
+  defp group_text(_source, {-1, _}), do: ""
+  defp group_text(source, {start, length}), do: binary_part(source, start, length)
+
+  # Conditions that hold in every run here: we run headless, the driver out of process (as
+  # upstream's non-default modes).
+  @always ["true", "headless", "mode !== 'default'"]
+  # What varies between our runs (browser, host OS, browser version).
+  @varying ~r/\b(?:browserName|platform|isWindows|isMac|isLinux|browserMajorVersion|macVersion|hostPlatform|isFrozenWebkit)\b/
+
+  # `it.skip(browserName === 'webkit', ...)`: an annotation whose condition (its first argument,
+  # up to the first `,` or `)`) varies between our runs (an `||` of an always-true term does not).
+  @doc false
+  def conditional_annotation?(body, kind) do
+    ~r/\b(?:it|test)\.#{kind}\(\s*([^,)]*)/
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.any?(fn [condition] ->
+      terms = condition |> String.split("||") |> Enum.map(&String.trim/1)
+      Regex.match?(@varying, condition) and not Enum.any?(terms, &(&1 in @always))
+    end)
   end
 
   defp row_problem(row, rule, %{ported: ported, upstream_skipped: upstream_skipped}, rules_file) do

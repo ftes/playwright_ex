@@ -105,89 +105,86 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
-           do: "upstream fail: Curl does not show accept-encoding and accept-language"
-         )
   test "should get the same headers as the server", %{page: page, server: server, browser_name: browser_name} do
-    me = self()
+    # it.fail(webkit && win32 && channel !== 'webkit-wsl'): Curl does not show accept-encoding and accept-language
+    expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
+      me = self()
 
-    TestServer.set_route(server, "/empty.html", fn conn ->
-      send(me, {:server_request, conn})
-      Plug.Conn.send_resp(conn, 200, "done")
+      TestServer.set_route(server, "/empty.html", fn conn ->
+        send(me, {:server_request, conn})
+        Plug.Conn.send_resp(conn, 200, "done")
+      end)
+
+      response = Page.goto!(page, server.prefix <> "/empty.html")
+      headers = Request.all_headers!(Response.request(response))
+      assert_received {:server_request, server_request}
+      assert headers == adjust_server_headers(server_headers(server_request), browser_name)
     end)
-
-    response = Page.goto!(page, server.prefix <> "/empty.html")
-    headers = Request.all_headers!(Response.request(response))
-    assert_received {:server_request, server_request}
-    assert headers == adjust_server_headers(server_headers(server_request), browser_name)
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
-           do: "upstream fail: Curl does not show accept-encoding and accept-language"
-         )
   test "should not return allHeaders() until they are available",
        %{page: page, server: server, browser_name: browser_name} do
-    me = self()
-    # `requestHeadersPromise = request.allHeaders()`: started in the listener, awaited later.
-    Page.on(page, :request, fn request ->
-      Task.start(fn -> send(me, {:request_headers, Request.all_headers(request)}) end)
+    # it.fail(webkit && win32 && channel !== 'webkit-wsl'): Curl does not show accept-encoding and accept-language
+    expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
+      me = self()
+      # `requestHeadersPromise = request.allHeaders()`: started in the listener, awaited later.
+      Page.on(page, :request, fn request ->
+        Task.start(fn -> send(me, {:request_headers, Request.all_headers(request)}) end)
+      end)
+
+      Page.on(page, :response, fn response ->
+        Task.start(fn -> send(me, {:response_headers, Response.all_headers(response)}) end)
+      end)
+
+      TestServer.set_route(server, "/empty.html", fn conn ->
+        send(me, {:server_request, conn})
+        conn = conn |> Plug.Conn.put_resp_header("foo", "bar") |> Plug.Conn.send_chunked(200)
+        Process.sleep(3000)
+        {:ok, conn} = Plug.Conn.chunk(conn, "done")
+        conn
+      end)
+
+      Page.goto!(page, server.prefix <> "/empty.html")
+      assert_receive {:request_headers, {:ok, request_headers}}, 5000
+      assert_received {:server_request, server_request}
+      assert request_headers == adjust_server_headers(server_headers(server_request), browser_name)
+
+      assert_receive {:response_headers, {:ok, response_headers}}, 5000
+      assert response_headers["foo"] == "bar"
     end)
-
-    Page.on(page, :response, fn response ->
-      Task.start(fn -> send(me, {:response_headers, Response.all_headers(response)}) end)
-    end)
-
-    TestServer.set_route(server, "/empty.html", fn conn ->
-      send(me, {:server_request, conn})
-      conn = conn |> Plug.Conn.put_resp_header("foo", "bar") |> Plug.Conn.send_chunked(200)
-      Process.sleep(3000)
-      {:ok, conn} = Plug.Conn.chunk(conn, "done")
-      conn
-    end)
-
-    Page.goto!(page, server.prefix <> "/empty.html")
-    assert_receive {:request_headers, {:ok, request_headers}}, 5000
-    assert_received {:server_request, server_request}
-    assert request_headers == adjust_server_headers(server_headers(server_request), browser_name)
-
-    assert_receive {:response_headers, {:ok, response_headers}}, 5000
-    assert response_headers["foo"] == "bar"
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
-           do: "upstream fail: Curl does not show accept-encoding and accept-language"
-         )
   test "should get the same headers as the server CORS", %{page: page, server: server, browser_name: browser_name} do
-    Page.goto!(page, server.prefix <> "/empty.html")
-    me = self()
+    # it.fail(webkit && win32 && channel !== 'webkit-wsl'): Curl does not show accept-encoding and accept-language
+    expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
+      Page.goto!(page, server.prefix <> "/empty.html")
+      me = self()
 
-    TestServer.set_route(server, "/something", fn conn ->
-      send(me, {:server_request, conn})
-      conn |> Plug.Conn.put_resp_header("access-control-allow-origin", "*") |> Plug.Conn.send_resp(200, "done")
+      TestServer.set_route(server, "/something", fn conn ->
+        send(me, {:server_request, conn})
+        conn |> Plug.Conn.put_resp_header("access-control-allow-origin", "*") |> Plug.Conn.send_resp(200, "done")
+      end)
+
+      response_promise = Page.wait_for_event(page, :response)
+
+      text =
+        Page.evaluate!(
+          page,
+          """
+          async url => {
+            const data = await fetch(url);
+            return data.text();
+          }
+          """,
+          server.cross_process_prefix <> "/something"
+        )
+
+      assert text == "done"
+      response = PlaywrightEx.Promise.await!(response_promise)
+      headers = Request.all_headers!(Response.request(response))
+      assert_received {:server_request, server_request}
+      assert headers == adjust_server_headers(server_headers(server_request), browser_name)
     end)
-
-    response_promise = Page.wait_for_event(page, :response)
-
-    text =
-      Page.evaluate!(
-        page,
-        """
-        async url => {
-          const data = await fetch(url);
-          return data.text();
-        }
-        """,
-        server.cross_process_prefix <> "/something"
-      )
-
-    assert text == "done"
-    response = PlaywrightEx.Promise.await!(response_promise)
-    headers = Request.all_headers!(Response.request(response))
-    assert_received {:server_request, server_request}
-    assert headers == adjust_server_headers(server_headers(server_request), browser_name)
   end
 
   test "should not get preflight CORS requests when intercepting", %{

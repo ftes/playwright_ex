@@ -222,10 +222,11 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
   @doc """
   The test modules in a source that declare `@upstream`: `[{upstream, tests}]`, the tests in
-  order, each `%{name, describe, body?, line, skips}`. `name` is a string, or a regex for a
+  order, each `%{name, describe, body?, line, skips, tag_skips}`. `name` is a string, or a regex for a
   name built at runtime; `describe` as in `match/3`; `skips` the static `skip:` reasons of
   the test's `@tag`s, its `@describetag`s and the module's `@moduletag`s (those that are
-  string literals, also joined with `<>`; conditional ones are not static).
+  string literals, also joined with `<>`; conditional ones are not static); `tag_skips` those
+  of its own `@tag`s.
   """
   def test_modules(source) do
     source
@@ -269,7 +270,8 @@ defmodule Mix.PlaywrightEx.TestRegistry do
       describe: scope.describe,
       body?: rest != [],
       line: meta[:line],
-      skips: tags ++ scope.skips
+      skips: tags ++ scope.skips,
+      tag_skips: tags
     }
 
     {[test | tests], []}

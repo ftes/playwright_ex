@@ -326,17 +326,16 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   end
 
   test "should return set-cookie header after route.fulfill", %{page: page, server: server, browser_name: browser_name} do
-    Page.route!(page, "**/*", fn route ->
-      Route.fulfill!(route, status: 200, headers: %{"set-cookie" => "a=b"}, content_type: "text/plain", body: "")
-    end)
-
-    response = Page.goto!(page, server.empty_page)
-    headers = Response.all_headers!(response)
-
     # it.fail(browserName === 'webkit' || browserName === 'chromium', 'https://github.com/microsoft/playwright/issues/11035')
-    if browser_name in ["webkit", "chromium"],
-      do: refute(headers["set-cookie"] == "a=b"),
-      else: assert(headers["set-cookie"] == "a=b")
+    expected_failure(browser_name in ["webkit", "chromium"], fn ->
+      Page.route!(page, "**/*", fn route ->
+        Route.fulfill!(route, status: 200, headers: %{"set-cookie" => "a=b"}, content_type: "text/plain", body: "")
+      end)
+
+      response = Page.goto!(page, server.empty_page)
+      headers = Response.all_headers!(response)
+      assert headers["set-cookie"] == "a=b"
+    end)
   end
 
   test "should return headers after route.fulfill", %{page: page, server: server} do

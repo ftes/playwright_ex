@@ -151,6 +151,31 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
            ]
   end
 
+  test "conditional_annotation?/2 and upstream_test_bodies/2: conditions that vary between our runs" do
+    source = """
+    it('a', async ({ browserName }) => {
+      it.skip(browserName !== 'webkit', 'webkit only');
+      it.fail(browserName === 'chromium');
+    });
+    it('b', async ({ headless, browserName }) => {
+      it.skip(browserName !== 'webkit' || headless, 'headed webkit');
+      it.fixme(true, 'always');
+      it.fail(mode !== 'default');
+    });
+    """
+
+    [a] = Parity.upstream_test_bodies(source, "a")
+    [b] = Parity.upstream_test_bodies(source, "b")
+    assert Parity.upstream_test_bodies(source, "c") == []
+    assert String.contains?(a, "webkit only") and not String.contains?(a, "headed webkit")
+    assert Parity.conditional_annotation?(a, "skip")
+    assert Parity.conditional_annotation?(a, "fail")
+    refute Parity.conditional_annotation?(a, "fixme")
+    refute Parity.conditional_annotation?(b, "skip")
+    refute Parity.conditional_annotation?(b, "fixme")
+    refute Parity.conditional_annotation?(b, "fail")
+  end
+
   test "cited_members/1: Class.member names outside parentheses of a reason that only lists API names" do
     assert Parity.cited_members("not ported: Page.emulateMedia") == [{"Page", "emulateMedia"}]
     assert Parity.cited_members("not ported: Locator.evaluate (ElementHandle), expect") == [{"Locator", "evaluate"}]

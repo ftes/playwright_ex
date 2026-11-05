@@ -57,12 +57,11 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
   end
 
   test "should contain sourceURL", %{page: page, server: server, browser_name: browser_name} do
-    error = Page.expect_event!(page, :page_error, fn -> Page.goto!(page, server.prefix <> "/error.html") end)
-
     # it.fail(browserName === 'webkit');
-    if browser_name == "webkit",
-      do: refute(error.stack =~ "myscript.js"),
-      else: assert(error.stack =~ "myscript.js")
+    expected_failure(browser_name == "webkit", fn ->
+      error = Page.expect_event!(page, :page_error, fn -> Page.goto!(page, server.prefix <> "/error.html") end)
+      assert error.stack =~ "myscript.js"
+    end)
   end
 
   test "should contain the Error.name property", %{page: page} do

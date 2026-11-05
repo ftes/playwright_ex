@@ -651,8 +651,43 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     assert text == "foo"
   end
 
-  @tag skip: "upstream skip: we should support fulfill with redirect in webkit and delete this test"
-  test "should not fulfill with redirect status"
+  @tag skip:
+         if(@browser_name != "webkit",
+           do: "upstream skip: we should support fulfill with redirect in webkit and delete this test"
+         )
+  test "should not fulfill with redirect status", %{page: page, server: server} do
+    Page.goto!(page, server.prefix <> "/empty.html")
+    me = self()
+
+    Page.route!(page, "**/*", fn route, request ->
+      if Request.url(request) != server.prefix <> "/redirect_this" do
+        Route.continue(route)
+      else
+        send(me, {:route, self()})
+        status = receive do: ({:status, status} -> status)
+
+        case Route.fulfill(route, status: status, headers: %{"location" => "/empty.html"}) do
+          {:error, e} -> send(me, {:exception, e})
+          _ -> send(me, {:reject, "fulfill didn't throw"})
+        end
+      end
+    end)
+
+    for status <- 300..309 do
+      Task.start(fn -> Page.evaluate(page, "url => location.href = url", server.prefix <> "/redirect_this") end)
+      assert_receive {:route, handler}
+      send(handler, {:status, status})
+
+      exception =
+        receive do
+          {:exception, e} -> e
+          {:reject, message} -> flunk(message)
+        end
+
+      assert exception
+      assert String.contains?(Exception.message(exception), "Cannot fulfill with redirect status")
+    end
+  end
 
   test "should support cors with GET", %{page: page, server: server, browser_name: browser_name} do
     Page.goto!(page, server.empty_page)
@@ -1152,9 +1187,74 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     assert headers["accept"]
   end
 
-  # it.fail(browserName === 'chromium', ...): expected to fail on Chromium.
-  @tag skip: "upstream fail: Fetch.requestPaused fires before Chromium attaches Fetch Metadata headers"
-  test "should contain sec-fetch headers in route"
+  test "should contain sec-fetch headers in route", %{page: page, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42620' });
+    # it.fail(browserName === 'chromium', 'Fetch.requestPaused fires before Chromium attaches Fetch Metadata headers')
+    expected_failure(@browser_name == "chromium", fn ->
+      sec_fetch = fn headers ->
+        Map.new(
+          for {name, value} <- headers, String.starts_with?(String.downcase(name), "sec-fetch-"), do: {name, value}
+        )
+      end
+
+      modes = ["cors", "no-cors", "same-origin"]
+
+      Page.goto!(page, server.empty_page)
+
+      me = self()
+
+      Page.route!(page, "**/probe-*", fn route ->
+        request = Route.request(route)
+        path = URI.parse(Request.url(request)).path
+
+        send(
+          me,
+          {:routed, path,
+           %{headers: sec_fetch.(Request.headers(request)), all_headers: sec_fetch.(Request.all_headers!(request))}}
+        )
+
+        Route.continue(route)
+      end)
+
+      server_requests = for mode <- modes, do: TestServer.wait_for_request(server, "/probe-#{mode}")
+
+      Page.evaluate!(
+        page,
+        """
+        async modes => {
+          for (const mode of modes)
+            await (await fetch(`/probe-${mode}`, { mode })).text();
+        }
+        """,
+        modes
+      )
+
+      server_requests = Task.await_many(server_requests, :infinity)
+
+      routed =
+        for _ <- modes, into: %{} do
+          assert_receive {:routed, path, headers}
+          {path, headers}
+        end
+
+      # expect.soft: every mismatch is reported.
+      failures =
+        for {mode, server_request} <- Enum.zip(modes, server_requests),
+            path = "/probe-#{mode}",
+            on_server = sec_fetch.(server_request.req_headers),
+            {what, actual, expected} <- [
+              {"on server", on_server,
+               %{"sec-fetch-site" => "same-origin", "sec-fetch-mode" => mode, "sec-fetch-dest" => "empty"}},
+              # The route handler should see the same headers.
+              {"route.request().headers()", routed[path].headers, on_server},
+              {"route.request().allHeaders()", routed[path].all_headers, on_server}
+            ],
+            actual != expected,
+            do: "#{path} #{what}: #{inspect(actual)} != #{inspect(expected)}"
+
+      assert failures == []
+    end)
+  end
 
   test "should contain raw response header", %{page: page, server: server} do
     me = self()

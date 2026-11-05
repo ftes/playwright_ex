@@ -367,13 +367,12 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     server: server,
     browser_name: browser_name
   } do
-    Page.route!(page, "**/empty.html", &Route.fulfill(&1, status: 200, headers: %{"Set-Cookie" => "a=b"}, body: ""))
-    response = Page.goto!(page, server.empty_page)
-
     # it.fail(browserName === 'chromium', 'Set-Cookie is missing in response after interception')
-    if browser_name == "chromium",
-      do: refute(Response.header_value!(response, "Set-Cookie") == "a=b"),
-      else: assert(Response.header_value!(response, "Set-Cookie") == "a=b")
+    expected_failure(browser_name == "chromium", fn ->
+      Page.route!(page, "**/empty.html", &Route.fulfill(&1, status: 200, headers: %{"Set-Cookie" => "a=b"}, body: ""))
+      response = Page.goto!(page, server.empty_page)
+      assert Response.header_value!(response, "Set-Cookie") == "a=b"
+    end)
   end
 
   test "should fulfill with har response", %{page: page, asset: asset} do

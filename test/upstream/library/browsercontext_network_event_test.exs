@@ -12,6 +12,8 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
 
   @moduletag :page
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   defp received(tag, acc \\ []) do
     receive do
       {^tag, value} -> received(tag, [value | acc])
@@ -104,8 +106,49 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
            ]
   end
 
-  @tag skip: "upstream skip: headless browsers, except firefox, do not request favicons"
-  test "should not fire events for favicon or favicon redirects"
+  # it.skip(!headless && browserName === 'webkit', ...)  -- we run headless
+  @tag skip:
+         if(@browser_name != "firefox", do: "upstream skip: headless browsers, except firefox, do not request favicons")
+  test "should not fire events for favicon or favicon redirects", %{context: context, page: page, server: server} do
+    favicon = "/no-cache/favicon.ico"
+    hashed_favicon_url = "/favicon-hashed.ico"
+    image_path = "/fakeimage.png"
+    page_path = "/page.html"
+    TestServer.set_redirect(server, favicon, hashed_favicon_url)
+
+    TestServer.set_route(server, page_path, fn conn ->
+      Plug.Conn.send_resp(conn, 200, """
+
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <link rel="icon" type="image/svg+xml" href="#{favicon}">
+          <title>SVG Favicon Test</title>
+        </head>
+        <body>
+          <img src="#{image_path}" alt="my fake image">
+        </body>
+      </html>
+      """)
+    end)
+
+    test = self()
+    BrowserContext.on(context, :request, &send(test, {:event, Request.url(&1)}))
+    BrowserContext.on(context, :response, &send(test, {:event, Response.url(&1)}))
+    BrowserContext.on(context, :request_finished, &send(test, {:event, Request.url(&1)}))
+
+    favicon_request = TestServer.wait_for_request(server, favicon)
+    hashed_favicon_request = TestServer.wait_for_request(server, hashed_favicon_url)
+    Page.goto!(page, server.prefix <> "/page.html")
+    Task.await_many([favicon_request, hashed_favicon_request], :infinity)
+
+    events = received(:event)
+    assert Enum.any?(events, &String.contains?(&1, page_path))
+    assert Enum.any?(events, &String.contains?(&1, image_path))
+    refute Enum.any?(events, &String.contains?(&1, favicon))
+    refute Enum.any?(events, &String.contains?(&1, hashed_favicon_url))
+  end
 
   test "should reject response.finished if context closes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
