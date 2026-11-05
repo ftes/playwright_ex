@@ -85,14 +85,19 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
     terminate_promise = Promise.new(this)
     # const frames = (new Error().stack || '').split('\n');  -- not ported: stack rewriting
     frames = []
-    if get(this, :_terminateError), do: Promise.resolve(terminate_promise, get(this, :_terminateError))
-
-    if get(this, :_closeError),
-      do: Promise.resolve(terminate_promise, ManualPromise.clone_error(get(this, :_closeError), frames))
-
     # Map<ManualPromise, frames>: keyed by a ref, the value keeps both.
     key = make_ref()
-    map_set(this, :_terminatePromises, key, {frames, terminate_promise})
+
+    # Elixir only: atomic, as the synchronous section in JS (a close or reject in between would
+    # miss the new entry).
+    atomic(this, fn ->
+      if get(this, :_terminateError), do: Promise.resolve(terminate_promise, get(this, :_terminateError))
+
+      if get(this, :_closeError),
+        do: Promise.resolve(terminate_promise, ManualPromise.clone_error(get(this, :_closeError), frames))
+
+      map_set(this, :_terminatePromises, key, {frames, terminate_promise})
+    end)
 
     try do
       Promise.await(
