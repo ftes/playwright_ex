@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Library.Chromium.JsCoverageTest do
   @moduletag :page
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
-  # it.skip(({ trace }) => trace === 'on');
+  # it.skip(({ trace }) => trace === 'on');  -- the runner does not trace
 
   test "should work", %{page: page, server: server} do
     Coverage.start_js_coverage!(Page.coverage(page))

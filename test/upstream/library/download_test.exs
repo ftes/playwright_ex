@@ -69,6 +69,11 @@ defmodule PlaywrightEx.Library.DownloadTest do
       :ok
     end
 
+    @tag skip:
+           if(@browser_name == "chromium" and @browser_major_version < 140,
+             do:
+               "upstream skip: old chromium throws net::ERR_ABORTED, depends on https://chromium-review.googlesource.com/c/chromium/src/+/6696011"
+           )
     test "should report download when navigation turns into download @smoke", %{
       browser: browser,
       server: server,
@@ -91,6 +96,11 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
+    @tag skip:
+           if(@browser_name == "chromium" and @browser_major_version < 140,
+             do:
+               "upstream skip: old chromium throws net::ERR_ABORTED, depends on https://chromium-review.googlesource.com/c/chromium/src/+/6696011"
+           )
     test "should work with Cross-Origin-Opener-Policy", %{browser: browser, server: server, browser_name: browser_name} do
       page = Browser.new_page!(browser)
       download = Page.wait_for_event(page, :download)
@@ -377,6 +387,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
 
     @tag :tmp_dir
     test "should save downloads to artifactsDir", %{server: server, browser_type: browser_type, tmp_dir: tmp_dir} do
+      # it.skip(isFrozenWebkit, 'needs recent webkit');  -- we run a current WebKit
       artifacts_dir = Path.join(tmp_dir, "artifacts")
       browser = BrowserType.launch!(browser_type, artifacts_dir: artifacts_dir)
       page = Browser.new_page!(browser)

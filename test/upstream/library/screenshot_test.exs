@@ -531,7 +531,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     # annotation: https://github.com/microsoft/playwright/issues/26447
-    if System.get_env("BROWSER") == "webkit", do: @tag(skip: "upstream fixme: webkit")
+    @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit")
 
     @tag :tmp_dir
     test "page screenshot should capture css transform with device pixels", %{
