@@ -27,6 +27,7 @@ defmodule PlaywrightEx.Runtime.Conn do
   use GenServer
 
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Runtime.Invocation
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
 
@@ -65,7 +66,11 @@ defmodule PlaywrightEx.Runtime.Conn do
 
   @doc false
   # Waits until no listener invocation of `emitter` for `type` (`nil`: any) is running.
-  def wait_pending(%{conn: conn, guid: guid}, type), do: call(conn, {:wait_pending, guid, type})
+  # An `await` (of the pending handlers): the caller continues first.
+  def wait_pending(%{conn: conn, guid: guid}, type) do
+    Invocation.yield()
+    call(conn, {:wait_pending, guid, type})
+  end
 
   defp call(conn, request) do
     case GenServer.call(conn, request, :infinity) do

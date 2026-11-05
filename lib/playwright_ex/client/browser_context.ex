@@ -313,7 +313,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   def pages(this) do
-    get(this, :_pages)
+    # deviation: a disposed context has no pages (its rows are gone; JS: the last value, empty).
+    get(this, :_pages, [])
   end
 
   def is_closed(this) do
