@@ -942,3 +942,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Open after VF-D2: the HAR `unrouteAll` CI flake reproduces under load (~1 in 30) for our client
   but never for the driver's JS client with identical CDP command order; cause not found (next: a
   CDP trace of a failing run). Backlog agent. `number_to_string` lacks JS's `1e+21` exponent form.
+- VF-D1 (routing): route and WebSocket route handlers are called as JS functions
+  (`ClientHelper.call_function/2`: any arity; 1-arity gets the route, 2-arity route and request),
+  and a returned `%Promise{}` is awaited before `_afterHandle`, for both handler kinds.
+  `route.fulfill(path:)` on a missing file raises `Node.SystemError` (ENOENT text) instead of
+  `File.Error`; `status: 0` sends 200 (JS truthiness). `postDataJSON` drops one leading `?` as
+  URLSearchParams does.
