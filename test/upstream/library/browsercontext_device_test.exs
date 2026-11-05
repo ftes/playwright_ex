@@ -14,7 +14,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
 
   describe "device" do
     # it.skip(({ browserName, isBidi }) => browserName === 'firefox' && !isBidi): we run Juggler Firefox.
-    @describetag skip: if(System.get_env("BROWSER") == "firefox", do: "firefox")
+    @describetag skip: if(System.get_env("BROWSER") == "firefox", do: "upstream skip: firefox (non-BiDi)")
 
     test "should work @smoke", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]

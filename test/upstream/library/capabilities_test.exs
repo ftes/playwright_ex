@@ -25,8 +25,18 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
                         "env: Linux Firefox without an X display has no WebGL (Exhausted GL driver options; upstream client too)"
                     )
 
+  # platformFixtures `macVersion` (major; 0 if not mac): Darwin 25 = macOS 26, Darwin 24 = macOS 15.
+  @mac_version (case :os.type() do
+                  {:unix, :darwin} ->
+                    {darwin_major, _, _} = :os.version()
+                    if darwin_major >= 25, do: darwin_major + 1, else: darwin_major - 9
+
+                  _ ->
+                    0
+                end)
+
   # url.pathToFileURL(path).href
-  defp file_url(path), do: "file://" <> path
+  defp file_url(path), do: "file://" <> URI.encode(path, &(URI.char_unreserved?(&1) or &1 == ?/))
 
   defp html(conn, body) do
     conn
@@ -123,11 +133,17 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Page.eval_on_selector!(page, "video", "v => v.pause()")
   end
 
-  # it.skip(webkit && darwin && macVersion === 15)  -- not honored: macVersion
   @tag skip:
-         if(@is_windows and @browser_name == "webkit",
-           do: "upstream fixme: https://github.com/microsoft/playwright/issues/10892"
-         )
+         (cond do
+            @is_windows and @browser_name == "webkit" ->
+              "upstream fixme: https://github.com/microsoft/playwright/issues/10892"
+
+            @browser_name == "webkit" and @mac_version == 15 ->
+              "upstream skip: audio output is unreliable on hosted macOS 15 runners"
+
+            true ->
+              nil
+          end)
   test "should play audio @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<audio src="#{server.prefix}/example.mp3"></audio>))
@@ -536,8 +552,8 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
 
   @tag skip:
          (cond do
-            @is_windows and @browser_name == "webkit" -> "audio does not play at all"
-            System.get_env("PW_CLOCK") == "frozen" -> "no way to inject real setTimeout"
+            @is_windows and @browser_name == "webkit" -> "upstream skip: audio does not play at all"
+            System.get_env("PW_CLOCK") == "frozen" -> "upstream skip: no way to inject real setTimeout"
             true -> nil
           end)
   test "should not auto play audio", %{page: page, browser_name: browser_name} do
