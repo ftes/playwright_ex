@@ -39,7 +39,20 @@ defmodule PlaywrightEx.Utils do
   end
 
   # expectedSSLError, isBidiChannel, chromiumVersionLessThan, suppressCertificateWarning  -- not ported: not needed yet
-  # parseTraceCoverage  -- not ported: coverage
+  @doc """
+  `parseTraceCoverage(file)`: the merged istanbul coverage of the trace (string-keyed maps,
+  `isomorphic/istanbulCoverage.ts` `mergeIstanbulCoverage`), `nil` when it has none.
+  Takes a handle, as `parse_trace_raw/2`.
+  """
+  def parse_trace_coverage(file, handle) do
+    %{resources: resources} = parse_trace_raw(file, handle)
+    entries = resources |> Map.keys() |> Enum.filter(&Regex.match?(~r/(^|-)trace\.coverage$/, &1))
+
+    if entries != [] do
+      entries
+      |> Enum.reduce(%{}, fn entry, coverage -> merge_istanbul_coverage(coverage, JSON.decode!(resources[entry])) end)
+    end
+  end
 
   @doc """
   `parseTraceRaw(file)`: `%{events, resources, actions, actionObjects, stacks}` with the JSON
@@ -250,5 +263,66 @@ defmodule PlaywrightEx.Utils do
       if now >= deadline, do: reraise(error, __STACKTRACE__)
       Process.sleep(min(interval, deadline - now))
       do_to_pass(fun, if(rest == [], do: intervals, else: rest), deadline)
+  end
+
+  # isomorphic/istanbulCoverage.ts
+  defp merge_istanbul_coverage(into, data) do
+    Enum.reduce(data, into, fn {file, file_cov}, into ->
+      existing =
+        into[file] ||
+          %{
+            "path" => file_cov["path"],
+            "statementMap" => %{},
+            "fnMap" => %{},
+            "branchMap" => %{},
+            "s" => %{},
+            "f" => %{},
+            "b" => %{}
+          }
+
+      Map.put(into, file, merge_file_coverage(existing, file_cov))
+    end)
+  end
+
+  defp merge_file_coverage(existing, file_cov) do
+    # The maps can arrive late if the report that carried them was lost.
+    existing =
+      if file_cov["statementMap"] && map_size(existing["statementMap"]) == 0,
+        do: zero_fill(existing, file_cov),
+        else: existing
+
+    add = fn counters, key, count -> Map.update(counters, key, count, &(&1 + count)) end
+    s = Enum.reduce(file_cov["s"], existing["s"], fn {k, v}, acc -> add.(acc, k, v) end)
+    f = Enum.reduce(file_cov["f"], existing["f"], fn {k, v}, acc -> add.(acc, k, v) end)
+
+    b =
+      Enum.reduce(file_cov["b"], existing["b"], fn {k, counts}, acc -> Map.put(acc, k, add_branches(acc[k], counts)) end)
+
+    %{existing | "s" => s, "f" => f, "b" => b}
+  end
+
+  defp zero_fill(existing, file_cov) do
+    statement_map = file_cov["statementMap"]
+    fn_map = file_cov["fnMap"] || %{}
+    branch_map = file_cov["branchMap"] || %{}
+    zeros = fn map -> Map.new(map, fn {k, _} -> {k, 0} end) end
+    branch_zeros = Map.new(branch_map, fn {k, branch} -> {k, Enum.map(branch["locations"], fn _ -> 0 end)} end)
+
+    # Reports only carry the counters that were hit, zero fill the rest.
+    %{
+      existing
+      | "statementMap" => statement_map,
+        "fnMap" => fn_map,
+        "branchMap" => branch_map,
+        "s" => Map.merge(zeros.(statement_map), existing["s"]),
+        "f" => Map.merge(zeros.(fn_map), existing["f"]),
+        "b" => Map.merge(branch_zeros, existing["b"])
+    }
+  end
+
+  defp add_branches(branches, counts) do
+    branches = branches || []
+    padded = branches ++ List.duplicate(0, max(length(counts) - length(branches), 0))
+    padded |> Enum.with_index() |> Enum.map(fn {c, i} -> c + (Enum.at(counts, i) || 0) end)
   end
 end
