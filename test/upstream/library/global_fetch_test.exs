@@ -18,20 +18,14 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   # `server.setRoute(path, (req, res) => {})`: the request hangs.
   defp hang(_conn), do: Process.sleep(:infinity)
 
-  # `req => req.socket.on('close', resolve)`: Bandit notices a closed socket only when it writes,
-  # so this starts a chunked response (upstream sends none) and writes until that fails.
-  defp notify_on_close(conn, pid), do: conn |> Plug.Conn.send_chunked(200) |> write_until_closed(pid)
-
-  defp write_until_closed(conn, pid) do
-    case Plug.Conn.chunk(conn, " ") do
-      {:ok, conn} ->
-        Process.sleep(50)
-        write_until_closed(conn, pid)
-
-      {:error, _} ->
-        send(pid, :connection_closed)
-        conn
-    end
+  # `req => req.socket.on('close', resolve)`: no response; the read returns when the client
+  # closes the connection.
+  defp notify_on_close(%Plug.Conn{adapter: {Bandit.Adapter, adapter}} = conn, pid) do
+    ThousandIsland.Socket.recv(adapter.transport.socket, 0, 30_000)
+    send(pid, :connection_closed)
+    ThousandIsland.Socket.close(adapter.transport.socket)
+    Process.exit(self(), :kill)
+    conn
   end
 
   # Node's `req.socket` tricks (`destroy`, `resetAndDestroy`, `rawHeaders`, not reading the
@@ -623,7 +617,8 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
         conn
         |> Plug.Conn.put_resp_header("content-encoding", encoding)
         |> Plug.Conn.put_resp_header("content-type", "text/plain")
-        |> Plug.Conn.send_resp(200, "")
+        # writeHead + res.end(): chunked, no content-length.
+        |> Plug.Conn.send_chunked(200)
       end)
 
       response = apply(APIRequestContext, :"#{method}!", [request, server.empty_page])
