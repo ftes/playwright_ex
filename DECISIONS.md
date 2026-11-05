@@ -440,3 +440,20 @@ drift). Blockers for release, assigned to follow-up workstreams:
   (instrumentation not ported, per-call-site markers), `android.ts`, `electron.ts` (not in the
   JS api.json at 1.64.1; DummyChannelOwner in Connection). Revisit if they enter api.json.
 - `unit/timeout-runner.spec` is mirrored (TimeoutRunner is ported): 262 of 296 spec files.
+
+## 2026-11-05: Locator rendering in Elixir (workstream R, PLAN Then item 4)
+
+- **Elixir syntax is a pipe from `page`**: `Page.get_by_role(page, :button, name: "Submit") |>
+  Locator.first()`; roles are atoms, keys snake_case, regexes `~r` sigils (flags `imsu` kept,
+  `v` becomes `u`, `g`/`y`/`d` dropped). The receiver is always `page` (a selector can't tell a
+  page from a frame).
+- **Ported**: `locatorGenerators.ts` (all factories plus `ElixirLocatorFactory`),
+  `selectorParser.ts`. **Not ported**: `cssParser`/`cssTokenizer` (~1.2k lines; CSS bodies
+  stay strings, so invalid CSS renders as `Page.locator(page, "##")` instead of verbatim) and
+  `locatorParser` (codegen/inspector only). `locator-generator.spec` is mirrored (27/27);
+  `locator-parser`/`css-parser` stay excluded.
+- **JS `RegExp` is a struct** (`source`, `flags`, never compiled) so JS-only syntax survives.
+  Fixed: `String(re)` escapes `/` (Elixir `~r/a\/b/` has source `a/b`).
+- **Matchers' `Locator:` line is Elixir** (client-rendered); call logs stay JS.
+- **Install hint**: `npx playwright install [args]` becomes `mix playwright_ex.install [-- args]`.
+  Revisit: bare `mix playwright_ex.install` installs chromium only (upstream: all defaults).

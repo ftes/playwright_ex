@@ -129,17 +129,16 @@ Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
 
 - Versions mirror upstream major.minor from the breaking release on (`1.64.x` drives
   Playwright 1.64), the patch is ours, as in playwright-python. So upstream `since` is ours.
-- Locator rendering and URL globs via the driver's `LocalUtils.asLocatorDescription` and
-  `globToRegex` (as non-JS clients do; regex cached per route), instead of porting ~3.3k
-  lines of locator/selector/CSS parsers.
+- URL globs via the driver's `LocalUtils.globToRegex` (as non-JS clients do; regex cached per
+  route). Locator rendering is ported (`locatorGenerators`, `selectorParser`; see Then, 4).
 - `sdkLanguage: "javascript"` as upstream, so driver messages match upstream tests, docs and
   issues. The driver rejects anything but javascript|python|java|csharp (no "elixir").
 - Strings vs bytes: explicit `{:binary, b}` where JS branches on Buffer (WebSocket, fulfill, fetch).
 - Names that are no Elixir function names take Python's: `$eval` is `eval_on_selector`
   (`$`, `$$`, `$$eval` likewise), `and`/`or` are `and_`/`or_` (client and facade). `$eval`
   has no options (the docs list `strict`, the JS client rejects a 4th argument).
-- `inspect(locator)` shows the selector (`#PlaywrightEx.Locator<internal:role=button>`):
-  `toString` needs the driver (`asLocatorDescription`). The test id attribute name is a
+- `inspect(locator)` and `to_string(locator)` show the Elixir rendering
+  (`Page.get_by_role(page, :button, name: "Submit")`). The test id attribute name is a
   `:persistent_term`, module state shared by connections as in JS.
 - Evaluate: JS source strings, omit `isFunction` (like Python); string + `arg` is function source.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
@@ -251,8 +250,8 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
      `types.d.ts`. Left `term()`: payloads of unported classes (until ported) and JS values
      (`evaluate`, `json`).
    - No NimbleOptions: its validation can't do the conversion the schema already does.
-4. Later: Elixir syntax wherever the client produces the text. Locator descriptions and
-   `inspect` via a port of `isomorphic/locatorGenerators.ts` (and the selector parser it needs)
-   with an Elixir factory, revising the `asLocatorDescription` decision above; exact-match
-   rewrites of fixed driver hints (install command: `mix playwright_ex.install`). Locators the
-   driver renders inside errors stay JS.
+4. Done: Elixir syntax wherever the client produces the text. A port of
+   `isomorphic/locatorGenerators.ts` and `selectorParser.ts` (CSS bodies stay strings;
+   `cssParser` is not ported) with an `"elixir"` factory renders `Locator.toString`,
+   `String.Chars`, `Inspect` and the matchers' `Locator:` line. The driver's install hint is
+   rewritten to `mix playwright_ex.install`. Text the driver renders (call logs) stays JS.

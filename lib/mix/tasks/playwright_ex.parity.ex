@@ -91,7 +91,6 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "tests/library/inspector/title.spec.ts" => codegen,
     # Revisit with PLAN "Then" item 4 (Elixir locator rendering), or when locatorGenerators /
     # locatorParser are ported.
-    "tests/library/locator-generator.spec.ts" => "isomorphic locator generators (not ported)",
     "tests/library/locator-parser.spec.ts" => "isomorphic locator parser (not ported)",
     "tests/library/role-utils.spec.ts" => injected,
     "tests/library/selector-generator.spec.ts" => injected,
