@@ -600,3 +600,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **Needs your action before merging PR #124:** `main`'s ruleset requires `Test (port)` and
   `Test (websocket)`, from main's old transport matrix, which this branch no longer produces.
   Require `Tests` instead.
+- CI retries test failures once (`|| if [[ $? = 2 ]]; then mix test --failed; ...`, as in ptp),
+  like upstream's `retries: 3` on CI. Compile/warnings errors (exit 1) are not retried.
+- `launchServer` specs stay `not ported` (your call): PORTING north star, no more specs than
+  the non-JS clients.

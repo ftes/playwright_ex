@@ -90,9 +90,10 @@ jobs:
       - name: Check parity with upstream
         if: matrix.browser == 'chromium'
         run: mix playwright_ex.parity
-      # Under xvfb like upstream's CI (Linux firefox WebGL needs a display).
+      # Under xvfb like upstream's CI (Linux firefox WebGL needs a display). Test failures (exit 2)
+      # are retried once, as upstream retries on CI (`retries: 3`); compile errors are not.
       - name: Run tests
-        run: xvfb-run --auto-servernum -- mix test --warnings-as-errors
+        run: xvfb-run --auto-servernum -- mix test --warnings-as-errors || if [[ $? = 2 ]]; then xvfb-run --auto-servernum -- mix test --failed; else false; fi
 
   # The one check to require: green when every blocking matrix entry is.
   tests:

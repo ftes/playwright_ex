@@ -76,6 +76,11 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 
 ## Tests
 
+- North star: run no more upstream specs than the non-JS clients (Python, Java, .NET) can. Specs
+  of JS-only API (api.json `only: ["js"]`, e.g. `launchServer`), of the in-process server
+  (`toImpl`, `__testHook*`, heap counts) or of the test runner stay bodiless `not ported`: the
+  driver's behaviour is the same under every client and upstream's to test. Port what
+  exercises the client.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream.
