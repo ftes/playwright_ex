@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   defp done?(task), do: Task.yield(task, 0) != nil
 
   # `expect.poll(fun).toEqual(expected)`: the last value of `fun`, polled until it equals `expected`.
-  defp poll(fun, expected, tries \\ 50) do
+  defp poll(fun, expected, tries \\ 100) do
     value = fun.()
 
     cond do

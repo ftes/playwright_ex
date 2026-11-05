@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
     assert to_string(Page.evaluate_handle!(page, "new Int32Array()")) =~ "Int32Array"
   end
 
-  defp poll(fun, expected, tries \\ 50) do
+  defp poll(fun, expected, tries \\ 100) do
     cond do
       fun.() == expected -> true
       tries == 0 -> false

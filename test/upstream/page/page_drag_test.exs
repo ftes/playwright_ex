@@ -533,8 +533,8 @@ defmodule PlaywrightEx.Page.PageDragTest do
     """)
   end
 
-  # `expect.poll(fun).toEqual(expected)`: polls until equal (upstream's default 5s timeout).
-  defp poll(fun, expected, tries \\ 50) do
+  # `expect.poll(fun).toEqual(expected)`: polls until equal (the 10 s expect timeout).
+  defp poll(fun, expected, tries \\ 100) do
     cond do
       fun.() == expected -> true
       tries == 0 -> false

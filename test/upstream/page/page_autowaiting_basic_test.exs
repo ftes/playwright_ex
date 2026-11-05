@@ -96,10 +96,6 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     assert messages() == "route|navigated|click"
   end
 
-  @tag skip:
-         if(PlaywrightEx.TestBrowser.name() == "webkit" and System.get_env("CI"),
-           do: "flaky: on Linux CI the driver can answer the click before WebKit sends the form POST (passes locally)"
-         )
   test "should await form-post on click", %{page: page, server: server} do
     init_server(server)
 
@@ -128,10 +124,6 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
 
   test "should work with waitForLoadState(load)"
 
-  @tag skip:
-         if(PlaywrightEx.TestBrowser.name() == "webkit" and System.get_env("CI"),
-           do: "flaky: on Linux CI the driver can answer the click before WebKit starts the navigation (passes locally)"
-         )
   test "should work with goto following click", %{page: page, server: server} do
     TestServer.set_route(server, "/login.html", fn conn ->
       conn

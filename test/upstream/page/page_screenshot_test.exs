@@ -479,7 +479,6 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-grid-fullpage.png")
     end
 
-    @tag skip: "flaky: page.screenshot times out (30s) in the full suite (passes alone and in its file)"
     test "should take fullPage screenshots during navigation", %{page: page, server: server} do
       # it.slow()
       Page.set_viewport_size!(page, %{width: 500, height: 500})

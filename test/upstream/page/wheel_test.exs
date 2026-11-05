@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Page.WheelTest do
   end
 
   # await expect.poll(() => page.evaluate('window.lastEvent')).toBeTruthy()
-  defp poll_last_event(page, tries \\ 50) do
+  defp poll_last_event(page, tries \\ 100) do
     case Page.evaluate!(page, "window.lastEvent") do
       received when received in [nil, false] and tries > 0 ->
         Process.sleep(100)

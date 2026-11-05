@@ -257,11 +257,12 @@ defmodule PlaywrightEx.Utils do
   @doc """
   `expect(fn).toPass(options)` (`expect.ts`): calls `fun` until it returns without raising
   (an `ExUnit.AssertionError` or any other exception), with upstream's default `intervals`
-  (100, 250, 500, 1000 ms) until `timeout` (deviation: default 5000 ms, upstream's is the test
-  timeout). Returns `fun`'s value; re-raises the last error on timeout.
+  (100, 250, 500, 1000 ms) until `timeout` (default: the test timeout of upstream's
+  `tests/library/playwright.config.ts`, 30 s). Returns `fun`'s value; re-raises the last error
+  on timeout.
   """
   def to_pass(fun, options \\ []) do
-    timeout = Keyword.get(options, :timeout, 5000)
+    timeout = Keyword.get(options, :timeout, 30_000)
     intervals = Keyword.get(options, :intervals, [100, 250, 500, 1000])
     deadline = System.monotonic_time(:millisecond) + timeout
     do_to_pass(fun, intervals, deadline)
@@ -269,8 +270,8 @@ defmodule PlaywrightEx.Utils do
 
   @doc """
   `expect.poll(fn, options).<matcher>`: polls `value_fun` until `assertion` (called with its
-  value) passes, as `to_pass/2` does. `poll(fn -> received end, &assert(&1 == [1, 2]))`.
-  Returns the last value.
+  value) passes, as `to_pass/2` does, until `timeout` (default: the expect timeout, as
+  upstream's). `poll(fn -> received end, &assert(&1 == [1, 2]))`. Returns the last value.
   """
   def poll(value_fun, assertion, options \\ []) do
     to_pass(
@@ -279,7 +280,7 @@ defmodule PlaywrightEx.Utils do
         assertion.(value)
         value
       end,
-      options
+      Keyword.put_new_lazy(options, :timeout, fn -> Application.fetch_env!(:playwright_ex, :expect)[:timeout] end)
     )
   end
 

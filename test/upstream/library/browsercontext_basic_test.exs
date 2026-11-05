@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   import PlaywrightEx.Utils, only: [verify_viewport: 3]
 
   # expect.poll(fun).toEqual(expected)
-  defp poll(fun, expected, tries \\ 50) do
+  defp poll(fun, expected, tries \\ 100) do
     cond do
       fun.() == expected -> true
       tries == 0 -> false

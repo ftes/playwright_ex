@@ -48,11 +48,6 @@ defmodule PlaywrightEx.Runtime.GCDriverTest do
     assert rows(page) <= baseline + 10
   end
 
-  @tag skip:
-         if(TestBrowser.name() == "firefox" and match?({:unix, :linux}, :os.type()),
-           do:
-             "env: Linux firefox (CI runner, with or without xvfb) stops answering newPage after ~100 pages; passes on macOS"
-         )
   test "opening and closing pages reaches a steady state", %{browser: browser, page: page} do
     open_close = fn n ->
       for _ <- 1..n do

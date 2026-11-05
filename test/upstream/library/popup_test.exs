@@ -289,16 +289,9 @@ defmodule PlaywrightEx.Library.PopupTest do
   @tag :page
   # it.fixme(browserName === 'firefox', 'locator.click: Target page, context or browser has been closed');
   @tag skip:
-         (cond do
-            @browser_name == "firefox" ->
-              "upstream fixme: locator.click: Target page, context or browser has been closed"
-
-            System.get_env("CI") ->
-              "flaky: on Linux CI the driver answers the click with TargetClosedError (passes locally)"
-
-            true ->
-              nil
-          end)
+         if(@browser_name == "firefox",
+           do: "upstream fixme: locator.click: Target page, context or browser has been closed"
+         )
   test "should not throw when click closes popup", %{browser_name: browser_name, page: page, server: server} do
     Page.goto!(page, server.empty_page)
 

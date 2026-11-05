@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
   # Callbacks report to the test process: `received.push(n)` is `send(test, {:received, n})`.
 
   # await expect.poll(() => page.evaluate(expression)).toBe(expected)
-  defp poll(page, expression, tries \\ 50) do
+  defp poll(page, expression, tries \\ 100) do
     case Page.evaluate!(page, expression) do
       nil when tries > 0 ->
         Process.sleep(100)

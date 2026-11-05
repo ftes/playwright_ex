@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
   end
 
   # expect.poll(fun).toBe(expected)
-  defp poll(fun, expected, tries \\ 50) do
+  defp poll(fun, expected, tries \\ 100) do
     cond do
       fun.() == expected -> true
       tries == 0 -> false

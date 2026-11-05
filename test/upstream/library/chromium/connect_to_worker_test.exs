@@ -51,12 +51,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     end)
   end
 
-  @tag skip:
-         if(System.get_env("BROWSER", "chromium") != "chromium",
-           do: "upstream skip: chromium only",
-           else:
-             "flaky: server-side race, the driver resumes the worker before replying, so early console events can precede the subscription (upstream too)"
-         )
+  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
   test "should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([

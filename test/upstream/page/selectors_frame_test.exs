@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
   end
 
   # `expect.poll(fn).toBe(expected)`
-  defp poll(fun, expected, tries \\ 50) do
+  defp poll(fun, expected, tries \\ 100) do
     cond do
       fun.() == expected -> true
       tries == 0 -> false
