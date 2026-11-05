@@ -349,9 +349,20 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
       do: raise(InvalidSelectorError, "Unexpected end of selector while parsing selector `#{s.selector}`")
 
     raise InvalidSelectorError,
-          ~s(Error while parsing selector `#{s.selector}` - unexpected symbol "#{next(s)}" at position #{s.wp}) <>
+          ~s(Error while parsing selector `#{s.selector}` - unexpected symbol "#{next(s)}" at position #{utf16_position(s)}) <>
             if(stage, do: " during " <> stage, else: "")
   end
+
+  # `wp` counts UTF-16 code units in JS.
+  defp utf16_position(s),
+    do:
+      s.chars
+      |> Tuple.to_list()
+      |> Enum.take(s.wp)
+      |> Enum.join()
+      |> :unicode.characters_to_binary(:utf8, :utf16)
+      |> byte_size()
+      |> div(2)
 
   defp skip_spaces(s) do
     if !eol(s) and Regex.match?(~r/\A\s\z/u, next(s)), do: skip_spaces(elem(eat1(s), 1)), else: s
