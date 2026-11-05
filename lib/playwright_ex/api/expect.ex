@@ -3,7 +3,7 @@
 defmodule PlaywrightEx.Expect do
   @moduledoc since: "1.17"
   @moduledoc ~S"""
-  Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver. `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)`. They retry until the expectation is met or the timeout (5 seconds by default) passes, then return `:ok` or `{:error, %PlaywrightEx.Matchers.MatcherHint.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`.
+  Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver. `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)`. They retry until the expectation is met or the timeout (5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.Matchers.MatcherHint.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`.
 
   The [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions) class provides assertion methods that can be used to make assertions about the [`Locator`](`PlaywrightEx.Locator`) state in the tests.
 
@@ -3157,7 +3157,7 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `updateSnapshots` of `PlaywrightEx.Matchers.Expect.set_expect_config/1`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Matchers.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
   * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -3281,7 +3281,7 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `updateSnapshots` of `PlaywrightEx.Matchers.Expect.set_expect_config/1`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Matchers.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
   * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.

@@ -13,6 +13,20 @@ defmodule PlaywrightEx.Matchers.Expect do
   Deviations: there is no test runner (`testInfo` is `null`, so no steps, soft assertions or
   test deadlines) and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
   `expect.extend`, `toPass`, `toMatchSnapshot` and `resolves`/`rejects` are not ported.
+
+  ## Configuration
+
+  The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs:
+
+      config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
+
+    * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
+      timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
+    * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
+      `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones).
+    * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
+    * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
+      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
   """
 
   alias PlaywrightEx.Isomorphic.StringUtils
@@ -24,15 +38,33 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   # unfilteredStackTrace  -- not ported: Elixir stack traces
 
-  # `_expectConfig` is module state, shared by every connection as in JS.
+  # `_expectConfig` is module state, shared by every connection as in JS. Its initial value comes
+  # from the app env (the test runner's config in JS, see the moduledoc).
   @default_expect_config %{testInfo: nil, ignoreSnapshots: false, updateSnapshots: "default"}
 
+  @doc false
   def set_expect_config(config) do
     :persistent_term.put({__MODULE__, :expect_config}, config)
   end
 
+  @doc false
   def expect_config do
-    :persistent_term.get({__MODULE__, :expect_config}, @default_expect_config)
+    :persistent_term.get({__MODULE__, :expect_config}, nil) ||
+      app_env_expect_config(Application.get_env(:playwright_ex, :expect, []))
+  end
+
+  # Elixir only: `config :playwright_ex, :expect, ...` as an `ExpectConfig`.
+  @doc false
+  def app_env_expect_config(env) do
+    config = %{
+      timeout: if(env[:timeout] == :infinity, do: 0, else: env[:timeout]),
+      updateSnapshots: if(env[:update_snapshots] != nil, do: to_string(env[:update_snapshots])),
+      ignoreSnapshots: env[:ignore_snapshots],
+      toHaveScreenshot: env[:to_have_screenshot],
+      toMatchAriaSnapshot: env[:to_match_aria_snapshot]
+    }
+
+    Map.merge(@default_expect_config, Map.reject(config, fn {_key, value} -> value == nil end))
   end
 
   @default_expect_timeout 5000

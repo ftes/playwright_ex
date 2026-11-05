@@ -177,7 +177,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "as functions of their receiver. `expect(locator).toHaveText(expected)` is " <>
             "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
             "`not_to_have_text(locator, expected)`. They retry until the expectation is met or the timeout " <>
-            "(5 seconds by default) passes, then return `:ok` or `{:error, %PlaywrightEx.Matchers.MatcherHint.ExpectError{}}` " <>
+            "(5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.Matchers.MatcherHint.ExpectError{}}` " <>
             "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
       }
       | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]
@@ -218,8 +218,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "type" => "text",
             "text" =>
               "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
-                "corresponding format. Both formats are lossless. A missing snapshot is written (see `updateSnapshots` " <>
-                "of `PlaywrightEx.Matchers.Expect.set_expect_config/1`); on failure the `-actual`, `-diff` and " <>
+                "corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` " <>
+                "in the configuration of `PlaywrightEx.Matchers.Expect`); on failure the `-actual`, `-diff` and " <>
                 "`-previous` images are written next to it."
           }
         ]
