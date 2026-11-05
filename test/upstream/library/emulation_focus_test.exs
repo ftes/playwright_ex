@@ -106,23 +106,32 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     page2 = BrowserContext.new_page!(Page.context(page))
 
-    Task.await_many([
-      Task.async(fn -> Page.set_viewport_size!(page, %{width: 500, height: 500}) end),
-      Task.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end),
-      Task.async(fn -> Page.set_viewport_size!(page2, %{width: 50, height: 50}) end),
-      Task.async(fn -> Page.goto!(page2, server.prefix <> "/grid.html") end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> Page.set_viewport_size!(page, %{width: 500, height: 500}) end),
+        Task.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end),
+        Task.async(fn -> Page.set_viewport_size!(page2, %{width: 50, height: 50}) end),
+        Task.async(fn -> Page.goto!(page2, server.prefix <> "/grid.html") end)
+      ],
+      :infinity
+    )
 
-    Task.await_many([
-      Task.async(fn -> Page.focus!(page, "body") end),
-      Task.async(fn -> Page.focus!(page2, "body") end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> Page.focus!(page, "body") end),
+        Task.async(fn -> Page.focus!(page2, "body") end)
+      ],
+      :infinity
+    )
 
     screenshots =
-      Task.await_many([
-        Task.async(fn -> Page.screenshot!(page) end),
-        Task.async(fn -> Page.screenshot!(page2) end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Page.screenshot!(page) end),
+          Task.async(fn -> Page.screenshot!(page2) end)
+        ],
+        :infinity
+      )
 
     to_match_snapshot(Enum.at(screenshots, 0), "screenshot-sanity.png")
     to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-0.png")

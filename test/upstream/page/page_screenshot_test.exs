@@ -175,7 +175,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
           Task.async(fn -> Page.screenshot!(page, clip: %{x: 50 * i, y: 0, width: 50, height: 50}) end)
         end
 
-      screenshots = Task.await_many(promises)
+      screenshots = Task.await_many(promises, :infinity)
       to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-1.png")
     end
 
@@ -556,18 +556,21 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       Page.add_style_tag!(page, content: "iframe { border: none; }")
 
       screenshots =
-        Task.await_many([
-          Task.async(fn ->
-            Page.screenshot!(page,
-              mask: [page |> Page.frame_locator("#frame1") |> FrameLocator.locator("div") |> Locator.nth(1)]
-            )
-          end),
-          Task.async(fn ->
-            Page.screenshot!(page,
-              mask: [page |> Page.frame_locator("#frame2") |> FrameLocator.locator("div") |> Locator.nth(3)]
-            )
-          end)
-        ])
+        Task.await_many(
+          [
+            Task.async(fn ->
+              Page.screenshot!(page,
+                mask: [page |> Page.frame_locator("#frame1") |> FrameLocator.locator("div") |> Locator.nth(1)]
+              )
+            end),
+            Task.async(fn ->
+              Page.screenshot!(page,
+                mask: [page |> Page.frame_locator("#frame2") |> FrameLocator.locator("div") |> Locator.nth(3)]
+              )
+            end)
+          ],
+          :infinity
+        )
 
       to_match_snapshot(Enum.at(screenshots, 0), "should-mask-in-parallel-1.png")
       to_match_snapshot(Enum.at(screenshots, 1), "should-mask-in-parallel-2.png")

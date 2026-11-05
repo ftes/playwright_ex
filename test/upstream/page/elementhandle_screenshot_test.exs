@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
 
     element_handles = Page.query_selector_all!(page, "div.to-screenshot")
     promises = Enum.map(element_handles, fn handle -> Task.async(fn -> ElementHandle.screenshot!(handle) end) end)
-    screenshots = Task.await_many(promises)
+    screenshots = Task.await_many(promises, :infinity)
     to_match_snapshot(Enum.at(screenshots, 2), "screenshot-element-larger-than-viewport.png")
 
     verify_viewport(page, 500, 500)

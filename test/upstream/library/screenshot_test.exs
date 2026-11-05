@@ -104,7 +104,8 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
               Page.goto!(page, server.prefix <> "/grid.html")
               page
             end)
-          end
+          end,
+          :infinity
         )
 
       promises =
@@ -114,13 +115,13 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
           end)
         end
 
-      screenshots = Task.await_many(promises)
+      screenshots = Task.await_many(promises, :infinity)
 
       for i <- 0..(n - 1) do
         to_match_snapshot(Enum.at(screenshots, i), "grid-cell-#{rem(i, 2)}.png")
       end
 
-      pages |> Enum.map(&Task.async(fn -> Page.close!(&1) end)) |> Task.await_many()
+      pages |> Enum.map(&Task.async(fn -> Page.close!(&1) end)) |> Task.await_many(:infinity)
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")

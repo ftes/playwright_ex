@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
@@ -368,10 +369,9 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
       # Firefox navigates to an error page, and this navigation might conflict with the
       # next navigation we do in test.
       # So we need to wait for the navigation explicitly.
-      test = self()
-      Page.once(page, :frame_navigated, fn _ -> send(test, :navigated) end)
+      navigated = Page.wait_for_event(page, :frame_navigated)
       assert {:error, _} = Page.goto(page, server.empty_page)
-      assert_receive :navigated
+      Promise.await!(navigated)
     else
       assert {:error, _} = Page.goto(page, server.empty_page)
     end
