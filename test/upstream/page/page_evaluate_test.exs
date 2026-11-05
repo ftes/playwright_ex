@@ -103,9 +103,10 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   defp float32(numbers), do: for(n <- numbers, <<f::float-32>> = <<n::float-32>>, do: f)
 
   test "should transfer bigint", %{page: page} do
-    # A bigint parses to an integer; 17 is a safe integer, so it travels as a number.
+    # A bigint parses to an integer. An integer travels as a bigint beyond
+    # Number.MAX_SAFE_INTEGER (17 would be a number): 17n is 2^53 + 17 here.
     assert Page.evaluate!(page, "() => 42n") == 42
-    assert Page.evaluate!(page, "a => a", 17) == 17
+    assert Page.evaluate!(page, "a => a", Integer.pow(2, 53) + 17) == Integer.pow(2, 53) + 17
   end
 
   test "should transfer maps as empty objects", %{page: page} do
