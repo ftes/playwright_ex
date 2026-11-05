@@ -128,8 +128,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
         Task.async(fn -> Expect.to_have_text!(locator, ~r/Text 2/) end),
         Task.async(fn ->
           Page.wait_for_timeout!(page, 1000)
-          # Locator.evaluate is not ported: evaluate_all on the single match instead.
-          Locator.evaluate_all!(locator, "elements => elements[0].textContent = 'Text 2 content'")
+          Locator.evaluate!(locator, "element => element.textContent = 'Text 2 content'")
         end)
       ]
 

@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
 
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.ElementHandle
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
@@ -73,8 +74,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
 
     cover = Page.locator(page, ".cover")
     Locator.wait_for!(cover, state: :visible)
-    # expect(cover).toBeVisible(): not ported (expect), the element is already visible.
-    assert Locator.is_visible!(cover)
+    Expect.to_be_visible!(cover)
   end
 
   test "hidden should wait for hidden", %{page: page} do

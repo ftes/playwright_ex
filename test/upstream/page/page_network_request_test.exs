@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -24,23 +25,6 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   defp on_request(page) do
     me = self()
     Page.on(page, :request, &send(me, {:event, &1}))
-  end
-
-  # tests/config/utils.ts attachFrame, without returning the frame (evaluateHandle is not ported).
-  defp attach_frame(page, frame_id, url) do
-    Page.evaluate!(
-      page,
-      """
-      async ({ frameId, url }) => {
-        const frame = document.createElement('iframe');
-        frame.src = url;
-        frame.id = frameId;
-        document.body.appendChild(frame);
-        await new Promise(x => frame.onload = x);
-      }
-      """,
-      %{frameId: frame_id, url: url}
-    )
   end
 
   defp adjust_server_headers(headers, "firefox"), do: Map.delete(headers, "priority")
@@ -64,7 +48,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   test "should work for subframe navigation request", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     on_request(page)
-    attach_frame(page, "frame1", server.empty_page)
+    Utils.attach_frame(page, "frame1", server.empty_page)
     requests = received()
     assert length(requests) == 1
     assert Request.frame(Enum.at(requests, 0)) == Enum.at(Page.frames(page), 1)

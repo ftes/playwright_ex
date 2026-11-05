@@ -3,14 +3,18 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Browser
+  alias PlaywrightEx.Client.Errors.PlaywrightError
+  alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
+  alias PlaywrightEx.Isomorphic.UrlMatch
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -78,11 +82,160 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     end
   end
 
-  @tag skip: "not ported: globToRegexPattern, urlMatches (the driver converts globs)"
-  test "should work with glob"
+  # The driver converts globs (`LocalUtils.globToRegex`, PLAN Decisions): `globToRegexPattern(glob)`
+  # is the driver's `resolveGlobToRegexPattern(undefined, glob)`, `urlMatches` is
+  # `Isomorphic.UrlMatch.url_matches/4` (it resolves globs through the driver too).
+  defp local_utils(playwright),
+    do: PlaywrightEx.Client.Connection.local_utils(PlaywrightEx.Runtime.Heap.get(playwright, :_connection))
 
-  @tag skip: "not ported: globToRegexPattern, urlMatches (the driver converts globs)"
-  test "should throw on unbalanced glob braces"
+  defp glob_to_regex_pattern(playwright, glob) do
+    local_utils = local_utils(playwright)
+    Api.call(nil, local_utils, fn -> LocalUtils.glob_to_regex(local_utils, %{glob: glob}) end)
+  end
+
+  defp url_matches(playwright, base_url, url, match) do
+    local_utils = local_utils(playwright)
+    Api.call(nil, local_utils, fn -> UrlMatch.url_matches(local_utils, base_url, url, match) end)
+  end
+
+  test "should work with glob", %{playwright: playwright} do
+    glob_to_regex = fn glob -> Regex.compile!(glob_to_regex_pattern(playwright, glob)) end
+    url_matches = &url_matches(playwright, &1, &2, &3)
+
+    assert Regex.match?(glob_to_regex.("**/*.js"), "https://localhost:8080/foo.js")
+    refute Regex.match?(glob_to_regex.("**/*.css"), "https://localhost:8080/foo.js")
+    refute Regex.match?(glob_to_regex.("*.js"), "https://localhost:8080/foo.js")
+    assert Regex.match?(glob_to_regex.("https://**/*.js"), "https://localhost:8080/foo.js")
+
+    assert Regex.match?(
+             glob_to_regex.("http://localhost:8080/simple/path.js"),
+             "http://localhost:8080/simple/path.js"
+           )
+
+    assert Regex.match?(glob_to_regex.("**/{a,b}.js"), "https://localhost:8080/a.js")
+    assert Regex.match?(glob_to_regex.("**/{a,b}.js"), "https://localhost:8080/b.js")
+    refute Regex.match?(glob_to_regex.("**/{a,b}.js"), "https://localhost:8080/c.js")
+
+    assert Regex.match?(glob_to_regex.("**/*.{png,jpg,jpeg}"), "https://localhost:8080/c.jpg")
+    assert Regex.match?(glob_to_regex.("**/*.{png,jpg,jpeg}"), "https://localhost:8080/c.jpeg")
+    assert Regex.match?(glob_to_regex.("**/*.{png,jpg,jpeg}"), "https://localhost:8080/c.png")
+    refute Regex.match?(glob_to_regex.("**/*.{png,jpg,jpeg}"), "https://localhost:8080/c.css")
+    assert Regex.match?(glob_to_regex.("foo*"), "foo.js")
+    refute Regex.match?(glob_to_regex.("foo*"), "foo/bar.js")
+    refute Regex.match?(glob_to_regex.("http://localhost:3000/signin-oidc*"), "http://localhost:3000/signin-oidc/foo")
+    assert Regex.match?(glob_to_regex.("http://localhost:3000/signin-oidc*"), "http://localhost:3000/signin-oidcnice")
+
+    assert Regex.match?(glob_to_regex.("**/*.js"), "/foo.js")
+    refute Regex.match?(glob_to_regex.("asd/**.js"), "/foo.js")
+    refute Regex.match?(glob_to_regex.("**/*.js"), "bar_foo.js")
+
+    # range [] is NOT supported
+    assert Regex.match?(glob_to_regex.("**/api/v[0-9]"), "http://example.com/api/v[0-9]")
+    refute Regex.match?(glob_to_regex.("**/api/v[0-9]"), "http://example.com/api/version")
+
+    # query params
+    assert Regex.match?(glob_to_regex.("**/api\\?param"), "http://example.com/api?param")
+    refute Regex.match?(glob_to_regex.("**/api\\?param"), "http://example.com/api-param")
+
+    assert Regex.match?(
+             glob_to_regex.("**/three-columns/settings.html\\?**id=settings-**"),
+             "http://mydomain:8080/blah/blah/three-columns/settings.html?id=settings-e3c58efe-02e9-44b0-97ac-dd138100cf7c&blah"
+           )
+
+    # toEqual(/.../): the regex sources.
+    assert glob_to_regex_pattern(playwright, "\\?") == ~S"^\?$"
+    assert glob_to_regex_pattern(playwright, "\\") == ~S"^\\$"
+    assert glob_to_regex_pattern(playwright, "\\\\") == ~S"^\\$"
+    assert glob_to_regex_pattern(playwright, "\\[") == ~S"^\[$"
+    assert glob_to_regex_pattern(playwright, "[a-z]") == ~S"^\[a-z\]$"
+    assert glob_to_regex_pattern(playwright, "$^+.\\*()|\\?\\{\\}\\[\\]") == ~S"^\$\^\+\.\*\(\)\|\?\{\}\[\]$"
+
+    assert url_matches.(nil, "http://playwright.dev/", "http://playwright.dev")
+    assert url_matches.(nil, "http://playwright.dev/?a=b", "http://playwright.dev?a=b")
+    assert url_matches.(nil, "http://playwright.dev/", "h*://playwright.dev")
+    assert url_matches.(nil, "http://api.playwright.dev/?x=y", "http://*.playwright.dev?x=y")
+    assert url_matches.(nil, "http://playwright.dev/foo/bar", "**/foo/**")
+    assert url_matches.("http://playwright.dev", "http://playwright.dev/?x=y", "?x=y")
+    assert url_matches.("http://playwright.dev/foo/", "http://playwright.dev/foo/bar?x=y", "./bar?x=y")
+
+    # '$$', '$&', '$`' and "$'" are special in String.prototype.replace with a string argument.
+    assert url_matches.(nil, "http://playwright.dev/foo$$bar", "http://playwright.dev/foo$$bar")
+    assert url_matches.(nil, "http://playwright.dev/a$&b", "http://playwright.dev/a$&b")
+    assert url_matches.("http://playwright.dev", "http://playwright.dev/p$$q", "./p$$q")
+
+    # Case insensitive matching
+    assert url_matches.(nil, "https://playwright.dev/fooBAR", "HtTpS://pLaYwRiGhT.dEv/fooBAR")
+    assert url_matches.("http://ignored", "https://playwright.dev/fooBAR", "HtTpS://pLaYwRiGhT.dEv/fooBAR")
+    # Path and search query are case-sensitive
+    refute url_matches.(nil, "https://playwright.dev/foobar", "https://playwright.dev/fooBAR")
+    refute url_matches.(nil, "https://playwright.dev/foobar?a=b", "https://playwright.dev/foobar?A=B")
+
+    # Literal globs are normalized through new URL(), so explicit default ports,
+    # percent-encoding and IDN hosts match request.url() which is already normalized.
+    assert url_matches.(nil, "http://example.com/path", "http://example.com:80/path")
+    assert url_matches.(nil, "https://example.com/path", "https://example.com:443/path")
+    assert url_matches.(nil, "http://example.com:8080/path", "http://example.com:8080/path")
+    assert url_matches.(nil, "http://localhost/", "http://localhost:80/**")
+    assert url_matches.(nil, "http://example.com/foo%20bar", "http://example.com/foo bar")
+    assert url_matches.(nil, "http://xn--mnchen-3ya.de/", "http://münchen.de/")
+
+    assert url_matches.(nil, "https://localhost:3000/?a=b", "**/?a=b")
+    assert url_matches.(nil, "https://localhost:3000/?a=b", "**?a=b")
+    assert url_matches.(nil, "https://localhost:3000/?a=b", "**=b")
+
+    # Custom schema.
+    assert url_matches.(nil, "my.custom.protocol://foo", "my.custom.protocol://**")
+    refute url_matches.(nil, "my.p://foo", "my.{p,y}://**")
+    assert url_matches.(nil, "my.p://foo/", "my.{p,y}://**")
+    assert url_matches.(nil, "file:///foo/", "f*e://**")
+
+    # This is not supported, we treat ? as a query separator.
+    refute Regex.match?(glob_to_regex.("http://localhost:8080/?imple/path.js"), "http://localhost:8080/Simple/path.js")
+    refute url_matches.(nil, "http://playwright.dev/", "http://playwright.?ev")
+    assert url_matches.(nil, "http://playwright./?ev", "http://playwright.?ev")
+    refute url_matches.(nil, "http://playwright.dev/foo", "http://playwright.dev/f??")
+    assert url_matches.(nil, "http://playwright.dev/f??", "http://playwright.dev/f??")
+    assert url_matches.(nil, "http://playwright.dev/?x=y", "http://playwright.dev\\?x=y")
+    assert url_matches.(nil, "http://playwright.dev/?x=y", "http://playwright.dev/\\?x=y")
+    assert url_matches.("http://playwright.dev/foo", "http://playwright.dev/foo?bar", "?bar")
+    assert url_matches.("http://playwright.dev/foo", "http://playwright.dev/foo?bar", "\\\\?bar")
+    assert url_matches.("http://first.host/", "http://second.host/foo", "**/foo")
+    assert url_matches.("http://playwright.dev/", "http://localhost/", "*//localhost/")
+
+    # /**/ should match /.
+    assert url_matches.(nil, "https://foo/bar.js", "https://foo/**/bar.js")
+    assert url_matches.(nil, "https://foo/bar.js", "https://foo/**/**/bar.js")
+
+    custom_prefixes = ["about", "data", "chrome", "edge", "file"]
+
+    for prefix <- custom_prefixes do
+      assert url_matches.("http://playwright.dev/", "#{prefix}:blank", "#{prefix}:blank")
+      refute url_matches.("http://playwright.dev/", "#{prefix}:blank", "http://playwright.dev/")
+      assert url_matches.(nil, "#{prefix}:blank", "#{prefix}:blank")
+      assert url_matches.(nil, "#{prefix}:blank", "#{prefix}:*")
+      refute url_matches.(nil, "not#{prefix}:blank", "#{prefix}:*")
+    end
+  end
+
+  test "should throw on unbalanced glob braces", %{playwright: playwright} do
+    glob_to_regex_pattern = &glob_to_regex_pattern(playwright, &1)
+
+    assert_raise PlaywrightError, ~r/Invalid glob pattern "{foo": unmatched '{'/, fn ->
+      glob_to_regex_pattern.("{foo")
+    end
+
+    assert_raise PlaywrightError, ~r/Invalid glob pattern "}foo": unmatched '}'/, fn ->
+      glob_to_regex_pattern.("}foo")
+    end
+
+    assert_raise PlaywrightError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("http://*/foo{") end
+    assert_raise PlaywrightError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("**/*.png?{") end
+    assert_raise PlaywrightError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("https://example.com/{a") end
+    assert_raise PlaywrightError, ~r/nested '{' is not supported/, fn -> glob_to_regex_pattern.("{{foo}") end
+    # Escaped braces remain literal and must not throw.
+    glob_to_regex_pattern.("\\{foo")
+    glob_to_regex_pattern.("foo\\}")
+  end
 
   test "should throw on page.route with invalid glob", %{page: page} do
     assert {:error, e} = Page.route(page, "http://*/foo{", &Route.continue/1)
