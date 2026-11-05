@@ -10,7 +10,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   upstream `utils/doclint/generateApiJson.js`, filtered to `langs: js` with upstream's own
   `filterForLanguage`, using the installed driver's Node (no npm install); a JS-only option with a
   variant of the same type for the other clients takes that variant's doc (`input-timeout`, not
-  `input-timeout-js` with the test runner's config). Then
+  `input-timeout-js` with the test runner's config), so do the fields of a JS-only `optionsOr<Name>`
+  object (`waitForEvent`'s `timeout`). Then
   `Mix.PlaywrightEx.ApiRules` applies the Elixir rules.
 
   Writes `lib/playwright_ex/api/<class>.ex` for every class and member the rules keep (what is
@@ -57,13 +58,29 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   // A JS-only argument or option with a variant of the same type for the other clients
   // (`input-timeout-js` and `input-timeout`) takes that variant's doc: the JS one describes the
   // test runner (`actionTimeout` in its config).
+  const otherLangs = o => o.langs.only && !o.langs.only.includes('js');
   const otherLangsDocs = (members, seen) => {
     for (const m of members) {
       const other = String(m.langs.only) === 'js' && members.find(o =>
-        o.name === m.name && o.langs.only && !o.langs.only.includes('js') && o.type?.expression === m.type?.expression);
+        o.name === m.name && otherLangs(o) && o.type?.expression === m.type?.expression);
       if (other)
         m.spec = other.spec;
       otherLangsDocsOfType(m.type, seen);
+    }
+  };
+  // The object of a JS-only `optionsOr<Name>` argument (`waitForEvent(event, optionsOrPredicate)`)
+  // has the other clients' options: `timeout` takes `wait-for-event-timeout`, not the test runner's.
+  const optionsOrDocs = args => {
+    const options = args.find(a => a.name === 'options');
+    for (const arg of args) {
+      if (String(arg.langs.only) !== 'js' || !arg.name.startsWith('optionsOr') || !options)
+        continue;
+      for (const prop of (arg.type.union || []).flatMap(t => t.properties || [])) {
+        const other = options.type.properties.find(o =>
+          o.name === prop.name && otherLangs(o) && o.type?.expression === prop.type?.expression);
+        if (other)
+          prop.spec = other.spec;
+      }
     }
   };
   const otherLangsDocsOfType = (type, seen) => {
@@ -78,8 +95,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     const documentation = parseApi(...args);
     const seen = new Set();
     for (const clazz of documentation.classesArray) {
-      for (const member of clazz.membersArray)
+      for (const member of clazz.membersArray) {
+        optionsOrDocs(member.argsArray);
         otherLangsDocs(member.argsArray, seen);
+      }
     }
     documentation.filterForLanguage(process.argv[2]);
     return documentation;
