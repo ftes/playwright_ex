@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
-- Rewritten as a port of the official JavaScript client (breaking, work in progress).
+- Rewritten as a 1:1 port of the official JavaScript client (breaking, work in progress).
+  See the [migration guide](guides/migration.md).
 
 ## [0.16.0] 2026-11-04
 
