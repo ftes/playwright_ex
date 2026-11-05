@@ -5,12 +5,16 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   @browser_name System.get_env("BROWSER", "chromium")
 
   import PlaywrightEx.Utils
+  import PlaywrightEx.UpstreamSnapshot
 
   alias PlaywrightEx.ConsoleMessage
+  alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.TestServer
 
   @moduletag :page
 
@@ -32,8 +36,12 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     # it.skip(isAndroid)  -- not Android
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work @smoke"
+    test "should work @smoke", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page)
+      to_match_snapshot(screenshot, "screenshot-sanity.png")
+    end
 
     test "should not capture blinking caret by default", %{page: page, server: server} do
       Page.set_content!(page, String.replace(@caret_content, "CROSS_PROCESS_PREFIX", server.cross_process_prefix))
@@ -122,14 +130,27 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       refute has_different_screenshots
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should clip rect"
+    test "should clip rect", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, clip: %{x: 50, y: 100, width: 150, height: 100})
+      to_match_snapshot(screenshot, "screenshot-clip-rect.png")
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should clip rect with fullPage"
+    test "should clip rect with fullPage", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      Page.evaluate!(page, "() => window.scrollBy(150, 200)")
+      screenshot = Page.screenshot!(page, full_page: true, clip: %{x: 50, y: 100, width: 150, height: 100})
+      to_match_snapshot(screenshot, "screenshot-clip-rect.png")
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should clip elements to the viewport"
+    test "should clip elements to the viewport", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, clip: %{x: 50, y: 450, width: 1000, height: 100})
+      to_match_snapshot(screenshot, "screenshot-offscreen-clip.png")
+    end
 
     test "should throw on clip outside the viewport", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -145,14 +166,33 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Exception.message(screenshot_error) =~ "Expected options.clip.width to be greater than 0"
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should run in parallel"
+    test "should run in parallel", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should take fullPage screenshots"
+      promises =
+        for i <- 0..2 do
+          Task.async(fn -> Page.screenshot!(page, clip: %{x: 50 * i, y: 0, width: 50, height: 50}) end)
+        end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should take fullPage screenshots and mask elements outside of it"
+      screenshots = Task.await_many(promises)
+      to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-1.png")
+    end
+
+    test "should take fullPage screenshots", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, full_page: true)
+      to_match_snapshot(screenshot, "screenshot-grid-fullpage.png")
+    end
+
+    test "should take fullPage screenshots and mask elements outside of it", %{page: page, server: server} do
+      # annotation: issue https://github.com/microsoft/playwright/issues/30770
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      screenshot = Page.screenshot!(page, full_page: true, mask: [Locator.nth(Page.locator(page, ".box"), 144)])
+      to_match_snapshot(screenshot, "screenshot-grid-fullpage-mask-outside-viewport.png")
+    end
 
     test "should restore viewport after fullPage screenshot", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -162,17 +202,52 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       verify_viewport(page, 500, 500)
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should allow transparency"
+    test "should allow transparency", %{page: page, browser_name: browser_name} do
+      # it.fail(browserName === 'firefox' || isBidi)  -- isBidi is false here
+      Page.set_viewport_size!(page, %{width: 300, height: 300})
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should render white background on jpeg file"
+      Page.set_content!(page, """
+      <style>
+        body { margin: 0 }
+        div { width: 300px; height: 100px; }
+      </style>
+      <div style="background:black"></div>
+      <div style="background:white"></div>
+      <div style="background:transparent"></div>
+      """)
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should produce a valid webp screenshot"
+      screenshot = Page.screenshot!(page, omit_background: true)
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "path option should detect webp"
+      if browser_name == "firefox",
+        do: assert_raise(ExUnit.AssertionError, fn -> to_match_snapshot(screenshot, "transparent.png") end),
+        else: to_match_snapshot(screenshot, "transparent.png")
+    end
+
+    test "should render white background on jpeg file", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 300, height: 300})
+      Page.goto!(page, server.empty_page)
+      screenshot = Page.screenshot!(page, omit_background: true, type: :jpeg)
+      to_match_snapshot(screenshot, "white.jpg")
+    end
+
+    test "should produce a valid webp screenshot", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 300, height: 300})
+      Page.goto!(page, server.empty_page)
+      Page.evaluate!(page, "() => (document.body.style.background = 'rgb(255, 0, 0)')")
+      screenshot = Page.screenshot!(page, type: :webp)
+      to_match_snapshot(screenshot, "red.webp")
+    end
+
+    @tag :tmp_dir
+    test "path option should detect webp", %{page: page, server: server, tmp_dir: tmp_dir} do
+      Page.set_viewport_size!(page, %{width: 300, height: 300})
+      Page.goto!(page, server.empty_page)
+      Page.evaluate!(page, "() => (document.body.style.background = 'rgb(255, 0, 0)')")
+      output_path = Path.join(tmp_dir, "screenshot.webp")
+      screenshot = Page.screenshot!(page, path: output_path)
+      to_match_snapshot(File.read!(output_path), "red.webp")
+      to_match_snapshot(screenshot, "red.webp")
+    end
 
     test "quality option should work for webp", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -195,20 +270,79 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Exception.message(error) =~ "Expected options.quality to be between 0 and 100"
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with odd clip size on Retina displays"
+    test "should work with odd clip size on Retina displays", %{page: page} do
+      # it.skip(isElectron)  -- not Electron
+      screenshot = Page.screenshot!(page, clip: %{x: 0, y: 0, width: 11, height: 11})
+      to_match_snapshot(screenshot, "screenshot-clip-odd-size.png")
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work for canvas"
+    test "should work for canvas", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/screenshots/canvas.html")
+      screenshot = Page.screenshot!(page)
+      # Allow 4 corners to be rendered differently on various platforms/browsers.
+      to_match_snapshot(screenshot, "screenshot-canvas.png", %{maxDiffPixels: 4})
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should capture canvas changes"
+    test "should capture canvas changes", %{page: page} do
+      # it.skip(isElectron)  -- not Electron
+      Page.goto!(page, "data:text/html,<canvas></canvas>")
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work for webgl"
+      Page.evaluate!(page, """
+      () => {
+        const canvas = document.querySelector('canvas');
+        canvas.width = 600;
+        canvas.height = 600;
+      }
+      """)
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work for translateZ"
+      add_line = fn step ->
+        Page.evaluate!(
+          page,
+          """
+          n => {
+            const canvas = document.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, n * 100);
+            ctx.lineTo(300, n * 100);
+            ctx.stroke();
+          }
+          """,
+          step
+        )
+      end
+
+      for i <- 0..2 do
+        add_line.(i)
+        # With the slight delay WebKit stops reflecting changes in the screenshots on macOS.
+        Process.sleep(100)
+        screenshot = Page.screenshot!(page)
+        to_match_snapshot(screenshot, "canvas-changes-#{i}.png")
+      end
+    end
+
+    @tag skip:
+           if(
+             @browser_name == "webkit" and match?({:unix, :darwin}, :os.type()) and
+               String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64"),
+             do: "upstream skip: WebGL is not available on Intel macOS - https://bugs.webkit.org/show_bug.cgi?id=278277"
+           )
+    test "should work for webgl", %{page: page, server: server} do
+      # it.skip(isElectron)  -- not Electron
+      Page.set_viewport_size!(page, %{width: 640, height: 480})
+      Page.goto!(page, server.prefix <> "/screenshots/webgl.html")
+      screenshot = Page.screenshot!(page)
+      to_match_snapshot(screenshot, "screenshot-webgl.png")
+    end
+
+    test "should work for translateZ", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/screenshots/translateZ.html")
+      screenshot = Page.screenshot!(page)
+      to_match_snapshot(screenshot, "screenshot-translateZ.png")
+    end
 
     test "should work while navigating", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -231,17 +365,39 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with iframe in shadow"
+    test "should work with iframe in shadow", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid-iframe-in-shadow.html")
+      to_match_snapshot(Page.screenshot!(page), "screenshot-iframe.png")
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "path option should work"
+    @tag :tmp_dir
+    test "path option should work", %{page: page, server: server, tmp_dir: tmp_dir} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      output_path = Path.join(tmp_dir, "screenshot.png")
+      Page.screenshot!(page, path: output_path)
+      to_match_snapshot(File.read!(output_path), "screenshot-sanity.png")
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "path option should create subdirectories"
+    @tag :tmp_dir
+    test "path option should create subdirectories", %{page: page, server: server, tmp_dir: tmp_dir} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      output_path = Path.join([tmp_dir, "these", "are", "directories", "screenshot.png"])
+      Page.screenshot!(page, path: output_path)
+      to_match_snapshot(File.read!(output_path), "screenshot-sanity.png")
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "path option should detect jpeg"
+    @tag :tmp_dir
+    test "path option should detect jpeg", %{page: page, server: server, tmp_dir: tmp_dir} do
+      Page.set_viewport_size!(page, %{width: 300, height: 300})
+      Page.goto!(page, server.empty_page)
+      output_path = Path.join(tmp_dir, "screenshot.jpg")
+      screenshot = Page.screenshot!(page, omit_background: true, path: output_path)
+      to_match_snapshot(File.read!(output_path), "white.jpg")
+      to_match_snapshot(screenshot, "white.jpg")
+    end
 
     test "path option should throw for unsupported mime type", %{page: page} do
       {:error, error} = Page.screenshot(page, path: "file.txt")
@@ -286,8 +442,13 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       refute_received :resize_triggered
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with Array deleted"
+    test "should work with Array deleted", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      Page.evaluate!(page, "() => delete window.Array")
+      screenshot = Page.screenshot!(page, full_page: true)
+      to_match_snapshot(screenshot, "screenshot-grid-fullpage.png")
+    end
 
     @tag skip: "flaky: page.screenshot times out (30s) in the full suite (passes alone and in its file)"
     test "should take fullPage screenshots during navigation", %{page: page, server: server} do
@@ -302,23 +463,93 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
   # Nested upstream: describe('page screenshot') > describe('mask option').
   describe "page screenshot mask option" do
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work"
+    test "should work", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with locator"
+      to_match_snapshot(
+        Page.screenshot!(page, mask: [Locator.nth(Page.locator(page, "div"), 5)]),
+        "mask-should-work.png"
+      )
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work with elementhandle"
+    test "should work with locator", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      body_locator = Page.locator(page, "body")
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should mask multiple elements"
+      to_match_snapshot(
+        Locator.screenshot!(body_locator, mask: [Locator.nth(Page.locator(page, "div"), 5)]),
+        "mask-should-work-with-locator.png"
+      )
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should mask inside iframe"
+    test "should work with elementhandle", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      body_handle = Page.query_selector!(page, "body")
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should mask in parallel"
+      to_match_snapshot(
+        ElementHandle.screenshot!(body_handle, mask: [Locator.nth(Page.locator(page, "div"), 5)]),
+        "mask-should-work-with-elementhandle.png"
+      )
+    end
+
+    test "should mask multiple elements", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+
+      to_match_snapshot(
+        Page.screenshot!(page,
+          mask: [
+            Locator.nth(Page.locator(page, "div"), 5),
+            Locator.nth(Page.locator(page, "div"), 12)
+          ]
+        ),
+        "should-mask-multiple-elements.png"
+      )
+    end
+
+    test "should mask inside iframe", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+      attach_frame(page, "frame1", server.prefix <> "/grid.html")
+      Page.add_style_tag!(page, content: "iframe { border: none; }")
+
+      to_match_snapshot(
+        Page.screenshot!(page,
+          mask: [
+            Locator.nth(Page.locator(page, "div"), 5),
+            page |> Page.frame_locator("#frame1") |> FrameLocator.locator("div") |> Locator.nth(12)
+          ]
+        ),
+        "should-mask-inside-iframe.png"
+      )
+    end
+
+    test "should mask in parallel", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      attach_frame(page, "frame1", server.prefix <> "/grid.html")
+      attach_frame(page, "frame2", server.prefix <> "/grid.html")
+      Page.add_style_tag!(page, content: "iframe { border: none; }")
+
+      screenshots =
+        Task.await_many([
+          Task.async(fn ->
+            Page.screenshot!(page,
+              mask: [page |> Page.frame_locator("#frame1") |> FrameLocator.locator("div") |> Locator.nth(1)]
+            )
+          end),
+          Task.async(fn ->
+            Page.screenshot!(page,
+              mask: [page |> Page.frame_locator("#frame2") |> FrameLocator.locator("div") |> Locator.nth(3)]
+            )
+          end)
+        ])
+
+      to_match_snapshot(Enum.at(screenshots, 0), "should-mask-in-parallel-1.png")
+      to_match_snapshot(Enum.at(screenshots, 1), "should-mask-in-parallel-2.png")
+    end
 
     test "should remove mask after screenshot", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -360,14 +591,65 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       Page.screenshot!(page, mask: [Page.locator(page, "non-existent")])
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should work when mask color is not pink #F0F"
+    test "should work when mask color is not pink #F0F", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should hide elements based on attr"
+      to_match_snapshot(
+        Page.screenshot!(page, mask: [Locator.nth(Page.locator(page, "div"), 5)], mask_color: "#00FF00"),
+        "mask-color-should-work.png"
+      )
+    end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should remove elements based on attr"
+    test "should hide elements based on attr", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+
+      page
+      |> Page.locator("div")
+      |> Locator.nth(5)
+      |> Locator.evaluate!("element => { element.setAttribute('data-test-screenshot', 'hide'); }")
+
+      to_match_snapshot(
+        Page.screenshot!(page,
+          style: """
+          [data-test-screenshot="hide"] {
+            visibility: hidden;
+          }
+          """
+        ),
+        "hide-should-work.png"
+      )
+
+      visibility =
+        page |> Page.locator("div") |> Locator.nth(5) |> Locator.evaluate!("element => element.style.visibility")
+
+      assert visibility == ""
+    end
+
+    test "should remove elements based on attr", %{page: page, server: server} do
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      Page.goto!(page, server.prefix <> "/grid.html")
+
+      page
+      |> Page.locator("div")
+      |> Locator.nth(5)
+      |> Locator.evaluate!("element => { element.setAttribute('data-test-screenshot', 'remove'); }")
+
+      to_match_snapshot(
+        Page.screenshot!(page,
+          style: """
+          [data-test-screenshot="remove"] {
+            display: none;
+          }
+          """
+        ),
+        "remove-should-work.png"
+      )
+
+      display = page |> Page.locator("div") |> Locator.nth(5) |> Locator.evaluate!("element => element.style.display")
+      assert display == ""
+    end
   end
 
   describe "page screenshot animations" do
@@ -590,8 +872,34 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "animationend"]
     end
 
-    @tag skip: "not ported: toMatchSnapshot"
-    test "should wait for fonts to load"
+    test "should wait for fonts to load", %{page: page, server: server, asset: asset} do
+      # it.fixme(isWindows)  -- not Windows
+      # it.skip(isAndroid)  -- not Android
+      Page.set_viewport_size!(page, %{width: 500, height: 500})
+      test = self()
+
+      # Stall font loading.
+      TestServer.set_route(server, "/webfont/iconfont.woff2", fn conn ->
+        send(test, {:font_request, self()})
+
+        receive do
+          :serve -> TestServer.serve_file(server, conn, asset.("webfont/iconfont.woff2"))
+        end
+      end)
+
+      # 'load' will not happen if webfont is pending
+      Page.goto!(page, server.prefix <> "/webfont/webfont.html", wait_until: :domcontentloaded)
+
+      # Make sure screenshot times out while webfont is stalled.
+      {:error, error} = Page.screenshot(page, timeout: 200)
+      assert Exception.message(error) =~ "waiting for fonts to load..."
+      assert Exception.message(error) =~ "Timeout 200ms exceeded"
+
+      assert_receive {:font_request, font_request}
+      send(font_request, :serve)
+      icons_screenshot = Page.screenshot!(page)
+      to_match_snapshot(icons_screenshot, "screenshot-web-font.png", %{maxDiffPixels: 50})
+    end
   end
 
   test "should throw if screenshot size is too large", %{page: page, browser_name: browser_name} do
