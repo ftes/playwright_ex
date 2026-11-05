@@ -168,7 +168,13 @@ defmodule PlaywrightEx.BrowserContext do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `BrowserContext` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.BrowserContext{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.BrowserContext
+
   @type event ::
           :background_page
           | :close

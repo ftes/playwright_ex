@@ -13,7 +13,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
 
   # `target: Page | Frame`
   defp setup_ws(target, server, binary_type, protocols \\ nil, relative_url \\ false) do
-    facade = if is_struct(target, PlaywrightEx.Client.Frame), do: Frame, else: Page
+    facade = if is_struct(target, PlaywrightEx.Frame), do: Frame, else: Page
     facade.goto!(target, server.empty_page)
     ws_url = if relative_url, do: "/ws", else: "ws://" <> server.host <> "/ws"
 

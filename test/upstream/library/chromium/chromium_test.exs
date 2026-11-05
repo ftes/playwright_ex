@@ -45,8 +45,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     do: BrowserContext.wait_for_event(context, :response, predicate: predicate)
 
   # `r.url().endsWith(suffix)` of a request or response.
-  defp url_ends_with?(%PlaywrightEx.Client.Request{} = r, suffix), do: String.ends_with?(Request.url(r), suffix)
-  defp url_ends_with?(%PlaywrightEx.Client.Response{} = r, suffix), do: String.ends_with?(Response.url(r), suffix)
+  defp url_ends_with?(%PlaywrightEx.Request{} = r, suffix), do: String.ends_with?(Request.url(r), suffix)
+  defp url_ends_with?(%PlaywrightEx.Response{} = r, suffix), do: String.ends_with?(Response.url(r), suffix)
 
   defp js_response(conn, body) do
     conn |> Plug.Conn.put_resp_header("content-type", "text/javascript") |> Plug.Conn.send_resp(200, body)

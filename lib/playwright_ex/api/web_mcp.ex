@@ -28,7 +28,12 @@ defmodule PlaywrightEx.WebMCP do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `WebMCP` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.WebMCP{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_frame]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.WebMCP
 
   @call_tool_options {:object, %{timeout: {:timeout, nil}}}
 

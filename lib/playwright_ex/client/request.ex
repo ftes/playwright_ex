@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Request do
   @upstream "packages/playwright-core/src/client/network.ts"
   @moduledoc "Port of `Request` in `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Request
 
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Frame

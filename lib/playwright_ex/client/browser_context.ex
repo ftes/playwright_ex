@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.BrowserContext do
   @upstream "packages/playwright-core/src/client/browserContext.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.BrowserContext
 
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.BindingCall
@@ -17,7 +17,6 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FileUtils
-  alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.HarRouter
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Network
@@ -604,13 +603,14 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
   def new_cdp_session(this, page) do
     # channelOwner.ts's validation messages don't handle the pseudo-union type, so we're explicit here
-    if !match?(%Page{}, page) and !match?(%Frame{}, page), do: raise("page: expected Page or Frame")
+    if !match?(%PlaywrightEx.Page{}, page) and !match?(%PlaywrightEx.Frame{}, page),
+      do: raise("page: expected Page or Frame")
 
     result =
       channel_call(
         this,
         :newCDPSession,
-        if(match?(%Page{}, page), do: %{page: page}, else: %{frame: page}),
+        if(match?(%PlaywrightEx.Page{}, page), do: %{page: page}, else: %{frame: page}),
         TimeoutSettings.k_no_timeout()
       )
 

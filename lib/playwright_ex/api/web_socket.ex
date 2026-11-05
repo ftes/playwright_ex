@@ -29,7 +29,13 @@ defmodule PlaywrightEx.WebSocket do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `WebSocket` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.WebSocket{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.WebSocket
+
   @type event :: :close | :frame_received | :frame_sent | :socket_error
 
   @events %{close: "close", frame_received: "framereceived", frame_sent: "framesent", socket_error: "socketerror"}

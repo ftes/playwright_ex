@@ -17,7 +17,12 @@ defmodule PlaywrightEx.WebError do
   """
 
   @typedoc "A `WebError` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.WebError{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page, :_error, :_location]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.WebError
 
   @doc since: "1.38"
   @doc ~S"""

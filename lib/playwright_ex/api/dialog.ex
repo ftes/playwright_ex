@@ -31,7 +31,12 @@ defmodule PlaywrightEx.Dialog do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Dialog` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Dialog{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Dialog
 
   @doc since: "1.8"
   @doc ~S"""

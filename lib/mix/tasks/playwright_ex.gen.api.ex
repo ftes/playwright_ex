@@ -23,6 +23,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     * `async: true` members: `name/n` returns `{:ok, value} | {:error, exception}` (`:ok` for
       `void`), `name!/n` returns the value or raises.
     * `async: false` members and properties: plain values, called without the baton.
+    * Handles: a class whose client module exports `__struct_fields__/0` gets the struct
+      (`%PlaywrightEx.Page{}`) and `__client__/0`, its client module (`PlaywrightEx.Runtime.Heap.impl/1`).
     * Classes with events: `on/3`, `once/3`, `add_listener/3`, `remove_listener/3`, `off/3`,
       `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`).
@@ -186,6 +188,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
         do: """
         @typedoc "A `#{name}` handle. Compare handles with `==`, their fields are internal."
         @type t :: #{struct_type(ctx, name)}
+
+        #{handle_struct(name)}
         """
 
     body = """
@@ -214,10 +218,24 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp struct_type(ctx, name) do
     subclasses = for {sub, %{"extends" => ^name}} <- ctx.classes, do: sub
 
-    if Code.ensure_loaded?(impl(name)) and function_exported?(impl(name), :__struct__, 0),
-      do: Enum.map_join([name | Enum.sort(subclasses)], " | ", &"%#{inspect(impl(&1))}{}"),
+    if handle?(name),
+      do: Enum.join(["%__MODULE__{}" | Enum.map(Enum.sort(subclasses), &"%#{inspect(facade(&1))}{}")], " | "),
       else: "term()"
   end
+
+  # The handle struct of a class whose client module has one (`__struct_fields__/0`), and the
+  # client module implementing it (`PlaywrightEx.Runtime.Heap.impl/1`).
+  defp handle_struct(name) do
+    if handle?(name),
+      do: """
+      defstruct #{Macro.to_string(impl(name).__struct_fields__())}
+
+      @doc false
+      def __client__, do: #{inspect(impl(name))}
+      """
+  end
+
+  defp handle?(name), do: Code.ensure_loaded?(impl(name)) and function_exported?(impl(name), :__struct_fields__, 0)
 
   defp module_doc(ctx, class, events) do
     sections([

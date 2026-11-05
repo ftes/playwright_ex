@@ -94,10 +94,12 @@ defmodule PlaywrightEx.Client.APIRequest do
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Isomorphic.Headers
 
-  defstruct [:guid, :loop, :heap]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.APIRequest{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:guid, :loop, :heap]
 
   def new(playwright) do
-    this = new_object(__MODULE__)
+    this = new_object(PlaywrightEx.APIRequest)
     put(this, :_playwright, playwright)
     put(this, :_contexts, [])
     this
@@ -148,7 +150,7 @@ end
 defmodule PlaywrightEx.Client.APIRequestContext do
   @upstream "packages/playwright-core/src/client/fetch.ts"
   @moduledoc "Port of `APIRequestContext` in `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.APIRequestContext
 
   # `put/3` is an HTTP method here: heap writes are `Heap.put/3`.
   import PlaywrightEx.Runtime.Heap, except: [put: 3]
@@ -394,15 +396,17 @@ defmodule PlaywrightEx.Client.APIResponse do
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.TargetClosedError
 
-  defstruct [:_initializer, :_headers, :_request, _apiName: "APIResponse"]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.APIResponse{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_initializer, :_headers, :_request, _apiName: "APIResponse"]
 
   # Elixir only: `inspect(response)` is upstream's `util.inspect` (`inspect.custom`).
-  defimpl Inspect do
+  defimpl Inspect, for: PlaywrightEx.APIResponse do
     def inspect(this, _opts), do: PlaywrightEx.Client.APIResponse._inspect(this)
   end
 
   def new(context, initializer) do
-    %__MODULE__{
+    %PlaywrightEx.APIResponse{
       _request: context,
       _initializer: initializer,
       _headers: RawHeaders.new(initializer.headers)

@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Client.JSHandle do
   module; the methods here take either handle. `asElement`, the one method ElementHandle
   overrides, dispatches on the struct. `toString` is also `String.Chars` (`"\#{handle}"`).
   """
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.JSHandle
 
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Errors
@@ -85,11 +85,11 @@ defmodule PlaywrightEx.Client.JSHandle do
   end
 
   # ElementHandle overrides asElement: dispatch on the struct.
-  def as_element(%__MODULE__{}) do
+  def as_element(%PlaywrightEx.JSHandle{}) do
     nil
   end
 
-  def as_element(this), do: this.__struct__.as_element(this)
+  def as_element(this), do: impl(this).as_element(this)
 
   # [Symbol.asyncDispose]  -- not ported: await using
 
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Client.JSHandle do
   defp is_js_handle(value),
     do: ChannelOwner.is_channel_owner(value) and get(value, :_type) in ["JSHandle", "ElementHandle"]
 
-  defimpl String.Chars do
+  defimpl String.Chars, for: PlaywrightEx.JSHandle do
     def to_string(this), do: PlaywrightEx.Client.JSHandle.to_string(this)
   end
 end

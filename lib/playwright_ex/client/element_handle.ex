@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
   `ElementHandle extends JSHandle`: the inherited methods (`evaluate`, `jsonValue`, ...) are
   `PlaywrightEx.Client.JSHandle`'s, which take either handle.
   """
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.ElementHandle
 
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.FileUtils
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
     from_nullable(result[:element])
   end
 
-  defimpl String.Chars do
+  defimpl String.Chars, for: PlaywrightEx.ElementHandle do
     def to_string(this), do: PlaywrightEx.Client.JSHandle.to_string(this)
   end
 

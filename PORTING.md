@@ -41,14 +41,14 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 
 | JS | Elixir |
 |---|---|
-| ChannelOwner instance | `%Page{guid, loop, heap}` handle; fields live in the connection's ETS heap |
+| ChannelOwner instance | `%PlaywrightEx.Page{guid, loop, heap}` handle (a public class's struct is its facade's: `use ChannelOwner, struct: PlaywrightEx.Page`, or `__struct_fields__/0` for a plain struct); fields live in the connection's ETS heap |
 | `new X()` for a runtime class (EventEmitter, TimeoutSettings, Waiter) | `X.new(...)` via `Heap.new_object(__MODULE__)`: in the loop's heap |
 | `this._x` / `this._x = v` | `get(this, :_x)` / `put(this, :_x, v)` (`PlaywrightEx.Runtime.Heap`) |
 | `Set` / `Map` fields | `set_add/3`, `set_has/3` / `map_get/3`, `map_set/4`, `map_values/2` |
 | class without mutable state (Locator) | plain struct with JS field names (`locator._selector`) |
 | `class X extends ChannelOwner`, `super(...)` | `use PlaywrightEx.Client.ChannelOwner`, `ChannelOwner.new(__MODULE__, parent, type, guid, init)` |
 | `super.foo()` | `Parent.foo(this)` |
-| `this.foo()` where a subclass may override | `this.__struct__.foo(this)` |
+| `this.foo()` where a subclass may override | `impl(this).foo(this)` (`Heap.impl/1`: the client module of a facade struct) |
 | `this._channel.foo(params, options)` | `channel_call(this, :foo, params, options)`; the generated validator converts to the wire |
 | `this._channel.on('event', ...)` | `EventEmitter.on(_channel(this), "event", ...)` |
 | `X.from(channel)` | identity: channels and owners are the same handle |

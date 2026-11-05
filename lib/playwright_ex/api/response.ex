@@ -9,7 +9,12 @@ defmodule PlaywrightEx.Response do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Response` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Response{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Response
 
   @doc since: "1.15"
   @doc ~S"""

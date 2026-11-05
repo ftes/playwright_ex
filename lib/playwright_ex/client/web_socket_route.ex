@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   of this module whose guid is the route's prefixed with `"server:"`; the public members
   dispatch on it.
   """
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.WebSocketRoute
 
   alias PlaywrightEx.Runtime.EventLoop
 

@@ -5,7 +5,7 @@ defmodule PlaywrightEx.Client.Route do
 
   A `body` is a string, or `{:binary, bytes}` for a JS `Buffer` (PLAN, Decisions).
   """
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Route
 
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.APIResponse
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Client.Route do
 
     {status_option, headers_option, body, fetch_response_uid} =
       case options[:response] do
-        %APIResponse{} = response ->
+        %PlaywrightEx.APIResponse{} = response ->
           status_option = if status_option == nil, do: APIResponse.status(response), else: status_option
           headers_option = if headers_option == nil, do: APIResponse.headers(response), else: headers_option
 

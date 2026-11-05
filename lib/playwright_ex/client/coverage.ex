@@ -5,10 +5,12 @@ defmodule PlaywrightEx.Client.Coverage do
 
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_channel]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Coverage{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_channel]
 
   def new(channel) do
-    %__MODULE__{_channel: channel}
+    %PlaywrightEx.Coverage{_channel: channel}
   end
 
   def start_js_coverage(this, options \\ %{}) do

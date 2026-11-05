@@ -54,7 +54,12 @@ defmodule PlaywrightEx.FrameLocator do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `FrameLocator` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.FrameLocator{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_frame, :_frameSelector]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.FrameLocator
 
   @doc since: "1.17"
   @doc deprecated: "Use [`method: Locator.first`] followed by [`method: Locator.contentFrame`] instead."

@@ -15,7 +15,9 @@ defmodule PlaywrightEx.Client.Locator do
   alias PlaywrightEx.Isomorphic.SelectorParser
   alias PlaywrightEx.Isomorphic.StringUtils
 
-  defstruct [:_frame, :_selector, _apiName: "Locator"]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Locator{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_frame, :_selector, _apiName: "Locator"]
 
   def new(frame, selector, options \\ nil) do
     selector =
@@ -52,7 +54,7 @@ defmodule PlaywrightEx.Client.Locator do
         else: selector
 
     # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- ported as the Inspect implementation below
-    %__MODULE__{_frame: frame, _selector: selector}
+    %PlaywrightEx.Locator{_frame: frame, _selector: selector}
   end
 
   defp _with_element(this, task, options) do
@@ -531,12 +533,12 @@ defmodule PlaywrightEx.Client.Locator do
   defp monotonic_time, do: System.monotonic_time(:millisecond)
 
   # `#PlaywrightEx.Locator<_inspect()>`, like the handles.
-  defimpl Inspect do
+  defimpl Inspect, for: PlaywrightEx.Locator do
     def inspect(this, _opts), do: "#PlaywrightEx.Locator<#{PlaywrightEx.Client.Locator._inspect(this)}>"
   end
 
   # String(locator), as JSHandle.
-  defimpl String.Chars do
+  defimpl String.Chars, for: PlaywrightEx.Locator do
     def to_string(this), do: PlaywrightEx.Client.Locator.to_string(this)
   end
 end
@@ -549,10 +551,12 @@ defmodule PlaywrightEx.Client.FrameLocator do
   alias PlaywrightEx.Isomorphic.LocatorUtils
   alias PlaywrightEx.Isomorphic.SelectorParser
 
-  defstruct [:_frame, :_frameSelector]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.FrameLocator{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_frame, :_frameSelector]
 
   def new(frame, selector) do
-    %__MODULE__{_frame: frame, _frameSelector: selector}
+    %PlaywrightEx.FrameLocator{_frame: frame, _frameSelector: selector}
   end
 
   defp _child_selector(this, selector) do
@@ -625,7 +629,7 @@ defmodule PlaywrightEx.Client.FrameLocator do
     new(this._frame, _nth_selector(this, to_string(index)))
   end
 
-  defimpl Inspect do
+  defimpl Inspect, for: PlaywrightEx.FrameLocator do
     def inspect(this, _opts), do: "#PlaywrightEx.FrameLocator<#{this._frameSelector}>"
   end
 end

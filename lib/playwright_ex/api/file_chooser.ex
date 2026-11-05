@@ -17,7 +17,12 @@ defmodule PlaywrightEx.FileChooser do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `FileChooser` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.FileChooser{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page, :_elementHandle, :_isMultiple]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.FileChooser
 
   @doc since: "1.8"
   @doc ~S"""

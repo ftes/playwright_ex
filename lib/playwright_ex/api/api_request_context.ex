@@ -26,7 +26,12 @@ defmodule PlaywrightEx.APIRequestContext do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `APIRequestContext` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.APIRequestContext{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.APIRequestContext
 
   @doc since: "1.64"
   @doc ~S"""

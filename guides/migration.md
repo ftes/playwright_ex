@@ -11,7 +11,7 @@ This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_
 
 ## Concepts
 
-**Handles, not guids.** Functions take and return structs (`%PlaywrightEx.Client.Page{}`, typed
+**Handles, not guids.** Functions take and return structs (`%PlaywrightEx.Page{}`, typed
 `PlaywrightEx.Page.t()`). Each handle knows its connection, so there is no `connection:` option.
 
 ```elixir

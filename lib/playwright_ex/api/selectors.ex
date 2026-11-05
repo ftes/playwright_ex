@@ -10,7 +10,12 @@ defmodule PlaywrightEx.Selectors do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Selectors` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Selectors{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Selectors
 
   @register_script {:fields, %{path: nil, content: nil}}
   @register_options {:object, %{content_script: {:contentScript, nil}}}

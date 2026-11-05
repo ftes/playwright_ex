@@ -42,7 +42,12 @@ defmodule PlaywrightEx.Keyboard do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Keyboard` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Keyboard{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Keyboard
 
   @doc since: "1.8"
   @doc ~S"""

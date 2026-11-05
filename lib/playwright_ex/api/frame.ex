@@ -38,7 +38,12 @@ defmodule PlaywrightEx.Frame do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Frame` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Frame{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Frame
 
   @add_script_tag_options {:object,
                            %{content: {:content, nil}, path: {:path, nil}, type: {:type, nil}, url: {:url, nil}}}

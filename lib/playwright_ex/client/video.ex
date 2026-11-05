@@ -8,11 +8,13 @@ defmodule PlaywrightEx.Client.Video do
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Runtime.Heap
 
-  defstruct [:_artifact, _isRemote: false]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Video{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_artifact, _isRemote: false]
 
   def new(connection, artifact) do
     # super();  -- not ported: no events
-    %__MODULE__{_isRemote: Connection.is_remote(connection), _artifact: artifact}
+    %PlaywrightEx.Video{_isRemote: Connection.is_remote(connection), _artifact: artifact}
   end
 
   def path(this) do

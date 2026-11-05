@@ -22,7 +22,12 @@ defmodule PlaywrightEx.BrowserType do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `BrowserType` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.BrowserType{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.BrowserType
 
   @connect_options {:object,
                     %{

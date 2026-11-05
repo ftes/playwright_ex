@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.BrowserType do
   @upstream "packages/playwright-core/src/client/browserType.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.BrowserType
 
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext

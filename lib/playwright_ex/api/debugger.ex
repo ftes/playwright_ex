@@ -16,7 +16,13 @@ defmodule PlaywrightEx.Debugger do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Debugger` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Debugger{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Debugger
+
   @type event :: :paused_state_changed
 
   @events %{paused_state_changed: "pausedstatechanged"}

@@ -6,10 +6,12 @@ defmodule PlaywrightEx.Client.WebMCP do
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.JSHandle
 
-  defstruct [:_frame]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.WebMCP{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_frame]
 
   def new(frame) do
-    %__MODULE__{_frame: frame}
+    %PlaywrightEx.WebMCP{_frame: frame}
   end
 
   def tools(this, options \\ %{}) do

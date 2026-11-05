@@ -22,7 +22,12 @@ defmodule PlaywrightEx.JSHandle do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `JSHandle` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.JSHandle{} | %PlaywrightEx.Client.ElementHandle{}
+  @type t :: %__MODULE__{} | %PlaywrightEx.ElementHandle{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.JSHandle
 
   @doc since: "1.8"
   @doc ~S"""

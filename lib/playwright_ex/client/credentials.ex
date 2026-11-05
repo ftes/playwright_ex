@@ -5,10 +5,12 @@ defmodule PlaywrightEx.Client.Credentials do
 
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_browserContext]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Credentials{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_browserContext]
 
   def new(browser_context) do
-    %__MODULE__{_browserContext: browser_context}
+    %PlaywrightEx.Credentials{_browserContext: browser_context}
   end
 
   def install(this) do

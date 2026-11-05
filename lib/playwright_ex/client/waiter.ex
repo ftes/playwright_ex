@@ -171,20 +171,20 @@ defmodule PlaywrightEx.Client.Waiter do
             if predicate && !result do
               nil
             else
-              emitter.__struct__.remove_listener(emitter, event, listener)
+              impl(emitter).remove_listener(emitter, event, listener)
               resolve.(event_arg)
             end
           rescue
             e ->
-              emitter.__struct__.remove_listener(emitter, event, listener)
+              impl(emitter).remove_listener(emitter, event, listener)
               reject.(e)
           end
         end
 
-        emitter.__struct__.add_listener(emitter, event, {listener, listener_fun})
+        impl(emitter).add_listener(emitter, event, {listener, listener_fun})
       end)
 
-    dispose = fn -> emitter.__struct__.remove_listener(emitter, event, listener) end
+    dispose = fn -> impl(emitter).remove_listener(emitter, event, listener) end
     {promise, dispose}
   end
 

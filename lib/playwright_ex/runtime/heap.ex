@@ -26,6 +26,16 @@ defmodule PlaywrightEx.Runtime.Heap do
     struct(module, guid: guid, loop: loop, heap: heap)
   end
 
+  @doc """
+  The module implementing an object's class, for calls that a subclass may override
+  (`this.foo()` is `impl(this).foo(this)`). Handles of public classes are facade structs
+  (`%PlaywrightEx.Page{}`), which name their client module (`__client__/0`).
+  """
+  def impl(%module{}) do
+    Code.ensure_loaded(module)
+    if function_exported?(module, :__client__, 0), do: module.__client__(), else: module
+  end
+
   def get(%{heap: nil}, _field), do: nil
 
   def get(%{heap: heap, guid: guid}, field) do

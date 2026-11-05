@@ -10,10 +10,12 @@ defmodule PlaywrightEx.Client.Selectors do
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
 
-  defstruct [:guid, :loop, :heap]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Selectors{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:guid, :loop, :heap]
 
   def new do
-    this = new_object(__MODULE__)
+    this = new_object(PlaywrightEx.Selectors)
     put(this, :_selectorEngines, [])
     put(this, :_testIdAttributeName, nil)
     put(this, :_contextsForSelectors, [])

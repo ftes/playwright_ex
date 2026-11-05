@@ -76,7 +76,12 @@ defmodule PlaywrightEx.WebSocketRoute do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `WebSocketRoute` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.WebSocketRoute{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.WebSocketRoute
 
   @close_options {:object, %{code: {:code, nil}, reason: {:reason, nil}}}
 

@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Guides.MigrationTest do
 
     popup = Page.wait_for_event(page, :popup)
     Page.get_by_text(page, "Open") |> Locator.click!()
-    assert %PlaywrightEx.Client.Page{} = Promise.await!(popup)
+    assert %PlaywrightEx.Page{} = Promise.await!(popup)
 
     {:ok, popup} = Page.expect_popup(page, fn -> Page.get_by_text(page, "Open") |> Locator.click!() end)
     assert Page.url(popup) == "http://app.test/popup"

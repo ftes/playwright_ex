@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Client.CDPSession do
   Port of `#{@upstream}`. CDP events are emitted under their method names
   (`"Network.requestWillBeSent"`) with the raw params (string keys, JSON as the driver sends it).
   """
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.CDPSession
 
   def from(cdp_session) do
     cdp_session

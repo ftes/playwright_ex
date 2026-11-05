@@ -12,7 +12,12 @@ defmodule PlaywrightEx.Locator do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Locator` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Locator{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_frame, :_selector, _apiName: "Locator"]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Locator
 
   @doc since: "1.29"
   @doc ~S"""

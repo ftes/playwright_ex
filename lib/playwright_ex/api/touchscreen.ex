@@ -12,7 +12,12 @@ defmodule PlaywrightEx.Touchscreen do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Touchscreen` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Touchscreen{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Touchscreen
 
   @doc since: "1.8"
   @doc ~S"""

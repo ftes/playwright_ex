@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
     options = options || %{}
     matcher_name = "toMatchAriaSnapshot"
     MatcherHint.expect_types(receiver, ["Page", "Locator"], matcher_name)
-    locator = if is_struct(receiver, Locator), do: receiver
+    locator = if is_struct(receiver, PlaywrightEx.Locator), do: receiver
 
     # const testInfo = expectConfig().testInfo; if (!testInfo) throw ...  -- not ported: no test runner (inline snapshots only)
 

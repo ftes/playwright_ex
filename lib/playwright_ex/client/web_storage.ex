@@ -5,10 +5,12 @@ defmodule PlaywrightEx.Client.WebStorage do
 
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_page, :_kind]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.WebStorage{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page, :_kind]
 
   def new(page, kind) do
-    %__MODULE__{_page: page, _kind: kind}
+    %PlaywrightEx.WebStorage{_page: page, _kind: kind}
   end
 
   def items(this) do

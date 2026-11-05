@@ -26,7 +26,12 @@ defmodule PlaywrightEx.Mouse do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Mouse` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Mouse{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Mouse
 
   @click_options {:object,
                   %{

@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Dialog do
   @upstream "packages/playwright-core/src/client/dialog.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Dialog
 
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Page

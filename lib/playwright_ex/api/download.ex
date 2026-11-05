@@ -24,7 +24,12 @@ defmodule PlaywrightEx.Download do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Download` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Download{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page, :_url, :_suggestedFilename, :_artifact]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Download
 
   @doc since: "1.13"
   @doc ~S"""

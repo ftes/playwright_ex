@@ -21,7 +21,12 @@ defmodule PlaywrightEx.WebStorage do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `WebStorage` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.WebStorage{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page, :_kind]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.WebStorage
 
   @doc since: "1.61"
   @doc ~S"""

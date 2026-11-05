@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Page do
   @upstream "packages/playwright-core/src/client/page.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Page
 
   alias PlaywrightEx.AbortError
   alias PlaywrightEx.Client.Artifact
@@ -1220,7 +1220,7 @@ defmodule PlaywrightEx.Client.Page do
         owner,
         fn _ ->
           ClientHelper.init_script_source_with_exposed_functions(script, arg, fn name, callback ->
-            promise = Promise.async(fn -> owner.__struct__._expose_callback_binding(owner, name, callback) end)
+            promise = Promise.async(fn -> impl(owner)._expose_callback_binding(owner, name, callback) end)
             Process.put(callbacks, Process.get(callbacks) ++ [{name, promise}])
             promise
           end)

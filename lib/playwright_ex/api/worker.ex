@@ -32,7 +32,13 @@ defmodule PlaywrightEx.Worker do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Worker` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Worker{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Worker
+
   @type event :: :close | :console
 
   @events %{close: "close", console: "console"}

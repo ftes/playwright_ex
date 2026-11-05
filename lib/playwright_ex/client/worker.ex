@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Worker do
   @upstream "packages/playwright-core/src/client/worker.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Worker
 
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Errors

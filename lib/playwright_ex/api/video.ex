@@ -13,7 +13,12 @@ defmodule PlaywrightEx.Video do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Video` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Video{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_artifact, _isRemote: false]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Video
 
   @doc since: "1.11"
   @doc ~S"""

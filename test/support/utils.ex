@@ -135,7 +135,6 @@ defmodule PlaywrightEx.Utils do
   def rafraf(target, count \\ 1) do
     for _ <- 1..count//1 do
       target.__struct__
-      |> facade()
       |> apply(:evaluate!, [
         target,
         "async () => { await new Promise(f => window.builtins.requestAnimationFrame(() => window.builtins.requestAnimationFrame(f))); }"
@@ -254,10 +253,6 @@ defmodule PlaywrightEx.Utils do
       }).description
     end)
   end
-
-  # `Page | Frame`: the facade module of a client handle.
-  defp facade(PlaywrightEx.Client.Page), do: PlaywrightEx.Page
-  defp facade(PlaywrightEx.Client.Frame), do: PlaywrightEx.Frame
 
   @doc """
   `expect(fn).toPass(options)` (`expect.ts`): calls `fun` until it returns without raising

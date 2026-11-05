@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Debugger do
   @upstream "packages/playwright-core/src/client/debugger.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Debugger
 
   def from(channel) do
     channel

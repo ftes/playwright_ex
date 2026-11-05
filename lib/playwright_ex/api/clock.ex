@@ -12,7 +12,12 @@ defmodule PlaywrightEx.Clock do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Clock` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Clock{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_browserContext]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Clock
 
   @doc since: "1.45"
   @doc ~S"""

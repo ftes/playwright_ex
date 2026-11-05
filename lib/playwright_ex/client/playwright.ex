@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Playwright do
   @upstream "packages/playwright-core/src/client/playwright.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Playwright
 
   alias PlaywrightEx.Client.APIRequest
   alias PlaywrightEx.Client.Browser

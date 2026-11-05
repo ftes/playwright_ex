@@ -4,10 +4,12 @@ defmodule PlaywrightEx.Client.FileChooser do
 
   alias PlaywrightEx.Client.ElementHandle
 
-  defstruct [:_page, :_elementHandle, :_isMultiple]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.FileChooser{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page, :_elementHandle, :_isMultiple]
 
   def new(page, element_handle, is_multiple) do
-    %__MODULE__{_page: page, _elementHandle: element_handle, _isMultiple: is_multiple}
+    %PlaywrightEx.FileChooser{_page: page, _elementHandle: element_handle, _isMultiple: is_multiple}
   end
 
   def element(this) do

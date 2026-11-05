@@ -5,10 +5,12 @@ defmodule PlaywrightEx.Client.Keyboard do
 
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_page]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Keyboard{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page]
 
   def new(page) do
-    %__MODULE__{_page: page}
+    %PlaywrightEx.Keyboard{_page: page}
   end
 
   def down(this, key) do
@@ -45,10 +47,12 @@ defmodule PlaywrightEx.Client.Mouse do
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_page]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Mouse{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page]
 
   def new(page) do
-    %__MODULE__{_page: page}
+    %PlaywrightEx.Mouse{_page: page}
   end
 
   def move(this, x, y, options \\ %{}) do
@@ -94,10 +98,12 @@ defmodule PlaywrightEx.Client.Touchscreen do
 
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_page]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Touchscreen{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page]
 
   def new(page) do
-    %__MODULE__{_page: page}
+    %PlaywrightEx.Touchscreen{_page: page}
   end
 
   def tap(this, x, y) do

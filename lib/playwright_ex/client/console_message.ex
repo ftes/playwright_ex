@@ -3,11 +3,13 @@ defmodule PlaywrightEx.Client.ConsoleMessage do
   @moduledoc "Port of `#{@upstream}`. No mutable state: a plain struct."
   alias PlaywrightEx.Client.JSHandle
 
-  defstruct [:_page, :_worker, :_event]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.ConsoleMessage{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page, :_worker, :_event]
 
   def new(event, page, worker) do
     # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- ported as Inspect, see below
-    %__MODULE__{_page: page, _worker: worker, _event: event}
+    %PlaywrightEx.ConsoleMessage{_page: page, _worker: worker, _event: event}
   end
 
   def worker(this) do
@@ -43,7 +45,7 @@ defmodule PlaywrightEx.Client.ConsoleMessage do
     text(this)
   end
 
-  defimpl Inspect do
+  defimpl Inspect, for: PlaywrightEx.ConsoleMessage do
     def inspect(this, _opts), do: "#PlaywrightEx.ConsoleMessage<#{PlaywrightEx.Client.ConsoleMessage._inspect(this)}>"
   end
 end

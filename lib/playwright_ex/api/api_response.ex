@@ -9,7 +9,12 @@ defmodule PlaywrightEx.APIResponse do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `APIResponse` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.APIResponse{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_initializer, :_headers, :_request, _apiName: "APIResponse"]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.APIResponse
 
   @doc since: "1.16"
   @doc ~S"""

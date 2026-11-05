@@ -22,7 +22,12 @@ defmodule PlaywrightEx.Playwright do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Playwright{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Playwright
 
   @doc since: "1.8"
   @doc ~S"""

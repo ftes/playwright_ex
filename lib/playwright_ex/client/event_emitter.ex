@@ -195,13 +195,13 @@ defmodule PlaywrightEx.Client.EventEmitter do
   # Upstream calls `this.on(...)` (virtual dispatch); here: dispatch via the struct module.
   def once(this, type, listener) do
     check_listener(listener)
-    this.__struct__.on(this, type, OnceWrapper.new(this, type, listener).wrapperFunction)
+    impl(this).on(this, type, OnceWrapper.new(this, type, listener).wrapperFunction)
     this
   end
 
   def prepend_once_listener(this, type, listener) do
     check_listener(listener)
-    this.__struct__.prepend_listener(this, type, OnceWrapper.new(this, type, listener).wrapperFunction)
+    impl(this).prepend_listener(this, type, OnceWrapper.new(this, type, listener).wrapperFunction)
     this
   end
 
@@ -296,7 +296,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
         true ->
           # LIFO order. Virtual `this.removeListener(...)`: channel owners override it.
           for entry <- Enum.reverse(map_get(this, :_events, type) || []),
-              do: this.__struct__.remove_listener(this, type, _raw(entry))
+              do: impl(this).remove_listener(this, type, _raw(entry))
       end
     end)
   end
@@ -398,7 +398,7 @@ defmodule PlaywrightEx.Client.EventEmitter.OnceWrapper do
   defp _handle(this, id, arg) do
     if !get(this, :_fired) do
       put(this, :_fired, true)
-      this._eventEmitter.__struct__.remove_listener(this._eventEmitter, this._eventType, _wrapper_function(this, id))
+      impl(this._eventEmitter).remove_listener(this._eventEmitter, this._eventType, _wrapper_function(this, id))
       this._listener.(arg)
     end
   end

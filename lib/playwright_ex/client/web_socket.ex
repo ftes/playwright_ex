@@ -5,7 +5,7 @@ defmodule PlaywrightEx.Client.WebSocket do
 
   A frame payload is a string, or `{:binary, bytes}` for a JS `Buffer` (PLAN, Decisions).
   """
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.WebSocket
 
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Waiter

@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Tracing do
   @upstream "packages/playwright-core/src/client/tracing.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Tracing
 
   alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.Connection

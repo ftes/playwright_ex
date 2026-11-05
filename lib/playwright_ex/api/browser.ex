@@ -33,7 +33,13 @@ defmodule PlaywrightEx.Browser do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Browser` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Browser{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Browser
+
   @type event :: :context | :disconnected
 
   @events %{context: "context", disconnected: "disconnected"}

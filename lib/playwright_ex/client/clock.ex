@@ -5,10 +5,12 @@ defmodule PlaywrightEx.Client.Clock do
 
   alias PlaywrightEx.Client.TimeoutSettings
 
-  defstruct [:_browserContext]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Clock{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_browserContext]
 
   def new(browser_context) do
-    %__MODULE__{_browserContext: browser_context}
+    %PlaywrightEx.Clock{_browserContext: browser_context}
   end
 
   def install(this, options \\ %{}) do

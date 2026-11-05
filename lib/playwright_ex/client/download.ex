@@ -4,10 +4,12 @@ defmodule PlaywrightEx.Client.Download do
 
   alias PlaywrightEx.Client.Artifact
 
-  defstruct [:_page, :_url, :_suggestedFilename, :_artifact]
+  # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Download{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page, :_url, :_suggestedFilename, :_artifact]
 
   def new(page, url, suggested_filename, artifact) do
-    %__MODULE__{_page: page, _url: url, _suggestedFilename: suggested_filename, _artifact: artifact}
+    %PlaywrightEx.Download{_page: page, _url: url, _suggestedFilename: suggested_filename, _artifact: artifact}
   end
 
   def page(this) do

@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Response do
   @upstream "packages/playwright-core/src/client/network.ts"
   @moduledoc "Port of `Response` in `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Response
 
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.RawHeaders

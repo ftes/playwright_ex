@@ -35,7 +35,12 @@ defmodule PlaywrightEx.Coverage do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Coverage` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Coverage{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_channel]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Coverage
 
   @start_css_coverage_options {:object, %{reset_on_navigation: {:resetOnNavigation, nil}}}
 

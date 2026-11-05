@@ -220,7 +220,13 @@ defmodule PlaywrightEx.Page do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Page` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Page{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Page
+
   @type event ::
           :close
           | :console

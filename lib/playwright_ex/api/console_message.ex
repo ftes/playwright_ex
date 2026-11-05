@@ -31,7 +31,12 @@ defmodule PlaywrightEx.ConsoleMessage do
   """
 
   @typedoc "A `ConsoleMessage` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.ConsoleMessage{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_page, :_worker, :_event]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.ConsoleMessage
 
   @doc since: "1.8"
   @doc ~S"""

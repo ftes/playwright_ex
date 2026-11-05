@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Client.Disposable do
   dispatches on the struct (JS virtual call).
   """
 
-  def dispose(this), do: this.__struct__.dispose(this)
+  def dispose(this), do: PlaywrightEx.Runtime.Heap.impl(this).dispose(this)
 
   # disposeAll  -- not ported: unused by the client (it empties the array it is given)
 end

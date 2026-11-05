@@ -245,7 +245,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
       MatcherHint.expect_types(page_or_locator, ["Page", "Locator"], "toHaveScreenshot")
 
       {page, locator} =
-        if is_struct(page_or_locator, Locator),
+        if is_struct(page_or_locator, PlaywrightEx.Locator),
           do: {Locator.page(page_or_locator), page_or_locator},
           else: {page_or_locator, nil}
 

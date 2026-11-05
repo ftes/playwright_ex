@@ -24,7 +24,12 @@ defmodule PlaywrightEx.Request do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Request` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Request{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :loop, :heap]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Request
 
   @doc since: "1.15"
   @doc ~S"""

@@ -66,7 +66,12 @@ defmodule PlaywrightEx.Credentials do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Credentials` handle. Compare handles with `==`, their fields are internal."
-  @type t :: %PlaywrightEx.Client.Credentials{}
+  @type t :: %__MODULE__{}
+
+  defstruct [:_browserContext]
+
+  @doc false
+  def __client__, do: PlaywrightEx.Client.Credentials
 
   @doc since: "1.61"
   @doc ~S"""

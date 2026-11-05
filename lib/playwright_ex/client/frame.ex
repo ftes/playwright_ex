@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Client.Frame do
   @upstream "packages/playwright-core/src/client/frame.ts"
   @moduledoc "Port of `#{@upstream}`."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Frame
 
   alias PlaywrightEx.AbortError
   alias PlaywrightEx.Client.Connection
