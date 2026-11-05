@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Frame do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FrameLocator
@@ -161,7 +162,9 @@ defmodule PlaywrightEx.Client.Frame do
             else
               Waiter.log(waiter, ~s(  navigated to "#{event.url}"))
 
+              # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
               UrlMatch.url_matches(
+                Connection.local_utils(get(this, :_connection)),
                 page && get(Page.context(page), :_options)[:baseURL],
                 event.url,
                 options[:url]
@@ -232,7 +235,13 @@ defmodule PlaywrightEx.Client.Frame do
     wait_options = options || %{}
     page = get(this, :_page)
 
-    if UrlMatch.url_matches(page && get(Page.context(page), :_options)[:baseURL], url(this), url) do
+    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+    if UrlMatch.url_matches(
+         Connection.local_utils(get(this, :_connection)),
+         page && get(Page.context(page), :_options)[:baseURL],
+         url(this),
+         url
+       ) do
       wait_for_load_state(this, wait_options[:waitUntil], wait_options)
     else
       wait_for_navigation(this, Map.merge(%{url: url}, wait_options))

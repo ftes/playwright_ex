@@ -3,8 +3,9 @@ defmodule PlaywrightEx.Client.RouteHandler do
   @moduledoc """
   Port of `RouteHandler` in `#{@upstream}`: a runtime object (mutable, in the loop's heap).
 
-  Deviation: the handler is a 2-arity function `(route, request)` or, as in the Python
-  client, a 1-arity one `(route)`.
+  Deviations: the constructor takes the `LocalUtils` first, as string globs become regexes
+  through the driver (`PlaywrightEx.Isomorphic.UrlMatch`). The handler is a 2-arity function
+  `(route, request)` or, as in the Python client, a 1-arity one `(route)`.
   """
   import PlaywrightEx.Runtime.Heap
 
@@ -19,11 +20,12 @@ defmodule PlaywrightEx.Client.RouteHandler do
   # Number.MAX_SAFE_INTEGER
   @max_safe_integer 9_007_199_254_740_991
 
-  def new(base_url, url, handler, times \\ nil) do
+  def new(local_utils, base_url, url, handler, times \\ nil) do
     this = new_object(__MODULE__)
     put(this, :handledCount, 0)
     put(this, :_ignoreException, false)
     put(this, :_activeInvocations, [])
+    put(this, :_localUtils, local_utils)
     put(this, :_baseURL, base_url)
     put(this, :_times, if(times == nil, do: @max_safe_integer, else: times))
     put(this, :url, url)
@@ -32,7 +34,7 @@ defmodule PlaywrightEx.Client.RouteHandler do
     put(this, :_savedZone, Map.delete(Zones.without(:apiZone), :apiName))
     # Eagerly validate string globs so that invalid patterns throw at the call site
     # (e.g. page.route()) rather than silently aborting requests later.
-    if is_binary(url), do: UrlMatch.resolve_glob_to_regex_pattern(base_url, url)
+    if is_binary(url), do: UrlMatch.resolve_glob_to_regex_pattern(local_utils, base_url, url)
     this
   end
 
@@ -47,7 +49,8 @@ defmodule PlaywrightEx.Client.RouteHandler do
   end
 
   def matches(this, request_url) do
-    UrlMatch.url_matches(get(this, :_baseURL), request_url, get(this, :url))
+    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+    UrlMatch.url_matches(get(this, :_localUtils), get(this, :_baseURL), request_url, get(this, :url))
   end
 
   def handle(this, route) do

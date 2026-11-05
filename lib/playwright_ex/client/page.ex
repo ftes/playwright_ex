@@ -287,9 +287,16 @@ defmodule PlaywrightEx.Client.Page do
     if !(name || url), do: raise("Either name or url matcher should be specified")
 
     Enum.find(frames(this), fn f ->
+      # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
       if name,
         do: Frame.name(f) == name,
-        else: UrlMatch.url_matches(get(get(this, :_browserContext), :_options)[:baseURL], Frame.url(f), url)
+        else:
+          UrlMatch.url_matches(
+            Connection.local_utils(get(this, :_connection)),
+            get(get(this, :_browserContext), :_options)[:baseURL],
+            Frame.url(f),
+            url
+          )
     end)
   end
 
@@ -541,11 +548,7 @@ defmodule PlaywrightEx.Client.Page do
 
     predicate = fn request ->
       if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex) do
-        UrlMatch.url_matches(
-          get(get(this, :_browserContext), :_options)[:baseURL],
-          Request.url(request),
-          url_or_predicate
-        )
+        _url_matches(this, Request.url(request), url_or_predicate)
       else
         # await urlOrPredicate(request): a returned promise is awaited
         result = url_or_predicate.(request)
@@ -569,11 +572,7 @@ defmodule PlaywrightEx.Client.Page do
 
     predicate = fn response ->
       if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex) do
-        UrlMatch.url_matches(
-          get(get(this, :_browserContext), :_options)[:baseURL],
-          Response.url(response),
-          url_or_predicate
-        )
+        _url_matches(this, Response.url(response), url_or_predicate)
       else
         # await urlOrPredicate(response): a returned promise is awaited
         result = url_or_predicate.(response)
@@ -589,6 +588,16 @@ defmodule PlaywrightEx.Client.Page do
       Events.Page.response(),
       %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
       log_line
+    )
+  end
+
+  # urlMatches(this._browserContext._options.baseURL, url, match), with the LocalUtils (UrlMatch).
+  defp _url_matches(this, url, match) do
+    UrlMatch.url_matches(
+      Connection.local_utils(get(this, :_connection)),
+      get(get(this, :_browserContext), :_options)[:baseURL],
+      url,
+      match
     )
   end
 
@@ -717,6 +726,7 @@ defmodule PlaywrightEx.Client.Page do
 
     route_handler =
       RouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
         get(get(this, :_browserContext), :_options)[:baseURL],
         url,
         handler,
@@ -747,6 +757,7 @@ defmodule PlaywrightEx.Client.Page do
   def route_web_socket(this, url, handler) do
     route_handler =
       WebSocketRouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
         get(get(this, :_browserContext), :_options)[:baseURL],
         url,
         handler

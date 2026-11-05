@@ -617,3 +617,16 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `TestServer.send_resp/4` sets a custom status text (closes the connection).
 - 10 specs un-skipped (route-web-socket close codes, status text, HAR sizes, wss connect,
   malformed frame, discarded-page CDP with a macOS-only `env:` skip).
+
+## 2026-11-05: URL globs through the driver again (workstream LL, your call on 12)
+- Reverts workstream AA: globs go through `LocalUtils.globToRegex` (cached, under the baton), as
+  in Python/Java/.NET. `Isomorphic.URL` (354 lines) and the local `urlMatch` port are gone
+  (net -417 lines); the entries "glob_to_regex caches the driver's regex" and "Handlers validate
+  globs through the driver" apply again. `construct_url_based_on_base_url` (toHaveURL with a
+  baseURL) is `URI.merge` plus scheme/host lowercasing: less exact than WHATWG on default
+  ports, IDN and percent-encoding; no spec is affected.
+
+## 2026-11-05: Facade docs for the Elixir API (workstream II)
+- JS-only option doc variants take the other clients' text when the type is the same (timeouts
+  now say 30 s; 127 fixed); matcher timeouts name `config :playwright_ex, :expect`; Tracing notes
+  pointing at the test runner's config are dropped. JS code examples stay (Then 5).

@@ -3,79 +3,17 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
   @moduledoc """
   Port of `#{@upstream}`: matching URLs against globs, regexes and functions.
 
-  Deviations: `RegExp` is `Regex`; a function matcher gets the URL string, not a parsed `URL`
-  (as in the Python, Java and .NET clients). `URLPattern` has no Elixir counterpart. `new URL()`
-  is `PlaywrightEx.Isomorphic.URL`.
+  Deviations: globs become regexes through the driver (`LocalUtils.globToRegex`, PLAN
+  Decisions), so the functions that resolve globs take the `LocalUtils` as first argument.
+  `RegExp` is `Regex`; a function matcher gets the URL string (Elixir has no `URL` class, as
+  in the Python, Java and .NET clients). `URLPattern` has no Elixir counterpart.
   """
 
-  alias PlaywrightEx.Isomorphic.URL
+  alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.Protocol.Serializers
 
   # isHttpUrl  -- not ported: unused
-
-  # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions#escaping
-  @escaped_chars ["$", "^", "+", ".", "*", "(", ")", "|", "\\", "?", "{", "}", "[", "]"]
-
-  def glob_to_regex_pattern(glob) do
-    # `glob[i]`: the glob as a tuple of code points, `nil` past either end.
-    glob_to_regex_pattern(glob, List.to_tuple(String.codepoints(glob)), 0, ["^"], false)
-  end
-
-  defp glob_to_regex_pattern(glob, chars, i, tokens, in_group) do
-    case {at(chars, i), at(chars, i + 1)} do
-      {nil, _} ->
-        if in_group, do: raise("Invalid glob pattern #{JSON.encode!(glob)}: unmatched '{'")
-        Enum.join(Enum.reverse(["$" | tokens]))
-
-      {"\\", char} when char != nil ->
-        token = if char in @escaped_chars, do: "\\" <> char, else: char
-        glob_to_regex_pattern(glob, chars, i + 2, [token | tokens], in_group)
-
-      {"*", _} ->
-        char_before = at(chars, i - 1)
-        # while (glob[i + 1] === '*') { starCount++; i++; }
-        star_count = count_stars(chars, i + 1, 1)
-        i = i + star_count - 1
-
-        {token, i} =
-          if star_count > 1 do
-            char_after = at(chars, i + 1)
-            # Match either /..something../ or /.
-            cond do
-              char_after == "/" and char_before == "/" -> {"((.+/)|)", i + 1}
-              char_after == "/" -> {"(.*/)", i + 1}
-              true -> {"(.*)", i}
-            end
-          else
-            {"([^/]*)", i}
-          end
-
-        glob_to_regex_pattern(glob, chars, i + 1, [token | tokens], in_group)
-
-      {"{", _} ->
-        if in_group, do: raise("Invalid glob pattern #{JSON.encode!(glob)}: nested '{' is not supported")
-        glob_to_regex_pattern(glob, chars, i + 1, ["(" | tokens], true)
-
-      {"}", _} ->
-        if !in_group, do: raise("Invalid glob pattern #{JSON.encode!(glob)}: unmatched '}'")
-        glob_to_regex_pattern(glob, chars, i + 1, [")" | tokens], false)
-
-      {",", _} ->
-        token = if in_group, do: "|", else: "\\,"
-        glob_to_regex_pattern(glob, chars, i + 1, [token | tokens], in_group)
-
-      {c, _} ->
-        token = if c in @escaped_chars, do: "\\" <> c, else: c
-        glob_to_regex_pattern(glob, chars, i + 1, [token | tokens], in_group)
-    end
-  end
-
-  defp at(chars, i), do: if(i >= 0 and i < tuple_size(chars), do: elem(chars, i))
-
-  defp count_stars(chars, i, count) do
-    if at(chars, i) == "*", do: count_stars(chars, i + 1, count + 1), else: count
-  end
-
+  # globToRegexPattern  -- not ported: LocalUtils.globToRegex (PLAN)
   # isRegExp  -- ported as is_struct(match, Regex)
   # isURLPattern, serializeURLPattern  -- not ported: URLPattern
 
@@ -97,16 +35,17 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
       else: match1 == match2
   end
 
-  def url_matches(base_url, url_string, match, web_socket_url \\ nil) do
+  def url_matches(local_utils, base_url, url_string, match, web_socket_url \\ nil) do
     cond do
       match == nil or match == "" ->
         true
 
       is_binary(match) ->
         url_matches(
+          local_utils,
           base_url,
           url_string,
-          Regex.compile!(resolve_glob_to_regex_pattern(base_url, match, web_socket_url)),
+          Regex.compile!(resolve_glob_to_regex_pattern(local_utils, base_url, match, web_socket_url)),
           web_socket_url
         )
 
@@ -121,109 +60,23 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
           !url -> false
           # if (isURLPattern(match)) return match.test(url.href);  -- not ported: URLPattern
           not is_function(match, 1) -> raise "url parameter should be string, RegExp, URLPattern or function"
-          # The matcher gets the URL string (see the moduledoc).
-          true -> match.(url_string)
+          true -> match.(url)
         end
     end
   end
 
-  def resolve_glob_to_regex_pattern(base_url, glob, web_socket_url \\ nil) do
-    base_url = if web_socket_url, do: to_web_socket_base_url(base_url), else: base_url
-    glob = resolve_glob_base(base_url, glob)
-    glob_to_regex_pattern(glob)
+  def resolve_glob_to_regex_pattern(local_utils, base_url, glob, web_socket_url \\ nil) do
+    # if (webSocketUrl) baseURL = toWebSocketBaseUrl(baseURL); glob = resolveGlobBase(baseURL, glob);
+    # return globToRegexPattern(glob);  -- ported as LocalUtils.globToRegex (PLAN)
+    LocalUtils.glob_to_regex(local_utils, %{glob: glob, baseURL: base_url, webSocketUrl: web_socket_url})
   end
 
-  defp to_web_socket_base_url(base_url) do
-    # Allow http(s) baseURL to match ws(s) urls. Schemes are case-insensitive,
-    # same as elsewhere in this file, so 'HTTP://...' should be rewritten too.
-    if base_url && Regex.match?(~r/^https?:\/\//i, base_url),
-      do:
-        Regex.replace(
-          ~r/^https?/i,
-          base_url,
-          fn scheme -> if String.downcase(scheme) == "https", do: "wss", else: "ws" end,
-          global: false
-        ),
-      else: base_url
-  end
+  # toWebSocketBaseUrl, resolveGlobBase  -- not ported: LocalUtils.globToRegex (PLAN)
 
-  defp resolve_glob_base(base_url, match) do
-    if String.starts_with?(match, "*") do
-      match
-    else
-      # Escaped `\\?` behaves the same as `?` in our glob patterns.
-      match = String.replace(match, "\\\\?", "?")
-
-      # Special case about: URLs as they are not relative to baseURL
-      if String.starts_with?(match, ["about:", "data:", "chrome:", "edge:", "file:"]) do
-        match
-      else
-        # Glob symbols may be escaped in the URL and some of them such as ? affect resolution,
-        # so we replace them with safe components first. `tokenMap` is a list (newest first).
-        {tokens, token_map} =
-          match
-          |> String.split("/")
-          |> Enum.with_index()
-          |> Enum.map_reduce([], fn {token, index}, token_map -> map_glob_token(token, index, token_map) end)
-
-        relative_path = Enum.join(tokens, "/")
-        result = resolve_base_url(base_url, relative_path)
-
-        token_map
-        |> Enum.reverse()
-        |> Enum.reduce(result.resolved, fn {token, original}, resolved ->
-          normalize = result[:caseInsensitivePart] != nil and String.contains?(result.caseInsensitivePart, token)
-          replacement = if normalize, do: String.downcase(original), else: original
-          # String.replace/4 with a string pattern inserts the replacement literally (JS needs the
-          # function form for '$$', '$&', ...).
-          String.replace(resolved, token, replacement, global: false)
-        end)
-      end
-    end
-  end
-
-  defp map_glob_token(token, index, token_map) do
-    cond do
-      token in [".", "..", ""] ->
-        {token, token_map}
-
-      # Handle special case of http*://, note that the new schema has to be
-      # a web schema so that slashes are properly inserted after domain.
-      index == 0 and String.ends_with?(token, ":") ->
-        # Replace any pattern with http:
-        if String.contains?(token, ["*", "{"]),
-          do: map_token(token, "http:", token_map),
-          # Preserve explicit schema as is as it may affect trailing slashes after domain.
-          else: {token, token_map}
-
-      # Components without glob metacharacters are literal, so let them round-trip
-      # through new URL() to preserve normalization (default ports such as :80/:443,
-      # percent-encoding, IDN hosts). Only opaque tokens defeat that normalization.
-      !Regex.match?(~r/[*?{}\\]/, token) ->
-        {token, token_map}
-
-      true ->
-        case :binary.match(token, "?") do
-          :nomatch ->
-            map_token(token, "$_#{index}_$", token_map)
-
-          {question_index, _} ->
-            prefix = binary_part(token, 0, question_index)
-            suffix = binary_part(token, question_index, byte_size(token) - question_index)
-            {new_prefix, token_map} = map_token(prefix, "$_#{index}_$", token_map)
-            {new_suffix, token_map} = map_token(suffix, "?$_#{index}_$", token_map)
-            {new_prefix <> new_suffix, token_map}
-        end
-    end
-  end
-
-  defp map_token("", _replacement, token_map), do: {"", token_map}
-  defp map_token(original, replacement, token_map), do: {replacement, [{replacement, original} | token_map]}
-
+  # `new URL(url)`, but the matcher gets the string (see the moduledoc). An absolute URL has a
+  # scheme; `URI.new/1` is stricter than WHATWG URLs (`data:text/html,<div>`), so only the scheme is checked.
   defp parse_url(url) do
-    URL.new(url)
-  rescue
-    _ -> nil
+    if Regex.match?(~r/^[a-zA-Z][a-zA-Z0-9+.-]*:/, url), do: url
   end
 
   def construct_url_based_on_base_url(base_url, given_url) do
@@ -233,12 +86,26 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
   end
 
   defp resolve_base_url(base_url, given_url) do
-    url = URL.new(given_url, base_url)
-    resolved = URL.href(url)
+    url = new_url(given_url, base_url)
+    resolved = url_to_string(url)
     # Schema and domain are case-insensitive.
-    case_insensitive_prefix = URL.origin(url)
+    case_insensitive_prefix = url_to_string(%{url | path: nil, query: nil, fragment: nil, userinfo: nil})
     %{resolved: resolved, caseInsensitivePart: case_insensitive_prefix}
   rescue
     _ -> %{resolved: given_url}
+  end
+
+  # `new URL(url, base)`: raises unless the result is absolute.
+  defp new_url(url, nil), do: absolute!(URI.new!(url))
+  defp new_url(url, base), do: absolute!(URI.merge(absolute!(URI.new!(base)), url))
+
+  defp absolute!(%URI{scheme: scheme} = uri) when is_binary(scheme), do: uri
+  defp absolute!(_uri), do: raise(ArgumentError, "Invalid URL")
+
+  # `url.toString()`: WHATWG URLs lowercase scheme and host and have a "/" path when it is empty.
+  defp url_to_string(%URI{} = uri) do
+    host = uri.host && String.downcase(uri.host)
+    path = if uri.host != nil and uri.path in [nil, ""], do: "/", else: uri.path
+    URI.to_string(%{uri | scheme: String.downcase(uri.scheme), host: host, path: path})
   end
 end

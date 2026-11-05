@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
   Port of `#{@upstream}`. The predicate gets the URL string (as `UrlMatch` matchers do).
   """
 
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Isomorphic.AbortSignal
@@ -16,6 +17,7 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
     matcher_name = "toHaveURL"
     timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
     base_url = Heap.get(Page.context(page), :_options)[:baseURL]
+    local_utils = Connection.local_utils(Heap.get(page, :_connection))
     # `let lastCheckedURLString`, assigned in the predicate (which may run in a listener process).
     %EventLoop{heap: heap} = loop = EventLoop.current!()
     last_checked = %{guid: make_ref(), loop: loop, heap: heap}
@@ -27,14 +29,17 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
           last_checked_url_string = Heap.put(last_checked, :value, url)
 
           if options[:ignoreCase] do
+            # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
             !this.isNot ==
               UrlMatch.url_matches(
+                local_utils,
                 base_url && String.downcase(base_url),
                 String.downcase(last_checked_url_string),
                 expected
               )
           else
-            !this.isNot == UrlMatch.url_matches(base_url, last_checked_url_string, expected)
+            # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+            !this.isNot == UrlMatch.url_matches(local_utils, base_url, last_checked_url_string, expected)
           end
         end,
         %{timeout: timeout, signal: options[:signal]}
