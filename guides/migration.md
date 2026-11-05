@@ -63,7 +63,9 @@ popup = PlaywrightEx.Promise.await!(promise)
 `locator |> Expect.not_() |> Expect.to_have_text("x")`.
 
 **Promises.** `wait_for_*` members return a `PlaywrightEx.Promise`: the wait starts before the
-call returns, and any process can `await/1` it.
+call returns, and any process can `await/1` it. Their bang forms (`Page.wait_for_event!/3`) await
+it at once, so they miss what the code before them triggered: start the wait before the action (as
+above), and keep the bang forms for what happens later on its own (a timer in the page).
 
 **The baton.** One driver runs one JS-like event loop: only one process runs client code at a time
 and yields while it awaits. Calls from many processes still overlap. A listener or route handler

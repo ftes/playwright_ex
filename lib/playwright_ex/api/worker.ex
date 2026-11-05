@@ -154,7 +154,19 @@ defmodule PlaywrightEx.Worker do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_event/4`.
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+
+  ```elixir
+  promise = PlaywrightEx.Worker.wait_for_event(worker, event)
+  PlaywrightEx.Locator.click!(button)
+  value = PlaywrightEx.Promise.await!(promise)
+  ```
+
+  The callback form `expect_event/4` runs the action:
+
+  ```elixir
+  value = PlaywrightEx.Worker.expect_event!(worker, event, fn -> PlaywrightEx.Locator.click!(button) end)
+  ```
   """
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: PlaywrightEx.Promise.t()
   def wait_for_event(worker, event, options \\ [])
@@ -170,6 +182,28 @@ defmodule PlaywrightEx.Worker do
       PlaywrightEx.Client.Worker.wait_for_event(worker, event, options)
     end)
   end
+
+  @doc since: "1.57"
+  @doc ~S"""
+  Like `wait_for_event/3`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_event(...))`, the value or a raise.
+
+  > #### Start waiting before the action {: .warning}
+  >
+  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_event/3` and await it after the action, or use the callback form `expect_event!/4`:
+  >
+  > ```elixir
+  > promise = PlaywrightEx.Worker.wait_for_event(worker, event)
+  > PlaywrightEx.Locator.click!(button)
+  > value = PlaywrightEx.Promise.await!(promise)
+  > ```
+  >
+  > ```elixir
+  > value = PlaywrightEx.Worker.expect_event!(worker, event, fn -> PlaywrightEx.Locator.click!(button) end)
+  > ```
+  """
+  @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
+  def wait_for_event!(worker, event, options \\ []),
+    do: Facade.await!(wait_for_event(worker, event, options))
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 

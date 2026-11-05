@@ -23,6 +23,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     * `async: true` members: `name/n` returns `{:ok, value} | {:error, exception}` (`:ok` for
       `void`), `name!/n` returns the value or raises.
+    * Waits (`"promise"`, see `Mix.PlaywrightEx.ApiRules`): `name/n` returns a `PlaywrightEx.Promise`,
+      `name!/n` awaits it; their docs show starting the wait before the action.
     * `async: false` members and properties: plain values, called without the baton.
     * Handles: a class whose client module exports `__struct_fields__/0` gets the struct
       (`%PlaywrightEx.Page{}`) and `__client__/0`, its client module (`PlaywrightEx.Runtime.Heap.impl/1`).
@@ -375,8 +377,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     attrs = for {arg, var} <- Enum.zip(args, vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(args, vars), &param/1)]
     void? = get_in(member, ["type", "name"]) == "void"
-    doc = member_doc(ctx, member, args)
-    doc = if member["promise"], do: sections([doc, promise_doc(ctx, class, member, length(params))]), else: doc
+    examples = wait_examples(ctx, class, member, receiver, args, vars)
+    doc = promise_doc(member_doc(ctx, member, args), member, length(params), examples)
 
     attributes =
       Enum.join(
@@ -404,6 +406,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       void?: void?,
       spec_args: ["t()" | Enum.map(args, &arg_spec(ctx, &1, name))],
       return: if(void?, do: ":ok", else: return_spec(ctx, member)),
+      examples: examples,
       docs: since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
     })
   end
@@ -518,7 +521,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp client_call(class, member, receiver, vars),
     do: "#{inspect(impl(class["name"]))}.#{snake(member["alias"])}(#{Enum.join([receiver | vars], ", ")})"
 
-  defp member_def(%{"promise" => promise}, m) when is_binary(promise) do
+  defp member_def(%{"promise" => promise} = member, m) when is_binary(promise) do
     """
     #{m.attributes}
 
@@ -528,6 +531,11 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       #{m.conversions}
       Facade.promise(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end)
     end
+
+    #{since(member)}#{deprecated(member)}@doc #{doc(promise_bang_doc(member, m))}
+    #{spec(m.name <> "!", m, m.return)}
+    def #{m.name}!(#{Enum.join(m.params, ", ")}),
+      do: Facade.await!(#{m.name}(#{Enum.map_join(m.params, ", ", &no_default/1)}))
     """
   end
 
@@ -591,15 +599,86 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     positional ++ [action | options]
   end
 
-  defp promise_doc(_ctx, class, member, arity) do
-    callback =
-      if Enum.any?(class["members"], &(&1["alias"] == member["promise"])),
-        do: " The callback form is `#{member["promise"]}/#{arity + 1}`.",
-        else: ""
+  defp promise_doc(doc, _member, _arity, nil), do: doc
 
-    "Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it " <>
-      "without `await`. Await it with `PlaywrightEx.Promise.await/1`." <> callback
+  defp promise_doc(doc, member, arity, examples) do
+    callback =
+      if examples.callback,
+        do: "The callback form `#{member["promise"]}/#{arity + 1}` runs the action:\n\n" <> examples.callback
+
+    sections([
+      doc,
+      "Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it " <>
+        "without `await`. Start it before the action that triggers it, await it after with " <>
+        "`PlaywrightEx.Promise.await/1`:\n\n" <> examples.promise,
+      callback
+    ])
   end
+
+  # `wait_for_request!`: `PlaywrightEx.Promise.await!(wait_for_request(...))`, with JS's warning
+  # ("Start waiting for download before clicking. Note no await.").
+  defp promise_bang_doc(member, m) do
+    arity = length(m.params)
+    callback = if m.examples.callback, do: ", or use the callback form `#{member["promise"]}!/#{arity + 1}`", else: ""
+
+    warning =
+      note(
+        "Start waiting before the action",
+        "warning",
+        "This waits from the time it is called, so it misses what the code before it triggered. JS " <>
+          "starts the wait without `await` before the action: start it with `#{m.name}/#{arity}` and " <>
+          "await it after the action#{callback}:\n\n" <>
+          Enum.join(List.wrap(m.examples.promise) ++ List.wrap(m.examples.callback), "\n\n")
+      )
+
+    sections([
+      "Like `#{m.name}/#{arity}`, but awaits the promise: `PlaywrightEx.Promise.await!(#{m.name}(...))`, " <>
+        "the value or a raise.",
+      warning
+    ])
+  end
+
+  # The promise and callback forms of a wait, with its required arguments.
+  defp wait_examples(ctx, class, %{"promise" => promise} = member, receiver, args, vars) when is_binary(promise) do
+    module = inspect(facade(class["name"]))
+    required = for {%{"required" => true, "name" => name}, var} <- Enum.zip(args, vars), name != "options", do: var
+    call_args = Enum.join([receiver | required], ", ")
+    result = result_var(ctx, member["type"])
+    action = "PlaywrightEx.Locator.click!(button)"
+
+    callback =
+      if Enum.any?(class["members"], &(&1["alias"] == member["promise"])) do
+        """
+        ```elixir
+        #{result} = #{module}.#{member["promise"]}!(#{call_args}, fn -> #{action} end)
+        ```\
+        """
+      end
+
+    %{
+      promise: """
+      ```elixir
+      promise = #{module}.#{snake(member["alias"])}(#{call_args})
+      #{action}
+      #{result} = PlaywrightEx.Promise.await!(promise)
+      ```\
+      """,
+      callback: callback
+    }
+  end
+
+  defp wait_examples(_ctx, _class, _member, _receiver, _args, _vars), do: nil
+
+  # `response` for a `null|Response`, `value` for `any`.
+  defp result_var(ctx, %{"union" => union}) when is_list(union) do
+    case Enum.reject(union, &(&1["name"] == "null")) do
+      [type] -> result_var(ctx, type)
+      _ -> "value"
+    end
+  end
+
+  defp result_var(ctx, %{"name" => name}) when is_map_key(ctx.classes, name), do: snake(name)
+  defp result_var(_ctx, _type), do: "value"
 
   defp event_arg?(member), do: Enum.any?(member["args"], &event_arg_type?/1)
 

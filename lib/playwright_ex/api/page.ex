@@ -5622,7 +5622,19 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_event/4`.
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+
+  ```elixir
+  promise = PlaywrightEx.Page.wait_for_event(page, event)
+  PlaywrightEx.Locator.click!(button)
+  value = PlaywrightEx.Promise.await!(promise)
+  ```
+
+  The callback form `expect_event/4` runs the action:
+
+  ```elixir
+  value = PlaywrightEx.Page.expect_event!(page, event, fn -> PlaywrightEx.Locator.click!(button) end)
+  ```
   """
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: PlaywrightEx.Promise.t()
   def wait_for_event(page, event, options \\ [])
@@ -5635,6 +5647,28 @@ defmodule PlaywrightEx.Page do
     options = Facade.options!(options, @wait_for_event_options, "page.waitForEvent")
     Facade.promise("page.waitForEvent", page, fn -> PlaywrightEx.Client.Page.wait_for_event(page, event, options) end)
   end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Like `wait_for_event/3`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_event(...))`, the value or a raise.
+
+  > #### Start waiting before the action {: .warning}
+  >
+  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_event/3` and await it after the action, or use the callback form `expect_event!/4`:
+  >
+  > ```elixir
+  > promise = PlaywrightEx.Page.wait_for_event(page, event)
+  > PlaywrightEx.Locator.click!(button)
+  > value = PlaywrightEx.Promise.await!(promise)
+  > ```
+  >
+  > ```elixir
+  > value = PlaywrightEx.Page.expect_event!(page, event, fn -> PlaywrightEx.Locator.click!(button) end)
+  > ```
+  """
+  @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
+  def wait_for_event!(page, event, options \\ []),
+    do: Facade.await!(wait_for_event(page, event, options))
 
   @wait_for_function_options {:object,
                               %{
@@ -5896,7 +5930,19 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_navigation/3`.
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+
+  ```elixir
+  promise = PlaywrightEx.Page.wait_for_navigation(page)
+  PlaywrightEx.Locator.click!(button)
+  response = PlaywrightEx.Promise.await!(promise)
+  ```
+
+  The callback form `expect_navigation/3` runs the action:
+
+  ```elixir
+  response = PlaywrightEx.Page.expect_navigation!(page, fn -> PlaywrightEx.Locator.click!(button) end)
+  ```
   """
   @spec wait_for_navigation(t(), wait_for_navigation_options()) :: PlaywrightEx.Promise.t()
   def wait_for_navigation(page, options \\ []) do
@@ -5904,6 +5950,29 @@ defmodule PlaywrightEx.Page do
 
     Facade.promise("page.waitForNavigation", page, fn -> PlaywrightEx.Client.Page.wait_for_navigation(page, options) end)
   end
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc ~S"""
+  Like `wait_for_navigation/2`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_navigation(...))`, the value or a raise.
+
+  > #### Start waiting before the action {: .warning}
+  >
+  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_navigation/2` and await it after the action, or use the callback form `expect_navigation!/3`:
+  >
+  > ```elixir
+  > promise = PlaywrightEx.Page.wait_for_navigation(page)
+  > PlaywrightEx.Locator.click!(button)
+  > response = PlaywrightEx.Promise.await!(promise)
+  > ```
+  >
+  > ```elixir
+  > response = PlaywrightEx.Page.expect_navigation!(page, fn -> PlaywrightEx.Locator.click!(button) end)
+  > ```
+  """
+  @spec wait_for_navigation!(t(), wait_for_navigation_options()) :: nil | PlaywrightEx.Response.t()
+  def wait_for_navigation!(page, options \\ []),
+    do: Facade.await!(wait_for_navigation(page, options))
 
   @wait_for_request_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
@@ -5947,7 +6016,19 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_request/4`.
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+
+  ```elixir
+  promise = PlaywrightEx.Page.wait_for_request(page, url_or_predicate)
+  PlaywrightEx.Locator.click!(button)
+  request = PlaywrightEx.Promise.await!(promise)
+  ```
+
+  The callback form `expect_request/4` runs the action:
+
+  ```elixir
+  request = PlaywrightEx.Page.expect_request!(page, url_or_predicate, fn -> PlaywrightEx.Locator.click!(button) end)
+  ```
   """
   @spec wait_for_request(
           t(),
@@ -5961,6 +6042,32 @@ defmodule PlaywrightEx.Page do
       PlaywrightEx.Client.Page.wait_for_request(page, url_or_predicate, options)
     end)
   end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Like `wait_for_request/3`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_request(...))`, the value or a raise.
+
+  > #### Start waiting before the action {: .warning}
+  >
+  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_request/3` and await it after the action, or use the callback form `expect_request!/4`:
+  >
+  > ```elixir
+  > promise = PlaywrightEx.Page.wait_for_request(page, url_or_predicate)
+  > PlaywrightEx.Locator.click!(button)
+  > request = PlaywrightEx.Promise.await!(promise)
+  > ```
+  >
+  > ```elixir
+  > request = PlaywrightEx.Page.expect_request!(page, url_or_predicate, fn -> PlaywrightEx.Locator.click!(button) end)
+  > ```
+  """
+  @spec wait_for_request!(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          wait_for_request_options()
+        ) :: PlaywrightEx.Request.t()
+  def wait_for_request!(page, url_or_predicate, options \\ []),
+    do: Facade.await!(wait_for_request(page, url_or_predicate, options))
 
   @wait_for_response_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
@@ -6007,7 +6114,19 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_response/4`.
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+
+  ```elixir
+  promise = PlaywrightEx.Page.wait_for_response(page, url_or_predicate)
+  PlaywrightEx.Locator.click!(button)
+  response = PlaywrightEx.Promise.await!(promise)
+  ```
+
+  The callback form `expect_response/4` runs the action:
+
+  ```elixir
+  response = PlaywrightEx.Page.expect_response!(page, url_or_predicate, fn -> PlaywrightEx.Locator.click!(button) end)
+  ```
   """
   @spec wait_for_response(
           t(),
@@ -6021,6 +6140,32 @@ defmodule PlaywrightEx.Page do
       PlaywrightEx.Client.Page.wait_for_response(page, url_or_predicate, options)
     end)
   end
+
+  @doc since: "1.8"
+  @doc ~S"""
+  Like `wait_for_response/3`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_response(...))`, the value or a raise.
+
+  > #### Start waiting before the action {: .warning}
+  >
+  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_response/3` and await it after the action, or use the callback form `expect_response!/4`:
+  >
+  > ```elixir
+  > promise = PlaywrightEx.Page.wait_for_response(page, url_or_predicate)
+  > PlaywrightEx.Locator.click!(button)
+  > response = PlaywrightEx.Promise.await!(promise)
+  > ```
+  >
+  > ```elixir
+  > response = PlaywrightEx.Page.expect_response!(page, url_or_predicate, fn -> PlaywrightEx.Locator.click!(button) end)
+  > ```
+  """
+  @spec wait_for_response!(
+          t(),
+          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          wait_for_response_options()
+        ) :: PlaywrightEx.Response.t()
+  def wait_for_response!(page, url_or_predicate, options \\ []),
+    do: Facade.await!(wait_for_response(page, url_or_predicate, options))
 
   @wait_for_selector_options {:object,
                               %{

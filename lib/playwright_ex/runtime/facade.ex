@@ -55,6 +55,16 @@ defmodule PlaywrightEx.Runtime.Facade do
   def promise(api_name, receiver, fun), do: Api.call(api_name, receiver, fn -> Promise.async(fun) end)
 
   @doc """
+  Awaits a promise of `promise/3` that never leaves the caller (`wait_for_request!`): its value,
+  raising if it is rejected.
+  """
+  def await!(promise) do
+    PlaywrightEx.Promise.await!(promise)
+  after
+    GC.unroot(promise)
+  end
+
+  @doc """
   The callback form of a wait (`expect_popup`): starts the wait (`promise/3`), runs `action`, then
   awaits the wait: `{:ok, value}` or `{:error, exception}`. Exceptions raised by `action` propagate.
   """

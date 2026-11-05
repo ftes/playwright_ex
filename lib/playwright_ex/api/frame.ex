@@ -3631,7 +3631,19 @@ defmodule PlaywrightEx.Frame do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_navigation/3`.
+  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+
+  ```elixir
+  promise = PlaywrightEx.Frame.wait_for_navigation(frame)
+  PlaywrightEx.Locator.click!(button)
+  response = PlaywrightEx.Promise.await!(promise)
+  ```
+
+  The callback form `expect_navigation/3` runs the action:
+
+  ```elixir
+  response = PlaywrightEx.Frame.expect_navigation!(frame, fn -> PlaywrightEx.Locator.click!(button) end)
+  ```
   """
   @spec wait_for_navigation(t(), wait_for_navigation_options()) :: PlaywrightEx.Promise.t()
   def wait_for_navigation(frame, options \\ []) do
@@ -3641,6 +3653,29 @@ defmodule PlaywrightEx.Frame do
       PlaywrightEx.Client.Frame.wait_for_navigation(frame, options)
     end)
   end
+
+  @doc since: "1.8"
+  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc ~S"""
+  Like `wait_for_navigation/2`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_navigation(...))`, the value or a raise.
+
+  > #### Start waiting before the action {: .warning}
+  >
+  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_navigation/2` and await it after the action, or use the callback form `expect_navigation!/3`:
+  >
+  > ```elixir
+  > promise = PlaywrightEx.Frame.wait_for_navigation(frame)
+  > PlaywrightEx.Locator.click!(button)
+  > response = PlaywrightEx.Promise.await!(promise)
+  > ```
+  >
+  > ```elixir
+  > response = PlaywrightEx.Frame.expect_navigation!(frame, fn -> PlaywrightEx.Locator.click!(button) end)
+  > ```
+  """
+  @spec wait_for_navigation!(t(), wait_for_navigation_options()) :: nil | PlaywrightEx.Response.t()
+  def wait_for_navigation!(frame, options \\ []),
+    do: Facade.await!(wait_for_navigation(frame, options))
 
   @wait_for_selector_options {:object,
                               %{

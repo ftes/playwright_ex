@@ -191,6 +191,9 @@ defmodule PlaywrightEx.Guides.MigrationTest do
 
     assert ConsoleMessage.text(message) == "ready"
 
+    Page.evaluate!(page, "() => { setTimeout(() => console.log('later'), 100) }")
+    assert ConsoleMessage.text(Page.wait_for_event!(page, :console)) == "later"
+
     download = Page.expect_download!(page, fn -> Page.get_by_text(page, "Export") |> Locator.click!() end)
     assert Download.suggested_filename(download) == "report.csv"
     :ok = Download.save_as(download, Path.join(tmp_dir, "report.csv"))
