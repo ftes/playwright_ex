@@ -655,16 +655,15 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         new_page = Browser.new_page!(browser)
         test = self()
         promise = Page.wait_for_event(new_page, :download)
-        # deviation: JS rejects the wait inside the emulated page close and runs `.catch` before the
-        # `setTimeout` that emits `disconnected`; here the wait settles in a process of its own, so
-        # the order of two senders is not fixed. The listener awaits the wait instead: it is
-        # rejected by the disconnect (not by its 30 s timeout) when `disconnected` fires.
+        # `.catch(() => log.push('rejected'))`: a promise nobody awaits runs no callback here, so the
+        # listener logs "rejected" when the wait has already settled; the await below checks how.
         Browser.on(browser, :disconnected, fn _ ->
-          send(test, {:log, elem(Promise.await(promise), 0) == :error && "rejected"})
+          if PlaywrightEx.Runtime.Promise.settled?(promise), do: send(test, {:log, "rejected"})
           send(test, {:log, "disconnected"})
         end)
 
         PlaywrightServer.close(remote_server)
+        assert {:error, _} = Promise.await(promise)
         assert_receive {:log, first}, 10_000
         assert_receive {:log, second}, 10_000
         assert [first, second] == ["rejected", "disconnected"]

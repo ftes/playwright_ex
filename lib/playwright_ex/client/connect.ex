@@ -58,7 +58,10 @@ defmodule PlaywrightEx.Client.Connect do
       end
 
       # setTimeout(() => browser?._didClose(), 0)
-      Promise.void(fn -> browser && Browser._did_close(browser) end)
+      Promise.void(fn ->
+        Promise.await(Promise.timer(0))
+        browser && Browser._did_close(browser)
+      end)
     end)
 
     result =
@@ -174,7 +177,8 @@ defmodule PlaywrightEx.Client.Connect do
         _forward_loop(transport, mon, on_transport_closed, close_error)
 
       {:dispatch_error, e} ->
-        put(close_error, :value, Exception.message(e))
+        # closeError = String(e): `${e.name}: ${e.message}`
+        put(close_error, :value, "#{Map.get(e, :name) || "Error"}: #{Exception.message(e)}")
         Promise.void(fn -> __MODULE__.JsonPipeTransport.close(transport) end)
         _forward_loop(transport, mon, on_transport_closed, close_error)
 
