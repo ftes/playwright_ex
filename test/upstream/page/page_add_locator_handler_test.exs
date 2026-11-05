@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     original_locator = Page.get_by_text(page, "This interstitial covers the button")
 
     Page.add_locator_handler!(page, original_locator, fn locator_argument ->
-      # expect(locatorArgument).toBe(originalLocator): checked by the test process.
+      # expect(locatorArgument).toBe(originalLocator): checked by the test process, per step.
       send(test, {:argument, locator_argument})
       send(test, :before)
       Locator.click!(Page.locator(page, "#close"))
@@ -60,13 +60,12 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
       assert called(0, :before) == 0
       assert called(0, :after) == 0
       Locator.click!(Page.locator(page, "#target"))
+      assert called(0, {:argument, original_locator}) == Enum.at(args, 1)
       assert called(0, :before) == Enum.at(args, 1)
       assert called(0, :after) == Enum.at(args, 1)
       assert Page.evaluate!(page, "window.clicked") == 1
       Expect.not_to_be_visible!(Page.locator(page, "#interstitial"))
     end
-
-    assert_received {:argument, ^original_locator}
   end
 
   test "should work with a custom check", %{page: page, server: server} do
