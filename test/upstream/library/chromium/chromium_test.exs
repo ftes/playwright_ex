@@ -38,6 +38,13 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   defp req_header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 
+  defp free_port do
+    {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
+    {:ok, port} = :inet.port(socket)
+    :gen_tcp.close(socket)
+    port
+  end
+
   defp wait_for_service_worker(context), do: BrowserContext.wait_for_event(context, :service_worker)
 
   defp wait_for_request(context, predicate), do: BrowserContext.wait_for_event(context, :request, predicate)
@@ -657,13 +664,57 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     assert req_header(req, "x-custom-header") == "custom!"
   end
 
-  # test.skip(isHeadlessShell): we always run headless Chromium without a channel, which is the
-  # headless shell (playwright-python runs these in its `chrome`/`msedge` channel jobs only).
-  @tag skip: "upstream skip: Headless shell does not create a ProcessSingleton"
-  test "should throw when connecting twice to an already running persistent context (--remote-debugging-port)"
+  # test.skip(isHeadlessShell, 'Headless shell does not create a ProcessSingleton'): headless Chromium
+  # without a channel is the headless shell. Deviation: these launch the `chromium` channel (new
+  # headless, which `playwright install chromium` installs next to the shell), as upstream's channel
+  # runs do (playwright-python runs them in its `chrome`/`msedge` channel jobs).
+  # test.skip(!!channel?.startsWith('msedge')): we launch `chromium`.
+  @win32_fixme if(match?({:win32, _}, :os.type()),
+                 do:
+                   "upstream fixme: Windows does not print something to the console when the profile is already in use by another instance of Chromium."
+               )
 
-  @tag skip: "upstream skip: Headless shell does not create a ProcessSingleton"
-  test "should throw when connecting twice to an already running persistent context (--remote-debugging-pipe)"
+  @tag skip: @chromium_only || @win32_fixme
+  test "should throw when connecting twice to an already running persistent context (--remote-debugging-port)", %{
+    browser_type: browser_type,
+    create_user_data_dir: create_user_data_dir
+  } do
+    user_data_dir = create_user_data_dir.()
+    # Upstream uses the ports 9222 and 9223 (modules run in parallel here).
+    browser =
+      BrowserType.launch_persistent_context!(browser_type, user_data_dir,
+        channel: "chromium",
+        args: ["--remote-debugging-port=#{free_port()}"]
+      )
+
+    try do
+      {:error, error} =
+        BrowserType.launch_persistent_context(browser_type, user_data_dir,
+          channel: "chromium",
+          args: ["--remote-debugging-port=#{free_port()}"]
+        )
+
+      assert error.message =~ "This usually means that the profile is already in use by another instance of Chromium."
+    after
+      BrowserContext.close!(browser)
+    end
+  end
+
+  @tag skip: @chromium_only || @win32_fixme
+  test "should throw when connecting twice to an already running persistent context (--remote-debugging-pipe)", %{
+    browser_type: browser_type,
+    create_user_data_dir: create_user_data_dir
+  } do
+    user_data_dir = create_user_data_dir.()
+    browser = BrowserType.launch_persistent_context!(browser_type, user_data_dir, channel: "chromium")
+
+    try do
+      {:error, error} = BrowserType.launch_persistent_context(browser_type, user_data_dir, channel: "chromium")
+      assert error.message =~ "This usually means that the profile is already in use by another instance of Chromium."
+    after
+      BrowserContext.close!(browser)
+    end
+  end
 
   # test.skip(mode !== 'default', 'no env in non-default mode'): the driver is another process, so a
   # driver of its own started with PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK=1.
