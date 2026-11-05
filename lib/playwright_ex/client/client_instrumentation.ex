@@ -51,13 +51,19 @@ defmodule PlaywrightEx.Client.ClientInstrumentation do
 
   # `for (const listener of listeners) (listener as any)[prop]?.(...params);`
   defp _on(this, prop, params) do
-    for listener <- get(this, :listeners), fun = listener[prop], do: apply(fun, params)
+    for listener <- _listeners(this), fun = listener[prop], do: apply(fun, params)
     nil
   end
 
   defp _run_options(this, prop, options) do
-    Enum.reduce(get(this, :listeners), options, fn listener, options ->
+    Enum.reduce(_listeners(this), options, fn listener, options ->
       if fun = listener[prop], do: fun.(options), else: options
     end)
   end
+
+  # Elixir only: the rows go with the connection that owns them; a call failing because that
+  # connection closed still reports its own error.
+  # A disposed object's instrumentation is `nil`.
+  defp _listeners(nil), do: []
+  defp _listeners(this), do: if(readable?(this), do: get(this, :listeners), else: [])
 end

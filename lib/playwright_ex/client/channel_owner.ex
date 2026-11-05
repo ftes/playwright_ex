@@ -368,6 +368,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def _wrap_api_call(this, func, options \\ %{}) do
     # Elixir only: a disposed object has no fields left (see `channel_call/4`).
     logger = if Heap.alive?(this), do: get(this, :_logger)
+    instrumentation = if Heap.readable?(this), do: get(this, :_instrumentation)
     existing_api_zone = Zones.data(:apiZone)
 
     if existing_api_zone do
@@ -396,7 +397,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
         if !options[:internal] do
           log_api_call(logger, "<= #{api_zone.apiName} succeeded")
-          ClientInstrumentation.on_api_call_end(get(this, :_instrumentation), api_zone)
+          ClientInstrumentation.on_api_call_end(instrumentation, api_zone)
         end
 
         result
@@ -414,7 +415,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           if !options[:internal] do
             api_zone = Map.put(api_zone, :error, e)
             log_api_call(logger, "<= #{api_zone.apiName} failed")
-            ClientInstrumentation.on_api_call_end(get(this, :_instrumentation), api_zone)
+            ClientInstrumentation.on_api_call_end(instrumentation, api_zone)
           end
 
           reraise e, __STACKTRACE__
