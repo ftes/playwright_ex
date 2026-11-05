@@ -394,7 +394,8 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
 
 After Phase 2, before "preserve decisions". `mix playwright_ex.parity` only compares member
 lists, and the earlier fidelity audit (DECISIONS, workstream Z) sampled 10 client files before
-the OTP rewrite. This pass reads everything, line by line, against upstream 1.64.1:
+the OTP rewrite. This pass reads everything, line by line, against upstream 1.64.1 (the pinned sources in
+`~/Library/Caches/playwright_ex/1.64.1/upstream`, not an arbitrary local checkout):
 - Client: every file in `lib/playwright_ex/client`, `isomorphic`, `protocol`, matchers vs its TS
   source: missing branches and statements, order of side effects, defaults, error messages,
   every `# deviation:` and `not ported:` still justified, OTP shims (latch, `atomic`,
