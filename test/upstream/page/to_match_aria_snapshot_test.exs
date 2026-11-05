@@ -69,6 +69,12 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     Expect.to_match_aria_snapshot!(page, """
     - heading "title"
     """)
+
+    # Elixir only: no test runner writes the suggested rebaseline into the source, so an empty
+    # snapshot fails with it instead of passing (Matchers.Expect).
+    {:error, e} = Expect.to_match_aria_snapshot(page, "")
+    assert e.message =~ "A snapshot is not provided, generating new baseline."
+    assert e.message =~ ~s(- heading "title" [level=1])
   end
 
   test "should match in list", %{page: page} do

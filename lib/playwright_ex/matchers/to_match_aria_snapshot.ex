@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   @moduledoc """
   Port of `#{@upstream}`: inline aria snapshots (`expected` is a string). File snapshots
   (`{ name, path }`, resolved by the test runner's `testInfo`) are not ported (PLAN, Decisions).
+  A returned `suggestedRebaseline` fails the matcher with it (`PlaywrightEx.Matchers.Expect`).
   """
 
   alias PlaywrightEx.Client.Frame

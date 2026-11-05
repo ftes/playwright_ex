@@ -24,6 +24,10 @@ defmodule PlaywrightEx.Matchers.Expect do
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
       `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones).
+      A screenshot is written to its `path`. An inline aria snapshot can't be written into the
+      test source without a test runner, so where upstream suggests a rebaseline (an empty
+      snapshot, or any under `:all` or a mismatch under `:changed`) the matcher fails with the
+      new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
@@ -145,8 +149,36 @@ defmodule PlaywrightEx.Matchers.Expect do
       raise ExpectError.new(matcher_result, custom_message, nil)
     else
       # step?.complete(result);  -- not ported: test steps
+      # deviation: no test runner writes a `suggestedRebaseline` into the test source (the
+      # dispatcher's addSuggestedRebaseline), so a result that carries one fails with it, after
+      # its `softError`. Otherwise an inline aria snapshot would pass without being compared.
+      if result[:suggestedRebaseline] do
+        message = suggested_rebaseline_message(result)
+
+        matcher_result =
+          result
+          |> Map.merge(%{name: matcher_name, message: message})
+          |> Map.reject(fn {_key, value} -> value == nil end)
+
+        raise ExpectError.new(matcher_result, custom_message, nil)
+      end
+
       :ok
     end
+  end
+
+  # Elixir only: the message of a `suggestedRebaseline` that is not written (see above). The
+  # rebaseline is a JS template literal with `{indent}` placeholders; its body is printed.
+  defp suggested_rebaseline_message(result) do
+    rebaseline =
+      result.suggestedRebaseline
+      |> String.replace("{indent}", "")
+      |> String.trim_leading("`\n")
+      |> String.trim_trailing("\n`")
+
+    soft_error = if result[:softError], do: Exception.message(result.softError) <> "\n"
+
+    "#{soft_error}Inline snapshots are not updated without a test runner. New snapshot:\n\n#{rebaseline}"
   end
 
   # expectLibrary.ts getMessage
