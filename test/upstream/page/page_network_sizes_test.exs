@@ -67,7 +67,17 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     assert sizes.responseBodySize == File.stat!(asset.("simplezip.json")).size
   end
 
-  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
+  @tag skip:
+         (cond do
+            @browser_name == "firefox" ->
+              "upstream fixme: firefox"
+
+            @browser_name == "webkit" and not match?({:unix, :darwin}, :os.type()) ->
+              "upstream fixme: webkit on non-darwin"
+
+            true ->
+              nil
+          end)
   test "should have the correct responseBodySize for chunked request", %{
     page: page,
     server: server,
