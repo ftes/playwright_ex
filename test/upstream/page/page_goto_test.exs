@@ -127,17 +127,18 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   end
 
   for cross_origin_embedder_policy <- [nil, "require-corp"] do
-    @cross_origin_embedder_policy cross_origin_embedder_policy
+    @coep_headers if(cross_origin_embedder_policy,
+                    do: [{"cross-origin-embedder-policy", cross_origin_embedder_policy}],
+                    else: []
+                  )
     test "should work with Cross-Origin-Opener-Policy#{if cross_origin_embedder_policy, do: " and Cross-Origin-Embedder-Policy"} and history state",
          %{page: page, server: server} do
       TestServer.set_route(server, "/empty.html", fn conn ->
         conn
         |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
-        |> then(fn conn ->
-          if policy = @cross_origin_embedder_policy,
-            do: Plug.Conn.put_resp_header(conn, "cross-origin-embedder-policy", policy),
-            else: conn
-        end)
+        |> then(
+          &Enum.reduce(@coep_headers, &1, fn {name, value}, conn -> Plug.Conn.put_resp_header(conn, name, value) end)
+        )
         |> Plug.Conn.send_resp(200, """
           <!doctype html>
           <h1>hello</h1>
