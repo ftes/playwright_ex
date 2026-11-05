@@ -238,15 +238,12 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       end
     end
 
-    cond do
-      reason == "gc" ->
-        _release(this.table, this.guid)
-
-      true ->
-        :ets.insert(this.table, {{_anchor(this), {:retained, this.guid}}, true})
+    if reason == "gc" do
+      _release(this.table, this.guid)
+    else
+      :ets.insert(this.table, {{_anchor(this), {:retained, this.guid}}, true})
+      :ets.insert(this.table, {{this.guid, :__retained__}, true})
     end
-
-    if reason != "gc", do: :ets.insert(this.table, {{this.guid, :__retained__}, true})
   end
 
   defp _anchor(this) do
