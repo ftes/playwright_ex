@@ -38,8 +38,8 @@ defmodule PlaywrightEx.Library.LoggerTest do
     Browser.close!(browser)
 
     log = Agent.get(log, & &1)
-    assert length(log) > 0
-    assert Enum.count(log, &String.contains?(&1.message, "page.setContent")) > 0
-    assert Enum.count(log, &String.contains?(&1.message, "page.click")) > 0
+    assert log != []
+    assert Enum.any?(log, &String.contains?(&1.message, "page.setContent"))
+    assert Enum.any?(log, &String.contains?(&1.message, "page.click"))
   end
 end

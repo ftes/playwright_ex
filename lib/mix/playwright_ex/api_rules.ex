@@ -342,16 +342,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
         member
 
       names ->
-        args =
-          for arg <- member["args"] do
-            if arg["name"] == "options",
-              do: update_in(arg, ["type", "properties"], &(&1 ++ Enum.map(names, fn name -> extra_option(name) end))),
-              else: arg
-          end
-
-        %{member | "args" => args}
+        %{
+          member
+          | "args" => Enum.map(member["args"], &add_options(&1, Enum.map(names, fn name -> extra_option(name) end)))
+        }
     end
   end
+
+  defp add_options(%{"name" => "options"} = arg, props), do: update_in(arg, ["type", "properties"], &(&1 ++ props))
+  defp add_options(arg, _props), do: arg
 
   defp extra_option("defaultBrowserType" = name) do
     %{
