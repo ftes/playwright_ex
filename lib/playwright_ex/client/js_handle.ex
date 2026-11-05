@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Client.JSHandle do
     from(result.handle)
   end
 
-  # `Map<string, JSHandle>` is a map.
+  # deviation: `Map<string, JSHandle>` is a map, so the JS insertion order is lost.
   def get_properties(this) do
     for %{name: name, value: value} <-
           channel_call(this, :getPropertyList, %{}, TimeoutSettings.k_no_timeout()).properties,
