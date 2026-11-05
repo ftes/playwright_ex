@@ -129,7 +129,12 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   ## Reactions
 
-  @doc "`promise.then(on_fulfilled)`: lazy, runs in the awaiting process."
+  @doc """
+  `promise.then(on_fulfilled)`: lazy, runs in the awaiting process, so only when the derived
+  promise is awaited (raced). A reaction run for its side effect, which nothing awaits
+  (`p.then(sideEffect)`), is `void(fn -> side_effect.(await(p)) end)` (`p` a latch: another
+  process awaits it); JS runs it when `p` settles.
+  """
   def then_(%__MODULE__{} = promise, on_fulfilled) do
     add_handler(promise, fn
       {:ok, value} -> safe(fn -> {:ok, on_fulfilled.(value)} end)
@@ -137,7 +142,7 @@ defmodule PlaywrightEx.Runtime.Promise do
     end)
   end
 
-  @doc "`promise.catch(on_rejected)`: lazy, runs in the awaiting process."
+  @doc "`promise.catch(on_rejected)`: lazy, as `then_/2` (an un-awaited `p.catch(log)` never runs)."
   def catch_(%__MODULE__{} = promise, on_rejected) do
     add_handler(promise, fn
       {:error, error} -> safe(fn -> {:ok, on_rejected.(error)} end)
