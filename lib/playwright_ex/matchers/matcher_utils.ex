@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Matchers.MatcherUtils do
   # --- jest-matcher-utils internals ---------------------------------------------
 
   defp replace_trailing_spaces(text),
-    do: Regex.replace(~r/\s+$/m, text, fn spaces -> String.duplicate("·", String.length(spaces)) end)
+    do: Regex.replace(~r/\s+$/mu, text, fn spaces -> String.duplicate("·", String.length(spaces)) end)
 
   defp get_type(nil), do: "undefined"
   defp get_type(:null), do: "null"

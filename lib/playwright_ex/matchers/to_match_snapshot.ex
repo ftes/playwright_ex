@@ -430,7 +430,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
 
   # determineFileExtension, compareMagicBytes  -- not ported: toMatchSnapshot
 
-  defp load_screenshot_styles(nil), do: nil
+  defp load_screenshot_styles(style_path) when style_path in [nil, ""], do: nil
 
   defp load_screenshot_styles(style_path) do
     style_paths = if is_list(style_path), do: style_path, else: [style_path]
