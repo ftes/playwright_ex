@@ -150,8 +150,11 @@ defmodule PlaywrightEx.Utils do
   end
 
   def round_box(box) do
-    %{x: round(box.x), y: round(box.y), width: round(box.width), height: round(box.height)}
+    %{x: math_round(box.x), y: math_round(box.y), width: math_round(box.width), height: math_round(box.height)}
   end
+
+  # `Math.round` rounds halves up (`Math.round(-2.5) === -2`); `round/1` rounds them away from zero.
+  defp math_round(x), do: floor(x + 0.5)
 
   # unshift, stripAnsi, inheritAndCleanEnv  -- not ported: not needed yet
 
@@ -258,11 +261,11 @@ defmodule PlaywrightEx.Utils do
   `expect(fn).toPass(options)` (`expect.ts`): calls `fun` until it returns without raising
   (an `ExUnit.AssertionError` or any other exception), with upstream's default `intervals`
   (100, 250, 500, 1000 ms) until `timeout` (default: the test timeout of upstream's
-  `tests/library/playwright.config.ts`, 30 s). Returns `fun`'s value; re-raises the last error
-  on timeout.
+  `tests/library/playwright.config.ts`, `PlaywrightEx.UpstreamCase.timeout/0`). Returns `fun`'s
+  value; re-raises the last error on timeout.
   """
   def to_pass(fun, options \\ []) do
-    timeout = Keyword.get(options, :timeout, 30_000)
+    timeout = Keyword.get_lazy(options, :timeout, &PlaywrightEx.UpstreamCase.timeout/0)
     intervals = Keyword.get(options, :intervals, [100, 250, 500, 1000])
     deadline = System.monotonic_time(:millisecond) + timeout
     do_to_pass(fun, intervals, deadline)
@@ -283,6 +286,24 @@ defmodule PlaywrightEx.Utils do
       Keyword.put_new_lazy(options, :timeout, fn -> Application.fetch_env!(:playwright_ex, :expect)[:timeout] end)
     )
   end
+
+  @doc """
+  `expect(value).toBeTruthy()` on a value decoded from JS (`PlaywrightEx.Protocol.Serializers`):
+  `:null` (`null`) and `:nan` (`NaN`) are truthy in Elixir, falsy in JS, as are `0`, `-0` and `""`.
+  """
+  def assert_truthy(value) do
+    ExUnit.Assertions.assert(js_truthy?(value), "expected #{inspect(value)} to be truthy (JS)")
+    value
+  end
+
+  @doc "`expect(value).toBeFalsy()` on a value decoded from JS, see `assert_truthy/1`."
+  def assert_falsy(value) do
+    ExUnit.Assertions.assert(not js_truthy?(value), "expected #{inspect(value)} to be falsy (JS)")
+    value
+  end
+
+  @doc "JS truthiness of a decoded value: falsy are `false`, `nil` (`undefined`), `:null`, `:nan`, `0`, `-0` and `\"\"`."
+  def js_truthy?(value), do: value not in [false, nil, :null, :nan, ""] and not (is_number(value) and value == 0)
 
   defp do_to_pass(fun, intervals, deadline) do
     fun.()
