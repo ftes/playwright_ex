@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Frame do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
@@ -701,7 +702,7 @@ defmodule PlaywrightEx.Client.Frame do
         rescue
           e ->
             cond do
-              is_struct(e, Errors.AbortError) ->
+              is_struct(e, AbortError) ->
                 %{
                   matches: !!params.isNot,
                   errorMessage: "Error: " <> AbortSignal.assertion_aborted_message(Map.get(e, :cause))

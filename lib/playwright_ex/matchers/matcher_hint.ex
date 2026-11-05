@@ -10,23 +10,6 @@ defmodule PlaywrightEx.Matchers.MatcherHint do
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Runtime.Heap
 
-  defmodule ExpectError do
-    @moduledoc """
-    JS `ExpectError`: a failed matcher (`PlaywrightEx.Expect`). `matcherResult` mirrors JS: a map
-    with `name`, `message`, `pass`, `expected`, `actual`, `log`, `timeout`, `ariaSnapshot` (keys
-    whose JS value is `undefined` are left out).
-    """
-    defexception message: "", name: "Error", matcherResult: nil, stack: ""
-
-    def new(matcher_result, custom_message, _stack_frames) do
-      message = matcher_result.message
-      message = if custom_message not in [nil, ""], do: custom_message <> "\n\n" <> message, else: message
-
-      # this.stack = this.name + ': ' + this.message + '\n' + stringifyStackFrames(stackFrames).join('\n');  -- not ported: Elixir stack traces
-      %__MODULE__{message: message, matcherResult: matcher_result}
-    end
-  end
-
   def expect_types(receiver, types, matcher_name) do
     if receiver_api_name(receiver) not in types do
       receiver_string =

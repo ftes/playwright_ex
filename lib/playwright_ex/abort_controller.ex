@@ -5,16 +5,16 @@ defmodule PlaywrightEx.AbortController do
       controller = PlaywrightEx.AbortController.new()
       signal = PlaywrightEx.AbortController.signal(controller)
       Task.start(fn -> Process.sleep(1000); PlaywrightEx.AbortController.abort(controller) end)
-      {:error, %PlaywrightEx.Client.Errors.AbortError{}} = PlaywrightEx.Locator.click(button, signal: signal, timeout: 0)
+      {:error, %PlaywrightEx.AbortError{}} = PlaywrightEx.Locator.click(button, signal: signal, timeout: 0)
 
-  Any process can abort. The calls fail with `PlaywrightEx.Client.Errors.AbortError`, whose
+  Any process can abort. The calls fail with `PlaywrightEx.AbortError`, whose
   `cause` is the reason; matchers fail like a timeout ("The assertion was aborted").
 
   Runtime support (not ported from upstream). Deviation: a controller belongs to one driver
   (its event loop), see `new/1`.
   """
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.AbortSignal
-  alias PlaywrightEx.Client.Errors.AbortError
   alias PlaywrightEx.Runtime.EventLoop
 
   defstruct [:signal]

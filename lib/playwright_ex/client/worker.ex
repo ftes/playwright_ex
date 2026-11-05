@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Client.Worker do
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Isomorphic.LongStandingScope
+  alias PlaywrightEx.TargetClosedError
 
   def from_nullable(worker) do
     if worker, do: from(worker)
@@ -48,10 +49,10 @@ defmodule PlaywrightEx.Client.Worker do
 
   def _close_error_with_reason(this) do
     if close_reason = get(this, :_closeReason) do
-      Errors.TargetClosedError.new(close_reason)
+      TargetClosedError.new(close_reason)
     else
       page = get(this, :_page)
-      (page && Page._close_error_with_reason(page)) || Errors.TargetClosedError.new()
+      (page && Page._close_error_with_reason(page)) || TargetClosedError.new()
     end
   end
 

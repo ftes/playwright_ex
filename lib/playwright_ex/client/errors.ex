@@ -1,45 +1,16 @@
 defmodule PlaywrightEx.Client.Errors do
   @upstream "packages/playwright-core/src/client/errors.ts"
   @moduledoc """
-  Port of `#{@upstream}`. Each JS error class is an exception with the JS fields
-  (`name`, `log`, `details`, `stack`, `code`, `cause`); `e instanceof PlaywrightError`
-  becomes `is_playwright_error/1`.
+  Port of `#{@upstream}`. Each JS error class is a top-level exception with the JS fields
+  (`name`, `log`, `details`, `stack`, `code`, `cause`): `PlaywrightEx.PlaywrightError`,
+  `PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError`, `PlaywrightEx.AbortError`;
+  `e instanceof PlaywrightError` becomes `is_playwright_error/1`.
   """
+  alias PlaywrightEx.AbortError
+  alias PlaywrightEx.PlaywrightError
   alias PlaywrightEx.Protocol.Serializers
-
-  defmodule PlaywrightError do
-    @moduledoc "JS `PlaywrightError` (`name` is `\"Error\"` unless the server says otherwise)."
-    defexception message: "", name: "Error", log: [], details: nil, stack: "", code: nil, cause: nil
-  end
-
-  defmodule TimeoutError do
-    @moduledoc "JS `TimeoutError`."
-    defexception message: "", name: "TimeoutError", log: [], details: nil, stack: "", code: nil, cause: nil
-  end
-
-  defmodule TargetClosedError do
-    @moduledoc "JS `TargetClosedError`."
-    defexception message: "Target page, context or browser has been closed",
-                 name: "Error",
-                 log: [],
-                 details: nil,
-                 stack: "",
-                 code: nil,
-                 cause: nil
-
-    def new(cause \\ nil), do: %__MODULE__{message: cause || "Target page, context or browser has been closed"}
-  end
-
-  defmodule AbortError do
-    @moduledoc "JS `AbortError`."
-    defexception message: "The operation was aborted",
-                 name: "AbortError",
-                 log: [],
-                 details: nil,
-                 stack: "",
-                 code: nil,
-                 cause: nil
-  end
+  alias PlaywrightEx.TargetClosedError
+  alias PlaywrightEx.TimeoutError
 
   # `e instanceof PlaywrightError` (the class hierarchy flattened into a membership test)
   def is_playwright_error(e),

@@ -3,8 +3,8 @@ defmodule PlaywrightExTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.PlaywrightError
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.TestBrowser
 
@@ -50,13 +50,13 @@ defmodule PlaywrightExTest do
   end
 
   test "protocol errors carry the API name and the call log", %{playwright: playwright} do
-    assert {:error, %Errors.PlaywrightError{} = error} =
+    assert {:error, %PlaywrightError{} = error} =
              BrowserType.launch(TestBrowser.browser_type(playwright), executable_path: "/nonexistent/chrome")
 
     assert error.message =~ ~r/^browserType\.launch: .*\/nonexistent\/chrome/
     assert is_list(error.log)
 
-    assert_raise Errors.PlaywrightError, ~r/^browserType\.launch: /, fn ->
+    assert_raise PlaywrightError, ~r/^browserType\.launch: /, fn ->
       BrowserType.launch!(TestBrowser.browser_type(playwright), executable_path: "/nonexistent/chrome")
     end
   end

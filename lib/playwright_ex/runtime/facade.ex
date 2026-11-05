@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Runtime.Facade do
   (options), `{:fields, %{js_key => type}}` (a nested object), `{:array, type}`, `{:enum, %{atom => string}}`
   or `{:union, [type]}`.
   """
-  alias PlaywrightEx.Matchers.MatcherHint.ExpectError
+  alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.GC
   alias PlaywrightEx.Runtime.Promise
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Runtime.Facade do
 
   @doc """
   Runs a matcher (`PlaywrightEx.Expect`): `:ok`, or `{:error, exception}` for anything it raises
-  (`PlaywrightEx.Matchers.MatcherHint.ExpectError` when the expectation is not met). The API name
+  (`PlaywrightEx.ExpectError` when the expectation is not met). The API name
   comes from the matcher's title (`Expect "toHaveText"`), as upstream's does.
   """
   def matcher(receiver, fun), do: async_void(nil, receiver, fun)

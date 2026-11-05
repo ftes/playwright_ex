@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Client.Playwright do
     local_utils = Connection.local_utils(get(this, :_connection))
     put(this, :devices, (local_utils && get(local_utils, :devices)) || %{})
     put(this, :selectors, Selectors.new())
-    put(this, :errors, %{TimeoutError: PlaywrightEx.Client.Errors.TimeoutError})
+    put(this, :errors, %{TimeoutError: PlaywrightEx.TimeoutError})
     this
   end
 

@@ -3,12 +3,13 @@ defmodule PlaywrightEx.Client.Page do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ClientHelper
-  alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Coverage
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.DisposableStub
@@ -44,6 +45,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
   alias PlaywrightEx.Protocol.Serializers
+  alias PlaywrightEx.TargetClosedError
 
   def from(page) do
     page
@@ -151,7 +153,7 @@ defmodule PlaywrightEx.Client.Page do
     end)
 
     once(this, Events.Page.crash(), fn _ ->
-      LongStandingScope.close(get(this, :_closedOrCrashedScope), Errors.TargetClosedError.new())
+      LongStandingScope.close(get(this, :_closedOrCrashedScope), TargetClosedError.new())
     end)
 
     _set_event_to_subscription_mapping(this, %{
@@ -606,7 +608,7 @@ defmodule PlaywrightEx.Client.Page do
   end
 
   def _close_error_with_reason(this) do
-    Errors.TargetClosedError.new(
+    TargetClosedError.new(
       get(this, :_closeReason) || BrowserContext._effective_close_reason(get(this, :_browserContext))
     )
   end
@@ -873,7 +875,7 @@ defmodule PlaywrightEx.Client.Page do
         rescue
           e ->
             cond do
-              is_struct(e, Errors.AbortError) ->
+              is_struct(e, AbortError) ->
                 %{errorMessage: "Error: " <> AbortSignal.assertion_aborted_message(Map.get(e, :cause))}
 
               !Errors.is_playwright_error(e) ->
@@ -1249,10 +1251,12 @@ defmodule PlaywrightEx.Client.BindingCall do
   @moduledoc "Port of `#{@upstream}` (`class BindingCall`)."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Page
+  alias PlaywrightEx.TargetClosedError
 
   def from(channel) do
     channel

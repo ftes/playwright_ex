@@ -3,9 +3,9 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.AbortController
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
+  alias PlaywrightEx.TimeoutError
 
   @moduletag :page
 

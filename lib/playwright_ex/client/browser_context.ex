@@ -8,11 +8,11 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.CDPSession
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Clock
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Credentials
   alias PlaywrightEx.Client.Debugger
   alias PlaywrightEx.Client.Dialog
-  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.DisposableObject
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.Errors
@@ -34,6 +34,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.TargetClosedError
 
   def from(context) do
     context
@@ -559,7 +560,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
       if event != Events.BrowserContext.close(),
         do:
           Waiter.reject_on_event(waiter, this, Events.BrowserContext.close(), fn ->
-            Errors.TargetClosedError.new(_effective_close_reason(this))
+            TargetClosedError.new(_effective_close_reason(this))
           end)
 
       result = Waiter.wait_for_event(waiter, this, event, predicate)

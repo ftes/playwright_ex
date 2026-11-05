@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Client.Connection do
 
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.AbortSignal
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.Artifact
@@ -49,6 +50,7 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.TargetClosedError
 
   defstruct [:guid, :loop, :heap]
 
@@ -187,7 +189,7 @@ defmodule PlaywrightEx.Client.Connection do
 
       true ->
         signal = options[:signal]
-        if signal && AbortSignal.aborted(signal), do: raise(%Errors.AbortError{cause: AbortSignal.reason(signal)})
+        if signal && AbortSignal.aborted(signal), do: raise(%AbortError{cause: AbortSignal.reason(signal)})
 
         guid = object.guid
         type = get(object, :_type)
@@ -288,7 +290,7 @@ defmodule PlaywrightEx.Client.Connection do
       parsed_error = Errors.parse_error(error)
 
       parsed_error =
-        if callback.signal && AbortSignal.aborted(callback.signal) && is_struct(parsed_error, Errors.AbortError),
+        if callback.signal && AbortSignal.aborted(callback.signal) && is_struct(parsed_error, AbortError),
           do: %{parsed_error | cause: AbortSignal.reason(callback.signal)},
           else: parsed_error
 
@@ -347,7 +349,7 @@ defmodule PlaywrightEx.Client.Connection do
 
   def close(this, cause \\ nil) do
     if !get(this, :_closedError) do
-      put(this, :_closedError, Errors.TargetClosedError.new(cause))
+      put(this, :_closedError, TargetClosedError.new(cause))
       for callback <- map_values(this, :_callbacks), do: callback.reject.(get(this, :_closedError))
       map_clear(this, :_callbacks)
       emit(this, "close")

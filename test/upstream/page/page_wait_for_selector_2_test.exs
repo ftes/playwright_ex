@@ -2,13 +2,13 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
   @upstream "tests/page/page-wait-for-selector-2.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Utils
 
   @moduletag :page

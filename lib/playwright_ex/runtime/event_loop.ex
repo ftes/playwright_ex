@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   that died while queued or suspended is not granted the baton (a caller's `Task` killed with
   its test), and a callback or task still running when the server stops (its heaps, ETS tables
   owned by the server, are gone) is not reported as uncaught. Acquiring or awaiting on a stopped
-  loop raises `PlaywrightEx.Client.Errors.TargetClosedError` ("Playwright driver closed"), as a
+  loop raises `PlaywrightEx.TargetClosedError` ("Playwright driver closed"), as a
   call after the connection closed fails (the driver connection closes before the loop stops).
   """
   use GenServer
@@ -198,7 +198,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
     end
   end
 
-  defp loop_stopped, do: PlaywrightEx.Client.Errors.TargetClosedError.new("Playwright driver closed")
+  defp loop_stopped, do: PlaywrightEx.TargetClosedError.new("Playwright driver closed")
 
   @doc "Give the baton back: to the server, or to the process that handed it over."
   def release do

@@ -5,10 +5,10 @@ defmodule PlaywrightEx.Client.WaiterTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestBrowser
+  alias PlaywrightEx.TimeoutError
 
   @moduletag timeout: 120_000
 
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Client.WaiterTest do
     assert Task.await(waiting) == browser
 
     error =
-      assert_raise Errors.TimeoutError, fn ->
+      assert_raise TimeoutError, fn ->
         Api.call("browser.waitForEvent", browser, fn ->
           waiter = Waiter.create_for_event(browser, "disconnected")
 

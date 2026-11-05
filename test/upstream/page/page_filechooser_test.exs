@@ -5,13 +5,13 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   import PlaywrightEx.Utils, only: [attach_frame: 3]
 
   alias PlaywrightEx.AbortController
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.FileChooser
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.TimeoutError
 
   @moduletag :page
 

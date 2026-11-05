@@ -69,7 +69,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # BrowserType.launchServer: out of scope (PLAN); also dropped with BrowserServer, its result.
   @dropped_members ~w(BrowserType.launchServer)
 
-  # Exceptions (`PlaywrightEx.Client.Errors.TimeoutError`), JS classes in api.json.
+  # Exceptions (`PlaywrightEx.TimeoutError`), JS classes in api.json.
   @exception_classes ~w(TimeoutError)
 
   # `session.on("Network.requestWillBeSent", ...)`: types.d.ts overloads `on` per CDP event.
@@ -209,7 +209,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "as functions of their receiver. `expect(locator).toHaveText(expected)` is " <>
             "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
             "`not_to_have_text(locator, expected)`. They retry until the expectation is met or the timeout " <>
-            "(5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.Matchers.MatcherHint.ExpectError{}}` " <>
+            "(5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
             "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
       }
       | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]

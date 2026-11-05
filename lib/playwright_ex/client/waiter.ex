@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Waiter do
   @moduledoc "Port of `#{@upstream}`."
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.AbortSignal
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Connection
@@ -10,6 +11,7 @@ defmodule PlaywrightEx.Client.Waiter do
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.TimeoutError
 
   defstruct [:guid, :loop, :heap]
 
@@ -94,12 +96,12 @@ defmodule PlaywrightEx.Client.Waiter do
     signal = options[:signal]
 
     if signal && AbortSignal.aborted(signal) do
-      reject_immediately(this, %Errors.AbortError{cause: AbortSignal.reason(signal)})
+      reject_immediately(this, %AbortError{cause: AbortSignal.reason(signal)})
     else
       if signal do
         # `let rejectPromise` assigned inside the executor: the promise is settled from outside.
         promise = Promise.new()
-        listener = fn -> Promise.reject(promise, %Errors.AbortError{cause: AbortSignal.reason(signal)}) end
+        listener = fn -> Promise.reject(promise, %AbortError{cause: AbortSignal.reason(signal)}) end
         AbortSignal.add_event_listener(signal, "abort", listener, %{once: true})
         _reject_on(this, promise, fn -> AbortSignal.remove_event_listener(signal, "abort", listener) end)
       end
@@ -109,7 +111,7 @@ defmodule PlaywrightEx.Client.Waiter do
 
         _reject_on(
           this,
-          Promise.then_(promise, fn _ -> raise Errors.TimeoutError, message: timeout_message end),
+          Promise.then_(promise, fn _ -> raise TimeoutError, message: timeout_message end),
           dispose
         )
       end

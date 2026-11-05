@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
   `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
-  `MatcherResult` map; a failed one raises `PlaywrightEx.Matchers.MatcherHint.ExpectError`.
+  `MatcherResult` map; a failed one raises `PlaywrightEx.ExpectError`.
 
   Deviations: there is no test runner (`testInfo` is `null`, so no steps, soft assertions or
   test deadlines) and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
@@ -29,8 +29,8 @@ defmodule PlaywrightEx.Matchers.Expect do
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
   """
 
+  alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Isomorphic.StringUtils
-  alias PlaywrightEx.Matchers.MatcherHint.ExpectError
   alias PlaywrightEx.Matchers.MatcherUtils
   alias PlaywrightEx.Matchers.Matchers
   alias PlaywrightEx.Matchers.ToMatchAriaSnapshot

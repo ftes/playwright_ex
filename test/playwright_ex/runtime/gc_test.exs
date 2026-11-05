@@ -1,11 +1,11 @@
 defmodule PlaywrightEx.Runtime.GCTest do
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Client.Errors.TargetClosedError
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.GC
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Promise
+  alias PlaywrightEx.TargetClosedError
 
   defmodule Obj do
     @moduledoc false

@@ -7,13 +7,13 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   import ExUnit.CaptureLog
 
   alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Utils
 
   @moduletag :page

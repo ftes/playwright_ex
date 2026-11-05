@@ -4,10 +4,10 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.TimeoutError
 
   @moduletag :page
 

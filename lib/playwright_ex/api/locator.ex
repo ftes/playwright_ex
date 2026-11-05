@@ -454,7 +454,7 @@ defmodule PlaywrightEx.Locator do
   If the element is detached from the DOM at any moment during the action, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   **Usage**
 
@@ -639,7 +639,7 @@ defmodule PlaywrightEx.Locator do
   If the element is detached from the DOM at any moment during the action, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   **Usage**
 
@@ -800,7 +800,7 @@ defmodule PlaywrightEx.Locator do
   If the element is detached from the DOM at any moment during the action, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Note {: .info}
   >
@@ -2371,7 +2371,7 @@ defmodule PlaywrightEx.Locator do
   If the element is detached from the DOM at any moment during the action, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   ## Options
 
@@ -3542,7 +3542,7 @@ defmodule PlaywrightEx.Locator do
   1. Ensure that the element is now checked or unchecked. If not, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   ## Arguments
 
@@ -3757,7 +3757,7 @@ defmodule PlaywrightEx.Locator do
   If the element is detached from the DOM at any moment during the action, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Note {: .info}
   >
@@ -3976,7 +3976,7 @@ defmodule PlaywrightEx.Locator do
   If the element is detached from the DOM at any moment during the action, this method throws.
 
   When all steps combined have not finished during the specified `timeout`, this method throws a
-  [`TimeoutError`](`PlaywrightEx.Client.Errors.TimeoutError`). Passing zero timeout disables this.
+  [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   ## Options
 

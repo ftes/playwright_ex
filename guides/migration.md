@@ -313,7 +313,9 @@ Playwright CLI).
 
 ### Errors
 
-Errors are exceptions named after the JS classes, with the JS message (API name prefix and call
+Errors are exceptions named after the JS classes (`PlaywrightEx.PlaywrightError` for JS `Error`,
+`PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError`, `PlaywrightEx.AbortError`, and
+`PlaywrightEx.ExpectError` for failed assertions), with the JS message (API name prefix and call
 log) and a `log` field:
 
 ```elixir
@@ -321,7 +323,7 @@ log) and a `log` field:
 {:error, %{error: %{name: "TimeoutError", message: message}}} = Frame.click(frame.guid, selector: "#x", timeout: 100)
 
 # after
-alias PlaywrightEx.Client.Errors.TimeoutError
+alias PlaywrightEx.TimeoutError
 {:error, %TimeoutError{message: "locator.click: Timeout 100ms exceeded" <> _, log: log}} =
   Page.locator(page, "#x") |> Locator.click(timeout: 100)
 ```

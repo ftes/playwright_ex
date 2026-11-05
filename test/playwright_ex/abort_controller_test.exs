@@ -2,8 +2,8 @@ defmodule PlaywrightEx.AbortControllerTest do
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.AbortController
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.AbortSignal
-  alias PlaywrightEx.Client.Errors.AbortError
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
 

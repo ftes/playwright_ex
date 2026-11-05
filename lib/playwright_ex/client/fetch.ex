@@ -163,6 +163,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   alias PlaywrightEx.Client.Tracing
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.TargetClosedError
 
   def from(channel) do
     channel
@@ -245,7 +246,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
   def _inner_fetch(this, options \\ %{}) do
     _wrap_api_call(this, fn _ ->
-      if get(this, :_closeReason), do: raise(Errors.TargetClosedError.new(get(this, :_closeReason)))
+      if get(this, :_closeReason), do: raise(TargetClosedError.new(get(this, :_closeReason)))
       assert(options[:request] || is_binary(options[:url]), "First argument must be either URL string or Request")
 
       assert(
@@ -391,6 +392,7 @@ defmodule PlaywrightEx.Client.APIResponse do
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.TimeoutSettings
+  alias PlaywrightEx.TargetClosedError
 
   defstruct [:_initializer, :_headers, :_request, _apiName: "APIResponse"]
 

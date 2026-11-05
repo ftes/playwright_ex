@@ -15,9 +15,9 @@ defmodule PlaywrightEx.Runtime.Heap do
   connection's table is deleted once nothing in it is reachable: reading a handle from it raises
   `TargetClosedError`.
   """
-  alias PlaywrightEx.Client.Errors.TargetClosedError
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.GC
+  alias PlaywrightEx.TargetClosedError
 
   @doc "`new X()` for a runtime object: lives in the heap of the current loop (see `EventLoop.current!/0`)."
   def new_object(module, guid \\ make_ref()) do

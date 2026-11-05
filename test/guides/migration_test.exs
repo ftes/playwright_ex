@@ -3,11 +3,10 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.AbortController
+  alias PlaywrightEx.AbortError
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.Errors.AbortError
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Dialog
   alias PlaywrightEx.Download
@@ -22,6 +21,7 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestBrowser
+  alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.WebError
 

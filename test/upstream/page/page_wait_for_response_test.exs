@@ -2,10 +2,10 @@ defmodule PlaywrightEx.Page.PageWaitForResponseTest do
   @upstream "tests/page/page-wait-for-response.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
+  alias PlaywrightEx.TimeoutError
 
   @moduletag :page
 

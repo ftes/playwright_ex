@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Playwright do
   }
   ```
   """
-  @spec errors(t()) :: %{TimeoutError: PlaywrightEx.Client.Errors.TimeoutError}
+  @spec errors(t()) :: %{TimeoutError: PlaywrightEx.TimeoutError}
   def errors(playwright) do
     PlaywrightEx.Client.Playwright.errors(playwright)
   end

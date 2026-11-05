@@ -638,7 +638,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   # Exceptions by JS class name.
-  @errors %{"TimeoutError" => PlaywrightEx.Client.Errors.TimeoutError}
+  @errors %{"TimeoutError" => PlaywrightEx.TimeoutError}
 
   @simple %{
     "string" => "String.t()",

@@ -5,7 +5,7 @@ defmodule PlaywrightEx.AbortSignal do
       controller = PlaywrightEx.AbortController.new()
       task = Task.async(fn -> PlaywrightEx.Locator.click(button, signal: PlaywrightEx.AbortController.signal(controller)) end)
       PlaywrightEx.AbortController.abort(controller, "user cancelled")
-      {:error, %PlaywrightEx.Client.Errors.AbortError{cause: "user cancelled"}} = Task.await(task)
+      {:error, %PlaywrightEx.AbortError{cause: "user cancelled"}} = Task.await(task)
 
   Runtime support (not ported from upstream): the part of the DOM class that Playwright uses
   (`aborted`, `reason`, `throwIfAborted`, `abort` listeners). The signal is an object of the
@@ -49,7 +49,7 @@ defmodule PlaywrightEx.AbortSignal do
     if aborted(this) do
       case reason(this) do
         %{__exception__: true} = e -> raise e
-        reason -> raise %PlaywrightEx.Client.Errors.AbortError{cause: reason}
+        reason -> raise %PlaywrightEx.AbortError{cause: reason}
       end
     end
 
