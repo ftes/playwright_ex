@@ -273,12 +273,13 @@ defmodule PlaywrightEx.Protocol.Serializers do
     if chain_string == "", do: "", else: ~s( at position "#{chain_string}")
   end
 
-  # RegExp flags <-> Regex options. JS-only flags (g, y, d, v) have no Regex equivalent.
+  # RegExp flags <-> Regex options. JS-only flags (g, y, d, v) have no Regex equivalent; a
+  # `Regex` JS cannot run raises (`RegExp.check_js_compatible!/1`).
   defp regex_options(flags), do: for(<<flag <- flags>>, flag in ~c"imsu", into: "", do: <<flag>>)
 
   @doc false
   def regex_flags(regex) do
-    opts = Regex.opts(regex)
+    opts = Regex.opts(PlaywrightEx.Isomorphic.RegExp.check_js_compatible!(regex))
     for {opt, flag} <- [caseless: "i", multiline: "m", dotall: "s", unicode: "u"], opt in opts, into: "", do: flag
   end
 end

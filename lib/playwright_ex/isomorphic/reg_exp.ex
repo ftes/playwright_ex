@@ -24,6 +24,62 @@ defmodule PlaywrightEx.Isomorphic.RegExp do
     }
   end
 
+  # Elixir only: a `Regex` stands in for a `RegExp` that the browser or driver runs. Raises on
+  # options and PCRE-only syntax JS cannot run; other differences (`$` before a final newline,
+  # `\w`/`\b` being Unicode-aware under `u`) are not detected.
+  @js_options [:caseless, :multiline, :dotall, {:newline, :anycrlf}, :unicode, :ucp, :export]
+  @pcre_only_escapes ~c"AzZGQEKRhHXCNeog"
+
+  @doc false
+  def check_js_compatible!(%Regex{} = regex) do
+    case Regex.opts(regex) -- @js_options do
+      [] -> :ok
+      opts -> raise ArgumentError, "Regex options #{inspect(opts)} have no JS RegExp equivalent: #{inspect(regex)}"
+    end
+
+    case pcre_only(Regex.source(regex), :unicode in Regex.opts(regex), false) do
+      nil -> regex
+      what -> raise ArgumentError, "#{what} is not JS RegExp syntax: #{inspect(regex)}"
+    end
+  end
+
+  defp pcre_only(<<?\\, c, _::binary>>, _unicode, _in_class) when c in @pcre_only_escapes, do: "\\#{<<c>>}"
+  defp pcre_only(<<"\\x{", _::binary>>, _unicode, _in_class), do: "\\x{...}"
+  defp pcre_only(<<?\\, c, _::binary>>, false, _in_class) when c in ~c"pP", do: "\\#{<<c>>} without the u modifier"
+
+  defp pcre_only(<<?\\, c, ?{, rest::binary>>, unicode, in_class) when c in ~c"pP",
+    do: pcre_only(rest |> String.split("}", parts: 2) |> List.last(), unicode, in_class)
+
+  defp pcre_only(<<?\\, _::utf8, rest::binary>>, unicode, in_class), do: pcre_only(rest, unicode, in_class)
+  defp pcre_only(<<?], rest::binary>>, unicode, true), do: pcre_only(rest, unicode, false)
+
+  defp pcre_only(<<"[:", rest::binary>>, unicode, true) do
+    if Regex.match?(~r/^\^?[a-z]+:\]/, rest), do: "a POSIX class [:...:]", else: pcre_only(rest, unicode, true)
+  end
+
+  defp pcre_only(<<_::utf8, rest::binary>>, unicode, true), do: pcre_only(rest, unicode, true)
+  defp pcre_only(<<?[, rest::binary>>, unicode, false), do: pcre_only(rest, unicode, true)
+
+  defp pcre_only(<<"(?", rest::binary>>, unicode, false) do
+    cond do
+      String.starts_with?(rest, [">", "|", "#", "P", "R", "&", "(", "+", "'"]) -> "(?#{String.first(rest)}"
+      Regex.match?(~r/^[0-9]/, rest) -> "(?#{String.first(rest)}"
+      Regex.match?(~r/^[\^a-zA-Z-]*\)/, rest) -> "an inline option group (?...)"
+      true -> pcre_only(rest, unicode, false)
+    end
+  end
+
+  defp pcre_only(<<"(*", c, _::binary>>, _unicode, false) when c in ?A..?Z, do: "a backtracking verb (*...)"
+  defp pcre_only(<<c, ?+, _::binary>>, _unicode, false) when c in ~c"*+?", do: "a possessive quantifier #{<<c, ?+>>}"
+
+  defp pcre_only(<<?{, rest::binary>>, unicode, false) do
+    if Regex.match?(~r/^\d+(,\d*)?\}\+/, rest), do: "a possessive quantifier }+", else: pcre_only(rest, unicode, false)
+  end
+
+  defp pcre_only(<<_::utf8, rest::binary>>, unicode, false), do: pcre_only(rest, unicode, false)
+  defp pcre_only(<<_, rest::binary>>, unicode, in_class), do: pcre_only(rest, unicode, in_class)
+  defp pcre_only(<<>>, _unicode, _in_class), do: nil
+
   # String(re)
   def to_string(%__MODULE__{source: source, flags: flags}), do: "/#{source}/#{flags}"
 
