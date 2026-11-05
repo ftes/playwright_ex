@@ -533,7 +533,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **Module skips survive `@tag skip: nil`**: chromium-only modules combine their module
   reason into per-test skip expressions.
 - **Linux env skips** (confirmed with the upstream Node client): headless Firefox WebGL without
-  `DISPLAY` (revisit: run the firefox job under `xvfb-run`, as upstream's CI does); WebKit
+  `DISPLAY` (the firefox/webkit job now runs under `xvfb-run`, see below); WebKit
   Modernizr `inputtypes.month`; Firefox third-party Partitioned cookies on all OSes against a
   freshly started Bandit (mechanism unknown; revisit).
 - Race fixes: start racing waits with `Runtime.Promise.async` (a `Task` may start the call
@@ -579,3 +579,6 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `file:` drive letters. Revisit: a full WHATWG dependency, and its reuse where `URI.merge`
   still stands in for `new URL` (e.g. `browser_context.ex` service worker scope).
 - `toHaveURL` with a baseURL now normalizes like JS (IDN, spaces, default ports).
+- `ExUnit.start(assert_receive_timeout: 10_000)`: 139 mirrored tests use a bare
+  `assert_receive` where upstream awaits with only the test timeout. The 100 ms default flaked
+  on CI (multipart intercept).
