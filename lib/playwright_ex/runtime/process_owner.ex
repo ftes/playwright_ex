@@ -56,7 +56,8 @@ defmodule PlaywrightEx.Runtime.ProcessOwner do
     # Pending awaiters of its latches would wait forever: reject them.
     for {{^pid, {:latch, _}}, {:pending, waiters}} <- :ets.select(state.table, [{{{pid, :_}, :_}, [], [:"$_"]}]),
         {waiter, wref} <- waiters,
-        do: send(waiter, {:pw, wref, {:error, PlaywrightEx.TargetClosedError.new("The promise's owner process exited")}})
+        do:
+          send(waiter, {:pw, wref, {:error, PlaywrightEx.TargetClosedError.new("The promise's owner process exited")}})
 
     :ets.select_delete(state.table, [{{{pid, :_}, :_}, [], [true]}])
     {:noreply, %{state | monitored: Map.delete(state.monitored, pid)}}

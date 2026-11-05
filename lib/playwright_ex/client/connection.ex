@@ -79,62 +79,62 @@ defmodule PlaywrightEx.Client.Connection do
   # which calls this in its `init`.
   def new(%__MODULE__{} = this, local_utils \\ nil, _instrumentation \\ nil, headers \\ []) do
     (fn ->
-      # super();
-      # Elixir only: messages are buffered by the connection process and written per turn.
-      put(this, :onmessage, &Conn.post/1)
-      put(this, :_nextCallId, create_call_id_generator())
-      put(this, :_isRemote, false)
-      put(this, :_rawBuffers, false)
-      put(this, :_tracingCount, 0)
-      # this._instrumentation = instrumentation || createInstrumentation();  -- not ported: instrumentation
-      put(this, :_localUtils, local_utils)
-      put(this, :_rootObject, Root.new(this))
-      put(this, :headers, headers)
-      # Android and Electron are DummyChannelOwners: not ported (android.ts, electron.ts are not in
-      # the JS api.json at this pin). SocksSupport is a DummyChannelOwner upstream too.
-      dummy = &DummyChannelOwner.new/4
+       # super();
+       # Elixir only: messages are buffered by the connection process and written per turn.
+       put(this, :onmessage, &Conn.post/1)
+       put(this, :_nextCallId, create_call_id_generator())
+       put(this, :_isRemote, false)
+       put(this, :_rawBuffers, false)
+       put(this, :_tracingCount, 0)
+       # this._instrumentation = instrumentation || createInstrumentation();  -- not ported: instrumentation
+       put(this, :_localUtils, local_utils)
+       put(this, :_rootObject, Root.new(this))
+       put(this, :headers, headers)
+       # Android and Electron are DummyChannelOwners: not ported (android.ts, electron.ts are not in
+       # the JS api.json at this pin). SocksSupport is a DummyChannelOwner upstream too.
+       dummy = &DummyChannelOwner.new/4
 
-      register_object_factories(this, %{
-        "Android" => dummy,
-        "AndroidDevice" => dummy,
-        "AndroidSocket" => dummy,
-        "APIRequestContext" => &APIRequestContext.new/4,
-        "Artifact" => &Artifact.new/4,
-        "BindingCall" => &BindingCall.new/4,
-        "Browser" => &Browser.new/4,
-        "BrowserContext" => &BrowserContext.new/4,
-        "BrowserType" => &BrowserType.new/4,
-        "CDPSession" => &CDPSession.new/4,
-        "Debugger" => &Debugger.new/4,
-        "Dialog" => &Dialog.new/4,
-        "Disposable" => &DisposableObject.new/4,
-        "Electron" => dummy,
-        "ElectronApplication" => dummy,
-        "ElementHandle" => &ElementHandle.new/4,
-        "Frame" => &Frame.new/4,
-        "JSHandle" => &JSHandle.new/4,
-        "JsonPipe" => &JsonPipe.new/4,
-        "LocalUtils" => fn parent, type, guid, init ->
-          result = LocalUtils.new(parent, type, guid, init)
-          if !get(this, :_localUtils), do: put(this, :_localUtils, result)
-          result
-        end,
-        "Page" => &Page.new/4,
-        "Playwright" => &Playwright.new/4,
-        "Request" => &Request.new/4,
-        "Response" => &Response.new/4,
-        "Route" => &Route.new/4,
-        "Stream" => &Stream.new/4,
-        "SocksSupport" => dummy,
-        "Tracing" => &Tracing.new/4,
-        "WebSocket" => &WebSocket.new/4,
-        "WebSocketRoute" => &WebSocketRoute.new/4,
-        "Worker" => &Worker.new/4,
-        "WritableStream" => &WritableStream.new/4
-      })
+       register_object_factories(this, %{
+         "Android" => dummy,
+         "AndroidDevice" => dummy,
+         "AndroidSocket" => dummy,
+         "APIRequestContext" => &APIRequestContext.new/4,
+         "Artifact" => &Artifact.new/4,
+         "BindingCall" => &BindingCall.new/4,
+         "Browser" => &Browser.new/4,
+         "BrowserContext" => &BrowserContext.new/4,
+         "BrowserType" => &BrowserType.new/4,
+         "CDPSession" => &CDPSession.new/4,
+         "Debugger" => &Debugger.new/4,
+         "Dialog" => &Dialog.new/4,
+         "Disposable" => &DisposableObject.new/4,
+         "Electron" => dummy,
+         "ElectronApplication" => dummy,
+         "ElementHandle" => &ElementHandle.new/4,
+         "Frame" => &Frame.new/4,
+         "JSHandle" => &JSHandle.new/4,
+         "JsonPipe" => &JsonPipe.new/4,
+         "LocalUtils" => fn parent, type, guid, init ->
+           result = LocalUtils.new(parent, type, guid, init)
+           if !get(this, :_localUtils), do: put(this, :_localUtils, result)
+           result
+         end,
+         "Page" => &Page.new/4,
+         "Playwright" => &Playwright.new/4,
+         "Request" => &Request.new/4,
+         "Response" => &Response.new/4,
+         "Route" => &Route.new/4,
+         "Stream" => &Stream.new/4,
+         "SocksSupport" => dummy,
+         "Tracing" => &Tracing.new/4,
+         "WebSocket" => &WebSocket.new/4,
+         "WebSocketRoute" => &WebSocketRoute.new/4,
+         "Worker" => &Worker.new/4,
+         "WritableStream" => &WritableStream.new/4
+       })
 
-      this
-    end).()
+       this
+     end).()
   end
 
   def register_object_factories(this, factories) do
@@ -244,7 +244,8 @@ defmodule PlaywrightEx.Client.Connection do
                   method: method
                 })
 
-                get(this, :onmessage).(Map.put(message, :metadata, metadata))
+                onmessage = get(this, :onmessage)
+                onmessage.(Map.put(message, :metadata, metadata))
                 nil
               end
             end)
@@ -292,7 +293,16 @@ defmodule PlaywrightEx.Client.Connection do
     if !get(this, :_closedError) do
       id = get(this, :_nextCallId).()
       noop = fn _ -> nil end
-      map_set(this, :_callbacks, id, %{resolve: noop, reject: noop, signal: nil, title: nil, type: object.type, method: method})
+
+      map_set(this, :_callbacks, id, %{
+        resolve: noop,
+        reject: noop,
+        signal: nil,
+        title: nil,
+        type: object.type,
+        method: method
+      })
+
       metadata = %{internal: true, timeout: 0}
       get(this, :onmessage).(%{id: id, guid: object.guid, method: method, params: params, metadata: metadata})
     end

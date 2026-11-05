@@ -67,7 +67,10 @@ defmodule PlaywrightEx.Runtime.HeapTest do
   test "a process-local object raises in another process" do
     obj = new(:local)
     Heap.put(obj, :_x, 1)
-    assert {:error, %RuntimeError{message: message}} = Task.await(Task.async(fn -> safe(fn -> Heap.get(obj, :_x) end) end))
+
+    assert {:error, %RuntimeError{message: message}} =
+             Task.await(Task.async(fn -> safe(fn -> Heap.get(obj, :_x) end) end))
+
     assert message =~ "process-local object"
   end
 

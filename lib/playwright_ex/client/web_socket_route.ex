@@ -11,7 +11,6 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   """
   use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.WebSocketRoute
 
-
   def from(route) do
     route
   end

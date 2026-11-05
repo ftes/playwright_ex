@@ -107,17 +107,18 @@ defmodule PlaywrightEx.Client.Request do
         put(
           this,
           :_actualHeadersPromise,
-          Promise.async(fn ->
-            _wrap_api_call(
-              this,
-              fn _ ->
-                RawHeaders.new(channel_call(this, :rawRequestHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
-              end,
-              %{internal: true}
-            )
-          end,
-          owner: this
-        )
+          Promise.async(
+            fn ->
+              _wrap_api_call(
+                this,
+                fn _ ->
+                  RawHeaders.new(channel_call(this, :rawRequestHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
+                end,
+                %{internal: true}
+              )
+            end,
+            owner: this
+          )
         )
       end
 

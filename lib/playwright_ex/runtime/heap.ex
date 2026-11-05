@@ -220,7 +220,7 @@ defmodule PlaywrightEx.Runtime.Heap do
     |> Enum.sort()
     |> Enum.map(fn {_seq, key, value} -> {key, value} end)
   rescue
-    ArgumentError -> raise TargetClosedError.new()
+    ArgumentError -> reraise TargetClosedError.new(), __STACKTRACE__
   end
 
   def map_clear(%{table: nil} = obj, field),
@@ -254,6 +254,9 @@ defmodule PlaywrightEx.Runtime.Heap do
 
   defp check_local!(%{conn: creator} = obj) do
     if creator != self(),
-      do: raise("#{inspect(obj.__struct__)} is a process-local object of #{inspect(creator)}, used from #{inspect(self())}")
+      do:
+        raise(
+          "#{inspect(obj.__struct__)} is a process-local object of #{inspect(creator)}, used from #{inspect(self())}"
+        )
   end
 end

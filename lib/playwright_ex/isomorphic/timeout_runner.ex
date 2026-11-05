@@ -12,7 +12,9 @@ defmodule PlaywrightEx.Isomorphic.TimeoutRunner do
     # Note: not including "await" here truncates the async stack inside cb(), so always include it.
     try do
       Promise.await(
-        Promise.race([Promise.then_(Promise.async(cb), fn result -> %{result: result, timedOut: false} end) | timed_out])
+        Promise.race([
+          Promise.then_(Promise.async(cb), fn result -> %{result: result, timedOut: false} end) | timed_out
+        ])
       )
     after
       if timer, do: Promise.free(timer)

@@ -219,8 +219,7 @@ defmodule PlaywrightEx.Client.Page do
             handled = RouteHandler.handle(route_handler, route)
 
             if get(this, :_routes) == [],
-              do:
-                Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
+              do: Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
 
             if handled, do: {:halt, true}, else: {:cont, false}
         end
@@ -504,8 +503,8 @@ defmodule PlaywrightEx.Client.Page do
     if remove, do: map_delete(this, :_locatorHandlers, uid)
 
     Promise.void(fn ->
-        channel_call(this, :resolveLocatorHandlerNoReply, %{uid: uid, remove: remove}, TimeoutSettings.k_no_timeout())
-      end)
+      channel_call(this, :resolveLocatorHandlerNoReply, %{uid: uid, remove: remove}, TimeoutSettings.k_no_timeout())
+    end)
 
     with {e, stacktrace} <- error, do: reraise(e, stacktrace)
   end

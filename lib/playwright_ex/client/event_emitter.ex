@@ -53,7 +53,15 @@ defmodule PlaywrightEx.Client.EventEmitter do
       defdelegate remove_all_listeners(this, type \\ nil, options \\ nil), to: PlaywrightEx.Client.EventEmitter
       defdelegate on_sync(this, type, listener), to: PlaywrightEx.Client.EventEmitter
       defdelegate subscribe(this, type, predicate \\ nil), to: PlaywrightEx.Client.EventEmitter
-      defoverridable add_listener: 3, on: 3, once: 3, prepend_listener: 3, remove_listener: 3, off: 3, subscribe: 2, subscribe: 3
+
+      defoverridable add_listener: 3,
+                     on: 3,
+                     once: 3,
+                     prepend_listener: 3,
+                     remove_listener: 3,
+                     off: 3,
+                     subscribe: 2,
+                     subscribe: 3
     end
   end
 

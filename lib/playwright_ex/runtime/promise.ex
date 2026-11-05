@@ -332,8 +332,11 @@ defmodule PlaywrightEx.Runtime.Promise do
     {refs, mons} = waiting(armed, %{}, %{})
 
     receive do
-      {:pw, ref, payload} when is_map_key(refs, ref) -> receive_loop(feed(armed, ref, payload))
-      {:DOWN, mon, :process, _, reason} when is_map_key(mons, mon) -> receive_loop(feed(armed, mons[mon], {:down, reason}))
+      {:pw, ref, payload} when is_map_key(refs, ref) ->
+        receive_loop(feed(armed, ref, payload))
+
+      {:DOWN, mon, :process, _, reason} when is_map_key(mons, mon) ->
+        receive_loop(feed(armed, mons[mon], {:down, reason}))
     end
   end
 

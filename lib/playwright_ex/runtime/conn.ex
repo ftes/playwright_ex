@@ -249,7 +249,10 @@ defmodule PlaywrightEx.Runtime.Conn do
       {{:value, {:msg, message}}, queue} ->
         {_, steps} = collect(fn -> dispatch(message, state) end)
         state = %{state | queue: queue}
-        state = if steps != [], do: push_frame(state, %{steps: steps, blocked: nil, from: nil, result: nil}), else: state
+
+        state =
+          if steps != [], do: push_frame(state, %{steps: steps, blocked: nil, from: nil, result: nil}), else: state
+
         drain(state)
 
       {{:value, {:frame, frame}}, queue} ->
@@ -328,7 +331,12 @@ defmodule PlaywrightEx.Runtime.Conn do
         invoke(fun, arg, emitter)
       end)
 
-    state = %{state | procs: Map.put(state.procs, mref, inv), pending: Map.put(state.pending, inv, {emitter.guid, type})}
+    state = %{
+      state
+      | procs: Map.put(state.procs, mref, inv),
+        pending: Map.put(state.pending, inv, {emitter.guid, type})
+    }
+
     block(state, inv)
   end
 

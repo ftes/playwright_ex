@@ -67,7 +67,9 @@ defmodule PlaywrightEx.OutOfProcess do
     {:stop, {:shutdown, {:transport_exit, reason}}, state}
   end
 
-  def handle_info({:EXIT, conn, reason}, %{conn: conn} = state), do: {:stop, {:shutdown, {:connection_exit, reason}}, state}
+  def handle_info({:EXIT, conn, reason}, %{conn: conn} = state),
+    do: {:stop, {:shutdown, {:connection_exit, reason}}, state}
+
   def handle_info(_message, state), do: {:noreply, state}
 
   # stop(): closing the pipe makes the driver exit.

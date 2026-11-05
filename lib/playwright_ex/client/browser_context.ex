@@ -122,10 +122,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
         # a) removing "dialog" listener subscription (client->server)
         # b) actual "dialog" event (server->client)
         if Dialog.type(dialog_object) == "beforeunload",
-          do:
-            Promise.void(fn -> channel_call(dialog, :accept, %{}, TimeoutSettings.k_no_timeout()) end),
-          else:
-            Promise.void(fn -> channel_call(dialog, :dismiss, %{}, TimeoutSettings.k_no_timeout()) end)
+          do: Promise.void(fn -> channel_call(dialog, :accept, %{}, TimeoutSettings.k_no_timeout()) end),
+          else: Promise.void(fn -> channel_call(dialog, :dismiss, %{}, TimeoutSettings.k_no_timeout()) end)
       end
     end)
 
@@ -254,8 +252,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
             handled = RouteHandler.handle(route_handler, route)
 
             if get(this, :_routes) == [],
-              do:
-                Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
+              do: Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
 
             if handled, do: {:halt, true}, else: {:cont, false}
         end
