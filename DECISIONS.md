@@ -773,3 +773,13 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Alternative: counted ownership (above). About −50 LOC, line-level 1:1 kept, but the heap stays
   and a missed holder becomes a new failure mode.
 - Found on the way: `metadata.location.file` was relative; JS sends absolute. Fixed.
+
+## 2026-11-05: Test WebSocket framing via cowlib (workstream SS)
+- `cow_ws` (cowlib 2.21, test-only, no transitive deps) handles framing: parsing, unmasking, UTF-8,
+  fragments, building frames, handshake keys. Our raw upgrade handling stays, because the specs
+  need it: hold or destroy before the handshake, raw bytes, echo of the peer's close code.
+  −21 LOC.
+- Closer to `ws`: invalid frames and invalid UTF-8 now close with 1002/1007, where the old code
+  ignored them silently.
+- Not Bandit WebSock: it always answers a peer's close with 1000, which breaks route_web_socket's
+  "client-side close". permessage-deflate stays declined, as upstream's `WebSocketServer` does.
