@@ -194,6 +194,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert count(page, "text=/world/") == 1
   end
 
+  # https://github.com/microsoft/playwright/issues/33976
   test "text-is() should ignore comments", %{page: page} do
     Page.set_content!(page, "<div id=me>hel<!-- comment -->lo\n  <!-- comment -->\n  world</div>")
     assert id(page, ~s{:text-is("hello world")}) == "me"

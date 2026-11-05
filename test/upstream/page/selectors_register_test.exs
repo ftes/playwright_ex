@@ -8,6 +8,8 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
 
   @moduletag :page
 
+  # it.skip(!!process.env.PW_TEST_CONNECT_WS_ENDPOINT, ...)  -- never connected to a ws endpoint
+
   # Selector engines are JS source: `(${createDummySelector.toString()})()` (PLAN: no function serialization).
   defp register!(playwright, name, create_dummy_selector) do
     Selectors.register!(Playwright.selectors(playwright), name, "(#{create_dummy_selector})()")
