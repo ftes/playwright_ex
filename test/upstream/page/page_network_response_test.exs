@@ -187,11 +187,17 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/40510
-  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit encodes the response body")
   @tag skip:
-         if(@browser_name == "chromium" and @browser_major_version < 151,
-           do: "upstream fixme: older chromium re-encodes the non-utf8 response body and lacks Response.bytes()"
-         )
+         (cond do
+            @browser_name == "webkit" ->
+              "upstream fixme: webkit encodes the response body"
+
+            @browser_name == "chromium" and @browser_major_version < 151 ->
+              "upstream fixme: older chromium re-encodes the non-utf8 response body and lacks Response.bytes()"
+
+            true ->
+              nil
+          end)
   test "should return non-utf8 body even when content-type says utf8",
        %{page: page, server: server} do
     # Binary data with bytes that are invalid UTF-8.
@@ -370,13 +376,16 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   end
 
   @tag skip:
-         if(@browser_name == "webkit",
-           do: "upstream skip: No prefetch in WebKit: https://caniuse.com/link-rel-prefetch"
-         )
-  @tag skip:
-         if(@browser_name == "chromium" and @browser_major_version < 138,
-           do: "upstream skip: Requires Sec-Purpose header, shipped in Chrome 138"
-         )
+         (cond do
+            @browser_name == "webkit" ->
+              "upstream skip: No prefetch in WebKit: https://caniuse.com/link-rel-prefetch"
+
+            @browser_name == "chromium" and @browser_major_version < 138 ->
+              "upstream skip: Requires Sec-Purpose header, shipped in Chrome 138"
+
+            true ->
+              nil
+          end)
   test "should return body for prefetch script", %{
     page: page,
     server: server
