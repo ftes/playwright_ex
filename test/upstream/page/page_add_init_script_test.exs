@@ -31,8 +31,11 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
   end
 
   test "should throw without path and content", %{page: page} do
-    # @ts-expect-error foo is not a real option of addInitScript: the facade rejects it.
+    # @ts-expect-error foo is not a real option of addInitScript: the facade rejects it, so the
+    # client's check runs on an empty script object.
     assert_raise ArgumentError, ~r/unknown field :foo/, fn -> Page.add_init_script(page, %{foo: "bar"}) end
+    {:error, error} = Page.add_init_script(page, %{})
+    assert error.message =~ "Either path or content property must be present"
   end
 
   test "should work with trailing comments", %{page: page} do
@@ -92,6 +95,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
   end
 
   test "init script should run only once in iframe", %{page: page, server: server, browser_name: browser_name} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/26992' });
     test = self()
 
     Page.on(page, :console, fn event ->
@@ -102,9 +106,13 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
     Page.add_init_script!(page, "console.log('init script:', location.pathname || 'no url yet')")
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     # isBidi: false (no BiDi channels here)
-    assert_receive {:message, "init script: /frames/one-frame.html"}, 5000
-    expected = "init script: " <> if(browser_name == "firefox", do: "no url yet", else: "/frames/frame.html")
-    assert_receive {:message, ^expected}, 5000
+    assert_receive {:message, message1}, 5000
+    assert_receive {:message, message2}, 5000
     refute_received {:message, _}
+
+    assert [message1, message2] == [
+             "init script: /frames/one-frame.html",
+             "init script: " <> if(browser_name == "firefox", do: "no url yet", else: "/frames/frame.html")
+           ]
   end
 end
