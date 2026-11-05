@@ -6,14 +6,15 @@ defmodule PlaywrightEx.Library.PageClockFrozenTest do
 
   @moduletag :page
 
-  # it.skip(process.env.PW_CLOCK !== 'frozen')
-  @tag skip: if(System.get_env("PW_CLOCK") != "frozen", do: "upstream skip: PW_CLOCK is not frozen")
+  # it.skip(process.env.PW_CLOCK !== 'frozen'): the harness has no PW_CLOCK modes (browserTest.ts's
+  # `_contextFactory` installs the clock)
+  @tag skip: "not ported: no frozen-clock mode"
   test "clock should be frozen", %{page: page} do
     assert Page.evaluate!(page, "Date.now()") == 1000
   end
 
   # it.skip(process.env.PW_CLOCK !== 'realtime')
-  @tag skip: if(System.get_env("PW_CLOCK") != "realtime", do: "upstream skip: PW_CLOCK is not realtime")
+  @tag skip: "not ported: no realtime-clock mode"
   test "clock should be realtime", %{page: page} do
     assert Page.evaluate!(page, "Date.now()") < 10_000
   end

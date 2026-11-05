@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
 
   @tag skip: @headless_skip || if(@browser_name == "webkit", do: "upstream skip: No third party cookies in WebKit")
   test "should not block third party SameSite=None cookies", %{https_server: https_server, browser: browser} do
-    # it.skip(process.env.PW_CLOCK === 'frozen');  -- no PW_CLOCK here
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     page = Browser.new_page!(browser, ignore_https_errors: true)
 
     TestServer.set_route(https_server, "/empty.html", fn conn ->

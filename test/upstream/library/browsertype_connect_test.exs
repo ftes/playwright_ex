@@ -919,6 +919,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         request = TestServer.wait_for_request(server, "/one-style.css")
         navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
         wait_for_navigation = Page.wait_for_navigation(page)
+        # Elixir only: closes once the stylesheet is requested (upstream at once, at any navigation stage).
         Task.await(request, :infinity)
 
         ref = disconnected(browser)
@@ -1169,6 +1170,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Locator.set_input_files!(input, Enum.map(files, asset))
         assert Locator.evaluate!(input, "e => [...e.files].map(f => f.name)") == files
         timestamps = Locator.evaluate!(input, "e => [...e.files].map(f => f.lastModified)")
+        # Whole-second mtimes, exact here: the assets come from the release tarball (`Math.round(mtimeMs)`).
         expected_timestamps = Enum.map(files, fn file -> File.stat!(asset.(file), time: :posix).mtime * 1000 end)
         # On Linux browser sometimes reduces the timestamp by 1ms: 1696272058110.0715  -> 1696272058109 or even
         # rounds it to seconds in WebKit: 1696272058110 -> 1696272058000.
@@ -1525,6 +1527,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       request = TestServer.wait_for_request(server, "/one-style.css")
       navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
       wait_for_navigation = Page.wait_for_navigation(page)
+      # Elixir only: closes once the stylesheet is requested (upstream at once, at any navigation stage).
       Task.await(request, :infinity)
 
       ref = disconnected(browser)

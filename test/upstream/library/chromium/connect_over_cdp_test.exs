@@ -544,6 +544,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert Locator.evaluate!(input, "e => [...e.files].map(f => f.name)") == files
     timestamps = Locator.evaluate!(input, "e => [...e.files].map(f => f.lastModified)")
 
+    # Whole-second mtimes, exact here: the assets come from the release tarball (`Math.round(mtimeMs)`).
     expected_timestamps =
       Enum.map(files, fn file -> File.stat!(asset.(file), time: :posix).mtime * 1000 end)
 
