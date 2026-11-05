@@ -783,3 +783,17 @@ drift). Blockers for release, assigned to follow-up workstreams:
   ignored them silently.
 - Not Bandit WebSock: it always answers a peer's close with 1000, which breaks route_web_socket's
   "client-side close". permessage-deflate stays declined, as upstream's `WebSocketServer` does.
+
+## 2026-11-05: Public RegExp, stdlib form encoding (workstream RR)
+- Keyword-list fetch `params` are encoded with `URI.encode_www_form`. The raw `*`/`~` differ
+  from JS; decoded values are identical. Cosmetic, ratified.
+- `PlaywrightEx.RegExp` is public, for JS-only syntax; strings stay literal. It is accepted
+  wherever `Regex` is; the generated specs say `Regex.t() | PlaywrightEx.RegExp.t()`.
+- Regexes from the driver come back as a `Regex` only when it means exactly the same (flags
+  `imsu`, a source that needs no translation); otherwise as `%RegExp{}`, so `g`/`y`/`d` are no
+  longer dropped.
+- Elixir-side matching translates the source (`[^]`, `\\u`, ...) and compiles with `:unicode`,
+  `:dollar_endonly` and `{:newline, :anycrlf}`. The `v` flag and unbounded lookbehind raise.
+- SE-092 and SE-097 now run.
+- Local only: page_wait_for_url "should work on frame" hangs on macOS, on the base revision
+  too; CI passes it. Handed to OTP Phase 0.
