@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Browser
-  alias PlaywrightEx.Client.Errors.PlaywrightError
+  alias PlaywrightEx.PlaywrightError
   alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Expect

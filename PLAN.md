@@ -58,8 +58,9 @@ a migration guide maps old calls to new ones.
   The facade checks only keys and enums; value types are checked by the generated protocol
   validator at `channel_call`, as upstream's client does (messages use the JS names).
   Upstream tests that pass options `as any` assert that rejection instead.
-- `void` methods return `:ok` (`close/2`, `close!/2`). Handles stay the client structs
-  (no conversion at every boundary, one term per object), typed `PlaywrightEx.Browser.t()` and
+- `void` methods return `:ok` (`close/2`, `close!/2`). Handles are the facade structs
+  (`%PlaywrightEx.Browser{}`, defined by the generator from the client's `__struct_fields__/0`;
+  no conversion at every boundary, one term per object), typed `PlaywrightEx.Browser.t()` and
   inspected as `#PlaywrightEx.Browser<guid>`. Not `@opaque`: since OTP 28 opaques are nominal, so
   a client function returning a typed struct violates the facade spec of another module.
 - Wait-for-event: a promise handle (`p = Page.wait_for_event(page, :popup)`, awaited with

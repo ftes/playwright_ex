@@ -11,9 +11,9 @@ Each entry: what, why, and what to revisit.
 
 These shape the public API, so changing them after release would break users. Your verdicts
 (2026-11-05) in brackets:
-1. **Exceptions** [yes: top level] move from `PlaywrightEx.Client.Errors` to `PlaywrightEx.*`
-   (`PlaywrightEx.TimeoutError`, as Python's top-level `TimeoutError`). In progress.
-2. **Handle structs** [move them to the facade modules, `%PlaywrightEx.Page{}`]. In progress.
+1. **Exceptions** [yes: top level]: done (EE). `PlaywrightEx.TimeoutError`, `TargetClosedError`,
+   `PlaywrightError`, `AbortError`, `ExpectError`.
+2. **Handle structs** [on the facade modules]: done (EE), `%PlaywrightEx.Page{}`.
 3. **Expect defaults** [ratified: app env only, no `Expect.configure/1`].
 4. **Release**: version 1.64.0 (`mix.exs` is 0.16.0) and CHANGELOG entry. Open.
 5. **AbortController ownership**: one driver per controller, JS's is global. Open (you asked
@@ -82,8 +82,8 @@ Review these first: they shape the public API.
   opts)`): action before options (C#'s order); action exceptions propagate (C#); error names
   are the started member's (`page.waitForEvent`). Emitted only when the result class is
   ported. The generator also loads the Python view of the docs for these.
-- **`wait_for_event` takes Python's arguments** (`event`, options `predicate`/`timeout`), not
-  JS `optionsOrPredicate`. Deviation from the JS signature; `event` accepts atoms.
+- **`wait_for_event` takes JS's `optionsOrPredicate`** (a predicate function or options with
+  `predicate`/`timeout`; superseded the Python-arguments form in workstream EE); `event` accepts atoms.
 - **Function URL matchers get the URL string**, not a parsed URL (Python, Java, .NET).
   `URLPattern` is dropped from api.json unions (no Elixir counterpart).
 - **`LocalUtils.glob_to_regex` caches the driver's regex** per {glob, baseURL, ws}
@@ -630,3 +630,14 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - JS-only option doc variants take the other clients' text when the type is the same (timeouts
   now say 30 s; 127 fixed); matcher timeouts name `config :playwright_ex, :expect`; Tracing notes
   pointing at the test runner's config are dropped. JS code examples stay (Then 5).
+
+## 2026-11-05: Top-level errors, facade structs, optionsOrPredicate (workstream EE)
+- Exceptions are top-level modules; `Client.Errors` keeps only the errors.ts helpers.
+- Handle structs are defined on the facade modules by the generator from the client's
+  `__struct_fields__/0` (`use ChannelOwner, struct: PlaywrightEx.Page`); client code builds the
+  facade struct, `Heap.impl/1` maps it back to the client module (`this.__struct__.foo` became
+  `impl(this).foo`). Adding a field takes a regenerate before use. Internal classes keep their
+  own structs. No compile-time dependency from facade to client (`compile --force` passes).
+- An `optionsOr<Name>` argument (`[function]|[Object]`) merges into options with a
+  `when is_function/1` clause: `wait_for_event` and every `expect_*` built on it take a predicate.
+- Open: 4 `wait_for_event` timeout docs still carry the JS text (no same-type non-JS sibling).
