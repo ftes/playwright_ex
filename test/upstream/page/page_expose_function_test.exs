@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
   alias PlaywrightEx.Disposable
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -119,20 +120,15 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
   end
 
   test "should await returned promise", %{page: page} do
-    # Promise.resolve(a * b): a returned promise handle is awaited, here one of a wait.
-    Page.expose_function!(page, "compute", fn a, b ->
-      promise = Page.wait_for_event(page, :console, fn _ -> true end)
-      Page.evaluate!(page, "() => console.log('hi')")
-      PlaywrightEx.Promise.await!(promise)
-      a * b
-    end)
+    # Promise.resolve(a * b): a returned promise is awaited.
+    Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
 
     result = Page.evaluate!(page, "async () => await window['compute'](3, 5)")
     assert result == 15
   end
 
   test "should work on frames", %{page: page, server: server} do
-    Page.expose_function!(page, "compute", fn a, b -> a * b end)
+    Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
 
     Page.goto!(page, server.prefix <> "/frames/nested-frames.html")
     frame = Enum.at(Page.frames(page), 1)
@@ -142,7 +138,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
 
   test "should work on frames before navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/nested-frames.html")
-    Page.expose_function!(page, "compute", fn a, b -> a * b end)
+    Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
 
     frame = Enum.at(Page.frames(page), 1)
     result = Frame.evaluate!(frame, "async () => await window['compute'](3, 5)")
@@ -171,7 +167,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
   end
 
   test "should work with setContent", %{page: page} do
-    Page.expose_function!(page, "compute", fn a, b -> a * b end)
+    Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
     Page.set_content!(page, "<script>window.result = compute(3, 2)</script>")
     assert Page.evaluate!(page, "window.result") == 6
   end
@@ -240,6 +236,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
   end
 
   test "exposeBinding should work in parallel", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/37712' }
     [{:ok, _}, {:ok, _}] =
       [
         Task.async(fn -> Page.expose_binding(page, "foo", fn -> 42 end) end),
