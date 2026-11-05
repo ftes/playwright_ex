@@ -79,14 +79,32 @@ defmodule PlaywrightEx.AbortSignal do
   (equal functions are the same listener); `once: true` is implied, a signal aborts once.
   """
   @spec add_event_listener(t(), :abort | String.t(), (-> term()), map() | keyword()) :: :ok
-  def add_event_listener(%__MODULE__{id: id} = this, type, listener, _options \\ %{})
+  def add_event_listener(%__MODULE__{} = this, type, listener, _options \\ %{})
       when type in [:abort, "abort"] and is_function(listener, 0) do
-    if !aborted(this) and not Enum.any?(listeners(id), &(elem(&1, 1) == listener)) do
-      key = {id, :listener, :erlang.unique_integer([:monotonic])}
-      :ets.insert(@table, {key, listener})
-      # An abort in another process since the check above may have missed the listener: run it
-      # as that abort would have (once, see `run/1`).
-      if aborted(this), do: run(key)
+    _add(this, listener, false)
+  end
+
+  @doc false
+  # Elixir only: `addEventListener` in the synchronous section of an earlier `if (signal.aborted)`
+  # check of the caller. An abort from another process since that check runs the listener now
+  # (in JS it came after the add), else it would be dropped.
+  def add_event_listener_after_check(%__MODULE__{} = this, listener) when is_function(listener, 0),
+    do: _add(this, listener, true)
+
+  defp _add(%__MODULE__{id: id} = this, listener, run_if_aborted) do
+    cond do
+      Enum.any?(listeners(id), &(elem(&1, 1) == listener)) ->
+        :ok
+
+      aborted(this) ->
+        if run_if_aborted, do: run_listener(listener)
+
+      true ->
+        key = {id, :listener, :erlang.unique_integer([:monotonic])}
+        :ets.insert(@table, {key, listener})
+        # An abort in another process since the check above may have missed the listener: run it
+        # as that abort would have (once, see `run/1`).
+        if aborted(this), do: run(key)
     end
 
     :ok

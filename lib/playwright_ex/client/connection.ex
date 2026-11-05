@@ -278,7 +278,7 @@ defmodule PlaywrightEx.Client.Connection do
                 end)
               end
 
-              AbortSignal.add_event_listener(signal, "abort", abort_listener, %{once: true})
+              AbortSignal.add_event_listener_after_check(signal, abort_listener)
               abort_listener
             end
 

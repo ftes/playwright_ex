@@ -45,6 +45,17 @@ defmodule PlaywrightEx.AbortControllerTest do
     refute_received {:late, _}
   end
 
+  test "a listener added after a check of `aborted` runs when an abort came in between" do
+    controller = AbortController.new()
+    signal = AbortController.signal(controller)
+    test = self()
+    refute AbortSignal.aborted(signal)
+    # Another process aborts between the caller's check and its add (one synchronous section in JS).
+    Task.await(Task.async(fn -> AbortController.abort(controller) end))
+    AbortSignal.add_event_listener_after_check(signal, fn -> send(test, :ran) end)
+    assert_received :ran
+  end
+
   test "a signal's rows are freed when its creator exits" do
     signal = Task.await(Task.async(fn -> AbortController.signal(AbortController.new()) end))
     # The owner handles the creator's exit asynchronously.

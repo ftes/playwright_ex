@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Isomorphic.ManualPromise do
       # `let dispose` assigned inside the executor: the listener is created first.
       promise = Promise.new()
       on_abort = fn -> Promise.resolve(promise, nil) end
-      AbortSignal.add_event_listener(signal, "abort", on_abort, %{once: true})
+      AbortSignal.add_event_listener_after_check(signal, on_abort)
       dispose = fn -> AbortSignal.remove_event_listener(signal, "abort", on_abort) end
       {promise, dispose}
     end

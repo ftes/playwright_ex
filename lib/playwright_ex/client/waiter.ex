@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Client.Waiter do
         # (The listener runs in the aborting process: it only sends to this one.)
         promise = Promise.new()
         listener = fn -> Promise.reject(promise, %AbortError{cause: AbortSignal.reason(signal)}) end
-        AbortSignal.add_event_listener(signal, "abort", listener, %{once: true})
+        AbortSignal.add_event_listener_after_check(signal, listener)
 
         _reject_on(this, promise, fn ->
           AbortSignal.remove_event_listener(signal, "abort", listener)
