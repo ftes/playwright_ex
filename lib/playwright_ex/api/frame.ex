@@ -3501,6 +3501,8 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
+  The options may take the place of `state`, which is then `nil`.
+
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -3516,7 +3518,14 @@ defmodule PlaywrightEx.Frame do
   """
   @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) ::
           :ok | {:error, Exception.t()}
-  def wait_for_load_state(frame, state \\ nil, options \\ []) do
+  @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) ::
+          :ok | {:error, Exception.t()}
+  def wait_for_load_state(frame, state \\ nil, options \\ [])
+
+  def wait_for_load_state(frame, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: wait_for_load_state(frame, nil, options)
+
+  def wait_for_load_state(frame, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")
 
@@ -3528,7 +3537,13 @@ defmodule PlaywrightEx.Frame do
   @doc since: "1.8"
   @doc "Like `wait_for_load_state/3`, but returns the value and raises on error."
   @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) :: :ok
-  def wait_for_load_state!(frame, state \\ nil, options \\ []) do
+  @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) :: :ok
+  def wait_for_load_state!(frame, state \\ nil, options \\ [])
+
+  def wait_for_load_state!(frame, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: wait_for_load_state!(frame, nil, options)
+
+  def wait_for_load_state!(frame, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")
 

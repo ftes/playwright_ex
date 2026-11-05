@@ -591,9 +591,9 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
     test "should support boolean attribute with options", %{page: page} do
       Page.set_content!(page, "<div checked id=node>Text content</div>")
       locator = Page.locator(page, "#node")
-      Expect.to_have_attribute!(locator, "id", nil, timeout: 5000)
-      Expect.to_have_attribute!(locator, "checked", nil, timeout: 5000)
-      Expect.not_to_have_attribute!(locator, "open", nil, timeout: 5000)
+      Expect.to_have_attribute!(locator, "id", timeout: 5000)
+      Expect.to_have_attribute!(locator, "checked", %{timeout: 5000})
+      Expect.not_to_have_attribute!(locator, "open", timeout: 5000)
     end
 
     test "support ignoreCase", %{page: page} do

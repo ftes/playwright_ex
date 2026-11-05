@@ -849,6 +849,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
+  The options may take the place of `event`, which is then `nil`.
+
   * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
 
     * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
@@ -857,7 +859,15 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
           :ok | {:error, Exception.t()}
-  def remove_all_listeners(browser_context, event \\ nil, options \\ []) do
+  @spec remove_all_listeners(t(), event() | String.t() | nil | remove_all_listeners_options()) ::
+          :ok | {:error, Exception.t()}
+  def remove_all_listeners(browser_context, event \\ nil, options \\ [])
+
+  def remove_all_listeners(browser_context, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: remove_all_listeners(browser_context, nil, options)
+
+  def remove_all_listeners(browser_context, event, options) do
     event = Facade.event!(event, @events, "browserContext.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browserContext.removeAllListeners")
 
@@ -869,7 +879,14 @@ defmodule PlaywrightEx.BrowserContext do
   @doc since: "1.47"
   @doc "Like `remove_all_listeners/3`, but returns the value and raises on error."
   @spec remove_all_listeners!(t(), event() | String.t() | nil, remove_all_listeners_options()) :: :ok
-  def remove_all_listeners!(browser_context, event \\ nil, options \\ []) do
+  @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
+  def remove_all_listeners!(browser_context, event \\ nil, options \\ [])
+
+  def remove_all_listeners!(browser_context, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: remove_all_listeners!(browser_context, nil, options)
+
+  def remove_all_listeners!(browser_context, event, options) do
     event = Facade.event!(event, @events, "browserContext.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browserContext.removeAllListeners")
 

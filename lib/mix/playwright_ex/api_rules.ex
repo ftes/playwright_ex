@@ -37,6 +37,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
       that start the member (`expect_event(page, event, action, predicate)`).
     * Route handlers (`function(Route, Request)`) may also take only the route, as in the
       Python client.
+    * An optional argument right before the options that is never a list or a plain map (a
+      string, regex, enum or handle: `toHaveAttribute(name, value?, options?)`,
+      `waitForLoadState(state?, options?)`) is marked `"orOptions"`: the options may take its
+      place (`to_have_attribute(locator, "disabled", timeout: 1)`).
     * Device descriptors (`Playwright.devices`) have the option keys of `Browser.newContext`
       (`user_agent:`), as in the Python client, so `new_context(browser, devices["iPhone 6"])`
       takes one as JS spreads it (`"options"`: the member whose options they are). `newContext` and
@@ -121,6 +125,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   """
   def apply(classes, python) do
     classes = classes |> callback_objects() |> expect_class()
+    class_names = MapSet.new(classes, & &1["name"])
 
     for class <- classes, class["name"] not in @dropped_classes, class["name"] not in @exception_classes do
       expects = expect_members(python, class["name"])
@@ -139,8 +144,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
+              |> or_options(class_names)
 
-      callbacks = for expect <- expects, do: expect |> callback(class, members) |> member(false)
+      callbacks =
+        for expect <- expects, do: expect |> callback(class, members) |> member(false) |> or_options(class_names)
 
       Map.merge(class, %{
         "spec" => runner_notes(class["spec"]),
@@ -550,6 +557,29 @@ defmodule Mix.PlaywrightEx.ApiRules do
     do: %{type | "union" => for(t <- union, keep?(t), do: type_of(t))}
 
   defp type_of(type), do: type
+
+  # `name(receiver, ..., value \\ nil, options \\ [])` called as `name(receiver, ..., options)`: the
+  # optional argument before the options, if no value of it is a keyword list or plain map.
+  defp or_options(%{"args" => args} = member, class_names) do
+    case Enum.split(args, -2) do
+      {head, [%{"required" => false} = arg, %{"name" => "options"} = options]} ->
+        if scalar?(arg["type"], class_names),
+          do: %{member | "args" => head ++ [Map.put(arg, "orOptions", true), options]},
+          else: member
+
+      _ ->
+        member
+    end
+  end
+
+  @scalars ~w(string RegExp boolean int long float number null undefined)
+
+  defp scalar?(%{"union" => union}, class_names) when is_list(union), do: Enum.all?(union, &scalar?(&1, class_names))
+
+  defp scalar?(%{"name" => name}, class_names),
+    do: name in @scalars or String.starts_with?(name, "\"") or MapSet.member?(class_names, name)
+
+  defp scalar?(_type, _class_names), do: false
 
   # A type that is (only) a dropped class.
   defp keep?(%{"name" => name}) when name in @dropped_classes, do: false

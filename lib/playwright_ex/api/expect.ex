@@ -2115,6 +2115,8 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
+  The options may take the place of `value`, which is then `nil`.
+
   * `:ignore_case` - *Since 1.40.* Whether to perform case-insensitive match. `ignoreCase` option takes precedence over the corresponding regular expression flag if specified.
   * `:signal` - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
@@ -2132,7 +2134,18 @@ defmodule PlaywrightEx.Expect do
           String.t() | Regex.t() | nil,
           to_have_attribute_options()
         ) :: :ok | {:error, Exception.t()}
-  def to_have_attribute(locator, name, value \\ nil, options \\ []) do
+  @spec to_have_attribute(
+          PlaywrightEx.Locator.t(),
+          String.t(),
+          String.t() | Regex.t() | nil | to_have_attribute_options()
+        ) :: :ok | {:error, Exception.t()}
+  def to_have_attribute(locator, name, value \\ nil, options \\ [])
+
+  def to_have_attribute(locator, name, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: to_have_attribute(locator, name, nil, options)
+
+  def to_have_attribute(locator, name, value, options) do
     options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute")
 
     Facade.matcher(locator, fn ->
@@ -2153,7 +2166,18 @@ defmodule PlaywrightEx.Expect do
           String.t() | Regex.t() | nil,
           to_have_attribute_options()
         ) :: :ok
-  def to_have_attribute!(locator, name, value \\ nil, options \\ []) do
+  @spec to_have_attribute!(
+          PlaywrightEx.Locator.t(),
+          String.t(),
+          String.t() | Regex.t() | nil | to_have_attribute_options()
+        ) :: :ok
+  def to_have_attribute!(locator, name, value \\ nil, options \\ [])
+
+  def to_have_attribute!(locator, name, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: to_have_attribute!(locator, name, nil, options)
+
+  def to_have_attribute!(locator, name, value, options) do
     options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute")
 
     Facade.matcher!(locator, fn ->
@@ -2189,6 +2213,8 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
+  The options may take the place of `value`, which is then `nil`.
+
   * `:ignore_case` - *Since 1.40.* Whether to perform case-insensitive match. `ignoreCase` option takes precedence over the corresponding regular expression flag if specified.
   * `:signal` - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
@@ -2206,7 +2232,18 @@ defmodule PlaywrightEx.Expect do
           String.t() | Regex.t() | nil,
           not_to_have_attribute_options()
         ) :: :ok | {:error, Exception.t()}
-  def not_to_have_attribute(locator, name, value \\ nil, options \\ []) do
+  @spec not_to_have_attribute(
+          PlaywrightEx.Locator.t(),
+          String.t(),
+          String.t() | Regex.t() | nil | not_to_have_attribute_options()
+        ) :: :ok | {:error, Exception.t()}
+  def not_to_have_attribute(locator, name, value \\ nil, options \\ [])
+
+  def not_to_have_attribute(locator, name, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: not_to_have_attribute(locator, name, nil, options)
+
+  def not_to_have_attribute(locator, name, value, options) do
     options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute")
 
     Facade.matcher(locator, fn ->
@@ -2227,7 +2264,18 @@ defmodule PlaywrightEx.Expect do
           String.t() | Regex.t() | nil,
           not_to_have_attribute_options()
         ) :: :ok
-  def not_to_have_attribute!(locator, name, value \\ nil, options \\ []) do
+  @spec not_to_have_attribute!(
+          PlaywrightEx.Locator.t(),
+          String.t(),
+          String.t() | Regex.t() | nil | not_to_have_attribute_options()
+        ) :: :ok
+  def not_to_have_attribute!(locator, name, value \\ nil, options \\ [])
+
+  def not_to_have_attribute!(locator, name, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: not_to_have_attribute!(locator, name, nil, options)
+
+  def not_to_have_attribute!(locator, name, value, options) do
     options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute")
 
     Facade.matcher!(locator, fn ->

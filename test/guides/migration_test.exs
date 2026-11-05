@@ -85,6 +85,8 @@ defmodule PlaywrightEx.Guides.MigrationTest do
     Expect.to_have_value!(Page.get_by_label(page, "Email"), "ada@example.com")
     assert {:error, %{message: message}} = Expect.to_have_title(page, "Nope", timeout: 100)
     assert message =~ "toHaveTitle"
+    Page.wait_for_load_state!(page, timeout: 1_000)
+    Expect.not_to_have_attribute!(Page.get_by_label(page, "Email"), "disabled", timeout: 1_000)
 
     assert Page.locator(page, "css=.flash >> internal:text=\"Deleted\"i") |> Locator.count!() == 1
 

@@ -3985,6 +3985,8 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
+  The options may take the place of `event`, which is then `nil`.
+
   * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
 
     * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
@@ -3993,7 +3995,14 @@ defmodule PlaywrightEx.Page do
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
           :ok | {:error, Exception.t()}
-  def remove_all_listeners(page, event \\ nil, options \\ []) do
+  @spec remove_all_listeners(t(), event() | String.t() | nil | remove_all_listeners_options()) ::
+          :ok | {:error, Exception.t()}
+  def remove_all_listeners(page, event \\ nil, options \\ [])
+
+  def remove_all_listeners(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: remove_all_listeners(page, nil, options)
+
+  def remove_all_listeners(page, event, options) do
     event = Facade.event!(event, @events, "page.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "page.removeAllListeners")
 
@@ -4005,7 +4014,13 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.47"
   @doc "Like `remove_all_listeners/3`, but returns the value and raises on error."
   @spec remove_all_listeners!(t(), event() | String.t() | nil, remove_all_listeners_options()) :: :ok
-  def remove_all_listeners!(page, event \\ nil, options \\ []) do
+  @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
+  def remove_all_listeners!(page, event \\ nil, options \\ [])
+
+  def remove_all_listeners!(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: remove_all_listeners!(page, nil, options)
+
+  def remove_all_listeners!(page, event, options) do
     event = Facade.event!(event, @events, "page.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "page.removeAllListeners")
 
@@ -5750,6 +5765,8 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
+  The options may take the place of `state`, which is then `nil`.
+
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -5765,7 +5782,14 @@ defmodule PlaywrightEx.Page do
   """
   @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) ::
           :ok | {:error, Exception.t()}
-  def wait_for_load_state(page, state \\ nil, options \\ []) do
+  @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) ::
+          :ok | {:error, Exception.t()}
+  def wait_for_load_state(page, state \\ nil, options \\ [])
+
+  def wait_for_load_state(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: wait_for_load_state(page, nil, options)
+
+  def wait_for_load_state(page, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
 
@@ -5777,7 +5801,13 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.8"
   @doc "Like `wait_for_load_state/3`, but returns the value and raises on error."
   @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) :: :ok
-  def wait_for_load_state!(page, state \\ nil, options \\ []) do
+  @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) :: :ok
+  def wait_for_load_state!(page, state \\ nil, options \\ [])
+
+  def wait_for_load_state!(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: wait_for_load_state!(page, nil, options)
+
+  def wait_for_load_state!(page, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
 

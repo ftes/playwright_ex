@@ -1172,6 +1172,8 @@ defmodule PlaywrightEx.Browser do
 
   ## Options
 
+  The options may take the place of `event`, which is then `nil`.
+
   * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
 
     * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
@@ -1180,7 +1182,14 @@ defmodule PlaywrightEx.Browser do
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
           :ok | {:error, Exception.t()}
-  def remove_all_listeners(browser, event \\ nil, options \\ []) do
+  @spec remove_all_listeners(t(), event() | String.t() | nil | remove_all_listeners_options()) ::
+          :ok | {:error, Exception.t()}
+  def remove_all_listeners(browser, event \\ nil, options \\ [])
+
+  def remove_all_listeners(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: remove_all_listeners(browser, nil, options)
+
+  def remove_all_listeners(browser, event, options) do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
 
@@ -1192,7 +1201,13 @@ defmodule PlaywrightEx.Browser do
   @doc since: "1.47"
   @doc "Like `remove_all_listeners/3`, but returns the value and raises on error."
   @spec remove_all_listeners!(t(), event() | String.t() | nil, remove_all_listeners_options()) :: :ok
-  def remove_all_listeners!(browser, event \\ nil, options \\ []) do
+  @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
+  def remove_all_listeners!(browser, event \\ nil, options \\ [])
+
+  def remove_all_listeners!(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: remove_all_listeners!(browser, nil, options)
+
+  def remove_all_listeners!(browser, event, options) do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
 
@@ -1232,12 +1247,20 @@ defmodule PlaywrightEx.Browser do
 
   ## Options
 
+  The options may take the place of `page`, which is then `nil`.
+
   * `:categories` - specify custom categories to use instead of default.
   * `:path` - A path to write the trace file to.
   * `:screenshots` - captures screenshots in the trace.
   """
   @spec start_tracing(t(), PlaywrightEx.Page.t() | nil, start_tracing_options()) :: :ok | {:error, Exception.t()}
-  def start_tracing(browser, page \\ nil, options \\ []) do
+  @spec start_tracing(t(), PlaywrightEx.Page.t() | nil | start_tracing_options()) :: :ok | {:error, Exception.t()}
+  def start_tracing(browser, page \\ nil, options \\ [])
+
+  def start_tracing(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: start_tracing(browser, nil, options)
+
+  def start_tracing(browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
 
     Facade.async_void("browser.startTracing", browser, fn ->
@@ -1248,7 +1271,13 @@ defmodule PlaywrightEx.Browser do
   @doc since: "1.11"
   @doc "Like `start_tracing/3`, but returns the value and raises on error."
   @spec start_tracing!(t(), PlaywrightEx.Page.t() | nil, start_tracing_options()) :: :ok
-  def start_tracing!(browser, page \\ nil, options \\ []) do
+  @spec start_tracing!(t(), PlaywrightEx.Page.t() | nil | start_tracing_options()) :: :ok
+  def start_tracing!(browser, page \\ nil, options \\ [])
+
+  def start_tracing!(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: start_tracing!(browser, nil, options)
+
+  def start_tracing!(browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
 
     Facade.async_void!("browser.startTracing", browser, fn ->

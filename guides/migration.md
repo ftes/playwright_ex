@@ -31,6 +31,9 @@ Page.goto!(page, "/")
 **Options.** Keyword lists (or maps) with snake_case keys, validated: unknown keys and enum values
 raise `ArgumentError`. Nested objects are maps with the JS keys, the same shape results come
 back in (`%{name: "a", value: "b", sameSite: "Lax"}`). Enums are atoms (`get_by_role(page, :button)`).
+Optional arguments stay positional; the options may take the place of an optional string, enum or
+handle before them (`Page.wait_for_load_state(page, timeout: 1_000)`,
+`Expect.to_have_attribute(locator, "disabled", timeout: 1_000)`).
 
 **Timeouts.** Set defaults once instead of a `timeout:` per call:
 

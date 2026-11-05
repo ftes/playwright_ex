@@ -301,8 +301,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, %{isNot: #{matcher["isNot"]}}, " <>
         "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
 
+    m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
     receiver_spec = Enum.map_join(matcher["receivers"], " | ", &"#{inspect(facade(&1))}.t()")
-    spec_args = Enum.join([receiver_spec | Enum.map(member["args"], &arg_spec(ctx, &1, name))], ", ")
+    m = Map.put(m, :spec_args, [receiver_spec | Enum.map(member["args"], &arg_spec(ctx, &1, name))])
     conversions = Enum.map_join(attrs, "\n", &conversion(name, api_name, &1))
 
     attributes =
@@ -318,15 +319,15 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{attributes}
 
     #{since(member)}#{deprecated(member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
-    @spec #{name}(#{spec_args}) :: :ok | {:error, Exception.t()}
-    def #{name}(#{Enum.join(params, ", ")}) do
+    #{spec(name, m, ":ok | {:error, Exception.t()}")}
+    #{clauses(m, name)}def #{head(name, params, m.or_options)} do
       #{conversions}
       Facade.matcher(#{receiver}, fn -> #{call} end)
     end
 
     #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met."
-    @spec #{name}!(#{spec_args}) :: :ok
-    def #{name}!(#{Enum.join(params, ", ")}) do
+    #{spec(name <> "!", m, ":ok")}
+    #{clauses(m, name <> "!")}def #{head(name <> "!", params, m.or_options)} do
       #{conversions}
       Facade.matcher!(#{receiver}, fn -> #{call} end)
     end
@@ -356,19 +357,21 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       )
 
     function = Enum.find_value(args, &(&1["name"] == "options" && &1["function"]))
+    or_options = or_options(args, vars)
 
     member_def(member, %{
       name: name,
       api_name: inspect(api_name),
       receiver: receiver,
       params: params,
-      head: "#{name}(#{Enum.join(if(function, do: Enum.map(params, &no_default/1), else: params), ", ")})",
+      head: head(name, params, function || or_options),
       function: function,
+      or_options: or_options,
       attributes: attributes,
       conversions: Enum.map_join(attrs, "\n", &conversion(name, api_name, &1)),
       call: options_dictionary(ctx, member, client_call(class, member, receiver, vars)),
       void?: void?,
-      spec_args: Enum.join(["t()" | Enum.map(args, &arg_spec(ctx, &1, name))], ", "),
+      spec_args: ["t()" | Enum.map(args, &arg_spec(ctx, &1, name))],
       return: if(void?, do: ":ok", else: return_spec(ctx, member)),
       docs: since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
     })
@@ -400,24 +403,63 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp return_spec(ctx, member), do: type_spec(ctx, member["type"], :out)
 
+  # With options in place of an optional argument (`"orOptions"`), the arity without the options
+  # takes them too.
+  defp spec(name, %{spec_args: args} = m, return) do
+    short =
+      if m.or_options do
+        {head, [arg, options]} = Enum.split(args, -2)
+        "\n@spec #{name}(#{Enum.join(head ++ ["#{arg} | #{options}"], ", ")}) :: #{return}"
+      end
+
+    "@spec #{name}(#{Enum.join(args, ", ")}) :: #{return}#{short}"
+  end
+
   defp no_default(param), do: param |> String.split(" \\\\ ") |> hd()
 
-  # A function in place of the options (`optionsOrPredicate`, see `Mix.PlaywrightEx.ApiRules`) is
-  # option `function`: a bodiless head with the defaults, then a clause for it.
-  defp function_clause(%{function: nil}, _name), do: ""
+  # The head of the main clause: without defaults after a bodiless head with them (`clauses/2`).
+  defp head(name, params, clauses?),
+    do: "#{name}(#{Enum.join(if(clauses?, do: Enum.map(params, &no_default/1), else: params), ", ")})"
 
-  defp function_clause(%{function: function} = m, name) do
+  # The variable of the argument whose place the options may take (`"orOptions"`, see `Mix.PlaywrightEx.ApiRules`).
+  defp or_options(args, vars), do: Enum.find_value(Enum.zip(args, vars), fn {arg, var} -> arg["orOptions"] && var end)
+
+  # Clauses for values in another argument's place (see `Mix.PlaywrightEx.ApiRules`), after a
+  # bodiless head with the defaults: a function in place of the options (`optionsOrPredicate`) is
+  # option `function`, options in place of an optional argument (`"orOptions"`) leave it `nil`.
+  defp clauses(%{function: nil, or_options: nil}, _name), do: ""
+
+  defp clauses(m, name) do
     plain = Enum.map(m.params, &no_default/1)
-    var = snake(function)
-    fun_params = Enum.map(plain, &if(&1 == "options", do: var, else: &1))
-    call_args = Enum.map(plain, &if(&1 == "options", do: "#{var}: #{var}", else: &1))
+
+    function =
+      if function = m.function do
+        var = snake(function)
+        fun_params = Enum.map(plain, &if(&1 == "options", do: var, else: &1))
+        call_args = Enum.map(plain, &if(&1 == "options", do: "#{var}: #{var}", else: &1))
+
+        """
+        def #{name}(#{Enum.join(fun_params, ", ")}) when is_function(#{var}),
+          do: #{name}(#{Enum.join(call_args, ", ")})
+        """
+      end
+
+    or_options =
+      if var = m.or_options do
+        opt_params = Enum.map(plain, &(%{var => "options", "options" => "[]"}[&1] || &1))
+        call_args = Enum.map(plain, &if(&1 == var, do: "nil", else: &1))
+
+        """
+        def #{name}(#{Enum.join(opt_params, ", ")}) when is_list(options) or (is_map(options) and not is_struct(options)),
+          do: #{name}(#{Enum.join(call_args, ", ")})
+        """
+      end
 
     """
     def #{name}(#{Enum.join(m.params, ", ")})
 
-    def #{name}(#{Enum.join(fun_params, ", ")}) when is_function(#{var}),
-      do: #{name}(#{Enum.join(call_args, ", ")})
-
+    #{function}
+    #{or_options}
     """
   end
 
@@ -450,8 +492,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{m.attributes}
 
     #{m.docs}
-    @spec #{m.name}(#{m.spec_args}) :: PlaywrightEx.Promise.t()
-    #{function_clause(m, m.name)}def #{m.head} do
+    #{spec(m.name, m, "PlaywrightEx.Promise.t()")}
+    #{clauses(m, m.name)}def #{m.head} do
       #{m.conversions}
       Facade.promise(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end)
     end
@@ -470,15 +512,15 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{m.attributes}
 
     #{m.docs}
-    @spec #{m.name}(#{m.spec_args}) :: #{if m.void?, do: ":ok", else: "{:ok, #{m.return}}"} | {:error, Exception.t()}
-    #{function_clause(m, m.name)}def #{m.head} do
+    #{spec(m.name, m, "#{if m.void?, do: ":ok", else: "{:ok, #{m.return}}"} | {:error, Exception.t()}")}
+    #{clauses(m, m.name)}def #{m.head} do
       #{m.conversions}
       Facade.#{async}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
     end
 
     #{since(member)}#{deprecated(member)}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
-    @spec #{m.name}!(#{m.spec_args}) :: #{m.return}
-    #{function_clause(m, m.name <> "!")}def #{m.name}!(#{Enum.join(if(m.function, do: Enum.map(m.params, &no_default/1), else: m.params), ", ")}) do
+    #{spec(m.name <> "!", m, m.return)}
+    #{clauses(m, m.name <> "!")}def #{head(m.name <> "!", m.params, m.function || m.or_options)} do
       #{m.conversions}
       Facade.#{async!}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
     end
@@ -490,8 +532,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{m.attributes}
 
     #{m.docs}
-    @spec #{m.name}(#{m.spec_args}) :: #{m.return}
-    #{function_clause(m, m.name)}def #{m.head} do
+    #{spec(m.name, m, m.return)}
+    #{clauses(m, m.name)}def #{m.head} do
       #{m.conversions}
       #{m.call}#{if m.void?, do: "\n:ok"}
     end
@@ -550,13 +592,22 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   end
 
   defp options_function_doc(args) do
-    case Enum.find_value(args, &(&1["name"] == "options" && &1["function"])) do
-      nil ->
-        ""
+    function =
+      case Enum.find_value(args, &(&1["name"] == "options" && &1["function"])) do
+        nil ->
+          ""
 
-      function ->
-        "A function in place of the options is `#{inspect(atom(function))}` (JS `optionsOr#{String.capitalize(String.first(function))}#{String.slice(function, 1..-1//1)}`).\n\n"
-    end
+        function ->
+          "A function in place of the options is `#{inspect(atom(function))}` (JS `optionsOr#{String.capitalize(String.first(function))}#{String.slice(function, 1..-1//1)}`).\n\n"
+      end
+
+    or_options =
+      case Enum.find(args, & &1["orOptions"]) do
+        nil -> ""
+        arg -> "The options may take the place of `#{var(arg["name"])}`, which is then `nil`.\n\n"
+      end
+
+    function <> or_options
   end
 
   defp option_bullet(ctx, prop, since), do: bullet(ctx, "`#{inspect(atom(prop["name"]))}`", prop, since)
