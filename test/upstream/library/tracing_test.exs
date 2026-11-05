@@ -923,11 +923,6 @@ defmodule PlaywrightEx.Library.TracingTest do
     page = BrowserContext.new_page!(context)
 
     Tracing.start!(tracing(context), name: "name1", snapshots: true)
-    # Deviation: subscribe to console events up front (an internal call, not in the trace).
-    # Upstream sends the evaluate and the waiter's console subscription in one tick; here a
-    # scheduling gap of ~2ms between them lets the server drop the console message.
-    Page.on(page, :console, fn _ -> nil end)
-
     # One synchronous JS section: the console event can't arrive before the wait is set up.
     {evaluate_promise, console_promise} =
       Api.call(nil, page, fn ->
