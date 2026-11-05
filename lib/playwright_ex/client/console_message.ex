@@ -45,6 +45,8 @@ defmodule PlaywrightEx.Client.ConsoleMessage do
     text(this)
   end
 
+  # deviation: Inspect wraps `_inspect` as `#PlaywrightEx.ConsoleMessage<text>` (Elixir's
+  # convention, as Locator's); JS's inspect.custom returns the bare text.
   defimpl Inspect, for: PlaywrightEx.ConsoleMessage do
     def inspect(this, _opts), do: "#PlaywrightEx.ConsoleMessage<#{PlaywrightEx.Client.ConsoleMessage._inspect(this)}>"
   end
