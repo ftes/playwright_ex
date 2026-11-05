@@ -69,16 +69,37 @@ defmodule PlaywrightEx.Client.Errors do
       if error[:value] == nil, do: raise("Serialized error must have either an error or a value")
       Serializers.parse_serialized_value(error.value, nil)
     else
+      # Deviation: driver hints name the Elixir install task (rewrite_driver_hints/1).
+      message = rewrite_driver_hints(error.error.message)
+
       e =
         cond do
-          error.error[:name] == "TimeoutError" -> %TimeoutError{message: error.error.message}
-          error.error[:name] == "TargetClosedError" -> TargetClosedError.new(error.error.message)
-          error.error[:name] == "AbortError" -> %AbortError{message: error.error.message}
-          true -> %PlaywrightError{message: error.error.message, name: error.error[:name]}
+          error.error[:name] == "TimeoutError" -> %TimeoutError{message: message}
+          error.error[:name] == "TargetClosedError" -> TargetClosedError.new(message)
+          error.error[:name] == "AbortError" -> %AbortError{message: message}
+          true -> %PlaywrightError{message: message, name: error.error[:name]}
         end
 
       e = %{e | stack: error.error[:stack] || ""}
       if error.error[:code] != nil, do: %{e | code: error.error.code}, else: e
+    end
+  end
+
+  @doc false
+  # Elixir only: the driver renders CLI hints for sdkLanguage "javascript" (PLAN). Exact-match
+  # rewrite of the install command, `npx playwright install [args]` to `mix playwright_ex.install
+  # [-- args]`; inside an ASCII box (`║ ... ║`) the padding absorbs the longer command.
+  def rewrite_driver_hints(message) do
+    if String.contains?(message, "npx playwright install") do
+      Regex.replace(~r/npx playwright install(?![\w-])((?: [^\s"'`║]+)*)(?:( +)(?=║))?/u, message, fn _,
+                                                                                                      args,
+                                                                                                      padding ->
+        command = "mix playwright_ex.install" <> if(args != "", do: " --" <> args, else: "")
+        extra = String.length(command) - String.length("npx playwright install" <> args)
+        command <> if(String.length(padding) > extra, do: String.slice(padding, extra..-1//1), else: padding)
+      end)
+    else
+      message
     end
   end
 
