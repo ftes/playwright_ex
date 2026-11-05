@@ -82,7 +82,6 @@ defmodule PlaywrightEx.Library.Events.ListenersTest do
     assert Enum.at(ee_listeners_copy, 0) == (&listener/1)
   end
 
-  @tag skip: "bug: EventEmitter.listeners: returns the once/3 wrapper instead of the original listener"
   test "listeners and once", %{loop: loop} do
     ee = new_ee(loop)
     EventEmitter.once(ee, "foo", &listener/1)
@@ -92,7 +91,6 @@ defmodule PlaywrightEx.Library.Events.ListenersTest do
     assert Enum.at(listeners, 0) == (&listener/1)
   end
 
-  @tag skip: "bug: EventEmitter.listeners: returns the once/3 wrapper instead of the original listener"
   test "listeners with conflicting types", %{loop: loop} do
     ee = new_ee(loop)
     EventEmitter.on(ee, "foo", &listener/1)

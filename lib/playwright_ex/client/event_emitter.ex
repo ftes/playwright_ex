@@ -87,8 +87,13 @@ defmodule PlaywrightEx.Client.EventEmitter do
   def on(this, type, listener), do: _add_listener(this, type, listener, false)
 
   defp _add_listener(this, type, listener, prepend) do
-    {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
-    entry = %{id: id, fun: fun}
+    entry =
+      case listener do
+        # A `OnceWrapper`'s function with the wrapped listener (JS `wrapperFunction.listener`).
+        {id, fun, wrapped} -> %{id: id, fun: fun, listener: wrapped}
+        {id, fun} -> %{id: id, fun: fun, listener: fun}
+        fun -> %{id: fun, fun: fun, listener: fun}
+      end
 
     EventLoop.with_baton(this.loop, fn ->
       map_set(
@@ -120,7 +125,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
     EventLoop.with_baton(this.loop, fn ->
       list = map_get(this, :_events, type) || []
 
-      case list |> Enum.reverse() |> Enum.find(&(&1.id == listener or &1.fun == listener)) do
+      case list |> Enum.reverse() |> Enum.find(&(&1.id == listener or &1.fun == listener or &1.listener == listener)) do
         nil -> nil
         entry -> _remove_entry(this, type, entry)
       end
@@ -176,7 +181,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
         do: this.__struct__.remove_listener(this, type, entry.id)
   end
 
-  def listeners(this, type), do: Enum.map(map_get(this, :_events, type) || [], & &1.fun)
+  def listeners(this, type), do: Enum.map(map_get(this, :_events, type) || [], & &1.listener)
 
   # rawListeners  -- not ported: listeners are stored unwrapped
 
@@ -220,7 +225,7 @@ defmodule PlaywrightEx.Client.EventEmitter.OnceWrapper do
       _eventType: event_type
     }
 
-    %{this | wrapperFunction: {id, &_handle(this, id, &1)}}
+    %{this | wrapperFunction: {id, &_handle(this, id, &1), fun}}
   end
 
   defp _handle(this, id, arg) do
