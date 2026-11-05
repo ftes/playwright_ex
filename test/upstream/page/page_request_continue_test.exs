@@ -14,6 +14,8 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
   @moduletag :page
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   # `request.headers[name]` of a server-side request.
   defp req_header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 
@@ -317,6 +319,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     end
   end
 
+  @tag skip: if(@browser_name == "webkit", do: "upstream fail: https://github.com/microsoft/playwright/issues/8796")
   test "should work with Cross-Origin-Opener-Policy", %{page: page, server: server, browser_name: browser_name} do
     me = self()
 
