@@ -566,10 +566,10 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     Task.await(clicked, :infinity)
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Does not send second request")
   test "page.reload return 304 status code", %{page: page, server: server, browser_name: browser_name} do
     # issue: https://github.com/microsoft/playwright/issues/28779
     # issue: https://github.com/microsoft/playwright/issues/29441
-    # it.fixme(browserName === 'firefox' && !isBidi, 'Does not send second request')  -- we run chromium
     {:ok, request_number} = Agent.start_link(fn -> 0 end)
 
     TestServer.set_route(server, "/test.html", fn conn ->

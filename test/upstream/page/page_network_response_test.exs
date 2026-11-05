@@ -259,11 +259,8 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert actual_headers == expected_headers
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
-           do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
-         )
   test "should report multiple set-cookie headers", %{page: page, server: server} do
+    # it.skip(isElectron && browserMajorVersion < 99, 'This needs Chromium >= 99');  -- not ported: no Electron
     TestServer.set_route(server, "/headers", fn conn ->
       conn = write_head(conn, 200, [{"Set-Cookie", "a=b"}, {"Set-Cookie", "c=d"}])
       {:ok, conn} = Plug.Conn.chunk(conn, "\r\n")
@@ -280,9 +277,12 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.header_values!(response, "set-cookie") == ["a=b", "c=d"]
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
+         )
   test "should behave the same way for headers and allHeaders",
        %{page: page, server: server, browser_name: browser_name} do
-    # it.skip(browserName === 'webkit' && platform === 'win32', ...)  -- not Windows WebKit
     TestServer.set_route(server, "/headers", fn conn ->
       headers = [
         {"Set-Cookie", "a=b"},
@@ -403,7 +403,6 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          )
   test "should return body for image with evicted body", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/42002
-    # it.fixme(isMac && browserName === 'webkit', ...)  -- we run chromium
     # truncated 1x1 gif, Chromium evicts its body
     image_base64 = "R0lGODlhAQABAAAAACw="
 
@@ -439,13 +438,8 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
       |> Plug.Conn.send_resp(200, "Hello")
     end
 
-    count = fn path, acc ->
-      receive do
-        {:request, ^path} -> acc + 1
-      after
-        0 -> acc
-      end
-    end
+    # Counts every server hit so far, as upstream's `requests.length`.
+    count = fn path, acc -> count_requests(path, acc) end
 
     TestServer.set_route(server, "/api", api_route)
 
@@ -594,5 +588,13 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     {:error, error} = Response.body(response)
     assert is_exception(error)
     assert Exception.message(error) =~ "navigated away"
+  end
+
+  defp count_requests(path, acc) do
+    receive do
+      {:request, ^path} -> count_requests(path, acc + 1)
+    after
+      0 -> acc
+    end
   end
 end
