@@ -99,8 +99,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip:
-         if(System.get_env("BROWSER") == "firefox", do: "Response event is not fired in Firefox")
+  @tag skip: if(System.get_env("BROWSER") == "firefox", do: "Response event is not fired in Firefox")
   test "should work when serving from memory cache", %{
     context_factory: context_factory,
     server: server
