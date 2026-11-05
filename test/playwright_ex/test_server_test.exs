@@ -33,6 +33,15 @@ defmodule PlaywrightEx.TestServerTest do
     {status, Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end), body}
   end
 
+  test "listens on both loopback addresses", %{server: server} do
+    for ip <- [{127, 0, 0, 1}, {0, 0, 0, 0, 0, 0, 0, 1}] do
+      {:ok, socket} = :gen_tcp.connect(ip, server.port, [:binary, active: false])
+      :ok = :gen_tcp.send(socket, "GET /empty.html HTTP/1.1\r\nhost: localhost\r\nconnection: close\r\n\r\n")
+      assert {:ok, "HTTP/1.1 200" <> _} = :gen_tcp.recv(socket, 0)
+      :gen_tcp.close(socket)
+    end
+  end
+
   test "URL constants", %{server: server} do
     assert server.prefix == "http://localhost:#{server.port}"
     assert server.cross_process_prefix == "http://127.0.0.1:#{server.port}"

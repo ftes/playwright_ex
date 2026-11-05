@@ -223,16 +223,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
   for host <- ["127.0.0.1", "[::1]"] do
     @tag host: host
-    test "should send secure cookie over http for #{host}", %{request: request, server: server, host: host} = context do
-      # The TestServer listens on 127.0.0.1 only (upstream: all interfaces): serve [::1] from a second one.
-      server =
-        if host == "[::1]" do
-          dir_path = Path.dirname(context.asset.("empty.html"))
-          TestServer.server(start_supervised!({TestServer, dir_path: dir_path, ip: {0, 0, 0, 0, 0, 0, 0, 1}}))
-        else
-          server
-        end
-
+    test "should send secure cookie over http for #{host}", %{request: request, server: server, host: host} do
       TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; secure", "b=v"]) end)
       prefix = "http://#{host}:#{server.port}"
       APIRequestContext.get!(request, "#{prefix}/setcookie.html")

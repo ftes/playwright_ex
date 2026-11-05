@@ -251,11 +251,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
 
   # it.fail(channel === 'webkit-wsl', ...)  -- no channel
   @tag skip: if(@browser_name == "firefox", do: "upstream fail: page.goto: NS_ERROR_UNKNOWN_HOST")
-  test "should use ipv6 proxy", %{context_factory: context_factory, server: server} do
-    # The proxyServer fixture listens on 127.0.0.1 only (upstream: dual-stack), see TestProxy.
-    proxy_server =
-      GenServer.call(start_supervised!({TestProxy, ip: {0, 0, 0, 0, 0, 0, 0, 1}}, id: :ipv6_proxy), :server)
-
+  test "should use ipv6 proxy", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: "[0:0:0:0:0:0:0:1]:#{proxy_server.port}"})
     page = BrowserContext.new_page!(context)

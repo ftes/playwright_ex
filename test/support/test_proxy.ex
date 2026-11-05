@@ -17,8 +17,8 @@ defmodule PlaywrightEx.TestProxy do
     * The fixtures listen on ephemeral ports: `setup {PlaywrightEx.TestProxy, :proxy_server}`
       gives `proxy_server`, `setup {PlaywrightEx.TestProxy, :socks_port}` gives `socks_port`
       (both stopped after the test). `setup_socks_forwarding_server/1` ignores `:port`.
-    * Upstream listens dual-stack; this listens on `127.0.0.1` unless started with `ip:`
-      (`start_supervised!({TestProxy, ip: {0, 0, 0, 0, 0, 0, 0, 1}})` for an IPv6 proxy).
+    * Upstream listens dual-stack; this listens on `127.0.0.1` and `[::1]` (one port, see
+      `PlaywrightEx.TestServer`), or on `ip:` only.
       `proxyServer.requestUrls = []` is `clear_request_urls/1`.
   """
   use GenServer
@@ -70,13 +70,10 @@ defmodule PlaywrightEx.TestProxy do
 
   @impl true
   def init(opts) do
-    {:ok, listen} =
-      :gen_tcp.listen(opts[:port] || 0, [:binary, active: false, reuseaddr: true, ip: opts[:ip] || {127, 0, 0, 1}])
-
-    {:ok, port} = :inet.port(listen)
+    {listen, port} = listen(opts, 10)
     url = "http://localhost:#{port}"
     server = %__MODULE__{pid: self(), port: port, url: url, host: "localhost:#{port}"}
-    spawn_link(fn -> accept_loop(listen, &handle_connection(server, &1)) end)
+    for socket <- listen, do: spawn_link(fn -> accept_loop(socket, &handle_connection(server, &1)) end)
 
     {:ok,
      %{
@@ -104,7 +101,27 @@ defmodule PlaywrightEx.TestProxy do
        %{state | connect_hosts: [], request_urls: [], request_hosts: [], forward_to: nil, authenticate: nil}}
 
   @impl true
-  def terminate(_reason, state), do: :gen_tcp.close(state.listen)
+  def terminate(_reason, state), do: Enum.each(state.listen, &:gen_tcp.close/1)
+
+  defp listen(opts, attempts) do
+    options = [:binary, active: false, reuseaddr: true]
+    {:ok, listen} = :gen_tcp.listen(opts[:port] || 0, [ip: opts[:ip] || {127, 0, 0, 1}] ++ options)
+    {:ok, port} = :inet.port(listen)
+    retry? = attempts > 1 and opts[:port] in [nil, 0]
+
+    case if(opts[:ip], do: :skip, else: :gen_tcp.listen(port, [:inet6, ip: {0, 0, 0, 0, 0, 0, 0, 1}] ++ options)) do
+      {:ok, listen6} ->
+        {[listen, listen6], port}
+
+      {:error, :eaddrinuse} when retry? ->
+        :gen_tcp.close(listen)
+        listen(opts, attempts - 1)
+
+      # :skip, or no IPv6 loopback
+      _ ->
+        {[listen], port}
+    end
+  end
 
   @doc false
   def accept_loop(listen, handler) do

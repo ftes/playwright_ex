@@ -12,6 +12,9 @@ defmodule PlaywrightEx.TestServer do
     * The URL constants are snake_case fields: `server.prefix` is `PREFIX`, likewise `port`,
       `cross_process_prefix`, `empty_page`, `host`, `hostname`, `hello_world`.
     * Listens on an ephemeral port by default.
+    * Listens on `127.0.0.1` and `[::1]` (one port), upstream on all interfaces: clients try
+      `localhost` as `[::1]` first, and on Linux a `127.0.0.1` listener's port is free on `[::1]`,
+      where another server would take those connections. `ip:` listens on that address only.
     * WebSocket: an upgrade request runs in its Bandit connection process, which is also its
       `ws` server socket once upgraded (Bandit + `WebSock`, upstream: the `ws` package). That
       pid is upstream's `ws` (`wait_for_web_socket/1`, `once_web_socket_connection/2`) and the
@@ -59,22 +62,10 @@ defmodule PlaywrightEx.TestServer do
   def init(opts) do
     ssl_options = opts[:ssl_options]
 
-    {:ok, bandit} =
-      Bandit.start_link(
-        plug: {TestServer.Router, server: self()},
-        scheme: if(ssl_options, do: :https, else: :http),
-        ip: opts[:ip] || {127, 0, 0, 1},
-        port: opts[:port] || 0,
-        startup_log: false,
-        # Node's http server does not compress responses (gzip only via enable_gzip/2).
-        http_options: [compress: false],
-        thousand_island_options: if(ssl_options, do: [transport_options: ssl_options], else: [])
-      )
-
     # this._server.on('connection', socket => this._onSocket(socket));  -- not ported: Bandit handles socket errors
     # this._wsServer = new WebSocketServer({ noServer: true });  -- ported as TestServer.WebSocket
     # this._server.on('upgrade', ...)  -- ported as _on_upgrade/2 (Router dispatches upgrades)
-    {:ok, {_ip, port}} = ThousandIsland.listener_info(bandit)
+    port = listen(opts, 10)
     # this.debugServer = require('debug')('pw:testserver');  -- not ported
 
     cross_origin = opts[:loopback] || "127.0.0.1"
@@ -114,6 +105,45 @@ defmodule PlaywrightEx.TestServer do
        ws_connection: nil,
        ws_connection_queue: :queue.new()
      }}
+  end
+
+  # Listens on `opts[:ip]`, else on both loopback addresses at one port, and returns the port.
+  defp listen(opts, attempts) do
+    {:ok, bandit} = start_bandit(opts, opts[:ip] || {127, 0, 0, 1}, opts[:port] || 0)
+    {:ok, {_ip, port}} = ThousandIsland.listener_info(bandit)
+    retry? = attempts > 1 and opts[:port] in [nil, 0]
+
+    case if(opts[:ip], do: :skip, else: start_bandit(opts, {0, 0, 0, 0, 0, 0, 0, 1}, port)) do
+      {:error, {:shutdown, {:failed_to_start_child, :listener, :eaddrinuse}}}
+      when retry? ->
+        ThousandIsland.stop(bandit)
+        listen(opts, attempts - 1)
+
+      # :skip, {:ok, _}, or no IPv6 loopback (e.g. a container without IPv6)
+      _ ->
+        port
+    end
+  end
+
+  defp start_bandit(opts, ip, port) do
+    ssl_options = opts[:ssl_options]
+    # A listener that fails to start exits its caller; trapping turns that into an error.
+    trap_exit = Process.flag(:trap_exit, true)
+
+    try do
+      Bandit.start_link(
+        plug: {TestServer.Router, server: self()},
+        scheme: if(ssl_options, do: :https, else: :http),
+        ip: ip,
+        port: port,
+        startup_log: false,
+        # Node's http server does not compress responses (gzip only via enable_gzip/2).
+        http_options: [compress: false],
+        thousand_island_options: if(ssl_options, do: [transport_options: ssl_options], else: [])
+      )
+    after
+      Process.flag(:trap_exit, trap_exit)
+    end
   end
 
   # waitUntilReady  -- ported as create/3 (Bandit listens once started)
