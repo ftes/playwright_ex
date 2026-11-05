@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Download
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
@@ -109,10 +110,60 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  # Ported, but on macOS headed Chrome shows each page in its own window: the victim stays
-  # "visible", so chrome://discards disables [Urgent Discard] and the click times out.
-  @tag skip: "headed Chrome on macOS: the page is visible and can't be discarded"
-  test "should connect when an existing page has been discarded"
+  # On macOS headed Chrome shows each page in its own window: the victim stays "visible", so
+  # chrome://discards disables [Urgent Discard] and the click times out.
+  @tag skip:
+         if(match?({:unix, :darwin}, :os.type()),
+           do: "env: headed Chrome on macOS: the page is visible and can't be discarded"
+         )
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41714' }
+  test "should connect when an existing page has been discarded", %{
+    browser_type: browser_type,
+    create_user_data_dir: create_user_data_dir,
+    server: server
+  } do
+    port = free_port()
+    user_data_dir = create_user_data_dir.()
+    # chrome://discards is an internal debug page that is only available with this pref.
+    File.write!(Path.join(user_data_dir, "Local State"), JSON.encode!(%{internal_only_uis_enabled: true}))
+
+    context =
+      BrowserType.launch_persistent_context!(browser_type, user_data_dir,
+        headless: false,
+        # Emulating the viewport of a discarded tab crashes the browser in
+        # WebContentsImpl::SetDeviceEmulationSize, because it has no view.
+        viewport: :null,
+        args: [
+          "--remote-debugging-port=#{port}",
+          # Chrome refuses to discard tabs with DevTools attached, and we attach to all of them.
+          "--enable-features=AllowDevtoolsConnectedDiscard"
+        ]
+      )
+
+    try do
+      victim_url = server.prefix <> "/title.html"
+      victim = BrowserContext.new_page!(context)
+      Page.goto!(victim, victim_url)
+      discards = BrowserContext.new_page!(context)
+      Page.goto!(discards, "chrome://discards/")
+      # Discarding replaces the tab's WebContents, but the url in the table survives.
+      row = Page.get_by_role(discards, :row, name: victim_url)
+      row |> Locator.get_by_text("Urgent Discard") |> Locator.click!()
+      Expect.to_contain_text!(row, "discarded")
+      # The renderer process is shut down asynchronously after the discard.
+      Page.wait_for_timeout!(discards, 3000)
+      # testInfo.attach('discards rows', ...)  -- not ported: test attachments
+      # fetch(`http://127.0.0.1:${port}/json/list`); testInfo.attach('targets', ...)  -- not ported: test attachments
+
+      # Connecting should not hang on the discarded page, and the page should not be reported.
+      cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
+      pages = BrowserContext.pages(hd(Browser.contexts(cdp_browser)))
+      assert Enum.sort(Enum.map(pages, &Page.url/1)) == Enum.sort(["about:blank", Page.url(discards)])
+      Browser.close!(cdp_browser)
+    after
+      BrowserContext.close!(context)
+    end
+  end
 
   @tag skip: "not ported: toImpl (server internals)"
   test "should cleanup artifacts dir after connectOverCDP disconnects due to ws close"

@@ -15,16 +15,13 @@ defmodule PlaywrightEx.TestServer do
     * Listens on `127.0.0.1` and `[::1]` (one port), upstream on all interfaces: clients try
       `localhost` as `[::1]` first, and on Linux a `127.0.0.1` listener's port is free on `[::1]`,
       where another server would take those connections. `ip:` listens on that address only.
+    * Responses to HTTP/1.1 requests get Node's `Connection: keep-alive` and
+      `Keep-Alive: timeout=5` (Bandit sends neither). `send_resp/4` sends a custom status message.
     * WebSocket: an upgrade request runs in its Bandit connection process, which is also its
-      `ws` server socket once upgraded (Bandit + `WebSock`, upstream: the `ws` package). That
-      pid is upstream's `ws` (`wait_for_web_socket/1`, `once_web_socket_connection/2`) and the
-      `socket` of `wait_for_upgrade/1` (which resolves to `%{do_upgrade: fun/0, socket: pid}`),
-      driven by `PlaywrightEx.TestServer.WebSocket`: `send/2` (a string is a text frame,
-      `{:binary, bytes}` a binary one), `close/1..3`, `on/3`, `once/3`, `write/2`, `destroy/1`.
-      Listeners run in that process. A `:message` listener gets the payload binary (upstream:
-      a `Buffer`); a `:close` listener gets `code, reason`, `nil, ""` when the peer closed
-      (Bandit does not expose the peer's Close frame, and answers it with code 1000 where `ws`
-      echoes the peer's code). The `wait_for_*` functions return a `Task`.
+      `ws` server socket once upgraded (`PlaywrightEx.TestServer.WebSocket`, upstream: the `ws`
+      package). That pid is upstream's `ws` (`wait_for_web_socket/1`,
+      `once_web_socket_connection/2`) and the `socket` of `wait_for_upgrade/1` (which resolves to
+      `%{do_upgrade: fun/0, socket: pid}`). The `wait_for_*` functions return a `Task`.
   """
   use GenServer
 
@@ -280,15 +277,27 @@ defmodule PlaywrightEx.TestServer do
   end
 
   # this._wsServer.handleUpgrade(request, socket, head, ws => this._wsServer.emit('connection', ws, request))
-  defp do_upgrade(this, conn, socket) do
-    # `ws` accepts the first offered subprotocol (its default `handleProtocols`).
-    conn =
-      case conn |> Plug.Conn.get_req_header("sec-websocket-protocol") |> Enum.flat_map(&Plug.Conn.Utils.list/1) do
-        [protocol | _] -> Plug.Conn.put_resp_header(conn, "sec-websocket-protocol", protocol)
-        [] -> conn
-      end
+  defp do_upgrade(this, conn, socket), do: TestServer.WebSocket._handle_upgrade(this, conn, socket)
 
-    Plug.Conn.upgrade_adapter(conn, :websocket, {TestServer.WebSocket, %{server: this, conn: conn, socket: socket}, []})
+  @doc """
+  `res.writeHead(status, statusMessage); res.end(body)`: Bandit sends no custom status message,
+  so this writes the response to the socket and closes the connection.
+  """
+  def send_resp(conn, status, status_message, body \\ "") do
+    socket = raw_socket(conn)
+    date = Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")
+    # Plug's default `cache-control` (Node sends none)
+    headers = conn.resp_headers -- [{"cache-control", "max-age=0, private, must-revalidate"}]
+
+    ThousandIsland.Socket.send(socket, [
+      "HTTP/1.1 #{status} #{status_message}\r\n",
+      for({name, value} <- headers, do: "#{name}: #{value}\r\n"),
+      "date: #{date}\r\nconnection: close\r\ncontent-length: #{byte_size(body)}\r\n\r\n",
+      body
+    ])
+
+    ThousandIsland.Socket.shutdown(socket, :write)
+    TestServer.WebSocket._destroy(socket)
   end
 
   defp raw_socket(%Plug.Conn{adapter: {Bandit.Adapter, %{transport: %{socket: socket}}}}), do: socket
@@ -475,120 +484,18 @@ defmodule PlaywrightEx.TestServer do
       # Node emits 'upgrade' instead of 'request' for upgrade requests.
       if conn |> Plug.Conn.get_req_header("upgrade") |> Enum.any?(&(String.downcase(&1) == "websocket")),
         do: TestServer._on_upgrade(%TestServer{pid: server_pid}, conn),
-        else: TestServer._on_request(%TestServer{pid: server_pid}, conn)
-    end
-  end
-
-  defmodule WebSocket do
-    @moduledoc """
-    The `ws` server socket of `PlaywrightEx.TestServer` (upstream: a `ws` package `WebSocket`),
-    and the upgrade `socket` before it (`write/2`, `destroy/1`): the pid of the connection
-    process. Listeners (`on/3`, `once/3`) run in it; `:message` gets the payload, `:close` gets
-    `code, reason`; a listener may take fewer arguments.
-    """
-    @behaviour WebSock
-
-    alias PlaywrightEx.TestServer
-
-    @listeners {__MODULE__, :listeners}
-
-    @doc "A string is sent as a text frame, `{:binary, bytes}` as a binary frame."
-    def send(ws, data) when is_binary(data) or (is_tuple(data) and elem(data, 0) == :binary),
-      do: Kernel.send(ws, {__MODULE__, :send, data})
-
-    # ws.close() sends no status code; Bandit sends 1000.
-    def close(ws, code \\ 1000, reason \\ ""), do: Kernel.send(ws, {__MODULE__, :close, code, reason})
-
-    def on(ws, event, listener) when event in [:message, :close], do: add_listener(ws, {event, listener, false})
-    def once(ws, event, listener) when event in [:message, :close], do: add_listener(ws, {event, listener, true})
-
-    @doc "Writes raw bytes to the TCP socket (upstream `socket.write`)."
-    def write(socket, data), do: Kernel.send(socket, {__MODULE__, :write, data})
-
-    @doc "Closes the TCP socket (upstream `socket.destroy`)."
-    def destroy(socket), do: Kernel.send(socket, {__MODULE__, :destroy})
-
-    defp add_listener(ws, listener) when ws == self(),
-      do: Process.put(@listeners, (Process.get(@listeners) || []) ++ [listener])
-
-    # Synchronous from other processes, so that the listener is set before frames that follow.
-    defp add_listener(ws, listener) do
-      ref = Process.monitor(ws)
-      Kernel.send(ws, {__MODULE__, :add_listener, listener, self(), ref})
-
-      receive do
-        {^ref, :ok} -> Process.demonitor(ref, [:flush])
-        {:DOWN, ^ref, :process, _, _} -> nil
-      end
-
-      :ok
+        else: TestServer._on_request(%TestServer{pid: server_pid}, Plug.Conn.register_before_send(conn, &keep_alive/1))
     end
 
-    defp emit(event, args) do
-      listeners = Process.get(@listeners) || []
-      Process.put(@listeners, Enum.reject(listeners, fn {e, _, once} -> e == event and once end))
-
-      for {^event, listener, _} <- listeners do
-        {:arity, arity} = Function.info(listener, :arity)
-        apply(listener, Enum.take(args, arity))
-      end
+    # Node's http server on a persistent connection (Bandit closes it on `connection: close`).
+    defp keep_alive(conn) do
+      if Plug.Conn.get_http_protocol(conn) == :"HTTP/1.1" and Plug.Conn.get_resp_header(conn, "connection") == [] and
+           not Enum.any?(Plug.Conn.get_req_header(conn, "connection"), &(String.downcase(&1) =~ "close")),
+         do:
+           conn
+           |> Plug.Conn.put_resp_header("connection", "keep-alive")
+           |> Plug.Conn.put_resp_header("keep-alive", "timeout=5"),
+         else: conn
     end
-
-    # socket.destroy() in a plug: ends the request as a client closure (which Bandit does not log).
-    @doc false
-    def _destroy(socket) do
-      ThousandIsland.Socket.close(socket)
-      raise Bandit.TransportError, message: "destroyed", error: :closed
-    end
-
-    @impl WebSock
-    def init(%{server: %TestServer{pid: server_pid}, conn: conn, socket: socket}) do
-      # Next emit is only for our internal 'connection' listeners.
-      {ref, listeners} = GenServer.call(server_pid, :ws_connection, :infinity)
-
-      try do
-        for listener <- listeners do
-          if is_function(listener, 1), do: listener.(self()), else: listener.(self(), conn)
-        end
-      after
-        GenServer.cast(server_pid, {:ws_connection_done, ref})
-      end
-
-      {:ok, %{socket: socket, close: {nil, ""}}}
-    end
-
-    @impl WebSock
-    def handle_in({data, opcode: _opcode}, state) do
-      emit(:message, [data])
-      {:ok, state}
-    end
-
-    @impl WebSock
-    def handle_info({__MODULE__, :send, {:binary, data}}, state), do: {:push, {:binary, data}, state}
-    def handle_info({__MODULE__, :send, data}, state), do: {:push, {:text, data}, state}
-
-    def handle_info({__MODULE__, :close, code, reason}, state),
-      do: {:stop, :normal, {code, reason}, %{state | close: {code, reason}}}
-
-    def handle_info({__MODULE__, :add_listener, listener, from, ref}, state) do
-      add_listener(self(), listener)
-      Kernel.send(from, {ref, :ok})
-      {:ok, state}
-    end
-
-    def handle_info({__MODULE__, :write, data}, state) do
-      ThousandIsland.Socket.send(state.socket, data)
-      {:ok, state}
-    end
-
-    def handle_info({__MODULE__, :destroy}, state) do
-      ThousandIsland.Socket.close(state.socket)
-      {:stop, :normal, state}
-    end
-
-    def handle_info(_message, state), do: {:ok, state}
-
-    @impl WebSock
-    def terminate(_reason, %{close: {code, reason}}), do: emit(:close, [code, reason])
   end
 end

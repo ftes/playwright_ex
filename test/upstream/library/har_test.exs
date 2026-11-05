@@ -552,9 +552,28 @@ defmodule PlaywrightEx.Library.HarTest do
     assert String.ends_with?(hd(log["entries"])["request"]["url"], "har.html")
   end
 
-  # Bandit sends fewer response headers than Node's http server: _transferSize is 247, not >= 250.
-  @tag skip: "not ported: TestServer response headers differ (Bandit)"
-  test "should include sizes"
+  test "should include sizes", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server,
+    asset: asset
+  } do
+    %{page: page} = session = page_with_har(context_factory, output_path)
+    Page.goto!(page, server.prefix <> "/har.html")
+    log = get_log(session)
+    assert length(log["entries"]) == 2
+    [entry0, entry1] = log["entries"]
+    assert String.ends_with?(entry0["request"]["url"], "har.html")
+    assert entry0["request"]["headersSize"] >= 100
+    assert entry0["response"]["bodySize"] == File.stat!(asset.("har.html")).size
+    assert entry0["response"]["headersSize"] >= 100
+    assert entry0["response"]["_transferSize"] >= 250
+
+    assert String.ends_with?(entry1["request"]["url"], "one-style.css")
+    assert entry1["response"]["bodySize"] == File.stat!(asset.("one-style.css")).size
+    assert entry1["response"]["headersSize"] >= 100
+    assert entry1["response"]["_transferSize"] >= 150
+  end
 
   test "should work with gzip compression", %{
     context_factory: context_factory,

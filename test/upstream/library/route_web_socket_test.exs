@@ -11,8 +11,6 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # `target: Page | Frame`
   defp setup_ws(target, server, binary_type, protocols \\ nil, relative_url \\ false) do
     facade = if is_struct(target, PlaywrightEx.Client.Frame), do: Frame, else: Page
@@ -68,11 +66,6 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         :ok
       end
 
-      @tag skip:
-             if(@browser_name == "firefox",
-               do:
-                 "env: the Bandit test server half-closes TCP right after its Close frame (node ws waits for the peer's), Firefox reports wasClean=false"
-             )
       test "should work with text message", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         upgrade_promise = TestServer.wait_for_upgrade(server)
@@ -183,9 +176,36 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert close =~ ~r/close code=\d+ reason= wasClean=false/
       end
 
-      @tag skip:
-             "not ported: TestServer close frames (Bandit replies 1000 and hides the client's close code and reason)"
-      test "should work with client-side close"
+      test "should work with client-side close", %{page: page, server: server} do
+        ws_promise = TestServer.wait_for_web_socket(server)
+        upgrade_promise = TestServer.wait_for_upgrade(server)
+        setup_ws(page, server, "blob")
+        assert Page.evaluate!(page, "() => window.ws.readyState") == 0
+        %{do_upgrade: do_upgrade} = Task.await(upgrade_promise)
+        assert Page.evaluate!(page, "() => window.ws.readyState") == 0
+        assert Page.evaluate!(page, "() => window.log") == []
+        do_upgrade.()
+        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
+        assert Page.evaluate!(page, "() => window.log") == ["open"]
+        ws = Task.await(ws_promise)
+        me = self()
+        TestServer.WebSocket.once(ws, :close, &send(me, {:closed, %{code: &1, reason: &2}}))
+
+        ready_state =
+          Page.evaluate!(page, """
+          () => {
+            window.ws.close(3002, 'oops');
+            return window.ws.readyState;
+          }
+          """)
+
+        assert ready_state == 2
+        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
+        assert Page.evaluate!(page, "() => window.log") == ["open", "close code=3002 reason=oops wasClean=true"]
+        assert_receive {:closed, closed}, 5000
+        assert closed.code == 3002
+        assert closed.reason == "oops"
+      end
 
       test "should pass through the required protocol", %{page: page, server: server} do
         setup_ws(page, server, "blob", "my-custom-protocol")
@@ -213,8 +233,43 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     end
   end
 
-  @tag skip: "not ported: TestServer close frames (Bandit replies 1000 and hides the client's close code and reason)"
-  test "should work with ws.close"
+  test "should work with ws.close", %{page: page, server: server} do
+    me = self()
+
+    Page.route_web_socket!(page, ~r/.*/, fn ws ->
+      WebSocketRoute.connect_to_server(ws)
+      send(me, {:route, ws})
+    end)
+
+    ws_promise = TestServer.wait_for_web_socket(server)
+    setup_ws(page, server, "blob")
+    ws = Task.await(ws_promise)
+
+    assert_receive {:route, route}, 5000
+    WebSocketRoute.send(route, "hello")
+
+    Utils.poll(
+      fn -> Page.evaluate!(page, "() => window.log") end,
+      &assert(&1 == ["open", "message: data=hello origin=ws://#{server.host} lastEventId="])
+    )
+
+    TestServer.WebSocket.once(ws, :close, &send(me, {:closed, %{code: &1, reason: &2}}))
+    WebSocketRoute.close!(route, code: 3009, reason: "oops")
+
+    Utils.poll(
+      fn -> Page.evaluate!(page, "() => window.log") end,
+      &assert(
+        &1 == [
+          "open",
+          "message: data=hello origin=ws://#{server.host} lastEventId=",
+          "close code=3009 reason=oops wasClean=true"
+        ]
+      )
+    )
+
+    assert_receive {:closed, closed}, 5000
+    assert closed == %{code: 3009, reason: "oops"}
+  end
 
   test "should observe upstream handshake failure when connectToServer is used", %{page: page, server: server} do
     # Exercises the WebSocket-as-network-request path used by Firefox after the
@@ -336,8 +391,129 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:response", "ws2:mock-response"]))
   end
 
-  @tag skip: "not ported: TestServer close frames (Bandit replies 1000 and hides the client's close code and reason)"
-  test "should work with server"
+  test "should work with server", %{page: page, server: server} do
+    me = self()
+
+    Page.route_web_socket!(page, ~r/.*/, fn ws ->
+      server = WebSocketRoute.connect_to_server(ws)
+
+      WebSocketRoute.on_message(ws, fn
+        "to-respond" -> WebSocketRoute.send(ws, "response")
+        "to-block" -> nil
+        "to-modify" -> WebSocketRoute.send(server, "modified")
+        message -> WebSocketRoute.send(server, message)
+      end)
+
+      WebSocketRoute.on_message(server, fn
+        "to-block" -> nil
+        "to-modify" -> WebSocketRoute.send(ws, "modified")
+        message -> WebSocketRoute.send(ws, message)
+      end)
+
+      WebSocketRoute.send(server, "fake")
+      send(me, {:route, ws})
+    end)
+
+    ws_promise = TestServer.wait_for_web_socket(server)
+    {:ok, log} = Agent.start_link(fn -> [] end)
+    push = &Agent.update(log, fn log -> log ++ [&1] end)
+
+    TestServer.once_web_socket_connection(server, fn ws ->
+      TestServer.WebSocket.on(ws, :message, &push.("message: #{&1}"))
+      TestServer.WebSocket.on(ws, :close, &push.("close: code=#{&1} reason=#{&2}"))
+    end)
+
+    setup_ws(page, server, "blob")
+    ws = Task.await(ws_promise)
+    Utils.poll(fn -> Agent.get(log, & &1) end, &assert(&1 == ["message: fake"]))
+
+    TestServer.WebSocket.send(ws, "to-modify")
+    TestServer.WebSocket.send(ws, "to-block")
+    TestServer.WebSocket.send(ws, "pass-server")
+
+    Utils.poll(
+      fn -> Page.evaluate!(page, "() => window.log") end,
+      &assert(
+        &1 == [
+          "open",
+          "message: data=modified origin=ws://#{server.host} lastEventId=",
+          "message: data=pass-server origin=ws://#{server.host} lastEventId="
+        ]
+      )
+    )
+
+    Page.evaluate!(page, """
+    () => {
+      window.ws.send('to-respond');
+      window.ws.send('to-modify');
+      window.ws.send('to-block');
+      window.ws.send('pass-client');
+    }
+    """)
+
+    Utils.poll(
+      fn -> Agent.get(log, & &1) end,
+      &assert(&1 == ["message: fake", "message: modified", "message: pass-client"])
+    )
+
+    Utils.poll(
+      fn -> Page.evaluate!(page, "() => window.log") end,
+      &assert(
+        &1 == [
+          "open",
+          "message: data=modified origin=ws://#{server.host} lastEventId=",
+          "message: data=pass-server origin=ws://#{server.host} lastEventId=",
+          "message: data=response origin=ws://#{server.host} lastEventId="
+        ]
+      )
+    )
+
+    assert_receive {:route, route}, 5000
+    WebSocketRoute.send(route, "another")
+
+    Utils.poll(
+      fn -> Page.evaluate!(page, "() => window.log") end,
+      &assert(
+        &1 == [
+          "open",
+          "message: data=modified origin=ws://#{server.host} lastEventId=",
+          "message: data=pass-server origin=ws://#{server.host} lastEventId=",
+          "message: data=response origin=ws://#{server.host} lastEventId=",
+          "message: data=another origin=ws://#{server.host} lastEventId="
+        ]
+      )
+    )
+
+    Page.evaluate!(page, """
+    () => {
+      window.ws.send('pass-client-2');
+    }
+    """)
+
+    Utils.poll(
+      fn -> Agent.get(log, & &1) end,
+      &assert(&1 == ["message: fake", "message: modified", "message: pass-client", "message: pass-client-2"])
+    )
+
+    Page.evaluate!(page, """
+    () => {
+      window.ws.close(3009, 'problem');
+    }
+    """)
+
+    Utils.poll(
+      fn -> Agent.get(log, & &1) end,
+      &assert(
+        &1 == [
+          "message: fake",
+          "message: modified",
+          "message: pass-client",
+          "message: pass-client-2",
+          "close: code=3009 reason=problem"
+        ]
+      )
+    )
+  end
 
   test "should work without server", %{page: page, server: server} do
     me = self()

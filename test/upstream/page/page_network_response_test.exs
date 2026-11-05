@@ -220,8 +220,11 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     end
   end
 
-  @tag skip: "not ported: custom status text (TestServer on Plug)"
-  test "should return status text"
+  test "should return status text", %{page: page, server: server} do
+    TestServer.set_route(server, "/cool", &TestServer.send_resp(&1, 200, "cool!"))
+    response = Page.goto!(page, server.prefix <> "/cool")
+    assert Response.status_text(response) == "cool!"
+  end
 
   @tag skip:
          if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),

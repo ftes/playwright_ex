@@ -40,7 +40,6 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   #   * Only the `run-server` kind: `launchServer` is out of scope (PLAN), so the
   #     `for (const kind of ['launchServer', 'run-server'])` loop has one `describe`.
   #   * `remoteServer.close()` kills `run-server` with `kill -9` (it ignores SIGTERM).
-  #   * No `ws` client: tests that open a WebSocket from the test are skipped.
 
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
@@ -173,8 +172,60 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   describe "run-server" do
     @describetag kind: "run-server"
 
-    @tag skip: "not ported: WebSocket client (ws)"
-    test "should connect over wss"
+    test "should connect over wss", %{start_remote_server: start_remote_server, https_server: https_server, kind: kind} do
+      remote_server = start_remote_server.(kind, %{})
+
+      # process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0': the driver is another process, so a
+      # driver of its own started with it; NODE_NO_WARNINGS for suppressCertificateWarning()
+      start_supervised!(
+        {PlaywrightEx.Supervisor,
+         name: :connect_over_wss,
+         env: [{"PWTEST_UNDER_TEST", "1"}, {"NODE_TLS_REJECT_UNAUTHORIZED", "0"}, {"NODE_NO_WARNINGS", "1"}]},
+        id: :connect_over_wss
+      )
+
+      playwright = PlaywrightEx.playwright(:connect_over_wss)
+
+      browser_type =
+        case @browser_name do
+          "chromium" -> Playwright.chromium(playwright)
+          "firefox" -> Playwright.firefox(playwright)
+          "webkit" -> Playwright.webkit(playwright)
+        end
+
+      test = self()
+
+      TestServer.once_web_socket_connection(https_server, fn ws, request ->
+        headers =
+          for {name, value} <- request.req_headers,
+              String.starts_with?(name, "x-playwright"),
+              into: %{},
+              do: {name, value}
+
+        # perMessageDeflate: false, maxPayload: 256Mb  -- not ported: TestServer.WebSocket has neither
+        remote = TestServer.WebSocket.new(RunServer.ws_endpoint(remote_server), [], %{headers: headers})
+        TestServer.WebSocket.on(remote, :close, fn -> TestServer.WebSocket.close(ws) end)
+        TestServer.WebSocket.on(remote, :error, fn -> TestServer.WebSocket.close(ws) end)
+        # ws.send(Buffer) sends a binary frame.
+        TestServer.WebSocket.on(remote, :message, &TestServer.WebSocket.send(ws, {:binary, &1}))
+        # `await remoteReadyPromise`: the remote socket sends once open.
+        TestServer.WebSocket.on(ws, :message, &TestServer.WebSocket.send(remote, {:binary, &1}))
+
+        TestServer.WebSocket.on(ws, :close, fn ->
+          TestServer.WebSocket.close(remote)
+          send(test, :ws_closed)
+        end)
+
+        TestServer.WebSocket.on(ws, :error, fn -> TestServer.WebSocket.close(remote) end)
+      end)
+
+      browser = connect!(browser_type, "wss://localhost:#{https_server.port}/ws")
+      assert Browser.version(browser)
+      Browser.close!(browser)
+      # Deviation: waits for the driver to drop the connection, so that it doesn't write to the
+      # pipe of its stopped port (EPIPE).
+      assert_receive :ws_closed, 5000
+    end
 
     test "should print HTTP error", %{browser_type: browser_type, server: server} do
       {:error, error} = connect(browser_type, "ws://localhost:#{server.port}/ws-401")
@@ -224,8 +275,26 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       Browser.close!(browser)
     end
 
-    @tag skip: "not ported: WebSocket client (ws)"
-    test "should not crash on malformed json frame"
+    test "should not crash on malformed json frame", %{
+      browser_type: browser_type,
+      start_remote_server: start_remote_server,
+      kind: kind
+    } do
+      remote_server = start_remote_server.(kind, %{})
+      ws = TestServer.WebSocket.new(RunServer.ws_endpoint(remote_server))
+      me = self()
+      TestServer.WebSocket.once(ws, :open, fn -> send(me, {ws, :open}) end)
+      TestServer.WebSocket.once(ws, :error, &send(me, {ws, {:error, &1}}))
+      assert_receive {^ws, :open}, 30_000
+      TestServer.WebSocket.send(ws, "]")
+      TestServer.WebSocket.once(ws, :close, fn -> send(me, {ws, :close}) end)
+      assert_receive {^ws, :close}, 30_000
+      # Server should still be alive and accept new connections.
+      browser = connect!(browser_type, RunServer.ws_endpoint(remote_server))
+      page = Browser.new_page!(browser)
+      assert Page.evaluate!(page, "1 + 2") == 3
+      Browser.close!(browser)
+    end
 
     test "should be able to visit ipv6", %{
       browser_type: browser_type,
