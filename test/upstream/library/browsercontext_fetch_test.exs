@@ -923,11 +923,16 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.url(response) == server.empty_page
   end
 
+  # writeHead, then the encoder piped into res: chunked, no content-length.
   defp send_encoded(conn, encoding, body) do
+    {:ok, conn} =
+      conn
+      |> Plug.Conn.put_resp_header("content-encoding", encoding)
+      |> Plug.Conn.put_resp_header("content-type", "text/plain")
+      |> Plug.Conn.send_chunked(200)
+      |> Plug.Conn.chunk(body)
+
     conn
-    |> Plug.Conn.put_resp_header("content-encoding", encoding)
-    |> Plug.Conn.put_resp_header("content-type", "text/plain")
-    |> Plug.Conn.send_resp(200, body)
   end
 
   test "should support gzip compression", %{context: context, server: server} do
