@@ -122,6 +122,22 @@ defmodule PlaywrightEx.Runtime.Facade do
   def options!(options, {:object, schema}, api_name), do: object!(options, schema, api_name, [])
 
   @doc """
+  Like `options!/3`, but the options may also be a result of the call (a map with the JS keys,
+  `credentials.create(known.rpId, known)`): its JS keys become the option keys, the `ignored`
+  JS keys (result fields that are no options) are dropped. Other keys still raise.
+  """
+  def result_options!(options, {:object, schema} = type, ignored, api_name) when is_map(options) do
+    option_keys = Map.new(schema, fn {key, {js_key, _type}} -> {js_key, key} end)
+
+    options
+    |> Map.drop(ignored)
+    |> Map.new(fn {key, value} -> {Map.get(option_keys, key, key), value} end)
+    |> options!(type, api_name)
+  end
+
+  def result_options!(options, type, _ignored, api_name), do: options!(options, type, api_name)
+
+  @doc """
   A dictionary of option objects with JS keys (device descriptors) keyed as options:
   `keys` maps a JS key to its option key (`userAgent: :user_agent`), others stay.
   """

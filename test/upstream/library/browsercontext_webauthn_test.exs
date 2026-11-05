@@ -26,17 +26,6 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     )
   end
 
-  # JS passes a credential (`known`) as the options of `create`: here its fields are the options.
-  defp credential_options(credential) do
-    [
-      id: credential.id,
-      user_handle: credential.userHandle,
-      private_key: credential.privateKey,
-      public_key: credential.publicKey,
-      sign_count: credential.signCount
-    ]
-  end
-
   @b64_url_to_bytes """
   const b64UrlToBytes = (s) => {
     let str = s.replace(/-/g, '+').replace(/_/g, '/');
@@ -99,7 +88,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
 
     # A fresh context imports the known credential and signs in with it.
     context = context_factory.([])
-    Credentials.create!(BrowserContext.credentials(context), known.rpId, credential_options(known))
+    Credentials.create!(BrowserContext.credentials(context), known.rpId, known)
     Credentials.install!(BrowserContext.credentials(context))
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -191,7 +180,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
 
     # Reuse the captured passkey in a fresh context and sign in with it.
     context = context_factory.([])
-    Credentials.create!(BrowserContext.credentials(context), captured.rpId, credential_options(captured))
+    Credentials.create!(BrowserContext.credentials(context), captured.rpId, captured)
     Credentials.install!(BrowserContext.credentials(context))
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -247,7 +236,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     # A captured credential continues from the same counter in another context.
     [captured] = Credentials.get!(BrowserContext.credentials(context), id: seeded.id)
     context2 = context_factory.([])
-    Credentials.create!(BrowserContext.credentials(context2), captured.rpId, credential_options(captured))
+    Credentials.create!(BrowserContext.credentials(context2), captured.rpId, captured)
     Credentials.install!(BrowserContext.credentials(context2))
     page2 = BrowserContext.new_page!(context2)
     Page.goto!(page2, server.empty_page)

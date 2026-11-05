@@ -45,6 +45,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
       (`user_agent:`), as in the Python client, so `new_context(browser, devices["iPhone 6"])`
       takes one as JS spreads it (`"options"`: the member whose options they are). `newContext` and
       `newPage` take their `defaultBrowserType` and ignore it (`@extra_options`, Python's too).
+    * Options that JS code fills with a result of the member (`@result_options`:
+      `credentials.create(known.rpId, known)`) are marked `"result"`: the facade also takes such a
+      result (a map with the JS keys) as the options, ignoring its fields that are no options
+      (`rpId`, which the positional argument overrides in the client too).
     * Callback forms: every Python `expect_*` member (`expect_popup`) is added as a member with
       a `"callback"`: the JS member it starts (`waitForEvent`), and the event for those that have
       none in JS (`@callback_events`).
@@ -92,6 +96,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   # "Class.member" => the member whose options its dictionary values are.
   @descriptors %{"Playwright.devices" => "Browser.newContext"}
+
+  # "Class.member" whose options may be one of its results (`create(known.rpId, known)`).
+  @result_options ~w(Credentials.create)
 
   # "Class.member" whose `options` argument the client rejects.
   @dropped_options ~w(Frame.evalOnSelector Page.evalOnSelector ElementHandle.inputValue)
@@ -144,6 +151,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> storage_state()
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
+              |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
               |> or_options(class_names)
@@ -510,6 +518,26 @@ defmodule Mix.PlaywrightEx.ApiRules do
         Map.merge(member, %{"options" => options, "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}]})
     end
   end
+
+  defp result_options(member, false), do: member
+
+  defp result_options(%{"type" => %{"properties" => result}} = member, true) do
+    text =
+      "In Elixir, the options may also be a result of this function (a map with the JS keys), " <>
+        "as JS passes one: `create!(credentials, known.rpId, known)`. Its fields that are no options are ignored."
+
+    args = Enum.map(member["args"], &result_arg(&1, result, member["type"]))
+    Map.merge(member, %{"args" => args, "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}]})
+  end
+
+  # The result's fields that are no options are ignored (`rpId`).
+  defp result_arg(%{"name" => "options"} = arg, result, type) do
+    names = MapSet.new(arg["type"]["properties"], & &1["name"])
+    ignored = for %{"name" => name} <- result, name not in names, do: name
+    Map.put(arg, "result", %{"ignored" => ignored, "type" => type})
+  end
+
+  defp result_arg(arg, _result, _type), do: arg
 
   defp storage_state(%{"name" => "storageState", "kind" => "method"} = member),
     do: %{member | "type" => open(member["type"])}

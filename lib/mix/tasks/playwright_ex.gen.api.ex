@@ -504,6 +504,11 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp attribute(_name, {_, _, :event}), do: ""
   defp attribute(name, {_, var, schema}), do: "@#{name}_#{var} #{render(schema)}"
 
+  # Options that may be a result of the member (`"result"`, see `Mix.PlaywrightEx.ApiRules`).
+  defp conversion(name, api_name, {%{"name" => "options", "result" => %{"ignored" => ignored}}, var, _}),
+    do:
+      "#{var} = Facade.result_options!(#{var}, @#{name}_#{var}, #{inspect(Enum.map(ignored, &String.to_atom/1))}, #{inspect(api_name)})"
+
   defp conversion(name, api_name, {%{"name" => "options"}, var, _}),
     do: "#{var} = Facade.options!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
 
@@ -921,9 +926,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     """
     @typedoc "Options of `#{name}`, see its docs."
-    @type #{name}_options :: [#{keyword}] | %{#{map}}
+    @type #{name}_options :: [#{keyword}] | %{#{map}}#{result_spec(ctx, arg)}
     """
   end
+
+  defp result_spec(ctx, %{"result" => %{"type" => type}}), do: " | " <> type_spec(ctx, type, :in)
+  defp result_spec(_ctx, _arg), do: ""
 
   defp type_spec(_ctx, nil, _dir), do: "term()"
 

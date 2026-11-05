@@ -123,6 +123,14 @@ defmodule PlaywrightEx.Credentials do
               optional(:sign_count) => integer(),
               optional(:user_handle) => String.t()
             }
+          | %{
+              id: String.t(),
+              rpId: String.t(),
+              userHandle: String.t(),
+              privateKey: String.t(),
+              publicKey: String.t(),
+              signCount: integer()
+            }
 
   @doc since: "1.61"
   @doc ~S"""
@@ -137,6 +145,8 @@ defmodule PlaywrightEx.Credentials do
   signature counter the relying party has already seen.
 
   Call `PlaywrightEx.Credentials.install/1` before navigating to a page that uses WebAuthn.
+
+  In Elixir, the options may also be a result of this function (a map with the JS keys), as JS passes one: `create!(credentials, known.rpId, known)`. Its fields that are no options are ignored.
 
   ## Arguments
 
@@ -163,7 +173,7 @@ defmodule PlaywrightEx.Credentials do
            }}
           | {:error, Exception.t()}
   def create(credentials, rp_id, options \\ []) do
-    options = Facade.options!(options, @create_options, "credentials.create")
+    options = Facade.result_options!(options, @create_options, [:rpId], "credentials.create")
 
     Facade.async("credentials.create", credentials, fn ->
       PlaywrightEx.Client.Credentials.create(credentials, rp_id, options)
@@ -181,7 +191,7 @@ defmodule PlaywrightEx.Credentials do
           signCount: integer()
         }
   def create!(credentials, rp_id, options \\ []) do
-    options = Facade.options!(options, @create_options, "credentials.create")
+    options = Facade.result_options!(options, @create_options, [:rpId], "credentials.create")
 
     Facade.async!("credentials.create", credentials, fn ->
       PlaywrightEx.Client.Credentials.create(credentials, rp_id, options)

@@ -60,6 +60,30 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
     end
   end
 
+  @result_schema {:object, %{private_key: {:privateKey, nil}, sign_count: {:signCount, nil}}}
+
+  test "result options: a result with JS keys is the options, its fields that are no options are ignored" do
+    known = %{privateKey: "k", signCount: 3, rpId: "example.com"}
+    assert Facade.result_options!(known, @result_schema, [:rpId], "x.y") == %{privateKey: "k", signCount: 3}
+    assert Facade.result_options!([private_key: "k"], @result_schema, [:rpId], "x.y") == %{privateKey: "k"}
+    assert Facade.result_options!(%{sign_count: 1}, @result_schema, [:rpId], "x.y") == %{signCount: 1}
+  end
+
+  test "result options: unknown keys still raise" do
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :bogus, /, fn ->
+      Facade.result_options!(%{privateKey: "k", bogus: 1}, @result_schema, [:rpId], "x.y")
+    end
+
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :rpId, /, fn ->
+      Facade.result_options!([rpId: "example.com"], @result_schema, [:rpId], "x.y")
+    end
+
+    # The generated facade checks before calling the client.
+    assert_raise ArgumentError, ~r/^credentials\.create: unknown option :bogus, /, fn ->
+      PlaywrightEx.Credentials.create!(%PlaywrightEx.Credentials{}, "example.com", %{id: "a", bogus: 1})
+    end
+  end
+
   test "events" do
     events = %{page_error: "pageerror"}
     assert Facade.event!(:page_error, events, "page.on") == "pageerror"

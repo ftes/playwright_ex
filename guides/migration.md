@@ -33,7 +33,8 @@ raise `ArgumentError`. Nested objects are maps with the JS keys, the same shape 
 back in (`%{name: "a", value: "b", sameSite: "Lax"}`). Enums are atoms (`get_by_role(page, :button)`).
 Optional arguments stay positional; the options may take the place of an optional string, enum or
 handle before them (`Page.wait_for_load_state(page, timeout: 1_000)`,
-`Expect.to_have_attribute(locator, "disabled", timeout: 1_000)`).
+`Expect.to_have_attribute(locator, "disabled", timeout: 1_000)`). Where JS passes a result as the
+options, so does Elixir: `Credentials.create!(credentials, known.rpId, known)`.
 
 **Timeouts.** Set defaults once instead of a `timeout:` per call:
 
