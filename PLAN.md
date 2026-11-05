@@ -143,7 +143,8 @@ Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
   `:persistent_term`, module state shared by connections as in JS.
 - Evaluate: JS source strings, omit `isFunction` (like Python); string + `arg` is function source.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
-- GC: keep initializer in the struct, tombstone in ETS. AbortSignal: drop at first.
+- GC: a tracing collector over the heap (`Runtime.GC`, see DECISIONS "Heap GC"). AbortSignal:
+  drop at first.
 - Zones: process dictionary, handed over with the baton.
 - `Expect.to_have_screenshot(target, path: ...)` is one more generated matcher
   (`Page`/`LocatorAssertions.toHaveScreenshot`, JS-only in api.json, kept by the rules file,
@@ -235,8 +236,8 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    (`removeAllListeners`, `storageState`, `emulateMedia`, `requestGC`, `pause`, `pdf`,
    `Playwright.errors`) and the release gate: the generator emits every member, out-of-scope
    ones (`launchServer`, `PlaywrightAssertions`) are dropped in `Mix.PlaywrightEx.ApiRules`.
-   In progress: mirroring the remaining upstream page/library specs (see DECISIONS "Which
-   upstream specs to mirror").
+   Done: mirroring upstream page/library specs, 261 of 296 files (the rest excluded, see
+   DECISIONS "Which upstream specs to mirror"), and the full `EventEmitter`.
 3. Done: docs and specs on par with playwright.dev for the generated modules, all in the
    generator (`mix docs --warnings-as-errors` in CI).
    - Docs render from the `spec` AST, not `comment`: notes as admonitions, nested option fields

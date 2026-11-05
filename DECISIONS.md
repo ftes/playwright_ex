@@ -4,6 +4,21 @@ Decisions taken while porting autonomously, newest last, for review. The durable
 `PLAN.md` (a reviewed decision moves there or gets reverted); conventions in `PORTING.md`.
 Each entry: what, why, and what to revisit.
 
+## Needs your decision (before a 1.64 release)
+
+These shape the public API, so changing them after release would break users:
+1. **Exception modules** live under `PlaywrightEx.Client.Errors` (`TimeoutError`,
+   `TargetClosedError`). Add public aliases (`PlaywrightEx.TimeoutError`, as Python's top-level
+   `TimeoutError`)? Matcher failures raise `PlaywrightEx.Matchers.MatcherHint.ExpectError`.
+2. **Handle structs** are `%PlaywrightEx.Client.Page{}` while the facade type is
+   `PlaywrightEx.Page.t()`; `%PlaywrightEx.Page{}` patterns don't work.
+3. **Expect defaults** come from the app env (`config :playwright_ex, :expect`). Also offer
+   `Expect.configure/1`?
+4. **Release**: version (`mix.exs` is 0.16.0; PLAN says major.minor follow upstream: 1.64.0)
+   and CHANGELOG entry.
+5. **Doc examples**: the generated facade docs carry 321 upstream JS examples. Translate them
+   in the generator, or state they stay JS?
+
 ## 2026-11-04: Locators on Frame/Page
 
 - **`$`-names and reserved words take Python's names**, in client and facade: `$eval` is
@@ -195,8 +210,9 @@ Review: these shape the assertion API.
   the connect fixture calls the client directly when `__testHook*` keys are present (the facade
   rejects them, upstream uses `as any`); ephemeral ports instead of `9339 + workerIndex`;
   user agents asserted by the `Playwright/<pin> (` prefix.
-- **Revisit**: nested-connection heap tables are never deleted (one ETS table per `connect`);
-  `Playwright.errors` not exposed (the generator would mistype it).
+- **Revisit** (resolved: closed heaps are deleted by the GC, workstream M; `Playwright.errors`
+  is exposed, workstream L): nested-connection heap tables were never deleted;
+  `Playwright.errors` was not exposed.
 - Electron/Android are not in the JS api.json view at this pin; nothing to drop.
 
 ## 2026-11-05: Which upstream specs to mirror
@@ -269,7 +285,8 @@ Review: these shape the assertion API.
   (`tests/config/proxy.ts`). Follow-up: a small TestProxy in `test/support`.
 - **coverage spec** passes `_coverage: true` through `Runtime.Api.call` (upstream casts it
   `as any`; the facade rejects unknown options).
-- **`logger` launch/context option** not exposed (both logger tests skipped).
+- **`logger` launch/context option** not exposed (both logger tests skipped). Resolved by
+  workstream N.
 
 ## 2026-11-05: Library specs group 6 (cookies, proxy, client certificates, popup)
 
@@ -345,7 +362,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   (`PlaywrightEx.Client.Errors.TimeoutError`; Python exposes `TimeoutError` at the top level):
   consider public aliases. Handle structs are `%PlaywrightEx.Client.Page{}` while the type is
   `PlaywrightEx.Page.t()`. `Selectors.register` is once per driver (PTP registers per context).
-  PLAN's `mix playwright_ex.cli` (show-trace) doesn't exist yet. `Download` from a routed
+  (`mix playwright_ex.cli` show-trace was added afterwards.) `Download` from a routed
   `fulfill` with `content-disposition` gave `saveAs: canceled` in chromium (not investigated).
 
 ## 2026-11-05: Review fixes (workstream N)
