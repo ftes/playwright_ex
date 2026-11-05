@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -67,8 +68,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
     assert to_string(Page.evaluate_handle!(page, "[]")) =~ "Array"
     assert to_string(Page.evaluate_handle!(page, "null")) == "null"
     body_handle = Page.evaluate_handle!(page, "document.body")
-    # await expect.poll(() => bodyHandle.toString()).toBe(...)
-    assert poll(fn -> to_string(body_handle) end, "JSHandle@<body></body>")
+    Utils.poll(fn -> to_string(body_handle) end, &assert(&1 == "JSHandle@<body></body>"))
     assert to_string(Page.evaluate_handle!(page, "new WeakMap()")) == "WeakMap"
     assert to_string(Page.evaluate_handle!(page, "new WeakSet()")) == "WeakSet"
     assert to_string(Page.evaluate_handle!(page, "new Error()")) =~ "Error"
@@ -82,13 +82,5 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
     assert to_string(Page.evaluate_handle!(page, "/foo/")) == "/foo/"
     assert to_string(Page.evaluate_handle!(page, "new Date(0)")) =~ "GMT"
     assert to_string(Page.evaluate_handle!(page, "new Int32Array()")) =~ "Int32Array"
-  end
-
-  defp poll(fun, expected, tries \\ 100) do
-    cond do
-      fun.() == expected -> true
-      tries == 0 -> false
-      true -> Process.sleep(100) && poll(fun, expected, tries - 1)
-    end
   end
 end

@@ -141,6 +141,8 @@ defmodule PlaywrightEx.Library.TapTest do
     assert JSHandle.evaluate!(alt_key_promise, "o => o.p") == true
   end
 
+  # Deviation: the two un-awaited `page.evaluate(() => new Promise(...))` calls are one evaluate of
+  # both promises (listeners installed before the tap), awaited later.
   test "should send well formed touch points", %{page: page} do
     promises =
       Page.evaluate_handle!(page, """

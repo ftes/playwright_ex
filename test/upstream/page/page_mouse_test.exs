@@ -27,16 +27,6 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   }
   """
 
-  # config/utils.ts rafraf
-  defp rafraf(page, count \\ 1) do
-    for _ <- 1..count do
-      Page.evaluate!(
-        page,
-        "() => new Promise(f => window.builtins.requestAnimationFrame(() => window.builtins.requestAnimationFrame(f)))"
-      )
-    end
-  end
-
   test "should click the document @smoke", %{page: page} do
     Page.evaluate!(page, """
     () => {
@@ -228,7 +218,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     text = "This is the text that we are going to try to select. Let's see how it goes."
     Keyboard.type!(Page.keyboard(page), text)
     # Firefox needs an extra frame here after typing or it will fail to set the scrollTop
-    rafraf(page)
+    Utils.rafraf(page)
     Page.evaluate!(page, "() => document.querySelector('textarea').scrollTop = 0")
     %{"x" => x, "y" => y} = Page.evaluate!(page, @dimensions)
     Mouse.move!(Page.mouse(page), x + 2, y + 2)
@@ -245,6 +235,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   end
 
   test "should trigger hover state", %{page: page, server: server} do
+    # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.hover!(page, "#button-6")
     assert Page.evaluate!(page, "() => document.querySelector('button:hover').id") == "button-6"
@@ -255,6 +246,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   end
 
   test "should trigger hover state on disabled button", %{page: page, server: server} do
+    # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.eval_on_selector!(page, "#button-6", "button => button.disabled = true")
     Page.hover!(page, "#button-6", timeout: 5000)
@@ -262,6 +254,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   end
 
   test "should trigger hover state with removed window.Node", %{page: page, server: server} do
+    # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.evaluate!(page, "() => delete window.Node")
     Page.hover!(page, "#button-6")
@@ -295,6 +288,8 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   end
 
   test "should tween mouse movement", %{page: page, browser_name: browser_name} do
+    # it.skip(isAndroid, 'Bad rounding');
+    # it.skip(!headless, 'actual mouse interferes with the exact mousemove events');
     # The test becomes flaky on WebKit without next line.
     if browser_name == "webkit", do: Page.evaluate!(page, "() => new Promise(requestAnimationFrame)")
     Mouse.move!(Page.mouse(page), 100, 100)

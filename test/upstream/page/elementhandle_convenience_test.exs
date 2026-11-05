@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.ElementhandleConvenienceTest do
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -30,11 +31,7 @@ defmodule PlaywrightEx.Page.ElementhandleConvenienceTest do
     expected =
       ~s(JSHandle@<div title="#{String.duplicate("😛", 100)}">#{String.duplicate("😛", 49)}…</div>)
 
-    # expect.poll
-    assert Enum.any?(1..50, fn _ ->
-             to_string(handle) == expected or (Process.sleep(100) && false)
-           end),
-           "got: #{to_string(handle)}"
+    Utils.poll(fn -> to_string(handle) end, &assert(&1 == expected))
   end
 
   test "getAttribute should work", %{page: page, server: server} do
