@@ -277,12 +277,15 @@ defmodule PlaywrightEx.TestServer do
   end
 
   # this._wsServer.handleUpgrade(request, socket, head, ws => this._wsServer.emit('connection', ws, request))
+  @spec do_upgrade(%__MODULE__{}, Plug.Conn.t(), ThousandIsland.Socket.t()) :: no_return()
   defp do_upgrade(this, conn, socket), do: TestServer.WebSocket._handle_upgrade(this, conn, socket)
 
   @doc """
   `res.writeHead(status, statusMessage); res.end(body)`: Bandit sends no custom status message,
   so this writes the response to the socket and closes the connection.
   """
+  @spec send_resp(Plug.Conn.t(), non_neg_integer(), String.t()) :: no_return()
+  @spec send_resp(Plug.Conn.t(), non_neg_integer(), String.t(), iodata()) :: no_return()
   def send_resp(conn, status, status_message, body \\ "") do
     socket = raw_socket(conn)
     date = Calendar.strftime(DateTime.utc_now(), "%a, %d %b %Y %H:%M:%S GMT")

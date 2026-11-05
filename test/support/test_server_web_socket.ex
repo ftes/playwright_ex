@@ -103,6 +103,7 @@ defmodule PlaywrightEx.TestServer.WebSocket do
 
   # socket.destroy() in a plug: ends the request as a client closure (which Bandit does not log).
   @doc false
+  @spec _destroy(ThousandIsland.Socket.t()) :: no_return()
   def _destroy(socket) do
     ThousandIsland.Socket.close(socket)
     raise Bandit.TransportError, message: "destroyed", error: :closed
@@ -112,6 +113,7 @@ defmodule PlaywrightEx.TestServer.WebSocket do
 
   # this._wsServer.handleUpgrade(request, socket, head, ws => this._wsServer.emit('connection', ws, request))
   @doc false
+  @spec _handle_upgrade(%TestServer{}, Plug.Conn.t(), ThousandIsland.Socket.t()) :: no_return()
   def _handle_upgrade(%TestServer{pid: server_pid}, conn, socket) do
     [key] = Plug.Conn.get_req_header(conn, "sec-websocket-key")
     # `ws` accepts the first offered subprotocol (its default `handleProtocols`).
