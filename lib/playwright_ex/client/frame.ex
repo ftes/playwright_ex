@@ -38,7 +38,8 @@ defmodule PlaywrightEx.Client.Frame do
     put(this, :_detached, false)
     put(this, :_childFrames, [])
     put(this, :_eventEmitter, EventEmitter.new(this))
-    # this._eventEmitter.setMaxListeners(0);  -- not ported: no listener leak warning in EventEmitter
+    # this._eventEmitter.setMaxListeners(0);
+    EventEmitter.set_max_listeners(get(this, :_eventEmitter), 0)
     put(this, :webmcp, WebMCP.new(this))
     put(this, :_parentFrame, from_nullable(initializer[:parentFrame]))
     if get(this, :_parentFrame), do: set_add(get(this, :_parentFrame), :_childFrames, this)
