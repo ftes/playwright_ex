@@ -62,11 +62,17 @@ defmodule PlaywrightEx.Library.ProxyTest do
         @tag additional_bypass: additional_bypass, target: target
         # it.skip(browserName === 'webkit' && platform === 'darwin' && ... && additionalBypass, 'Mac webkit does not proxy localhost when bypass rules are set.');
         @tag skip:
-               if(
-                 System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()) and
-                   target in ["localhost", "127.0.0.1"] and additional_bypass,
-                 do: "upstream skip: Mac webkit does not proxy localhost when bypass rules are set."
-               )
+               (cond do
+                  not (System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()) and
+                           target in ["localhost", "127.0.0.1"]) ->
+                    nil
+
+                  additional_bypass ->
+                    "upstream skip: Mac webkit does not proxy localhost when bypass rules are set."
+
+                  true ->
+                    "env: Mac webkit (macOS 26) bypasses the proxy for localhost and 127.0.0.1 (upstream client too)"
+                end)
         test "#{description}", %{
           browser_type: browser_type,
           server: server,

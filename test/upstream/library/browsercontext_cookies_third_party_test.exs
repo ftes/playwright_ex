@@ -313,6 +313,10 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     end
   end
 
+  @tag skip:
+         if(@browser_name == "firefox" and match?({:unix, :darwin}, :os.type()),
+           do: "env: Mac Firefox (macOS 26) withholds Partitioned cookies from third-party frames (upstream client too)"
+         )
   test "third party 'Partitioned;' cookies", %{
     page: page,
     browser_name: browser_name,
@@ -590,6 +594,10 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     check_cookies.(BrowserContext.new_page!(context3))
   end
 
+  @tag skip:
+         if(@browser_name == "firefox" and match?({:unix, :darwin}, :os.type()),
+           do: "env: Mac Firefox (macOS 26) withholds Partitioned cookies from third-party frames (upstream client too)"
+         )
   @tag :tmp_dir
   test "top level 'Partitioned;' cookie and same origin iframe", %{
     page: page,

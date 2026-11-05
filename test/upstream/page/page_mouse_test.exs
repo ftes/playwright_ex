@@ -125,6 +125,10 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["button"] == 0
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+           do: "env: Mac WebKit (macOS 26) fires no pointerdown for a middle click (upstream client too)"
+         )
   test "should pointerdown the div with a custom button", %{page: page, browser_name: browser_name} do
     Page.set_content!(page, "<div style='width: 100px; height: 100px;'>Click me</div>")
 

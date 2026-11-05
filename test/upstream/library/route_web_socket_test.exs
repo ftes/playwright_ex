@@ -11,6 +11,8 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
 
   @moduletag :page
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   # `target: Page | Frame`
   defp setup_ws(target, server, binary_type, protocols \\ nil, relative_url \\ false) do
     facade = if is_struct(target, PlaywrightEx.Client.Frame), do: Frame, else: Page
@@ -66,6 +68,11 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         :ok
       end
 
+      @tag skip:
+             if(@browser_name == "firefox",
+               do:
+                 "env: the Bandit test server half-closes TCP right after its Close frame (node ws waits for the peer's), Firefox reports wasClean=false"
+             )
       test "should work with text message", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         upgrade_promise = TestServer.wait_for_upgrade(server)
