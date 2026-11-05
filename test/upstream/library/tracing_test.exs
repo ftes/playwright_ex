@@ -20,7 +20,6 @@ defmodule PlaywrightEx.Library.TracingTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Facade
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
@@ -922,20 +921,19 @@ defmodule PlaywrightEx.Library.TracingTest do
     page = BrowserContext.new_page!(context)
 
     Tracing.start!(tracing(context), name: "name1", snapshots: true)
-    # One synchronous JS section: the console event can't arrive before the wait is set up.
-    {evaluate_promise, console_promise} =
-      Api.call(nil, page, fn ->
-        evaluate_promise =
-          start("page.evaluate", page, fn ->
-            PlaywrightEx.Client.Page.evaluate(page, """
-            () => {
-              console.log('started');
-              return new Promise(f => window.callback = f);
-            }
-            """)
-          end)
+    # deviation: subscribe-first (OTP runtime)
+    # JS starts the evaluate and the wait in one synchronous section; here the console event may
+    # be dispatched in between, so the wait comes first (its "before" precedes the evaluate's).
+    console_promise = Page.wait_for_event(page, :console)
 
-        {evaluate_promise, Page.wait_for_event(page, :console)}
+    evaluate_promise =
+      start("page.evaluate", page, fn ->
+        PlaywrightEx.Client.Page.evaluate(page, """
+        () => {
+          console.log('started');
+          return new Promise(f => window.callback = f);
+        }
+        """)
       end)
 
     Promise.await!(console_promise)
@@ -961,9 +959,10 @@ defmodule PlaywrightEx.Library.TracingTest do
     %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), context)
     sanitized = sanitize.(events)
 
+    # Deviation: the wait's "before" comes first (subscribe-first above).
     assert [
-             %{type: "before", callId: call1, title: nil},
              %{type: "before", callId: wait_before, title: ~s(Wait for event "console")},
+             %{type: "before", callId: call1, title: nil},
              %{type: "after", callId: wait_after, title: nil}
            ] = sanitized
 
@@ -972,7 +971,7 @@ defmodule PlaywrightEx.Library.TracingTest do
 
     # Deviation: the callIds are offset against each trace's minimum, as upstream's
     # `minCallId` is shared across both traces; compare the raw ids instead.
-    raw_call1 = events |> Enum.find(&(&1["type"] == "before")) |> call_id.()
+    raw_call1 = events |> Enum.find(&(&1["type"] == "before" and &1["title"] == nil)) |> call_id.()
 
     %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace2.zip"), context)
     sanitized = sanitize.(events)
