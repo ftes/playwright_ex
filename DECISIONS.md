@@ -804,3 +804,20 @@ drift). Blockers for release, assigned to follow-up workstreams:
   ignored, as JS's `{ ...options, rpId }` overwrites it.
 - Opt-in per method: `ApiRules` `@result_options` (only `Credentials.create`), with
   `Facade.result_options!/4`. Keyword options stay strict; unknown map keys still raise.
+
+## 2026-11-05: OTP-native runtime, Phase 0 done
+- The baton EventLoop and tracing GC are gone. In their place: `runtime/conn.ex` (one process per
+  connection, sole writer of an ETS table, dispatch barrier), a heap with rows on their owners, and
+  two promise kinds: local (ref + message, one awaiter) and latch (a row on an owner; any process,
+  many times).
+- Rule: a promise awaited more than once, by another process, or stored in a field is a latch.
+- Disposed objects keep their fields and settled latches, so reads return the last value, as in JS.
+  A closed context or browser is freed when every process that created or closed it has exited,
+  or when the connection closes. Deviations:
+  - reads after those processes exit raise TargetClosedError;
+  - a long-lived process keeps about 175 rows per context it closed, until it exits.
+- Full chromium run: 6 failures out of 4085 in 192 s, against 61 failures in 1257 s on the old
+  runtime. The rest is in test/OTP_BACKLOG.md: 4 failing tests (chromium:763, tracing:918,
+  page_history:153, coverage:244) and load-only flakes, all for Phase 1.
+- Fixed on the way: page_wait_for_url "on frame" hung because the URL was read before the
+  glob-to-regex driver round trip. The macOS-only hang on the old runtime was very likely the same.
