@@ -369,7 +369,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
     if options[:path] do
       FileUtils.mkdir_if_needed(options.path)
-      File.write!(options.path, ClientHelper.json_stringify_indented(state, 2))
+      File.write!(options.path, ClientHelper.json_stringify_indented(state, 2, "APIRequestContextStorageStateResult"))
     end
 
     state

@@ -661,9 +661,25 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert state1 == storage_state
 
     written = File.read!(path)
-    # JSON.stringify(state1, undefined, 2): the same JSON, indented by 2.
-    assert JSON.decode!(written) == JSON.decode!(JSON.encode!(state1))
-    assert written =~ ~r/\A\{\n  "cookies": \[\n    \{\n      "/
+    # JSON.stringify(state1, undefined, 2), state1 in protocol key order:
+    assert ~S"""
+           {
+             "cookies": [
+               {
+                 "name": "a",
+                 "value": "b",
+                 "domain": "a.b.one.com",
+                 "path": "/",
+                 "expires": -1,
+                 "httpOnly": false,
+                 "secure": false,
+                 "sameSite": "Lax"
+               }
+             ],
+             "origins": []
+           }
+           """
+           |> String.trim_trailing() == written
 
     request2 = APIRequest.new_context!(Playwright.request(playwright), storage_state: path)
     state2 = APIRequestContext.storage_state!(request2)
