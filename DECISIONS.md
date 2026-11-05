@@ -885,7 +885,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   context options; `expected_failure/2` replaces test.fail-as-skip; parity flags unconditional
   tags of conditional upstream annotations; max_cases is half the schedulers (macOS firefox 8 to
   11 min); non-upstream tests get 20 s; CI reports first-run failures before the retry.
-- CI: a stalled browser download hung webkit's install step for 40 min. The step now retries with
-  a 5 min cap per attempt, and test jobs time out at 60 min.
+- CI: a stalled Azure apt mirror (`--with-deps`) hung webkit's install step for 40 min. apt now
+  times out and retries stalled fetches, each install attempt is capped at 5 min (a leftover
+  apt-get is killed before the retry), and test jobs time out at 60 min.
 - Gap, later: `test/support/remote_server.ex` builds its own launch options instead of merging
   `_defaultLaunchOptions`, so `HEADED=1` remote servers still launch headless.

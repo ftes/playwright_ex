@@ -87,12 +87,16 @@ jobs:
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # A stalled browser download hung this step for 40 min once: cap each attempt, retry twice.
+      # --with-deps runs apt-get, and a stalled Azure mirror hung it for 40 min once. apt now times
+      # out stalled fetches and retries them itself; each attempt is capped, and an apt-get left
+      # running by a killed attempt (sudo puts it out of timeout's reach) is killed before the next.
       - name: Install driver and browsers
         run: |
+          printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "5";\nDPkg::Lock::Timeout "60";\n' | sudo tee /etc/apt/apt.conf.d/99timeouts
           for attempt in 1 2 3; do
             timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps && exit 0
             echo "::warning::browser install attempt $attempt failed or timed out"
+            sudo pkill -x apt-get || true
           done
           exit 1
       - name: Check parity with upstream
