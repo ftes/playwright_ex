@@ -87,20 +87,31 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   end
 
   defp missing(ts_path, ts, mods) do
-    root = Enum.find(mods, & &1.declares_upstream) || hd(mods)
+    root = root_module(ts_path, mods)
     acknowledged = mods |> Enum.map(& &1.file) |> Enum.uniq() |> Enum.flat_map(&acknowledged/1) |> MapSet.new()
     by_module = Enum.group_by(ts, fn {class, _} -> module_for(class, mods, root) end, fn {_, m} -> m end)
 
-    for {mod, names} <- Enum.sort_by(by_module, &inspect(elem(&1, 0).name)),
-        classes = for({c, _} <- ts, module_for(c, mods, root) == mod, c, do: c),
-        missing = Enum.reject(Enum.uniq(names), &(&1 in @by_convention or covered?(&1, mod, acknowledged, classes))),
-        missing != [] do
-      "#{ts_path}: #{inspect(mod.name)} is missing #{Enum.map_join(missing, ", ", &underscore/1)}"
-    end
+    {rootless, by_module} = Map.pop(by_module, nil, [])
+
+    no_root =
+      if rootless != [],
+        do: [
+          "#{ts_path}: no module for #{Enum.map_join(Enum.uniq(rootless), ", ", &underscore/1)} " <>
+            "(top-level functions and classes without a module go to the root module, named after the file)"
+        ],
+        else: []
+
+    no_root ++
+      for {mod, names} <- Enum.sort_by(by_module, &inspect(elem(&1, 0).name)),
+          classes = for({c, _} <- ts, module_for(c, mods, root) == mod, c, do: c),
+          missing = Enum.reject(Enum.uniq(names), &(&1 in @by_convention or covered?(&1, mod, acknowledged, classes))),
+          missing != [] do
+        "#{ts_path}: #{inspect(mod.name)} is missing #{Enum.map_join(missing, ", ", &underscore/1)}"
+      end
   end
 
   defp out_of_order(ts_path, ts, mods) do
-    root = Enum.find(mods, & &1.declares_upstream) || hd(mods)
+    root = root_module(ts_path, mods)
 
     for mod <- mods,
         upstream_names = for({c, m} <- ts, module_for(c, mods, root) == mod, uniq: true, do: m),
@@ -164,10 +175,23 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     end
   end
 
+  # The module of a file's top-level functions (and of its classes without a module of their own):
+  # the only module declaring `@upstream` for it, else the one named after the file
+  # (`network.ts` is `Client.Network`, not `Client.Request`), else none.
+  @doc false
+  def root_module(ts_path, mods) do
+    case Enum.filter(mods, & &1.declares_upstream) do
+      [one] -> one
+      declaring -> Enum.find(declaring, &(last_segment(&1) == ts_path |> Path.basename(".ts") |> Macro.camelize()))
+    end
+  end
+
+  defp last_segment(mod), do: mod.name |> Module.split() |> List.last()
+
   defp module_for(nil, _mods, root), do: root
 
   defp module_for(class, mods, root) do
-    Enum.find(mods, root, &(&1.name |> Module.split() |> List.last() == class))
+    Enum.find(mods, root, &(last_segment(&1) == class))
   end
 
   defp covered?(name, mod, acknowledged, classes) do

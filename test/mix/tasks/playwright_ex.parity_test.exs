@@ -41,6 +41,20 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
            ]
   end
 
+  test "root_module/2: the only declaring module, else the one named after the file" do
+    mod = &%{name: &1, declares_upstream: &2}
+    request = mod.(PlaywrightEx.Client.Request, true)
+    network = mod.(PlaywrightEx.Client.Network, true)
+    root = mod.(PlaywrightEx.Client.Connection.Root, false)
+    connection = mod.(PlaywrightEx.Client.Connection, true)
+    keyboard = mod.(PlaywrightEx.Client.Keyboard, true)
+    mouse = mod.(PlaywrightEx.Client.Mouse, true)
+
+    assert Parity.root_module("src/client/network.ts", [request, network]) == network
+    assert Parity.root_module("src/client/connection.ts", [root, connection]) == connection
+    assert Parity.root_module("src/client/input.ts", [keyboard, mouse]) == nil
+  end
+
   test "spec_tests/1: static names, flattened, dynamic ones skipped" do
     source = ~S"""
     it('should work', async ({ page }) => {});
