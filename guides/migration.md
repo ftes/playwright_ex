@@ -307,6 +307,9 @@ png = Page.screenshot!(page, full_page: true)
 Expect.to_have_screenshot!(page, path: "test/screenshots/home.png")
 ```
 
+Open a trace with `mix playwright_ex.cli show-trace trace.zip` (forwards any args to the
+Playwright CLI).
+
 ### Errors
 
 Errors are exceptions named after the JS classes, with the JS message (API name prefix and call
@@ -345,4 +348,3 @@ Task.yield(task, 5_000) || Task.shutdown(task)
 - Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`,
   soft assertions, file-based aria snapshots, `toMatchSnapshot`.
 - `inspect(locator)` and locators in matcher messages show JS syntax and raw selectors.
-- No mix task for `show-trace` yet: use `npx playwright show-trace trace.zip`.

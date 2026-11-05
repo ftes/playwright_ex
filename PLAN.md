@@ -188,7 +188,7 @@ timeout per call. Both shed code (PTP: two event GenServers; fluffy: protocol pl
 Their requests were reviewed against the official clients; only additive ones were kept
 (tuple matchers, the error `log` field, `to_have_screenshot` with a path), plus:
 
-- `PlaywrightEx.Driver.version/0` and a `mix playwright_ex.cli` passthrough (`show-trace`,
+- Done: `PlaywrightEx.Driver.version/0` and a `mix playwright_ex.cli` passthrough (`show-trace`,
   `install --with-deps`), as Python's `__main__` and Java's `CLI` do.
 - Rejected, done by callers with the official API: per-call client timeouts (`Task.yield`);
   fluffy's document identity (an `add_init_script` stamp read with `location.href` in one
