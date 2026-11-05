@@ -2,6 +2,9 @@ defmodule PlaywrightEx.Client.Locator do
   @upstream "packages/playwright-core/src/client/locator.ts"
   @moduledoc "Port of `#{@upstream}` (`class Locator`). Locators hold no mutable state: a plain struct."
 
+  # `signal: options.signal` of the `_withElement` calls (boundingBox, evaluate, screenshot, ...)
+  # is left out: AbortSignal is not ported (PLAN).
+
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.DisposableStub
@@ -56,7 +59,7 @@ defmodule PlaywrightEx.Client.Locator do
         do: selector <> " >> visible=#{if options.visible, do: "true", else: "false"}",
         else: selector
 
-    # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- ported as Inspect, see below
+    # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- not ported: Inspect shows the selector, see below
     %__MODULE__{_frame: frame, _selector: selector}
   end
 
@@ -479,7 +482,7 @@ defmodule PlaywrightEx.Client.Locator do
         selector: this._selector,
         strict: true,
         expression: page_function,
-        # isFunction: typeof pageFunction === 'function',  -- omitted: page functions are JS source (PLAN)
+        # isFunction: typeof pageFunction === 'function',  -- not ported: page functions are JS source (PLAN)
         arg: JSHandle.serialize_argument(arg)
       },
       Frame._timeout(this._frame, options)
@@ -492,7 +495,7 @@ defmodule PlaywrightEx.Client.Locator do
     Frame._expect(this._frame, expression, Map.put(options, :selector, this._selector))
   end
 
-  # _inspect  -- ported as Inspect, see below
+  # _inspect  -- not ported: Inspect shows the selector (`toString` needs the driver, PLAN), see below
 
   # asLocatorDescription through the driver (PLAN, Decisions): a sync member that needs the baton.
   def to_string(this) do

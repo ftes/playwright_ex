@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Client.JSHandle do
         do: serialize_argument_with_callbacks(this, _parent_of_type(this, "Page"), arg),
         else: serialize_argument(arg)
 
-    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
     result =
       channel_call(
         this,
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Client.JSHandle do
         do: serialize_argument_with_callbacks(this, _parent_of_type(this, "Page"), arg),
         else: serialize_argument(arg)
 
-    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
     result =
       channel_call(
         this,

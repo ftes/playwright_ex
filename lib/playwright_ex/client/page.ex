@@ -1150,7 +1150,10 @@ defmodule PlaywrightEx.Client.Page do
     result.snapshot
   end
 
-  # _setDockTile  -- not ported
+  def _set_dock_tile(this, image) do
+    channel_call(this, :setDockTile, %{image: image}, TimeoutSettings.k_no_timeout())
+    nil
+  end
 
   # function trimUrl(param: any): string | undefined
   defp trim_url(param) do

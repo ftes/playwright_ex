@@ -260,7 +260,7 @@ defmodule PlaywrightEx.Client.Frame do
         do: JSHandle.serialize_argument_with_callbacks(this, get(this, :_page), arg),
         else: JSHandle.serialize_argument(arg)
 
-    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
     result =
       channel_call(
         this,
@@ -281,7 +281,7 @@ defmodule PlaywrightEx.Client.Frame do
         do: JSHandle.serialize_argument_with_callbacks(this, get(this, :_page), arg),
         else: JSHandle.serialize_argument(arg)
 
-    # isFunction: typeof pageFunction === 'function'  -- omitted: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
     result =
       channel_call(
         this,
@@ -294,6 +294,8 @@ defmodule PlaywrightEx.Client.Frame do
   end
 
   def _evaluate_expose_utility_script(this, page_function, arg \\ nil) do
+    # assertMaxArguments(arguments.length, 2);  -- not ported: Elixir arities are fixed
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
     result =
       channel_call(
         this,
@@ -662,7 +664,7 @@ defmodule PlaywrightEx.Client.Frame do
         Map.merge(options, %{
           pollingInterval: if(options[:polling] == "raf", do: nil, else: options[:polling]),
           expression: page_function,
-          # isFunction: typeof pageFunction === 'function',  -- omitted: page functions are JS source (PLAN)
+          # isFunction: typeof pageFunction === 'function',  -- not ported: page functions are JS source (PLAN)
           arg: JSHandle.serialize_argument(arg)
         }),
         _timeout(this, options)

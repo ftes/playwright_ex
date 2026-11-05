@@ -657,7 +657,17 @@ defmodule PlaywrightEx.Client.BrowserContext do
     end
   end
 
-  # _showRecorder, _startRecording, _stopRecording, _exposeConsoleApi  -- not ported: recorder
+  def _show_recorder(this, params) do
+    channel_call(this, :showRecorder, params, TimeoutSettings.k_no_timeout())
+    nil
+  end
+
+  # _startRecording, _stopRecording  -- not ported: recorder (its event sink)
+
+  def _expose_console_api(this) do
+    channel_call(this, :exposeConsoleApi, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
 
   defp prepare_storage_state(storage_state) do
     if !is_binary(storage_state) do

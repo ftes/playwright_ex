@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Client.Request do
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.Response
+  alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.LongStandingScope
 
   def from(request) do
@@ -166,8 +167,7 @@ defmodule PlaywrightEx.Client.Request do
   end
 
   def service_worker(this) do
-    # Worker.from(...)  -- Worker is not ported: the DummyChannelOwner
-    get(this, :_initializer)[:serviceWorker]
+    if get(this, :_initializer)[:serviceWorker], do: Worker.from(get(this, :_initializer).serviceWorker)
   end
 
   def is_navigation_request(this) do
