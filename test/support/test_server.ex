@@ -214,11 +214,13 @@ defmodule PlaywrightEx.TestServer do
     path_with_search = path_with_search(conn)
     auth = settings(this).auths[path_with_search]
 
-    credentials =
-      with ["Basic " <> encoded | _] <- Plug.Conn.get_req_header(conn, "authorization"),
-           {:ok, decoded} <- Base.decode64(encoded),
-           do: decoded,
-           else: (_ -> "")
+    # Buffer.from((request.headers.authorization || '').split(' ')[1] || '', 'base64'): any
+    # scheme; Node skips characters outside the alphabet and missing padding.
+    authorization = conn |> Plug.Conn.get_req_header("authorization") |> List.first("")
+    encoded = authorization |> String.split(" ") |> Enum.at(1, "") |> String.replace(~r/[^A-Za-z0-9+\/]/, "")
+    # A lone trailing character holds no full byte.
+    encoded = if rem(byte_size(encoded), 4) == 1, do: binary_part(encoded, 0, byte_size(encoded) - 1), else: encoded
+    credentials = Base.decode64!(encoded, padding: false)
 
     if auth && credentials != "#{auth.username}:#{auth.password}" do
       conn
@@ -335,7 +337,10 @@ defmodule PlaywrightEx.TestServer do
         if cached do
           conn
           |> Plug.Conn.put_resp_header("cache-control", "public, max-age=31536000, no-cache")
-          |> Plug.Conn.put_resp_header("last-modified", DateTime.to_iso8601(settings.start_time))
+          |> Plug.Conn.put_resp_header(
+            "last-modified",
+            DateTime.to_iso8601(DateTime.truncate(settings.start_time, :millisecond))
+          )
         else
           Plug.Conn.put_resp_header(conn, "cache-control", "no-cache, no-store")
         end

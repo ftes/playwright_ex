@@ -21,9 +21,7 @@ library/unit/sequence               server internals
 library/events/*                    Tests the EventEmitter class of the Node.js client.
 page/page-leaks                     Counts server objects through toImpl(), which only the Node.js tests can reach.
 library/role-utils                  Calls the injected script directly.
-# Revisit with PLAN "Then" item 4 (Elixir locator rendering), or when locatorGenerators /
-# locatorParser are ported.
-library/locator-parser              isomorphic locator parser (not ported)
+library/locator-parser              Tests the locator parser of the driver.
 library/component-parser            Tests the component selector parser of the driver.
 library/css-parser                  Tests the CSS selector parser of the driver.
 library/selector-generator          Tests the selector generator of the driver.
@@ -41,7 +39,7 @@ library/debug-controller            Internal protocol of the VS Code extension.
 
 # Node.js packaging and test setup.
 library/browsers-path               Tests importing the Node.js package on an unsupported platform.
-library/playwright-client           packages/playwright-client browser bundle (lib/index.mjs) is not built in the upstream cache
+library/playwright-client           Tests the @playwright/client package.
 
 # JS-only API.
 library/browsertype-launch-server   BrowserType.launchServer is JS-only (api.json langs: js); specs that only need a launched server run on the launch-server fixture.
