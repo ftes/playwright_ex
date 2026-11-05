@@ -282,3 +282,32 @@ Review: these shape the assertion API.
 - **bfcache** launches its own browser (`ignore_default_args`), as upstream `test.use`.
 - **Driver fragility**: an HTTPS proxy closing mid-handshake crashed the Node driver (unhandled
   TLSSocket error). Test proxy now completes the handshake. Revisit: report upstream?
+
+## 2026-11-05: Library specs group 7, `once` fix
+
+- **`EventEmitter.OnceWrapper` ported** (with `_fired`): the `{id, fun}` closure ran a
+  once-listener twice when a nested emit had already removed it (events/once spec).
+- **`device_options/1`** (test helper): `playwright.devices[...]` has JS keys and
+  `defaultBrowserType`; the facade takes snake_case options. Revisit: accept device descriptors
+  in `newContext` directly so `devices` round-trip as in JS.
+- **events/* specs** use plain `ExUnit.Case` with their own `EventLoop` (no browser).
+- **chromium/extensions** launches `channel: "chromium"` (upstream skips on headless shell).
+- **chromium/connect-to-worker** "should connect, evaluate, receive console..." skipped as
+  flaky: the console event races its subscription (~3 of 8 runs). Revisit as a possible
+  lib race in worker console subscription.
+- **headful (16), multiclient (18)** bodiless: headless-only runs; multiclient needs
+  `launchServer` (`_sharedBrowser`).
+
+## 2026-11-05: Direction check 2 (fresh reviewer, read-only)
+
+Verdict: the client is a faithful 1:1 port (9 modules compared statement by statement, no
+drift). Blockers for release, assigned to follow-up workstreams:
+- **Heap GC**: heap rows (settled promises, waiters, listener calls, disposed objects) are never
+  freed; JS `Map` iteration order is lost (`:set` tables). Workstream M.
+- **JSON `null`**: `JSON.encode!(:null)` gives `"null"`; decoding returns `nil` instead of
+  `:null`. Plus: expose the `logger` option, public expect-timeout config, duplicate FileUtils
+  helpers, stale markers, parity root module for split files. Workstream N.
+- **Stale skips and browser guards**: skips naming ported members; browser `if` guards pass
+  silently on excluded browsers. Final test sweep, plus a parity check that fails when a skip
+  reason names an exported client function.
+- `signal:` (AbortSignal) stays dropped for release; documented as a known gap.
