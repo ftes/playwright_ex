@@ -12,15 +12,13 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Route
 
-  import PlaywrightEx.Utils, only: [device_options: 1]
-
   describe "mobile viewport" do
     # it.skip(({ browserName, isBidi }) => browserName === 'firefox' && !isBidi)
     if System.get_env("BROWSER", "chromium") == "firefox", do: @describetag(skip: "upstream skip: firefox (non-BiDi)")
 
     test "should support mobile emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
-      context = Browser.new_context!(browser, device_options(iphone))
+      context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/mobile.html")
       assert Page.evaluate!(page, "() => window.innerWidth") == 375
@@ -31,7 +29,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
 
     test "should support touch emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
-      context = Browser.new_context!(browser, device_options(iphone))
+      context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/mobile.html")
       assert Page.evaluate!(page, "() => 'ontouchstart' in window") == true
@@ -57,7 +55,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
 
     test "should be detectable", %{playwright: playwright, browser: browser} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
-      context = Browser.new_context!(browser, device_options(iphone))
+      context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
       assert Page.evaluate!(page, "() => 'ontouchstart' in window || !!window.TouchEvent") == true
       BrowserContext.close!(context)
@@ -74,11 +72,11 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
     test "should support landscape emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       iphone_landscape = Playwright.devices(playwright)["iPhone 6 landscape"]
-      context1 = Browser.new_context!(browser, device_options(iphone))
+      context1 = Browser.new_context!(browser, iphone)
       page1 = BrowserContext.new_page!(context1)
       Page.goto!(page1, server.prefix <> "/mobile.html")
       assert Page.evaluate!(page1, "() => matchMedia('(orientation: landscape)').matches") == false
-      context2 = Browser.new_context!(browser, device_options(iphone_landscape))
+      context2 = Browser.new_context!(browser, iphone_landscape)
       page2 = BrowserContext.new_page!(context2)
       assert Page.evaluate!(page2, "() => matchMedia('(orientation: landscape)').matches") == true
       BrowserContext.close!(context1)
@@ -157,7 +155,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
 
     test "should emulate the hover media feature", %{playwright: playwright, browser: browser} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
-      mobilepage = Browser.new_page!(browser, device_options(iphone))
+      mobilepage = Browser.new_page!(browser, iphone)
       assert Page.evaluate!(mobilepage, "() => matchMedia('(hover: hover)').matches") == false
       assert Page.evaluate!(mobilepage, "() => matchMedia('(hover: none)').matches") == true
       assert Page.evaluate!(mobilepage, "() => matchMedia('(any-hover: hover)').matches") == false
@@ -228,7 +226,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       server: server
     } do
       iphone = Playwright.devices(playwright)["iPhone 12"]
-      context = Browser.new_context!(browser, device_options(iphone))
+      context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/input/background-fixed.html")
       Locator.click!(Page.get_by_role(page, "button"))

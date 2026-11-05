@@ -206,7 +206,8 @@ defmodule PlaywrightEx.Browser do
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
-                          viewport: {:viewport, {:fields, %{width: nil, height: nil}}}
+                          viewport: {:viewport, {:fields, %{width: nil, height: nil}}},
+                          default_browser_type: {:defaultBrowserType, nil}
                         }}
 
   @typedoc "Options of `new_context`, see its docs."
@@ -326,7 +327,8 @@ defmodule PlaywrightEx.Browser do
             strict_selectors: boolean(),
             timezone_id: String.t(),
             user_agent: String.t(),
-            viewport: :null | %{width: integer(), height: integer()}
+            viewport: :null | %{width: integer(), height: integer()},
+            default_browser_type: String.t()
           ]
           | %{
               optional(:accept_downloads) => boolean(),
@@ -443,7 +445,8 @@ defmodule PlaywrightEx.Browser do
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
               optional(:user_agent) => String.t(),
-              optional(:viewport) => :null | %{width: integer(), height: integer()}
+              optional(:viewport) => :null | %{width: integer(), height: integer()},
+              optional(:default_browser_type) => String.t()
             }
 
   @doc since: "1.8"
@@ -609,6 +612,7 @@ defmodule PlaywrightEx.Browser do
 
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
+  * `:default_browser_type` - Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options.
   """
   @spec new_context(t(), new_context_options()) :: {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
   def new_context(browser, options \\ []) do
@@ -693,7 +697,8 @@ defmodule PlaywrightEx.Browser do
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
-                       viewport: {:viewport, {:fields, %{width: nil, height: nil}}}
+                       viewport: {:viewport, {:fields, %{width: nil, height: nil}}},
+                       default_browser_type: {:defaultBrowserType, nil}
                      }}
 
   @typedoc "Options of `new_page`, see its docs."
@@ -813,7 +818,8 @@ defmodule PlaywrightEx.Browser do
             strict_selectors: boolean(),
             timezone_id: String.t(),
             user_agent: String.t(),
-            viewport: :null | %{width: integer(), height: integer()}
+            viewport: :null | %{width: integer(), height: integer()},
+            default_browser_type: String.t()
           ]
           | %{
               optional(:accept_downloads) => boolean(),
@@ -930,7 +936,8 @@ defmodule PlaywrightEx.Browser do
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
               optional(:user_agent) => String.t(),
-              optional(:viewport) => :null | %{width: integer(), height: integer()}
+              optional(:viewport) => :null | %{width: integer(), height: integer()},
+              optional(:default_browser_type) => String.t()
             }
 
   @doc since: "1.8"
@@ -1078,6 +1085,7 @@ defmodule PlaywrightEx.Browser do
 
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
+  * `:default_browser_type` - Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options.
   """
   @spec new_page(t(), new_page_options()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
   def new_page(browser, options \\ []) do

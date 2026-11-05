@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.TestServer
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3, device_options: 1]
+  import PlaywrightEx.Utils, only: [attach_frame: 3]
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     refute Page.evaluate!(page, "() => navigator.userAgent") =~ "iPhone"
     BrowserContext.close!(context)
 
-    context = Browser.new_context!(browser, user_agent: Playwright.devices(playwright)["iPhone 6"].userAgent)
+    context = Browser.new_context!(browser, user_agent: Playwright.devices(playwright)["iPhone 6"].user_agent)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/mobile.html")
     assert Page.evaluate!(page, "() => navigator.userAgent") =~ "iPhone"
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
       assert %{"mobile" => false} = Page.evaluate!(page, "() => window.navigator.userAgentData.toJSON()")
       BrowserContext.close!(context)
 
-      context = Browser.new_context!(browser, device_options(Playwright.devices(playwright)["Pixel 7"]))
+      context = Browser.new_context!(browser, Playwright.devices(playwright)["Pixel 7"])
       page = BrowserContext.new_page!(context)
       request = TestServer.wait_for_request(server, "/empty.html")
       Page.goto!(page, server.empty_page)

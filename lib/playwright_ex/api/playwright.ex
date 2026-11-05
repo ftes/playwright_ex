@@ -19,6 +19,8 @@ defmodule PlaywrightEx.Playwright do
   ```
   """
 
+  alias PlaywrightEx.Runtime.Facade
+
   @typedoc "A `Playwright` handle. Compare handles with `==`, their fields are internal."
   @type t :: %PlaywrightEx.Client.Playwright{}
 
@@ -50,10 +52,44 @@ defmodule PlaywrightEx.Playwright do
     await browser.close();
   })();
   ```
+
+  In Elixir, a descriptor has the snake_case keys of the options (`user_agent:`), as in the Python client: `Browser.new_context(browser, devices["iPhone 6"])`.
   """
-  @spec devices(t()) :: map()
+  @spec devices(t()) :: %{optional(String.t()) => PlaywrightEx.Browser.new_context_options()}
   def devices(playwright) do
-    PlaywrightEx.Client.Playwright.devices(playwright)
+    Facade.options_dictionary(PlaywrightEx.Client.Playwright.devices(playwright), %{
+      acceptDownloads: :accept_downloads,
+      baseURL: :base_url,
+      bypassCSP: :bypass_csp,
+      clientCertificates: :client_certificates,
+      colorScheme: :color_scheme,
+      contrast: :contrast,
+      deviceScaleFactor: :device_scale_factor,
+      extraHTTPHeaders: :extra_http_headers,
+      forcedColors: :forced_colors,
+      geolocation: :geolocation,
+      hasTouch: :has_touch,
+      httpCredentials: :http_credentials,
+      ignoreHTTPSErrors: :ignore_https_errors,
+      isMobile: :is_mobile,
+      javaScriptEnabled: :java_script_enabled,
+      locale: :locale,
+      logger: :logger,
+      offline: :offline,
+      permissions: :permissions,
+      proxy: :proxy,
+      recordHar: :record_har,
+      recordVideo: :record_video,
+      reducedMotion: :reduced_motion,
+      screen: :screen,
+      serviceWorkers: :service_workers,
+      storageState: :storage_state,
+      strictSelectors: :strict_selectors,
+      timezoneId: :timezone_id,
+      userAgent: :user_agent,
+      viewport: :viewport,
+      defaultBrowserType: :default_browser_type
+    })
   end
 
   @doc since: "1.8"

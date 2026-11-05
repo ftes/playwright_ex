@@ -87,6 +87,16 @@ defmodule PlaywrightEx.Runtime.Facade do
   @doc "Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`."
   def options!(options, {:object, schema}, api_name), do: object!(options, schema, api_name, [])
 
+  @doc """
+  A dictionary of option objects with JS keys (device descriptors) keyed as options:
+  `keys` maps a JS key to its option key (`userAgent: :user_agent`), others stay.
+  """
+  def options_dictionary(dictionary, keys) do
+    Map.new(dictionary, fn {name, object} ->
+      {name, Map.new(object, fn {key, value} -> {Map.get(keys, key, key), value} end)}
+    end)
+  end
+
   @doc "Converts a positional argument of `type`."
   def arg!(value, type, api_name), do: convert!(value, type, api_name, [])
 

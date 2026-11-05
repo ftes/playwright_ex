@@ -33,6 +33,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
       options with `predicate` and `timeout`), not the JS `optionsOrPredicate`.
     * Route handlers (`function(Route, Request)`) may also take only the route, as in the
       Python client.
+    * Device descriptors (`Playwright.devices`) have the option keys of `Browser.newContext`
+      (`user_agent:`), as in the Python client, so `new_context(browser, devices["iPhone 6"])`
+      takes one as JS spreads it (`"options"`: the member whose options they are). `newContext` and
+      `newPage` take their `defaultBrowserType` and ignore it (`@extra_options`, Python's too).
     * Callback forms: every Python `expect_*` member (`expect_popup`) is added as a member with
       a `"callback"`: the JS member it starts (`waitForEvent`), and the event for those that have
       none in JS (`@callback_events`).
@@ -69,6 +73,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   # `session.on("Network.requestWillBeSent", ...)`: types.d.ts overloads `on` per CDP event.
   @open_events ~w(CDPSession)
+
+  # "Class.member" => options the docs do not describe (`python_rules.js` `extraOptions`).
+  @extra_options %{
+    "Browser.newContext" => ["defaultBrowserType"],
+    "Browser.newPage" => ["defaultBrowserType"]
+  }
+
+  # "Class.member" => the member whose options its dictionary values are.
+  @descriptors %{"Playwright.devices" => "Browser.newContext"}
 
   # "Class.member" whose `options` argument the client rejects.
   @dropped_options ~w(Frame.evalOnSelector Page.evalOnSelector ElementHandle.inputValue)
@@ -114,6 +127,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> wait(expects)
               |> event_type()
               |> storage_state()
+              |> extra_options("#{class["name"]}.#{member["name"]}")
+              |> descriptors("#{class["name"]}.#{member["name"]}")
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
 
       callbacks = for expect <- expects, do: expect |> callback(class, members) |> member(false)
@@ -320,6 +335,56 @@ defmodule Mix.PlaywrightEx.ApiRules do
   end
 
   defp event_type(member), do: member
+
+  defp extra_options(member, key) do
+    case @extra_options[key] do
+      nil ->
+        member
+
+      names ->
+        args =
+          for arg <- member["args"] do
+            if arg["name"] == "options",
+              do: update_in(arg, ["type", "properties"], &(&1 ++ Enum.map(names, fn name -> extra_option(name) end))),
+              else: arg
+          end
+
+        %{member | "args" => args}
+    end
+  end
+
+  defp extra_option("defaultBrowserType" = name) do
+    %{
+      "name" => name,
+      "alias" => name,
+      "kind" => "property",
+      "langs" => %{},
+      "required" => false,
+      "since" => "v1.8",
+      "type" => %{"expression" => "[string]", "name" => "string"},
+      "spec" => [
+        %{
+          "type" => "text",
+          "text" =>
+            "Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options."
+        }
+      ]
+    }
+  end
+
+  defp descriptors(member, key) do
+    case @descriptors[key] do
+      nil ->
+        member
+
+      options ->
+        text =
+          "In Elixir, a descriptor has the snake_case keys of the options (`user_agent:`), as in the Python client: " <>
+            "`Browser.new_context(browser, devices[\"iPhone 6\"])`."
+
+        Map.merge(member, %{"options" => options, "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}]})
+    end
+  end
 
   defp storage_state(%{"name" => "storageState", "kind" => "method"} = member),
     do: %{member | "type" => open(member["type"])}

@@ -299,13 +299,39 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       head: "#{name}(#{Enum.join(params, ", ")})",
       attributes: attributes,
       conversions: Enum.map_join(attrs, "\n", &conversion(name, api_name, &1)),
-      call: client_call(class, member, receiver, vars),
+      call: options_dictionary(ctx, member, client_call(class, member, receiver, vars)),
       void?: void?,
       spec_args: Enum.join(["t()" | Enum.map(args, &arg_spec(ctx, &1, name))], ", "),
-      return: if(void?, do: ":ok", else: type_spec(ctx, member["type"], :out)),
+      return: if(void?, do: ":ok", else: return_spec(ctx, member)),
       docs: since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
     })
   end
+
+  # A dictionary of option objects (device descriptors, see `Mix.PlaywrightEx.ApiRules`): the
+  # client's JS keys become the option keys of `member["options"]` (`"Browser.newContext"`).
+  defp options_dictionary(ctx, %{"options" => options}, call) do
+    [class_name, member_name] = String.split(options, ".")
+    member = Enum.find(ctx.classes[class_name]["members"], &(&1["name"] == member_name))
+    %{"type" => %{"properties" => props}} = Enum.find(member["args"], &(&1["name"] == "options"))
+    # A map literal in api.json order.
+    keys =
+      Enum.map_join(
+        Enum.uniq_by(props, & &1["name"]),
+        ", ",
+        &"#{key(String.to_atom(&1["name"]))} #{inspect(atom(&1["name"]))}"
+      )
+
+    "Facade.options_dictionary(#{call}, %{#{keys}})"
+  end
+
+  defp options_dictionary(_ctx, _member, call), do: call
+
+  defp return_spec(_ctx, %{"options" => options}) do
+    [class_name, member_name] = String.split(options, ".")
+    "%{optional(String.t()) => #{inspect(facade(class_name))}.#{snake(member_name)}_options()}"
+  end
+
+  defp return_spec(ctx, member), do: type_spec(ctx, member["type"], :out)
 
   defp param({%{"name" => "options"}, var}), do: "#{var} \\\\ []"
   defp param({%{"required" => true}, var}), do: var

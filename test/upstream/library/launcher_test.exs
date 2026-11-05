@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Library.LauncherTest do
 
   test "should have a devices object", %{playwright: playwright} do
     assert Playwright.devices(playwright)["iPhone 6"]
-    assert Playwright.devices(playwright)["iPhone 6"].defaultBrowserType == "webkit"
+    assert Playwright.devices(playwright)["iPhone 6"].default_browser_type == "webkit"
   end
 
   @tag skip: "not ported: __testHookGracefullyClose is a JS function"
