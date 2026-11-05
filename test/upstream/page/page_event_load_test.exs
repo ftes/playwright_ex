@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageEventLoadTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.TimeoutError
 
   @moduletag :page
 
@@ -23,6 +24,7 @@ defmodule PlaywrightEx.Page.PageEventLoadTest do
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Firefox sometimes double fires.")
   test "should fire once", %{page: page, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/15086' });
     # it.fixme(browserName === 'firefox' && !isBidi, 'Firefox sometimes double fires.');
     test = self()
     Page.on(page, :load, fn _ -> send(test, :load) end)
@@ -33,6 +35,7 @@ defmodule PlaywrightEx.Page.PageEventLoadTest do
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Firefox sometimes double fires.")
   test "should fire once with iframe navigation", %{page: page, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/15086' });
     # it.fixme(browserName === 'firefox' && !isBidi, 'Firefox sometimes double fires.');
     test = self()
     request_count = :counters.new(1, [])
@@ -72,7 +75,7 @@ defmodule PlaywrightEx.Page.PageEventLoadTest do
     # waitForEvent timeout plays the waitForTimeout part.
     load_fired = Page.wait_for_event(page, :load, timeout: 1000)
     Locator.click!(Page.locator(page, "input[type=submit]"))
-    assert {:error, _timeout} = Promise.await(load_fired)
+    assert {:error, %TimeoutError{}} = Promise.await(load_fired)
     assert load_count() == 1
     assert Page.evaluate!(page, "() => window['eventLog']") == ["load"]
   end
