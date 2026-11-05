@@ -82,7 +82,6 @@ CD-030      toImpl (server internals)
 CD-032      toImpl (server internals)
 CD-036      connectOverCDP(transport) (PLAN: out of scope)
 # library/client-certificates
-CC-029      TLS renegotiation requesting a client certificate (Erlang :ssl cannot change verify on renegotiate)
 # library/defaultbrowsercontext-2
 DC-030      toImpl (server-side defaultArgs)
 DC-031      __testHookBeforeCreateBrowser is a JS function

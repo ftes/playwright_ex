@@ -78,6 +78,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.RemoteServer.ChildProcess
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestProxy
@@ -178,6 +179,24 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
        ]
      ], "pfx is specified together with cert, key or passphrase"}
   ]
+
+  # The server of "should handle TLS renegotiation with client certificates", a Node.js process
+  # (stopped after the test): its port.
+  defp start_tls_renegotiation_server do
+    {node, _cli} = PlaywrightEx.Driver.ensure_installed()
+    script = Path.expand("../../support/tls_renegotiation_server.js", __DIR__)
+    assets = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/assets")
+    {node, args, env} = ChildProcess.exit_on_stdin_eof({node, [script, assets]})
+    process = ChildProcess.start(node, args, env)
+    on_exit(fn -> ChildProcess.stop(process) end)
+
+    ChildProcess.await(process, fn output ->
+      case Regex.run(~r/\(port=>(\d+)\)/, output) do
+        [_, port] -> {:ok, String.to_integer(port)}
+        nil -> nil
+      end
+    end)
+  end
 
   defp new_request(playwright, options), do: APIRequest.new_context!(Playwright.request(playwright), options)
 
@@ -825,7 +844,70 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should handle TLS renegotiation with client certificates"
+    test "should handle TLS renegotiation with client certificates",
+         %{browser: browser, asset: asset, browser_name: browser_name} do
+      # deviation: createHttpsServer(...) and its request handler run in a Node.js process
+      # (test/support/tls_renegotiation_server.js, upstream's code): Erlang's :ssl cannot ask
+      # for a client certificate in a renegotiation.
+      port = start_tls_renegotiation_server()
+      host = if fake_localhost?(browser_name), do: "local.playwright", else: "localhost"
+      server_url = "https://#{host}:#{port}"
+
+      context =
+        Browser.new_context!(browser,
+          ignore_https_errors: true,
+          client_certificates: [
+            %{
+              origin: server_url,
+              certPath: asset.("client-certificates/client/trusted/cert.pem"),
+              keyPath: asset.("client-certificates/client/trusted/key.pem")
+            }
+          ]
+        )
+
+      page = BrowserContext.new_page!(context)
+
+      # test.step('fetch API')
+      Page.goto!(page, server_url)
+
+      response =
+        Page.evaluate!(page, """
+        async () => {
+          const response = await fetch('/from-fetch-api', {
+            method: 'POST',
+            body: 'client-request-payload'
+          });
+          return await response.text();
+        }
+        """)
+
+      assert response ==
+               Enum.join(
+                 [
+                   "server received: client-request-payload",
+                   "0-from-server",
+                   "1-from-server",
+                   "2-from-server",
+                   "3-from-server",
+                   "server closed the connection"
+                 ],
+                 "\n"
+               )
+
+      # test.step('Gzip encoded CSS Stylesheet')
+      Page.goto!(page, server_url)
+      # The <link> would throw with net::ERR_INVALID_CHUNKED_ENCODING
+      Page.set_content!(page, """
+      <button>Click me</button>
+      <link rel="stylesheet" href="/style.css">
+      """)
+
+      # red
+      Expect.to_have_css!(Page.locator(page, "button"), "background-color", "rgb(255, 0, 0)")
+
+      BrowserContext.close!(context)
+      # await new Promise<void>(resolve => server.close(() => resolve()));  -- the process stops after the test
+    end
 
     test "should pass with matching certificates in pfx format when passing as content",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
