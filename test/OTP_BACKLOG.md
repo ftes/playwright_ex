@@ -8,20 +8,22 @@ failures.
 
 Two of the 7 were fixed after the run: `browsercontext_basic_test.exs:88` and `:142`. A
 context created in one Task and closed from another was freed when its creator exited, before
-the closer read it. A closed context or browser now stays retained until every process that created or closed it has exited. That
-leaves 5 failures.
+the closer read it. A closed context or browser now stays retained until every process that
+created or closed it has exited.
+
+A second full run after that fix had 4085 tests and 6 failures, in 192 s with no stall. All 6
+are below: the 4 hangs, plus tests that fail only under load.
 
 | Group | Failing | Flaky (load) |
 |---|---|---|
-| A | 2 | 0 |
-| B | 1 | 1 |
+| A | 1 | 1 |
+| B | 1 | 3 |
 | C | 0 | 0 |
 | D | 0 | 0 |
 | E | 1 | 0 |
 
-Tests that failed only under load in earlier runs, and passed in this one:
+Tests that failed only under load in earlier runs, and passed in the latest one:
 - `library/page_close_test.exs:229`
-- `page/page_wait_for_navigation_test.exs:59`
 - `page/page_wait_for_url_test.exs:53`
 - `page/page_autowaiting_basic_test.exs:77`
 - `page/page_screenshot_test.exs:482`
@@ -31,10 +33,11 @@ Phase 1 should watch them.
 
 ## A: lifecycle and remote
 - `library/chromium/chromium_test.exs:763` hangs awaiting the console message. Its helper assumes the old behaviour, where an API scope held dispatch, so subscribing happened in the same tick. The fix is to subscribe first (start `Worker.wait_for_event` in a `once :service_worker` listener).
-- `library/chromium/extensions_test.exs:74` hangs in `service_worker/1` for the same reason: the list read and the wait are not in one tick.
+- Flaky (same tick): `library/chromium/extensions_test.exs:74` and `:143` hang in `service_worker/1` because the list read and the wait are not in one tick. The failing test differs from run to run.
 
 ## B: page and frame
 - `page/page_history_test.exs:153` hangs: `page.evaluate(pushState)` never returns while the reload's request is stalled.
+- Flaky (load): `page/page_wait_for_url_test.exs:24` and `page/page_wait_for_navigation_test.exs:59` ("both domcontentloaded and load", second run). Likely the `_loadStates` check-then-subscribe race.
 - Flaky (load): `page/page_wait_for_url_test.exs:145`. It passes alone and in its file. Under load, the frame navigation can commit between the url check and the `navigated` subscription (a check-then-subscribe race).
 
 ## E: artifacts
