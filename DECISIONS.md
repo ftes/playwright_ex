@@ -559,6 +559,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   one line. Key order follows Elixir maps.
 - `globToRegex` still runs through the driver (PLAN). A local port (~80 lines, pure) would
   free sync members like `page.frame(url:)` from taking the baton; candidate follow-up.
-- Linux firefox CI: webgl screenshot differs from the golden, and the GC steady-state loop's
-  `newPage` stops answering. Both tagged `ci:`. Revisit: run the firefox job under `xvfb-run`
-  like upstream.
+- Linux firefox without a DISPLAY: the webgl screenshot differs from the golden, and the GC
+  steady-state loop stops getting `newPage` replies. Both are tagged `env:` (no DISPLAY), and the
+  firefox/webkit CI job now runs under `xvfb-run` like upstream, so they run there. The
+  older no-DISPLAY skips (capabilities, oopif, connect) also run under xvfb now.

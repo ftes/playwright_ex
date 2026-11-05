@@ -106,4 +106,4 @@ jobs:
       - name: Install driver and browsers
         run: mix playwright_ex.install -- ${{ matrix.browser }} --with-deps
       - name: Run tests
-        run: mix test --warnings-as-errors
+        run: xvfb-run --auto-servernum -- mix test --warnings-as-errors

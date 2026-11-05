@@ -351,8 +351,9 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
                   String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64") ->
                 "upstream skip: WebGL is not available on Intel macOS - https://bugs.webkit.org/show_bug.cgi?id=278277"
 
-              @browser_name == "firefox" and System.get_env("CI") ->
-                "ci: headless Linux firefox renders WebGL differently from the golden (upstream CI runs it under xvfb)"
+              @browser_name == "firefox" and match?({:unix, :linux}, :os.type()) and
+                  System.get_env("DISPLAY") in [nil, ""] ->
+                "env: Linux firefox WebGL needs a DISPLAY (upstream CI runs under xvfb-run)"
 
               true ->
                 nil
