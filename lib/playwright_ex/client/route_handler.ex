@@ -5,11 +5,12 @@ defmodule PlaywrightEx.Client.RouteHandler do
 
   Deviations: the constructor takes the `LocalUtils` first, as string globs become regexes
   through the driver (`PlaywrightEx.Isomorphic.UrlMatch`), and its `owner` (page or context) last.
-  The handler is a 2-arity function `(route, request)` or, as in the Python client, a 1-arity
-  one `(route)`.
+  The handler is called as a JS function (`ClientHelper.call_function/2`): `(route, request)`,
+  or `(route)` for a 1-arity one, as in the Python client.
   """
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Route
   alias PlaywrightEx.Isomorphic.UrlMatch
@@ -120,8 +121,7 @@ defmodule PlaywrightEx.Client.RouteHandler do
         Promise.all([
           handled_promise,
           Promise.async(fn ->
-            # A 1-arity handler gets only the route (as in the Python client); JS passes both.
-            result = if is_function(handler, 1), do: handler.(route), else: handler.(route, Route.request(route))
+            result = ClientHelper.call_function(handler, [route, Route.request(route)])
             # Promise.all adopts a returned promise
             if is_struct(result, Promise), do: Promise.await(result), else: result
           end)
