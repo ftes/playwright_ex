@@ -2,8 +2,10 @@ defmodule PlaywrightEx.Library.TracingTest do
   @upstream "tests/library/tracing.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Runtime.Heap, only: [get: 2]
-  import PlaywrightEx.Utils, only: [parse_trace_raw: 2]
+  import PlaywrightEx.Utils, only: [parse_trace_raw: 2, rafraf: 1, to_pass: 1]
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -593,7 +595,117 @@ defmodule PlaywrightEx.Library.TracingTest do
     Tracing.stop!(tracing(context))
   end
 
-  # for (const params of [fit, crop, scale]) browserTest(`should produce screencast frames ${params.id}`)  -- not ported: JPEG decoding
+  for {id, width, height} <- [
+        {"fit", 500, 500},
+        # Less than 450 to test firefox
+        {"crop", 400, 800},
+        {"scale", 1024, 768}
+      ] do
+    @params %{id: id, width: width, height: height}
+    # browserTest.skip(video === 'on', ...)  -- no runner video
+    # browserTest.fixme(browserName === 'chromium' && !isHeadlessShell, ...)  -- headless chromium is the headless shell
+    # browserTest.fixme(browserName === 'firefox' && !headless, ...)  -- headless
+    @tag skip:
+           (cond do
+              id == "fit" and @browser_name == "chromium" and match?({:unix, :darwin}, :os.type()) ->
+                "upstream fixme: High DPI maxes image at 600x600"
+
+              id == "fit" and @browser_name == "webkit" and match?({:unix, :linux}, :os.type()) ->
+                "upstream fixme: Image size is flaky"
+
+              true ->
+                false
+            end)
+    @tag :tmp_dir
+    test "should produce screencast frames #{id}", %{context_factory: context_factory, tmp_dir: tmp_dir} do
+      params = @params
+      scale = Enum.min([800 / params.width, 800 / params.height, 1])
+      preview_width = round(params.width * scale)
+      preview_height = round(params.height * scale)
+
+      context = context_factory.(viewport: %{width: params.width, height: params.height})
+      Tracing.start!(tracing(context), screenshots: true, snapshots: true)
+      page = BrowserContext.new_page!(context)
+      # Make sure we have a chance to paint.
+      for i <- 0..99 do
+        percentage = "#{i + 1}%"
+
+        Page.set_content!(
+          page,
+          ~s|<body style="box-sizing: border-box; width: 100%; height: 100%; margin:0; background: linear-gradient(to bottom, red #{percentage}, transparent #{percentage}); border: 50px solid blue"></body>|
+        )
+
+        rafraf(page)
+      end
+
+      for _ <- 1..10, do: rafraf(page)
+      Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
+
+      %{events: events, resources: resources} = parse_trace_raw(Path.join(tmp_dir, "trace.zip"), context)
+      frames = Enum.filter(events, &(&1["type"] == "screencast-frame"))
+
+      # Check all frame sizes.
+      for frame <- frames do
+        assert frame["width"] == params.width
+        assert frame["height"] == params.height
+        buffer = resources[frame["file"]]
+        assert jpeg_size(buffer) == {preview_width, preview_height}
+      end
+
+      # pick last frame.
+      frame = List.last(frames)
+      buffer = resources[frame["file"]]
+      image = jpeg_decode(page, buffer)
+      assert byte_size(image.data) == preview_width * preview_height * 4
+      # center is red
+      expect_red(image.data, div(preview_width * preview_height * 4, 2) + div(preview_width * 4, 2))
+      # top
+      expect_blue(image.data, preview_width * 5 * 4 + div(preview_width * 4, 2))
+      # bottom
+      expect_blue(image.data, preview_width * (preview_height - 5) * 4 + div(preview_width * 4, 2))
+      # left
+      expect_blue(image.data, div(preview_width * preview_height * 4, 2) + 5 * 4)
+      # right
+      expect_blue(image.data, div(preview_width * preview_height * 4, 2) + (preview_width - 5) * 4)
+    end
+  end
+
+  # jpegjs.decode(buffer).width and .height: the frame header's (SOFn; as the PNG IHDR above).
+  defp jpeg_size(<<0xFF, 0xD8, segments::binary>>), do: jpeg_size(segments)
+
+  defp jpeg_size(<<0xFF, marker, _length::16, _precision, height::16, width::16, _::binary>>)
+       when marker in 0xC0..0xCF and marker not in [0xC4, 0xC8, 0xCC],
+       do: {width, height}
+
+  defp jpeg_size(<<0xFF, _marker, length::16, rest::binary>>),
+    do: jpeg_size(binary_part(rest, length - 2, byte_size(rest) - length + 2))
+
+  # jpegjs.decode(buffer): the browser decodes it (an image drawn on a canvas, read back as RGBA).
+  defp jpeg_decode(page, buffer) do
+    %{"width" => width, "height" => height, "data" => data} =
+      Page.evaluate!(
+        page,
+        """
+        async base64 => {
+          const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const context = canvas.getContext('2d');
+          context.drawImage(bitmap, 0, 0);
+          const data = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+          let binary = '';
+          for (let i = 0; i < data.length; i += 0x8000)
+            binary += String.fromCharCode(...data.subarray(i, i + 0x8000));
+          return { width: bitmap.width, height: bitmap.height, data: btoa(binary) };
+        }
+        """,
+        Base.encode64(buffer)
+      )
+
+    %{width: width, height: height, data: Base.decode64!(data)}
+  end
 
   @tag :tmp_dir
   test "should include interrupted actions", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
@@ -884,7 +996,63 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert %{"method" => "POST", "url" => ^url} = req
   end
 
-  test "should not flush console events"
+  # The traces dir of the runner (`artifactsFolderName(testInfo.workerIndex)/traces`, which it
+  # gives the browser): the test launches a browser with a `traces_dir` of its own (as
+  # playwright-python).
+  @tag :tmp_dir
+  test "should not flush console events", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+    dir = Path.join(tmp_dir, "traces")
+    browser = BrowserType.launch!(browser_type, traces_dir: dir)
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+    # test.info().testId
+    test_id = "TR-039"
+    Tracing.start!(tracing(context), name: test_id)
+    test = self()
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+
+    # A listener, as upstream: `wait_for_event` would be an action of its own in the trace, which
+    # flushes the console events.
+    Page.on(page, :console, fn _ ->
+      if Agent.get_and_update(counter, &{&1 + 1, &1 + 1}) == 100, do: send(test, :done)
+    end)
+
+    Page.evaluate!(page, """
+    () => {
+      window.builtins.setTimeout(() => {
+        for (let i = 0; i < 100; ++i)
+          console.log('hello ' + i);
+      }, 10);
+      return 31415926;
+    }
+    """)
+
+    assert_receive :done, 30_000
+
+    read_trace = fn ->
+      trace_name = dir |> File.ls!() |> Enum.find(&String.ends_with?(&1, test_id <> ".trace"))
+      File.read!(Path.join(dir, trace_name))
+    end
+
+    content =
+      to_pass(fn ->
+        content = read_trace.()
+        assert content =~ "31415926"
+        content
+      end)
+
+    refute content =~ "hello 0"
+
+    Page.evaluate!(page, "() => 42")
+
+    to_pass(fn ->
+      content = read_trace.()
+      assert content =~ "hello 0"
+      assert content =~ "hello 99"
+    end)
+
+    Browser.close!(browser)
+  end
 
   @tag :tmp_dir
   test "should flush console events on tracing stop", %{context: context, page: page, tmp_dir: tmp_dir} do
@@ -1077,5 +1245,21 @@ defmodule PlaywrightEx.Library.TracingTest do
     for %{"file" => file} <- stack,
         not String.contains?(file, "ex_unit/") and not String.ends_with?(file, ".erl"),
         do: Path.basename(file)
+  end
+
+  defp expect_red(pixels, offset) do
+    <<_::binary-size(^offset), r, g, b, a, _::binary>> = pixels
+    assert r > 200
+    assert g < 70
+    assert b < 70
+    assert a == 255
+  end
+
+  defp expect_blue(pixels, offset) do
+    <<_::binary-size(^offset), r, g, b, a, _::binary>> = pixels
+    assert r < 70
+    assert g < 70
+    assert b > 200
+    assert a == 255
   end
 end
