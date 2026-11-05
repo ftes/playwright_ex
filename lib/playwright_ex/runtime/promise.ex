@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Runtime.Promise do
 
       found ->
         with [{_, {:pending, waiters}}] <- found, do: for({pid, wref} <- waiters, do: send(pid, {:pw, wref, result}))
-        if Heap.alive?(owner), do: :ets.insert(owner.table, {key, {:settled, result}})
+        if Heap.readable?(owner), do: :ets.insert(owner.table, {key, {:settled, result}})
     end
   end
 

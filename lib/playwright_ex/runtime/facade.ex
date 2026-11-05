@@ -51,8 +51,17 @@ defmodule PlaywrightEx.Runtime.Facade do
   the call runs until its first `await` (the wait is set up), then a promise handle is returned,
   awaited with `PlaywrightEx.Promise.await/1`.
   """
-  def promise(api_name, receiver, fun),
-    do: Api.call(api_name, receiver, fn -> Promise.async(fun, shared: true) end)
+  # A latch owned by the calling process (freed when it exits). A user listener's process exits
+  # with its subscription (a `once` right after the event), while the promise it started lives
+  # on (JS: `.then(ws => ws.waitForEvent(...))`): there, a latch on the receiver.
+  def promise(api_name, receiver, fun) do
+    owner =
+      if Process.get(:pw_listener) && is_map(receiver) && Map.get(receiver, :table),
+        do: [owner: receiver],
+        else: [shared: true]
+
+    Api.call(api_name, receiver, fn -> Promise.async(fun, owner) end)
+  end
 
   @doc """
   Runs `fun` (an `on`, `once`, `off`, ... of the facade) with its listener marked as a user

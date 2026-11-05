@@ -393,6 +393,7 @@ defmodule PlaywrightEx.Runtime.Conn do
   def subscription(conn) do
     spawn(fn ->
       mon = Process.monitor(conn)
+      Process.put(:pw_listener, true)
       subscription_loop(conn, mon)
     end)
   end

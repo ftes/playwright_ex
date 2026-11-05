@@ -19,8 +19,8 @@ defmodule PlaywrightEx.Runtime.Heap do
   A handle carries the immutable part of its object (`guid`, `type`, `initializer`, its
   connection): `:_type`, `:_guid`, `:_initializer` and `:_connection` stay readable after dispose.
   A disposed object keeps its rows until its anchor is freed (see
-  `PlaywrightEx.Client.ChannelOwner._dispose/2`), so reads return the last value as in JS; writes
-  to it are dropped. Fields of a freed object raise `PlaywrightEx.TargetClosedError`.
+  `PlaywrightEx.Client.ChannelOwner._dispose/2`), so it reads and writes as in JS. Fields of a
+  freed object raise `PlaywrightEx.TargetClosedError`; writes to it are dropped.
 
   `new_object(module)` is a process-local object: its fields live in the process dictionary of
   its creator, which alone may use it (another process raises); `free/1` erases it.
@@ -100,7 +100,11 @@ defmodule PlaywrightEx.Runtime.Heap do
 
   # An absent field: `undefined` while the object is alive or retained after dispose, else (its
   # rows freed) a TargetClosedError.
-  defp missing(obj), do: if(alive?(obj) or retained?(obj), do: nil, else: raise(TargetClosedError.new()))
+  defp missing(obj), do: if(readable?(obj), do: nil, else: raise(TargetClosedError.new()))
+
+  @doc false
+  # Alive, or disposed and retained: its fields read and write as in JS.
+  def readable?(obj), do: alive?(obj) or retained?(obj)
 
   @doc false
   # Whether a disposed object's rows are kept (`PlaywrightEx.Client.ChannelOwner._dispose/2`).
@@ -141,13 +145,13 @@ defmodule PlaywrightEx.Runtime.Heap do
     value
   end
 
-  # In the connection: writes to a disposed object are dropped (they would leak rows).
+  # In the connection: writes to a freed object are dropped (they would leak rows).
   defp insert(obj, key, value) do
-    if alive?(obj), do: :ets.insert(obj.table, {key, value})
+    if readable?(obj), do: :ets.insert(obj.table, {key, value})
   end
 
   # A disposed object's update is dropped, as its writes are.
-  def update(obj, field, fun), do: atomic(obj, fn -> if alive?(obj), do: put(obj, field, fun.(get(obj, field))) end)
+  def update(obj, field, fun), do: atomic(obj, fn -> if readable?(obj), do: put(obj, field, fun.(get(obj, field))) end)
 
   @doc """
   Runs `fun` atomically with respect to the object's connection (in it): a synchronous JS section
