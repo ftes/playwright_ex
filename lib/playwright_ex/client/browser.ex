@@ -24,11 +24,13 @@ defmodule PlaywrightEx.Client.Browser do
     put(this, :_name, initializer.name)
     put(this, :_browserName, initializer.browserName)
 
-    EventEmitter.on(_channel(this), "context", fn %{context: context} ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "context", fn %{context: context} ->
       _did_create_context(this, BrowserContext.from(context))
     end)
 
-    EventEmitter.on(_channel(this), "close", fn _ -> _did_close(this) end)
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "close", fn _ -> _did_close(this) end)
     # A latch on the browser.
     put(this, :_closedPromise, Promise.new(this, fn f, _ -> once(this, Events.Browser.disconnected(), f) end))
     this
@@ -179,8 +181,9 @@ defmodule PlaywrightEx.Client.Browser do
     ChannelOwner._set_creator(this)
 
     try do
+      # Elixir only: `Connection.close` in one step (its check-then-set races the transport's close).
       if get(this, :_shouldCloseConnectionOnClose),
-        do: PlaywrightEx.Client.Connection.close(get(this, :_connection)),
+        do: atomic(this, fn -> PlaywrightEx.Client.Connection.close(get(this, :_connection)) end),
         else: channel_call(this, :close, options, TimeoutSettings.k_no_timeout())
 
       Promise.await(get(this, :_closedPromise))

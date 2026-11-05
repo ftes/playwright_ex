@@ -78,7 +78,11 @@ defmodule PlaywrightEx.Client.Connect do
           browser = Browser.from(get(playwright, :_initializer).preLaunchedBrowser)
           put(browser_cell, :browser, browser)
           put(browser, :_shouldCloseConnectionOnClose, true)
-          Browser.on(browser, Events.Browser.disconnected(), fn _ -> Connection.close(connection) end)
+          # Elixir only: `Connection.close` in one step (its check-then-set races the transport's close).
+          Browser.on(browser, Events.Browser.disconnected(), fn _ ->
+            atomic(connection, fn -> Connection.close(connection) end)
+          end)
+
           browser
         end,
         deadline

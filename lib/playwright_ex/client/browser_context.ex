@@ -76,7 +76,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
       _on_web_socket_route(this, WebSocketRoute.from(web_socket_route))
     end)
 
-    EventEmitter.on(_channel(this), "serviceWorker", fn %{worker: worker} ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "serviceWorker", fn %{worker: worker} ->
       service_worker = Worker.from(worker)
       put(service_worker, :_context, this)
       set_add(this, :_serviceWorkers, service_worker)
@@ -629,11 +630,19 @@ defmodule PlaywrightEx.Client.BrowserContext do
   # [Symbol.asyncDispose]  -- not ported: await using
 
   def close(this, options \\ %{}) do
-    if is_closed(this) do
+    # The check and the writes in one step, as JS's synchronous section: a concurrent close
+    # returns at once.
+    closing =
+      atomic(this, fn ->
+        if !is_closed(this) do
+          put(this, :_closeReason, options[:reason])
+          put(this, :_closingStatus, "closing")
+        end
+      end)
+
+    if !closing do
       nil
     else
-      put(this, :_closeReason, options[:reason])
-      put(this, :_closingStatus, "closing")
       # Elixir only: the closing process anchors the closed context (it reads it next).
       ChannelOwner._set_creator(this)
       APIRequestContext.dispose(get(this, :request), options)
