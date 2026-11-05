@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Client.Connection do
 
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.AbortSignal
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BindingCall
@@ -185,7 +186,9 @@ defmodule PlaywrightEx.Client.Connection do
         raise "The object has been collected to prevent unbounded heap growth."
 
       true ->
-        # const signal = options.signal; if (signal?.aborted) ...  -- not ported: AbortSignal
+        signal = options[:signal]
+        if signal && AbortSignal.aborted(signal), do: raise(%Errors.AbortError{cause: AbortSignal.reason(signal)})
+
         guid = object.guid
         type = get(object, :_type)
         id = options[:callId] || get(this, :_nextCallId).()
@@ -217,18 +220,44 @@ defmodule PlaywrightEx.Client.Connection do
         Zones.empty(fn -> get(this, :onmessage).(Map.put(message, :metadata, metadata)) end)
         # Fire-and-forget: server intentionally never replies to __waitInfo__.
         if method != "__waitInfo__" do
-          # let abortListener ...  -- not ported: AbortSignal
-          Promise.await(
-            Promise.new(fn resolve, reject ->
-              map_set(this, :_callbacks, id, %{
-                resolve: resolve,
-                reject: reject,
-                title: options[:title],
-                type: type,
-                method: method
-              })
-            end)
-          )
+          abort_listener =
+            if signal do
+              abort_listener = fn ->
+                reason = AbortSignal.reason(signal)
+
+                # `String(signal.reason)`
+                reason =
+                  cond do
+                    is_exception(reason) -> Exception.message(reason)
+                    String.Chars.impl_for(reason) -> to_string(reason)
+                    true -> inspect(reason)
+                  end
+
+                Zones.empty(fn ->
+                  get(this, :onmessage).(%{guid: guid, method: "__abort__", params: %{id: id, reason: reason}})
+                end)
+              end
+
+              AbortSignal.add_event_listener(signal, "abort", abort_listener, %{once: true})
+              abort_listener
+            end
+
+          try do
+            Promise.await(
+              Promise.new(fn resolve, reject ->
+                map_set(this, :_callbacks, id, %{
+                  resolve: resolve,
+                  reject: reject,
+                  signal: signal,
+                  title: options[:title],
+                  type: type,
+                  method: method
+                })
+              end)
+            )
+          after
+            if abort_listener, do: AbortSignal.remove_event_listener(signal, "abort", abort_listener)
+          end
         end
     end
   end
@@ -257,7 +286,11 @@ defmodule PlaywrightEx.Client.Connection do
       # Deviation: validated as SerializedError, so that parseError reads atom keys.
       error = ValidatorPrimitives.validate({:type, "SerializedError"}, error, "", _validator_from_wire_context(this))
       parsed_error = Errors.parse_error(error)
-      # if (callback.signal?.aborted && parsedError instanceof AbortError) ...  -- not ported: AbortSignal
+
+      parsed_error =
+        if callback.signal && AbortSignal.aborted(callback.signal) && is_struct(parsed_error, Errors.AbortError),
+          do: %{parsed_error | cause: AbortSignal.reason(callback.signal)},
+          else: parsed_error
 
       parsed_error =
         if is_exception(parsed_error) do

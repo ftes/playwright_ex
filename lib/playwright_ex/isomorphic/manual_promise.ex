@@ -4,8 +4,23 @@ defmodule PlaywrightEx.Isomorphic.ManualPromise do
   Port of `#{@upstream}`: `LongStandingScope` is `PlaywrightEx.Isomorphic.LongStandingScope`.
   """
 
+  alias PlaywrightEx.AbortSignal
+  alias PlaywrightEx.Runtime.Promise
+
   # ManualPromise: constructor, isDone, resolve, reject  -- ported as PlaywrightEx.Runtime.Promise (new/1, resolve/2, reject/2)
-  # signalToPromise  -- not ported: AbortSignal
+
+  def signal_to_promise(signal) do
+    if AbortSignal.aborted(signal) do
+      {Promise.new(fn resolve, _reject -> resolve.(nil) end), fn -> nil end}
+    else
+      # `let dispose` assigned inside the executor: the listener is created first.
+      promise = Promise.new()
+      on_abort = fn -> Promise.resolve(promise, nil) end
+      AbortSignal.add_event_listener(signal, "abort", on_abort, %{once: true})
+      dispose = fn -> AbortSignal.remove_event_listener(signal, "abort", on_abort) end
+      {promise, dispose}
+    end
+  end
 
   # A plain `Error` copy: `RuntimeError`, as the client raises for `new Error()` (stack rewriting not ported).
   def clone_error(error, _frames) do

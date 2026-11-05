@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Client.Frame do
   alias PlaywrightEx.Client.Response
   alias PlaywrightEx.Client.Waiter
   alias PlaywrightEx.Client.WebMCP
+  alias PlaywrightEx.Isomorphic.AbortSignal
   alias PlaywrightEx.Isomorphic.LocatorUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
 
@@ -699,24 +700,34 @@ defmodule PlaywrightEx.Client.Frame do
           %{matches: !params.isNot}
         rescue
           e ->
-            # if (e instanceof AbortError) return { matches: !!params.isNot, errorMessage: ... };  -- not ported: AbortSignal
-            if !Errors.is_playwright_error(e), do: reraise(e, __STACKTRACE__)
-            details = Map.get(e, :details) || %{}
-
-            received =
-              if details[:received],
-                do: %{
-                  value: if(details.received[:value] != nil, do: JSHandle.parse_result(details.received.value)),
-                  ariaSnapshot: details.received[:ariaSnapshot]
+            cond do
+              is_struct(e, Errors.AbortError) ->
+                %{
+                  matches: !!params.isNot,
+                  errorMessage: "Error: " <> AbortSignal.assertion_aborted_message(Map.get(e, :cause))
                 }
 
-            %{
-              matches: !!params.isNot,
-              received: received,
-              log: Map.get(e, :log),
-              timedOut: details[:timedOut],
-              errorMessage: if(details[:customErrorMessage], do: "Error: " <> details.customErrorMessage)
-            }
+              !Errors.is_playwright_error(e) ->
+                reraise(e, __STACKTRACE__)
+
+              true ->
+                details = Map.get(e, :details) || %{}
+
+                received =
+                  if details[:received],
+                    do: %{
+                      value: if(details.received[:value] != nil, do: JSHandle.parse_result(details.received.value)),
+                      ariaSnapshot: details.received[:ariaSnapshot]
+                    }
+
+                %{
+                  matches: !!params.isNot,
+                  received: received,
+                  log: Map.get(e, :log),
+                  timedOut: details[:timedOut],
+                  errorMessage: if(details[:customErrorMessage], do: "Error: " <> details.customErrorMessage)
+                }
+            end
         end
       end,
       %{title: title}

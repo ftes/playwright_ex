@@ -2,9 +2,6 @@ defmodule PlaywrightEx.Client.Locator do
   @upstream "packages/playwright-core/src/client/locator.ts"
   @moduledoc "Port of `#{@upstream}` (`class Locator`). Locators hold no mutable state: a plain struct."
 
-  # `signal: options.signal` of the `_withElement` calls (boundingBox, evaluate, screenshot, ...)
-  # is left out: AbortSignal is not ported (PLAN).
-
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.DisposableStub
@@ -70,8 +67,7 @@ defmodule PlaywrightEx.Client.Locator do
             this._frame,
             :waitForSelector,
             %{selector: this._selector, strict: true, state: "attached"},
-            # { signal: options.signal, timeout }  -- signal not ported: AbortSignal
-            %{timeout: timeout}
+            %{signal: options[:signal], timeout: timeout}
           )
 
         handle = ElementHandle.from_nullable(result[:element])
@@ -98,7 +94,8 @@ defmodule PlaywrightEx.Client.Locator do
   def bounding_box(this, options \\ nil) do
     _with_element(this, fn h, _ -> ElementHandle.bounding_box(h) end, %{
       title: "Bounding box",
-      timeout: options[:timeout]
+      timeout: options[:timeout],
+      signal: options[:signal]
     })
   end
 
@@ -131,7 +128,8 @@ defmodule PlaywrightEx.Client.Locator do
   def evaluate(this, page_function, arg \\ nil, options \\ nil) do
     _with_element(this, fn h, _ -> JSHandle.evaluate(h, page_function, arg, options) end, %{
       title: "Evaluate",
-      timeout: options[:timeout]
+      timeout: options[:timeout],
+      signal: options[:signal]
     })
   end
 
@@ -142,7 +140,8 @@ defmodule PlaywrightEx.Client.Locator do
   def evaluate_handle(this, page_function, arg \\ nil, options \\ nil) do
     _with_element(this, fn h, _ -> JSHandle.evaluate_handle(h, page_function, arg, options) end, %{
       title: "Evaluate",
-      timeout: options[:timeout]
+      timeout: options[:timeout],
+      signal: options[:signal]
     })
   end
 
@@ -362,7 +361,7 @@ defmodule PlaywrightEx.Client.Locator do
     _with_element(
       this,
       fn h, timeout -> ElementHandle.screenshot(h, Map.merge(options, %{mask: mask, timeout: timeout})) end,
-      %{title: "Screenshot", timeout: options[:timeout]}
+      %{title: "Screenshot", timeout: options[:timeout], signal: options[:signal]}
     )
   end
 
@@ -400,7 +399,7 @@ defmodule PlaywrightEx.Client.Locator do
     _with_element(
       this,
       fn h, timeout -> ElementHandle.scroll_into_view_if_needed(h, Map.put(options, :timeout, timeout)) end,
-      %{title: "Scroll into view", timeout: options[:timeout]}
+      %{title: "Scroll into view", timeout: options[:timeout], signal: options[:signal]}
     )
   end
 
@@ -414,7 +413,7 @@ defmodule PlaywrightEx.Client.Locator do
     _with_element(
       this,
       fn h, timeout -> ElementHandle.select_text(h, Map.put(options, :timeout, timeout)) end,
-      %{title: "Select text", timeout: options[:timeout]}
+      %{title: "Select text", timeout: options[:timeout], signal: options[:signal]}
     )
   end
 

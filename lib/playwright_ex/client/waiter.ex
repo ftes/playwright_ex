@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Waiter do
   @moduledoc "Port of `#{@upstream}`."
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.AbortSignal
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
@@ -89,12 +90,29 @@ defmodule PlaywrightEx.Client.Waiter do
     )
   end
 
-  def reject_on_timeout(this, %{timeout: timeout}, timeout_message) do
-    # if (signal) { ... }  -- not ported: AbortSignal
+  def reject_on_timeout(this, %{timeout: timeout} = options, timeout_message) do
+    signal = options[:signal]
 
-    if timeout != 0 do
-      {promise, dispose} = wait_for_timeout(timeout)
-      _reject_on(this, Promise.then_(promise, fn _ -> raise Errors.TimeoutError, message: timeout_message end), dispose)
+    if signal && AbortSignal.aborted(signal) do
+      reject_immediately(this, %Errors.AbortError{cause: AbortSignal.reason(signal)})
+    else
+      if signal do
+        # `let rejectPromise` assigned inside the executor: the promise is settled from outside.
+        promise = Promise.new()
+        listener = fn -> Promise.reject(promise, %Errors.AbortError{cause: AbortSignal.reason(signal)}) end
+        AbortSignal.add_event_listener(signal, "abort", listener, %{once: true})
+        _reject_on(this, promise, fn -> AbortSignal.remove_event_listener(signal, "abort", listener) end)
+      end
+
+      if timeout != 0 do
+        {promise, dispose} = wait_for_timeout(timeout)
+
+        _reject_on(
+          this,
+          Promise.then_(promise, fn _ -> raise Errors.TimeoutError, message: timeout_message end),
+          dispose
+        )
+      end
     end
   end
 

@@ -38,6 +38,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.WebSocketRouteHandler
   alias PlaywrightEx.Client.WebStorage
   alias PlaywrightEx.Client.Worker
+  alias PlaywrightEx.Isomorphic.AbortSignal
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
   alias PlaywrightEx.Isomorphic.StringUtils
@@ -553,8 +554,13 @@ defmodule PlaywrightEx.Client.Page do
 
     trimmed_url = trim_url(url_or_predicate)
     log_line = if trimmed_url, do: "waiting for request #{trimmed_url}"
-    # signal: options.signal  -- not ported: AbortSignal
-    _wait_for_event(this, Events.Page.request(), %{predicate: predicate, timeout: options[:timeout]}, log_line)
+
+    _wait_for_event(
+      this,
+      Events.Page.request(),
+      %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
+      log_line
+    )
   end
 
   def wait_for_response(this, url_or_predicate, options \\ %{}) do
@@ -568,8 +574,13 @@ defmodule PlaywrightEx.Client.Page do
 
     trimmed_url = trim_url(url_or_predicate)
     log_line = if trimmed_url, do: "waiting for response #{trimmed_url}"
-    # signal: options.signal  -- not ported: AbortSignal
-    _wait_for_event(this, Events.Page.response(), %{predicate: predicate, timeout: options[:timeout]}, log_line)
+
+    _wait_for_event(
+      this,
+      Events.Page.response(),
+      %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
+      log_line
+    )
   end
 
   # urlMatches(this._browserContext._options.baseURL, url, match), with the LocalUtils (UrlMatch).
@@ -853,10 +864,17 @@ defmodule PlaywrightEx.Client.Page do
           %{actual: result[:actual]}
         rescue
           e ->
-            # if (e instanceof AbortError) return { errorMessage: ... };  -- not ported: AbortSignal
-            if !Errors.is_playwright_error(e), do: reraise(e, __STACKTRACE__)
-            details = Map.get(e, :details) || %{}
-            Map.merge(details, %{errorMessage: details[:customErrorMessage]})
+            cond do
+              is_struct(e, Errors.AbortError) ->
+                %{errorMessage: "Error: " <> AbortSignal.assertion_aborted_message(Map.get(e, :cause))}
+
+              !Errors.is_playwright_error(e) ->
+                reraise(e, __STACKTRACE__)
+
+              true ->
+                details = Map.get(e, :details) || %{}
+                Map.merge(details, %{errorMessage: details[:customErrorMessage]})
+            end
         end
       end,
       %{title: title}
