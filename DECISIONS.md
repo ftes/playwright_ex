@@ -789,9 +789,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
   from JS; decoded values are identical. Cosmetic, ratified.
 - `PlaywrightEx.RegExp` is public, for JS-only syntax; strings stay literal. It is accepted
   wherever `Regex` is; the generated specs say `Regex.t() | PlaywrightEx.RegExp.t()`.
-- Regexes from the driver come back as a `Regex` only when it means exactly the same (flags
-  `imsu`, a source that needs no translation); otherwise as `%RegExp{}`, so `g`/`y`/`d` are no
-  longer dropped.
+- Regexes from the driver always come back as `%RegExp{}`: lossless and consistent, like JS's
+  RegExp (your call; it first returned a `Regex` when the meaning was identical).
+  `RegExp.to_regex/1` converts one when PCRE can run it.
 - Elixir-side matching translates the source (`[^]`, `\\u`, ...) and compiles with `:unicode`,
   `:dollar_endonly` and `{:newline, :anycrlf}`. The `v` flag and unbounded lookbehind raise.
 - SE-092 and SE-097 now run.

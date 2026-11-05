@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Protocol.SerializersTest do
     assert round_trip(~U[2026-11-04 10:00:00.123456Z]) == ~U[2026-11-04 10:00:00.123Z]
     assert round_trip(URI.parse("https://example.com/a?b")) == URI.parse("https://example.com/a?b")
     assert Serializers.serialize_plain_value(~r/a.b/is) == %{r: %{p: "a.b", f: "is"}}
-    assert Regex.source(round_trip(~r/a.b/i)) == "a.b"
+    assert round_trip(~r/a.b/i) == %PlaywrightEx.RegExp{source: "a.b", flags: "i"}
     assert %JSError{name: "TypeError", message: "boom"} = round_trip(%JSError{name: "TypeError", message: "boom"})
     assert %{e: %{n: "ArgumentError", m: "bad"}} = Serializers.serialize_plain_value(%ArgumentError{message: "bad"})
   end

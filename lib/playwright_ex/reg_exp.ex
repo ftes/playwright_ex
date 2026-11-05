@@ -102,8 +102,11 @@ defmodule PlaywrightEx.RegExp do
     end
   end
 
-  @doc false
-  # The `Regex` that matches as `re` does in JS, for matching in Elixir; raises if PCRE cannot.
+  @doc """
+  The `Regex` that matches as `re` does in JS. Raises `ArgumentError` if PCRE cannot run it
+  (the `v` flag, unbounded lookbehind, ...).
+  """
+  @spec compile!(t()) :: Regex.t()
   def compile!(%__MODULE__{} = re) do
     case to_regex(re) do
       {:ok, regex} ->
@@ -115,7 +118,11 @@ defmodule PlaywrightEx.RegExp do
     end
   end
 
-  @doc false
+  @doc """
+  The `Regex` that matches as `re` does in JS (source translated, e.g. `[^]` to `[\\s\\S]`;
+  compiled with `:unicode`, `:dollar_endonly`), or `{:error, reason}` if PCRE cannot run it.
+  """
+  @spec to_regex(t()) :: {:ok, Regex.t()} | {:error, String.t()}
   def to_regex(%__MODULE__{source: source, flags: flags}) do
     with :ok <- if(String.contains?(flags, "v"), do: {:error, "the v flag"}, else: :ok),
          {:ok, pcre} <- js_to_pcre(source, String.contains?(flags, "u")),
@@ -137,21 +144,6 @@ defmodule PlaywrightEx.RegExp do
         flag in String.to_charlist(flags),
         do: opt
       )
-  end
-
-  @doc false
-  # A JS regex returned by the driver: the `Regex` with the same meaning, else the `RegExp`.
-  def parse(source, flags) do
-    re = %__MODULE__{source: source, flags: flags}
-
-    with true <- flags |> String.to_charlist() |> Enum.all?(&(&1 in ~c"imsu")),
-         {:ok, ^source} <- js_to_pcre(source, String.contains?(flags, "u")),
-         nil <- pcre_only(source, String.contains?(flags, "u"), false),
-         {:ok, regex} <- Regex.compile(source, flags) do
-      regex
-    else
-      _ -> re
-    end
   end
 
   # JS source -> PCRE source: `[^]`/`[]`, a literal `[` in a class, `\uXXXX`/`\u{...}` and

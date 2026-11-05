@@ -34,12 +34,9 @@ defmodule PlaywrightEx.RegExpTest do
     assert RegExp.to_js("a") == {nil, nil}
   end
 
-  test "a JS regex parses to a Regex when PCRE means the same, else to a RegExp" do
-    assert %Regex{} = re = Serializers.parse_serialized_value(%{r: %{p: "a\\/b.c", f: "imsu"}}, nil)
-    assert Regex.source(re) == "a\\/b.c"
-    assert Regex.match?(re, "A/B\nC")
-
+  test "a JS regex always parses to a RegExp, losslessly" do
     for {p, f} <- [
+          {"a\\/b.c", "imsu"},
           {"a", "g"},
           {"a", "y"},
           {"a", "v"},

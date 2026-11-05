@@ -716,8 +716,8 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   test "should roundtrip regex", %{page: page} do
     regex = ~r/hello/im
     result = Page.evaluate!(page, "regex => regex", regex)
-    assert Regex.source(result) == Regex.source(regex)
-    assert Enum.sort(Regex.opts(result)) == Enum.sort(Regex.opts(regex))
+    # expect(result.toString()).toBe(String(regex)): a JS regex comes back as a PlaywrightEx.RegExp
+    assert to_string(result) == "/hello/im"
   end
 
   test "should jsonValue() date", %{page: page} do

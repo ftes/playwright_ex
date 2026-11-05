@@ -369,8 +369,8 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
   `u`). Options and PCRE-only syntax JS cannot run (`x`, `U`, `\A`, `\z`, atomic groups,
   possessive quantifiers, inline `(?i)`, recursion, `\K`) raise `ArgumentError`. For JS-only
   syntax (`[^]`, the `v`, `g`, `y`, `d` flags, variable-length lookbehind), pass
-  `PlaywrightEx.RegExp.new(source, flags)`. JS regexes returned by `evaluate` are a `Regex`
-  when PCRE means the same, else a `PlaywrightEx.RegExp`.
+  `PlaywrightEx.RegExp.new(source, flags)`. JS regexes returned by `evaluate` are always a
+  `PlaywrightEx.RegExp` (lossless); `PlaywrightEx.RegExp.to_regex/1` (or `compile!/1`) gives a `Regex` when PCRE can run it.
 
 ## Known gaps
 

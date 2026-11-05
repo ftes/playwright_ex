@@ -7,12 +7,11 @@ defmodule PlaywrightEx.Protocol.Serializers do
   JS values map to Elixir terms as follows: `undefined` is `nil`, `null` is `:null`,
   `NaN`/`Infinity`/`-Infinity` are `:nan`/`:infinity`/`:neg_infinity`, `-0` is `-0.0`,
   `bigint` is an integer outside ±(2^53 - 1), `Date` is `DateTime`, `URL` is `URI`,
-  `RegExp` is `Regex` or `PlaywrightEx.RegExp`, `Error` is `JSError` (or any exception, when
+  `RegExp` serializes from `Regex` or `PlaywrightEx.RegExp` and parses to `PlaywrightEx.RegExp`, `Error` is `JSError` (or any exception, when
   serializing), objects are maps with string keys (atom keys and structs are accepted when
   serializing). Other atoms serialize as strings.
 
-  Deviations: a JS regex parses to the `Regex` that means the same (flags `imsu`, same PCRE
-  syntax), else to a `PlaywrightEx.RegExp`; typed arrays parse to lists of numbers and are
+  Deviations: a JS regex parses to a `PlaywrightEx.RegExp` (lossless, as JS's RegExp); typed arrays parse to lists of numbers and are
   never produced; a function parses to `{:function, name}`; Elixir terms are acyclic, so
   serializing never emits `ref`, and parsing a reference to an enclosing (cyclic) value
   returns `:circular`.
@@ -81,7 +80,7 @@ defmodule PlaywrightEx.Protocol.Serializers do
         {%JSError{name: e[:n], message: e[:m], stack: e[:s]}, refs}
 
       %{r: r} ->
-        {PlaywrightEx.RegExp.parse(r.p, r.f), refs}
+        {%PlaywrightEx.RegExp{source: r.p, flags: r.f}, refs}
 
       %{ta: ta} ->
         {parse_typed_array(ta.k, ta.b), refs}
