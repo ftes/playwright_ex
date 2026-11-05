@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Runtime.Conn do
     handle = struct(Connection, guid: :connection, conn: self(), table: table)
 
     {connection, _steps} =
-      collect(fn -> Connection.new(handle, opts[:local_utils], nil, Map.get(opts, :headers, [])) end)
+      collect(fn -> Connection.new(handle, opts[:local_utils], opts[:instrumentation], Map.get(opts, :headers, [])) end)
 
     {:ok,
      %{

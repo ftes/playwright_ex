@@ -635,14 +635,8 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       # browser gets our environment, like upstream's `browser`, launched before the test set it.
       name = :client_certificates_https_proxy_from_env
 
-      start_supervised!(
-        {PlaywrightEx.Supervisor,
-         name: name, env: [{"PWTEST_UNDER_TEST", "1"}, {"HTTPS_PROXY", "http://localhost:#{proxy_server.port}"}]},
-        id: name
-      )
-
-      browser =
-        BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(PlaywrightEx.playwright(name)), env: System.get_env())
+      playwright = start_playwright(name, [{"HTTPS_PROXY", "http://localhost:#{proxy_server.port}"}])
+      browser = BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(playwright), env: System.get_env())
 
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
       TestProxy.forward_to(proxy_server, URI.parse(server_url).port, allow_connect_requests: true)

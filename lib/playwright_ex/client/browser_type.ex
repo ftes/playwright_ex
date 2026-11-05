@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Client.BrowserType do
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Connect
   alias PlaywrightEx.Client.Selectors
   alias PlaywrightEx.Client.Worker
@@ -78,7 +79,7 @@ defmodule PlaywrightEx.Client.BrowserType do
         Map.merge(get(get(this, :_playwright), :_defaultLaunchOptions) || %{}, options)
       )
 
-    # await this._instrumentation.runBeforeCreateBrowserContext(options);  -- not ported: instrumentation
+    options = ClientInstrumentation.run_before_create_browser_context(get(this, :_instrumentation), options)
 
     logger = options[:logger] || (get(get(this, :_playwright), :_defaultLaunchOptions) || %{})[:logger]
     context_params = BrowserContext.prepare_browser_context_params(options)
@@ -118,7 +119,7 @@ defmodule PlaywrightEx.Client.BrowserType do
         context
       end)
 
-    # await this._instrumentation.runAfterCreateBrowserContext(context);  -- not ported: instrumentation
+    ClientInstrumentation.run_after_create_browser_context(get(this, :_instrumentation), context)
     context
   end
 
@@ -187,7 +188,13 @@ defmodule PlaywrightEx.Client.BrowserType do
     browser = Browser.from(result.browser)
     Browser._connect_to_browser_type(browser, this, %{}, nil)
 
-    # if (result.defaultContext) await this._instrumentation.runAfterCreateBrowserContext(...)  -- not ported: instrumentation
+    if result[:defaultContext],
+      do:
+        ClientInstrumentation.run_after_create_browser_context(
+          get(this, :_instrumentation),
+          BrowserContext.from(result.defaultContext)
+        )
+
     browser
   end
 

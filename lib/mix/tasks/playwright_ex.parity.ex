@@ -67,8 +67,6 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "packages/playwright-core/src/client/android.ts" =>
       "not in the JS api.json at this pin (Connection maps Android* to DummyChannelOwner)",
     "packages/playwright-core/src/client/channels.d.ts" => "type-only (protocol channel types)",
-    "packages/playwright-core/src/client/clientInstrumentation.ts" =>
-      "instrumentation not ported (`not ported: instrumentation` markers at the call sites)",
     "packages/playwright-core/src/client/electron.ts" =>
       "not in the JS api.json at this pin (Connection maps Electron* to DummyChannelOwner)",
     "packages/playwright-core/src/client/types.ts" => "type-only"

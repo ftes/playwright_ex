@@ -608,13 +608,8 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     # driver with it set, and record the HAR in a browser of that driver.
     name = Module.concat(__MODULE__, NoWebSocketFrames)
 
-    start_supervised!(
-      {PlaywrightEx.Supervisor,
-       name: name, env: [{"PWTEST_UNDER_TEST", "1"}, {"PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES", "1"}]},
-      id: name
-    )
-
-    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright(name)))
+    playwright = start_playwright(name, [{"PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES", "1"}])
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
     context_factory = &Browser.new_context!(browser, &1)
 
     close_after_message(server)

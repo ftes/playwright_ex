@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ConsoleMessage
   alias PlaywrightEx.Client.Coverage
@@ -67,7 +68,7 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_closeWasCalled, false)
     put(this, :_harRouters, [])
     put(this, :_evaluateCallbacks, [])
-    # this._instrumentation.onPage(this);  -- not ported: instrumentation
+    ClientInstrumentation.on_page(get(this, :_instrumentation), this)
     put(this, :_browserContext, parent)
     put(this, :_timeoutSettings, TimeoutSettings.new(get(parent, :_timeoutSettings), this))
 
@@ -1118,14 +1119,17 @@ defmodule PlaywrightEx.Client.Page do
     get(this, :_workers)
   end
 
-  def pause(this, _options \\ nil) do
+  def pause(this, options \\ nil) do
     # const isJSDebuggerAttached = !!inspector.url(); if (isJSDebuggerAttached) return;  -- not ported: no JS debugger
     context = get(this, :_browserContext)
     default_navigation_timeout = TimeoutSettings.default_navigation_timeout(get(context, :_timeoutSettings))
     default_timeout = TimeoutSettings.default_timeout(get(context, :_timeoutSettings))
     BrowserContext.set_default_navigation_timeout(context, 0)
     BrowserContext.set_default_timeout(context, 0)
-    # this._instrumentation?.onWillPause(...);  -- not ported: instrumentation
+
+    ClientInstrumentation.on_will_pause(get(this, :_instrumentation), %{
+      keepTestTimeout: !!(options || %{})[:__testHookKeepTestTimeout]
+    })
 
     LongStandingScope.safe_race(
       get(this, :_closedOrCrashedScope),

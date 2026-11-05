@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Client.Waiter do
   alias PlaywrightEx.AbortSignal
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Runtime.Promise
@@ -65,7 +66,13 @@ defmodule PlaywrightEx.Client.Waiter do
             # An outer `_wrapApiCall` may have set its own title (e.g. "Wait for navigation");
             # fall back to ours only when the outer zone left it blank.
             api_zone = if !api_zone.title, do: Zones.update(:apiZone, &%{&1 | title: options[:title]}), else: api_zone
-            # owner._instrumentation.onApiCallBegin(...)  -- not ported
+
+            ClientInstrumentation.on_api_call_begin(get(owner, :_instrumentation), api_zone, %{
+              type: get(owner, :_type),
+              method: "__waitInfo__",
+              params: info
+            })
+
             Connection.send_message_to_server(
               get(owner, :_connection),
               owner,

@@ -18,13 +18,7 @@ defmodule PlaywrightEx.Library.BrowserServerTest do
     on_exit(fn -> File.rm_rf(output_dir) end)
     registry_dir = Path.join(output_dir, "registry")
 
-    start_supervised!(
-      {PlaywrightEx.Supervisor,
-       name: test, env: [{"PWTEST_UNDER_TEST", "1"}, {"PWTEST_SERVER_REGISTRY", registry_dir}]},
-      id: test
-    )
-
-    browser_type = TestBrowser.browser_type(PlaywrightEx.playwright(test))
+    browser_type = TestBrowser.browser_type(start_playwright(test, [{"PWTEST_SERVER_REGISTRY", registry_dir}]))
     browser = BrowserType.launch!(browser_type)
     %{browser_type: browser_type, browser: browser, registry_dir: registry_dir}
   end

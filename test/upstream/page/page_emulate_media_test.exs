@@ -7,8 +7,6 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # expect.extend({ toMatchMedia })
   defp matches_media?(page, media_query) do
     case Page.evaluate(page, "mediaQuery => matchMedia(mediaQuery).matches", media_query) do
@@ -52,11 +50,6 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == false
   end
 
-  # colorScheme: null is 'no-override': WebKit on macOS then follows the system appearance.
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-           do: "env: WebKit on macOS follows the system appearance for colorScheme 'no-override' (fails on dark hosts)"
-         )
   test "should default to light", %{page: page} do
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false

@@ -360,7 +360,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     test "should delete downloads on browser gone", %{server: server, browser_type: browser_type} do
-      browser = BrowserType.launch!(browser_type)
+      browser = BrowserType.launch!(browser_type, artifacts_dir: nil)
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download1 = click_download(page)

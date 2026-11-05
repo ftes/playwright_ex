@@ -668,13 +668,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   test "PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK", %{server: server} do
     name = :disable_service_worker_network
 
-    start_supervised!(
-      {PlaywrightEx.Supervisor,
-       name: name, env: [{"PWTEST_UNDER_TEST", "1"}, {"PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK", "1"}]},
-      id: name
-    )
-
-    browser = BrowserType.launch!(Playwright.chromium(PlaywrightEx.playwright(name)))
+    playwright = start_playwright(name, [{"PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK", "1"}])
+    browser = BrowserType.launch!(Playwright.chromium(playwright))
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 

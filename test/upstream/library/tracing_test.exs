@@ -530,7 +530,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   @tag :tmp_dir
   test "should release the stack session when saving the trace fails", %{browser_type: browser_type, tmp_dir: tmp_dir} do
     # Override the test runner's tracesDir, so that the stack session owns a temporary directory.
-    browser = BrowserType.launch!(browser_type)
+    browser = BrowserType.launch!(browser_type, traces_dir: nil)
 
     try do
       context = Browser.new_context!(browser)

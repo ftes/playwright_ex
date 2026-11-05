@@ -22,6 +22,7 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Client.BrowserType
   alias PlaywrightEx.Client.CDPSession
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Debugger
   alias PlaywrightEx.Client.Dialog
   alias PlaywrightEx.Client.DisposableObject
@@ -77,7 +78,7 @@ defmodule PlaywrightEx.Client.Connection do
 
   # Elixir only: `this` is the handle of the connection process (`PlaywrightEx.Runtime.Conn`),
   # which calls this in its `init`.
-  def new(%__MODULE__{} = this, local_utils \\ nil, _instrumentation \\ nil, headers \\ []) do
+  def new(%__MODULE__{} = this, local_utils \\ nil, instrumentation \\ nil, headers \\ []) do
     (fn ->
        # super();
        # Elixir only: messages are buffered by the connection process and written per turn.
@@ -86,7 +87,7 @@ defmodule PlaywrightEx.Client.Connection do
        put(this, :_isRemote, false)
        put(this, :_rawBuffers, false)
        put(this, :_tracingCount, 0)
-       # this._instrumentation = instrumentation || createInstrumentation();  -- not ported: instrumentation
+       put(this, :_instrumentation, instrumentation || ClientInstrumentation.create_instrumentation(this))
        put(this, :_localUtils, local_utils)
        put(this, :_rootObject, Root.new(this))
        put(this, :headers, headers)

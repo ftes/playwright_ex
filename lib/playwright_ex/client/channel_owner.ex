@@ -19,6 +19,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.ClientStackTrace
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.EventEmitter
@@ -106,7 +107,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     # Elixir only: registered first, its fields are rows of a live object.
     map_set(connection, :_objects, guid, this)
     put(this, :_parent, if(is_channel_owner(parent), do: parent))
-    # this._instrumentation = this._connection._instrumentation;  -- not ported: instrumentation
+    put(this, :_instrumentation, get(connection, :_instrumentation))
 
     if get(this, :_parent) do
       map_set(get(this, :_parent), :_objects, guid, this)
@@ -333,7 +334,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
         if !api_zone.internal and !api_zone.reported do
           # Reporting/tracing/logging this api call for the first time.
           api_zone = Zones.update(:apiZone, &%{&1 | reported: true}) || api_zone
-          # this._instrumentation.onApiCallBegin(apiZone, { type: this._type, method: prop, params });  -- not ported
+
+          ClientInstrumentation.on_api_call_begin(get(this, :_instrumentation), api_zone, %{
+            type: type,
+            method: method,
+            params: params
+          })
+
           log_api_call(get(this, :_logger), "=> #{api_zone.apiName} started")
 
           Connection.send_message_to_server(
@@ -389,7 +396,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
         if !options[:internal] do
           log_api_call(logger, "<= #{api_zone.apiName} succeeded")
-          # this._instrumentation.onApiCallEnd(apiZone);  -- not ported
+          ClientInstrumentation.on_api_call_end(get(this, :_instrumentation), api_zone)
         end
 
         result
@@ -405,9 +412,9 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           # const stackFrames = ...; e.stack = ...  -- not ported: stack rewriting
 
           if !options[:internal] do
-            # apiZone.error = e;  -- not ported: instrumentation
+            api_zone = Map.put(api_zone, :error, e)
             log_api_call(logger, "<= #{api_zone.apiName} failed")
-            # this._instrumentation.onApiCallEnd(apiZone);  -- not ported
+            ClientInstrumentation.on_api_call_end(get(this, :_instrumentation), api_zone)
           end
 
           reraise e, __STACKTRACE__

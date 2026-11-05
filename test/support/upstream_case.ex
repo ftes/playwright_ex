@@ -23,6 +23,11 @@ defmodule PlaywrightEx.UpstreamCase do
     * `launch_server` (`launch_server.(options)` for `browserType.launchServer(options)`:
       `{:ok, PlaywrightEx.RemoteServer.LaunchServer}` or `{:error, message}`, killed after the test)
 
+  Each driver's Playwright gets Playwright Test's defaults (`setup_playwright/2`): no action
+  timeout, the default launch options (`headless`, `tracesDir`, ...) and context options (`locale:
+  "en-US"`, a 1280x720 viewport, ...). A test that needs a driver of its own (another `env`) starts
+  it with `start_playwright/2`.
+
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
 
   `test` skips a test that a rule in `test/upstream_not_ported.txt` rules out (`skip: "not
@@ -38,15 +43,17 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
 
   using do
     quote do
       import ExUnit.Case, only: [describe: 2]
-      import PlaywrightEx.UpstreamCase, only: [test: 1, test: 2, test: 3]
+      import PlaywrightEx.UpstreamCase, only: [test: 1, test: 2, test: 3, start_playwright: 2]
 
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
       @moduletag upstream: @upstream
@@ -84,6 +91,89 @@ defmodule PlaywrightEx.UpstreamCase do
 
   @root Path.expand("../..", __DIR__)
 
+  # Playwright Test's option fixtures with no value given (`packages/playwright/src/index.ts`
+  # `playwrightFixtures`, as `_combinedContextOptions` collects them): `contextOptions` is `{}`.
+  @context_defaults %{
+    acceptDownloads: true,
+    bypassCSP: false,
+    colorScheme: "light",
+    contrast: "no-preference",
+    forcedColors: "none",
+    hasTouch: false,
+    ignoreHTTPSErrors: false,
+    isMobile: false,
+    javaScriptEnabled: true,
+    locale: "en-US",
+    offline: false,
+    reducedMotion: "no-preference",
+    viewport: %{width: 1280, height: 720},
+    serviceWorkers: "allow"
+  }
+
+  @doc """
+  Sets up a Playwright instance as Playwright Test's fixtures do (`packages/playwright/src/index.ts`):
+
+    * `_setupContextOptions`: `playwright._defaultContextTimeout = actionTimeout || 0` (likewise
+      navigation): no action timeout, the test timeout bounds it.
+    * `_browserOptions`: `playwright._defaultLaunchOptions` (`handleSIGINT: false`, `headless`,
+      `tracesDir`, `artifactsDir`), merged into every launch.
+    * the instrumentation listener's `runBeforeCreateBrowserContext` and
+      `runBeforeCreateRequestContext`: the context option defaults (`locale: "en-US"`, a 1280x720
+      viewport, ...), for each option the caller did not give, in every `newContext`,
+      `launchPersistentContext` and `request.newContext`.
+
+  `artifacts_dir` stands in for the worker's artifacts dir (`artifacts_dir/0`), the caller removes it.
+  """
+  def setup_playwright(playwright, artifacts_dir) do
+    defaults = context_defaults()
+
+    Api.call(nil, playwright, fn ->
+      Heap.put(playwright, :_defaultContextTimeout, 0)
+      Heap.put(playwright, :_defaultContextNavigationTimeout, 0)
+
+      Heap.put(playwright, :_defaultLaunchOptions, %{
+        handleSIGINT: false,
+        tracesDir: Path.join(artifacts_dir, "traces"),
+        artifactsDir: artifacts_dir,
+        headless: TestBrowser.headless()
+      })
+
+      # `if (!(key in options)) options[key] = value;`
+      ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), %{
+        runBeforeCreateBrowserContext: &Map.merge(defaults, &1),
+        runBeforeCreateRequestContext: &Map.merge(defaults, &1)
+      })
+    end)
+  end
+
+  @doc """
+  A driver of the test's own, started with `env` (as upstream sets `process.env` for one test) and
+  set up as the module's (`setup_playwright/2`); stopped after the test. Returns its Playwright.
+  """
+  def start_playwright(name, env) do
+    start_supervised!({PlaywrightEx.Supervisor, name: name, env: [{"PWTEST_UNDER_TEST", "1"} | env]}, id: name)
+    playwright = PlaywrightEx.playwright(name)
+    artifacts_dir = artifacts_dir()
+    on_exit(fn -> File.rm_rf(artifacts_dir) end)
+    setup_playwright(playwright, artifacts_dir)
+    playwright
+  end
+
+  @doc "A fresh artifacts dir (`testInfo._tracing.artifactsDir()`), for `setup_playwright/2`."
+  def artifacts_dir do
+    dir = Path.join(System.tmp_dir!(), "playwright-ex-artifacts-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(Path.join(dir, "traces"))
+    dir
+  end
+
+  # `baseURL` is `process.env.PLAYWRIGHT_TEST_BASE_URL`.
+  defp context_defaults do
+    case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
+      nil -> @context_defaults
+      base_url -> Map.put(@context_defaults, :baseURL, base_url)
+    end
+  end
+
   @doc false
   # Tags the next test `skip: "not ported: <reason>"` when a rule rules it out. The last `@tag`
   # wins, so the rule wins over the test's own skip tags.
@@ -105,15 +195,9 @@ defmodule PlaywrightEx.UpstreamCase do
     # Upstream runs its tests with the driver "under test" (`window.builtins`, ...).
     start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
     playwright = PlaywrightEx.playwright(module)
-
-    # Playwright Test's `_setupContextOptions` fixture: `playwright._defaultContextTimeout =
-    # actionTimeout || 0` (likewise navigation): no action timeout, the test timeout bounds it.
-    Api.call(nil, playwright, fn ->
-      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultContextTimeout, 0)
-      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultContextNavigationTimeout, 0)
-      # `_browserOptions` fixture: `playwright._defaultLaunchOptions = { headless, ... }`.
-      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultLaunchOptions, %{headless: TestBrowser.headless()})
-    end)
+    artifacts_dir = artifacts_dir()
+    on_exit(fn -> File.rm_rf(artifacts_dir) end)
+    setup_playwright(playwright, artifacts_dir)
 
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)

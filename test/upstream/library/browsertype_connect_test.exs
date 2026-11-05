@@ -36,6 +36,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Facade
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
@@ -78,7 +79,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         do: Map.put(hooks, :__testHookRedirectPortForwarding, port),
         else: hooks
 
-    launch_options = Map.new(test_options[:launch_options] || [])
+    launch_options = Map.merge(default_launch_options(browser_type), Map.new(test_options[:launch_options] || []))
 
     options =
       Map.put(
@@ -105,6 +106,10 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     with {:ok, browser} <- result, do: on_exit(fn -> Browser.close(browser) end)
     result
   end
+
+  # `(browserType as any)._playwright._defaultLaunchOptions || {}`
+  defp default_launch_options(browser_type),
+    do: Heap.get(Heap.get(browser_type, :_playwright), :_defaultLaunchOptions) || %{}
 
   defp connect!(browser_type, ws_endpoint, options \\ [], test_options \\ []) do
     {:ok, browser} = connect(browser_type, ws_endpoint, options, test_options)
@@ -185,14 +190,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
         # process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0': the driver is another process, so a
         # driver of its own started with it; NODE_NO_WARNINGS for suppressCertificateWarning()
-        start_supervised!(
-          {PlaywrightEx.Supervisor,
-           name: :connect_over_wss,
-           env: [{"PWTEST_UNDER_TEST", "1"}, {"NODE_TLS_REJECT_UNAUTHORIZED", "0"}, {"NODE_NO_WARNINGS", "1"}]},
-          id: :connect_over_wss
-        )
-
-        playwright = PlaywrightEx.playwright(:connect_over_wss)
+        playwright =
+          start_playwright(:connect_over_wss, [{"NODE_TLS_REJECT_UNAUTHORIZED", "0"}, {"NODE_NO_WARNINGS", "1"}])
 
         browser_type =
           case @browser_name do
@@ -921,7 +920,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
         browser =
           BrowserType.connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server),
-            headers: %{"x-playwright-launch-options" => JSON.encode!(%{})}
+            headers: %{"x-playwright-launch-options" => JSON.encode!(default_launch_options(browser_type))}
           )
 
         page = Browser.new_page!(browser)

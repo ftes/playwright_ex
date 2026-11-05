@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Client.Browser do
   alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.CDPSession
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Page
@@ -52,7 +53,7 @@ defmodule PlaywrightEx.Client.Browser do
     context = Enum.find(get(this, :_contexts), fn context -> get(context, :_forReuse) end)
 
     if context do
-      # await this._instrumentation.runBeforeCloseBrowserContext(context);  -- not ported: instrumentation
+      ClientInstrumentation.run_before_close_browser_context(get(this, :_instrumentation), context)
       for page <- BrowserContext.pages(context), do: Page._on_close(page)
       BrowserContext._on_close(context)
       channel_call(this, :disconnectFromReusedContext, %{reason: reason}, TimeoutSettings.k_no_timeout())
@@ -63,7 +64,7 @@ defmodule PlaywrightEx.Client.Browser do
     options =
       Selectors._with_selector_options(get(get(get(this, :_browserType), :_playwright), :selectors), user_options)
 
-    # await this._instrumentation.runBeforeCreateBrowserContext(options);  -- not ported: instrumentation
+    options = ClientInstrumentation.run_before_create_browser_context(get(this, :_instrumentation), options)
     context_options = BrowserContext.prepare_browser_context_params(options)
 
     response =
@@ -75,7 +76,7 @@ defmodule PlaywrightEx.Client.Browser do
     if for_reuse, do: put(context, :_forReuse, true)
     if options[:logger], do: put(context, :_logger, options.logger)
     BrowserContext._initialize_har_from_options(context, options[:recordHar])
-    # await this._instrumentation.runAfterCreateBrowserContext(context);  -- not ported: instrumentation
+    ClientInstrumentation.run_after_create_browser_context(get(this, :_instrumentation), context)
     context
   end
 

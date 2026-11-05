@@ -113,6 +113,7 @@ defmodule PlaywrightEx.Client.Connect do
         {:ok, child} =
           Conn.start_link(
             local_utils: local_utils,
+            instrumentation: get(parent_connection, :_instrumentation),
             headers: connect_headers,
             transport: fn messages -> send(forwarder, {:send, messages}) end,
             on_dispatch_error: fn e -> send(forwarder, {:dispatch_error, e}) end

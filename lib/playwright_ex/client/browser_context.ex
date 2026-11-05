@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.BindingCall
   alias PlaywrightEx.Client.CDPSession
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Clock
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ConsoleMessage
@@ -656,7 +657,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
       # Elixir only: the closing process anchors the closed context (it reads it next).
       ChannelOwner._set_creator(this)
       APIRequestContext.dispose(get(this, :request), options)
-      # await this._instrumentation.runBeforeCloseBrowserContext(this);  -- not ported: instrumentation
+      ClientInstrumentation.run_before_close_browser_context(get(this, :_instrumentation), this)
+
       har_error =
         try do
           Tracing._export_all_hars(get(this, :tracing))

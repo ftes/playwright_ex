@@ -47,8 +47,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
 
   # A driver of its own, started with `env` (upstream sets `process.env` in its in-process server).
   defp browser_type_with_env(name, env) do
-    start_supervised!({PlaywrightEx.Supervisor, name: name, env: [{"PWTEST_UNDER_TEST", "1"} | env]}, id: name)
-    Playwright.chromium(PlaywrightEx.playwright(name))
+    Playwright.chromium(start_playwright(name, env))
   end
 
   defp json_version(playwright, port) do

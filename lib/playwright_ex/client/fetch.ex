@@ -91,6 +91,7 @@ defmodule PlaywrightEx.Client.APIRequest do
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Isomorphic.Headers
 
@@ -108,7 +109,10 @@ defmodule PlaywrightEx.Client.APIRequest do
 
   def new_context(this, options \\ %{}) do
     options = Map.merge(%{}, options || %{})
-    # await this._playwright._instrumentation.runBeforeCreateRequestContext(options);  -- not ported: instrumentation
+
+    options =
+      ClientInstrumentation.run_before_create_request_context(get(get(this, :_playwright), :_instrumentation), options)
+
     storage_state =
       if is_binary(options[:storageState]),
         do: JSON.decode!(File.read!(options.storageState)),
@@ -143,7 +147,7 @@ defmodule PlaywrightEx.Client.APIRequest do
     )
 
     put(get(context, :tracing), :_tracesDir, get(playwright, :_defaultLaunchOptions)[:tracesDir])
-    # await context._instrumentation.runAfterCreateRequestContext(context);  -- not ported: instrumentation
+    ClientInstrumentation.run_after_create_request_context(get(context, :_instrumentation), context)
     context
   end
 end
@@ -158,6 +162,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
   alias PlaywrightEx.Client.APIResponse
   alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Fetch
   alias PlaywrightEx.Client.FileUtils
@@ -187,7 +192,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   def dispose(this, options \\ %{}) do
     options = options || %{}
     Heap.put(this, :_closeReason, options[:reason])
-    # await this._instrumentation.runBeforeCloseRequestContext(this);  -- not ported: instrumentation
+    ClientInstrumentation.run_before_close_request_context(get(this, :_instrumentation), this)
     Tracing._export_all_hars(get(this, :tracing))
 
     try do

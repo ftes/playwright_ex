@@ -890,14 +890,11 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   test "should support https", %{https_server: https_server, browser_name: browser_name} do
     # process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0': the driver is another process, so a
     # driver of its own started with it; NODE_NO_WARNINGS for suppressCertificateWarning()
-    start_supervised!(
-      {PlaywrightEx.Supervisor,
-       name: :fetch_tls_reject_unauthorized,
-       env: [{"PWTEST_UNDER_TEST", "1"}, {"NODE_TLS_REJECT_UNAUTHORIZED", "0"}, {"NODE_NO_WARNINGS", "1"}]},
-      id: :fetch_tls_reject_unauthorized
-    )
-
-    playwright = PlaywrightEx.playwright(:fetch_tls_reject_unauthorized)
+    playwright =
+      start_playwright(:fetch_tls_reject_unauthorized, [
+        {"NODE_TLS_REJECT_UNAUTHORIZED", "0"},
+        {"NODE_NO_WARNINGS", "1"}
+      ])
 
     browser_type =
       case browser_name do
