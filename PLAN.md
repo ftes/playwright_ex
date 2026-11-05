@@ -404,6 +404,14 @@ the OTP rewrite. This pass reads everything, line by line, against upstream 1.64
   assertions not weakened (order, exact values, error text), helpers faithful, annotations
   (`slow`, `fixme`, `fail`, `test.use`) translated, `flaky:`/`env:` tags whose cause is gone
   retried.
+- Exclusions (`test/upstream_not_ported.txt`, 109 rules). Rules for upstream internals that
+  playwright-python and -java also rule out stay. Resolve every test that
+  `mix playwright_ex.parity --north-star` lists as run by Python but ruled out (33) or bodiless
+  (38) here: port it, or keep the rule with a reason that also says why Python's way doesn't
+  apply. Leads: the 11 `__testHookLookup` fetch-cookie tests (how does Python run them?), AW-008
+  (portable now via a `once` listener), TR-023 (JPEG decoding via a test-only dep), EV-011, HA-112,
+  TR-039, BT-047, CC-029, the Selenium Grid tests, and the 16 headful tests (a headful pass
+  under xvfb).
 - Harness and config vs upstream's runner config and fixtures (timeouts, retries, fixture
   defaults); see the config audit of 2026-11-05.
 - Fan-out: one agent per file group (about 10 groups, the Phase 1 grouping), read-only, each
