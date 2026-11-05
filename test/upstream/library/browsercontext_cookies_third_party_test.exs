@@ -11,6 +11,8 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestServer
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   # contextTest's `context`/`page` with `test.use({ ignoreHTTPSErrors: true })`; `contextFactory`
   # gets it too (upstream's runner applies it to every context it creates).
   setup %{context_factory: context_factory} do
@@ -110,6 +112,41 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
   defp frame_body(page),
     do: page |> Page.locator("iframe") |> Locator.content_frame() |> FrameLocator.locator("body")
 
+  defp nested_frame_body(page) do
+    page
+    |> Page.locator("iframe")
+    |> Locator.content_frame()
+    |> FrameLocator.locator("iframe")
+    |> Locator.content_frame()
+    |> FrameLocator.locator("body")
+  end
+
+  # findCookie + expectPartitionKey
+  defp expect_partition_key(cookies, name, partition_key) do
+    cookie = Enum.find(cookies, &(&1.name == name))
+    assert cookie, "Cookie #{name} not found in #{inspect(cookies, pretty: true)}"
+
+    if partition_key != cookie[:partitionKey],
+      do:
+        flunk(
+          "Cookie #{name} has partitionKey #{inspect(cookie[:partitionKey])} but expected #{inspect(partition_key)}."
+        )
+  end
+
+  # '/set-cookie.html' setting `<name><suffix>=value; ... Partitioned;` and `<name>-non-partitioned=value`.
+  defp set_partitioned_cookies(https_server, suffix) do
+    TestServer.set_route(https_server, "/set-cookie.html", fn conn ->
+      name = if header(conn, "referer"), do: "frame", else: "top-level"
+
+      conn
+      |> Plug.Conn.prepend_resp_headers([
+        {"set-cookie", "#{name}#{suffix}=value; SameSite=None; Path=/; Secure; Partitioned;"},
+        {"set-cookie", "#{name}-non-partitioned=value; SameSite=None; Path=/; Secure;"}
+      ])
+      |> Plug.Conn.send_resp(200, "")
+    end)
+  end
+
   defp run_non_partitioned_test(page, https_server, browser_name, urls) do
     add_common_cookie_handlers(https_server, urls)
 
@@ -172,8 +209,40 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     run_non_partitioned_test(page, https_server, browser_name, urls)
   end
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "save/load third party non-partitioned cookies"
+  test "save/load third party non-partitioned cookies", %{
+    page: page,
+    browser_name: browser_name,
+    https_server: https_server,
+    context_factory: context_factory,
+    urls: urls
+  } do
+    # Run the test to populate the cookies.
+    %{expected_top_level: expected_top_level, expected_third_party: expected_third_party} =
+      run_non_partitioned_test(page, https_server, browser_name, urls)
+
+    check_cookies = fn page ->
+      # Check top-level cookie first.
+      Page.goto!(page, urls.read_origin1)
+      assert body_text(page) == expected_top_level
+
+      # Check third-party cookie.
+      Page.goto!(page, urls.read_origin2_origin1)
+      Expect.to_have_text!(frame_body(page), expected_third_party)
+    end
+
+    check_cookies.(page)
+
+    # test.step('export via cookies/addCookies')
+    cookies = BrowserContext.cookies!(Page.context(page))
+    context2 = context_factory.([])
+    BrowserContext.add_cookies!(context2, cookies)
+    check_cookies.(BrowserContext.new_page!(context2))
+
+    # test.step('export via storageState')
+    storage_state = BrowserContext.storage_state!(Page.context(page))
+    context3 = context_factory.(storage_state: storage_state)
+    check_cookies.(BrowserContext.new_page!(context3))
+  end
 
   defp run_partitioned_test(page, https_server, browser_name, webkit_partitions, urls) do
     add_common_cookie_handlers(https_server, urls)
@@ -254,8 +323,106 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     run_partitioned_test(page, https_server, browser_name, webkit_partitions, urls)
   end
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "save/load third party 'Partitioned;' cookies"
+  @tag skip:
+         (cond do
+            @browser_name == "firefox" ->
+              "upstream fixme: Firefox cookie partitioning is disabled in Firefox(Juggler)."
+
+            @browser_name == "webkit" and not match?({:unix, :darwin}, :os.type()) ->
+              "upstream fixme: Linux and Windows WebKit builds do not partition third-party cookies at all."
+
+            true ->
+              false
+          end)
+  test "save/load third party 'Partitioned;' cookies", %{
+    page: page,
+    browser_name: browser_name,
+    https_server: https_server,
+    webkit_partitions: webkit_partitions,
+    context_factory: context_factory,
+    urls: urls
+  } do
+    run_partitioned_test(page, https_server, browser_name, webkit_partitions, urls)
+
+    check_cookies = fn page ->
+      # Check top-level cookie first.
+      Page.goto!(page, urls.read_origin1)
+
+      expected_top_level =
+        if browser_name == "webkit" and mac?(),
+          do: "Received cookie: top-level-non-partitioned=value; top-level-partitioned=value",
+          else:
+            "Received cookie: frame-non-partitioned=value; top-level-non-partitioned=value; top-level-partitioned=value"
+
+      assert body_text(page) == expected_top_level
+
+      # Check third-party cookie.
+      Page.goto!(page, urls.read_origin2_origin1)
+
+      expected_third_party =
+        cond do
+          browser_name == "webkit" and webkit_partitions ->
+            "Received cookie: frame-partitioned=value"
+
+          browser_name == "webkit" ->
+            "Received cookie: undefined"
+
+          true ->
+            "Received cookie: frame-non-partitioned=value; frame-partitioned=value; top-level-non-partitioned=value"
+        end
+
+      Expect.to_have_text!(frame_body(page), expected_third_party, timeout: 1000)
+
+      # read-origin1-origin2-origin1.html
+      Page.goto!(page, urls.read_origin1_origin2_origin1)
+
+      expected_third_party =
+        if browser_name == "webkit",
+          do: "Received cookie: top-level-non-partitioned=value; top-level-partitioned=value",
+          else: "Received cookie: frame-non-partitioned=value; top-level-non-partitioned=value"
+
+      Expect.to_have_text!(nested_frame_body(page), expected_third_party, timeout: 1000)
+    end
+
+    check_cookies.(page)
+
+    check_storage_cookies = fn cookies ->
+      webkit_no_partition = browser_name == "webkit" and !webkit_partitions
+
+      expect_partition_key(
+        cookies,
+        "top-level-partitioned",
+        if(webkit_no_partition, do: nil, else: "https://localhost")
+      )
+
+      expect_partition_key(cookies, "top-level-non-partitioned", nil)
+
+      if webkit_no_partition do
+        refute Enum.find(cookies, &(&1.name == "frame-partitioned"))
+        refute Enum.find(cookies, &(&1.name == "frame-non-partitioned"))
+      else
+        expect_partition_key(cookies, "frame-partitioned", "https://127.0.0.1")
+
+        if browser_name == "webkit",
+          do: refute(Enum.find(cookies, &(&1.name == "frame-non-partitioned"))),
+          else: expect_partition_key(cookies, "frame-non-partitioned", nil)
+      end
+    end
+
+    check_storage_cookies.(BrowserContext.cookies!(Page.context(page)))
+    check_storage_cookies.(BrowserContext.storage_state!(Page.context(page)).cookies)
+
+    # test.step('export via cookies/addCookies')
+    cookies = BrowserContext.cookies!(Page.context(page))
+    context2 = context_factory.([])
+    BrowserContext.add_cookies!(context2, cookies)
+    check_cookies.(BrowserContext.new_page!(context2))
+
+    # test.step('export via storageState')
+    storage_state = BrowserContext.storage_state!(Page.context(page))
+    context3 = context_factory.(storage_state: storage_state)
+    check_cookies.(BrowserContext.new_page!(context3))
+  end
 
   test "add 'Partitioned;' cookie via API", %{
     page: page,
@@ -387,11 +554,97 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     check_cookies.(page)
   end
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "same origin third party 'Partitioned;' cookie with different origin intermediate iframe"
+  test "same origin third party 'Partitioned;' cookie with different origin intermediate iframe", %{
+    page: page,
+    https_server: https_server,
+    context_factory: context_factory,
+    urls: urls
+  } do
+    add_common_cookie_handlers(https_server, urls)
+    set_partitioned_cookies(https_server, "-partitioned")
+    # main frame: origin1 -> iframe1: origin2 -> iframe2: origin1
+    # In this case the cookie in iframe2 is a third-party partitioned cookie, even though
+    # it's the same origin as the main frame.
+    Page.goto!(page, urls.set_origin1_origin2_origin1)
 
-  @tag skip: "not ported: BrowserContext.storageState"
-  test "top level 'Partitioned;' cookie and same origin iframe"
+    check_cookies = fn page ->
+      Page.goto!(page, urls.read_origin1_origin2_origin1)
+
+      Expect.to_have_text!(
+        nested_frame_body(page),
+        "Received cookie: frame-non-partitioned=value; frame-partitioned=value"
+      )
+    end
+
+    check_cookies.(page)
+
+    # test.step('export via cookies/addCookies')
+    cookies = BrowserContext.cookies!(Page.context(page))
+    context2 = context_factory.([])
+    BrowserContext.add_cookies!(context2, cookies)
+    check_cookies.(BrowserContext.new_page!(context2))
+
+    # test.step('export via storageState')
+    storage_state = BrowserContext.storage_state!(Page.context(page))
+    context3 = context_factory.(storage_state: storage_state)
+    check_cookies.(BrowserContext.new_page!(context3))
+  end
+
+  @tag :tmp_dir
+  test "top level 'Partitioned;' cookie and same origin iframe", %{
+    page: page,
+    browser_name: browser_name,
+    https_server: https_server,
+    context_factory: context_factory,
+    urls: urls,
+    tmp_dir: tmp_dir
+  } do
+    add_common_cookie_handlers(https_server, urls)
+    set_partitioned_cookies(https_server, "")
+
+    # Same origin iframe cookies are partitioned the same way as top-level cookies.
+    Page.goto!(page, urls.set_origin1)
+    BrowserContext.storage_state!(Page.context(page), path: Path.join(tmp_dir, "state2.json"))
+
+    check_cookies = fn page ->
+      # Check top-level cookie first.
+      Page.goto!(page, urls.read_origin1)
+      assert body_text(page) == "Received cookie: top-level-non-partitioned=value; top-level=value"
+
+      # Same origin iframe.
+      Page.goto!(page, urls.read_origin1_origin1)
+
+      Expect.to_have_text!(frame_body(page), "Received cookie: top-level-non-partitioned=value; top-level=value",
+        timeout: 1000
+      )
+
+      # Check third-party cookie.
+      # main frame: origin1 -> iframe1: origin2 -> iframe2: origin1
+      Page.goto!(page, urls.read_origin1_origin2_origin1)
+
+      expected_third_party =
+        "Received cookie: " <>
+          if(browser_name == "chromium",
+            do: "top-level-non-partitioned=value",
+            else: "top-level-non-partitioned=value; top-level=value"
+          )
+
+      Expect.to_have_text!(nested_frame_body(page), expected_third_party, timeout: 1000)
+    end
+
+    check_cookies.(page)
+
+    # test.step('export via cookies/addCookies')
+    cookies = BrowserContext.cookies!(Page.context(page))
+    context2 = context_factory.([])
+    BrowserContext.add_cookies!(context2, cookies)
+    check_cookies.(BrowserContext.new_page!(context2))
+
+    # test.step('export via storageState')
+    storage_state = BrowserContext.storage_state!(Page.context(page))
+    context3 = context_factory.(storage_state: storage_state)
+    check_cookies.(BrowserContext.new_page!(context3))
+  end
 
   @tag skip:
          if(System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()),

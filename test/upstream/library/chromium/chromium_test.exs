@@ -24,7 +24,6 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   # Deviations:
   #   * `Promise.all([context.waitForEvent(...), page.goto(...)])` starts the waits (promise
   #     handles), then runs the action, then awaits them.
-  #   * `worker.waitForEvent(...)` is not ported (`Worker.waitForEvent`): a `Worker.once` listener.
 
   defp req_header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 
@@ -38,11 +37,6 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   # `r.url().endsWith(suffix)` of a request or response.
   defp url_ends_with?(%PlaywrightEx.Client.Request{} = r, suffix), do: String.ends_with?(Request.url(r), suffix)
   defp url_ends_with?(%PlaywrightEx.Client.Response{} = r, suffix), do: String.ends_with?(Response.url(r), suffix)
-
-  defp worker_once(worker, event) do
-    test_pid = self()
-    Worker.once(worker, event, fn payload -> send(test_pid, {:worker, event, payload}) end)
-  end
 
   defp js_response(conn, body) do
     conn |> Plug.Conn.put_resp_header("content-type", "text/javascript") |> Plug.Conn.send_resp(200, body)
@@ -712,7 +706,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
     worker = Promise.await!(worker)
 
-    worker_once(worker, :console)
+    message = Worker.wait_for_event(worker, :console)
     page_message = Page.wait_for_event(page, :console)
 
     Worker.evaluate!(worker, """
@@ -725,7 +719,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     })
     """)
 
-    assert_receive {:worker, :console, message}
+    message = Promise.await!(message)
     page_message = Promise.await!(page_message)
 
     assert message == page_message
@@ -760,12 +754,13 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
     # JS adds the listener in the tick that resolves the wait; in an API scope (holding the
     # baton) the test resumes before the next event too.
-    Api.call(nil, context, fn ->
-      worker = Promise.await!(worker)
-      worker_once(worker, :console)
-    end)
+    console_message =
+      Api.call(nil, context, fn ->
+        worker = Promise.await!(worker)
+        Worker.wait_for_event(worker, :console)
+      end)
 
-    assert_receive {:worker, :console, console_message}
+    console_message = Promise.await!(console_message)
     assert ConsoleMessage.text(console_message) == "Hello from the first line of sw.js"
     assert ConsoleMessage.type(console_message) == "log"
   end
