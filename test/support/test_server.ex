@@ -101,7 +101,10 @@ defmodule PlaywrightEx.TestServer do
        # Node emits 'connection' events one at a time: a connection runs the listeners popped
        # here (monitor ref while it does), the next one waits in the queue.
        ws_connection: nil,
-       ws_connection_queue: :queue.new()
+       ws_connection_queue: :queue.new(),
+       # Elixir only: the HTTP/1 connections (Bandit connection process => socket) that
+       # `this._server.closeAllConnections()` closes; upgraded ones leave (Node detaches them).
+       connections: %{}
      }}
   end
 
@@ -233,6 +236,7 @@ defmodule PlaywrightEx.TestServer do
   @doc false
   def _on_upgrade(this, conn) do
     socket = raw_socket(conn)
+    GenServer.cast(this.pid, {:upgraded, self()})
 
     if upgrade_callback = settings(this).upgrade_callback do
       ws = self()
@@ -305,6 +309,13 @@ defmodule PlaywrightEx.TestServer do
   end
 
   defp raw_socket(%Plug.Conn{adapter: {Bandit.Adapter, %{transport: %{socket: socket}}}}), do: socket
+
+  @doc false
+  # Elixir only: tracks the request's HTTP/1 connection for `reset/1` (`closeAllConnections()`).
+  def _on_connection(%TestServer{pid: pid}, conn) do
+    with %Plug.Conn{adapter: {Bandit.Adapter, %{transport: %{socket: socket}}}} <- conn,
+         do: GenServer.cast(pid, {:connection, self(), socket})
+  end
 
   def serve_file(this, conn, file_path \\ nil), do: _serve_file(this, conn, file_path)
 
@@ -420,7 +431,9 @@ defmodule PlaywrightEx.TestServer do
     do: {:noreply, update_in(state.ws_connection_queue, &:queue.in(from, &1))}
 
   def handle_call(:reset, _from, state) do
-    # this._server.closeAllConnections();  -- not ported: requests end with their handler
+    # this._server.closeAllConnections();
+    for {_pid, socket} <- state.connections, do: ThousandIsland.Socket.close(socket)
+
     for {path, pids} <- state.request_subscribers,
         pid <- pids,
         do: send(pid, {:reject, "Request #{path} was not received before the test finished."})
@@ -435,7 +448,8 @@ defmodule PlaywrightEx.TestServer do
          gzip_routes: MapSet.new(),
          request_subscribers: %{},
          upgrade_callback: nil,
-         ws_connection_listeners: []
+         ws_connection_listeners: [],
+         connections: %{}
      }}
   end
 
@@ -443,9 +457,19 @@ defmodule PlaywrightEx.TestServer do
   def handle_cast({:ws_connection_done, ref}, %{ws_connection: ref} = state), do: {:noreply, next_ws_connection(state)}
   def handle_cast({:ws_connection_done, _ref}, state), do: {:noreply, state}
 
+  def handle_cast({:connection, pid, socket}, state) do
+    if !Map.has_key?(state.connections, pid), do: Process.monitor(pid)
+    {:noreply, put_in(state.connections[pid], socket)}
+  end
+
+  def handle_cast({:upgraded, pid}, state), do: {:noreply, %{state | connections: Map.delete(state.connections, pid)}}
+
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, %{ws_connection: ref} = state),
     do: {:noreply, next_ws_connection(state)}
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state),
+    do: {:noreply, %{state | connections: Map.delete(state.connections, pid)}}
 
   def handle_info(_message, state), do: {:noreply, state}
 
@@ -488,7 +512,12 @@ defmodule PlaywrightEx.TestServer do
       # Node emits 'upgrade' instead of 'request' for upgrade requests.
       if conn |> Plug.Conn.get_req_header("upgrade") |> Enum.any?(&(String.downcase(&1) == "websocket")),
         do: TestServer._on_upgrade(%TestServer{pid: server_pid}, conn),
-        else: TestServer._on_request(%TestServer{pid: server_pid}, Plug.Conn.register_before_send(conn, &keep_alive/1))
+        else: on_request(%TestServer{pid: server_pid}, conn)
+    end
+
+    defp on_request(server, conn) do
+      TestServer._on_connection(server, conn)
+      TestServer._on_request(server, Plug.Conn.register_before_send(conn, &keep_alive/1))
     end
 
     # Node's http server on a persistent connection (Bandit closes it on `connection: close`).
