@@ -1322,10 +1322,9 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == [[120, 140], [140, 180], [160, 220], [180, 260], [200, 300]]
   end
 
-  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
   test "should abort via signal", %{page: page} do
     Page.set_content!(page, ~s|<button style="display:none">click me</button>|)
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     task =
       Task.async(fn ->
@@ -1346,7 +1345,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
   test "should throw an Error when aborted in-flight with a string reason", %{page: page} do
     Page.set_content!(page, ~s|<button style="display:none">click me</button>|)
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     promise =
       Runtime.Promise.async(fn ->
@@ -1363,7 +1362,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
   test "should abort via already-aborted signal", %{page: page} do
     Page.set_content!(page, "<button>click me</button>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
     reason = %RuntimeError{message: "Already aborted"}
     AbortController.abort(controller, reason)
 
@@ -1377,7 +1376,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
   test "should throw an Error when aborted via an already-aborted signal with a string reason", %{page: page} do
     Page.set_content!(page, "<button>click me</button>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
     AbortController.abort(controller, "already aborted")
 
     {:error, error} =

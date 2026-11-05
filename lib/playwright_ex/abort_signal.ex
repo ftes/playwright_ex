@@ -8,37 +8,52 @@ defmodule PlaywrightEx.AbortSignal do
       {:error, %PlaywrightEx.AbortError{cause: "user cancelled"}} = Task.await(task)
 
   Runtime support (not ported from upstream): the part of the DOM class that Playwright uses
-  (`aborted`, `reason`, `throwIfAborted`, `abort` listeners). The signal is an object of the
-  event loop's heap, like a promise: reads are lock-free from any process, `abort` takes the
-  baton, so that it is atomic with the calls checking the signal and listening to it, as on
-  the one JS thread. Listeners run synchronously in `abort`, as `dispatchEvent` runs them.
+  (`aborted`, `reason`, `throwIfAborted`, `abort` listeners). A signal is global, as in JS: it
+  belongs to no driver and works with calls on any. Its state lives in a public ETS table of the
+  application, so reads are lock-free from any process, and any process aborts.
+
+  Listeners run under the baton of the event loop (driver) that added them, as they would on its
+  one JS thread: synchronously in `abort` when the aborting process holds that baton (as
+  `dispatchEvent` runs them), else under it from the aborting process (which takes it) or, when
+  that process holds another driver's baton, as a task of the listener's loop. A listener added
+  outside any baton runs in the aborting process.
+
+  Deviation: an aborted signal keeps one row (its reason) while the application runs; JS frees it
+  with the signal. A signal that never aborts keeps none once its listeners are removed.
   """
-  import PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Runtime.EventLoop
 
   require Logger
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:id]
 
   @typedoc "An abort signal (`PlaywrightEx.AbortController.signal/1`)."
   @type t :: %__MODULE__{}
 
+  # Rows: `{{id, :reason}, reason}` once aborted, `{{id, :listener, seq}, listener, loop}` per listener.
+  @table __MODULE__
+
   @doc false
-  # `new AbortSignal()` (internal to `new AbortController()`), under the baton.
-  def new do
-    this = new_object(__MODULE__)
-    put(this, :aborted, false)
-    put(this, :reason, nil)
-    put(this, :listeners, [])
-    this
-  end
+  # The table, owned by a process of the application (`PlaywrightEx.Application`).
+  def new_table,
+    do: :ets.new(@table, [:named_table, :public, :ordered_set, read_concurrency: true, write_concurrency: true])
+
+  @doc false
+  # `new AbortSignal()` (internal to `new AbortController()`).
+  def new, do: %__MODULE__{id: make_ref()}
 
   @doc "`signal.aborted`: whether the controller aborted."
   @spec aborted(t()) :: boolean()
-  def aborted(this), do: get(this, :aborted) == true
+  def aborted(%__MODULE__{id: id}), do: :ets.member(@table, {id, :reason})
 
   @doc "`signal.reason`: the reason given to `PlaywrightEx.AbortController.abort/2`, `nil` while not aborted."
   @spec reason(t()) :: term()
-  def reason(this), do: get(this, :reason)
+  def reason(%__MODULE__{id: id}) do
+    case :ets.lookup(@table, {id, :reason}) do
+      [{_, reason}] -> reason
+      [] -> nil
+    end
+  end
 
   @doc """
   `signal.throwIfAborted()`: raises the reason when aborted, if it is an exception, else an
@@ -58,36 +73,79 @@ defmodule PlaywrightEx.AbortSignal do
 
   @doc """
   `signal.addEventListener('abort', listener, options)`: `listener` (a 0-arity function) runs
-  when the signal aborts, in the process calling `PlaywrightEx.AbortController.abort/2`. A
-  listener is added once (equal functions are the same listener); `once: true` is implied, a
-  signal aborts once.
+  when the signal aborts, under the baton of the caller's driver (see the moduledoc). A listener
+  is added once (equal functions are the same listener); `once: true` is implied, a signal aborts
+  once.
   """
   @spec add_event_listener(t(), :abort | String.t(), (-> term()), map() | keyword()) :: :ok
-  def add_event_listener(this, type, listener, _options \\ %{})
+  def add_event_listener(%__MODULE__{id: id} = this, type, listener, _options \\ %{})
       when type in [:abort, "abort"] and is_function(listener, 0) do
-    if !aborted(this), do: update(this, :listeners, &if(listener in &1, do: &1, else: &1 ++ [listener]))
+    if !aborted(this) and not Enum.any?(listeners(id), &(elem(&1, 1) == listener)) do
+      loop = if EventLoop.held?(), do: EventLoop.current!()
+      key = {id, :listener, :erlang.unique_integer([:monotonic])}
+      # A root of the loop's collector: the listener may hold objects nothing else does.
+      if loop, do: :ets.insert(loop.roots, {{:abort_listener, key}, listener})
+      :ets.insert(@table, {key, listener, loop})
+      # An abort in another process since the check above may have missed the listener: run it
+      # as that abort would have (once, see `run/1`), after the current task.
+      if aborted(this), do: run_missed(key, loop)
+    end
+
     :ok
   end
 
   @doc "`signal.removeEventListener('abort', listener)`."
   @spec remove_event_listener(t(), :abort | String.t(), (-> term())) :: :ok
-  def remove_event_listener(this, type, listener) when type in [:abort, "abort"] do
-    update(this, :listeners, &List.delete(&1 || [], listener))
+  def remove_event_listener(%__MODULE__{id: id}, type, listener) when type in [:abort, "abort"] do
+    for {key, ^listener, _loop} <- listeners(id), do: take(key)
     :ok
   end
 
   @doc false
-  # The "signal abort" steps of the DOM spec (`AbortController.abort/2`), under the baton.
-  def signal_abort(this, reason) do
-    if !aborted(this) do
-      put(this, :aborted, true)
-      put(this, :reason, reason)
-      listeners = get(this, :listeners)
-      put(this, :listeners, [])
-      Enum.each(listeners, &run_listener/1)
+  # The "signal abort" steps of the DOM spec (`AbortController.abort/2`), from any process.
+  def signal_abort(%__MODULE__{id: id}, reason) do
+    if :ets.insert_new(@table, {{id, :reason}, reason}) do
+      for {key, _listener, loop} <- listeners(id), do: dispatch(key, loop)
     end
 
     :ok
+  end
+
+  defp run_missed(key, nil), do: run(key)
+  defp run_missed(key, loop), do: EventLoop.post(loop, fn -> run(key) end)
+
+  defp listeners(id), do: :ets.select(@table, [{{{id, :listener, :_}, :_, :_}, [], [:"$_"]}])
+
+  defp dispatch(key, nil), do: run(key)
+
+  defp dispatch(key, %EventLoop{pid: pid} = loop) do
+    cond do
+      EventLoop.held?() and EventLoop.current!().pid == pid -> run(key)
+      # Not another driver's baton while holding one (they could wait for each other).
+      EventLoop.held?() -> EventLoop.post(loop, fn -> run(key) end)
+      true -> EventLoop.with_baton(loop, fn -> run(key) end)
+    end
+  rescue
+    # The driver stopped: its listeners are gone with its calls.
+    PlaywrightEx.TargetClosedError -> take(key)
+  end
+
+  # Runs a listener unless it ran or was removed already.
+  defp run(key) do
+    with [{_, listener, _loop}] <- take(key), do: run_listener(listener)
+  end
+
+  defp take(key) do
+    with [{_, _listener, loop}] = taken <- :ets.take(@table, key) do
+      if loop, do: unroot(loop, key)
+      taken
+    end
+  end
+
+  defp unroot(%EventLoop{roots: roots}, key) do
+    :ets.delete(roots, {:abort_listener, key})
+  rescue
+    ArgumentError -> true
   end
 
   # An exception in a listener is reported, not thrown to the caller of `abort` (as in the DOM).

@@ -233,9 +233,8 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
   test "should abort with signal", %{page: page} do
-    controller = AbortController.new(page)
+    controller = AbortController.new()
     promise = Page.wait_for_event(page, :file_chooser, signal: AbortController.signal(controller))
     AbortController.abort(controller, "Aborted by user")
     {:error, error} = Promise.await(promise)

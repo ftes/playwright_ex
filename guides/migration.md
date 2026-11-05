@@ -346,11 +346,11 @@ Task.yield(task, 5_000) || Task.shutdown(task)
 ```
 
 Calls with a `timeout:` also take a `signal:` (a JS `AbortSignal`), so that another process can
-cancel them with a `PlaywrightEx.AbortController`. The controller belongs to the driver of the
-handle it is created with:
+cancel them with a `PlaywrightEx.AbortController`. As in JS, a controller is global: its signal
+works with calls on any driver.
 
 ```elixir
-controller = AbortController.new(page)
+controller = AbortController.new()
 Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user cancelled") end)
 
 {:error, %AbortError{cause: "user cancelled"}} =

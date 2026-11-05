@@ -303,7 +303,7 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   end
 
   test "cancelling a call with a signal", %{page: page} do
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     Task.start(fn ->
       Process.sleep(1_000)

@@ -90,10 +90,9 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     assert Exception.message(error) =~ "strict mode violation"
   end
 
-  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
   test "should abort via signal", %{page: page} do
     Page.set_content!(page, "<div id=target>no</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     task =
       Task.async(fn ->
@@ -116,7 +115,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
 
   test "should abort via already-aborted signal", %{page: page} do
     Page.set_content!(page, "<div id=target>no</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
     AbortController.abort(controller, "already aborted")
 
     {:error, error} =

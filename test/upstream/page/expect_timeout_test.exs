@@ -131,10 +131,9 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     Expect.to_be_visible!(Page.locator(page, "#target"), timeout: 1800)
   end
 
-  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
   test "should fail like a timeout when the signal is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     promise =
       Task.async(fn ->
@@ -164,7 +163,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   test "should fail like a timeout when toHaveText is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     promise =
       Task.async(fn ->
@@ -183,7 +182,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   test "should fail like a timeout when toHaveCount is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     promise =
       Task.async(fn ->
@@ -199,7 +198,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   test "should fail like a timeout when toMatchAriaSnapshot is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     promise =
       Task.async(fn ->
@@ -218,7 +217,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   test "should fail like a timeout when toHaveURL is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
-    controller = AbortController.new(page)
+    controller = AbortController.new()
 
     promise =
       Task.async(fn ->
@@ -235,7 +234,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
   test "should fail the assertion when the signal is already aborted", %{page: page, server: server} do
     Page.set_content!(page, "<div>content</div>")
 
-    controller = AbortController.new(page)
+    controller = AbortController.new()
     AbortController.abort(controller, %RuntimeError{message: "already aborted"})
 
     {:error, error} =
@@ -251,7 +250,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
            Error: The assertion was aborted: already aborted
            """
 
-    controller = AbortController.new(page)
+    controller = AbortController.new()
     AbortController.abort(controller, "stop it")
 
     {:error, error} =
