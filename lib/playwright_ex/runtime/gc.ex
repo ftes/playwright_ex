@@ -43,10 +43,7 @@ defmodule PlaywrightEx.Runtime.GC do
   def count_allocation(%EventLoop{gc: counters}), do: :atomics.add(counters, 1, 1)
 
   @doc false
-  def maybe_collect(%EventLoop{gc: counters} = loop) do
-    if :atomics.get(counters, 1) >= :atomics.get(counters, 2), do: collect(loop)
-    :ok
-  end
+  def collect_due?(%EventLoop{gc: counters}), do: :atomics.get(counters, 1) >= :atomics.get(counters, 2)
 
   @doc "A disposed channel owner: kept readable while it is among the last #{@graveyard} disposed."
   def dispose(%{loop: %EventLoop{roots: roots} = loop} = object) do

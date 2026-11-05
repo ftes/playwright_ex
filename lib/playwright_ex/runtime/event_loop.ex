@@ -22,6 +22,11 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   `await`). Promises settled by the holder are passed along with the token
   (`ready/1`), so wake-ups are causally ordered without shared state.
 
+  End of the tick: work deferred with `at_release/2` (writing the messages queued for the driver,
+  see `PlaywrightEx.Transport.Pipe`) runs when the holder releases the baton to the server,
+  travelling with the baton through handoffs like `ready/1`. So what one tick sends reaches the
+  driver together, as upstream writes a tick's messages before it can react to any of them.
+
   The `%EventLoop{}` struct names the server and its own heap, for runtime objects that belong
   to no connection (promises, emitters, timeout settings); each connection gets its own heap
   table (`new_heap/1`). Ported code reaches the loop implicitly (`current!/0`), as JS has one.
@@ -36,6 +41,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
     * `:pw_baton` - `nil` (not holding), `{:server, loop}` (granted by the server),
       `{:delegated, parent, ref, loop}` (handed over by `parent`, yield back to it)
     * `:pw_ready` - processes made ready while holding (reversed)
+    * `:pw_release` - work deferred to the end of the tick (`at_release/2`), by key
     * `:pw_scope` - inside a public API call (keep the baton until it returns)
     * `:pw_unit` - the unit in flight (a ref, listed in `roots`)
 
@@ -62,6 +68,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
   @key :pw_baton
   @ready :pw_ready
+  @release :pw_release
   @scope :pw_scope
   @unit :pw_unit
 
@@ -182,7 +189,12 @@ defmodule PlaywrightEx.Runtime.EventLoop do
       unit ->
         :ets.delete(roots, {:unit, unit})
         with {:returned, value} <- how, do: GC.root_returned(loop, self(), value)
-        GC.maybe_collect(loop)
+
+        if GC.collect_due?(loop) do
+          # A collection takes a while: send what the tick queued first.
+          run_at_release()
+          GC.collect(loop)
+        end
     end
   end
 
@@ -191,10 +203,31 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   @doc "Give the baton back: to the server, or to the process that handed it over."
   def release do
     case Process.delete(@key) do
-      {:server, loop} -> GenServer.cast(loop.pid, {:release, self(), take_ready()})
-      {:delegated, parent, ref, _loop} -> send(parent, {:pw_yield, ref, take_ready()})
-      nil -> :ok
+      {:server, loop} ->
+        run_at_release()
+        GenServer.cast(loop.pid, {:release, self(), take_ready()})
+
+      {:delegated, parent, ref, _loop} ->
+        send(parent, {:pw_yield, ref, take_ready(), Process.delete(@release) || %{}})
+
+      nil ->
+        :ok
     end
+  end
+
+  @doc """
+  Run `fun` when the holder releases the baton to the server (the end of the JS tick), once per
+  `key`: a later registration with the same key replaces the earlier one.
+  """
+  def at_release(key, fun) do
+    if !held?(), do: raise("EventLoop.at_release/2 outside the baton")
+    Process.put(@release, Map.put(Process.get(@release, %{}), key, fun))
+    :ok
+  end
+
+  defp run_at_release do
+    for {_key, fun} <- Process.delete(@release) || %{}, do: fun.()
+    :ok
   end
 
   @doc "Schedule `pid` (suspended in `suspend/0`) to resume once the holder releases."
@@ -275,9 +308,10 @@ defmodule PlaywrightEx.Runtime.EventLoop do
       end)
 
     receive do
-      {:pw_yield, ^ref, ready} ->
+      {:pw_yield, ^ref, ready, at_release} ->
         Process.demonitor(mon, [:flush])
         Process.put(@ready, Enum.reverse(ready, Process.get(@ready, [])))
+        Process.put(@release, Map.merge(Process.get(@release, %{}), at_release))
 
       {:DOWN, ^mon, :process, _, reason} ->
         Logger.error("Handed-off callback died holding the baton: #{inspect(reason)}")

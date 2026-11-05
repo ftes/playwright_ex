@@ -1,5 +1,6 @@
 defmodule PlaywrightEx.Transport.Pipe do
   @upstream "packages/utils/pipeTransport.ts"
+  @max_hold_ms 20
   @moduledoc """
   Port of `#{@upstream}`: little-endian length-prefixed messages over the driver's
   stdin/stdout. The process also spawns the driver, as `outofprocess.ts` does with
@@ -14,8 +15,17 @@ defmodule PlaywrightEx.Transport.Pipe do
       the protocol validators turn known keys into atoms.
     * Frames are accumulated as iodata, so a large message costs one copy instead of one
       concatenation per chunk.
+    * Messages sent under the baton are written together when the holder releases it (the end
+      of the JS tick, `PlaywrightEx.Runtime.EventLoop.at_release/2`). Upstream writes each
+      message right away, but a tick's messages reach the driver before it can react to any:
+      `const p = page.evaluate(...); page.waitForEvent('console')` subscribes in time. Here the
+      calls of one tick are processes taking turns, so the gap between their sends could exceed
+      a round trip. A holder that blocks on other work still has its messages written after
+      #{@max_hold_ms}ms.
   """
   use GenServer
+
+  alias PlaywrightEx.Runtime.EventLoop
 
   @doc """
   Options: `:executable` (`{program, args}`, see `PlaywrightEx.Driver.executable/1`),
@@ -25,7 +35,14 @@ defmodule PlaywrightEx.Transport.Pipe do
   def start_link(opts), do: GenServer.start_link(__MODULE__, Map.new(opts))
 
   # send  -- ported as send_message/2 (Kernel.send/2)
-  def send_message(pid, message), do: GenServer.cast(pid, {:send, message})
+  def send_message(pid, message) do
+    if EventLoop.held?() do
+      GenServer.cast(pid, {:queue, message})
+      EventLoop.at_release({__MODULE__, pid}, fn -> GenServer.cast(pid, :flush) end)
+    else
+      GenServer.cast(pid, {:send, message})
+    end
+  end
 
   def close(pid), do: GenServer.call(pid, :close)
 
@@ -43,27 +60,46 @@ defmodule PlaywrightEx.Transport.Pipe do
        header: "",
        bytes_left: 0,
        chunks: [],
-       size: 0
+       size: 0,
+       queue: [],
+       timer: nil
      }}
   end
 
   @impl true
-  def handle_cast({:send, _message}, %{closed: true} = state), do: {:noreply, state}
+  def handle_cast({_send, _message}, %{closed: true} = state), do: {:noreply, state}
+  def handle_cast({:send, message}, state), do: {:noreply, state |> queue(message) |> flush()}
 
-  def handle_cast({:send, message}, state) do
-    data = message |> to_json() |> JSON.encode_to_iodata!()
-    Port.command(state.port, [<<IO.iodata_length(data)::little-unsigned-32>>, data])
-    {:noreply, state}
+  def handle_cast({:queue, message}, state) do
+    state = queue(state, message)
+    {:noreply, if(state.timer, do: state, else: %{state | timer: Process.send_after(self(), :flush, @max_hold_ms)})}
   end
+
+  def handle_cast(:flush, state), do: {:noreply, flush(state)}
 
   @impl true
   def handle_call(:close, _from, state) do
+    state = flush(state)
     if !state.closed, do: Port.close(state.port)
     {:stop, :normal, :ok, on_close(state)}
   end
 
+  defp queue(state, message) do
+    data = message |> to_json() |> JSON.encode_to_iodata!()
+    %{state | queue: [state.queue, <<IO.iodata_length(data)::little-unsigned-32>>, data]}
+  end
+
+  defp flush(%{queue: []} = state), do: state
+
+  defp flush(state) do
+    if state.timer, do: Process.cancel_timer(state.timer)
+    if !state.closed, do: Port.command(state.port, state.queue)
+    %{state | queue: [], timer: nil}
+  end
+
   @impl true
   def handle_info({port, {:data, data}}, %{port: port} = state), do: {:noreply, _dispatch(state, data)}
+  def handle_info(:flush, state), do: {:noreply, flush(%{state | timer: nil})}
 
   def handle_info({port, {:exit_status, _status}}, %{port: port} = state), do: {:stop, :normal, on_close(state)}
 
