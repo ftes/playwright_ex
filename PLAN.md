@@ -390,6 +390,26 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
 - Blocking user listeners stall their connection: document it.
 - Prefix-delete cost: measure; if not bounded, keep a child index.
 
+## Quality gate: full parity pass
+
+After Phase 2, before "preserve decisions". `mix playwright_ex.parity` only compares member
+lists, and the earlier fidelity audit (DECISIONS, workstream Z) sampled 10 client files before
+the OTP rewrite. This pass reads everything, line by line, against upstream 1.64.1:
+- Client: every file in `lib/playwright_ex/client`, `isomorphic`, `protocol`, matchers vs its TS
+  source: missing branches and statements, order of side effects, defaults, error messages,
+  every `# deviation:` and `not ported:` still justified, OTP shims (latch, `atomic`,
+  `on_sync`, reply hooks, subscribe-first) used per PORTING and not hiding a behaviour change.
+- Tests: every mirrored spec vs its upstream spec: each `it` present or its skip justified,
+  assertions not weakened (order, exact values, error text), helpers faithful, annotations
+  (`slow`, `fixme`, `fail`, `test.use`) translated, `flaky:`/`env:` tags whose cause is gone
+  retried.
+- Harness and config vs upstream's runner config and fixtures (timeouts, retries, fixture
+  defaults); see the config audit of 2026-11-05.
+- Fan-out: one agent per file group (about 10 groups, the Phase 1 grouping), read-only, each
+  reporting findings with file:line and severity; a second agent verifies each finding before
+  fixing. Fixes land per group; full 3-browser CI green at the end. Needs the user's go-ahead
+  (it is a multi-agent workflow).
+
 ## Before merging: preserve decisions
 
 `DECISIONS.md` (a chronological review log) and this plan are working documents; they go when
