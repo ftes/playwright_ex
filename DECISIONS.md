@@ -411,8 +411,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Proxy specs run on `TestProxy` (ipv6 via an `ip:` option). Glob specs go through the driver's
   glob conversion (not the same function as upstream's `globToRegexPattern`; commented).
   Superseded by workstream AA (they call `UrlMatch` directly, as upstream).
-- Firefox: client-certificates "fetch should work in the browser with request interception"
-  fails (no upstream skip). Revisit: lib or environment.
+- Firefox: client-certificates "fetch should work in the browser with request interception".
+  Resolved (workstream GG): test-port bug. Bandit served zstd to Firefox, which the driver's
+  fetch doesn't decode; fixed by `compress: false` on the CC server, as Node's servers.
 
 ## 2026-11-05: EventEmitter completed (workstream O), stale-skip check (workstream P)
 
