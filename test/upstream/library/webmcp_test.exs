@@ -245,9 +245,11 @@ defmodule PlaywrightEx.Library.WebmcpTest do
              %{
                name: "subscribe",
                description: "Subscribes to the newsletter",
-               inputSchema: %{"type" => "object", "properties" => %{"email" => %{"type" => "string"}}}
+               inputSchema: %{"type" => "object"} = input_schema
              }
            ] = WebMCP.tools!(Page.webmcp(page))
+
+    assert input_schema["properties"] == %{"email" => %{"type" => "string"}}
 
     # A declarative tool waits for the user to submit the form.
     {:error, error} = WebMCP.call_tool(Page.webmcp(page), "subscribe", %{email: "me@example.com"}, timeout: 500)

@@ -19,6 +19,8 @@ defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
   test "should throw when trying to connect with not-chromium", %{
     browser_type: browser_type
   } do
+    # deviation: `connectOverCDP({ endpointURL: 'ws://foo' })`, the options overload: the facade has
+    # only the string form (api.json), so this calls that.
     {:error, error} = BrowserType.connect_over_cdp(browser_type, "ws://foo")
     assert Exception.message(error) == "Connecting over CDP is only supported in Chromium and WebKit."
   end
