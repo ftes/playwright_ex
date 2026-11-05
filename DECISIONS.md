@@ -934,3 +934,11 @@ drift). Blockers for release, assigned to follow-up workstreams:
   timeout: the test timeout still bounds the test, and failures surface sooner.
 - Lead, H-17: keep one CI rerun of first-run failures instead of upstream's `retries: 3`: more
   retries would hide the flakes we want to see (the FailuresFormatter lists them).
+- VF-D2 (fetch/network/har): fetch `form` keyword lists stand for FormData (a FilePayload value
+  raises upstream's "found File" error); URLSearchParams params are WHATWG form-urlencoded (byte-equal
+  to JS). `ClientHelper.json_stringify_indented` is now a hand-written `JSON.stringify(v, undefined,
+  n)` layout (`:json.format` joined short values on one line and added a trailing newline), so
+  storageState files match upstream's text verbatim.
+- Open after VF-D2: the HAR `unrouteAll` CI flake reproduces under load (~1 in 30) for our client
+  but never for the driver's JS client with identical CDP command order; cause not found (next: a
+  CDP trace of a failing run). Backlog agent. `number_to_string` lacks JS's `1e+21` exponent form.
