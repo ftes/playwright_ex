@@ -19,20 +19,27 @@ defmodule PlaywrightEx.UpstreamSnapshot do
   Deviations: there is no `updateSnapshots`, a missing snapshot fails (the runner's `"none"`
   mode). On a mismatch the `-actual` and `-diff` files are written to a temp dir named in the
   failure. `.not`, string snapshots and anonymous (index-named) snapshots are not ported (unused).
+
+  The same node bridge serves the specs' other image helpers: `compare_pngs/3`
+  (`tests/config/comparator.ts`) and `decode_image/2` (`utils.decodeWebp`, `PNG.sync.read`).
   """
 
   import ExUnit.Assertions
 
-  # Reads the actual and expected files, prints the comparator's `{ errorMessage }` (or `null`) and
-  # writes the diff (the comparator returns it as a PNG Buffer) to the given path.
+  # Prints the comparator's `{ errorMessage }` (or `null`) and writes its diff (a PNG Buffer).
   @compare_js """
-  const [coreBundle, mimeType, actualPath, expectedPath, options, diffPath] = process.argv.slice(1);
-  const fs = require('fs');
-  const { utils } = require(coreBundle);
+  const [mimeType, actualPath, expectedPath, options, diffPath] = args;
   const result = utils.getComparator(mimeType)(fs.readFileSync(actualPath), fs.readFileSync(expectedPath), JSON.parse(options));
-  if (result && result.diff)
+  if (result && result.diff && diffPath)
     fs.writeFileSync(diffPath, result.diff);
-  process.stdout.write(JSON.stringify(result ? { errorMessage: result.errorMessage } : null));
+  out(result ? { errorMessage: result.errorMessage } : null);
+  """
+
+  @decode_js """
+  const [type, path] = args;
+  const buffer = fs.readFileSync(path);
+  const { width, height, data } = type === 'webp' ? utils.decodeWebp(buffer) : require(utilsBundle).PNG.sync.read(buffer);
+  out({ width, height, data: Buffer.from(data).toString('base64') });
   """
 
   @doc "`expect(buffer).toMatchSnapshot(name, options)` of the calling module's `@upstream` spec."
@@ -57,9 +64,19 @@ defmodule PlaywrightEx.UpstreamSnapshot do
 
     if !File.exists?(expected_path), do: flunk("A snapshot doesn't exist at #{expected_path}.")
 
-    case compare(mime_type(expected_path), received, expected_path, options) do
-      {nil, _} -> true
-      {error_message, output_dir} -> flunk("#{Path.basename(expected_path)}: #{error_message}\n\nOutput: #{output_dir}")
+    output_dir = tmp_dir()
+    ext = Path.extname(expected_path)
+    actual_path = Path.join(output_dir, Path.basename(expected_path, ext) <> "-actual" <> ext)
+    diff_path = Path.join(output_dir, Path.basename(expected_path, ext) <> "-diff.png")
+    File.write!(actual_path, received)
+
+    case node!(@compare_js, [mime_type(ext), actual_path, expected_path, JSON.encode!(options), diff_path]) do
+      nil ->
+        File.rm_rf!(output_dir)
+        true
+
+      %{"errorMessage" => error_message} ->
+        flunk("#{Path.basename(expected_path)}: #{error_message}\n\nOutput: #{output_dir}")
     end
   end
 
@@ -71,38 +88,73 @@ defmodule PlaywrightEx.UpstreamSnapshot do
     Path.join(PlaywrightEx.Upstream.dir(), "#{spec}-snapshots/#{sanitize_for_file_path(base)}-#{browser_name}#{ext}")
   end
 
-  # utils/fileUtils.ts sanitizeForFilePath
-  defp sanitize_for_file_path(s), do: String.replace(s, ~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, "-")
+  @doc """
+  `comparePNGs(actual, expected, options)` of upstream `tests/config/comparator.ts`: `nil` when
+  the images match, else `%{"errorMessage" => _}`.
+  """
+  def compare_pngs(actual, expected, options \\ %{}) do
+    # Strict threshold by default in our tests.
+    options = Map.merge(%{comparator: "ssim-cie94", threshold: 0}, Map.new(options))
+    dir = tmp_dir()
+    [actual_path, expected_path] = for {b, n} <- [{actual, "actual"}, {expected, "expected"}], do: write!(dir, n, b)
 
-  defp mime_type(path) do
-    case Path.extname(path) do
-      ".png" -> "image/png"
-      ".jpg" -> "image/jpeg"
-      ".jpeg" -> "image/jpeg"
-      ".webp" -> "image/webp"
+    try do
+      node!(@compare_js, ["image/png", actual_path, expected_path, JSON.encode!(options), ""])
+    after
+      File.rm_rf!(dir)
     end
   end
 
-  defp compare(mime_type, received, expected_path, options) do
-    {node, [cli | _]} = PlaywrightEx.Driver.executable()
-    core_bundle = Path.join(Path.dirname(cli), "lib/coreBundle.js")
-    output_dir = Path.join(System.tmp_dir!(), "playwright_ex-snapshot-#{System.unique_integer([:positive])}")
-    File.mkdir_p!(output_dir)
-    ext = Path.extname(expected_path)
-    actual_path = Path.join(output_dir, Path.basename(expected_path, ext) <> "-actual" <> ext)
-    diff_path = Path.join(output_dir, Path.basename(expected_path, ext) <> "-diff.png")
-    File.write!(actual_path, received)
+  @doc """
+  `utils.decodeWebp(buffer)` (`type` `:webp`) or `PNG.sync.read(buffer)` (`:png`):
+  `%{width: _, height: _, data: rgba_binary}`.
+  """
+  def decode_image(type, buffer) when type in [:webp, :png] do
+    dir = tmp_dir()
 
-    args = ["-e", @compare_js, core_bundle, mime_type, actual_path, expected_path, JSON.encode!(options), diff_path]
-    {out, 0} = System.cmd(node, args)
-
-    case JSON.decode!(out) do
-      nil ->
-        File.rm_rf!(output_dir)
-        {nil, nil}
-
-      %{"errorMessage" => error_message} ->
-        {error_message, output_dir}
+    try do
+      %{"width" => width, "height" => height, "data" => data} = node!(@decode_js, [type, write!(dir, "image", buffer)])
+      %{width: width, height: height, data: Base.decode64!(data)}
+    after
+      File.rm_rf!(dir)
     end
+  end
+
+  # utils/fileUtils.ts sanitizeForFilePath
+  defp sanitize_for_file_path(s), do: String.replace(s, ~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, "-")
+
+  defp mime_type(".png"), do: "image/png"
+  defp mime_type(".jpg"), do: "image/jpeg"
+  defp mime_type(".jpeg"), do: "image/jpeg"
+  defp mime_type(".webp"), do: "image/webp"
+
+  defp tmp_dir do
+    dir = Path.join(System.tmp_dir!(), "playwright_ex-snapshot-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    dir
+  end
+
+  defp write!(dir, name, buffer) do
+    path = Path.join(dir, name)
+    File.write!(path, buffer)
+    path
+  end
+
+  # Runs `script` with `args`, `fs`, the driver package's `utils` (`lib/coreBundle.js`), the
+  # `utilsBundle` path and `out(value)` (prints JSON) in scope; returns the decoded output.
+  defp node!(script, args) do
+    {node, [cli | _]} = PlaywrightEx.Driver.executable()
+    lib = Path.join(Path.dirname(cli), "lib")
+
+    prelude = """
+    const fs = require('fs');
+    const [coreBundle, utilsBundle, ...args] = process.argv.slice(1);
+    const { utils } = require(coreBundle);
+    const out = value => process.stdout.write(JSON.stringify(value));
+    """
+
+    argv = [Path.join(lib, "coreBundle.js"), Path.join(lib, "utilsBundle.js") | Enum.map(args, &to_string/1)]
+    {output, 0} = System.cmd(node, ["-e", prelude <> script | argv])
+    JSON.decode!(output)
   end
 end

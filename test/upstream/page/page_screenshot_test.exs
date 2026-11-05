@@ -262,8 +262,31 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert lossless_webp?(Page.screenshot!(page, type: :webp, quality: 80)) == false
     end
 
-    @tag skip: "not ported: decodeWebp"
-    test "should allow transparency with webp"
+    @tag skip: if(@browser_name == "firefox", do: "upstream fail: firefox")
+    test "should allow transparency with webp", %{page: page} do
+      # it.skip(isBidi)  -- isBidi is false here
+      # it.fail(browserName === 'firefox')  -- see the tag
+      Page.set_viewport_size!(page, %{width: 300, height: 300})
+
+      Page.set_content!(page, """
+      <style>
+        body { margin: 0 }
+        div { width: 300px; height: 100px; }
+      </style>
+      <div style="background:black"></div>
+      <div style="background:white"></div>
+      <div style="background:transparent"></div>
+      """)
+
+      screenshot = Page.screenshot!(page, omit_background: true, type: :webp)
+      %{width: width, height: height, data: data} = decode_image(:webp, screenshot)
+      assert width == 300
+      assert height == 300
+      pixel = fn x, y -> :binary.bin_to_list(data, (y * width + x) * 4, 4) end
+      assert pixel.(150, 50) == [0, 0, 0, 255]
+      assert pixel.(150, 150) == [255, 255, 255, 255]
+      assert Enum.at(pixel.(150, 250), 3) == 0
+    end
 
     test "quality option should throw for webp when out of range", %{page: page} do
       {:error, error} = Page.screenshot(page, type: :webp, quality: 101)
@@ -689,14 +712,35 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    @tag skip: "not ported: __testHookBeforeScreenshot, comparePNGs"
+    @tag skip: "not ported: __testHookBeforeScreenshot"
     test "should stop animations that happen right before screenshot"
 
-    @tag skip: "not ported: comparePNGs"
-    test "should resume infinite animations"
+    test "should resume infinite animations", %{page: page, server: server} do
+      Page.goto!(page, server.prefix <> "/rotate-z.html")
+      Page.screenshot!(page, animations: :disabled)
+      buffer1 = Page.screenshot!(page)
+      rafraf(page)
+      buffer2 = Page.screenshot!(page)
+      assert compare_pngs(buffer1, buffer2, %{maxDiffPixels: 50}) != nil
+    end
 
-    @tag skip: "not ported: comparePNGs"
-    test "should not capture infinite web animations"
+    test "should not capture infinite web animations", %{page: page, server: server} do
+      Page.goto!(page, server.prefix <> "/web-animation.html")
+      div = Page.locator(page, "div")
+      screenshot = Locator.screenshot!(div, animations: :disabled)
+
+      for _ <- 0..9 do
+        rafraf(page)
+        new_screenshot = Locator.screenshot!(div, animations: :disabled)
+        assert new_screenshot == screenshot
+      end
+
+      # Should resume infinite web animation.
+      buffer1 = Page.screenshot!(page)
+      rafraf(page)
+      buffer2 = Page.screenshot!(page)
+      assert compare_pngs(buffer1, buffer2, %{maxDiffPixels: 50}) != nil
+    end
 
     test "should fire transitionend for finite transitions", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/css-transition.html")

@@ -22,8 +22,17 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
     to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
   end
 
-  @tag skip: "not ported: decodeWebp / PNG decoding"
-  test "should work with webp"
+  test "should work with webp", %{page: page, server: server} do
+    Page.set_viewport_size!(page, %{width: 500, height: 500})
+    Page.goto!(page, server.prefix <> "/grid.html")
+    element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
+    webp_image = decode_image(:webp, ElementHandle.screenshot!(element_handle, type: :webp))
+    # The default webp screenshot is lossless, so it must decode to the exact same pixels as png.
+    png_image = decode_image(:png, ElementHandle.screenshot!(element_handle, type: :png))
+    assert webp_image.width == png_image.width
+    assert webp_image.height == png_image.height
+    assert webp_image.data == png_image.data
+  end
 
   test "should work when main world busts JSON.stringify", %{page: page, server: server} do
     Page.set_viewport_size!(page, %{width: 500, height: 500})
