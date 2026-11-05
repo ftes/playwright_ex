@@ -44,7 +44,8 @@ defmodule PlaywrightEx.Client.DisposableStub do
   @upstream "packages/playwright-core/src/client/disposable.ts"
   @moduledoc """
   Port of `#{@upstream}` (`class DisposableStub`). Elixir only: a runtime object owned by the
-  creating process (`PlaywrightEx.Runtime.ProcessOwner`), so any process disposes it while that one lives.
+  creating process (`PlaywrightEx.Runtime.ProcessOwner`), so any process disposes it while that one
+  lives; after it exits, `dispose` raises TargetClosedError (its rows are freed).
   """
   import PlaywrightEx.Runtime.Heap
 
@@ -62,12 +63,18 @@ defmodule PlaywrightEx.Client.DisposableStub do
   # [Symbol.asyncDispose]  -- not ported: await using
 
   def dispose(this) do
-    if !get(this, :_dispose) do
+    # The read and the reset are one step (JS: synchronous), so concurrent disposes run it once.
+    dispose =
+      atomic(this, fn ->
+        dispose = get(this, :_dispose)
+        put(this, :_dispose, nil)
+        dispose
+      end)
+
+    if !dispose do
       nil
     else
       try do
-        dispose = get(this, :_dispose)
-        put(this, :_dispose, nil)
         dispose.()
       rescue
         e ->
