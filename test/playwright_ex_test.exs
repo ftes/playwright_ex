@@ -18,7 +18,7 @@ defmodule PlaywrightExTest do
     assert BrowserType.name(Playwright.chromium(playwright)) == "chromium"
     assert BrowserType.name(Playwright.firefox(playwright)) == "firefox"
     assert BrowserType.name(Playwright.webkit(playwright)) == "webkit"
-    assert %{"iPhone 15" => %{userAgent: _, viewport: %{width: _}}} = Playwright.devices(playwright)
+    assert %{"iPhone 15" => %{user_agent: _, viewport: %{width: _}}} = Playwright.devices(playwright)
   end
 
   test "launches and closes chromium", %{playwright: playwright} do
