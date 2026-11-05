@@ -16,6 +16,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
   """
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.Client.EventEmitter.OnceWrapper
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
 
@@ -106,20 +107,12 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   # Upstream calls `this.on(...)` (virtual dispatch); here: dispatch via the struct module.
   def once(this, type, listener) do
-    {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
-    this.__struct__.on(this, type, {id, fn arg -> this.__struct__.remove_listener(this, type, id) && fun.(arg) end})
+    this.__struct__.on(this, type, OnceWrapper.new(this, type, listener).wrapperFunction)
     this
   end
 
   def prepend_once_listener(this, type, listener) do
-    {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
-
-    this.__struct__.prepend_listener(
-      this,
-      type,
-      {id, fn arg -> this.__struct__.remove_listener(this, type, id) && fun.(arg) end}
-    )
-
+    this.__struct__.prepend_listener(this, type, OnceWrapper.new(this, type, listener).wrapperFunction)
     this
   end
 
@@ -202,5 +195,39 @@ defmodule PlaywrightEx.Client.EventEmitter do
   end
 
   # _listeners  -- ported as listeners/2
-  # checkListener, OnceWrapper, unwrapListener, unwrapListeners, wrappedListener  -- not ported: once/3 wraps with {id, fun}
+  # checkListener  -- not ported: listeners are functions or {id, fun} by type
+  # OnceWrapper  -- ported as EventEmitter.OnceWrapper
+  # unwrapListener, unwrapListeners, wrappedListener  -- not ported: listeners are stored unwrapped
+end
+
+defmodule PlaywrightEx.Client.EventEmitter.OnceWrapper do
+  @moduledoc false
+  import PlaywrightEx.Runtime.Heap
+
+  # The wrapper keeps the listener's id, so `removeListener(type, listener)` finds it (JS
+  # `wrapperFunction.listener`).
+  defstruct [:guid, :loop, :heap, :wrapperFunction, :_listener, :_eventEmitter, :_eventType]
+
+  def new(event_emitter, event_type, listener) do
+    {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
+
+    this = %__MODULE__{
+      guid: make_ref(),
+      loop: event_emitter.loop,
+      heap: event_emitter.heap,
+      _listener: fun,
+      _eventEmitter: event_emitter,
+      _eventType: event_type
+    }
+
+    %{this | wrapperFunction: {id, &_handle(this, id, &1)}}
+  end
+
+  defp _handle(this, id, arg) do
+    if !get(this, :_fired) do
+      put(this, :_fired, true)
+      this._eventEmitter.__struct__.remove_listener(this._eventEmitter, this._eventType, id)
+      this._listener.(arg)
+    end
+  end
 end

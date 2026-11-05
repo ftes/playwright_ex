@@ -34,8 +34,6 @@ defmodule PlaywrightEx.Library.Events.OnceTest do
     end
   end
 
-  @tag skip:
-         "bug: EventEmitter.once: the wrapper has no fired flag, a listener removed by a nested emit still runs in the outer emit"
   test "should work", %{loop: loop, test_pid: test_pid} do
     e = EventLoop.with_baton(loop, &EventEmitter.new/0)
 
