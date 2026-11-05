@@ -866,3 +866,26 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Full line-by-line parity pass added to PLAN as the quality gate, needing your go-ahead.
 - North star (tests playwright-python runs that we don't): ports for env-var tests via a driver of
   their own (CC-023, CD-018, CD-024, CD-025); agents on fetch cookies/TLS, misc, headful, Selenium.
+
+## 2026-11-05: north-star ports and harness fidelity
+- North star now 1 / 10 (ruled out / bodiless tests playwright-python runs; was 33 / 38). Left out:
+  BT-047 (the object form of `connect` is a types-only overload; positional Elixir would repeat
+  BT-046) and FE-185..187 (Happy Eyeballs: a resolving proxy replaces the very connection they
+  check; Python rules them out too). The 10 bodiless ones are upstream fixme or Edge/Windows-only.
+- Techniques taken from Python: a resolving CONNECT proxy for `__testHookLookup`; a second driver
+  with its own env (HAR websocket frames, env-var tests, SELENIUM_REMOTE_URL). The client keeps
+  `__testHook*` keys when its driver runs under test, as upstream's `tObject` does; deviation:
+  per connection, not per process (one BEAM runs drivers with different envs).
+- TR-023 decodes the last JPEG frame in the browser (canvas), not with a Hex JPEG decoder.
+- Headed tests are tagged `:headed`, excluded on macOS (windows stole focus on the owner's Mac);
+  CI runs them under xvfb (`HEADED=1 ... --only headed`). Opt in locally with `--include headed`.
+- Selenium tests run in CI from what the runner image ships (Chrome, ChromeDriver, Java 17) plus
+  two cached jars, <1 min; Python's CI never runs them.
+- Harness: client instrumentation ported, and the harness registers upstream's default launch and
+  context options; `expected_failure/2` replaces test.fail-as-skip; parity flags unconditional
+  tags of conditional upstream annotations; max_cases is half the schedulers (macOS firefox 8 to
+  11 min); non-upstream tests get 20 s; CI reports first-run failures before the retry.
+- CI: a stalled browser download hung webkit's install step for 40 min. The step now retries with
+  a 5 min cap per attempt, and test jobs time out at 60 min.
+- Gap, later: `test/support/remote_server.ex` builds its own launch options instead of merging
+  `_defaultLaunchOptions`, so `HEADED=1` remote servers still launch headless.
