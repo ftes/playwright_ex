@@ -6,6 +6,9 @@ Each entry: what, why, and what to revisit.
 
 ## Needs your decision (before a 1.64 release)
 
+0. **CI ruleset**: `main` requires `Test (port)`/`Test (websocket)`, which no longer exist. Require
+   `Tests` (see "One CI test matrix" below), or PR #124 can't merge.
+
 These shape the public API, so changing them after release would break users:
 1. **Exception modules** live under `PlaywrightEx.Client.Errors` (`TimeoutError`,
    `TargetClosedError`). Add public aliases (`PlaywrightEx.TimeoutError`, as Python's top-level
@@ -589,3 +592,11 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Flaky tags: webkit on CI "goto following click" (same driver timing as form-post), and the
   tracing "WebSocket keeps streaming frames" test under full-suite load (a 100 ms chunk can
   miss every frame; passes alone). Revisit the latter: stream from the server process itself.
+
+## 2026-11-05: One CI test matrix
+- chromium, firefox and webkit run in one `Test (<browser>)` matrix, all under `xvfb-run`;
+  firefox/webkit are `continue-on-error`. A final `Tests` job is green when every blocking
+  entry is: the one check to require.
+- **Needs your action before merging PR #124:** `main`'s ruleset requires `Test (port)` and
+  `Test (websocket)`, from main's old transport matrix, which this branch no longer produces.
+  Require `Tests` instead.

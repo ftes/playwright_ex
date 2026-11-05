@@ -67,33 +67,15 @@ jobs:
         run: mix dialyzer --format github --format dialyxir
 
   test:
-    name: Test
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup languages
-        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      - name: Install driver and browsers
-        run: mix playwright_ex.install -- chromium --with-deps
-      - name: Check parity with upstream
-        run: mix playwright_ex.parity
-      - name: Run tests
-        run: mix test --warnings-as-errors
-
-  test-browsers:
     name: Test (${{ matrix.browser }})
     runs-on: ubuntu-latest
     needs: build
-    # Non-blocking until the firefox/webkit suites have been green on Linux for a while.
-    continue-on-error: true
+    # firefox/webkit are non-blocking until their Linux suites have been green for a while.
+    continue-on-error: ${{ matrix.browser != 'chromium' }}
     strategy:
       fail-fast: false
       matrix:
-        browser: [firefox, webkit]
+        browser: [chromium, firefox, webkit]
     env:
       BROWSER: ${{ matrix.browser }}
 
@@ -105,5 +87,18 @@ jobs:
         run: mix "do" deps.get, deps.compile
       - name: Install driver and browsers
         run: mix playwright_ex.install -- ${{ matrix.browser }} --with-deps
+      - name: Check parity with upstream
+        if: matrix.browser == 'chromium'
+        run: mix playwright_ex.parity
+      # Under xvfb like upstream's CI (Linux firefox WebGL needs a display).
       - name: Run tests
         run: xvfb-run --auto-servernum -- mix test --warnings-as-errors
+
+  # The one check to require: green when every blocking matrix entry is.
+  tests:
+    name: Tests
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.test.result }}" = success
