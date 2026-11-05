@@ -948,3 +948,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `route.fulfill(path:)` on a missing file raises `Node.SystemError` (ENOENT text) instead of
   `File.Error`; `status: 0` sends 200 (JS truthiness). `postDataJSON` drops one leading `?` as
   URLSearchParams does.
+- VF-A1 (browser type/connect): connect's emulated close fires `disconnected` after a
+  `Promise.timer(0)` tick (upstream's setTimeout), not inline. A remote connection's dispatch-error
+  close reason is `"Error: <message>"` (JS `String(e)`). A relative userDataDir resolves as Node's
+  `path.resolve` (no `~` expansion). The page_event_crash chromium tests run on ubuntu CI although
+  upstream skips ubuntu24.04: they pass there. BT-047 is ported (north-star: nothing ruled out).
