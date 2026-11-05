@@ -16,7 +16,9 @@ These shape the public API, so changing them after release would break users:
    `Expect.configure/1`?
 4. **Release**: version (`mix.exs` is 0.16.0; PLAN says major.minor follow upstream: 1.64.0)
    and CHANGELOG entry.
-5. **Doc examples**: the generated facade docs carry 321 upstream JS examples. Translate them
+5. **AbortController ownership**: a controller belongs to one driver (`new/0` uses the current
+   loop or the default supervisor; `new(handle)` for others), unlike JS's global one.
+6. **Doc examples**: the generated facade docs carry 321 upstream JS examples. Translate them
    in the generator, or state they stay JS?
 
 ## 2026-11-04: Locators on Frame/Page
@@ -505,3 +507,18 @@ drift). Blockers for release, assigned to follow-up workstreams:
   no PNG decoder). All 20 VideoPlayer tests ported.
 - **Mac WebKit video frames** leave the right/bottom gray (macOS 26; upstream client too): 7
   pixel checks skipped on darwin+webkit (`env:`).
+
+## 2026-11-05: AbortSignal (workstream X)
+
+- **`PlaywrightEx.AbortController` / `PlaywrightEx.AbortSignal`** (runtime support; JS globals):
+  heap objects like `Promise`, so reads are lock-free, `abort/2` takes the baton (no race with a
+  call's check-then-listen) and any process can abort. Listeners are 0-arity, implied `once`.
+  `abort/1` without a reason uses an `AbortError` ("This operation was aborted"; JS: a
+  DOMException). Statics (`AbortSignal.abort/timeout/any`, `onabort`) not ported (unused by
+  client tests).
+- **Client**: `sendMessageToServer` raises on an aborted signal, else sends `__abort__` on abort;
+  `Waiter.rejectOnTimeout`, `Locator._withElement`, matchers' `(isNot, timeout, signal)` and
+  the AbortError branches of `_expect`/`_expectScreenshot`/toHaveURL, as upstream.
+- **Facade** emits `signal:` on all 175 options (also Python-style waits and `expect_*`).
+- Revisit: abort listeners run under the aborter's baton, not necessarily the signal's loop
+  (several drivers only).
