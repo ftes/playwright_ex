@@ -15,11 +15,6 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
-  # browserTest `defaultSameSiteCookieValue` (no BiDi here).
-  defp default_same_site_cookie_value("chromium"), do: "Lax"
-  defp default_same_site_cookie_value("firefox"), do: "None"
-  defp default_same_site_cookie_value("webkit"), do: if(linux?(), do: "Lax", else: "None")
-
   defp windows?, do: match?({:win32, _}, :os.type())
   defp linux?, do: match?({:unix, :linux}, :os.type())
   defp darwin?, do: match?({:unix, :darwin}, :os.type())

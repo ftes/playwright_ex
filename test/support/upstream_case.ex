@@ -53,7 +53,9 @@ defmodule PlaywrightEx.UpstreamCase do
   using do
     quote do
       import ExUnit.Case, only: [describe: 2]
-      import PlaywrightEx.UpstreamCase, only: [test: 1, test: 2, test: 3, start_playwright: 2, expected_failure: 2]
+
+      import PlaywrightEx.UpstreamCase,
+        only: [test: 1, test: 2, test: 3, start_playwright: 2, expected_failure: 2, default_same_site_cookie_value: 1]
 
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
       @moduletag upstream: @upstream
@@ -102,6 +104,14 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   defp major_version(version), do: version |> String.split(".") |> hd() |> String.to_integer()
+
+  @doc """
+  Upstream's `defaultSameSiteCookieValue` worker fixture (`tests/config/browserTest.ts`; no BiDi or
+  `webkit-wsl` channel here): the `sameSite` a browser reports for a cookie set without one.
+  """
+  def default_same_site_cookie_value("chromium"), do: "Lax"
+  def default_same_site_cookie_value("webkit"), do: if(match?({:unix, :linux}, :os.type()), do: "Lax", else: "None")
+  def default_same_site_cookie_value("firefox"), do: "None"
 
   @doc """
   `test.fail(condition)`: when `condition` holds, runs `body` and fails the test unless `body`

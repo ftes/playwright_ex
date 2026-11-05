@@ -60,11 +60,6 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     if darwin_major >= 25, do: darwin_major + 1, else: darwin_major - 9
   end
 
-  # browserTest `defaultSameSiteCookieValue` (no BiDi here).
-  defp default_same_site_cookie_value("chromium"), do: "Lax"
-  defp default_same_site_cookie_value("firefox"), do: "None"
-  defp default_same_site_cookie_value("webkit"), do: if(linux?(), do: "Lax", else: "None")
-
   # browserTest `allowsThirdParty`.
   defp allows_third_party(browser_name), do: browser_name == "firefox"
 

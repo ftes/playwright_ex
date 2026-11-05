@@ -429,11 +429,6 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   # browserTest `allowsThirdParty`.
   defp allows_third_party(browser_name), do: browser_name == "firefox"
 
-  # browserTest `defaultSameSiteCookieValue` (no BiDi here).
-  defp default_same_site_cookie_value("chromium"), do: "Lax"
-  defp default_same_site_cookie_value("firefox"), do: "None"
-  defp default_same_site_cookie_value("webkit"), do: if(match?({:unix, :linux}, :os.type()), do: "Lax", else: "None")
-
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
   defp html(conn, body),

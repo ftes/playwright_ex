@@ -18,11 +18,6 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
   defp windows?, do: match?({:win32, _}, :os.type())
   defp linux?, do: match?({:unix, :linux}, :os.type())
 
-  # browserTest `defaultSameSiteCookieValue` (no BiDi here).
-  defp default_same_site_cookie_value("chromium"), do: "Lax"
-  defp default_same_site_cookie_value("firefox"), do: "None"
-  defp default_same_site_cookie_value("webkit"), do: if(linux?(), do: "Lax", else: "None")
-
   # `(browserName === 'webkit' && isWindows && channel !== 'webkit-wsl') ? 'None' : 'Lax'`
   defp lax(browser_name), do: if(browser_name == "webkit" and windows?(), do: "None", else: "Lax")
 

@@ -15,11 +15,6 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
 
-  # tests/config/browserTest.ts defaultSameSiteCookieValue
-  defp default_same_site_cookie_value("chromium"), do: "Lax"
-  defp default_same_site_cookie_value("webkit"), do: if(match?({:unix, :linux}, :os.type()), do: "Lax", else: "None")
-  defp default_same_site_cookie_value("firefox"), do: "None"
-
   # `const intercepted = []; ... intercepted.push(x)`: the handlers send to the test process.
   defp received(acc \\ []) do
     receive do
