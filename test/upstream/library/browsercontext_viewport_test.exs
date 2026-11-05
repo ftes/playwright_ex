@@ -210,8 +210,6 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     end
   end
 
-  @tag skip:
-         "bug: Playwright.devices: descriptors have JS keys (userAgent, defaultBrowserType), Browser.newContext rejects them"
   test "should set window.screen.orientation.type for mobile devices", %{
     context_factory: context_factory,
     server: server,

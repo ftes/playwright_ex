@@ -347,3 +347,19 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `PlaywrightEx.Page.t()`. `Selectors.register` is once per driver (PTP registers per context).
   PLAN's `mix playwright_ex.cli` (show-trace) doesn't exist yet. `Download` from a routed
   `fulfill` with `content-disposition` gave `saveAs: canceled` in chromium (not investigated).
+
+## 2026-11-05: Review fixes (workstream N)
+
+- **JSON `null`**: `ClientHelper.json_parse/1` (null -> `:null`) and `json_stringify/1` for every
+  user value (route fulfill, `postDataJSON`, `Response.json`, fetch `data`).
+- **`logger` option**: generic `@callback_objects ~w(Logger)` rule: an object of functions with
+  JS keys, emitted on launch/launchPersistentContext/newContext/newPage, called in `logApiCall`.
+- **Expect defaults** from the app env (`config :playwright_ex, :expect, timeout: ...`), the
+  initial `_expectConfig` (playwright.config's `expect`). Revisit: an `Expect.configure/1` API.
+- **Device descriptors** have newContext option keys (`user_agent:`) and newContext/newPage
+  accept an ignored `default_browser_type` (Python's `parse_device_descriptor` precedent), so
+  `new_context(browser, devices["iPhone 6"])` works like JS spreading. Deviation: JS keys in JS.
+- **Re-created guid gets fresh heap state** (`ChannelOwner.new`): context reuse kept the old
+  object's listeners and fields, so handlers ran twice. Revisit with M's heap delete API.
+- **Parity root module** for split files is the module named after the file.
+- `highlight(style:)` also takes a keyword list (keeps key order, like a JS object literal).

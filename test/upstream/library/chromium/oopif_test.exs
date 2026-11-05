@@ -172,15 +172,13 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     assert Frame.evaluate!(oopif, "() => navigator.onLine") == false
   end
 
-  @tag skip:
-         "bug: Browser.new_context: rejects a Playwright.devices descriptor ({...iPhone}: camelCase keys, defaultBrowserType)"
   test "should support context options", %{browser: browser, server: server, playwright: playwright} do
     i_phone = Playwright.devices(playwright)["iPhone 6"]
 
     context =
       Browser.new_context!(
         browser,
-        Map.merge(i_phone, %{timezoneId: "America/Jamaica", locale: "fr-CH", userAgent: "UA"})
+        Map.merge(i_phone, %{timezone_id: "America/Jamaica", locale: "fr-CH", user_agent: "UA"})
       )
 
     page = BrowserContext.new_page!(context)

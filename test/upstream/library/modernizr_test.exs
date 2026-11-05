@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Library.ModernizrTest do
               "upstream skip: Modernizr uses WebGL which is not available on Intel macOS"
 
             true ->
-              "bug: Playwright.devices: descriptors have JS keys (userAgent, defaultBrowserType), Browser.newContext rejects them"
+              nil
           end)
   test "Mobile Safari", %{playwright: playwright, browser: browser, https_server: https_server, asset: asset} do
     iphone = Playwright.devices(playwright)["iPhone 12"]

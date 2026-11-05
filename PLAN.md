@@ -28,7 +28,8 @@ a migration guide maps old calls to new ones.
 
 - Source: `api.json` from `utils/doclint/generateApiJson.js`, filtered to `langs: js`, plus
   an Elixir rules file (like Python's `python_rules.js`): non-JS `timeout` docs, dropped
-  JS-only classes (`BrowserServer`, `Logger`, jest assertions), callback forms.
+  JS-only classes (`BrowserServer`, jest assertions), callback forms; `Logger` is an object of
+  functions with JS keys (`%{isEnabled: fn, log: fn}`).
 - `async: true` methods: `name/n` returns `{:ok, v} | {:error, e}`, `name!/n` raises.
   `async: false` (locators, `url`, `pages`): plain values, readable from any process
   without the baton. Matchers are async methods too: `to_have_text/3` returns

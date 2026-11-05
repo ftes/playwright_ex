@@ -360,8 +360,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
       @tag skip:
              if(scenario == "connect",
                do: "not ported: launchServer (ConnectScenario)",
-               else:
-                 "bug: Browser._newContextForReuse: the re-created context (same guid) keeps the old channel listeners, webSocketRoute handlers run twice (Already connected to the server)"
+               else: nil
              )
       test "should work with routeWebSocket", %{reused_context: reused_context, server: server} do
         setup = fn page, suffix ->

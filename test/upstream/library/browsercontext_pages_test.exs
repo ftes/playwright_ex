@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
 
   test "should not hang with touch-enabled viewports", %{browser: browser, playwright: playwright} do
     # @see https://github.com/GoogleChrome/puppeteer/issues/161
-    %{viewport: viewport, hasTouch: has_touch} = Playwright.devices(playwright)["iPhone 6"]
+    %{viewport: viewport, has_touch: has_touch} = Playwright.devices(playwright)["iPhone 6"]
     context = Browser.new_context!(browser, viewport: viewport, has_touch: has_touch)
     page = BrowserContext.new_page!(context)
     Mouse.down!(Page.mouse(page))
