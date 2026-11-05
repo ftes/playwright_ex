@@ -286,6 +286,7 @@ defmodule PlaywrightEx.Client.Page do
     if !(name || url), do: raise("Either name or url matcher should be specified")
 
     Enum.find(frames(this), fn f ->
+      # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
       if name,
         do: Frame.name(f) == name,
         else:

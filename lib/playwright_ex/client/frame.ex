@@ -161,6 +161,7 @@ defmodule PlaywrightEx.Client.Frame do
             else
               Waiter.log(waiter, ~s(  navigated to "#{event.url}"))
 
+              # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
               UrlMatch.url_matches(
                 Connection.local_utils(get(this, :_connection)),
                 page && get(Page.context(page), :_options)[:baseURL],
@@ -233,6 +234,7 @@ defmodule PlaywrightEx.Client.Frame do
     wait_options = options || %{}
     page = get(this, :_page)
 
+    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
     if UrlMatch.url_matches(
          Connection.local_utils(get(this, :_connection)),
          page && get(Page.context(page), :_options)[:baseURL],

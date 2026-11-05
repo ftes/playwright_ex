@@ -49,6 +49,7 @@ defmodule PlaywrightEx.Client.RouteHandler do
   end
 
   def matches(this, request_url) do
+    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
     UrlMatch.url_matches(get(this, :_localUtils), get(this, :_baseURL), request_url, get(this, :url))
   end
 
@@ -117,6 +118,7 @@ defmodule PlaywrightEx.Client.RouteHandler do
         Promise.all([
           handled_promise,
           Promise.async(fn ->
+            # A 1-arity handler gets only the route (as in the Python client); JS passes both.
             if is_function(handler, 1), do: handler.(route), else: handler.(route, Route.request(route))
           end)
         ])

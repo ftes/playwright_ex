@@ -28,6 +28,7 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
           last_checked_url_string = Heap.put(last_checked, :value, url)
 
           if options[:ignoreCase] do
+            # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
             !this.isNot ==
               UrlMatch.url_matches(
                 local_utils,
@@ -36,6 +37,7 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
                 expected
               )
           else
+            # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
             !this.isNot == UrlMatch.url_matches(local_utils, base_url, last_checked_url_string, expected)
           end
         end,

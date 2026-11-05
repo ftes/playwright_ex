@@ -30,6 +30,7 @@ defmodule PlaywrightEx.Client.WebSocketRouteHandler do
   end
 
   def matches(this, ws_url) do
+    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
     UrlMatch.url_matches(this._localUtils, this._baseURL, ws_url, this.url, true)
   end
 
