@@ -158,7 +158,9 @@ Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
 - Ported `try {} catch` stays an explicit `try do ... rescue` even when it is the whole function
   body (`Waiter.waitForPromise`), not an implicit try: same behaviour, upstream's shape.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
-  inspector; Electron/Android optional.
+  inspector; Electron/Android optional. `launchServer`/`BrowserServer` are JS-only in api.json
+  (no Python/Java/.NET API), but their specs exercise the client's `connect`: they run on a
+  test-only fixture over the driver's `launch-server` CLI (workstream BB, in progress).
 
 ## Spike results
 
