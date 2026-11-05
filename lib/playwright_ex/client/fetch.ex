@@ -96,10 +96,11 @@ defmodule PlaywrightEx.Client.APIRequest do
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.APIRequest{}` (gen.api copies these fields).
   @doc false
-  def __struct_fields__, do: [:guid, :loop, :heap]
+  def __struct_fields__, do: [:guid, :conn, :table, :type, :initializer]
 
+  # Elixir only: owned by the `Playwright` object.
   def new(playwright) do
-    this = new_object(PlaywrightEx.APIRequest)
+    this = new_object(PlaywrightEx.APIRequest, playwright)
     put(this, :_playwright, playwright)
     put(this, :_contexts, [])
     this
@@ -174,7 +175,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
     Heap.put(this, :tracing, Tracing.from(initializer.tracing))
-    Heap.put(this, :_timeoutSettings, TimeoutSettings.new())
+    Heap.put(this, :_timeoutSettings, TimeoutSettings.new(nil, this))
     this
   end
 

@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_frames, [])
     put(this, :_workers, [])
     put(this, :_closed, false)
-    put(this, :_closedOrCrashedScope, LongStandingScope.new())
+    put(this, :_closedOrCrashedScope, LongStandingScope.new(this))
     put(this, :_routes, [])
     put(this, :_webSocketRoutes, [])
     put(this, :_closeWasCalled, false)
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Client.Page do
     put(this, :_evaluateCallbacks, [])
     # this._instrumentation.onPage(this);  -- not ported: instrumentation
     put(this, :_browserContext, parent)
-    put(this, :_timeoutSettings, TimeoutSettings.new(get(parent, :_timeoutSettings)))
+    put(this, :_timeoutSettings, TimeoutSettings.new(get(parent, :_timeoutSettings), this))
 
     put(this, :keyboard, Keyboard.new(this))
     put(this, :mouse, Mouse.new(this))
@@ -220,10 +220,7 @@ defmodule PlaywrightEx.Client.Page do
 
             if get(this, :_routes) == [],
               do:
-                Promise.catch_(
-                  Promise.async(fn -> _update_interception_patterns(this, %{internal: true}) end),
-                  fn _ -> nil end
-                )
+                Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
 
             if handled, do: {:halt, true}, else: {:cont, false}
         end
@@ -410,7 +407,7 @@ defmodule PlaywrightEx.Client.Page do
   def _erase_evaluate_callbacks(this) do
     for %{name: name, disposable: disposable} <- get(this, :_evaluateCallbacks) do
       map_delete(this, :_bindings, name)
-      Promise.catch_(Promise.async(fn -> DisposableObject.dispose(disposable) end), fn _ -> nil end)
+      Promise.void(fn -> DisposableObject.dispose(disposable) end)
     end
 
     put(this, :_evaluateCallbacks, [])
@@ -506,12 +503,9 @@ defmodule PlaywrightEx.Client.Page do
 
     if remove, do: map_delete(this, :_locatorHandlers, uid)
 
-    Promise.catch_(
-      Promise.async(fn ->
+    Promise.void(fn ->
         channel_call(this, :resolveLocatorHandlerNoReply, %{uid: uid, remove: remove}, TimeoutSettings.k_no_timeout())
-      end),
-      fn _ -> nil end
-    )
+      end)
 
     with {e, stacktrace} <- error, do: reraise(e, stacktrace)
   end
@@ -731,7 +725,8 @@ defmodule PlaywrightEx.Client.Page do
         get(get(this, :_browserContext), :_options)[:baseURL],
         url,
         handler,
-        options[:times]
+        options[:times],
+        this
       )
 
     update(this, :_routes, &[route_handler | &1])
@@ -1238,7 +1233,7 @@ defmodule PlaywrightEx.Client.Page do
     DisposableStub.new(fn ->
       for %{name: name, disposable: disposable} <- callbacks do
         map_delete(owner, :_bindings, name)
-        Promise.catch_(Promise.async(fn -> DisposableObject.dispose(disposable) end), fn _ -> nil end)
+        Promise.void(fn -> DisposableObject.dispose(disposable) end)
       end
 
       DisposableObject.dispose(init_script_disposable)
@@ -1281,10 +1276,7 @@ defmodule PlaywrightEx.Client.BindingCall do
       result = if is_struct(result, Promise), do: Promise.await(result), else: result
       params = %{result: JSHandle.serialize_argument(result)}
 
-      Promise.catch_(
-        Promise.async(fn -> channel_call(this, :resolve, params, TimeoutSettings.k_no_timeout()) end),
-        fn _ -> nil end
-      )
+      Promise.void(fn -> channel_call(this, :resolve, params, TimeoutSettings.k_no_timeout()) end)
     rescue
       e -> _reject(this, e)
     catch
@@ -1298,9 +1290,6 @@ defmodule PlaywrightEx.Client.BindingCall do
   defp _reject(this, e) do
     params = %{error: Errors.serialize_error(e)}
 
-    Promise.catch_(
-      Promise.async(fn -> channel_call(this, :reject, params, TimeoutSettings.k_no_timeout()) end),
-      fn _ -> nil end
-    )
+    Promise.void(fn -> channel_call(this, :reject, params, TimeoutSettings.k_no_timeout()) end)
   end
 end

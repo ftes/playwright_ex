@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Browser do
   @typedoc "A `Browser` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.Browser
@@ -1334,52 +1334,53 @@ defmodule PlaywrightEx.Browser do
   @doc group: "Events"
   @spec on(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
   @spec on(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
-  def on(browser, event, listener),
-    do: PlaywrightEx.Client.Browser.on(browser, Facade.event!(event, @events, "browser.on"), listener)
+  def on(browser, event, listener) do
+    event = Facade.event!(event, @events, "browser.on")
+    Facade.listen(fn -> PlaywrightEx.Client.Browser.on(browser, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
   @spec once(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
   @spec once(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
-  def once(browser, event, listener),
-    do: PlaywrightEx.Client.Browser.once(browser, Facade.event!(event, @events, "browser.once"), listener)
+  def once(browser, event, listener) do
+    event = Facade.event!(event, @events, "browser.once")
+    Facade.listen(fn -> PlaywrightEx.Client.Browser.once(browser, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec add_listener(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
   @spec add_listener(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
-  def add_listener(browser, event, listener),
-    do:
-      PlaywrightEx.Client.Browser.add_listener(browser, Facade.event!(event, @events, "browser.addListener"), listener)
+  def add_listener(browser, event, listener) do
+    event = Facade.event!(event, @events, "browser.addListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Browser.add_listener(browser, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec remove_listener(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
   @spec remove_listener(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
-  def remove_listener(browser, event, listener),
-    do:
-      PlaywrightEx.Client.Browser.remove_listener(
-        browser,
-        Facade.event!(event, @events, "browser.removeListener"),
-        listener
-      )
+  def remove_listener(browser, event, listener) do
+    event = Facade.event!(event, @events, "browser.removeListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Browser.remove_listener(browser, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec off(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
   @spec off(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
-  def off(browser, event, listener),
-    do: PlaywrightEx.Client.Browser.off(browser, Facade.event!(event, @events, "browser.off"), listener)
+  def off(browser, event, listener) do
+    event = Facade.event!(event, @events, "browser.off")
+    Facade.listen(fn -> PlaywrightEx.Client.Browser.off(browser, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec prepend_listener(t(), :context, (PlaywrightEx.BrowserContext.t() -> term())) :: t()
   @spec prepend_listener(t(), :disconnected, (PlaywrightEx.Browser.t() -> term())) :: t()
-  def prepend_listener(browser, event, listener),
-    do:
-      PlaywrightEx.Client.Browser.prepend_listener(
-        browser,
-        Facade.event!(event, @events, "browser.prependListener"),
-        listener
-      )
+  def prepend_listener(browser, event, listener) do
+    event = Facade.event!(event, @events, "browser.prependListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Browser.prepend_listener(browser, event, listener) end)
+  end
 end

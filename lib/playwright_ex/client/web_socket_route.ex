@@ -11,7 +11,6 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   """
   use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.WebSocketRoute
 
-  alias PlaywrightEx.Runtime.EventLoop
 
   def from(route) do
     route
@@ -104,7 +103,7 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   end
 
   def connect_to_server(this) do
-    EventLoop.with_baton(this.loop, fn ->
+    atomic(this, fn ->
       if get(this, :_connected), do: raise("Already connected to the server")
       put(this, :_connected, true)
       _fire_and_forget(this, :connect, %{})
@@ -115,7 +114,7 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   def send(%{guid: "server:" <> _} = server, message) do
     route = _route(server)
 
-    EventLoop.with_baton(route.loop, fn ->
+    atomic(route, fn ->
       if is_binary(message),
         do: _fire_and_forget(route, :sendToServer, %{message: message, isBase64: false}),
         else: _fire_and_forget(route, :sendToServer, %{message: Base.encode64(elem(message, 1)), isBase64: true})
@@ -125,7 +124,7 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   end
 
   def send(this, message) do
-    EventLoop.with_baton(this.loop, fn ->
+    atomic(this, fn ->
       if is_binary(message),
         do: _fire_and_forget(this, :sendToPage, %{message: message, isBase64: false}),
         else: _fire_and_forget(this, :sendToPage, %{message: Base.encode64(elem(message, 1)), isBase64: true})
@@ -172,8 +171,7 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
 
   # `this._channel.<method>(params, kNoTimeout).catch(() => {})`, not awaited.
   defp _fire_and_forget(this, method, params) do
-    Promise.async(fn -> channel_call(this, method, params, TimeoutSettings.k_no_timeout()) end)
-    |> Promise.catch_(fn _ -> nil end)
+    Promise.void(fn -> channel_call(this, method, params, TimeoutSettings.k_no_timeout()) end)
 
     nil
   end

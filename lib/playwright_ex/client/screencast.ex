@@ -17,10 +17,11 @@ defmodule PlaywrightEx.Client.Screencast do
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Screencast{}` (gen.api copies these fields).
   @doc false
-  def __struct_fields__, do: [:guid, :loop, :heap]
+  def __struct_fields__, do: [:guid, :conn, :table, :type, :initializer]
 
+  # Elixir only: owned by the page.
   def new(page) do
-    this = new_object(PlaywrightEx.Screencast)
+    this = new_object(PlaywrightEx.Screencast, page)
     put(this, :_started, false)
     put(this, :_onFrame, nil)
     put(this, :_page, page)

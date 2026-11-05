@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Client.Worker do
     put(this, :_page, nil)
     # Set for service workers.
     put(this, :_context, nil)
-    put(this, :_closedScope, LongStandingScope.new())
+    put(this, :_closedScope, LongStandingScope.new(this))
     put(this, :_closeReason, nil)
     _set_event_to_subscription_mapping(this, %{Events.Worker.console() => "console"})
 

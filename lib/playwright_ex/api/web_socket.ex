@@ -31,7 +31,7 @@ defmodule PlaywrightEx.WebSocket do
   @typedoc "A `WebSocket` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.WebSocket
@@ -225,8 +225,10 @@ defmodule PlaywrightEx.WebSocket do
   @spec on(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec on(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec on(t(), :socket_error, (String.t() -> term())) :: t()
-  def on(web_socket, event, listener),
-    do: PlaywrightEx.Client.WebSocket.on(web_socket, Facade.event!(event, @events, "webSocket.on"), listener)
+  def on(web_socket, event, listener) do
+    event = Facade.event!(event, @events, "webSocket.on")
+    Facade.listen(fn -> PlaywrightEx.Client.WebSocket.on(web_socket, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
@@ -234,8 +236,10 @@ defmodule PlaywrightEx.WebSocket do
   @spec once(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec once(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec once(t(), :socket_error, (String.t() -> term())) :: t()
-  def once(web_socket, event, listener),
-    do: PlaywrightEx.Client.WebSocket.once(web_socket, Facade.event!(event, @events, "webSocket.once"), listener)
+  def once(web_socket, event, listener) do
+    event = Facade.event!(event, @events, "webSocket.once")
+    Facade.listen(fn -> PlaywrightEx.Client.WebSocket.once(web_socket, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
@@ -243,13 +247,10 @@ defmodule PlaywrightEx.WebSocket do
   @spec add_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec add_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec add_listener(t(), :socket_error, (String.t() -> term())) :: t()
-  def add_listener(web_socket, event, listener),
-    do:
-      PlaywrightEx.Client.WebSocket.add_listener(
-        web_socket,
-        Facade.event!(event, @events, "webSocket.addListener"),
-        listener
-      )
+  def add_listener(web_socket, event, listener) do
+    event = Facade.event!(event, @events, "webSocket.addListener")
+    Facade.listen(fn -> PlaywrightEx.Client.WebSocket.add_listener(web_socket, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
@@ -257,13 +258,10 @@ defmodule PlaywrightEx.WebSocket do
   @spec remove_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec remove_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec remove_listener(t(), :socket_error, (String.t() -> term())) :: t()
-  def remove_listener(web_socket, event, listener),
-    do:
-      PlaywrightEx.Client.WebSocket.remove_listener(
-        web_socket,
-        Facade.event!(event, @events, "webSocket.removeListener"),
-        listener
-      )
+  def remove_listener(web_socket, event, listener) do
+    event = Facade.event!(event, @events, "webSocket.removeListener")
+    Facade.listen(fn -> PlaywrightEx.Client.WebSocket.remove_listener(web_socket, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
@@ -271,8 +269,10 @@ defmodule PlaywrightEx.WebSocket do
   @spec off(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec off(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec off(t(), :socket_error, (String.t() -> term())) :: t()
-  def off(web_socket, event, listener),
-    do: PlaywrightEx.Client.WebSocket.off(web_socket, Facade.event!(event, @events, "webSocket.off"), listener)
+  def off(web_socket, event, listener) do
+    event = Facade.event!(event, @events, "webSocket.off")
+    Facade.listen(fn -> PlaywrightEx.Client.WebSocket.off(web_socket, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
@@ -280,11 +280,8 @@ defmodule PlaywrightEx.WebSocket do
   @spec prepend_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec prepend_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec prepend_listener(t(), :socket_error, (String.t() -> term())) :: t()
-  def prepend_listener(web_socket, event, listener),
-    do:
-      PlaywrightEx.Client.WebSocket.prepend_listener(
-        web_socket,
-        Facade.event!(event, @events, "webSocket.prependListener"),
-        listener
-      )
+  def prepend_listener(web_socket, event, listener) do
+    event = Facade.event!(event, @events, "webSocket.prependListener")
+    Facade.listen(fn -> PlaywrightEx.Client.WebSocket.prepend_listener(web_socket, event, listener) end)
+  end
 end

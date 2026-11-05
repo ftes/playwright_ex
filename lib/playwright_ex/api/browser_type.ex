@@ -24,7 +24,7 @@ defmodule PlaywrightEx.BrowserType do
   @typedoc "A `BrowserType` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.BrowserType

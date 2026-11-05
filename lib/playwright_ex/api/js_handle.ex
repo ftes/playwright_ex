@@ -24,7 +24,7 @@ defmodule PlaywrightEx.JSHandle do
   @typedoc "A `JSHandle` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{} | %PlaywrightEx.ElementHandle{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.JSHandle

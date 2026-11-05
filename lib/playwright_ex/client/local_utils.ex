@@ -3,7 +3,6 @@ defmodule PlaywrightEx.Client.LocalUtils do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
-  alias PlaywrightEx.Runtime.EventLoop
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
@@ -55,15 +54,13 @@ defmodule PlaywrightEx.Client.LocalUtils do
   def glob_to_regex(this, params) do
     key = {params[:glob], params[:baseURL], params[:webSocketUrl]}
 
-    # Under the baton: sync members (`page.frame({ url })`) match URLs without it.
-    EventLoop.with_baton(this.loop, fn ->
-      map_get(this, :_globToRegex, key) ||
-        map_set(
-          this,
-          :_globToRegex,
-          key,
-          channel_call(this, :globToRegex, params, TimeoutSettings.k_no_timeout()).regex
-        )
-    end)
+    # A cache: two processes converting the same glob both ask the driver (same answer).
+    map_get(this, :_globToRegex, key) ||
+      map_set(
+        this,
+        :_globToRegex,
+        key,
+        channel_call(this, :globToRegex, params, TimeoutSettings.k_no_timeout()).regex
+      )
   end
 end

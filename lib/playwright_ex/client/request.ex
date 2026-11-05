@@ -112,7 +112,9 @@ defmodule PlaywrightEx.Client.Request do
               end,
               %{internal: true}
             )
-          end)
+          end,
+          owner: this
+        )
         )
       end
 
@@ -252,6 +254,6 @@ defmodule PlaywrightEx.Client.Request do
     page = _safe_page(this)
 
     (service_worker && get(service_worker, :_closedScope)) || (page && get(page, :_closedOrCrashedScope)) ||
-      LongStandingScope.new()
+      LongStandingScope.new(this)
   end
 end

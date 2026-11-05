@@ -51,7 +51,7 @@ defmodule PlaywrightEx.CDPSession do
   @typedoc "A `CDPSession` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.CDPSession
@@ -105,62 +105,58 @@ defmodule PlaywrightEx.CDPSession do
   @spec on(t(), :close, (PlaywrightEx.CDPSession.t() -> term())) :: t()
   @spec on(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec on(t(), String.t(), (term() -> term())) :: t()
-  def on(cdp_session, event, listener),
-    do: PlaywrightEx.Client.CDPSession.on(cdp_session, Facade.event!(event, @events, "cdpSession.on", true), listener)
+  def on(cdp_session, event, listener) do
+    event = Facade.event!(event, @events, "cdpSession.on", true)
+    Facade.listen(fn -> PlaywrightEx.Client.CDPSession.on(cdp_session, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
   @spec once(t(), :close, (PlaywrightEx.CDPSession.t() -> term())) :: t()
   @spec once(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec once(t(), String.t(), (term() -> term())) :: t()
-  def once(cdp_session, event, listener),
-    do:
-      PlaywrightEx.Client.CDPSession.once(cdp_session, Facade.event!(event, @events, "cdpSession.once", true), listener)
+  def once(cdp_session, event, listener) do
+    event = Facade.event!(event, @events, "cdpSession.once", true)
+    Facade.listen(fn -> PlaywrightEx.Client.CDPSession.once(cdp_session, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec add_listener(t(), :close, (PlaywrightEx.CDPSession.t() -> term())) :: t()
   @spec add_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec add_listener(t(), String.t(), (term() -> term())) :: t()
-  def add_listener(cdp_session, event, listener),
-    do:
-      PlaywrightEx.Client.CDPSession.add_listener(
-        cdp_session,
-        Facade.event!(event, @events, "cdpSession.addListener", true),
-        listener
-      )
+  def add_listener(cdp_session, event, listener) do
+    event = Facade.event!(event, @events, "cdpSession.addListener", true)
+    Facade.listen(fn -> PlaywrightEx.Client.CDPSession.add_listener(cdp_session, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec remove_listener(t(), :close, (PlaywrightEx.CDPSession.t() -> term())) :: t()
   @spec remove_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
-  def remove_listener(cdp_session, event, listener),
-    do:
-      PlaywrightEx.Client.CDPSession.remove_listener(
-        cdp_session,
-        Facade.event!(event, @events, "cdpSession.removeListener", true),
-        listener
-      )
+  def remove_listener(cdp_session, event, listener) do
+    event = Facade.event!(event, @events, "cdpSession.removeListener", true)
+    Facade.listen(fn -> PlaywrightEx.Client.CDPSession.remove_listener(cdp_session, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec off(t(), :close, (PlaywrightEx.CDPSession.t() -> term())) :: t()
   @spec off(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec off(t(), String.t(), (term() -> term())) :: t()
-  def off(cdp_session, event, listener),
-    do: PlaywrightEx.Client.CDPSession.off(cdp_session, Facade.event!(event, @events, "cdpSession.off", true), listener)
+  def off(cdp_session, event, listener) do
+    event = Facade.event!(event, @events, "cdpSession.off", true)
+    Facade.listen(fn -> PlaywrightEx.Client.CDPSession.off(cdp_session, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec prepend_listener(t(), :close, (PlaywrightEx.CDPSession.t() -> term())) :: t()
   @spec prepend_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
-  def prepend_listener(cdp_session, event, listener),
-    do:
-      PlaywrightEx.Client.CDPSession.prepend_listener(
-        cdp_session,
-        Facade.event!(event, @events, "cdpSession.prependListener", true),
-        listener
-      )
+  def prepend_listener(cdp_session, event, listener) do
+    event = Facade.event!(event, @events, "cdpSession.prependListener", true)
+    Facade.listen(fn -> PlaywrightEx.Client.CDPSession.prepend_listener(cdp_session, event, listener) end)
+  end
 end

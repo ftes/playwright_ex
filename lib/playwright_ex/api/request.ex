@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Request do
   @typedoc "A `Request` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.Request

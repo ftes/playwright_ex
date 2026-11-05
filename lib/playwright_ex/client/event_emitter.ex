@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
   def entry(this, listener, once \\ false) do
     {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
 
-    if Process.get(:pw_user_listener) and this.table != nil,
+    if Process.get(:pw_user_listener) && this.table != nil,
       do: %{kind: :user, id: id, fun: fun, once: once, pid: Conn.subscription(this.conn)},
       else: %{kind: :internal, id: id, fun: fun, once: once}
   end

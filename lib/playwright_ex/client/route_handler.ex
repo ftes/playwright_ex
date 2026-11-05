@@ -1,11 +1,12 @@
 defmodule PlaywrightEx.Client.RouteHandler do
   @upstream "packages/playwright-core/src/client/network.ts"
   @moduledoc """
-  Port of `RouteHandler` in `#{@upstream}`: a runtime object (mutable, in the loop's heap).
+  Port of `RouteHandler` in `#{@upstream}`: a runtime object owned by its page or context.
 
   Deviations: the constructor takes the `LocalUtils` first, as string globs become regexes
-  through the driver (`PlaywrightEx.Isomorphic.UrlMatch`). The handler is a 2-arity function
-  `(route, request)` or, as in the Python client, a 1-arity one `(route)`.
+  through the driver (`PlaywrightEx.Isomorphic.UrlMatch`), and its `owner` (page or context) last.
+  The handler is a 2-arity function `(route, request)` or, as in the Python client, a 1-arity
+  one `(route)`.
   """
   import PlaywrightEx.Runtime.Heap
 
@@ -15,13 +16,13 @@ defmodule PlaywrightEx.Client.RouteHandler do
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table]
 
   # Number.MAX_SAFE_INTEGER
   @max_safe_integer 9_007_199_254_740_991
 
-  def new(local_utils, base_url, url, handler, times \\ nil) do
-    this = new_object(__MODULE__)
+  def new(local_utils, base_url, url, handler, times, owner) do
+    this = new_object(__MODULE__, owner)
     put(this, :handledCount, 0)
     put(this, :_ignoreException, false)
     put(this, :_activeInvocations, [])
@@ -58,7 +59,8 @@ defmodule PlaywrightEx.Client.RouteHandler do
   end
 
   defp _handle_impl(this, route) do
-    handler_invocation = %{complete: Promise.new(), route: route}
+    # A latch: `stop` awaits it from another process.
+    handler_invocation = %{complete: Promise.new(this), route: route}
     set_add(this, :_activeInvocations, handler_invocation)
 
     try do

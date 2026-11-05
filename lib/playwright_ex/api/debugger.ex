@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Debugger do
   @typedoc "A `Debugger` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.Debugger
@@ -125,51 +125,48 @@ defmodule PlaywrightEx.Debugger do
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec on(t(), :paused_state_changed, (nil -> term())) :: t()
-  def on(debugger, event, listener),
-    do: PlaywrightEx.Client.Debugger.on(debugger, Facade.event!(event, @events, "debugger.on"), listener)
+  def on(debugger, event, listener) do
+    event = Facade.event!(event, @events, "debugger.on")
+    Facade.listen(fn -> PlaywrightEx.Client.Debugger.on(debugger, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
   @spec once(t(), :paused_state_changed, (nil -> term())) :: t()
-  def once(debugger, event, listener),
-    do: PlaywrightEx.Client.Debugger.once(debugger, Facade.event!(event, @events, "debugger.once"), listener)
+  def once(debugger, event, listener) do
+    event = Facade.event!(event, @events, "debugger.once")
+    Facade.listen(fn -> PlaywrightEx.Client.Debugger.once(debugger, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec add_listener(t(), :paused_state_changed, (nil -> term())) :: t()
-  def add_listener(debugger, event, listener),
-    do:
-      PlaywrightEx.Client.Debugger.add_listener(
-        debugger,
-        Facade.event!(event, @events, "debugger.addListener"),
-        listener
-      )
+  def add_listener(debugger, event, listener) do
+    event = Facade.event!(event, @events, "debugger.addListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Debugger.add_listener(debugger, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec remove_listener(t(), :paused_state_changed, (nil -> term())) :: t()
-  def remove_listener(debugger, event, listener),
-    do:
-      PlaywrightEx.Client.Debugger.remove_listener(
-        debugger,
-        Facade.event!(event, @events, "debugger.removeListener"),
-        listener
-      )
+  def remove_listener(debugger, event, listener) do
+    event = Facade.event!(event, @events, "debugger.removeListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Debugger.remove_listener(debugger, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec off(t(), :paused_state_changed, (nil -> term())) :: t()
-  def off(debugger, event, listener),
-    do: PlaywrightEx.Client.Debugger.off(debugger, Facade.event!(event, @events, "debugger.off"), listener)
+  def off(debugger, event, listener) do
+    event = Facade.event!(event, @events, "debugger.off")
+    Facade.listen(fn -> PlaywrightEx.Client.Debugger.off(debugger, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec prepend_listener(t(), :paused_state_changed, (nil -> term())) :: t()
-  def prepend_listener(debugger, event, listener),
-    do:
-      PlaywrightEx.Client.Debugger.prepend_listener(
-        debugger,
-        Facade.event!(event, @events, "debugger.prependListener"),
-        listener
-      )
+  def prepend_listener(debugger, event, listener) do
+    event = Facade.event!(event, @events, "debugger.prependListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Debugger.prepend_listener(debugger, event, listener) end)
+  end
 end

@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Worker do
   @typedoc "A `Worker` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.Worker
@@ -296,51 +296,53 @@ defmodule PlaywrightEx.Worker do
   @doc group: "Events"
   @spec on(t(), :close, (PlaywrightEx.Worker.t() -> term())) :: t()
   @spec on(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
-  def on(worker, event, listener),
-    do: PlaywrightEx.Client.Worker.on(worker, Facade.event!(event, @events, "worker.on"), listener)
+  def on(worker, event, listener) do
+    event = Facade.event!(event, @events, "worker.on")
+    Facade.listen(fn -> PlaywrightEx.Client.Worker.on(worker, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
   @spec once(t(), :close, (PlaywrightEx.Worker.t() -> term())) :: t()
   @spec once(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
-  def once(worker, event, listener),
-    do: PlaywrightEx.Client.Worker.once(worker, Facade.event!(event, @events, "worker.once"), listener)
+  def once(worker, event, listener) do
+    event = Facade.event!(event, @events, "worker.once")
+    Facade.listen(fn -> PlaywrightEx.Client.Worker.once(worker, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec add_listener(t(), :close, (PlaywrightEx.Worker.t() -> term())) :: t()
   @spec add_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
-  def add_listener(worker, event, listener),
-    do: PlaywrightEx.Client.Worker.add_listener(worker, Facade.event!(event, @events, "worker.addListener"), listener)
+  def add_listener(worker, event, listener) do
+    event = Facade.event!(event, @events, "worker.addListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Worker.add_listener(worker, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec remove_listener(t(), :close, (PlaywrightEx.Worker.t() -> term())) :: t()
   @spec remove_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
-  def remove_listener(worker, event, listener),
-    do:
-      PlaywrightEx.Client.Worker.remove_listener(
-        worker,
-        Facade.event!(event, @events, "worker.removeListener"),
-        listener
-      )
+  def remove_listener(worker, event, listener) do
+    event = Facade.event!(event, @events, "worker.removeListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Worker.remove_listener(worker, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec off(t(), :close, (PlaywrightEx.Worker.t() -> term())) :: t()
   @spec off(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
-  def off(worker, event, listener),
-    do: PlaywrightEx.Client.Worker.off(worker, Facade.event!(event, @events, "worker.off"), listener)
+  def off(worker, event, listener) do
+    event = Facade.event!(event, @events, "worker.off")
+    Facade.listen(fn -> PlaywrightEx.Client.Worker.off(worker, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec prepend_listener(t(), :close, (PlaywrightEx.Worker.t() -> term())) :: t()
   @spec prepend_listener(t(), :console, (PlaywrightEx.ConsoleMessage.t() -> term())) :: t()
-  def prepend_listener(worker, event, listener),
-    do:
-      PlaywrightEx.Client.Worker.prepend_listener(
-        worker,
-        Facade.event!(event, @events, "worker.prependListener"),
-        listener
-      )
+  def prepend_listener(worker, event, listener) do
+    event = Facade.event!(event, @events, "worker.prependListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Worker.prepend_listener(worker, event, listener) end)
+  end
 end

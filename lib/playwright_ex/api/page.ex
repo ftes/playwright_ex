@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Page do
   @typedoc "A `Page` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.Page
@@ -7390,8 +7390,10 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec on(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec on(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def on(page, event, listener),
-    do: PlaywrightEx.Client.Page.on(page, Facade.event!(event, @events, "page.on"), listener)
+  def on(page, event, listener) do
+    event = Facade.event!(event, @events, "page.on")
+    Facade.listen(fn -> PlaywrightEx.Client.Page.on(page, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
@@ -7415,8 +7417,10 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec once(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec once(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def once(page, event, listener),
-    do: PlaywrightEx.Client.Page.once(page, Facade.event!(event, @events, "page.once"), listener)
+  def once(page, event, listener) do
+    event = Facade.event!(event, @events, "page.once")
+    Facade.listen(fn -> PlaywrightEx.Client.Page.once(page, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
@@ -7440,8 +7444,10 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec add_listener(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec add_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def add_listener(page, event, listener),
-    do: PlaywrightEx.Client.Page.add_listener(page, Facade.event!(event, @events, "page.addListener"), listener)
+  def add_listener(page, event, listener) do
+    event = Facade.event!(event, @events, "page.addListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Page.add_listener(page, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
@@ -7465,8 +7471,10 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec remove_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def remove_listener(page, event, listener),
-    do: PlaywrightEx.Client.Page.remove_listener(page, Facade.event!(event, @events, "page.removeListener"), listener)
+  def remove_listener(page, event, listener) do
+    event = Facade.event!(event, @events, "page.removeListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Page.remove_listener(page, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
@@ -7490,8 +7498,10 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec off(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec off(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def off(page, event, listener),
-    do: PlaywrightEx.Client.Page.off(page, Facade.event!(event, @events, "page.off"), listener)
+  def off(page, event, listener) do
+    event = Facade.event!(event, @events, "page.off")
+    Facade.listen(fn -> PlaywrightEx.Client.Page.off(page, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
@@ -7515,6 +7525,8 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :web_socket, (PlaywrightEx.WebSocket.t() -> term())) :: t()
   @spec prepend_listener(t(), :worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def prepend_listener(page, event, listener),
-    do: PlaywrightEx.Client.Page.prepend_listener(page, Facade.event!(event, @events, "page.prependListener"), listener)
+  def prepend_listener(page, event, listener) do
+    event = Facade.event!(event, @events, "page.prependListener")
+    Facade.listen(fn -> PlaywrightEx.Client.Page.prepend_listener(page, event, listener) end)
+  end
 end

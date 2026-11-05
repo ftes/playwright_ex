@@ -169,10 +169,15 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   The result settles a local promise of the caller (awaited by it, once), or with `shared: true`
   a latch owned by the caller process: awaitable from any process, any number of times, until
-  the caller exits.
+  the caller exits. With `owner: object`, a latch on that object (a promise kept in its field).
   """
   def async(fun, opts \\ []) when is_function(fun, 0) do
-    promise = if Keyword.get(opts, :shared, false), do: new(ProcessOwner.owner(self())), else: new()
+    promise =
+      cond do
+        owner = opts[:owner] -> new(owner)
+        Keyword.get(opts, :shared, false) -> new(ProcessOwner.owner(self()))
+        true -> new()
+      end
 
     start(fn ->
       result = run_async(fun)

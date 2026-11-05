@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Client.Route do
   end
 
   def _start_handling(this) do
-    put(this, :_handlingPromise, Promise.new())
+    put(this, :_handlingPromise, Promise.new(this))
     Promise.await(get(this, :_handlingPromise))
   end
 

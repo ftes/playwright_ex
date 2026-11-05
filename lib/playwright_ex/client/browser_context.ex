@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(this, :_closingStatus, "none")
     put(this, :_harRouters, [])
     put(this, :_options, initializer.options)
-    put(this, :_timeoutSettings, TimeoutSettings.new())
+    put(this, :_timeoutSettings, TimeoutSettings.new(nil, this))
     put(this, :debugger, Debugger.from(initializer.debugger))
     put(this, :tracing, Tracing.from(initializer.tracing))
     put(this, :request, APIRequestContext.from(initializer.requestContext))
@@ -123,15 +123,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
         # b) actual "dialog" event (server->client)
         if Dialog.type(dialog_object) == "beforeunload",
           do:
-            Promise.catch_(
-              Promise.async(fn -> channel_call(dialog, :accept, %{}, TimeoutSettings.k_no_timeout()) end),
-              fn _ -> nil end
-            ),
+            Promise.void(fn -> channel_call(dialog, :accept, %{}, TimeoutSettings.k_no_timeout()) end),
           else:
-            Promise.catch_(
-              Promise.async(fn -> channel_call(dialog, :dismiss, %{}, TimeoutSettings.k_no_timeout()) end),
-              fn _ -> nil end
-            )
+            Promise.void(fn -> channel_call(dialog, :dismiss, %{}, TimeoutSettings.k_no_timeout()) end)
       end
     end)
 
@@ -160,7 +154,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
     put(
       this,
       :_closedPromise,
-      Promise.new(fn f, _ -> once(this, Events.BrowserContext.close(), f) end)
+      # A latch on the context.
+      Promise.new(this, fn f, _ -> once(this, Events.BrowserContext.close(), f) end)
     )
 
     _set_event_to_subscription_mapping(this, %{
@@ -260,10 +255,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
             if get(this, :_routes) == [],
               do:
-                Promise.catch_(
-                  Promise.async(fn -> _update_interception_patterns(this, %{internal: true}) end),
-                  fn _ -> nil end
-                )
+                Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
 
             if handled, do: {:halt, true}, else: {:cont, false}
         end
@@ -435,7 +427,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
         get(this, :_options)[:baseURL],
         url,
         handler,
-        options[:times]
+        options[:times],
+        this
       )
 
     update(this, :_routes, &[route_handler | &1])
@@ -650,8 +643,17 @@ defmodule PlaywrightEx.Client.BrowserContext do
           e -> e
         end
 
+      closed_promise = get(this, :_closedPromise)
       channel_call(this, :close, options, TimeoutSettings.k_no_timeout())
-      Promise.await(get(this, :_closedPromise))
+
+      # deviation: the context is disposed (its rows, the latch's included, deleted) before the
+      # reply; disposed means closed.
+      try do
+        Promise.await(closed_promise)
+      rescue
+        PlaywrightEx.TargetClosedError -> nil
+      end
+
       if har_error, do: raise(har_error)
       nil
     end

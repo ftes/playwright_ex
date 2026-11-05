@@ -170,7 +170,7 @@ defmodule PlaywrightEx.BrowserContext do
   @typedoc "A `BrowserContext` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
   def __client__, do: PlaywrightEx.Client.BrowserContext
@@ -2008,13 +2008,10 @@ defmodule PlaywrightEx.BrowserContext do
   @spec on(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec on(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def on(browser_context, event, listener),
-    do:
-      PlaywrightEx.Client.BrowserContext.on(
-        browser_context,
-        Facade.event!(event, @events, "browserContext.on"),
-        listener
-      )
+  def on(browser_context, event, listener) do
+    event = Facade.event!(event, @events, "browserContext.on")
+    Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.on(browser_context, event, listener) end)
+  end
 
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
@@ -2036,13 +2033,10 @@ defmodule PlaywrightEx.BrowserContext do
   @spec once(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec once(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def once(browser_context, event, listener),
-    do:
-      PlaywrightEx.Client.BrowserContext.once(
-        browser_context,
-        Facade.event!(event, @events, "browserContext.once"),
-        listener
-      )
+  def once(browser_context, event, listener) do
+    event = Facade.event!(event, @events, "browserContext.once")
+    Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.once(browser_context, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
@@ -2064,13 +2058,10 @@ defmodule PlaywrightEx.BrowserContext do
   @spec add_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec add_listener(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def add_listener(browser_context, event, listener),
-    do:
-      PlaywrightEx.Client.BrowserContext.add_listener(
-        browser_context,
-        Facade.event!(event, @events, "browserContext.addListener"),
-        listener
-      )
+  def add_listener(browser_context, event, listener) do
+    event = Facade.event!(event, @events, "browserContext.addListener")
+    Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.add_listener(browser_context, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
@@ -2092,13 +2083,10 @@ defmodule PlaywrightEx.BrowserContext do
   @spec remove_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def remove_listener(browser_context, event, listener),
-    do:
-      PlaywrightEx.Client.BrowserContext.remove_listener(
-        browser_context,
-        Facade.event!(event, @events, "browserContext.removeListener"),
-        listener
-      )
+  def remove_listener(browser_context, event, listener) do
+    event = Facade.event!(event, @events, "browserContext.removeListener")
+    Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.remove_listener(browser_context, event, listener) end)
+  end
 
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
@@ -2120,13 +2108,10 @@ defmodule PlaywrightEx.BrowserContext do
   @spec off(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec off(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def off(browser_context, event, listener),
-    do:
-      PlaywrightEx.Client.BrowserContext.off(
-        browser_context,
-        Facade.event!(event, @events, "browserContext.off"),
-        listener
-      )
+  def off(browser_context, event, listener) do
+    event = Facade.event!(event, @events, "browserContext.off")
+    Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.off(browser_context, event, listener) end)
+  end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
@@ -2148,11 +2133,8 @@ defmodule PlaywrightEx.BrowserContext do
   @spec prepend_listener(t(), :request_finished, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (PlaywrightEx.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :service_worker, (PlaywrightEx.Worker.t() -> term())) :: t()
-  def prepend_listener(browser_context, event, listener),
-    do:
-      PlaywrightEx.Client.BrowserContext.prepend_listener(
-        browser_context,
-        Facade.event!(event, @events, "browserContext.prependListener"),
-        listener
-      )
+  def prepend_listener(browser_context, event, listener) do
+    event = Facade.event!(event, @events, "browserContext.prependListener")
+    Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)
+  end
 end

@@ -410,7 +410,10 @@ defmodule PlaywrightEx.Runtime.Conn do
 
       out when state.transport != nil ->
         Process.put(:pw_out, [])
-        state.transport.(Enum.reverse(out))
+        out = Enum.reverse(out)
+        # Test hook: a 1-arity fun called with each message sent (`:persistent_term`).
+        if hook = :persistent_term.get({__MODULE__, :on_send}, nil), do: Enum.each(out, hook)
+        state.transport.(out)
         state
 
       _ ->

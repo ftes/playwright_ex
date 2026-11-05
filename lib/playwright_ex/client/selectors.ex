@@ -7,15 +7,15 @@ defmodule PlaywrightEx.Client.Selectors do
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Client.TimeoutSettings
-  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Selectors{}` (gen.api copies these fields).
   @doc false
-  def __struct_fields__, do: [:guid, :loop, :heap]
+  def __struct_fields__, do: [:guid, :conn, :table, :type, :initializer]
 
-  def new do
-    this = new_object(PlaywrightEx.Selectors)
+  # Elixir only: owned by the `Playwright` object.
+  def new(owner) do
+    this = new_object(PlaywrightEx.Selectors, owner)
     put(this, :_selectorEngines, [])
     put(this, :_testIdAttributeName, nil)
     put(this, :_contextsForSelectors, [])
@@ -47,12 +47,12 @@ defmodule PlaywrightEx.Client.Selectors do
     put(this, :_testIdAttributeName, attribute_name)
     Locator.set_test_id_attribute(attribute_name)
 
-    # Under the baton: a sync member, called without it.
-    EventLoop.with_baton(this.loop, fn ->
+    # One synchronous section.
+    atomic(this, fn ->
       for context <- get(this, :_contextsForSelectors) do
         put(context, :_options, Map.put(get(context, :_options), :testIdAttributeName, attribute_name))
 
-        Promise.async(fn ->
+        Promise.void(fn ->
           channel_call(
             context,
             :setTestIdAttributeName,
@@ -60,7 +60,6 @@ defmodule PlaywrightEx.Client.Selectors do
             TimeoutSettings.k_no_timeout()
           )
         end)
-        |> Promise.catch_(fn _ -> nil end)
       end
     end)
 

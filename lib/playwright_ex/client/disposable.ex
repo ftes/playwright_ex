@@ -42,16 +42,19 @@ end
 
 defmodule PlaywrightEx.Client.DisposableStub do
   @upstream "packages/playwright-core/src/client/disposable.ts"
-  @moduledoc "Port of `#{@upstream}` (`class DisposableStub`): a runtime object in the loop's heap."
+  @moduledoc """
+  Port of `#{@upstream}` (`class DisposableStub`). Elixir only: a runtime object owned by the
+  creating process (`PlaywrightEx.Runtime.ProcessOwner`), so any process disposes it while that one lives.
+  """
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.Errors
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table]
 
   # `dispose` is a 0-arity function (JS `() => Promise<void>`); it may await.
   def new(dispose) do
-    this = new_object(__MODULE__)
+    this = new_object(__MODULE__, PlaywrightEx.Runtime.ProcessOwner.owner())
     put(this, :_dispose, dispose)
     this
   end

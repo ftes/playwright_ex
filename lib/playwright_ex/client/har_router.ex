@@ -92,8 +92,7 @@ defmodule PlaywrightEx.Client.HarRouter do
   # [Symbol.asyncDispose]  -- not ported: await using
 
   def dispose(this) do
-    Promise.async(fn -> LocalUtils.har_close(this._localUtils, %{harId: this._harId}) end)
-    |> Promise.catch_(fn _ -> nil end)
+    Promise.void(fn -> LocalUtils.har_close(this._localUtils, %{harId: this._harId}) end)
 
     nil
   end

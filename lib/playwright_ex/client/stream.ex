@@ -27,8 +27,7 @@ defmodule PlaywrightEx.Client.Stream.ReadableStreamImpl do
 
   def _destroy(this, _error) do
     # Stream might be destroyed after the connection was closed.
-    Promise.async(fn -> ChannelOwner.channel_call(this._channel, :close, %{}, TimeoutSettings.k_no_timeout()) end)
-    |> Promise.catch_(fn _ -> nil end)
+    Promise.void(fn -> ChannelOwner.channel_call(this._channel, :close, %{}, TimeoutSettings.k_no_timeout()) end)
 
     nil
   end
