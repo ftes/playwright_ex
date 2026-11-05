@@ -686,3 +686,14 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Bang forms of the promise waits (`wait_for_event!` etc.); doc examples are generic.
 - "orOptions" rule: options may take the place of an optional scalar before them
   (`to_have_attribute(l, "id", timeout: 1)`); optionsOr object fields take the other clients' docs.
+
+## 2026-11-05: Fixtures exit with the test BEAM (workstream OO)
+- Every long-lived child of a test (run-server, launch-server, remote-server-impl.js, the
+  ClientProcess child BEAM) exits on stdin EOF. Node children get `-r
+  test/support/exit_on_stdin_eof.js`, so upstream's scripts stay unmodified; the child BEAM
+  halts on `:eof`. Playwright's exit handler then closes the browsers. Before: a `kill -9`
+  of the BEAM orphaned 15 processes. After: 0, on all 3 browsers.
+- The library path (`run-driver` over a Port) never leaked: the driver already exits on stdin close.
+- Regression test: `test/playwright_ex/no_orphan_processes_test.exs` (`:slow`, runs in the suite).
+- Known gap: the `--inspect-brk` node in connect_to_worker pauses before the preload runs, so a
+  BEAM that dies in that short window can still orphan it. Accepted; a reaper risks PID reuse.
