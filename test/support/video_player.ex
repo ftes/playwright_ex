@@ -152,12 +152,12 @@ defmodule PlaywrightEx.VideoPlayer do
     data
     |> unfilter_rows(stride, prefix, bpp, y + h, :binary.copy(<<0>>, prefix), [])
     |> Enum.drop(y)
-    |> Enum.map(fn row ->
-      block = binary_part(row, x * bpp, w * bpp)
-      if bpp == 4, do: block, else: for(<<r, g, b <- block>>, into: <<>>, do: <<r, g, b, 255>>)
-    end)
+    |> Enum.map(&rgba(binary_part(&1, x * bpp, w * bpp), bpp))
     |> IO.iodata_to_binary()
   end
+
+  defp rgba(block, 4), do: block
+  defp rgba(block, 3), do: for(<<r, g, b <- block>>, into: <<>>, do: <<r, g, b, 255>>)
 
   defp png_chunks(<<len::32, type::binary-4, data::binary-size(len), _crc::32, rest::binary>>, header, idat) do
     case type do

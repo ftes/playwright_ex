@@ -19,14 +19,18 @@ defmodule PlaywrightEx.Library.VideoTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()
+  @mac_webkit_frames_skip if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+                            do:
+                              "env: Mac WebKit (macOS 26) video frames leave the right/bottom of the viewport gray (upstream client too)"
+                          )
 
   # it.skip(({ video }) => video === 'on', 'conflicts with built-in video recording');  -- the runner records no video
 
-  defp is_almost_red(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g < 70 and b < 70 and alpha == 255
+  defp almost_red?(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g < 70 and b < 70 and alpha == 255
 
-  defp is_almost_black(%{r: r, g: g, b: b, alpha: alpha}), do: r < 70 and g < 70 and b < 70 and alpha == 255
+  defp almost_black?(%{r: r, g: g, b: b, alpha: alpha}), do: r < 70 and g < 70 and b < 70 and alpha == 255
 
-  defp is_almost_gray(%{r: r, g: g, b: b, alpha: alpha}),
+  defp almost_gray?(%{r: r, g: g, b: b, alpha: alpha}),
     do: r > 70 and r < 185 and g > 70 and g < 185 and b > 70 and b < 185 and alpha == 255
 
   defp find_pixel(pixels, pixel_predicate),
@@ -35,19 +39,23 @@ defmodule PlaywrightEx.Library.VideoTest do
   defp every_pixel(pixels, pixel_predicate), do: !find_pixel(pixels, &(!pixel_predicate.(&1)))
 
   defp expect_all(pixels, pixel_predicate) do
-    if bad_pixel = find_pixel(pixels, &(!pixel_predicate.(&1))) do
-      rgba = Enum.join([bad_pixel.r, bad_pixel.g, bad_pixel.b, bad_pixel.alpha], ", ")
-      {:name, name} = Function.info(pixel_predicate, :name)
+    case find_pixel(pixels, &(!pixel_predicate.(&1))) do
+      nil ->
+        :ok
 
-      flunk(
-        Enum.join(
-          [
-            "Expected all pixels to satisfy #{name}, found bad pixel (#{rgba})",
-            "Actual pixels=[#{Enum.join(:binary.bin_to_list(pixels), ",")}]"
-          ],
-          "\n"
+      bad_pixel ->
+        rgba = Enum.join([bad_pixel.r, bad_pixel.g, bad_pixel.b, bad_pixel.alpha], ", ")
+        {:name, name} = Function.info(pixel_predicate, :name)
+
+        flunk(
+          Enum.join(
+            [
+              "Expected all pixels to satisfy #{name}, found bad pixel (#{rgba})",
+              "Actual pixels=[#{Enum.join(:binary.bin_to_list(pixels), ",")}]"
+            ],
+            "\n"
+          )
         )
-      )
     end
   end
 
@@ -55,7 +63,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     for file <- File.ls!(video_dir), String.ends_with?(file, "webm"), do: Path.join(video_dir, file)
   end
 
-  defp expect_red_frames(video_file, size), do: expect_frames(video_file, size, &is_almost_red/1)
+  defp expect_red_frames(video_file, size), do: expect_frames(video_file, size, &almost_red?/1)
 
   defp expect_frames(video_file, size, pixel_predicate) do
     video_player = VideoPlayer.new(video_file)
@@ -85,7 +93,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       BrowserContext.close!(context)
     end
 
-    @tag skip: @ffmpeg_skip
+    @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
     @tag :tmp_dir
     test "should capture static page", %{browser: browser, tmp_dir: tmp_dir} do
       # Firefox does not have a mobile variant and has a large minimum size (500 on windows and 450 elsewhere).
@@ -122,7 +130,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert video_player.videoHeight == video_size.height
     end
 
-    @tag skip: @ffmpeg_skip
+    @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
     @tag :tmp_dir
     test "should continue recording main page after popup closes", %{browser: browser, tmp_dir: tmp_dir} do
       # Issue: https://github.com/microsoft/playwright/issues/30837
@@ -238,11 +246,11 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert duration > 0
 
       # Find a frame with all almost-black pixels.
-      frame = VideoPlayer.find_frame(video_player, &every_pixel(&1, fn pixel -> is_almost_black(pixel) end))
+      frame = VideoPlayer.find_frame(video_player, &every_pixel(&1, fn pixel -> almost_black?(pixel) end))
       assert frame != nil
 
       pixels = VideoPlayer.seek_last_frame(video_player).data
-      expect_all(pixels, &is_almost_gray/1)
+      expect_all(pixels, &almost_gray?/1)
     end
 
     @tag skip: @ffmpeg_skip
@@ -264,11 +272,11 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert duration > 0
 
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: 95, y: 45}).data
-      expect_all(pixels, &is_almost_red/1)
+      expect_all(pixels, &almost_red?/1)
     end
 
     @tag skip:
-           @ffmpeg_skip ||
+           @ffmpeg_skip || @mac_webkit_frames_skip ||
              if(@browser_name == "firefox", do: "upstream fixme: https://github.com/microsoft/playwright/issues/14557")
     @tag :tmp_dir
     test "should work for popups", %{browser: browser, server: server, tmp_dir: videos_path} do
@@ -324,13 +332,13 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert duration > 0
 
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: 10, y: 10}).data
-      expect_all(pixels, &is_almost_red/1)
+      expect_all(pixels, &almost_red?/1)
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: 300, y: 10}).data
-      expect_all(pixels, &is_almost_gray/1)
+      expect_all(pixels, &almost_gray?/1)
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: 10, y: 200}).data
-      expect_all(pixels, &is_almost_gray/1)
+      expect_all(pixels, &almost_gray?/1)
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: 300, y: 200}).data
-      expect_all(pixels, &is_almost_red/1)
+      expect_all(pixels, &almost_red?/1)
     end
 
     @tag skip: @ffmpeg_skip
@@ -428,7 +436,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert video_player.videoHeight == 400
 
       pixels = VideoPlayer.seek_last_frame(video_player).data
-      expect_all(pixels, &is_almost_red/1)
+      expect_all(pixels, &almost_red?/1)
     end
 
     @tag skip: @ffmpeg_skip
@@ -540,7 +548,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag skip:
-           @ffmpeg_skip ||
+           @ffmpeg_skip || @mac_webkit_frames_skip ||
              if(@browser_name == "firefox" and match?({:win32, _}, :os.type()),
                do: "upstream fixme: https://github.com/microsoft/playwright/issues/14405"
              )
@@ -574,11 +582,11 @@ defmodule PlaywrightEx.Library.VideoTest do
       # Bottom right corner should be part of the red border.
       # However, headed browsers on mac have rounded corners, so offset by 10.
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: size.width - 20, y: size.height - 20}).data
-      expect_all(pixels, &is_almost_red/1)
+      expect_all(pixels, &almost_red?/1)
     end
 
     @tag skip:
-           @ffmpeg_skip ||
+           @ffmpeg_skip || @mac_webkit_frames_skip ||
              if(@browser_name == "firefox" and match?({:win32, _}, :os.type()),
                do: "upstream fixme: https://github.com/microsoft/playwright/issues/14405"
              )
@@ -618,10 +626,10 @@ defmodule PlaywrightEx.Library.VideoTest do
       # Bottom right corner should be part of the red border.
       # However, headed browsers on mac have rounded corners, so offset by 10.
       pixels = VideoPlayer.seek_last_frame(video_player, %{x: size.width - 20, y: size.height - 20}).data
-      expect_all(pixels, &is_almost_red/1)
+      expect_all(pixels, &almost_red?/1)
     end
 
-    @tag skip: @ffmpeg_skip
+    @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
     @tag :tmp_dir
     test "should work with video+trace", %{browser: browser, tmp_dir: tmp_dir} do
       # it.skip(trace === 'on'): no runner trace; it.fixme(!headless, ...): headless;
@@ -650,7 +658,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       # Center should be red.
       offset = div(size.width * size.height, 2) * 4 + div(size.width * 4, 2)
       <<_::binary-size(^offset), r, g, b, alpha, _::binary>> = image.data
-      assert is_almost_red(%{r: r, g: g, b: b, alpha: alpha}) == true
+      assert almost_red?(%{r: r, g: g, b: b, alpha: alpha}) == true
     end
   end
 

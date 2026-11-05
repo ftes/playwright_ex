@@ -17,6 +17,10 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()
+  @mac_webkit_frames_skip if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+                            do:
+                              "env: Mac WebKit (macOS 26) video frames leave the right/bottom of the viewport gray (upstream client too)"
+                          )
 
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
@@ -306,10 +310,10 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     Screencast.start!(Page.screencast(page), path: video_path, size: size)
     Screencast.stop!(Page.screencast(page))
     BrowserContext.close!(context)
-    expect_frames(video_path, size, &is_almost_white/1)
+    expect_frames(video_path, size, &almost_white?/1)
   end
 
-  @tag skip: @ffmpeg_skip
+  @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
   @tag :tmp_dir
   test "start dispose stops recording", %{browser: browser, tmp_dir: tmp_dir} do
     size = %{width: 800, height: 800}
@@ -324,31 +328,35 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  defp is_almost_white(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g > 185 and b > 185 and alpha == 255
+  defp almost_white?(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g > 185 and b > 185 and alpha == 255
 
-  defp is_almost_red(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g < 70 and b < 70 and alpha == 255
+  defp almost_red?(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g < 70 and b < 70 and alpha == 255
 
   defp find_pixel(pixels, pixel_predicate),
     do: Enum.find(for(<<r, g, b, alpha <- pixels>>, do: %{r: r, g: g, b: b, alpha: alpha}), pixel_predicate)
 
   defp expect_all(pixels, pixel_predicate) do
-    if bad_pixel = find_pixel(pixels, &(!pixel_predicate.(&1))) do
-      rgba = Enum.join([bad_pixel.r, bad_pixel.g, bad_pixel.b, bad_pixel.alpha], ", ")
-      {:name, name} = Function.info(pixel_predicate, :name)
+    case find_pixel(pixels, &(!pixel_predicate.(&1))) do
+      nil ->
+        :ok
 
-      flunk(
-        Enum.join(
-          [
-            "Expected all pixels to satisfy #{name}, found bad pixel (#{rgba})",
-            "Actual pixels=[#{Enum.join(:binary.bin_to_list(pixels), ",")}]"
-          ],
-          "\n"
+      bad_pixel ->
+        rgba = Enum.join([bad_pixel.r, bad_pixel.g, bad_pixel.b, bad_pixel.alpha], ", ")
+        {:name, name} = Function.info(pixel_predicate, :name)
+
+        flunk(
+          Enum.join(
+            [
+              "Expected all pixels to satisfy #{name}, found bad pixel (#{rgba})",
+              "Actual pixels=[#{Enum.join(:binary.bin_to_list(pixels), ",")}]"
+            ],
+            "\n"
+          )
         )
-      )
     end
   end
 
-  defp expect_red_frames(video_file, size), do: expect_frames(video_file, size, &is_almost_red/1)
+  defp expect_red_frames(video_file, size), do: expect_frames(video_file, size, &almost_red?/1)
 
   defp expect_frames(video_file, size, pixel_predicate) do
     video_player = VideoPlayer.new(video_file)
