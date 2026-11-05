@@ -270,3 +270,15 @@ Review: these shape the assertion API.
 - **coverage spec** passes `_coverage: true` through `Runtime.Api.call` (upstream casts it
   `as any`; the facade rejects unknown options).
 - **`logger` launch/context option** not exposed (both logger tests skipped).
+
+## 2026-11-05: Library specs group 6 (cookies, proxy, client certificates, popup)
+
+- **`PlaywrightEx.TestProxy`** (`test/support/test_proxy.ex`, port of `tests/config/proxy.ts`):
+  upstream uses the `proxy` npm package, so this is a minimal `:gen_tcp` forward proxy (absolute
+  URLs, CONNECT, WebSocket upgrade, 407 auth) plus a SOCKS5 server, as `setup` fixtures.
+- **`addCookies(cookies)` is an open object** (like storage state): `cookies()` returns
+  protocol-only fields (`_crHasCrossSiteAncestor`) that JS round-trips; the facade rejected them.
+- **client-certificates TLS renegotiation** skipped: Erlang `:ssl` can't renegotiate.
+- **bfcache** launches its own browser (`ignore_default_args`), as upstream `test.use`.
+- **Driver fragility**: an HTTPS proxy closing mid-handshake crashed the Node driver (unhandled
+  TLSSocket error). Test proxy now completes the handshake. Revisit: report upstream?
