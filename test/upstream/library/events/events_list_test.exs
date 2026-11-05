@@ -9,7 +9,6 @@ defmodule PlaywrightEx.Library.Events.EventsListTest do
   defp new_emitter(playwright), do: EventLoop.with_baton(playwright.loop, &EventEmitter.new/0)
 
   describe "EventEmitter" do
-    @tag skip: "bug: EventEmitter.eventNames: not in insertion order (heap :ets :set match)"
     test "should maintain event names correctly", %{playwright: playwright} do
       e = new_emitter(playwright)
       m = fn _ -> nil end

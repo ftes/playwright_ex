@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       EventLoop.with_baton(this.loop, fn ->
         for id <- [guid, {:channel, guid}] do
           :ets.match_delete(heap, {{id, :_}, :_})
-          :ets.match_delete(heap, {{id, :_, :_}, :_})
+          :ets.match_delete(heap, {{id, :_, :_}, :_, :_})
         end
       end)
     end

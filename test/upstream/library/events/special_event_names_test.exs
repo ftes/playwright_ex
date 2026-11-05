@@ -10,7 +10,6 @@ defmodule PlaywrightEx.Library.Events.SpecialEventNamesTest do
 
   # Deviation: `ee._events` is heap state here (no prototype), so its checks go through
   # `listeners/2`: `Object.prototype` names have no listeners.
-  @tag skip: "bug: EventEmitter.eventNames: not in insertion order (heap :ets :set match)"
   test "should support special event names", %{playwright: playwright} do
     ee = new_emitter(playwright)
     handler = fn _ -> nil end
