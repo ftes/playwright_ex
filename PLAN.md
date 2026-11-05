@@ -235,12 +235,17 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
     stay readable after dispose. Handle fields are `[:guid, :conn, :table, :type, :initializer]`;
     regenerate the facade structs.
   - A disposed object keeps its plain-field rows and settled latches until its anchor is
-    freed, so reads return the last value as in JS (writes are dropped). Anchors: the nearest
-    BrowserContext (for a context: its Browser), else the connection. A disposed Browser frees
-    what it anchors; its own rows stay until the connection closes. `_dispose` marks the object
-    (`{guid, :__retained__}`) and records it under its anchor (`{anchor, {:retained, guid}}`);
-    freeing walks that index with bounded prefix deletes. Fields of a freed object raise
-    TargetClosedError. Driver-collected objects (`gc`) are freed at once.
+    freed, so it reads and writes as in JS. Anchors: for a BrowserContext or Browser, the
+    process that created it (`ChannelOwner._set_creator/1` in the caller of newContext,
+    launchPersistentContext, launch/connect; implicit ones inherit the parent chain's creator,
+    else the connection), freed when that process exits (the Conn monitors it) or the
+    connection closes; for anything else, the nearest BrowserContext (else Browser) ancestor,
+    freed with it. `_dispose` marks the object (`{guid, :__retained__}`) and records it under its
+    anchor (`{anchor, {:retained, guid}}`, or `{:connection, {:anchored, pid, guid}}`); freeing
+    walks that index with bounded prefix deletes. Fields of a freed object raise
+    TargetClosedError (deviation: after the creator exits). Bound: a long-lived process keeps
+    the contexts it closed (~175 rows each) until it exits. Driver-collected objects (`gc`) are
+    freed at once.
 - `runtime/promise.ex` (same names), two storage kinds:
   - local `new/0,1`: resolve sends to the creator, from any process. Only the creator awaits,
     once.

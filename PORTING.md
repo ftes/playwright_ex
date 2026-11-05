@@ -72,6 +72,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   by its creator (a second await hangs).
 - A listener runs in a process of its own while the connection waits for it to return or first
   await. Blocking on non-Playwright work there stalls dispatch, as it would in JS.
+- A closed context (and what it owned) stays readable until the process that created it exits;
+  reads after that raise TargetClosedError. Tests read closed objects in the test process.
 - Check-then-subscribe (`if (!cond) await waitForEvent(...)`) is one tick in JS; here dispatch
   may run in between. Subscribe before the check, or make the check part of the subscription.
 - Public entry points run inside `PlaywrightEx.Runtime.Api.call/3` (the generated facade does
