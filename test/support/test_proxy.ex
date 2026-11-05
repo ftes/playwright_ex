@@ -17,6 +17,9 @@ defmodule PlaywrightEx.TestProxy do
     * The fixtures listen on ephemeral ports: `setup {PlaywrightEx.TestProxy, :proxy_server}`
       gives `proxy_server`, `setup {PlaywrightEx.TestProxy, :socks_port}` gives `socks_port`
       (both stopped after the test). `setup_socks_forwarding_server/1` ignores `:port`.
+    * Upstream listens dual-stack; this listens on `127.0.0.1` unless started with `ip:`
+      (`start_supervised!({TestProxy, ip: {0, 0, 0, 0, 0, 0, 0, 1}})` for an IPv6 proxy).
+      `proxyServer.requestUrls = []` is `clear_request_urls/1`.
   """
   use GenServer
 
@@ -63,11 +66,12 @@ defmodule PlaywrightEx.TestProxy do
   def request_hosts(%__MODULE__{pid: pid}), do: GenServer.call(pid, {:get, :request_hosts})
   def ws_urls(%__MODULE__{pid: pid}), do: GenServer.call(pid, {:get, :ws_urls})
   def clear_connect_hosts(%__MODULE__{pid: pid}), do: GenServer.call(pid, {:put, :connect_hosts, []})
+  def clear_request_urls(%__MODULE__{pid: pid}), do: GenServer.call(pid, {:put, :request_urls, []})
 
   @impl true
   def init(opts) do
     {:ok, listen} =
-      :gen_tcp.listen(opts[:port] || 0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+      :gen_tcp.listen(opts[:port] || 0, [:binary, active: false, reuseaddr: true, ip: opts[:ip] || {127, 0, 0, 1}])
 
     {:ok, port} = :inet.port(listen)
     url = "http://localhost:#{port}"
