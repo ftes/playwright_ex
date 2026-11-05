@@ -630,9 +630,9 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       browser_name: browser_name,
       proxy_server: proxy_server
     } do
-      # test.skip(mode !== 'default'), process.env.HTTPS_PROXY = ...: the driver is another
-      # process, so a driver of its own started with HTTPS_PROXY (playwright-python's way). Its
-      # browser gets our environment, like upstream's `browser`, launched before the test set it.
+      # deviation: test.skip(mode !== 'default'), process.env.HTTPS_PROXY = ...: the driver is
+      # another process, so a driver of its own started with HTTPS_PROXY (playwright-python's way).
+      # Its browser gets our environment, like upstream's `browser`, launched before the test set it.
       name = :client_certificates_https_proxy_from_env
 
       playwright = start_playwright(name, [{"HTTPS_PROXY", "http://localhost:#{proxy_server.port}"}])
@@ -659,14 +659,20 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
     end
 
     test "should pass with matching certificates and when a http proxy is used from config but env is there", %{
-      browser: browser,
       start_cc_server: start_cc_server,
       asset: asset,
       browser_name: browser_name,
       proxy_server: proxy_server
     } do
-      # process.env.HTTPS_PROXY = `http://this-should-not-taken-into-account:4242`;  -- not ported: the
-      # driver runs out of process (its environment is fixed at start)
+      # deviation: process.env.HTTPS_PROXY = ...: a driver of its own started with it, as in the
+      # test above.
+      name = :client_certificates_https_proxy_config_and_env
+
+      playwright =
+        start_playwright(name, [{"HTTPS_PROXY", "http://this-should-not-taken-into-account:4242"}])
+
+      browser = BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(playwright), env: System.get_env())
+
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
       TestProxy.forward_to(proxy_server, URI.parse(server_url).port, allow_connect_requests: true)
 
@@ -688,6 +694,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       )
 
       Page.close!(page)
+      Browser.close!(browser)
     end
 
     test "should respect launch proxy and proxy bypass", %{
@@ -772,8 +779,10 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
          %{browser: browser, asset: asset, browser_name: browser_name} do
       for _tls_version <- ["TLSv1.3", "TLSv1.2"] do
         # test.step(`TLS version: ${tlsVersion}`)
-        # tls.createServer({ ..., SNICallback: (servername, cb) => cb(new Error('Connection rejected')) }):
-        # Node destroys the socket on the ClientHello; here a TCP server closes it after reading it.
+        # deviation: tls.createServer({ ..., minVersion/maxVersion: tlsVersion, SNICallback: (servername,
+        # cb) => cb(new Error('Connection rejected')) }): Node destroys the socket on the ClientHello,
+        # before any version is agreed; here a TCP server closes it after reading it, the same bytes
+        # on the wire for both versions (an `:ssl` server would send an alert instead).
         {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
         {:ok, port} = :inet.port(listen)
 
