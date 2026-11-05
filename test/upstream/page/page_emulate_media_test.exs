@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Page
+  alias PlaywrightEx.TestServer
 
   @moduletag :page
 
@@ -14,41 +15,177 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     end
   end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should emulate type @smoke"
+  defp assert_matches_media(page, media_query),
+    do: assert(matches_media?(page, media_query), ~s|Expected "#{media_query}" to match, but it did not|)
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should throw in case of bad media argument"
+  defp refute_matches_media(page, media_query),
+    do: refute(matches_media?(page, media_query), ~s|Expected "#{media_query}" not to match, but it did|)
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should emulate colorScheme should work @smoke"
+  test "should emulate type @smoke", %{page: page} do
+    assert Page.evaluate!(page, "() => matchMedia('screen').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('print').matches") == false
+    Page.emulate_media!(page, media: :print)
+    assert Page.evaluate!(page, "() => matchMedia('screen').matches") == false
+    assert Page.evaluate!(page, "() => matchMedia('print').matches") == true
+    Page.emulate_media!(page, %{})
+    assert Page.evaluate!(page, "() => matchMedia('screen').matches") == false
+    assert Page.evaluate!(page, "() => matchMedia('print').matches") == true
+    Page.emulate_media!(page, media: :null)
+    assert Page.evaluate!(page, "() => matchMedia('screen').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('print').matches") == false
+  end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should default to light"
+  test "should throw in case of bad media argument", %{page: page} do
+    # @ts-expect-error 'bad' is not a valid media type: passed as the wire string.
+    {:error, error} = Page.emulate_media(page, media: "bad")
+    assert Exception.message(error) =~ "media: expected one of (screen|print|no-override)"
+  end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should throw in case of bad colorScheme argument"
+  test "should emulate colorScheme should work @smoke", %{page: page} do
+    Page.emulate_media!(page, color_scheme: :light)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false
+    Page.emulate_media!(page, color_scheme: :dark)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == false
+  end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should work during navigation"
+  test "should default to light", %{page: page} do
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should change the actual colors in css"
+    Page.emulate_media!(page, color_scheme: :dark)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == false
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should emulate reduced motion"
+    Page.emulate_media!(page, color_scheme: :null)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
+  end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should keep reduced motion and color emulation after reload"
+  test "should throw in case of bad colorScheme argument", %{page: page} do
+    # @ts-expect-error 'bad' is not a valid media type: passed as the wire string.
+    {:error, error} = Page.emulate_media(page, color_scheme: "bad")
+    assert Exception.message(error) =~ "colorScheme: expected one of (dark|light|no-preference|no-override)"
+  end
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should emulate forcedColors "
+  test "should work during navigation", %{page: page, server: server} do
+    Page.emulate_media!(page, color_scheme: :light)
+    navigated = Task.async(fn -> Page.goto!(page, server.empty_page) end)
 
-  @tag skip: "not ported: Page.emulateMedia"
-  test "should emulate contrast "
+    for i <- 0..8 do
+      emulated =
+        Task.async(fn -> Page.emulate_media!(page, color_scheme: Enum.at([:dark, :light], Bitwise.band(i, 1))) end)
+
+      Process.sleep(1)
+      Task.await(emulated)
+    end
+
+    Task.await(navigated)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
+  end
+
+  test "should change the actual colors in css", %{page: page} do
+    Page.set_content!(page, """
+      <style>
+        @media (prefers-color-scheme: dark) {
+          div {
+            background: black;
+            color: white;
+          }
+        }
+        @media (prefers-color-scheme: light) {
+          div {
+            background: white;
+            color: black;
+          }
+        }
+
+      </style>
+      <div>Hello</div>
+    """)
+
+    get_background_color = fn ->
+      Page.eval_on_selector!(page, "div", "div => window.getComputedStyle(div).backgroundColor")
+    end
+
+    Page.emulate_media!(page, color_scheme: :light)
+    assert get_background_color.() == "rgb(255, 255, 255)"
+
+    Page.emulate_media!(page, color_scheme: :dark)
+    assert get_background_color.() == "rgb(0, 0, 0)"
+
+    Page.emulate_media!(page, color_scheme: :light)
+    assert get_background_color.() == "rgb(255, 255, 255)"
+  end
+
+  test "should emulate reduced motion", %{page: page} do
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: no-preference)').matches") == true
+    Page.emulate_media!(page, reduced_motion: :reduce)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: reduce)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: no-preference)').matches") == false
+    Page.emulate_media!(page, reduced_motion: :no_preference)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: reduce)').matches") == false
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: no-preference)').matches") == true
+    Page.emulate_media!(page, reduced_motion: :null)
+  end
+
+  test "should keep reduced motion and color emulation after reload", %{page: page, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/31328' })
+
+    # Pre-conditions
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: reduce)').matches") == false
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: active)').matches") == false
+
+    # Emulation
+    Page.emulate_media!(page, forced_colors: :active, reduced_motion: :reduce)
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: reduce)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: active)').matches") == true
+
+    # Force CanonicalBrowsingContext replacement in Firefox.
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
+      # Note: without 'onload', Firefox sometimes does not fire the load event
+      # over the protocol. The reason is unclear.
+      |> Plug.Conn.send_resp(200, """
+        <div>Hello there!</div>
+        <script>window.onload = () => console.log('onload')</script>
+      """)
+    end)
+
+    Page.goto!(page, server.empty_page)
+
+    assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: reduce)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: active)').matches") == true
+  end
+
+  test "should emulate forcedColors ", %{page: page} do
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == true
+    Page.emulate_media!(page, forced_colors: :none)
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == true
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: active)').matches") == false
+    Page.emulate_media!(page, forced_colors: :active)
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == false
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: active)').matches") == true
+    Page.emulate_media!(page, forced_colors: :null)
+    assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == true
+  end
+
+  test "should emulate contrast ", %{page: page} do
+    assert_matches_media(page, "(prefers-contrast: no-preference)")
+    Page.emulate_media!(page, contrast: :no_preference)
+    assert_matches_media(page, "(prefers-contrast: no-preference)")
+    refute_matches_media(page, "(prefers-contrast: more)")
+    Page.emulate_media!(page, contrast: :more)
+    refute_matches_media(page, "(prefers-contrast: no-preference)")
+    assert_matches_media(page, "(prefers-contrast: more)")
+    Page.emulate_media!(page, contrast: :null)
+    assert_matches_media(page, "(prefers-contrast: no-preference)")
+  end
 
   test "should report hover and fine pointer for desktop", %{page: page} do
-    assert matches_media?(page, "(hover: hover)"), ~s|Expected "(hover: hover)" to match, but it did not|
-    assert matches_media?(page, "(pointer: fine)"), ~s|Expected "(pointer: fine)" to match, but it did not|
+    assert_matches_media(page, "(hover: hover)")
+    assert_matches_media(page, "(pointer: fine)")
   end
 end

@@ -4,15 +4,15 @@ defmodule PlaywrightEx.Page.PageLeaksTest do
 
   @moduletag :page
 
-  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, requestGC, utility world)"
+  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, utility world)"
   test "click should not leak"
 
-  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, requestGC, utility world)"
+  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, utility world)"
   test "fill should not leak"
 
-  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, requestGC, utility world)"
+  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, utility world)"
   test "expect should not leak"
 
-  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, requestGC, utility world)"
+  @tag skip: "not ported: toImpl (server internals: leakedJSHandles, utility world)"
   test "waitFor should not leak"
 end

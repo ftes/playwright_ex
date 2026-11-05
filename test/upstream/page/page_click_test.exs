@@ -1008,8 +1008,26 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  @tag skip: "not ported: Page.requestGC"
-  test "should not retain removed iframe after clicking inside it"
+  test "should not retain removed iframe after clicking inside it", %{page: page} do
+    # it.skip(isAndroid, 'requesting gc is not enough');
+    Page.set_content!(page, ~s|<iframe srcdoc="<button>Click</button>"></iframe>|)
+    button = page |> Page.frame_locator("iframe") |> FrameLocator.get_by_role(:button)
+    Locator.wait_for!(button)
+
+    Page.evaluate!(page, """
+    () => {
+      window.iframeRef = new WeakRef(document.querySelector('iframe'));
+    }
+    """)
+
+    Locator.click!(button)
+    Page.evaluate!(page, "() => document.querySelector('iframe').remove()")
+    # Move the mouse away to release Chromium's own last-hovered-node retention.
+    Mouse.move!(Page.mouse(page), 500, 500)
+    Page.request_gc!(page)
+    retained = Page.evaluate!(page, "() => Boolean(window.iframeRef.deref())")
+    assert retained == false
+  end
 
   test "should click in a transformed iframe", %{page: page} do
     Page.set_content!(page, """
