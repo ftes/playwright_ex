@@ -119,7 +119,9 @@ defmodule PlaywrightEx.Client.RouteHandler do
           handled_promise,
           Promise.async(fn ->
             # A 1-arity handler gets only the route (as in the Python client); JS passes both.
-            if is_function(handler, 1), do: handler.(route), else: handler.(route, Route.request(route))
+            result = if is_function(handler, 1), do: handler.(route), else: handler.(route, Route.request(route))
+            # Promise.all adopts a returned promise
+            if is_struct(result, Promise), do: Promise.await(result), else: result
           end)
         ])
       )

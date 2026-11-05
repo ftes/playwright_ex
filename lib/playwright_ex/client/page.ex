@@ -547,9 +547,13 @@ defmodule PlaywrightEx.Client.Page do
     options = options || %{}
 
     predicate = fn request ->
-      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex),
-        do: _url_matches(this, Request.url(request), url_or_predicate),
-        else: url_or_predicate.(request)
+      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex) do
+        _url_matches(this, Request.url(request), url_or_predicate)
+      else
+        # await urlOrPredicate(request): a returned promise is awaited
+        result = url_or_predicate.(request)
+        if is_struct(result, Promise), do: Promise.await(result), else: result
+      end
     end
 
     trimmed_url = trim_url(url_or_predicate)
@@ -567,9 +571,13 @@ defmodule PlaywrightEx.Client.Page do
     options = options || %{}
 
     predicate = fn response ->
-      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex),
-        do: _url_matches(this, Response.url(response), url_or_predicate),
-        else: url_or_predicate.(response)
+      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex) do
+        _url_matches(this, Response.url(response), url_or_predicate)
+      else
+        # await urlOrPredicate(response): a returned promise is awaited
+        result = url_or_predicate.(response)
+        if is_struct(result, Promise), do: Promise.await(result), else: result
+      end
     end
 
     trimmed_url = trim_url(url_or_predicate)

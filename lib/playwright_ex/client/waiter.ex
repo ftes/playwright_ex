@@ -162,7 +162,11 @@ defmodule PlaywrightEx.Client.Waiter do
       Promise.new(fn resolve, reject ->
         listener_fun = fn event_arg ->
           try do
-            if predicate && !predicate.(event_arg) do
+            # await predicate(eventArg): a returned promise is awaited
+            result = if predicate, do: predicate.(event_arg)
+            result = if is_struct(result, Promise), do: Promise.await(result), else: result
+
+            if predicate && !result do
               nil
             else
               emitter.__struct__.remove_listener(emitter, event, listener)
