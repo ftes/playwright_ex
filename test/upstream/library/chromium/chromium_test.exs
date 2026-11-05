@@ -765,6 +765,11 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     end)
 
     me = self()
+    # The driver sends a worker's console only while someone subscribes to it: the context's
+    # subscription covers the window before the worker's (JS sends that within the dispatching
+    # tick; here it takes a few steps, and the first line of sw.js runs in between under load).
+    # deviation: subscribe-first (OTP runtime)
+    BrowserContext.on(context, :console, fn _ -> nil end)
     # deviation: subscribe-first (OTP runtime)
     BrowserContext.once(context, :service_worker, fn worker ->
       send(me, {:console, Worker.wait_for_event(worker, :console)})
