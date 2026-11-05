@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Client.BrowserType do
 
         browser = Browser.from(result.browser)
         Browser._connect_to_browser_type(browser, this, options, logger)
-        context = BrowserContext.from(result.context)
+        context = ChannelOwner._set_creator(BrowserContext.from(result.context))
         BrowserContext._initialize_har_from_options(context, options[:recordHar])
         context
       end)

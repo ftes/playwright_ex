@@ -243,6 +243,14 @@ defmodule PlaywrightEx.Runtime.Heap do
     do: :ets.select(table, [{{{guid, :"$1"}, :"$2"}, [], [{{:"$1", :"$2"}}]}])
 
   @doc false
+  # In the connection: frees a retained object's rows and those of the objects it anchors
+  # (`{guid, {:retained, child}}`, see `PlaywrightEx.Client.ChannelOwner._dispose/2`).
+  def release(table, guid) do
+    for {{:retained, child}, _} <- rows(%{table: table}, guid), do: release(table, child)
+    free_rows(%{table: table}, guid)
+  end
+
+  @doc false
   def free_rows(%{table: table}, guid) when is_binary(guid),
     do: :ets.select_delete(table, [{{{guid, :_}, :_}, [], [true]}])
 

@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Client.Browser do
         do: channel_call(this, :newContextForReuse, context_options, TimeoutSettings.k_no_timeout()),
         else: channel_call(this, :newContext, context_options, TimeoutSettings.k_no_timeout())
 
-    context = BrowserContext.from(response.context)
+    context = ChannelOwner._set_creator(BrowserContext.from(response.context))
     if for_reuse, do: put(context, :_forReuse, true)
     if options[:logger], do: put(context, :_logger, options.logger)
     BrowserContext._initialize_har_from_options(context, options[:recordHar])
@@ -81,6 +81,7 @@ defmodule PlaywrightEx.Client.Browser do
     # Note: when using connect(), `browserType` is different from `this._parent`.
     # This is why browser type is not wired up in the constructor,
     # and instead this separate method is called later on.
+    ChannelOwner._set_creator(this)
     put(this, :_browserType, browser_type)
     put(this, :_options, browser_options)
     put(this, :_logger, logger)

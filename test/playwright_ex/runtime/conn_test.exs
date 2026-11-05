@@ -328,6 +328,67 @@ defmodule PlaywrightEx.RuntimeConnTest do
 
       assert leftovers == []
     end
+
+    test "a process's closed contexts are freed when it exits", %{browser: browser, page: page, server: server} do
+      conn = page.conn
+      Page.goto!(page, server.empty_page)
+
+      cycle = fn ->
+        context = Browser.new_context!(browser)
+        page = BrowserContext.new_page!(context)
+        Page.route!(page, "**/*", fn route, _ -> Route.continue!(route) end)
+        Page.goto!(page, server.empty_page)
+        BrowserContext.close!(context)
+        {context, page}
+      end
+
+      # Warm the caches (localUtils' glob cache) in a process that exits.
+      Task.await(Task.async(cycle))
+      Process.sleep(50)
+      before = Conn.stats(conn)
+
+      task = Task.async(fn -> for _ <- 1..10, do: cycle.() end)
+      [{context, page} | _] = Task.await(task, 60_000)
+      Process.sleep(50)
+
+      assert Conn.stats(conn).rows == before.rows
+      # Reads after the creator exited raise (deviation: JS reads the last value).
+      assert_raise PlaywrightEx.TargetClosedError, fn -> BrowserContext.browser(context) end
+      assert_raise PlaywrightEx.TargetClosedError, fn -> Page.url(page) end
+    end
+
+    test "a long-lived process keeps the contexts it closed until it exits (bound: ~200 rows each)", %{
+      browser: browser,
+      page: page
+    } do
+      conn = page.conn
+      Task.await(Task.async(fn -> BrowserContext.close!(Browser.new_context!(browser)) end))
+      Process.sleep(50)
+      before = Conn.stats(conn)
+      test = self()
+
+      holder =
+        spawn(fn ->
+          for _ <- 1..200 do
+            context = Browser.new_context!(browser)
+            BrowserContext.new_page!(context)
+            BrowserContext.close!(context)
+          end
+
+          send(test, :closed)
+          receive do: (:exit -> :ok)
+        end)
+
+      assert_receive :closed, 120_000
+      Process.sleep(50)
+      retained = Conn.stats(conn).rows - before.rows
+      assert retained > 0
+      assert retained / 200 < 200
+
+      send(holder, :exit)
+      Process.sleep(100)
+      assert Conn.stats(conn).rows == before.rows
+    end
   end
 
   defp sub({ref, sub}) when is_reference(ref), do: sub

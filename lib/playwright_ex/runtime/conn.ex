@@ -27,6 +27,7 @@ defmodule PlaywrightEx.Runtime.Conn do
   use GenServer
 
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Invocation
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
@@ -83,6 +84,13 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   ## Called in this process
+
+  @doc false
+  # In the connection: `guid` (a retained object) is freed when `pid` exits.
+  def anchor(table, pid, guid) do
+    if !Process.get({:pw_anchor, pid}), do: Process.put({:pw_anchor, pid}, Process.monitor(pid))
+    :ets.insert(table, {{:connection, {:anchored, pid, guid}}, true})
+  end
 
   @doc false
   # `connection.onmessage`: buffered, sent at the end of this turn.
@@ -200,7 +208,15 @@ defmodule PlaywrightEx.Runtime.Conn do
     {:noreply, %{state | busy: busy} |> done(inv) |> drain() |> flush_out()}
   end
 
-  def handle_info({:DOWN, mref, :process, pid, _reason}, state) do
+  def handle_info({:DOWN, mref, :process, pid, _reason}, %{table: table} = state) do
+    # A retention anchor exited: free what it anchored.
+    if Process.get({:pw_anchor, pid}) == mref do
+      Process.delete({:pw_anchor, pid})
+      anchored = :ets.select(table, [{{{:connection, {:anchored, pid, :"$1"}}, :_}, [], [:"$1"]}])
+      for guid <- anchored, do: Heap.release(table, guid)
+      :ets.select_delete(table, [{{{:connection, {:anchored, pid, :_}}, :_}, [], [true]}])
+    end
+
     state =
       case Map.pop(state.procs, mref) do
         {nil, _} -> %{state | busy: Map.delete(state.busy, pid)}
@@ -378,7 +394,7 @@ defmodule PlaywrightEx.Runtime.Conn do
     kind, reason ->
       handler =
         try do
-          PlaywrightEx.Runtime.Heap.get(emitter, :_rejectionHandler)
+          Heap.get(emitter, :_rejectionHandler)
         rescue
           _ -> nil
         end

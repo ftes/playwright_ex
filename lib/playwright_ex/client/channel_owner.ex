@@ -23,6 +23,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Protocol.Metainfo
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
   alias PlaywrightEx.Runtime.Heap
@@ -214,12 +215,14 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   end
 
   # Elixir only, in the connection. JS keeps a disposed object readable (its last field values,
-  # its settled promises) while referenced. Here its rows are kept until its anchor is freed: the
-  # nearest BrowserContext ancestor (for a context: its Browser), else the connection; a Browser
-  # is freed with the connection, so in effect everything is kept until the connection closes.
+  # its settled promises) while referenced. Here its rows are kept until its anchor is freed:
+  #   * a BrowserContext or Browser: the process that created it (`_set_creator/1`, inherited
+  #     from the parent chain; else the connection), freed when that process exits;
+  #   * anything else: the nearest BrowserContext (else Browser) ancestor, freed with it.
   # Its listeners go (they never fire again; user listener processes stop) and pending latches
   # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (JS: unusable).
-  # deviation: retention outlives JS's (GC: while referenced): ~175 rows per closed context.
+  # deviation: reads after the creating process exits raise TargetClosedError (JS: GC while
+  # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
   defp _retire(this, reason) do
     error = TargetClosedError.new()
 
@@ -239,16 +242,21 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     end
 
     if reason == "gc" do
-      _release(this.table, this.guid)
+      Heap.release(this.table, this.guid)
     else
-      :ets.insert(this.table, {{_anchor(this), {:retained, this.guid}}, true})
       :ets.insert(this.table, {{this.guid, :__retained__}, true})
+
+      case _anchor(this) do
+        {:process, pid} -> Conn.anchor(this.table, pid, this.guid)
+        anchor -> :ets.insert(this.table, {{anchor, {:retained, this.guid}}, true})
+      end
     end
   end
 
   defp _anchor(this) do
-    types = if get(this, :_type) == "BrowserContext", do: ["Browser"], else: ["BrowserContext", "Browser"]
-    _anchor(get(this, :_parent), types)
+    if get(this, :_type) in ["BrowserContext", "Browser"],
+      do: _creator(this),
+      else: _anchor(get(this, :_parent), ["BrowserContext", "Browser"])
   end
 
   defp _anchor(nil, _types), do: :connection
@@ -260,10 +268,23 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     TargetClosedError -> :connection
   end
 
-  # Frees a retained object's rows, and those of the objects it anchors.
-  defp _release(table, guid) do
-    for {{:retained, child}, _} <- Heap.rows(%{table: table}, guid), do: _release(table, child)
-    Heap.free_rows(%{table: table}, guid)
+  defp _creator(nil), do: :connection
+
+  defp _creator(object) do
+    case get(object, :_creator) do
+      pid when is_pid(pid) -> {:process, pid}
+      nil -> _creator(get(object, :_browser) || get(object, :_parent))
+    end
+  rescue
+    TargetClosedError -> :connection
+  end
+
+  @doc false
+  # Elixir only: records the calling process as the creator of a BrowserContext or Browser it
+  # obtained (the retention anchor of its rows after dispose, see `_retire/2`).
+  def _set_creator(this) do
+    if !Conn.in_conn?(), do: put(this, :_creator, self())
+    this
   end
 
   defp sub({:latch, _} = sub), do: sub
