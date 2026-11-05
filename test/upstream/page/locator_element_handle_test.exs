@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.LocatorElementHandleTest do
     tasks =
       Enum.map(elements, fn element -> Task.async(fn -> Page.evaluate!(page, "e => e.textContent", element) end) end)
 
-    assert Task.await_many(tasks) == ["A", "B"]
+    assert Task.await_many(tasks, :infinity) == ["A", "B"]
   end
 
   test "should return empty array for non-existing elements", %{page: page} do

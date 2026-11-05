@@ -150,7 +150,9 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
         |> Enum.map(fn page -> Task.async(fn -> Page.goto!(page, server.empty_page) end) end)
         |> Task.await_many(:infinity)
 
-        pages |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end) |> Task.await_many(:infinity)
+        pages
+        |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end)
+        |> Task.await_many(:infinity)
       end)
 
     refute warning =~ "MaxListenersExceededWarning"

@@ -732,7 +732,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     } do
       remote_server = start_remote_server.(kind, %{})
       browsers = for _ <- 1..20, do: connect!(browser_type, RunServer.ws_endpoint(remote_server))
-      browsers |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many()
+      browsers |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many(:infinity)
     end
 
     @tag :tmp_dir

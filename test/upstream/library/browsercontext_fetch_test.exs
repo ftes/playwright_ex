@@ -466,7 +466,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     wait_for_redirects = fn ->
       tasks = for path <- ["/redirect1", "/a/b/redirect2", "/title.html"], do: TestServer.wait_for_request(server, path)
       APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/redirect1")
-      Task.await_many(tasks)
+      Task.await_many(tasks, :infinity)
     end
 
     [req1, req2, req3] = wait_for_redirects.()
@@ -714,7 +714,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       for path <- ["/a/redirect1", "/b/c/redirect2", "/simple.json"], do: TestServer.wait_for_request(server, path)
 
     APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/a/redirect1", headers: %{"foo" => "bar"})
-    [req1, req2, req3] = Task.await_many(tasks)
+    [req1, req2, req3] = Task.await_many(tasks, :infinity)
     assert request_header(req1, "foo") == "bar"
     assert request_header(req2, "foo") == "bar"
     assert request_header(req3, "foo") == "bar"
@@ -729,7 +729,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       for path <- ["/a/redirect1", "/b/c/redirect2", "/simple.json"], do: TestServer.wait_for_request(server, path)
 
     APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/a/redirect1")
-    [req1, req2, req3] = Task.await_many(tasks)
+    [req1, req2, req3] = Task.await_many(tasks, :infinity)
     assert request_header(req1, "my-secret") == "Value"
     assert request_header(req2, "my-secret") == "Value"
     assert request_header(req3, "my-secret") == "Value"
@@ -1122,7 +1122,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     post = Task.async(fn -> APIRequestContext.post(BrowserContext.request(context), server.empty_page) end)
     Task.await(request_received)
     BrowserContext.close!(context)
-    [{:error, error}, {:error, _}] = Task.await_many([get, post])
+    [{:error, error}, {:error, _}] = Task.await_many([get, post], :infinity)
     assert is_exception(error)
     assert Exception.message(error) =~ ~r/Request context disposed|Target page, context or browser has been closed/
     assert_receive :connection_closed, 5000

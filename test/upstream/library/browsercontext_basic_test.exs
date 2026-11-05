@@ -124,7 +124,9 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     end)
     |> Task.await_many(:infinity)
 
-    pages |> Enum.map(&Task.async(fn -> BrowserContext.close!(Page.context(&1)) end)) |> Task.await_many(:infinity)
+    pages
+    |> Enum.map(&Task.async(fn -> BrowserContext.close!(Page.context(&1)) end))
+    |> Task.await_many(:infinity)
   end
 
   test "window.open should use parent tab context", %{browser: browser, server: server} do
@@ -180,10 +182,13 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert Page.evaluate!(page2, "() => document.cookie") == "name=page2"
 
     # Cleanup contexts.
-    Task.await_many([
-      Task.async(fn -> BrowserContext.close!(context1) end),
-      Task.async(fn -> BrowserContext.close!(context2) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> BrowserContext.close!(context1) end),
+        Task.async(fn -> BrowserContext.close!(context2) end)
+      ],
+      :infinity
+    )
 
     assert Browser.contexts(browser) == []
   end
@@ -538,21 +543,27 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     context1 = Browser.new_context!(browser)
     context2 = Browser.new_context!(browser)
 
-    Task.await_many([
-      Task.async(fn -> BrowserContext.new_page!(context1) end),
-      Task.async(fn -> BrowserContext.new_page!(context1) end),
-      Task.async(fn -> BrowserContext.new_page!(context2) end),
-      Task.async(fn -> BrowserContext.new_page!(context2) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> BrowserContext.new_page!(context1) end),
+        Task.async(fn -> BrowserContext.new_page!(context1) end),
+        Task.async(fn -> BrowserContext.new_page!(context2) end),
+        Task.async(fn -> BrowserContext.new_page!(context2) end)
+      ],
+      :infinity
+    )
 
     BrowserContext.close!(context1)
     BrowserContext.close!(context2)
     context3 = Browser.new_context!(browser)
 
-    Task.await_many([
-      Task.async(fn -> BrowserContext.new_page!(context3) end),
-      Task.async(fn -> BrowserContext.new_page!(context3) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> BrowserContext.new_page!(context3) end),
+        Task.async(fn -> BrowserContext.new_page!(context3) end)
+      ],
+      :infinity
+    )
 
     BrowserContext.close!(context3)
   end

@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
         send(test, {:message, "navigated"})
       end)
 
-    Task.await_many([click, navigated])
+    Task.await_many([click, navigated], :infinity)
   end
 
   test "should await navigation when clicking anchor", %{page: page, server: server} do

@@ -124,7 +124,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     task2 = TestServer.wait_for_request(server, "/b/c/redirect2")
     task3 = TestServer.wait_for_request(server, "/simple.json")
     APIRequestContext.get!(request, "#{server.prefix}/a/redirect1")
-    [req1, req2, req3] = Task.await_many([task1, task2, task3])
+    [req1, req2, req3] = Task.await_many([task1, task2, task3], :infinity)
     assert header(req1, "my-secret") == "Value"
     assert header(req2, "my-secret") == "Value"
     assert header(req3, "my-secret") == "Value"
@@ -496,7 +496,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     Task.await(wait)
     APIRequestContext.dispose!(request)
 
-    for result <- Task.await_many(tasks) do
+    for result <- Task.await_many(tasks, :infinity) do
       assert {:error, error} = result
       assert Exception.message(error) =~ "Request context disposed."
     end
@@ -526,7 +526,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     task1 = TestServer.wait_for_request(server, "/redirect")
     task2 = TestServer.wait_for_request(server, "/empty.html")
     result = APIRequestContext.post!(request, server.prefix <> "/redirect", data: %{"foo" => "bar"})
-    [req1, req2] = Task.await_many([task1, task2])
+    [req1, req2] = Task.await_many([task1, task2], :infinity)
     assert APIResponse.status(result) == 200
     assert header(req1, "content-length") == "13"
     assert header(req2, "content-length") == nil

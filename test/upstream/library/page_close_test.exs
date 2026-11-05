@@ -35,10 +35,13 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     Page.set_content!(page, "<div id=node>Text content</div>")
 
     [error, _] =
-      Task.await_many([
-        Task.async(fn -> Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 100_000) end),
-        Task.async(fn -> Page.close!(page) end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 100_000) end),
+          Task.async(fn -> Page.close!(page) end)
+        ],
+        :infinity
+      )
 
     assert strip_ansi(message(error)) =~ "expect(locator).toHaveText(expected)"
     refute strip_ansi(message(error)) =~ "Timed out"
@@ -66,10 +69,13 @@ defmodule PlaywrightEx.Library.PageCloseTest do
 
   test "should reject all promises when page is closed", %{page: page} do
     [error, _] =
-      Task.await_many([
-        Task.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end),
-        Task.async(fn -> Page.close!(page) end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end),
+          Task.async(fn -> Page.close!(page) end)
+        ],
+        :infinity
+      )
 
     assert message(error) =~ @k_target_closed_error_message
   end
@@ -101,10 +107,13 @@ defmodule PlaywrightEx.Library.PageCloseTest do
   end
 
   test "should be callable twice", %{page: page} do
-    Task.await_many([
-      Task.async(fn -> Page.close!(page) end),
-      Task.async(fn -> Page.close!(page) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> Page.close!(page) end),
+        Task.async(fn -> Page.close!(page) end)
+      ],
+      :infinity
+    )
 
     Page.close!(page)
   end
@@ -135,10 +144,13 @@ defmodule PlaywrightEx.Library.PageCloseTest do
            do: "upstream fixme: makes the next test to always timeout"
          )
   test "should not throw UnhandledPromiseRejection when page closes", %{page: page} do
-    Task.await_many([
-      Task.async(fn -> Page.close(page) end),
-      Task.async(fn -> Mouse.click(Page.mouse(page), 1, 2) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> Page.close(page) end),
+        Task.async(fn -> Mouse.click(Page.mouse(page), 1, 2) end)
+      ],
+      :infinity
+    )
   end
 
   test "interrupt request.response() and request.allHeaders() on page.close",

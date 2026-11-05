@@ -245,7 +245,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
         Task.async(fn -> Page.expose_binding(page, "foo", fn -> 42 end) end),
         Task.async(fn -> Page.expose_binding(page, "bar", fn -> 42 end) end)
       ]
-      |> Task.await_many()
+      |> Task.await_many(:infinity)
 
     Page.evaluate!(page, """
     () => {

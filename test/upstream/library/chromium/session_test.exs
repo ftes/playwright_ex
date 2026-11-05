@@ -18,10 +18,13 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   test "should work", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
 
-    Task.await_many([
-      Task.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
-      Task.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
+        Task.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
+      ],
+      :infinity
+    )
 
     foo = Page.evaluate!(page, "() => window['foo']")
     assert foo == "bar"
@@ -95,10 +98,13 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   test "should work with main frame", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), Page.main_frame(page))
 
-    Task.await_many([
-      Task.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
-      Task.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
+        Task.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
+      ],
+      :infinity
+    )
 
     foo = Page.evaluate!(page, "() => window['foo']")
     assert foo == "bar"

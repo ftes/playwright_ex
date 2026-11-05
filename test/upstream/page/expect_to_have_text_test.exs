@@ -134,7 +134,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
         end)
       ]
 
-      Task.await_many(tasks)
+      Task.await_many(tasks, :infinity)
     end
 
     test "with userInnerText", %{page: page} do

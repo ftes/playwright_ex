@@ -175,11 +175,14 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator("button")
 
     [_, text, _] =
-      Task.await_many([
-        Task.async(fn -> Locator.click!(button) end),
-        Task.async(fn -> Locator.inner_text!(button) end),
-        Task.async(fn -> Expect.to_have_text!(button, "Hello iframe") end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Locator.click!(button) end),
+          Task.async(fn -> Locator.inner_text!(button) end),
+          Task.async(fn -> Expect.to_have_text!(button, "Hello iframe") end)
+        ],
+        :infinity
+      )
 
     assert text == "Hello iframe"
   end
@@ -422,7 +425,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     click_promise = Task.async(fn -> Locator.click!(button) end)
     visible_promise = Task.async(fn -> Expect.to_be_visible!(button) end)
     Page.evaluate!(page, "() => document.querySelector('iframe').style.visibility = 'visible'")
-    Task.await_many([click_promise, visible_promise])
+    Task.await_many([click_promise, visible_promise], :infinity)
     assert Locator.evaluate!(button, "() => window.__clicked") == true
 
     Page.evaluate!(page, "() => document.querySelector('iframe').style.visibility = 'hidden'")

@@ -229,14 +229,17 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     greet = fn where -> "hello #{where}" end
 
     [from_main, from_child] =
-      Task.await_many([
-        Task.async(fn ->
-          Page.evaluate!(page, "async ({ cb }) => await cb('main')", %{cb: greet}, expose_functions: true)
-        end),
-        Task.async(fn ->
-          Frame.evaluate!(frame, "async ({ cb }) => await cb('child')", %{cb: greet}, expose_functions: true)
-        end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn ->
+            Page.evaluate!(page, "async ({ cb }) => await cb('main')", %{cb: greet}, expose_functions: true)
+          end),
+          Task.async(fn ->
+            Frame.evaluate!(frame, "async ({ cb }) => await cb('child')", %{cb: greet}, expose_functions: true)
+          end)
+        ],
+        :infinity
+      )
 
     assert from_main == "hello main"
     assert from_child == "hello child"

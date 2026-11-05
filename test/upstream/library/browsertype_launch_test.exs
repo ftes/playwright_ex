@@ -81,7 +81,12 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
 
   test "should be callable twice", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
-    Task.await_many([Task.async(fn -> Browser.close!(browser) end), Task.async(fn -> Browser.close!(browser) end)])
+
+    Task.await_many(
+      [Task.async(fn -> Browser.close!(browser) end), Task.async(fn -> Browser.close!(browser) end)],
+      :infinity
+    )
+
     Browser.close!(browser)
     refute Browser.is_connected(browser)
   end

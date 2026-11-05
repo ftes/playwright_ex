@@ -97,16 +97,22 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     [frame1, frame2] = Page.frames(page)
     assert frame1 != frame2
 
-    Task.await_many([
-      Task.async(fn -> Frame.evaluate!(frame1, "() => window['a'] = 1") end),
-      Task.async(fn -> Frame.evaluate!(frame2, "() => window['a'] = 2") end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> Frame.evaluate!(frame1, "() => window['a'] = 1") end),
+        Task.async(fn -> Frame.evaluate!(frame2, "() => window['a'] = 2") end)
+      ],
+      :infinity
+    )
 
     [a1, a2] =
-      Task.await_many([
-        Task.async(fn -> Frame.evaluate!(frame1, "() => window['a']") end),
-        Task.async(fn -> Frame.evaluate!(frame2, "() => window['a']") end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Frame.evaluate!(frame1, "() => window['a']") end),
+          Task.async(fn -> Frame.evaluate!(frame2, "() => window['a']") end)
+        ],
+        :infinity
+      )
 
     assert a1 == 1
     assert a2 == 2

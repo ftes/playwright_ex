@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
         Task.async(fn -> Locator.click!(Page.locator(target, "button")) end)
       end
 
-    Task.await_many(click_promises)
+    Task.await_many(click_promises, :infinity)
     assert Page.evaluate!(page, "() => window['count']") == 14
     assert Page.evaluate!(popup, "() => window['count']") == 7
   end

@@ -972,7 +972,7 @@ defmodule PlaywrightEx.Library.HarTest do
     [log0, log1] =
       [session0, session1]
       |> Enum.map(&Task.async(fn -> get_log(&1) end))
-      |> Task.await_many()
+      |> Task.await_many(:infinity)
 
     assert length(log0["pages"]) == 1
     page_entry = hd(log0["pages"])

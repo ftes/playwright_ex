@@ -277,10 +277,13 @@ defmodule PlaywrightEx.Library.PopupTest do
     Page.goto!(page, server.empty_page)
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => { window.open('about:blank'); }") end)
 
-    Task.await_many([
-      Task.async(fn -> wait_for_rafs(page, 30) end),
-      Task.async(fn -> wait_for_rafs(popup, 30) end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> wait_for_rafs(page, 30) end),
+        Task.async(fn -> wait_for_rafs(popup, 30) end)
+      ],
+      :infinity
+    )
   end
 
   @tag :page

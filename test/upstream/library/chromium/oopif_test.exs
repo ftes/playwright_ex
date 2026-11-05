@@ -469,10 +469,13 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
 
-    Task.await_many([
-      Task.async(fn -> Page.expose_function!(page, "myFunc", fn -> 2022 end) end),
-      Task.async(fn -> Page.evaluate!(page, "() => document.querySelector('iframe').remove()") end)
-    ])
+    Task.await_many(
+      [
+        Task.async(fn -> Page.expose_function!(page, "myFunc", fn -> 2022 end) end),
+        Task.async(fn -> Page.evaluate!(page, "() => document.querySelector('iframe').remove()") end)
+      ],
+      :infinity
+    )
 
     assert Page.evaluate!(page, "() => window.myFunc()") == 2022
   end

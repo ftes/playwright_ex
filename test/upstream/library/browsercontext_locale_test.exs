@@ -111,7 +111,9 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     # it.slow();
     context1 = Browser.new_context!(browser, locale: "en-US")
     # By default firefox limits number of child web processes to 8.
-    1..8 |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context1) end) end) |> Task.await_many(60_000)
+    1..8
+    |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context1) end) end)
+    |> Task.await_many(60_000)
 
     context2 = Browser.new_context!(browser, locale: "ru-RU")
     page2 = BrowserContext.new_page!(context2)
@@ -127,7 +129,9 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     Enum.each(numbers, fn value -> assert value == "1,000,000.5" end)
     assert Page.evaluate!(page2, locale_number) == "1\u00A0000\u00A0000,5"
 
-    [context1, context2] |> Enum.map(&Task.async(fn -> BrowserContext.close!(&1) end)) |> Task.await_many(60_000)
+    [context1, context2]
+    |> Enum.map(&Task.async(fn -> BrowserContext.close!(&1) end))
+    |> Task.await_many(60_000)
   end
 
   test "should not change default locale in another context", %{browser: browser} do

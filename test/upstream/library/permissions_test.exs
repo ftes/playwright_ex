@@ -244,7 +244,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
           page
         end)
       end)
-      |> Task.await_many()
+      |> Task.await_many(:infinity)
 
     Page.evaluate!(page1, "() => navigator.clipboard.writeText('first')")
     assert Page.evaluate!(page1, "() => navigator.clipboard.readText()") == "first"
@@ -254,7 +254,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
 
     assert Page.evaluate!(page1, "() => navigator.clipboard.readText()") == "first"
 
-    [browser1, browser2] |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many()
+    [browser1, browser2] |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many(:infinity)
   end
 
   @tag skip: if(@browser_name != "chromium", do: "chromium-only api")

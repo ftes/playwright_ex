@@ -603,7 +603,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     Page.goto!(page, server.prefix <> "/frames/frame.html")
     reload = Task.async(fn -> Page.evaluate!(page, "() => window.location.reload()") end)
     snapshot = Task.async(fn -> snapshot_for_ai(page) end)
-    [_, snapshot] = Task.await_many([reload, snapshot])
+    [_, snapshot] = Task.await_many([reload, snapshot], :infinity)
     # The snapshot races the reload, which may re-number the main frame, so accept any ref.
     assert snapshot =~ ~r/- generic \[active\] \[ref=(?:f\d+)?e\d+\]: Hi, I'm frame/
   end

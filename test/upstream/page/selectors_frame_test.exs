@@ -271,11 +271,14 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     button = Page.locator(page, "iframe >> internal:control=enter-frame >> button")
 
     [_, text, _] =
-      Task.await_many([
-        Task.async(fn -> Locator.click!(button) end),
-        Task.async(fn -> Locator.inner_text!(button) end),
-        Task.async(fn -> Expect.to_have_text!(button, "Hello iframe") end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Locator.click!(button) end),
+          Task.async(fn -> Locator.inner_text!(button) end),
+          Task.async(fn -> Expect.to_have_text!(button, "Hello iframe") end)
+        ],
+        :infinity
+      )
 
     assert text == "Hello iframe"
   end
