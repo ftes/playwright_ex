@@ -23,7 +23,8 @@ defmodule PlaywrightEx.Client.JSHandle do
   def new(module \\ __MODULE__, parent, type, guid, initializer) do
     this = ChannelOwner.new(module, parent, type, guid, initializer)
     put(this, :_preview, get(this, :_initializer).preview)
-    EventEmitter.on(_channel(this), "previewUpdated", fn %{preview: preview} -> put(this, :_preview, preview) end)
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "previewUpdated", fn %{preview: preview} -> put(this, :_preview, preview) end)
     this
   end
 
