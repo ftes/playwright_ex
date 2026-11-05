@@ -80,7 +80,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   of JS-only API (api.json `only: ["js"]`, e.g. `launchServer`), of the in-process server
   (`toImpl`, `__testHook*`, heap counts) or of the test runner stay bodiless `not ported`: the
   driver's behaviour is the same under every client and upstream's to test. Port what
-  exercises the client.
+  exercises the client. Benchmark: playwright-python `tests/upstream_not_ported.txt` and
+  playwright-java `playwright/src/test/upstream_not_ported.txt` (rules against upstream's
+  `tests/registry.md`); a spec they run (e.g. via the driver's `launch-server` CLI) we run too.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream.

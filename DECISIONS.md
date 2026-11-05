@@ -598,8 +598,10 @@ drift). Blockers for release, assigned to follow-up workstreams:
   Require `Tests` instead.
 - CI retries test failures once (`|| if [[ $? = 2 ]]; then mix test --failed; ...`, as in ptp),
   like upstream's `retries: 3` on CI. Compile/warnings errors (exit 1) are not retried.
-- `launchServer` specs stay `not ported` (your call): PORTING north star, no more specs than
-  the non-JS clients.
+- `launchServer`: the API stays out (JS-only), and so does its own spec
+  (`browsertype-launch-server`), as in Python. Correction: I first said no other client runs
+  launchServer specs; Python and Java do, through a test fixture over the driver's
+  `launch-server` CLI. By the north star those specs are ported (workstream BB2).
 - CI concurrency like upstream: `max_cases` is half the schedulers on CI (Playwright's default
   workers: half the logical cores; 2 on a 4-vCPU runner), ExUnit's default (2x) elsewhere.
   Modules already run their tests serially, as upstream's `fullyParallel: false` on CI.

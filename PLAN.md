@@ -159,7 +159,8 @@ Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
   body (`Waiter.waitForPromise`), not an implicit try: same behaviour, upstream's shape.
 - Out of scope: `launchServer`, `connectOverCDP(transport)`, function serialization,
   inspector; Electron/Android optional. `launchServer`/`BrowserServer` are JS-only in api.json;
-  their specs stay `not ported` (PORTING, Tests: no more specs than the non-JS clients).
+  specs using a launched server run on a test fixture over the driver's `launch-server` CLI,
+  as Python's and Java's suites do (PORTING, Tests).
 
 ## Spike results
 
