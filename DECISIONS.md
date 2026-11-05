@@ -438,6 +438,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **Parity checks every upstream file**: each `client/*.ts` needs a module with `@upstream` or
   an entry in `@unported_client_files`; each `tests/{page,library}/**/*.spec.ts` needs a mirror
   or an entry in `@unmirrored_specs` (both in `playwright_ex.parity.ex`, per file, with reasons).
+  Superseded for specs by the test registry (workstream MM): unmirrored specs need all their
+  tests ruled out in `test/upstream_not_ported.txt`.
   Stale entries (file gone upstream, or now ported) fail too, so version rolls surface new files.
 - **Unported client files**: `types.ts`, `channels.d.ts` (type-only), `clientInstrumentation.ts`
   (instrumentation not ported, per-call-site markers), `android.ts`, `electron.ts` (not in the
@@ -652,3 +654,26 @@ drift). Blockers for release, assigned to follow-up workstreams:
   that file. They pass, so drop the commit if you want strict north-star parity.
 - Fixtures are stopped only by an explicit close. An aborted run can orphan servers and their
   browsers; workstream OO makes them exit on stdin EOF.
+
+## 2026-11-05: Upstream test registry (workstream MM)
+- Adopted Python/Java's mechanism: `test/upstream_registry.md` (upstream `tests/registry.md`) and
+  rules in `test/upstream_not_ported.txt`, applied by `UpstreamCase`, checked by parity. Per-test
+  `not ported` tags and `@unmirrored_specs` are gone.
+- Bodiless tests under an unconditional upstream skip/fixme count as accounted for without a
+  rule (39). Registry rows newer than the pin and renamed mirrored tests are warnings, not
+  failures (version skew with Python's registry copy).
+- Reasons say what the test needs that we lack, in words; Python's wording where it applies
+  (SI-007..009).
+- North star: `mix playwright_ex.parity --north-star` diffs our rules with Python's.
+- Merge with BB2: launchServer/multiclient/signals/launcher rules dropped (those specs run).
+  `browser-server` (Browser.bind, Python runs it) is ported in the merge, on a driver of its own
+  with `PWTEST_SERVER_REGISTRY`.
+
+## 2026-11-05: GC fixes (workstream JJ)
+- No GC-free alternative found (handles must be freed for long sessions). Measured pauses:
+  ~5 ms typical, 100-350 ms at 20-60k heap rows.
+- Fixes: parked units hold back only older objects; handles returned from a Task stay rooted
+  for the caller (`$callers`); calls on freed owners raise `TargetClosedError` (as the server
+  answers JS for an unknown guid).
+- Open: a write barrier / cached edges to cut pause times (recommended); the cap of >1000 promise
+  handles per process vs. the Promise docs.
