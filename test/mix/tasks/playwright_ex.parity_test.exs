@@ -195,4 +195,18 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
     assert Parity.check_skips([file], fn _, member -> member == "emulateMedia" end) ==
              ["stale skip: #{file}:2 cites Page.emulateMedia, which is ported"]
   end
+
+  test "check_files/4: unclaimed files that are not excluded, and stale exclusions" do
+    files = ~w(a.ts b.ts c.ts d.ts)
+    claimed = MapSet.new(~w(a.ts d.ts other.ts))
+    exclusions = %{"b.ts" => "type-only", "d.ts" => "ported since", "gone.ts" => "removed upstream"}
+
+    assert Parity.check_files(files, claimed, exclusions, "no module") == [
+             "c.ts: no module",
+             "d.ts: excluded but has a module with `@upstream` for it, drop the exclusion",
+             "gone.ts: excluded but not found upstream, drop the exclusion"
+           ]
+
+    assert Parity.check_files(~w(a.ts b.ts), claimed, %{"b.ts" => "type-only"}, "no module") == []
+  end
 end

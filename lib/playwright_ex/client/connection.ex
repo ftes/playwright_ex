@@ -88,7 +88,8 @@ defmodule PlaywrightEx.Client.Connection do
       put(this, :_localUtils, local_utils)
       put(this, :_rootObject, Root.new(this))
       put(this, :headers, headers)
-      # Classes that are not ported yet are DummyChannelOwners.
+      # Android and Electron are DummyChannelOwners: not ported (android.ts, electron.ts are not in
+      # the JS api.json at this pin). SocksSupport is a DummyChannelOwner upstream too.
       dummy = &DummyChannelOwner.new/4
 
       register_object_factories(this, %{

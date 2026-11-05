@@ -28,6 +28,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
   Markers are per line.
+- Every upstream client file needs a module (`mix playwright_ex.parity` fails otherwise). A
+  file left out on purpose (type-only, not in api.json) goes in `@unported_client_files` in
+  `Mix.Tasks.PlaywrightEx.Parity`, with a reason.
 - Upstream-shaped code has a few credo checks relaxed (`.credo.exs`), so statements stay in
   upstream order. Don't restructure ported code to please a linter.
 - Public methods take the JS arguments, options last as a map with JS keys (`launch(this,
@@ -83,6 +86,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   (ElementHandle), expect`) where a cited `Class.member` is exported by the client or facade.
   Port the test then. If the member exists but the test still needs something missing, say so
   in words (`not ported: Page.removeAllListeners behavior option`); the check skips prose.
+- Every spec in `tests/page` and `tests/library` (recursively) is mirrored, or listed with a
+  reason in `@unmirrored_specs` in `Mix.Tasks.PlaywrightEx.Parity` (driver internals, Node-only
+  tooling).
 - Fixtures mirror upstream's (`server`, `https_server`, `browser_type`, `browser`, `asset`, ...),
   see `PlaywrightEx.UpstreamCase`. `PlaywrightEx.TestServer` ports `tests/config/testserver`;
   assets and certs come from `PlaywrightEx.Upstream` (the pinned release, not vendored).
@@ -99,4 +105,6 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
    `mix playwright_ex.checksums`.
 2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`, commit the generated diff.
 3. `git diff vA vB -- packages/playwright-core/src/client tests/page tests/library` in upstream; port the hunks.
-4. `mix playwright_ex.parity` until clean, then `mix test`.
+4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
+   show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
+   update `@unported_client_files` / `@unmirrored_specs`.

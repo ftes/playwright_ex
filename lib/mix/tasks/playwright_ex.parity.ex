@@ -8,6 +8,12 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   Sources: `PlaywrightEx.Upstream.ensure!/0` (the pinned upstream release).
 
+    * Completeness: every upstream client file (`packages/playwright-core/src/client/*.ts`) needs a
+      module with `@upstream` for it (in `lib` or `test/support`), every spec
+      (`tests/page/**/*.spec.ts`, `tests/library/**/*.spec.ts`) a test module with `@upstream`
+      for it, unless listed with a reason in `@unported_client_files` / `@unmirrored_specs` in
+      this module. An exclusion for a file that is not upstream, or that has a module after all,
+      is stale. Review both lists on a version roll.
     * Modules with `@upstream "<path>.ts"` (nested modules inherit it): each upstream class
       maps to the module named after it (last alias segment), else to the module declaring
       `@upstream`; top-level functions map to that module too. An upstream method is
@@ -44,15 +50,88 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   # Elixir-side counterparts of the constructor and process plumbing, not reported by --extra.
   @not_extra ~w(new start_link child_spec init handle_call handle_cast handle_info terminate)
 
+  # Upstream files with no module or test module on purpose, path => reason. Review on a version
+  # roll: new upstream files show up as missing, removed or since-ported ones as stale.
+  @unported_client_files %{
+    "packages/playwright-core/src/client/android.ts" =>
+      "not in the JS api.json at this pin (Connection maps Android* to DummyChannelOwner)",
+    "packages/playwright-core/src/client/channels.d.ts" => "type-only (protocol channel types)",
+    "packages/playwright-core/src/client/clientInstrumentation.ts" =>
+      "instrumentation not ported (`not ported: instrumentation` markers at the call sites)",
+    "packages/playwright-core/src/client/electron.ts" =>
+      "not in the JS api.json at this pin (Connection maps Electron* to DummyChannelOwner)",
+    "packages/playwright-core/src/client/types.ts" => "type-only"
+  }
+
+  codegen = "inspector codegen/recorder UI (Node-only tooling)"
+  launch_server = "BrowserType.launchServer (out of scope, see PLAN.md)"
+  injected = "injected script internals (driver side, not the client)"
+
+  @unmirrored_specs %{
+    "tests/library/browser-server.spec.ts" => launch_server,
+    "tests/library/browsertype-launch-server.spec.ts" => launch_server,
+    "tests/library/component-parser.spec.ts" => "isomorphic component parser (test-runner tooling)",
+    "tests/library/css-parser.spec.ts" => "isomorphic CSS selector parser (driver side)",
+    "tests/library/debug-controller.spec.ts" => "debug controller (driver-side tooling protocol)",
+    "tests/library/inspector/cli-codegen-1.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-2.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-3.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-aria.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-csharp.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-java.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-javascript.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-pick-locator.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-pytest.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-python-async.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-python.spec.ts" => codegen,
+    "tests/library/inspector/cli-codegen-test.spec.ts" => codegen,
+    "tests/library/inspector/console-api.spec.ts" => codegen,
+    "tests/library/inspector/pause.spec.ts" => codegen,
+    "tests/library/inspector/recorder-api.spec.ts" => codegen,
+    "tests/library/inspector/title.spec.ts" => codegen,
+    # Revisit with PLAN "Then" item 4 (Elixir locator rendering), or when locatorGenerators /
+    # locatorParser are ported.
+    "tests/library/locator-generator.spec.ts" => "isomorphic locator generators (not ported)",
+    "tests/library/locator-parser.spec.ts" => "isomorphic locator parser (not ported)",
+    "tests/library/role-utils.spec.ts" => injected,
+    "tests/library/selector-generator.spec.ts" => injected,
+    "tests/library/snapshot-renderer.spec.ts" => "trace snapshot renderer (trace viewer internals)",
+    "tests/library/trace-viewer.spec.ts" => "trace viewer UI (Node-only tooling)",
+    "tests/library/unit/android-webviews.spec.ts" => "server internals (Android)",
+    "tests/library/unit/clock.spec.ts" => "injected clock internals (driver side)",
+    "tests/library/unit/codegen.spec.ts" => "trace viewer codegen (Node-only tooling)",
+    "tests/library/unit/json-schema.spec.ts" => "isomorphic JSON schema validator (driver side)",
+    "tests/library/unit/sequence.spec.ts" => "server internals",
+    "tests/page/expect-builtins.spec.ts" => "jest generic matchers (test runner, see PLAN.md)",
+    "tests/page/matchers.misc.spec.ts" => "jest generic matchers (test runner, see PLAN.md)"
+  }
+
   @impl true
   def run(argv) do
     {opts, _} = OptionParser.parse!(argv, strict: [extra: :boolean])
     upstream = PlaywrightEx.Upstream.ensure!()
     Mix.Task.run("compile")
 
+    lib_modules =
+      Enum.flat_map(Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), &elixir_modules/1)
+
+    test_modules = Enum.flat_map(Path.wildcard("test/**/*_test.exs"), &elixir_modules/1)
+
     problems =
-      check_modules(upstream, Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), opts[:extra]) ++
-        check_tests(upstream, Path.wildcard("test/**/*_test.exs")) ++
+      check_files(
+        upstream_files(upstream, ["packages/playwright-core/src/client/*.ts"]),
+        claimed(lib_modules),
+        @unported_client_files,
+        "no module with `@upstream` for it (port it or list it in @unported_client_files)"
+      ) ++
+        check_files(
+          upstream_files(upstream, ["tests/page/**/*.spec.ts", "tests/library/**/*.spec.ts"]),
+          claimed(test_modules),
+          @unmirrored_specs,
+          "no test module with `@upstream` for it (mirror it or list it in @unmirrored_specs)"
+        ) ++
+        check_modules(upstream, lib_modules, opts[:extra]) ++
+        check_tests(upstream, test_modules) ++
         check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
         check_facade(upstream)
 
@@ -64,6 +143,38 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     end
   end
 
+  # --- upstream files --------------------------------------------------------
+
+  defp upstream_files(upstream, patterns) do
+    for pattern <- patterns, path <- Path.wildcard(Path.join(upstream, pattern)), uniq: true do
+      Path.relative_to(path, upstream)
+    end
+  end
+
+  defp claimed(modules), do: for(%{upstream: path} when is_binary(path) <- modules, into: MapSet.new(), do: path)
+
+  @doc false
+  # Problems for upstream `files` that no module claims and `exclusions` (path => reason) does
+  # not list, and for exclusions that are stale: not upstream, or claimed after all.
+  def check_files(files, claimed, exclusions, missing_message) do
+    unclaimed =
+      for file <- Enum.sort(files),
+          file not in claimed,
+          not Map.has_key?(exclusions, file),
+          do: "#{file}: #{missing_message}"
+
+    stale =
+      for {file, _reason} <- Enum.sort(exclusions) do
+        cond do
+          file not in files -> "#{file}: excluded but not found upstream, drop the exclusion"
+          file in claimed -> "#{file}: excluded but has a module with `@upstream` for it, drop the exclusion"
+          true -> nil
+        end
+      end
+
+    unclaimed ++ Enum.reject(stale, &is_nil/1)
+  end
+
   # --- facade ----------------------------------------------------------------
 
   defp check_facade(upstream) do
@@ -73,9 +184,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   # --- modules ---------------------------------------------------------------
 
-  defp check_modules(upstream, files, extra?) do
-    modules = Enum.flat_map(files, &elixir_modules/1)
-
+  defp check_modules(upstream, modules, extra?) do
     modules
     |> Enum.filter(&(&1.upstream && String.ends_with?(&1.upstream, ".ts") && !&1.generated))
     |> Enum.group_by(& &1.upstream)
@@ -313,9 +422,8 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   # --- tests -----------------------------------------------------------------
 
-  defp check_tests(upstream, files) do
-    files
-    |> Enum.flat_map(&elixir_modules/1)
+  defp check_tests(upstream, modules) do
+    modules
     |> Enum.filter(&(&1.upstream && String.ends_with?(&1.upstream, ".spec.ts")))
     |> Enum.sort_by(& &1.upstream)
     |> Enum.flat_map(fn mod ->
