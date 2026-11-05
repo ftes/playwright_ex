@@ -97,6 +97,15 @@ defmodule PlaywrightEx.Client.ClientHelper do
     end
   end
 
+  # Elixir only: `String(number)`: integral floats have no fraction (`100.0` is `"100"`).
+  @doc false
+  def number_to_string(number) when is_integer(number), do: Integer.to_string(number)
+
+  def number_to_string(number) when is_float(number) and number == trunc(number) and abs(number) < 1.0e21,
+    do: Integer.to_string(trunc(number))
+
+  def number_to_string(number) when is_float(number), do: Float.to_string(number)
+
   # Elixir only: JS truthiness (`!!value`, the left side of `||`).
   @doc false
   def truthy(value), do: value not in [nil, false, :null, "", 0, +0.0, -0.0]

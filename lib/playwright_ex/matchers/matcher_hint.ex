@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Matchers.MatcherHint do
   """
 
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Runtime.Heap
 
   defmodule ExpectError do
@@ -118,18 +119,22 @@ defmodule PlaywrightEx.Matchers.MatcherHint do
 
     pad = if align, do: " ", else: ""
     message = if details[:locator], do: message <> "Locator: #{pad}#{details.locator}\n", else: message
-    message = if truthy(details[:printedExpected]), do: message <> details.printedExpected <> "\n", else: message
-    message = if truthy(details[:printedReceived]), do: message <> details.printedReceived <> "\n", else: message
 
     message =
-      if details[:timedOut] && truthy(details[:timeout]),
+      if ClientHelper.truthy(details[:printedExpected]), do: message <> details.printedExpected <> "\n", else: message
+
+    message =
+      if ClientHelper.truthy(details[:printedReceived]), do: message <> details.printedReceived <> "\n", else: message
+
+    message =
+      if details[:timedOut] && ClientHelper.truthy(details[:timeout]),
         do: message <> "Timeout: #{pad}#{details.timeout}ms\n",
         else: message
 
-    message = if truthy(details[:printedDiff]), do: message <> details.printedDiff <> "\n", else: message
+    message = if ClientHelper.truthy(details[:printedDiff]), do: message <> details.printedDiff <> "\n", else: message
 
     message =
-      if truthy(details[:errorMessage]) do
+      if ClientHelper.truthy(details[:errorMessage]) do
         message = message <> details.errorMessage
         if !String.ends_with?(details.errorMessage, "\n"), do: message <> "\n", else: message
       else
@@ -140,7 +145,7 @@ defmodule PlaywrightEx.Matchers.MatcherHint do
   end
 
   def call_log_text(utils, log) do
-    if !log or !Enum.any?(log, &truthy/1) do
+    if !log or !Enum.any?(log, &ClientHelper.truthy/1) do
       ""
     else
       """
@@ -161,7 +166,6 @@ defmodule PlaywrightEx.Matchers.MatcherHint do
   end
 
   # JS truthiness of strings and numbers.
-  defp truthy(value), do: value not in [nil, false, "", 0]
 
   # JS `String(value)`.
   defp js_string(nil), do: "undefined"

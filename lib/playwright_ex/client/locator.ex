@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Client.Locator do
   # is left out: AbortSignal is not ported (PLAN).
 
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.ElementHandle
@@ -27,12 +28,12 @@ defmodule PlaywrightEx.Client.Locator do
 
   def new(frame, selector, options \\ nil) do
     selector =
-      if truthy(options[:hasText]),
+      if ClientHelper.truthy(options[:hasText]),
         do: selector <> " >> internal:has-text=#{StringUtils.escape_for_text_selector(options.hasText, false)}",
         else: selector
 
     selector =
-      if truthy(options[:hasNotText]),
+      if ClientHelper.truthy(options[:hasNotText]),
         do: selector <> " >> internal:has-not-text=#{StringUtils.escape_for_text_selector(options.hasNotText, false)}",
         else: selector
 
@@ -167,7 +168,12 @@ defmodule PlaywrightEx.Client.Locator do
 
   def highlight(this, options \\ %{}) do
     options = options || %{}
-    style = if is_map(options[:style]), do: css_object_to_string(options.style), else: options[:style]
+    # typeof options.style === 'object': a map, or a keyword list to keep the key order (maps are unordered).
+    style =
+      if is_map(options[:style]) or is_list(options[:style]),
+        do: css_object_to_string(options.style),
+        else: options[:style]
+
     Frame._highlight(this._frame, this._selector, style)
     DisposableStub.new(fn -> hide_highlight(this) end)
   end
@@ -542,9 +548,6 @@ defmodule PlaywrightEx.Client.Locator do
 
   # utils monotonicTime(), in milliseconds.
   defp monotonic_time, do: System.monotonic_time(:millisecond)
-
-  # JS truthiness of a `string | RegExp` option.
-  defp truthy(value), do: value not in [nil, false, ""]
 
   # Elixir only: `#PlaywrightEx.Locator<selector>`, like the handles (`toString` needs the driver).
   defimpl Inspect do

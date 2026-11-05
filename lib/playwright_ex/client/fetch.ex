@@ -466,7 +466,8 @@ defmodule PlaywrightEx.Client.APIResponse do
 
   def text(this) do
     content = body(this)
-    content
+    # content.toString('utf8')
+    String.replace_invalid(content)
   end
 
   def json(this) do

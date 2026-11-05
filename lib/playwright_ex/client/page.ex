@@ -1100,15 +1100,24 @@ defmodule PlaywrightEx.Client.Page do
     # if (transportOptions.margin) transportOptions.margin = { ...transportOptions.margin };  -- maps are immutable
 
     transport_options =
-      if is_number(options[:width]), do: %{transport_options | width: "#{options.width}px"}, else: transport_options
+      if is_number(options[:width]),
+        do: %{transport_options | width: ClientHelper.number_to_string(options.width) <> "px"},
+        else: transport_options
 
     transport_options =
-      if is_number(options[:height]), do: %{transport_options | height: "#{options.height}px"}, else: transport_options
+      if is_number(options[:height]),
+        do: %{transport_options | height: ClientHelper.number_to_string(options.height) <> "px"},
+        else: transport_options
 
     transport_options =
       Enum.reduce([:top, :right, :bottom, :left], transport_options, fn index, transport_options ->
         if options[:margin] && is_number(options.margin[index]),
-          do: put_in(transport_options, [:margin, index], "#{transport_options.margin[index]}px"),
+          do:
+            put_in(
+              transport_options,
+              [:margin, index],
+              ClientHelper.number_to_string(transport_options.margin[index]) <> "px"
+            ),
           else: transport_options
       end)
 

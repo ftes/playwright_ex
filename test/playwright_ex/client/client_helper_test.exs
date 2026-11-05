@@ -1,5 +1,5 @@
-defmodule PlaywrightEx.Client.JsonTest do
-  # Not mirrored from upstream: JS `null` (`:null`) through `JSON.stringify`/`JSON.parse` of user values.
+defmodule PlaywrightEx.Client.ClientHelperTest do
+  # Not mirrored from upstream: the Elixir-only JS helpers (`null`, truthiness, `String(number)`) end to end.
   @upstream nil
   use PlaywrightEx.UpstreamCase, async: true
 
@@ -31,6 +31,13 @@ defmodule PlaywrightEx.Client.JsonTest do
   test "truthy: JS falsy values" do
     for value <- [nil, false, :null, "", 0, +0.0, -0.0], do: refute(ClientHelper.truthy(value))
     for value <- [true, "a", 1, %{}, [], :atom], do: assert(ClientHelper.truthy(value))
+  end
+
+  test "number_to_string: as JS String(number)" do
+    assert ClientHelper.number_to_string(100) == "100"
+    assert ClientHelper.number_to_string(100.0) == "100"
+    assert ClientHelper.number_to_string(-0.0) == "0"
+    assert ClientHelper.number_to_string(8.5) == "8.5"
   end
 
   @tag :page

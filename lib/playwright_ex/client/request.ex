@@ -45,7 +45,8 @@ defmodule PlaywrightEx.Client.Request do
   end
 
   def url(this) do
-    get(this, :_fallbackOverrides)[:url] || get(this, :_initializer).url
+    url = get(this, :_fallbackOverrides)[:url]
+    if ClientHelper.truthy(url), do: url, else: get(this, :_initializer).url
   end
 
   def resource_type(this) do
@@ -53,11 +54,15 @@ defmodule PlaywrightEx.Client.Request do
   end
 
   def method(this) do
-    get(this, :_fallbackOverrides)[:method] || get(this, :_initializer).method
+    method = get(this, :_fallbackOverrides)[:method]
+    if ClientHelper.truthy(method), do: method, else: get(this, :_initializer).method
   end
 
   def post_data(this) do
-    get(this, :_fallbackOverrides)[:postDataBuffer] || get(this, :_initializer)[:postData]
+    # (... ?? ...)?.toString('utf-8') ?? null
+    post_data = get(this, :_fallbackOverrides)[:postDataBuffer]
+    post_data = if post_data == nil, do: get(this, :_initializer)[:postData], else: post_data
+    if post_data != nil, do: String.replace_invalid(post_data)
   end
 
   def post_data_buffer(this) do
@@ -212,8 +217,11 @@ defmodule PlaywrightEx.Client.Request do
   end
 
   def _apply_fallback_overrides(this, overrides) do
-    if overrides[:url], do: update(this, :_fallbackOverrides, &Map.put(&1, :url, overrides.url))
-    if overrides[:method], do: update(this, :_fallbackOverrides, &Map.put(&1, :method, overrides.method))
+    if ClientHelper.truthy(overrides[:url]), do: update(this, :_fallbackOverrides, &Map.put(&1, :url, overrides.url))
+
+    if ClientHelper.truthy(overrides[:method]),
+      do: update(this, :_fallbackOverrides, &Map.put(&1, :method, overrides.method))
+
     if overrides[:headers], do: update(this, :_fallbackOverrides, &Map.put(&1, :headers, overrides.headers))
 
     cond do
