@@ -110,4 +110,89 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
     assert Parity.ported_in_order(page) == ~w(b a c d b)
     assert Parity.ported_in_order(nested) == ~w(f g)
   end
+
+  test "skip_reasons/1: static reasons of skip tags, with their lines" do
+    source = ~S"""
+    defmodule T do
+      @no_server "not ported: TestServer.close"
+      @moduletag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
+
+      @tag skip: "not ported: Page.emulateMedia"
+      test "a"
+
+      describe "nested" do
+        @tag :page
+        @tag skip:
+               "not ported: Page.pdf " <>
+                 "(chromium only)"
+        test "b"
+      end
+
+      @tag skip: (case @browser_name do
+                    "firefox" -> "not ported: Worker.waitForEvent"
+                    _ -> false
+                  end)
+      test "c"
+
+      @tag skip: @no_server
+      test "d"
+
+      @tag skip: System.get_env("SKIP")
+      test "e"
+    end
+    """
+
+    assert Parity.skip_reasons(source) == [
+             {3, "upstream skip: webkit"},
+             {5, "not ported: Page.emulateMedia"},
+             {10, "not ported: Page.pdf (chromium only)"},
+             {16, "not ported: Worker.waitForEvent"},
+             {22, "not ported: TestServer.close"}
+           ]
+  end
+
+  test "cited_members/1: Class.member names outside parentheses of a reason that only lists API names" do
+    assert Parity.cited_members("not ported: Page.emulateMedia") == [{"Page", "emulateMedia"}]
+    assert Parity.cited_members("not ported: Locator.evaluate (ElementHandle), expect") == [{"Locator", "evaluate"}]
+
+    assert Parity.cited_members("not ported: waitForEvent, JSHandle.jsonValue and BrowserContext.storageState") ==
+             [{"JSHandle", "jsonValue"}, {"BrowserContext", "storageState"}]
+
+    assert Parity.cited_members("not ported: Page.removeAllListeners (behavior option)") ==
+             [{"Page", "removeAllListeners"}]
+
+    # Prose explains why a member that exists still cannot be used.
+    assert Parity.cited_members("not ported: Page.removeAllListeners behavior option") == []
+    assert Parity.cited_members("not ported: EventEmitter.emit with several arguments (one event argument)") == []
+    # Names in parentheses are context, not citations.
+    assert Parity.cited_members(
+             "not ported: toImpl (server internals: Frame.nonStallingRawEvaluateInExistingMainContext)"
+           ) ==
+             []
+
+    assert Parity.cited_members("not ported: utils.parsePattern (server-side)") == []
+    assert Parity.cited_members("upstream fixme: Page.emulateMedia") == []
+  end
+
+  test "ported?/2: the client or the facade exports the snake_case member" do
+    assert Parity.ported?("Page", "emulateMedia")
+    assert Parity.ported?("APIRequestContext", "storageState")
+    refute Parity.ported?("Frame", "nonStallingRawEvaluateInExistingMainContext")
+    refute Parity.ported?("Promise", "then")
+  end
+
+  @tag :tmp_dir
+  test "check_skips/2: a stale skip per cited member that is ported", %{tmp_dir: tmp_dir} do
+    file = Path.join(tmp_dir, "page_test.exs")
+
+    File.write!(file, ~S"""
+    defmodule PageTest do
+      @tag skip: "not ported: Page.emulateMedia, Page.requestGC"
+      test "a"
+    end
+    """)
+
+    assert Parity.check_skips([file], fn _, member -> member == "emulateMedia" end) ==
+             ["stale skip: #{file}:2 cites Page.emulateMedia, which is ported"]
+  end
 end

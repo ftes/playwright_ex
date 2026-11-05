@@ -21,6 +21,14 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       `test`, `browserTest`, ... including `.skip`/`.fixme`, flattened over `describe`) must
       equal the module's `test` names, compared as multisets, and come in the same order.
       Names built at runtime (template literals with `${`, concatenation) are not compared.
+    * Skip reasons in `test/upstream` (`@tag`/`@describetag`/`@moduletag skip:`, including
+      `<>`, `if`/`case`/`cond` branches and module attributes): a reason that only lists API
+      names, `not ported: <name>[ (<note>)][, <name>...]` (also joined with `and`), says those
+      are missing. A `Class.member` among them (outside parentheses) whose class module
+      (`PlaywrightEx.Client.<Class>` or the facade `PlaywrightEx.<Class>`) exports the
+      snake_case function is a stale skip. Any other wording is an explanation and is not
+      checked: a reason citing a ported member that still cannot be used says what is missing
+      in words (`not ported: Page.removeAllListeners behavior option`).
 
     * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
       `api.json` must give the committed files. It has every member, so a client function it
@@ -45,6 +53,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     problems =
       check_modules(upstream, Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), opts[:extra]) ++
         check_tests(upstream, Path.wildcard("test/**/*_test.exs")) ++
+        check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
         check_facade(upstream)
 
     if problems == [] do
@@ -344,5 +353,99 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   defp multiset_diff(expected, actual) do
     {Enum.sort(expected -- actual), Enum.sort(actual -- expected)}
+  end
+
+  # --- skip reasons ----------------------------------------------------------
+
+  @doc false
+  # "stale skip" problems for `not ported:` reasons citing members that `ported?.(class, member)`.
+  def check_skips(files, ported?) do
+    for file <- Enum.sort(files),
+        {line, reason} <- skip_reasons(File.read!(file)),
+        {class, member} <- cited_members(reason),
+        ported?.(class, member) do
+      "stale skip: #{file}:#{line} cites #{class}.#{member}, which is ported"
+    end
+  end
+
+  @doc false
+  # [{line, reason}] for `@tag`/`@describetag`/`@moduletag skip: <expr>`. The reasons are the
+  # static strings `<expr>` can evaluate to (literals, `<>`, `if`/`unless`/`case`/`cond`
+  # branches, module attributes set to those).
+  def skip_reasons(source) do
+    ast = Code.string_to_quoted!(source)
+
+    {_, attrs} =
+      Macro.prewalk(ast, %{}, fn
+        {:@, _, [{name, _, [value]}]} = node, attrs when is_atom(name) ->
+          {node, Map.put(attrs, name, value)}
+
+        node, attrs ->
+          {node, attrs}
+      end)
+
+    {_, reasons} =
+      Macro.prewalk(ast, [], fn
+        {:@, meta, [{tag, _, [opts]}]} = node, acc when tag in [:tag, :describetag, :moduletag] and is_list(opts) ->
+          reasons = if Keyword.keyword?(opts), do: static_strings(opts[:skip], attrs), else: []
+          {node, Enum.reverse(Enum.map(reasons, &{meta[:line], &1}), acc)}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.reverse(reasons)
+  end
+
+  defp static_strings(string, _attrs) when is_binary(string), do: [string]
+
+  defp static_strings({:<>, _, [left, right]}, attrs),
+    do: for(l <- static_strings(left, attrs), r <- static_strings(right, attrs), do: l <> r)
+
+  defp static_strings({op, _, [_, branches]}, attrs) when op in [:if, :unless] and is_list(branches),
+    do: Enum.flat_map(branches, fn {_, expr} -> static_strings(expr, attrs) end)
+
+  defp static_strings({:case, _, [_, [do: clauses]]}, attrs), do: clause_strings(clauses, attrs)
+  defp static_strings({:cond, _, [[do: clauses]]}, attrs), do: clause_strings(clauses, attrs)
+  defp static_strings({:__block__, _, [expr]}, attrs), do: static_strings(expr, attrs)
+
+  defp static_strings({:@, _, [{name, _, ctx}]}, attrs) when is_atom(ctx) and is_map_key(attrs, name) do
+    {value, attrs} = Map.pop(attrs, name)
+    static_strings(value, attrs)
+  end
+
+  defp static_strings(_, _attrs), do: []
+
+  defp clause_strings(clauses, attrs),
+    do: Enum.flat_map(clauses, fn {:->, _, [_, body]} -> static_strings(body, attrs) end)
+
+  @api_name ~S"[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*(?:\s*\([^()]*\))?"
+  @api_list Regex.compile!("^not ported: #{@api_name}(?:(?:,\\s*|\\s+and\\s+)#{@api_name})*$")
+
+  @doc false
+  # The `{Class, member}`s a reason says are missing: only a reason that is a list of API names
+  # (each optionally followed by one parenthetical) cites them, and only outside parentheses.
+  def cited_members(reason) do
+    reason = String.trim(reason)
+
+    if Regex.match?(@api_list, reason) do
+      reason = Regex.replace(~r/\([^()]*\)/, reason, "")
+      for [_, class, member] <- Regex.scan(~r/\b([A-Z][\w$]*)\.([A-Za-z_$][\w$]*)/, reason), do: {class, member}
+    else
+      []
+    end
+  end
+
+  @doc false
+  # Whether the client class or its facade module exports the member's snake_case function.
+  def ported?(class, member) do
+    name = underscore(member)
+
+    Enum.any?([PlaywrightEx.Client, PlaywrightEx], fn namespace ->
+      module = Module.concat(namespace, class)
+
+      Code.ensure_loaded?(module) and
+        Enum.any?(module.__info__(:functions), fn {fun, _} -> Atom.to_string(fun) == name end)
+    end)
   end
 end

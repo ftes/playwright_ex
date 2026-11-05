@@ -78,7 +78,11 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream.
 - Keep the upstream order. A test that is not ported stays as a bodiless test with a reason:
   `@tag skip: "not ported: Page"` followed by `test "should work"`.
-  `mix playwright_ex.parity` compares the names.
+  `mix playwright_ex.parity` compares the names. It also fails on stale skips: a reason that
+  only lists API names (`not ported: Page.emulateMedia`, `not ported: Locator.evaluate
+  (ElementHandle), expect`) where a cited `Class.member` is exported by the client or facade.
+  Port the test then. If the member exists but the test still needs something missing, say so
+  in words (`not ported: Page.removeAllListeners behavior option`); the check skips prose.
 - Fixtures mirror upstream's (`server`, `https_server`, `browser_type`, `browser`, `asset`, ...),
   see `PlaywrightEx.UpstreamCase`. `PlaywrightEx.TestServer` ports `tests/config/testserver`;
   assets and certs come from `PlaywrightEx.Upstream` (the pinned release, not vendored).
