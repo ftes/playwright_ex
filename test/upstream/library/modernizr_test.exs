@@ -88,6 +88,9 @@ defmodule PlaywrightEx.Library.ModernizrTest do
             @browser_name != "webkit" ->
               "upstream skip: webkit only"
 
+            match?({:unix, :linux}, :os.type()) ->
+              "env: Linux WebKit supports <input type=month>, the safari-26 report does not (upstream client too)"
+
             true ->
               nil
           end)

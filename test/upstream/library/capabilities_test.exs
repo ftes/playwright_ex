@@ -18,6 +18,12 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
   @is_windows match?({:win32, _}, :os.type())
+  # Upstream's CI runs Linux under xvfb-run: headless Firefox without a display finds no GL driver.
+  @no_display match?({:unix, :linux}, :os.type()) and System.get_env("DISPLAY") in [nil, ""]
+  @no_firefox_webgl if(@no_display and @browser_name == "firefox",
+                      do:
+                        "env: Linux Firefox without an X display has no WebGL (Exhausted GL driver options; upstream client too)"
+                    )
 
   # url.pathToFileURL(path).href
   defp file_url(path), do: "file://" <> path
@@ -131,6 +137,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert Page.eval_on_selector!(page, "audio", "e => e.currentTime") > 0.1
   end
 
+  @tag skip: @no_firefox_webgl
   test "should support webgl @smoke", %{page: page} do
     has_web_gl =
       Page.evaluate!(page, """
@@ -143,7 +150,8 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert has_web_gl == true
   end
 
-  @tag skip: if(@is_windows and @browser_name == "firefox", do: "upstream fixme: firefox on Windows")
+  @tag skip:
+         if(@is_windows and @browser_name == "firefox", do: "upstream fixme: firefox on Windows") || @no_firefox_webgl
   test "should support webgl 2 @smoke", %{page: page} do
     has_web_gl2 =
       Page.evaluate!(page, """
