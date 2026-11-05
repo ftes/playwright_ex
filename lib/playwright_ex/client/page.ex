@@ -898,6 +898,8 @@ defmodule PlaywrightEx.Client.Page do
                 reraise(e, __STACKTRACE__)
 
               true ->
+                # deviation: a PlaywrightError without details (not from the call) reads as `{}`; JS
+                # throws a TypeError reading its fields.
                 details = Map.get(e, :details) || %{}
                 Map.merge(details, %{errorMessage: details[:customErrorMessage]})
             end
