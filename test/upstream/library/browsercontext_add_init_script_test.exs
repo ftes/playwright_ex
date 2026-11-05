@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     page = BrowserContext.new_page!(context)
 
     {:ok, popup} =
-      Page.expect_popup(page, fn -> Page.evaluate!(page, "() => { window['win'] = window.open(); }") end)
+      Page.expect_popup(page, fn -> Page.evaluate!(page, "() => window['win'] = window.open()") end)
 
     assert Page.evaluate!(popup, "() => window['temp']") == 123
   end
@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     Page.goto!(page, server.empty_page)
 
     {:ok, popup} =
-      Page.expect_popup(page, fn -> Page.evaluate!(page, "() => { window.open('about:blank'); }") end)
+      Page.expect_popup(page, fn -> Page.evaluate!(page, "() => window.open('about:blank')") end)
 
     assert Page.evaluate!(popup, "() => window.mul(6, 7)") == 42
   end
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     page = BrowserContext.new_page!(context)
 
     {:ok, popup} =
-      Page.expect_popup(page, fn -> Page.evaluate!(page, "() => { window.open('about:blank'); }") end)
+      Page.expect_popup(page, fn -> Page.evaluate!(page, "() => window.open('about:blank')") end)
 
     assert Page.evaluate!(popup, "callCount") == 1
   end
