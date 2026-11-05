@@ -234,13 +234,22 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
   - `:_type`, `:_guid`, `:_initializer` and `:_connection` come from the handle struct, so they
     stay readable after dispose. Handle fields are `[:guid, :conn, :table, :type, :initializer]`;
     regenerate the facade structs.
-  - Mutable fields of a disposed object raise TargetClosedError.
-- `runtime/promise.ex` (same names), three kinds:
+  - A disposed object keeps its plain-field rows and settled latches until its anchor is
+    freed, so reads return the last value as in JS (writes are dropped). Anchors: the nearest
+    BrowserContext (for a context: its Browser), else the connection. A disposed Browser frees
+    what it anchors; its own rows stay until the connection closes. `_dispose` marks the object
+    (`{guid, :__retained__}`) and records it under its anchor (`{anchor, {:retained, guid}}`);
+    freeing walks that index with bounded prefix deletes. Fields of a freed object raise
+    TargetClosedError. Driver-collected objects (`gc`) are freed at once.
+- `runtime/promise.ex` (same names), two storage kinds:
   - local `new/0,1`: resolve sends to the creator, from any process. Only the creator awaits,
     once.
   - latch `new(owner[, executor])`: a row on the owner, awaitable many times from any process,
-    rejected on dispose.
-  - async `async/1`: a holder process, taken once; `shared: true` for the facade.
+    rejected on dispose if pending; a settled latch keeps its value while its owner is retained.
+  - `async/1,2` is no third kind: a process runs the fun and resolves a local promise for the
+    creator; `owner: obj` resolves a latch on `obj`, `shared: true` a latch owned by the creator
+    process (`ProcessOwner`, freed when it exits). Rule for Phase 1: a promise awaited more than
+    once or stored in a field is a latch.
   - Also: `void/1` is fire-and-forget; `then_`/`catch_` are lazy and run in the awaiter.
     `race`/`all` arm the promises, then selective-receive: a losing local stays pending, losing
     latches and asyncs are disarmed. Plus `timer/1`, `resolved/1`, `rejected/1`. `await` inside
@@ -257,8 +266,8 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
     - `on_sync/3`: runs inline in the connection, for pure state updates.
     - mailbox: for waiters.
     - `_pendingHandlers` holds invocation refs.
-  - `channel_owner.ex`: `_dispose` deletes rows, stops subscription processes and rejects
-    latches. `_update_subscription` becomes a post from inside the connection. Remove
+  - `channel_owner.ex`: `_dispose` drops listener rows, stops subscription processes, rejects
+    pending latches and retains the rest under the object's anchor (see `heap.ex` above). `_update_subscription` becomes a post from inside the connection. Remove
     `_reset_heap_state`.
   - `connection.ex`: registering the callback and writing the message happen in one `atomic`
     (`# deviation:`). The await monitors the connection process.

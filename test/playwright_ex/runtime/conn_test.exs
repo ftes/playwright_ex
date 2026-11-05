@@ -287,12 +287,18 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert {:error, %PlaywrightEx.TargetClosedError{}} = Page.goto(page, server.empty_page)
     end
 
-    test "closing a browser frees everything it anchored", %{browser: browser, page: page, server: server} do
+    test "closed objects keep their fields only: no listeners, callbacks or processes", %{
+      browser: browser,
+      page: page,
+      server: server
+    } do
       conn = page.conn
-      browser_type = Browser.browser_type(browser)
+      Page.goto!(page, server.empty_page)
+      before = Conn.stats(conn)
+      own = PlaywrightEx.BrowserType.launch!(Browser.browser_type(browser))
 
-      cycle = fn browser ->
-        context = Browser.new_context!(browser)
+      for _ <- 1..10 do
+        context = Browser.new_context!(own)
         page = BrowserContext.new_page!(context)
         Page.on(page, :request, fn _ -> :ok end)
         Page.route!(page, "**/*", fn route, _ -> Route.continue!(route) end)
@@ -303,28 +309,29 @@ defmodule PlaywrightEx.RuntimeConnTest do
         BrowserContext.close!(context)
       end
 
-      # Settle the fixture context's own startup and warm the caches (localUtils' glob cache).
-      Page.goto!(page, server.empty_page)
-      cycle.(browser)
-      Process.sleep(50)
-      before = Conn.stats(conn)
-
-      own = PlaywrightEx.BrowserType.launch!(browser_type)
-      for _ <- 1..20, do: cycle.(own)
-      # Disposed contexts are retained while their browser lives.
-      assert Conn.stats(conn).rows > before.rows
       Browser.close!(own)
-
       Process.sleep(50)
       after_ = Conn.stats(conn)
-      # What stays: the closed browser's own rows (until the connection closes).
-      own_rows = length(:ets.select(own.table, [{{{own.guid, :_}, :_}, [], [true]}])) + 1
-      assert after_.rows == before.rows + own_rows
       assert after_.callbacks == 0
       assert after_.subscriptions <= before.subscriptions
       assert after_.frames == 0
+
+      retained = :ets.select(own.table, [{{{:"$1", :__retained__}, :_}, [], [:"$1"]}]) |> MapSet.new()
+      assert own.guid in retained
+
+      leftovers =
+        for {{guid, local}, value} <- :ets.tab2list(own.table),
+            MapSet.member?(retained, guid),
+            match?({:map, :_events, _}, sub(local)) or
+              (match?({:latch, _}, sub(local)) and match?({:pending, _}, value)),
+            do: {guid, local}
+
+      assert leftovers == []
     end
   end
+
+  defp sub({ref, sub}) when is_reference(ref), do: sub
+  defp sub(sub), do: sub
 
   defp flush do
     receive do

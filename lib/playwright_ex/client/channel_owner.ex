@@ -215,10 +215,11 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   # Elixir only, in the connection. JS keeps a disposed object readable (its last field values,
   # its settled promises) while referenced. Here its rows are kept until its anchor is freed: the
-  # nearest BrowserContext ancestor (for a context: its Browser), else the connection. A disposed
-  # Browser frees what it anchors at once (its own rows stay until the connection closes). Its
-  # listeners go (they never fire again; user listener processes stop) and pending latches are
-  # rejected. An object the driver collected (`reason: "gc"`) is freed at once (JS: unusable).
+  # nearest BrowserContext ancestor (for a context: its Browser), else the connection; a Browser
+  # is freed with the connection, so in effect everything is kept until the connection closes.
+  # Its listeners go (they never fire again; user listener processes stop) and pending latches
+  # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (JS: unusable).
+  # deviation: retention outlives JS's (GC: while referenced): ~175 rows per closed context.
   defp _retire(this, reason) do
     error = TargetClosedError.new()
 
@@ -240,10 +241,6 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     cond do
       reason == "gc" ->
         _release(this.table, this.guid)
-
-      get(this, :_type) == "Browser" ->
-        for {{:retained, guid}, _} <- Heap.rows(this, this.guid), do: _release(this.table, guid)
-        :ets.insert(this.table, {{:connection, {:retained, this.guid}}, true})
 
       true ->
         :ets.insert(this.table, {{_anchor(this), {:retained, this.guid}}, true})
