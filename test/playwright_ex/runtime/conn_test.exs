@@ -420,6 +420,15 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert Page.url(page) == server.empty_page
     end
 
+    # heap.spec.ts "should collect stale handles" (needs the in-process server's dispatcher limit):
+    # the driver's `__dispose__` with reason "gc", simulated.
+    test "a call on a collected object raises upstream's error", %{page: page, server: server} do
+      response = Page.goto!(page, server.empty_page)
+      Conn.run(page.conn, fn -> PlaywrightEx.Client.ChannelOwner._dispose(response, "gc") end)
+      {:error, e} = Response.body(response)
+      assert e.message =~ "The object has been collected to prevent unbounded heap growth."
+    end
+
     test "a disposed object is readable until its anchor is freed", %{browser: browser, server: server} do
       context = Browser.new_context!(browser)
       page = BrowserContext.new_page!(context)

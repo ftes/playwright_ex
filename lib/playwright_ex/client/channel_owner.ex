@@ -206,7 +206,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def _dispose(this, reason) do
     # Clean up from parent and connection.
     if get(this, :_parent), do: map_delete(get(this, :_parent), :_objects, this.guid)
-    # this._wasCollected = reason === 'gc';  -- not ported: a collected object's rows are freed at once (below)
+    # this._wasCollected = reason === 'gc';  -- see _retire/2 and _was_collected/1
     objects = map_values(this, :_objects)
     map_delete(get(this, :_connection), :_objects, this.guid)
 
@@ -222,7 +222,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   #     inherited from the parent chain; else the connection), freed when the last one exits;
   #   * anything else: the nearest BrowserContext (else Browser) ancestor, freed with it.
   # Its listeners go (they never fire again; user listener processes stop) and pending latches
-  # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (JS: unusable).
+  # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (deviation: JS
+  # still reads its fields); a tombstone (`_wasCollected`) stays until its anchor is freed.
   # deviation: reads after those processes exit raise TargetClosedError (JS: GC while
   # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
   defp _retire(this, reason) do
@@ -243,17 +244,30 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       end
     end
 
+    anchor = _anchor(this)
+
     if reason == "gc" do
       Heap.release(this.table, this.guid)
+      :ets.insert(this.table, {{this.guid, :__collected__}, true})
     else
       :ets.insert(this.table, {{this.guid, :__retained__}, true})
+    end
 
-      case _anchor(this) do
-        {:processes, pids} -> for pid <- pids, do: Conn.anchor(this.table, pid, this.guid)
-        anchor -> :ets.insert(this.table, {{anchor, {:retained, this.guid}}, true})
-      end
+    case anchor do
+      {:processes, pids} -> for pid <- pids, do: Conn.anchor(this.table, pid, this.guid)
+      anchor -> :ets.insert(this.table, {{anchor, {:retained, this.guid}}, true})
     end
   end
+
+  @doc false
+  # `this._wasCollected`: the driver collected it (`__dispose__` with reason "gc").
+  def _was_collected(%{table: table, guid: guid}) when is_binary(guid) do
+    :ets.member(table, {guid, :__collected__})
+  rescue
+    ArgumentError -> false
+  end
+
+  def _was_collected(_this), do: false
 
   defp _anchor(this) do
     if get(this, :_type) in ["BrowserContext", "Browser"],
@@ -317,8 +331,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     method = to_string(method)
     type = get(this, :_type)
     # Elixir only: a disposed object's rows were deleted; JS still sends, and the server answers
-    # for the unknown guid with a TargetClosedError.
-    if !Heap.alive?(this), do: _wrap_api_call(this, fn _ -> raise TargetClosedError.new() end)
+    # for the unknown guid with a TargetClosedError (a collected one: see send_message_to_server).
+    if !Heap.alive?(this) do
+      _wrap_api_call(this, fn _ ->
+        if _was_collected(this), do: raise("The object has been collected to prevent unbounded heap growth.")
+        raise TargetClosedError.new()
+      end)
+    end
 
     # JS: a missing validator falls through to `obj[prop]`, i.e. `undefined is not a function`.
     validator =

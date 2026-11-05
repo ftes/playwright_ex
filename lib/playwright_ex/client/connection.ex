@@ -178,12 +178,14 @@ defmodule PlaywrightEx.Client.Connection do
     cond do
       # Fire-and-forget: server intentionally never replies to __waitInfo__,
       # so silently drop it after the connection is closed or the object was collected.
-      # (`_wasCollected`: not ported, a disposed object's rows are deleted.)
-      method == "__waitInfo__" and get(this, :_closedError) ->
+      method == "__waitInfo__" and (get(this, :_closedError) || ChannelOwner._was_collected(object)) ->
         nil
 
       get(this, :_closedError) ->
         raise get(this, :_closedError)
+
+      ChannelOwner._was_collected(object) ->
+        raise "The object has been collected to prevent unbounded heap growth."
 
       true ->
         signal = options[:signal]
