@@ -28,7 +28,9 @@ defmodule PlaywrightEx.Client.Waiter do
     put(this, :_waitId, ClientHelper.create_guid())
     put(this, :_channelOwner, channel_owner)
 
-    # this._savedZone = currentZone().without('apiZone');  -- n/a: predicates run in the waiting process
+    # Elixir: also without `apiName` (`PlaywrightEx.Runtime.Api`), as a predicate's API calls are
+    # its own (JS derives the name from the stack).
+    put(this, :_savedZone, Map.drop(Zones.current_zone(), [:apiZone, :apiName]))
 
     title = "Wait for event \"#{event}\""
     _send_wait_info(this, %{waitId: get(this, :_waitId), phase: "before", event: event}, %{title: title})
@@ -90,12 +92,12 @@ defmodule PlaywrightEx.Client.Waiter do
   end
 
   def wait_for_event(this, emitter, event, predicate \\ nil) do
-    {promise, dispose} = wait_for_event_(emitter, event, nil, predicate)
+    {promise, dispose} = wait_for_event_(emitter, event, get(this, :_savedZone), predicate)
     wait_for_promise(this, promise, dispose)
   end
 
   def reject_on_event(this, emitter, event, error, predicate \\ nil) do
-    {promise, dispose} = wait_for_event_(emitter, event, nil, predicate)
+    {promise, dispose} = wait_for_event_(emitter, event, get(this, :_savedZone), predicate)
 
     _reject_on(
       this,
@@ -179,7 +181,8 @@ defmodule PlaywrightEx.Client.Waiter do
 
   # The listener is a mailbox subscription of this process; its predicate runs here when the
   # event message is received (JS: in emit). removeListener is the promise's cancel.
-  defp wait_for_event_(emitter, event, _saved_zone, predicate) do
+  defp wait_for_event_(emitter, event, saved_zone, predicate) do
+    predicate = if predicate, do: fn arg -> Zones.run(saved_zone, fn -> predicate.(arg) end) end
     promise = impl(emitter).subscribe(emitter, event, predicate)
     {promise, promise.cancel}
   end

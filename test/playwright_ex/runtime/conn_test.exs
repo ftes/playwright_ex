@@ -218,6 +218,22 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert {:messages, []} = Process.info(self(), :messages)
     end
 
+    test "a wait's predicate runs outside the wait's API call (savedZone)", %{page: page} do
+      test = self()
+
+      predicate = fn _ ->
+        send(test, {:zone, PlaywrightEx.Runtime.Zones.current_zone()})
+        true
+      end
+
+      promise = Page.wait_for_event(page, :console, predicate: predicate)
+      Page.evaluate!(page, "() => console.log('x')")
+      Promise.await!(promise)
+      assert_received {:zone, zone}
+      refute Map.has_key?(zone, :apiZone)
+      refute Map.has_key?(zone, :apiName)
+    end
+
     test "AbortSignal cancels a wait", %{page: page} do
       controller = AbortController.new()
       signal = AbortController.signal(controller)
