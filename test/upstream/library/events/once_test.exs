@@ -56,12 +56,17 @@ defmodule PlaywrightEx.Library.Events.OnceTest do
 
     EventEmitter.emit(e, "e")
 
-    # Verify that the listener must be a function  -- not ported: checkListener
+    # Verify that the listener must be a function (JS `null` is `:null`; TypeError is ArgumentError)
+    assert_raise ArgumentError, fn ->
+      ee = EventLoop.with_baton(loop, &EventEmitter.new/0)
+
+      EventEmitter.once(ee, "foo", :null)
+    end
 
     refute_received :must_not_call
     assert_calls()
   end
 
-  @tag skip: "not ported: EventEmitter.emit with several arguments (one event argument)"
+  @tag skip: "not ported: rest parameters (Elixir functions have a fixed arity; emit passes one argument)"
   test "once() has different code paths based on the number of arguments being emitted"
 end

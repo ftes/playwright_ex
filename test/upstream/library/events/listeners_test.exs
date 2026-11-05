@@ -23,6 +23,8 @@ defmodule PlaywrightEx.Library.Events.ListenersTest do
 
   def listener(_), do: nil
   def listener2(_), do: nil
+  def listener3(_), do: 0
+  def listener4(_), do: 1
 
   # Elixir lists are immutable: `listeners()` returns a copy by construction.
 
@@ -103,8 +105,14 @@ defmodule PlaywrightEx.Library.Events.ListenersTest do
     assert Enum.at(listeners, 1) == (&listener2/1)
   end
 
-  @tag skip: "not ported: JS-only: assigns the private `_events` field (ee._events = undefined)"
-  test "EventEmitter with no members"
+  test "EventEmitter with no members", %{loop: loop} do
+    ee = new_ee(loop)
+    # ee._events = undefined: a Map field without rows is the empty one.
+    Heap.map_clear(ee, :_events)
+    listeners = EventEmitter.listeners(ee, "foo")
+    assert is_list(listeners)
+    assert listeners == []
+  end
 
   test "listeners on prototype", %{loop: loop} do
     s = new_ee(loop, TestStream)
@@ -113,9 +121,36 @@ defmodule PlaywrightEx.Library.Events.ListenersTest do
     assert listeners == []
   end
 
-  @tag skip: "not ported: EventEmitter.rawListeners (listeners are stored unwrapped)"
-  test "raw listeners"
+  # A OnceWrapper's function is `{id, fun, listener}`: `.listener` is its third element, calling
+  # it calls `fun`.
+  test "raw listeners", %{loop: loop} do
+    ee = new_ee(loop)
+    EventEmitter.on(ee, "foo", &listener/1)
+    wrapped_listener = EventEmitter.raw_listeners(ee, "foo")
+    assert length(wrapped_listener) == 1
+    assert Enum.at(wrapped_listener, 0) == (&listener/1)
 
-  @tag skip: "not ported: EventEmitter.rawListeners (listeners are stored unwrapped)"
-  test "raw listeners order"
+    EventEmitter.once(ee, "foo", &listener/1)
+    wrapped_listeners = EventEmitter.raw_listeners(ee, "foo")
+    assert length(wrapped_listeners) == 2
+    assert Enum.at(wrapped_listeners, 0) == (&listener/1)
+    assert elem(Enum.at(wrapped_listeners, 1), 2) == (&listener/1)
+
+    EventEmitter.emit(ee, "foo")
+    assert length(wrapped_listeners) == 2
+    assert elem(Enum.at(wrapped_listeners, 1), 2) == (&listener/1)
+  end
+
+  test "raw listeners order", %{loop: loop} do
+    ee = new_ee(loop)
+    EventEmitter.once(ee, "foo", &listener3/1)
+    EventEmitter.on(ee, "foo", &listener4/1)
+    raw_listeners = EventEmitter.raw_listeners(ee, "foo")
+    assert length(raw_listeners) == 2
+    assert elem(Enum.at(raw_listeners, 0), 1).(nil) == 0
+
+    raw_listener = EventEmitter.raw_listeners(ee, "foo")
+    assert length(raw_listener) == 1
+    assert Enum.at(raw_listener, 0).(nil) == 1
+  end
 end

@@ -23,6 +23,11 @@ defmodule PlaywrightEx.Library.Events.PrependTest do
     assert for(_ <- 1..3, do: receive(do: ({:m, m} -> m), after: (0 -> nil))) == [0, 1, 2]
   end
 
-  @tag skip: "not ported: EventEmitter checkListener (listener type check)"
-  test "Verify that the listener must be a function"
+  # JS `null` is `:null`; TypeError is ArgumentError.
+  test "Verify that the listener must be a function", %{playwright: playwright} do
+    assert_raise ArgumentError, fn ->
+      ee = new_emitter(playwright)
+      EventEmitter.prepend_once_listener(ee, "foo", :null)
+    end
+  end
 end
