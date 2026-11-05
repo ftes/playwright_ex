@@ -201,8 +201,8 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       # There is no 'clipboard-read' permission in WebKit Web API.
       if browser_name != "webkit", do: assert(get_permission(page, "clipboard-read") == "prompt")
 
-      # isHeadlessShell: headless chromium is the headless shell.
-      if browser_name == "chromium" do
+      # isHeadlessShell: headless chromium (no channel).
+      if browser_name == "chromium" and PlaywrightEx.TestBrowser.headless() do
         # Chromium (but not headless-shell) shows a dialog and does not resolve the promise.
         {:error, error} = Page.evaluate(page, "() => navigator.clipboard.readText()")
         assert Exception.message(error) =~ "denied"
@@ -261,7 +261,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     [browser1, browser2] |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many(:infinity)
   end
 
-  @tag skip: if(@browser_name != "chromium", do: "chromium-only api")
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium-only api")
   test "storage access", %{page: page, context: context, server: server} do
     # https://github.com/microsoft/playwright/issues/31227
     BrowserContext.grant_permissions!(context, ["storage-access"])
@@ -292,7 +292,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
 
   # it.describe(() => { it.use({ ignoreHTTPSErrors: true }) }): secure context.
 
-  @tag skip: if(@browser_name != "chromium", do: "chromium-only api")
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium-only api")
   test "should be able to use the local-fonts API", %{context_factory: context_factory, https_server: https_server} do
     # it.skip(!!channel && channel.startsWith('msedge'), 'always times out in edge');
     # it.fixme(!headless, 'times out in headed');
@@ -364,9 +364,18 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       end
 
     assert response == "Hello there!"
-    assert_received {:server_request, "OPTIONS /cors"}
-    assert_received {:server_request, "POST /cors"}
-    refute_received {:server_request, _}
+    # serverRequests in order: each is sent before its response, so the preflight comes first.
+    server_requests =
+      Stream.repeatedly(fn ->
+        receive do
+          {:server_request, request} -> request
+        after
+          0 -> nil
+        end
+      end)
+      |> Enum.take_while(& &1)
+
+    assert server_requests == ["OPTIONS /cors", "POST /cors"]
     expected_client_request = "POST #{server.cross_process_prefix}/cors"
     assert_receive {:client_request, ^expected_client_request}
     refute_received {:client_request, _}

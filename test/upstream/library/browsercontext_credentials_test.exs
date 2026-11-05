@@ -9,9 +9,9 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
   alias PlaywrightEx.TestServer
 
   # base.extend({ failsOn401: browserName === 'chromium' && !isHeadlessShell }):
-  # headless chromium is the headless shell.
+  # isHeadlessShell is headless chromium (no channel).
   setup do
-    %{fails_on_401: false}
+    %{fails_on_401: @browser_name == "chromium" and not PlaywrightEx.TestBrowser.headless()}
   end
 
   # page.goto(url).catch(e => e)
