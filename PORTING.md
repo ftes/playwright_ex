@@ -130,6 +130,10 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 - Keep assertions verbatim (we announce `sdkLanguage: "javascript"`, as upstream). Options
   passed `as any` are rejected by the facade: assert that, with a comment.
 - CI-only failure or flake under load? Reproduce in the Linux container: `scripts/linux/README.md`.
+- Headed: `HEADED=1` is upstream's `--headed` (the `headless` fixture, `_defaultLaunchOptions`).
+  Tag tests that upstream skips when headless `:headful`: CI runs `HEADED=1 mix test --only
+  headful` (Linux: under `xvfb-run`). Other specs' `!headless` annotations stay comments, as we
+  run them headless.
 
 ## Bumping the pinned version
 

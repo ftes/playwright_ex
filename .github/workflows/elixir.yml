@@ -117,6 +117,12 @@ jobs:
         run: |
           export PATH=$JAVA_HOME_17_X64/bin:$PATH PWTEST_SELENIUM=$HOME/selenium PWTEST_CHROMEDRIVER=$CHROMEWEBDRIVER/chromedriver
           mix test test/upstream/library/browsertype_launch_selenium_test.exs || if [[ $? = 2 ]]; then mix test --failed; else false; fi
+      # Upstream runs headed-only tests (headful.spec.ts, `test.skip(headless)`) in its headed runs
+      # (`--headed`); HEADED=1 is that `headless: false` (PlaywrightEx.TestBrowser). Only the tests
+      # tagged :headful, under the same xvfb and in this job (no extra setup): ~10-20 s of tests.
+      # Blocking as the job is: green on all three browsers.
+      - name: Run headful tests
+        run: HEADED=1 xvfb-run --auto-servernum -- mix test --only headful || if [[ $? = 2 ]]; then HEADED=1 xvfb-run --auto-servernum -- mix test --failed; else false; fi
 
   # The one check to require: green when every blocking matrix entry is.
   tests:

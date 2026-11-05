@@ -21,7 +21,8 @@ defmodule PlaywrightEx.UpstreamSnapshot do
   failure. `.not`, string snapshots and anonymous (index-named) snapshots are not ported (unused).
 
   The same node bridge serves the specs' other image helpers: `compare_pngs/3`
-  (`tests/config/comparator.ts`) and `decode_image/2` (`utils.decodeWebp`, `PNG.sync.read`).
+  (`tests/config/comparator.ts`), `compare/2` (`utils.compare`) and `decode_image/2`
+  (`utils.decodeWebp`, `PNG.sync.read`).
   """
 
   import ExUnit.Assertions
@@ -40,6 +41,13 @@ defmodule PlaywrightEx.UpstreamSnapshot do
   const buffer = fs.readFileSync(path);
   const { width, height, data } = type === 'webp' ? utils.decodeWebp(buffer) : require(utilsBundle).PNG.sync.read(buffer);
   out({ width, height, data: Buffer.from(data).toString('base64') });
+  """
+
+  @count_js """
+  const [path1, path2] = args;
+  const { PNG } = require(utilsBundle);
+  const [image1, image2] = [path1, path2].map(path => PNG.sync.read(fs.readFileSync(path)));
+  out(utils.compare(image1.data, image2.data, null, image1.width, image2.height));
   """
 
   @doc "`expect(buffer).toMatchSnapshot(name, options)` of the calling module's `@upstream` spec."
@@ -115,6 +123,20 @@ defmodule PlaywrightEx.UpstreamSnapshot do
     try do
       %{"width" => width, "height" => height, "data" => data} = node!(@decode_js, [type, write!(dir, "image", buffer)])
       %{width: width, height: height, data: Base.decode64!(data)}
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
+  @doc """
+  `utils.compare(image1.data, image2.data, null, image1.width, image2.height)` of two PNG buffers
+  (`PNG.sync.read`), as upstream's specs call it: the number of different pixels.
+  """
+  def compare(png1, png2) do
+    dir = tmp_dir()
+
+    try do
+      node!(@count_js, [write!(dir, "image1", png1), write!(dir, "image2", png2)])
     after
       File.rm_rf!(dir)
     end

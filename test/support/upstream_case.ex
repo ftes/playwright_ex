@@ -5,8 +5,9 @@ defmodule PlaywrightEx.UpstreamCase do
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
   Upstream's worker-scoped fixtures are module-scoped here (one driver per test module):
 
-    * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `browser_type`,
-      `browser` (launched once per module)
+    * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
+      env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (launched once
+      per module)
     * `server`, `https_server` (`PlaywrightEx.TestServer`, reset before each test),
       `asset` (`asset.("file-to-upload.txt")` is its path under upstream `tests/assets`)
     * `context_factory` (`context_factory.(options)`; its contexts are closed after the test)
@@ -110,6 +111,8 @@ defmodule PlaywrightEx.UpstreamCase do
     Api.call(nil, playwright, fn ->
       PlaywrightEx.Runtime.Heap.put(playwright, :_defaultContextTimeout, 0)
       PlaywrightEx.Runtime.Heap.put(playwright, :_defaultContextNavigationTimeout, 0)
+      # `_browserOptions` fixture: `playwright._defaultLaunchOptions = { headless, ... }`.
+      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultLaunchOptions, %{headless: TestBrowser.headless()})
     end)
 
     browser_name = TestBrowser.name()
@@ -131,6 +134,7 @@ defmodule PlaywrightEx.UpstreamCase do
     %{
       playwright: playwright,
       browser_name: browser_name,
+      headless: TestBrowser.headless(),
       browser_type: browser_type,
       browser: BrowserType.launch!(browser_type),
       server: server,
