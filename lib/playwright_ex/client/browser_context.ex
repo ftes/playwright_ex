@@ -109,7 +109,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
       if page_object, do: emit(page_object, Events.Page.page_error(), parsed_error)
     end)
 
-    EventEmitter.on(_channel(this), "dialog", fn %{dialog: dialog} ->
+    # Elixir only: on_sync, a pure state update (the listener check and the dismiss decision in one
+    # step; the dismiss call is `void`).
+    EventEmitter.on_sync(_channel(this), "dialog", fn %{dialog: dialog} ->
       dialog_object = Dialog.from(dialog)
       has_listeners = emit(this, Events.BrowserContext.dialog(), dialog_object)
       page = Dialog.page(dialog_object)
@@ -128,7 +130,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
       end
     end)
 
-    EventEmitter.on(_channel(this), "dialogClosed", fn %{dialog: dialog} ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "dialogClosed", fn %{dialog: dialog} ->
       dialog_object = Dialog.from(dialog)
       emit(this, Events.BrowserContext.dialog_closed(), dialog_object)
       page = Dialog.page(dialog_object)
