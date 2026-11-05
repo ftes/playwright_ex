@@ -155,7 +155,9 @@ defmodule PlaywrightEx.Client.Route do
     headers =
       for {header, value} <- headers_option || %{},
           into: %{},
-          do: {String.downcase(to_string(header)), to_string(value)}
+          do:
+            {String.downcase(to_string(header)),
+             if(is_number(value), do: ClientHelper.number_to_string(value), else: to_string(value))}
 
     headers =
       cond do

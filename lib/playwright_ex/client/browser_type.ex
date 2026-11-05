@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Client.BrowserType do
 
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.BrowserContext
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Connect
   alias PlaywrightEx.Client.Selectors
   alias PlaywrightEx.Client.Worker
@@ -189,6 +190,11 @@ defmodule PlaywrightEx.Client.BrowserType do
 
   # clientHelper.ts envObjectToArray
   defp env_object_to_array(env) do
-    for {name, value} <- env, value != nil, do: %{name: to_string(name), value: to_string(value)}
+    for {name, value} <- env,
+        value != nil,
+        do: %{
+          name: to_string(name),
+          value: if(is_number(value), do: ClientHelper.number_to_string(value), else: to_string(value))
+        }
   end
 end
