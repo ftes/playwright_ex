@@ -394,3 +394,21 @@ drift). Blockers for release, assigned to follow-up workstreams:
   glob conversion (not the same function as upstream's `globToRegexPattern`; commented).
 - Firefox: client-certificates "fetch should work in the browser with request interception"
   fails (no upstream skip). Revisit: lib or environment.
+
+## 2026-11-05: EventEmitter completed (workstream O), stale-skip check (workstream P)
+
+- **EventEmitter is now 1:1** with `eventEmitter.ts`: `newListener`/`removeListener` meta events,
+  `setMaxListeners`/`getMaxListeners` and the leak warning (upstream `console.warn`, skipped
+  under test; here `Logger.warning`, skipped when `PWTEST_UNDER_TEST` is set), `rawListeners`,
+  `checkListener` (raises `ArgumentError` with upstream's message), `_removeAllListeners` order.
+  `ChannelOwner.new` and `Frame` call `setMaxListeners(0)` as upstream.
+- **One `emit` argument** stays: Elixir has no variadic functions and every listener is 1-arity;
+  meta events pass `{type, listener}`. `defaultMaxListeners` is a `:persistent_term`
+  (process-wide like Node; Elixir-only accessors).
+- **`removeAllListeners` no longer unsubscribes** channel events when nobody listens for
+  `removeListener`: matches upstream (ChannelOwner overrides only on/off/removeListener).
+- **Stale skips fail parity**: a reason of the form `not ported: Class.member[ (note)][, ...]`
+  is checked against the client and facade exports; prose reasons are explanations and aren't
+  checked. Revisit if the prose escape gets misused.
+- **Flaky tags**: connect-to-worker console race dropped (30/30 locally; watch CI); popup
+  close-on-click skipped on CI only; fullPage screenshot during navigation kept.
