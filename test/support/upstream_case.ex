@@ -25,7 +25,9 @@ defmodule PlaywrightEx.UpstreamCase do
 
   Each driver's Playwright gets Playwright Test's defaults (`setup_playwright/2`): no action
   timeout, the default launch options (`headless`, `tracesDir`, ...) and context options (`locale:
-  "en-US"`, a 1280x720 viewport, ...). A test that needs a driver of its own (another `env`) starts
+  "en-US"`, a 1280x720 viewport, ...). Not ported, as we run none of these modes: a `channel`
+  (`PWTEST_CHANNEL`), `launchOptions.executablePath` (`CRPATH`, `FFPATH`, `WKPATH`) and the
+  `PW_CLOCK` frozen/realtime context setup. A test that needs a driver of its own (another `env`) starts
   it with `start_playwright/2`.
 
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
@@ -47,6 +49,7 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
 
@@ -302,6 +305,13 @@ defmodule PlaywrightEx.UpstreamCase do
     :ok
   end
 
+  # `_setupContextOptions`: `selectors.setTestIdAttribute(testIdAttribute)` (default
+  # `data-testid`) before each test, so a test's own attribute does not leak into the next.
+  setup %{playwright: playwright} do
+    Selectors.set_test_id_attribute(Playwright.selectors(playwright), "data-testid")
+    :ok
+  end
+
   # Upstream restarts the worker after a failed test; here the module's driver lives on. Close
   # the contexts a test left open (say, a browser it launched and never closed), or one still
   # tracing would add its stacks to the traces of the next tests.
@@ -320,8 +330,10 @@ defmodule PlaywrightEx.UpstreamCase do
       context
     end
 
+    # `context.close({ reason: closeReason })`; on a timeout upstream's reason is "Test timeout of
+    # <n>ms exceeded." (ExUnit's on_exit does not know the test's status).
     on_exit(fn ->
-      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context)
+      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context, reason: "Test ended.")
       Agent.stop(contexts)
     end)
 
