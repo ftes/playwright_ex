@@ -605,8 +605,45 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
-    test "should pass with matching certificates and when a http proxy is used from env"
+    test "should pass with matching certificates and when a http proxy is used from env", %{
+      start_cc_server: start_cc_server,
+      asset: asset,
+      browser_name: browser_name,
+      proxy_server: proxy_server
+    } do
+      # test.skip(mode !== 'default'), process.env.HTTPS_PROXY = ...: the driver is another
+      # process, so a driver of its own started with HTTPS_PROXY (playwright-python's way). Its
+      # browser gets our environment, like upstream's `browser`, launched before the test set it.
+      name = :client_certificates_https_proxy_from_env
+
+      start_supervised!(
+        {PlaywrightEx.Supervisor,
+         name: name, env: [{"PWTEST_UNDER_TEST", "1"}, {"HTTPS_PROXY", "http://localhost:#{proxy_server.port}"}]},
+        id: name
+      )
+
+      browser =
+        BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(PlaywrightEx.playwright(name)), env: System.get_env())
+
+      server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
+      TestProxy.forward_to(proxy_server, URI.parse(server_url).port, allow_connect_requests: true)
+
+      page =
+        Browser.new_page!(browser, ignore_https_errors: true, client_certificates: [trusted(asset, origin(server_url))])
+
+      assert TestProxy.connect_hosts(proxy_server) == []
+      Page.goto!(page, server_url)
+      host = if fake_localhost?(browser_name), do: "localhost", else: "127.0.0.1"
+      assert Enum.uniq(TestProxy.connect_hosts(proxy_server)) == ["#{host}:#{URI.parse(server_url).port}"]
+
+      Expect.to_have_text!(
+        Page.get_by_test_id(page, "message"),
+        "Hello Alice, your certificate was issued by localhost!"
+      )
+
+      Page.close!(page)
+      Browser.close!(browser)
+    end
 
     test "should pass with matching certificates and when a http proxy is used from config but env is there", %{
       browser: browser,

@@ -655,6 +655,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     assert req_header(req, "x-custom-header") == "custom!"
   end
 
+  # test.skip(isHeadlessShell): we always run headless Chromium without a channel, which is the
+  # headless shell (playwright-python runs these in its `chrome`/`msedge` channel jobs only).
   @tag skip: "upstream skip: Headless shell does not create a ProcessSingleton"
   test "should throw when connecting twice to an already running persistent context (--remote-debugging-port)"
 
@@ -816,6 +818,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag skip: "upstream skip: Edge has its own list of pages disallowed in InPrivate"
     test "should refuse WebUI pages that crash Edge in an isolated context"
 
+    # test.skip(headless): we always run headless (so does playwright-python's CI).
     @tag skip: "upstream skip: WebUI pages are not available in headless"
     test "should navigate to WebUI pages that work in an isolated context"
 

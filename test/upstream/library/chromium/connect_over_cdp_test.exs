@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.Worker
@@ -25,6 +26,8 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   #   * `http.get(.../json/version/)` uses the API request context.
 
   if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
+
+  setup {TestProxy, :proxy_server}
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
@@ -40,6 +43,12 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     browser_server = BrowserType.launch!(browser_type, args: ["--remote-debugging-port=#{port}" | args])
     on_exit(fn -> Browser.close(browser_server) end)
     {browser_server, port}
+  end
+
+  # A driver of its own, started with `env` (upstream sets `process.env` in its in-process server).
+  defp browser_type_with_env(name, env) do
+    start_supervised!({PlaywrightEx.Supervisor, name: name, env: [{"PWTEST_UNDER_TEST", "1"} | env]}, id: name)
+    Playwright.chromium(PlaywrightEx.playwright(name))
   end
 
   defp json_version(playwright, port) do
@@ -377,9 +386,25 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  # test.skip(mode !== 'default'): out of process, NODE_TLS_REJECT_UNAUTHORIZED can't be set in the driver.
-  @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
-  test "should connect via https"
+  test "should connect via https", %{browser_type: browser_type, https_server: https_server, playwright: playwright} do
+    {browser_server, port} = launch_with_port(browser_type)
+    json = json_version(playwright, port)
+
+    TestServer.set_route(https_server, "/json/version/", fn conn -> Plug.Conn.send_resp(conn, 200, json) end)
+
+    # test.skip(mode !== 'default'), process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0': the driver
+    # is another process, so a driver of its own started with it (playwright-python's way);
+    # NODE_NO_WARNINGS for suppressCertificateWarning().
+    browser_type =
+      browser_type_with_env(:connect_over_cdp_https, [{"NODE_TLS_REJECT_UNAUTHORIZED", "0"}, {"NODE_NO_WARNINGS", "1"}])
+
+    cdp_browser = BrowserType.connect_over_cdp!(browser_type, "https://localhost:#{https_server.port}/")
+    contexts = Browser.contexts(cdp_browser)
+    assert length(contexts) == 1
+    for _ <- 1..3, do: BrowserContext.new_page!(hd(contexts))
+    Browser.close!(cdp_browser)
+    Browser.close!(browser_server)
+  end
 
   test "should return valid browser from context.browser()", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
@@ -445,11 +470,28 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
-  test "should use env proxy with connectOverCDP discovery request"
+  # test.skip(mode !== 'default'), process.env.HTTP_PROXY = proxyServer.URL: the driver is another
+  # process, so a driver of its own started with it (playwright-python's way).
+  test "should use env proxy with connectOverCDP discovery request", %{server: server, proxy_server: proxy_server} do
+    TestProxy.forward_to(proxy_server, server.port)
 
-  @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
-  test "should send target Host header when using env HTTP proxy with connectOverCDP"
+    browser_type = browser_type_with_env(:connect_over_cdp_env_proxy, [{"HTTP_PROXY", proxy_server.url}])
+    {:error, error} = BrowserType.connect_over_cdp(browser_type, server.prefix)
+    assert Exception.message(error) =~ "Unexpected status 404 when connecting to #{server.prefix}/json/version/"
+    assert TestProxy.request_urls(proxy_server) == ["#{server.prefix}/json/version/"]
+  end
+
+  test "should send target Host header when using env HTTP proxy with connectOverCDP", %{
+    server: server,
+    proxy_server: proxy_server
+  } do
+    TestProxy.forward_to(proxy_server, server.port)
+
+    browser_type = browser_type_with_env(:connect_over_cdp_env_proxy_host, [{"HTTP_PROXY", proxy_server.url}])
+    {:error, error} = BrowserType.connect_over_cdp(browser_type, server.prefix)
+    assert Exception.message(error) =~ "Unexpected status 404 when connecting to #{server.prefix}/json/version/"
+    assert TestProxy.request_hosts(proxy_server) == [server.host]
+  end
 
   test "should be able to connect via localhost", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
