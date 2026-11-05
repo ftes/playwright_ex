@@ -51,8 +51,15 @@ defmodule PlaywrightEx.Client.BrowserType do
 
     _wrap_api_call(this, fn _ ->
       browser =
-        Browser.from(
-          channel_call(this, :launch, launch_options, TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options)).browser
+        ChannelOwner._set_creator(
+          Browser.from(
+            channel_call(
+              this,
+              :launch,
+              launch_options,
+              TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options)
+            ).browser
+          )
         )
 
       Browser._connect_to_browser_type(browser, this, options, logger)
@@ -91,16 +98,21 @@ defmodule PlaywrightEx.Client.BrowserType do
 
     context =
       _wrap_api_call(this, fn _ ->
+        # The statements up to the next await run on reply, before the context's events
+        # (`channel_call/5`): its close reads the browser type.
         result =
           channel_call(
             this,
             :launchPersistentContext,
             persistent_params,
-            TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options)
+            TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options),
+            fn result ->
+              browser = Browser.from(result.browser)
+              Browser._connect_to_browser_type(browser, this, options, logger)
+            end
           )
 
-        browser = Browser.from(result.browser)
-        Browser._connect_to_browser_type(browser, this, options, logger)
+        ChannelOwner._set_creator(Browser.from(result.browser))
         context = ChannelOwner._set_creator(BrowserContext.from(result.context))
         BrowserContext._initialize_har_from_options(context, options[:recordHar])
         context
@@ -121,7 +133,11 @@ defmodule PlaywrightEx.Client.BrowserType do
 
   def _connect(this, params) do
     _wrap_api_call(this, fn _ ->
-      browser = Connect.connect_to_browser(get(this, :_playwright), Map.merge(%{browserName: name(this)}, params))
+      browser =
+        ChannelOwner._set_creator(
+          Connect.connect_to_browser(get(this, :_playwright), Map.merge(%{browserName: name(this)}, params))
+        )
+
       Browser._connect_to_browser_type(browser, this, %{}, nil)
       browser
     end)
@@ -144,6 +160,8 @@ defmodule PlaywrightEx.Client.BrowserType do
     if name(this) != "chromium" && name(this) != "webkit",
       do: raise("Connecting over CDP is only supported in Chromium and WebKit.")
 
+    # The statements up to the next await run on reply, before the contexts' events
+    # (`channel_call/5`): their close reads the browser type.
     result =
       channel_call(
         this,
@@ -158,10 +176,11 @@ defmodule PlaywrightEx.Client.BrowserType do
           isWebView: params[:isWebView],
           artifactsDir: params[:artifactsDir]
         },
-        TimeoutSettings.timeout(TimeoutSettings.new(nil), params)
+        TimeoutSettings.timeout(TimeoutSettings.new(nil), params),
+        fn result -> _browser_from_connect_result(this, result) end
       )
 
-    _browser_from_connect_result(this, result)
+    ChannelOwner._set_creator(Browser.from(result.browser))
   end
 
   defp _browser_from_connect_result(this, result) do

@@ -77,6 +77,10 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   reads after that raise TargetClosedError. Tests read closed objects in the test process.
 - Check-then-subscribe (`if (!cond) await waitForEvent(...)`) is one tick in JS; here dispatch
   may run in between. Subscribe before the check, or make the check part of the subscription.
+- JS runs the statements after an `await` before it dispatches the next message; here the caller
+  runs them in its own process, maybe after the next event. When an event the call enables reads
+  what they write (`this._bindings.set(...)` before a `bindingCall`), put them in `channel_call/5`'s
+  `on_reply`: it runs in the connection when the reply is dispatched (pure state, no await).
 - Public entry points run inside `PlaywrightEx.Runtime.Api.call/3` (the generated facade does
   this for async methods): it names the call for error messages; it does not block dispatch.
 

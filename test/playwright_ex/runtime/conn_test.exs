@@ -211,6 +211,128 @@ defmodule PlaywrightEx.RuntimeConnTest do
     end
   end
 
+  # JS runs the statements after `await channel.x()` before it dispatches the next message, so an
+  # event the call enables sees what they write. The caller is suspended from sending the call
+  # until after the event: the gap between the reply and the caller's next statement, made as long
+  # as the test needs (`ChannelOwner.channel_call/5`'s `on_reply` closes it).
+  describe "an event right after a reply" do
+    test "bindingCall sees Page.expose_function's binding", %{page: page} do
+      test = self()
+
+      awaiter =
+        suspended_after_reply(page, "exposeBinding", fn ->
+          Page.expose_function!(page, "foo", fn a -> send(test, {:called, a}) end)
+        end)
+
+      try do
+        Page.evaluate!(page, "() => { window.foo(21); }")
+        assert_receive {:called, 21}, 2000
+      after
+        resume(page, awaiter)
+      end
+
+      assert_receive {:result, ^awaiter, _disposable}, 5000
+    end
+
+    test "bindingCall sees BrowserContext.expose_binding's binding", %{context: context, page: page} do
+      test = self()
+
+      awaiter =
+        suspended_after_reply(context, "exposeBinding", fn ->
+          BrowserContext.expose_binding!(context, "bar", fn _source, a -> send(test, {:called, a}) end)
+        end)
+
+      try do
+        Page.evaluate!(page, "() => { window.bar(42); }")
+        assert_receive {:called, 42}, 2000
+      after
+        resume(page, awaiter)
+      end
+
+      assert_receive {:result, ^awaiter, _disposable}, 5000
+    end
+
+    test "locatorHandlerTriggered sees Page.add_locator_handler's handler", %{page: page} do
+      test = self()
+
+      Page.set_content!(page, """
+      <button onclick="window.clicked = true">Click</button>
+      <div id="overlay" style="position: fixed; inset: 0; background: red">Overlay</div>
+      """)
+
+      awaiter =
+        suspended_after_reply(page, "registerLocatorHandler", fn ->
+          Page.add_locator_handler!(page, Page.locator(page, "#overlay"), fn _ ->
+            send(test, :handled)
+            Page.evaluate!(page, "() => document.querySelector('#overlay').remove()")
+          end)
+        end)
+
+      click = Task.async(fn -> PlaywrightEx.Locator.click(Page.locator(page, "button"), timeout: 5000) end)
+
+      try do
+        assert_receive :handled, 2000
+      after
+        resume(page, awaiter)
+      end
+
+      assert Task.await(click) == :ok
+      assert Page.evaluate!(page, "window.clicked") == true
+      assert_receive {:result, ^awaiter, :ok}, 5000
+    end
+  end
+
+  # Runs `call` in a new process, which the connection suspends when it sends `method` to `object`
+  # (before the reply can arrive); returns once the reply has been dispatched. The process sends
+  # `{:result, pid, result}` when resumed (`resume/2`).
+  defp suspended_after_reply(object, method, call) do
+    test = self()
+    conn = object.conn
+
+    awaiter =
+      spawn(fn ->
+        receive do: (:go -> :ok)
+        send(test, {:result, self(), call.()})
+      end)
+
+    guid = object.guid
+
+    :persistent_term.put({Conn, :on_send}, fn
+      %{guid: ^guid, method: ^method, id: id} ->
+        if self() == conn do
+          :erlang.suspend_process(awaiter)
+          send(test, {:sent, id})
+        end
+
+      _ ->
+        :ok
+    end)
+
+    send(awaiter, :go)
+    assert_receive {:sent, id}, 5000
+    :persistent_term.erase({Conn, :on_send})
+    connection = Conn.connection(conn)
+    wait_until(fn -> id not in PlaywrightEx.Client.Connection.callbacks(connection) end)
+    awaiter
+  end
+
+  # Only the suspending process (the connection) can resume.
+  defp resume(%{conn: conn}, awaiter), do: Conn.run(conn, fn -> :erlang.resume_process(awaiter) end)
+
+  defp wait_until(fun, tries \\ 500) do
+    cond do
+      fun.() ->
+        :ok
+
+      tries == 0 ->
+        flunk("timed out")
+
+      true ->
+        Process.sleep(10)
+        wait_until(fun, tries - 1)
+    end
+  end
+
   describe "errors and call metadata" do
     test "timeout error: message and call log", %{page: page, server: server} do
       TestServer.set_route(server, "/slow.html", fn conn ->

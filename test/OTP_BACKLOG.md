@@ -9,10 +9,11 @@ in the Phase 1 audits:
   read the invocation and arm the latch in one atomic step.
 - **`_update_interception_patterns`**: computes and sends patterns in different processes, so a
   concurrent `route()` can send stale patterns. Needs compute-and-send in one step.
-- **Binding and locator-handler registration**: `expose_binding`, `expose_function` and
-  `add_locator_handler` write their maps after the driver's reply, as upstream does, but a
-  `bindingCall` can be dispatched before that write lands. JS has no such gap. Needs a hook that
-  runs when the reply is dispatched.
+- **`connect` after `initialize`**: the remote connection's `close` listener reads the browser
+  that `connect_to_browser` stores after the (child connection's) `initialize` reply. A close
+  dispatched before that write leaves a browser that never emits `disconnected`; JS has no such
+  window. The continuation spans several functions, so `channel_call/5`'s `on_reply` doesn't fit
+  as is.
 - **Waiter rejection**: JS rejects a waiter synchronously inside `emit`; here it settles in the
   waiter's process, so "rejected before the next emit" isn't guaranteed.
 - **Stray messages from `Promise.all`** over local asyncs (`serialize_argument_with_callbacks`)

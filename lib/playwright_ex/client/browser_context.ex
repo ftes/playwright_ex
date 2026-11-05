@@ -399,10 +399,14 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   # Bindings take the source and the list of arguments: `(source, ...args) => ...`.
+  # The statements after the await run on reply, before a bindingCall (`channel_call/5`).
   def expose_binding(this, name, callback) do
-    result = channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout())
-    # this._bindings.set(name, callback): called with (source, ...args)
-    map_set(this, :_bindings, name, fn source, args -> ClientHelper.call_function(callback, [source | args]) end)
+    result =
+      channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
+        # this._bindings.set(name, callback): called with (source, ...args)
+        map_set(this, :_bindings, name, fn source, args -> ClientHelper.call_function(callback, [source | args]) end)
+      end)
+
     DisposableObject.from(result.disposable)
   end
 
@@ -413,9 +417,12 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   def expose_function(this, name, callback) do
-    result = channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout())
-    binding = fn _source, args -> ClientHelper.call_function(callback, args) end
-    map_set(this, :_bindings, name, binding)
+    result =
+      channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
+        binding = fn _source, args -> ClientHelper.call_function(callback, args) end
+        map_set(this, :_bindings, name, binding)
+      end)
+
     DisposableObject.from(result.disposable)
   end
 

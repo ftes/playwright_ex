@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     quote do
       use PlaywrightEx.Client.EventEmitter
 
-      import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 3, channel_call: 4, _channel: 1]
+      import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 3, channel_call: 4, channel_call: 5, _channel: 1]
       import PlaywrightEx.Runtime.Heap
 
       alias PlaywrightEx.Client.ChannelOwner
@@ -301,8 +301,14 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     }
   end
 
-  # _createChannel  -- ported as channel_call/4 (the Proxy `get` trap) and _channel/1 (its EventEmitter)
-  def channel_call(this, method, params, options \\ %{}) do
+  # _createChannel  -- ported as channel_call/5 (the Proxy `get` trap) and _channel/1 (its EventEmitter)
+  #
+  # Elixir only: `on_reply` (a 1-arity fun of the result) runs in the connection when the reply is
+  # dispatched, before the next message. It is for the statements that follow `await` in JS when an
+  # event the call enables reads what they write (`this._bindings.set(...)` before a
+  # `bindingCall`): JS runs them before it dispatches that event, the caller's process may not.
+  # It must not await; an exception it raises rejects the call. It does not run when the call fails.
+  def channel_call(this, method, params, options \\ %{}, on_reply \\ nil) do
     method = to_string(method)
     type = get(this, :_type)
     # Elixir only: a disposed object's rows were deleted; JS still sends, and the server answers
@@ -332,7 +338,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
             this,
             method,
             validated_params,
-            Map.merge(api_zone, %{signal: signal, timeout: timeout})
+            Map.merge(api_zone, %{signal: signal, timeout: timeout, on_reply: on_reply})
           )
         else
           # Since this api call is either internal, or has already been reported/traced once,
@@ -340,7 +346,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           Connection.send_message_to_server(get(this, :_connection), this, method, validated_params, %{
             internal: true,
             signal: signal,
-            timeout: timeout
+            timeout: timeout,
+            on_reply: on_reply
           })
         end
       end,

@@ -83,7 +83,6 @@ defmodule PlaywrightEx.Client.Browser do
     # Note: when using connect(), `browserType` is different from `this._parent`.
     # This is why browser type is not wired up in the constructor,
     # and instead this separate method is called later on.
-    ChannelOwner._set_creator(this)
     put(this, :_browserType, browser_type)
     put(this, :_options, browser_options)
     put(this, :_logger, logger)

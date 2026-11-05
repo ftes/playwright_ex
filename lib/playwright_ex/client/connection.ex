@@ -241,7 +241,8 @@ defmodule PlaywrightEx.Client.Connection do
                   signal: signal,
                   title: options[:title],
                   type: type,
-                  method: method
+                  method: method,
+                  on_reply: options[:on_reply]
                 })
 
                 onmessage = get(this, :onmessage)
@@ -362,7 +363,7 @@ defmodule PlaywrightEx.Client.Connection do
       callback.reject.(parsed_error)
     else
       validator = Validator.find_validator(callback.type, callback.method, "Result")
-      callback.resolve.(validator.(result, "", _validator_from_wire_context(this)))
+      _resolve(callback, validator.(result, "", _validator_from_wire_context(this)))
     end
   end
 
@@ -396,6 +397,17 @@ defmodule PlaywrightEx.Client.Connection do
       end
     end
   end
+
+  # Elixir only: the call's `on_reply` (`ChannelOwner.channel_call/5`) runs here, before the next
+  # message, as the statements after `await` run in JS.
+  defp _resolve(%{on_reply: on_reply} = callback, result) when on_reply != nil do
+    on_reply.(result)
+    callback.resolve.(result)
+  rescue
+    e -> callback.reject.(e)
+  end
+
+  defp _resolve(callback, result), do: callback.resolve.(result)
 
   # One atomic step, as JS runs this synchronously: concurrent closers emit "close" once.
   def close(this, cause \\ nil) do

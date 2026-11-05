@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Client.Playwright do
   end
 
   def _pre_launched_browser(this) do
-    browser = Browser.from(get(this, :_initializer).preLaunchedBrowser)
+    browser = ChannelOwner._set_creator(Browser.from(get(this, :_initializer).preLaunchedBrowser))
     Browser._connect_to_browser_type(browser, get(this, String.to_existing_atom(get(browser, :_name))), %{}, nil)
     browser
   end
