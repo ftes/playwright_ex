@@ -818,12 +818,36 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag skip: "upstream skip: Edge has its own list of pages disallowed in InPrivate"
     test "should refuse WebUI pages that crash Edge in an isolated context"
 
-    # test.skip(headless): we always run headless (so does playwright-python's CI).
-    @tag skip: "upstream skip: WebUI pages are not available in headless"
-    test "should navigate to WebUI pages that work in an isolated context"
+    # test.skip(headless, ...): `HEADED=1` runs them (`:headful`, as CI's headed step selects).
+    @tag :page
+    @tag :headful
+    @tag skip:
+           @chromium_only ||
+             if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
+    test "should navigate to WebUI pages that work in an isolated context", %{page: page} do
+      response = Page.goto!(page, "chrome://version")
+      assert Response.status(response) == 200
+    end
 
-    @tag skip: "upstream skip: WebUI pages are not available in headless"
-    test "should navigate to any WebUI page in a persistent context"
+    @tag :headful
+    @tag skip:
+           @chromium_only ||
+             if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
+    test "should navigate to any WebUI page in a persistent context", %{
+      browser_type: browser_type,
+      create_user_data_dir: create_user_data_dir
+    } do
+      context = BrowserType.launch_persistent_context!(browser_type, create_user_data_dir.())
+
+      try do
+        page = BrowserContext.new_page!(context)
+        # Committing the navigation is all this asserts - waiting for the WebUI to load is slow and beside the point.
+        response = Page.goto!(page, "chrome://extensions", wait_until: "commit")
+        assert Response.status(response) == 200
+      after
+        BrowserContext.close!(context)
+      end
+    end
   end
 
   @tag :page
