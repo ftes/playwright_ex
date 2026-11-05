@@ -129,7 +129,12 @@ defmodule PlaywrightEx.Runtime.Facade do
   end
 
   @doc "Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`."
-  def options!(options, {:object, schema}, api_name), do: object!(options, schema, api_name, [])
+  def options!(options, {:object, schema}, api_name) when is_list(options) or is_map(options),
+    do: object!(options, schema, api_name, [])
+
+  # Not an options object (`page.evaluate(fn, 1, 2)`): passed on, the client checks it
+  # (`assertEvaluateOptions`).
+  def options!(options, {:object, _schema}, _api_name), do: options
 
   @doc """
   Like `options!/3`, but the options may also be a result of the call (a map with the JS keys,

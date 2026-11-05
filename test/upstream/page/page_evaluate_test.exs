@@ -76,7 +76,31 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == true
   end
 
-  test "should transfer typed arrays"
+  # Elixir has no typed arrays to pass (`page.evaluate(a => a, typedArray)`): the page makes them,
+  # and they parse to lists (as in playwright-python).
+  test "should transfer typed arrays", %{page: page} do
+    test_cases = [
+      {"new Int8Array([1, 2, 3])", [1, 2, 3]},
+      {"new Uint8Array([1, 2, 3])", [1, 2, 3]},
+      {"new Uint8ClampedArray([1, 2, 3])", [1, 2, 3]},
+      {"new Int16Array([1, 2, 3])", [1, 2, 3]},
+      {"new Uint16Array([1, 2, 3])", [1, 2, 3]},
+      {"new Int32Array([1, 2, 3])", [1, 2, 3]},
+      {"new Uint32Array([1, 2, 3])", [1, 2, 3]},
+      {"new Float32Array([1.1, 2.2, 3.3])", float32([1.1, 2.2, 3.3])},
+      {"new Float64Array([1.1, 2.2, 3.3])", [1.1, 2.2, 3.3]},
+      {"new BigInt64Array([1n, 2n, 3n])", [1, 2, 3]},
+      {"new BigUint64Array([1n, 2n, 3n])", [1, 2, 3]}
+    ]
+
+    for {typed_array, expected} <- test_cases do
+      result = Page.evaluate!(page, "() => #{typed_array}")
+      assert result == expected, typed_array
+    end
+  end
+
+  # The numbers a Float32Array holds.
+  defp float32(numbers), do: for(n <- numbers, <<f::float-32>> = <<n::float-32>>, do: f)
 
   test "should transfer bigint", %{page: page} do
     # A bigint parses to an integer; 17 is a safe integer, so it travels as a number.
@@ -302,7 +326,39 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert Page.evaluate!(page, "() => Promise.resolve(42)") == 42
   end
 
-  test "should throw when passed more than one parameter"
+  test "should throw when passed more than one parameter", %{page: page} do
+    expect_throw = fn f ->
+      {:error, error} = f.()
+      assert Exception.message(error) =~ "Too many arguments"
+    end
+
+    # The extra argument of evaluate and evaluateHandle is their options argument.
+    expect_throw.(fn -> Page.evaluate(page, "(a, b) => false", 1, 2) end)
+    expect_throw.(fn -> Page.evaluate_handle(page, "(a, b) => false", 1, 2) end)
+    # assertMaxArguments: Elixir checks the arity (there is no `eval_on_selector/5`).
+    assert_raise UndefinedFunctionError, fn ->
+      apply(Page, :eval_on_selector, [page, "sel", "(a, b) => false", 1, 2])
+    end
+
+    assert_raise UndefinedFunctionError, fn ->
+      apply(Page, :eval_on_selector_all, [page, "sel", "(a, b) => false", 1, 2])
+    end
+
+    expect_throw.(fn -> Page.evaluate(page, "(a, b) => false", 1, 2) end)
+    frame = Page.main_frame(page)
+    expect_throw.(fn -> Frame.evaluate(frame, "(a, b) => false", 1, 2) end)
+    expect_throw.(fn -> Frame.evaluate_handle(frame, "(a, b) => false", 1, 2) end)
+
+    assert_raise UndefinedFunctionError, fn ->
+      apply(Frame, :eval_on_selector, [frame, "sel", "(a, b) => false", 1, 2])
+    end
+
+    assert_raise UndefinedFunctionError, fn ->
+      apply(Frame, :eval_on_selector_all, [frame, "sel", "(a, b) => false", 1, 2])
+    end
+
+    expect_throw.(fn -> Frame.evaluate(frame, "(a, b) => false", 1, 2) end)
+  end
 
   test "should accept \"undefined\" as one of multiple parameters", %{page: page} do
     result = Page.evaluate!(page, "({ a, b }) => Object.is(a, undefined) && Object.is(b, 'foo')", %{a: nil, b: "foo"})
@@ -575,7 +631,13 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == nil
   end
 
-  test "should transfer 100Mb of data from page to node.js"
+  test "should transfer 100Mb of data from page to node.js", %{page: page} do
+    # it.skip(mode !== 'default')  -- always default mode
+
+    # This is too slow with wire.
+    a = Page.evaluate!(page, "() => Array(100 * 1024 * 1024 + 1).join('a')")
+    assert byte_size(a) == 100 * 1024 * 1024
+  end
 
   test "should throw error with detailed information on exception inside promise ", %{page: page} do
     error =
