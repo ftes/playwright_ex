@@ -237,12 +237,17 @@ defmodule PlaywrightEx.Client.Frame do
     page = get(this, :_page)
 
     # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
-    if UrlMatch.url_matches(
-         Connection.local_utils(get(this, :_connection)),
-         page && get(Page.context(page), :_options)[:baseURL],
-         url(this),
-         url
-       ) do
+    local_utils = Connection.local_utils(get(this, :_connection))
+    base_url = page && get(Page.context(page), :_options)[:baseURL]
+    # deviation: a glob becomes a regex (a driver round trip) before the frame's url is read, so
+    # a navigation that commits meanwhile is seen here (JS: one synchronous check, then the
+    # waiter subscribes in the same tick).
+    match =
+      if is_binary(url),
+        do: Regex.compile!(UrlMatch.resolve_glob_to_regex_pattern(local_utils, base_url, url)),
+        else: url
+
+    if UrlMatch.url_matches(local_utils, base_url, url(this), match) do
       wait_for_load_state(this, wait_options[:waitUntil], wait_options)
     else
       wait_for_navigation(this, Map.merge(%{url: url}, wait_options))
