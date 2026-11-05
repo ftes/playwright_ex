@@ -7,11 +7,15 @@ defmodule PlaywrightEx.Library.FaviconTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
-  # it.skip(headless && browserName !== 'firefox'): we run headless.
+  @headless PlaywrightEx.TestBrowser.headless()
   @tag skip:
-         if(@browser_name != "firefox", do: "upstream skip: headless browsers, except firefox, do not request favicons")
+         if(@headless and @browser_name != "firefox",
+           do: "upstream skip: headless browsers, except firefox, do not request favicons"
+         ) ||
+           if(not @headless and @browser_name == "webkit",
+             do: "upstream skip: headed webkit does not have a favicon feature"
+           )
+  @tag :headed
   test "should load svg favicon with prefer-color-scheme", %{page: page, server: server, asset: asset} do
     # Browsers aggressively cache favicons, so force bust with the
     # `d` parameter to make iterating on this test more predictable and isolated.
