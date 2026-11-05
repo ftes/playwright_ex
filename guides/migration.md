@@ -39,7 +39,8 @@ BrowserContext.set_default_timeout(context, 5_000)
 BrowserContext.set_default_navigation_timeout(context, 10_000)
 ```
 
-`timeout:` remains on the members that have it in JS. Matchers default to 5 s.
+`timeout:` remains on the members that have it in JS. Matchers default to 5 s; change it with
+`config :playwright_ex, :expect, timeout: 10_000`.
 
 **Events.** `on/3`, `once/3` and `off/3` take a listener function, as in JS. Listeners run while
 holding the driver's baton (see below), so keep them short; `send/2` to the owning process is the
@@ -344,7 +345,6 @@ Task.yield(task, 5_000) || Task.shutdown(task)
 ## Known gaps
 
 - `signal:` (AbortSignal) options are not supported.
-- No `logger:` launch/context option, no public setting for the 5 s matcher timeout.
 - Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`,
   soft assertions, file-based aria snapshots, `toMatchSnapshot`.
 - `inspect(locator)` and locators in matcher messages show JS syntax and raw selectors.
