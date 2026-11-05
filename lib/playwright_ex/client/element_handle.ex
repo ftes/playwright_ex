@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.WritableStream
   alias PlaywrightEx.Isomorphic.MimeType
+  alias PlaywrightEx.Runtime.Node
 
   def from(handle) do
     handle
@@ -319,18 +320,16 @@ defmodule PlaywrightEx.Client.ElementHandle do
       FileUtils.file_upload_size_limit()
   end
 
-  # fs.promises.stat / path.resolve: File.dir?/1 and Path.expand/1.
   defp resolve_paths_and_directory_for_input_files(items) do
     {local_paths, local_directory} =
       Enum.reduce(items, {nil, nil}, fn item, {local_paths, local_directory} ->
-        # const stat = await fs.promises.stat(item);  -- throws for a missing file, as File.stat!/1
-        stat = File.stat!(item)
+        stat = Node.fs!(File.stat(item), "stat", item)
 
         if stat.type == :directory do
           if local_directory, do: raise("Multiple directories are not supported")
-          {local_paths, Path.expand(item)}
+          {local_paths, Node.path_resolve(item)}
         else
-          {(local_paths || []) ++ [Path.expand(item)], local_directory}
+          {(local_paths || []) ++ [Node.path_resolve(item)], local_directory}
         end
       end)
 
@@ -354,7 +353,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
             do:
               Path.join(local_directory, "**")
               |> Path.wildcard(match_dot: true)
-              |> Enum.filter(&File.regular?/1),
+              |> Enum.filter(&match?({:ok, %{type: :regular}}, File.lstat(&1))),
             else: local_paths
 
         %{writableStreams: writable_streams, rootDir: root_dir} =
@@ -368,8 +367,8 @@ defmodule PlaywrightEx.Client.ElementHandle do
                   rootDirName: if(local_directory, do: Path.basename(local_directory)),
                   items:
                     Enum.map(files, fn file ->
-                      # (await fs.promises.stat(file)).mtimeMs: Erlang has whole seconds only.
-                      last_modified_ms = File.stat!(file, time: :posix).mtime * 1000
+                      # deviation: `mtimeMs` in whole seconds (Erlang's `File.stat/2` has no sub-second mtime).
+                      last_modified_ms = Node.fs!(File.stat(file, time: :posix), "stat", file).mtime * 1000
 
                       %{
                         name:

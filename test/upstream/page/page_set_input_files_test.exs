@@ -162,8 +162,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     input = Page.query_selector!(page, "input")
     {:error, error} = ElementHandle.set_input_files(input, "i actually do not exist.txt")
-    # File.stat!/1 (fs.promises.stat) has no "ENOENT:" prefix.
-    assert Exception.message(error) =~ "no such file or directory"
+    assert Exception.message(error) =~ "ENOENT: no such file or directory"
     assert Exception.message(error) =~ "i actually do not exist.txt"
   end
 
