@@ -621,7 +621,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     _dispose_har_routers(this)
     Tracing._reset_stack_counter(get(this, :tracing))
-    Tracing._reset_stack_counter(get(get(this, :request), :tracing))
+    # deviation: the request context may be disposed already (JS reads its last fields); then its
+    # tracing is gone too.
+    request = get(this, :request)
+    if alive?(request), do: Tracing._reset_stack_counter(get(request, :tracing))
     emit(this, Events.BrowserContext.close(), this)
   end
 

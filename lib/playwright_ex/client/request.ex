@@ -45,28 +45,31 @@ defmodule PlaywrightEx.Client.Request do
   end
 
   def url(this) do
-    url = get(this, :_fallbackOverrides)[:url]
+    url = _overrides(this)[:url]
     if ClientHelper.truthy(url), do: url, else: get(this, :_initializer).url
   end
+
+  # deviation: a disposed request reads no overrides (JS keeps the last value; its rows are gone).
+  defp _overrides(this), do: if(alive?(this), do: get(this, :_fallbackOverrides), else: %{})
 
   def resource_type(this) do
     get(this, :_initializer).resourceType
   end
 
   def method(this) do
-    method = get(this, :_fallbackOverrides)[:method]
+    method = _overrides(this)[:method]
     if ClientHelper.truthy(method), do: method, else: get(this, :_initializer).method
   end
 
   def post_data(this) do
     # (... ?? ...)?.toString('utf-8') ?? null
-    post_data = get(this, :_fallbackOverrides)[:postDataBuffer]
+    post_data = _overrides(this)[:postDataBuffer]
     post_data = if post_data == nil, do: get(this, :_initializer)[:postData], else: post_data
     if post_data != nil, do: String.replace_invalid(post_data)
   end
 
   def post_data_buffer(this) do
-    get(this, :_fallbackOverrides)[:postDataBuffer] || get(this, :_initializer)[:postData]
+    _overrides(this)[:postDataBuffer] || get(this, :_initializer)[:postData]
   end
 
   def post_data_json(this) do
@@ -91,14 +94,14 @@ defmodule PlaywrightEx.Client.Request do
 
   # @deprecated
   def headers(this) do
-    if get(this, :_fallbackOverrides)[:headers],
-      do: RawHeaders.headers(RawHeaders._from_headers_object_lossy(get(this, :_fallbackOverrides).headers)),
+    if _overrides(this)[:headers],
+      do: RawHeaders.headers(RawHeaders._from_headers_object_lossy(_overrides(this).headers)),
       else: RawHeaders.headers(get(this, :_provisionalHeaders))
   end
 
   def _actual_headers(this) do
-    if get(this, :_fallbackOverrides)[:headers] do
-      RawHeaders._from_headers_object_lossy(get(this, :_fallbackOverrides).headers)
+    if _overrides(this)[:headers] do
+      RawHeaders._from_headers_object_lossy(_overrides(this).headers)
     else
       if !get(this, :_actualHeadersPromise) do
         put(

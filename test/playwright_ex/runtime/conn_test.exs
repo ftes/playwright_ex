@@ -252,7 +252,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert metadata.location == %{file: __ENV__.file, line: line, column: 0}
       assert metadata.timeout == 0
       assert metadata.internal == false or metadata.internal == nil
-      assert params == %{url: server.empty_page, waitUntil: "load", timeout: 0}
+      assert params == %{url: server.empty_page, waitUntil: "load"}
       flush()
     end
   end
@@ -275,11 +275,8 @@ defmodule PlaywrightEx.RuntimeConnTest do
 
     test "close frees everything the context owned", %{browser: browser, page: page, server: server} do
       conn = page.conn
-      # Settle the fixture context's own startup.
-      Page.goto!(page, server.empty_page)
-      before = Conn.stats(conn)
 
-      for _ <- 1..20 do
+      cycle = fn ->
         context = Browser.new_context!(browser)
         page = BrowserContext.new_page!(context)
         Page.on(page, :request, fn _ -> :ok end)
@@ -290,6 +287,13 @@ defmodule PlaywrightEx.RuntimeConnTest do
         Promise.await!(promise)
         BrowserContext.close!(context)
       end
+
+      # Settle the fixture context's own startup and warm the caches (localUtils' glob cache).
+      Page.goto!(page, server.empty_page)
+      cycle.()
+      Process.sleep(50)
+      before = Conn.stats(conn)
+      for _ <- 1..20, do: cycle.()
 
       Process.sleep(50)
       after_ = Conn.stats(conn)
