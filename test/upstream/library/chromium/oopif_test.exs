@@ -333,6 +333,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   if match?({:unix, :linux}, :os.type()) and !System.get_env("DISPLAY"),
     do: @tag(skip: "headed: no X server (upstream runs headed tests under xvfb)")
 
+  @tag :headed
   test "should report google.com frame with headed", %{browser_type: browser_type, server: server} do
     # it.skip(channel === 'chromium-headless-shell', 'Headless Shell does not support headed mode')  -- we run no channel
     # @see https://github.com/GoogleChrome/puppeteer/issues/2548

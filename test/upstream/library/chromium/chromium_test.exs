@@ -818,9 +818,9 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag skip: "upstream skip: Edge has its own list of pages disallowed in InPrivate"
     test "should refuse WebUI pages that crash Edge in an isolated context"
 
-    # test.skip(headless, ...): `HEADED=1` runs them (`:headful`, as CI's headed step selects).
+    # test.skip(headless, ...): `HEADED=1` runs them (CI's headed step: `--only headed`).
     @tag :page
-    @tag :headful
+    @tag :headed
     @tag skip:
            @chromium_only ||
              if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
@@ -829,7 +829,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
       assert Response.status(response) == 200
     end
 
-    @tag :headful
+    @tag :headed
     @tag skip:
            @chromium_only ||
              if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")

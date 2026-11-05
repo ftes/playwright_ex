@@ -29,8 +29,9 @@ defmodule PlaywrightEx.Library.HeadfulTest do
                        )
   # A test's own skip tag replaces the module's: tests with one add `@headless_skip ||`.
   @moduletag skip: @headless_skip
-  # The tests that only run headed: CI's headed step runs `HEADED=1 mix test --only headful`.
-  @moduletag :headful
+  # Launches headed browsers: excluded on macOS unless `--include headed`; CI's headed step runs
+  # `HEADED=1 mix test --only headed`.
+  @moduletag :headed
 
   test "should have default url when launching browser @smoke", %{launch_persistent: launch_persistent} do
     %{context: context} = launch_persistent.([])

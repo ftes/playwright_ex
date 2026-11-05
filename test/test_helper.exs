@@ -8,4 +8,6 @@ Application.put_env(:playwright_ex, :expect, timeout: 10_000)
 max_cases =
   if System.get_env("CI"), do: max(div(System.schedulers_online(), 2), 1), else: System.schedulers_online() * 2
 
+# Headed windows steal focus on macOS: `mix test --include headed` runs them (PORTING "Tests").
+if match?({:unix, :darwin}, :os.type()), do: ExUnit.configure(exclude: [:headed])
 ExUnit.start(assert_receive_timeout: 10_000, max_cases: max_cases)

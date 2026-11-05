@@ -134,6 +134,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
               nil
           end)
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41714' }
+  @tag :headed
   test "should connect when an existing page has been discarded", %{
     browser_type: browser_type,
     create_user_data_dir: create_user_data_dir,

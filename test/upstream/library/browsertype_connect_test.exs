@@ -322,6 +322,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       if match?({:unix, :linux}, :os.type()) and !System.get_env("DISPLAY"),
         do: @tag(skip: "headed: no X server (upstream runs headed tests under xvfb)")
 
+      @tag :headed
       test "should ignore page.pause when headed", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
