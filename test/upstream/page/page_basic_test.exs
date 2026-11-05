@@ -25,8 +25,10 @@ defmodule PlaywrightEx.Page.PageBasicTest do
   end
 
   test "should fire domcontentloaded when expected", %{page: page} do
+    # deviation: subscribe-first (OTP runtime)
+    dom_content_loaded = Page.wait_for_event(page, :dom_content_loaded)
     navigated_promise = Task.async(fn -> Page.goto!(page, "about:blank") end)
-    page |> Page.wait_for_event(:dom_content_loaded) |> Promise.await!()
+    Promise.await!(dom_content_loaded)
     Task.await(navigated_promise, :infinity)
   end
 

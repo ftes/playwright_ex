@@ -68,11 +68,12 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     end)
 
     css_request = TestServer.wait_for_request(server, "/one-style.css")
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/one-style.html") end)
+    # deviation: subscribe-first (OTP runtime)
     dom_content_loaded_promise = Page.wait_for_navigation(page, wait_until: :domcontentloaded)
     # `bothFired` is false while the load wait is pending.
     load_promise = Page.wait_for_navigation(page, wait_until: :load)
     both_fired = then_resolved(load_promise)
+    navigation_promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/one-style.html") end)
 
     Task.await(css_request, :infinity)
     assert_receive {:response, response}
@@ -92,8 +93,10 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
       |> Plug.Conn.send_resp(200, ~s(<title>Hello</title><script src="script.js"></script>))
     end)
 
+    # deviation: subscribe-first (OTP runtime)
+    navigation = Page.wait_for_navigation(page, wait_until: :commit)
     Task.start(fn -> Page.goto(page, server.empty_page) end)
-    page |> Page.wait_for_navigation(wait_until: :commit) |> Promise.await!()
+    Promise.await!(navigation)
     assert Page.title!(page) == "Hello"
   end
 
