@@ -240,8 +240,23 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       assert response_params["парам2"] == "знач2"
     end
 
-    @tag skip: "not ported: URLSearchParams"
-    test "#{method} should support params passed as URLSearchParams"
+    test "#{method} should support params passed as URLSearchParams", %{context: context, server: server} do
+      # URLSearchParams: a keyword list.
+      search_params = [{"param1", "value1"}]
+      search_params = search_params ++ [{"param1", "value2"}]
+      search_params = search_params ++ [{"парам2", "знач2"}]
+
+      task = TestServer.wait_for_request(server, "/empty.html?" <> URI.encode_query(search_params, :www_form))
+      response = request!(@method, BrowserContext.request(context), server.empty_page, params: search_params)
+      request = Task.await(task)
+
+      assert get_all(request.query_string, "param1") == ["value1", "value2"]
+      assert get_all(request.query_string, "парам2") == ["знач2"]
+
+      response_query = URI.parse(APIResponse.url(response)).query
+      assert get_all(response_query, "param1") == ["value1", "value2"]
+      assert get_all(response_query, "парам2") == ["знач2"]
+    end
 
     test "#{method} should support params passed as string", %{context: context, server: server} do
       params = "?param1=value1&param1=value2&парам2=знач2"
@@ -951,8 +966,19 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert params["file"] == "f.js"
   end
 
-  @tag skip: "not ported: FormData"
-  test "should support application/x-www-form-urlencoded with param lists"
+  test "should support application/x-www-form-urlencoded with param lists", %{context: context, server: server} do
+    # FormData: a keyword list.
+    form = [foo: "1"]
+    form = form ++ [foo: "2"]
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.post!(BrowserContext.request(context), server.empty_page, form: form)
+    req = Task.await(task)
+    assert req.method == "POST"
+    assert request_header(req, "content-type") == "application/x-www-form-urlencoded"
+    body = req.assigns.post_body
+    assert request_header(req, "content-length") == to_string(byte_size(body))
+    assert get_all(body, "foo") == ["1", "2"]
+  end
 
   test "should encode to application/json by default", %{context: context, server: server} do
     data = %{"firstName" => "John", "lastName" => "Doe", "file" => %{"name" => "f.js"}}
@@ -1027,8 +1053,44 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response) == 200
   end
 
-  @tag skip: "not ported: FormData"
-  test "should support repeating names in multipart/form-data"
+  test "should support repeating names in multipart/form-data", %{context: context, server: server} do
+    test_pid = self()
+
+    TestServer.set_route(server, "/empty.html", fn req ->
+      send(test_pid, {:post_body, req.assigns.post_body})
+
+      req
+      |> Plug.Conn.put_resp_header("content-type", "text/plain")
+      |> Plug.Conn.send_resp(200, "OK.")
+    end)
+
+    # FormData: a keyword list; File and Blob: FilePayload maps (a Blob's default name is "blob").
+    form_data = [name: "John"]
+    form_data = form_data ++ [name: "Doe"]
+
+    form_data =
+      form_data ++ [file: %{name: "f1.js", mimeType: "text/javascript", buffer: "var x = 10;\r\n;console.log(x);"}]
+
+    form_data = form_data ++ [file: %{name: "custom_f2.txt", mimeType: "text/plain", buffer: "hello"}]
+    form_data = form_data ++ [file: %{name: "blob", mimeType: "text/plain", buffer: "boo"}]
+
+    response = APIRequestContext.post!(BrowserContext.request(context), server.empty_page, multipart: form_data)
+    assert_received {:post_body, post_body}
+
+    assert post_body =~ ~s{content-disposition: form-data; name="name"\r\n\r\nJohn}
+    assert post_body =~ ~s{content-disposition: form-data; name="name"\r\n\r\nDoe}
+
+    assert post_body =~
+             ~s{content-disposition: form-data; name="file"; filename="f1.js"\r\ncontent-type: text/javascript\r\n\r\nvar x = 10;\r\n;console.log(x);}
+
+    assert post_body =~
+             ~s{content-disposition: form-data; name="file"; filename="custom_f2.txt"\r\ncontent-type: text/plain\r\n\r\nhello}
+
+    assert post_body =~
+             ~s{content-disposition: form-data; name="file"; filename="blob"\r\ncontent-type: text/plain\r\n\r\nboo}
+
+    assert APIResponse.status(response) == 200
+  end
 
   test "should serialize data to json regardless of content-type", %{context: context, server: server} do
     data = %{"firstName" => "John", "lastName" => "Doe"}

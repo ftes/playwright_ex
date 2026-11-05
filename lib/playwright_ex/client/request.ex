@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Client.Request do
   def post_data_json(this) do
     post_data = post_data(this)
 
-    if !post_data do
+    if post_data in [nil, ""] do
       nil
     else
       content_type = headers(this)["content-type"]

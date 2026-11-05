@@ -266,8 +266,15 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
       url = if options[:url] != nil, do: options.url, else: Request.url(options.request)
       method = options[:method] || (options[:request] && Request.method(options.request))
-      # URLSearchParams  -- not ported: no Elixir counterpart (a map or a string)
-      encoded_params = if is_binary(options[:params]), do: options.params
+
+      encoded_params =
+        cond do
+          is_binary(options[:params]) -> options.params
+          # URLSearchParams  -- ported as a keyword list (repeated names allowed)
+          is_list(options[:params]) -> url_search_params_to_string(options.params)
+          true -> nil
+        end
+
       # Cannot call allHeaders() here as the request may be paused inside route handler.
       headers_obj = options[:headers] || (options[:request] && Request.headers(options.request))
       headers = if headers_obj, do: Headers.headers_object_to_array(headers_obj)
@@ -296,11 +303,11 @@ defmodule PlaywrightEx.Client.APIRequestContext do
             end
 
           options[:form] ->
-            # FormData  -- not ported: no Elixir counterpart
+            # FormData  -- ported as a keyword list (repeated names allowed), handled by objectToArray
             {nil, Fetch.object_to_array(options.form), nil, nil}
 
           options[:multipart] ->
-            # FormData  -- not ported: no Elixir counterpart
+            # FormData  -- ported as a keyword list (repeated names allowed), handled by toFormField
             # Convert file-like values to ServerFilePayload structs.
             {nil, nil, for({name, value} <- options.multipart, do: Fetch.to_form_field(to_string(name), value)), nil}
 
@@ -362,6 +369,17 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
   # isomorphic/assert.ts
   defp assert(value, message), do: if(!value, do: raise(message))
+
+  # URLSearchParams.toString(): application/x-www-form-urlencoded serialization.
+  defp url_search_params_to_string(params) do
+    Enum.map_join(Fetch.object_to_array(params), "&", &(form_url_encode(&1.name) <> "=" <> form_url_encode(&1.value)))
+  end
+
+  defp form_url_encode(string) do
+    string
+    |> URI.encode(&(&1 in ?0..?9 or &1 in ?A..?Z or &1 in ?a..?z or &1 in ~c"*-._"))
+    |> String.replace("%20", "+")
+  end
 end
 
 defmodule PlaywrightEx.Client.APIResponse do
