@@ -168,11 +168,12 @@ defmodule PlaywrightEx.Library.HarTest do
     # observation time it will land inside the busy-loop window (i.e. close to
     # `unblockedAt`); if it comes from the browser via the debugging protocol
     # it will be tied to when the browser actually sent the request.
-    # (Here the test process blocks; the driver's events are processed elsewhere.)
+    # deviation: the test process blocks, not the driver's event loop (another OS process), so
+    # this only checks that `startedDateTime` precedes the end of the busy loop.
     Page.evaluate!(page, "() => { window.builtins.setTimeout(() => { void fetch('/delayed-fetch'); }, 50); }")
 
-    # Node processes the queued response event after waitForResponse() is set up; here events
-    # are processed during the busy loop, so wait for the response before it.
+    # deviation: Node processes the queued response event after waitForResponse() is set up; here
+    # events are processed during the busy loop, so wait for the response before it.
     response = Page.wait_for_response(page, "**/delayed-fetch")
 
     block_until = now_ms() + 300
