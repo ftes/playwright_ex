@@ -170,6 +170,23 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert {:ok, _} = Task.yield(wait, 10_000) || Task.shutdown(wait)
     end
 
+    test "a once listener that fired turns its protocol subscription off", %{page: page} do
+      test = self()
+      guid = page.guid
+
+      :persistent_term.put({Conn, :on_send}, fn
+        %{guid: ^guid, method: "updateSubscription", params: params} -> send(test, {:subscription, params})
+        _ -> :ok
+      end)
+
+      Page.once(page, :console, fn _ -> :ok end)
+      Page.evaluate!(page, "() => console.log('x')")
+      Page.evaluate!(page, "() => 1")
+      :persistent_term.erase({Conn, :on_send})
+      assert_received {:subscription, %{event: "console", enabled: true}}
+      assert_received {:subscription, %{event: "console", enabled: false}}
+    end
+
     test "off stops the listener", %{page: page, server: server} do
       test = self()
       listener = fn _ -> send(test, :request) end

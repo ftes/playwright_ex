@@ -126,9 +126,10 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     put(this, :_eventToSubscriptionMapping, mapping)
   end
 
+  @doc false
   # In the connection: posted without awaiting (upstream: `.catch(() => {})`), so it is ordered
   # before any later call.
-  defp _update_subscription(this, event, enabled) do
+  def _update_subscription(this, event, enabled) do
     protocol_event = (get(this, :_eventToSubscriptionMapping) || %{})[event]
 
     if protocol_event do

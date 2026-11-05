@@ -33,6 +33,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
   """
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
@@ -109,11 +110,19 @@ defmodule PlaywrightEx.Client.EventEmitter do
     end
   end
 
+  # OnceWrapper: `this._eventEmitter.removeListener(...)`, which a ChannelOwner overrides (its
+  # protocol subscription goes off with the last listener).
   defp _remove_once(this, type, handler) do
     case Enum.reject(handler, & &1.once) do
-      ^handler -> :ok
-      [] -> map_delete(this, :_events, type)
-      rest -> map_set(this, :_events, type, rest)
+      ^handler ->
+        :ok
+
+      [] ->
+        map_delete(this, :_events, type)
+        if ChannelOwner.is_channel_owner(this), do: ChannelOwner._update_subscription(this, type, false)
+
+      rest ->
+        map_set(this, :_events, type, rest)
     end
   end
 
