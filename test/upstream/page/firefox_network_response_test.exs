@@ -12,7 +12,10 @@ defmodule PlaywrightEx.Page.FirefoxNetworkResponseTest do
   @moduletag :page
 
   # it.skip(({ browserName, isBidi }) => browserName !== 'firefox' || isBidi, 'Tests the Firefox network observer.');
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "firefox", do: "Tests the Firefox network observer.")
+  @moduletag skip:
+               if(System.get_env("BROWSER", "chromium") != "firefox",
+                 do: "upstream skip: Tests the Firefox network observer."
+               )
 
   defp expect_header_fields(response, expected) do
     headers = Response.headers_array!(response)

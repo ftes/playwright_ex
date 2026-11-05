@@ -212,7 +212,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     assert_received :closed
   end
 
-  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "chromium only")
+  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
   test "coverage should work", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.([])
     Coverage.start_js_coverage!(Page.coverage(page))

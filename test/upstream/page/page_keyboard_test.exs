@@ -127,7 +127,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
 
   @tag skip:
          if(System.get_env("BROWSER", "chromium") == "firefox",
-           do: "Firefox/Juggler dispatches keydown and keypress in the same task"
+           do: "upstream skip: Firefox/Juggler dispatches keydown and keypress in the same task"
          )
   test "should dispatch key events in separate tasks", %{page: page} do
     Page.set_content!(page, "<input>")
@@ -544,10 +544,10 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   @tag skip:
          (cond do
             !@is_mac ->
-              "it.skip(platform !== 'darwin')"
+              "upstream skip: macOS only (platform !== 'darwin')"
 
             System.get_env("BROWSER", "chromium") == "firefox" ->
-              "fixme: https://github.com/microsoft/playwright/issues/5721"
+              "upstream fixme: https://github.com/microsoft/playwright/issues/5721"
 
             true ->
               nil
@@ -588,7 +588,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
 
   @tag skip:
          if(System.get_env("BROWSER", "chromium") != "webkit",
-           do: "event.keyIdentifier has been removed from all browsers except WebKit"
+           do: "upstream skip: event.keyIdentifier has been removed from all browsers except WebKit"
          )
   test "should expose keyIdentifier in webkit", %{page: page} do
     last_event = capture_last_keydown(page)
@@ -634,7 +634,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "World"
   end
 
-  @tag skip: if(!@is_mac, do: "it.skip(!isMac)")
+  @tag skip: if(!@is_mac, do: "upstream skip: macOS only (!isMac)")
   test "should move to the start of the document", %{page: page} do
     Page.set_content!(page, "<div contenteditable></div>")
     Page.focus!(page, "div")
@@ -872,7 +872,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
 
   @tag skip:
          if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
-           do: "context menu support is best-effort for Linux and MacOS"
+           do: "upstream skip: context menu support is best-effort for Linux and MacOS"
          )
   test "should dispatch insertText after context menu was opened", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
@@ -897,7 +897,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
 
   @tag skip:
          if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
-           do: "context menu support is best-effort for Linux and MacOS"
+           do: "upstream skip: context menu support is best-effort for Linux and MacOS"
          )
   test "should type after context menu was opened", %{page: page} do
     Page.evaluate!(page, """

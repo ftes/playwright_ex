@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.LauncherTest do
   @tag skip: "not ported: __testHookGracefullyClose is a JS function"
   test "should kill browser process on timeout after close"
 
-  if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "linux only")
+  if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "upstream skip: linux only")
 
   test "should throw a friendly error if its headed and there is no xserver on linux running", %{
     browser_type: browser_type

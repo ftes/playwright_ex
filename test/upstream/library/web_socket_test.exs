@@ -323,7 +323,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert Page.evaluate!(page, "() => 1 + 1") == 2
   end
 
-  @tag skip: "upstream fixme"
+  @tag skip: "upstream fixme: it.fixme() (no reason given)"
   test "should turn off when offline"
 
   test "should send extra HTTP headers on WebSocket handshake", %{

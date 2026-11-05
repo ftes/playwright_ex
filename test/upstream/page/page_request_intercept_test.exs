@@ -147,8 +147,19 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
   end
 
   # it.fixme(browserName !== 'firefox')
-  @tag skip: "upstream fixme"
-  test "should intercept multipart/form-data request body"
+  # issue: https://github.com/microsoft/playwright/issues/14624
+  @tag skip: if(@browser_name != "firefox", do: "upstream fixme: not firefox (#14624)")
+  test "should intercept multipart/form-data request body", %{page: page, server: server, asset: asset} do
+    Page.goto!(page, server.prefix <> "/input/fileupload.html")
+    file_path = Path.relative_to_cwd(asset.("file-to-upload.txt"))
+    Locator.set_input_files!(Page.locator(page, "input[type=file]"), file_path)
+    test = self()
+    Page.route!(page, "**/upload", fn route -> send(test, {:request, Route.request(route)}) end)
+    Page.click!(page, "input[type=submit]", no_wait_after: true)
+    assert_receive {:request, request}
+    assert Request.method(request) == "POST"
+    assert Request.post_data(request) =~ File.read!(file_path)
+  end
 
   test "should fulfill intercepted response using alias", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->

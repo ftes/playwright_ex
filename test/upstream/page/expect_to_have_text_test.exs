@@ -170,7 +170,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ "Received: \"Text content\""
     end
 
-    @tag skip: if(System.get_env("PW_CLOCK") == "frozen", do: "The element is attached after 1 second.")
+    @tag skip: if(System.get_env("PW_CLOCK") == "frozen", do: "upstream skip: The element is attached after 1 second.")
     test "do not show \"element(s) not found\" when the real failure is a string mismatch", %{page: page} do
       Page.set_content!(page, """
         <div>Initial</div>

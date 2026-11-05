@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
 
   @tag skip:
          if(System.get_env("BROWSER") == "webkit" and match?({:win32, _}, :os.type()),
-           do: "responseStart is wrong due upstream webkit/libcurl bug"
+           do: "upstream fixme: responseStart is wrong due upstream webkit/libcurl bug"
          )
   test "should work for subresource", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
 
   @tag skip:
          if(System.get_env("BROWSER") == "webkit",
-           do: "In WebKit, redirects don't carry the timing info"
+           do: "upstream fixme: In WebKit, redirects don't carry the timing info"
          )
   test "should work for redirect", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
@@ -99,7 +99,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: if(System.get_env("BROWSER") == "firefox", do: "Response event is not fired in Firefox")
+  @tag skip: if(System.get_env("BROWSER") == "firefox", do: "upstream fixme: Response event is not fired in Firefox")
   test "should work when serving from memory cache", %{
     context_factory: context_factory,
     server: server

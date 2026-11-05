@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "Chromium only")
+  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
   # tests/config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"

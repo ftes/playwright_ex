@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_permission(page, "geolocation") == "prompt"
     end
 
-    @tag skip: if(@browser_name == "webkit", do: "upstream it.fail: webkit")
+    @tag skip: if(@browser_name == "webkit", do: "upstream fail: webkit")
     test "should trigger permission onchange", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
 
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     end
   end
 
-  @tag skip: if(@browser_name == "firefox", do: "upstream it.fail: No such permissions (requires flag) in Firefox")
+  @tag skip: if(@browser_name == "firefox", do: "upstream fail: No such permissions (requires flag) in Firefox")
   test "should support clipboard read", %{page: page, context: context, server: server, browser_name: browser_name} do
     # https://github.com/microsoft/playwright/issues/27475
     Page.goto!(page, server.empty_page)
@@ -385,7 +385,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     # 'camera'/'microphone' permissions. Chromium needs --use-fake-device-for-media-stream
     # and Firefox has no camera/microphone permission mapping, so scope to WebKit.
     # it.skip(({ isWindows, channel }) => isWindows && channel !== 'webkit-wsl', 'WebKit has no media capture on Windows');
-    @describetag skip: if(@browser_name != "webkit", do: "WebKit mock-capture-device based test")
+    @describetag skip: if(@browser_name != "webkit", do: "upstream skip: WebKit mock-capture-device based test")
 
     defp get_user_media(page, constraints) do
       Page.evaluate!(

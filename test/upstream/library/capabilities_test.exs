@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   @tag skip:
          if(@is_windows and @browser_name == "webkit",
            do:
-             "passes locally but fails on GitHub Action bot, apparently due to a Media Pack issue in the Windows Server"
+             "upstream skip: passes locally but fails on GitHub Action bot, apparently due to a Media Pack issue in the Windows Server"
          )
   test "should play video @smoke", %{page: page, asset: asset, browser_name: browser_name} do
     # Safari only plays mp4 so we test WebKit with an .mp4 clip.
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Page.eval_on_selector!(page, "video", "v => v.pause()")
   end
 
-  @tag skip: if(@is_windows and @browser_name == "webkit", do: "not supported")
+  @tag skip: if(@is_windows and @browser_name == "webkit", do: "upstream skip: not supported")
   test "should play webm video @smoke", %{page: page, asset: asset} do
     absolute_path = asset.("video_webm.html")
     # Our test server doesn't support range requests required to play on Mac,
@@ -165,7 +165,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Page.wait_for_timeout!(page, 1000)
   end
 
-  @tag skip: if(@browser_name != "chromium", do: "showDirectoryPicker is only available in Chromium")
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: showDirectoryPicker is only available in Chromium")
   test "should not crash on showDirectoryPicker", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/7339
     Page.goto!(page, server.empty_page)

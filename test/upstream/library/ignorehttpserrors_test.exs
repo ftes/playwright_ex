@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
 
   @tag skip:
          if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
-           do: "fixme: See https://bugs.webkit.org/show_bug.cgi?id=293148"
+           do: "upstream fixme: See https://bugs.webkit.org/show_bug.cgi?id=293148"
          )
   test "should isolated contexts that share network process", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser, ignore_https_errors: true)
@@ -98,7 +98,8 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
 
   @tag skip:
          if(@browser_name == "chromium",
-           do: "fixme: Failed to register a ServiceWorker: An SSL certificate error occurred when fetching the script."
+           do:
+             "upstream fixme: Failed to register a ServiceWorker: An SSL certificate error occurred when fetching the script."
          )
   test "serviceWorker should intercept document request", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser, ignore_https_errors: true)

@@ -723,7 +723,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       Browser.close!(browser)
     end
 
-    if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "Testing non-platform specific code")
+    if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "upstream skip: Testing non-platform specific code")
     # `process.on('warning')`: no Node warnings to listen for here.
     test "should be able to connect 20 times to a single server without warnings", %{
       browser_type: browser_type,

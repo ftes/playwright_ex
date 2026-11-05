@@ -6,7 +6,8 @@ defmodule PlaywrightEx.Library.PdfTest do
   alias PlaywrightEx.Page
 
   @tag :tmp_dir
-  @tag skip: if(@browser_name != "chromium", do: "Printing to pdf is currently only supported in chromium.")
+  @tag skip:
+         if(@browser_name != "chromium", do: "upstream skip: Printing to pdf is currently only supported in chromium.")
   test "should be able to save file", %{context_factory: context_factory, tmp_dir: tmp_dir} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
@@ -16,7 +17,8 @@ defmodule PlaywrightEx.Library.PdfTest do
   end
 
   @tag :tmp_dir
-  @tag skip: if(@browser_name != "chromium", do: "Printing to pdf is currently only supported in chromium.")
+  @tag skip:
+         if(@browser_name != "chromium", do: "upstream skip: Printing to pdf is currently only supported in chromium.")
   test "should be able to generate outline", %{context_factory: context_factory, server: server, tmp_dir: tmp_dir} do
     context = context_factory.(base_url: server.prefix)
     page = BrowserContext.new_page!(context)

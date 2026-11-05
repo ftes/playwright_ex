@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
                if(
                  System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()) and
                    target in ["localhost", "127.0.0.1"] and additional_bypass,
-                 do: "Mac webkit does not proxy localhost when bypass rules are set."
+                 do: "upstream skip: Mac webkit does not proxy localhost when bypass rules are set."
                )
         test "#{description}", %{
           browser_type: browser_type,

@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Library.Chromium.BfcacheTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "Chromium only")
+  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
   # test.use({ launchOptions: { ...launchOptions, ignoreDefaultArgs: ['--disable-back-forward-cache'] } }):
   # a browser of its own, then contextTest's `page`.

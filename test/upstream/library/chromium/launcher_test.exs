@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Library.Chromium.LauncherTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.CDPSession
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "Chromium only")
+  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
   @tag skip: "not ported: launchServer (PLAN: out of scope)"
   test "should throw with remote-debugging-pipe argument"

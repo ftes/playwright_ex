@@ -427,7 +427,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
 
   @tag skip:
          if(System.get_env("BROWSER", "chromium") == "chromium",
-           do: "requestStorageAccess API is not available in Chromium"
+           do: "upstream skip: requestStorageAccess API is not available in Chromium"
          )
   test "should support requestStorageAccess", %{
     page: page,

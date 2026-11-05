@@ -177,7 +177,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
 
   @tag :page
   @tag :tmp_dir
-  @tag skip: if(@browser_name == "webkit", do: "OPFS is unavailable in non-persistent WebKit contexts")
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: OPFS is unavailable in non-persistent WebKit contexts")
   test "should round-trip OPFS", %{context_factory: context_factory, page: page, server: server, tmp_dir: tmp_dir} do
     # annotation: issue https://github.com/microsoft/playwright/issues/41400
     Page.goto!(page, server.empty_page)

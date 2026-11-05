@@ -96,6 +96,6 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     assert BrowserContext.pages(Page.context(page)) == []
   end
 
-  @tag skip: "upstream fixme"
+  @tag skip: "upstream fixme: test.fixme (no reason given)"
   test "should reject in-flight worker.evaluate when page crashes"
 end

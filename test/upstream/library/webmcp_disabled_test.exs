@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Library.WebmcpDisabledTest do
   alias PlaywrightEx.WebMCP
 
   @moduletag :page
-  @moduletag skip: if(System.get_env("BROWSER") == "webkit", do: "WebKit does not implement WebMCP")
+  @moduletag skip: if(System.get_env("BROWSER") == "webkit", do: "upstream skip: WebKit does not implement WebMCP")
   # test.skip(({ isBidi }) => isBidi, 'WebMCP is not implemented over BiDi');
 
   test "should throw when the browser was launched without WebMCP", %{page: page, browser_name: browser_name} do

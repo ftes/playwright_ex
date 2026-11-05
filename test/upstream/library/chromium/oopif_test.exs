@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Worker
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "Chromium only")
+  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
   # it.use({ launchOptions: { ...launchOptions, args: ['--site-per-process'] } }): this module's
   # `browser` is launched with `--site-per-process`; contextTest's `context`/`page` use it.
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  @tag skip: "upstream fixme"
+  @tag skip: "upstream fixme: it.fixme (no reason given)"
   test "should get the proper viewport", %{page: page, browser: browser, server: server} do
     assert Page.viewport_size(page) == %{width: 1280, height: 720}
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")

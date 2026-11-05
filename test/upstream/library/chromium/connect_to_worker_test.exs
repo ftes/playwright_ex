@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Worker
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "chromium only")
+  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   # Deviations:
   #   * `childProcess({ command })` (tests/config/commonFixtures.ts) is a port running the command,

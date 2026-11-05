@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
   alias PlaywrightEx.Page
 
   @moduletag :page
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "Chromium only")
+  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
   test "should work", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page))

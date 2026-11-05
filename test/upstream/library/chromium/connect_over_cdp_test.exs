@@ -23,7 +23,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   #   * `9339 + testInfo.workerIndex` is a free port (modules run in parallel).
   #   * `http.get(.../json/version/)` uses the API request context.
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "chromium only")
+  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
@@ -320,7 +320,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   end
 
   # test.skip(mode !== 'default'): out of process, NODE_TLS_REJECT_UNAUTHORIZED can't be set in the driver.
-  @tag skip: "Out of process transport does not allow us to set env vars dynamically"
+  @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
   test "should connect via https"
 
   test "should return valid browser from context.browser()", %{browser_type: browser_type} do
@@ -387,10 +387,10 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  @tag skip: "Out of process transport does not allow us to set env vars dynamically"
+  @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
   test "should use env proxy with connectOverCDP discovery request"
 
-  @tag skip: "Out of process transport does not allow us to set env vars dynamically"
+  @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
   test "should send target Host header when using env HTTP proxy with connectOverCDP"
 
   test "should be able to connect via localhost", %{browser_type: browser_type} do

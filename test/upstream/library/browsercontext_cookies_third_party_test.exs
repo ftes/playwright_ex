@@ -648,7 +648,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
 
   @tag skip:
          if(System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()),
-           do: "fixme: webkit on mac"
+           do: "upstream fixme: webkit on mac"
          )
   test "should be able to send third party cookies via an iframe", %{
     browser: browser,
@@ -754,7 +754,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     end
   end
 
-  @tag skip: if(System.get_env("BROWSER") == "webkit", do: "No third party cookies in WebKit")
+  @tag skip: if(System.get_env("BROWSER") == "webkit", do: "upstream skip: No third party cookies in WebKit")
   test "should not block third party SameSite=None cookies", %{
     context_factory: context_factory,
     https_server: https_server

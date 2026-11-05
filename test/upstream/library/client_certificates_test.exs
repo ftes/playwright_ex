@@ -603,7 +603,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    @tag skip: "Out of process transport does not allow us to set env vars dynamically"
+    @tag skip: "upstream skip: Out of process transport does not allow us to set env vars dynamically"
     test "should pass with matching certificates and when a http proxy is used from env"
 
     test "should pass with matching certificates and when a http proxy is used from config but env is there", %{

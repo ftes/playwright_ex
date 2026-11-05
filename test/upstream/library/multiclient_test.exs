@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   @tag skip: "not ported: launchServer (PLAN: out of scope)"
   test "should chain routes"
 
-  @tag skip: "upstream fixme"
+  @tag skip: "upstream fixme: test.fixme (no reason given)"
   test "should chain routes with changed url"
 
   @tag skip: "not ported: launchServer (PLAN: out of scope)"

@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "chromium only")
+  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   # Deviations:
   #   * `Promise.all([context.waitForEvent(...), page.goto(...)])` starts the waits (promise
