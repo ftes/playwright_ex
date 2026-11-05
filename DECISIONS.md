@@ -747,3 +747,29 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Kept the jest-style matcher messages. The layout is Playwright's own `matcher_hint`, and
   ExUnit.Diff is private and colour-only. Python writes its own simpler messages. Replacing ours
   would take about a day and change user-visible text.
+
+## 2026-11-05: OTP-native runtime spike (workstream PP, needs your decision)
+- A spike (change `omuunqursqzs`, workspace wpp, not merged) drove real Chromium with no heap
+  objects, no GC and no baton. 20/20 slice tests pass over 4 runs: goto, wait_for_navigation incl.
+  timeout, request events, routes with handlers that call back into the API, waits rejected on
+  close, AbortSignal, 20 open/close cycles back to baseline.
+- Design:
+  - The connection process is the only writer of an ETS table (lock-free reads).
+  - Promises are a ref plus a message to the awaiting process; race and all are receives.
+  - Shared promises get a holder process.
+  - Waiter state lives in the waiting process.
+  - ManualPromise fields are rows on their owner.
+  - User listeners run in per-subscription processes.
+  - A dispatch barrier holds the connection until a listener returns or blocks on Playwright, so
+    the event-before-reply guarantee and listener order hold.
+  - `__dispose__` deletes the rows: exact lifetimes, no cap, no pauses.
+- Deviations:
+  - Check-then-act windows need subscribe-first reorders (about 1 per 8 methods; 3 in the slice).
+  - An async listener queues later events behind it; JS interleaves them.
+  - A listener blocking on non-Playwright work stalls its connection's dispatch.
+  - Mutable fields raise TargetClosedError after close; initializer data stays readable.
+- Effort: about −1.0k to −1.2k LOC (runtime and JS emulations, 2.45k, become about 1.3k),
+  roughly 2–3 weeks of agent time, mostly a concurrency audit of the 55 client files.
+- Alternative: counted ownership (above). About −50 LOC, line-level 1:1 kept, but the heap stays
+  and a missed holder becomes a new failure mode.
+- Found on the way: `metadata.location.file` was relative; JS sends absolute. Fixed.
