@@ -70,6 +70,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def new(module, parent, type, guid, initializer) do
     connection = if is_channel_owner(parent), do: get(parent, :_connection), else: parent
     this = struct(module, guid: guid, loop: connection.loop, heap: connection.heap)
+    _reset_heap_state(this)
     # super(); this.setMaxListeners(0);  -- EventEmitter state is implicit
     put(this, :_connection, connection)
     put(this, :_type, type)
@@ -87,6 +88,20 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     # this._channel = this._createChannel(new EventEmitter());  -- see channel_call/4 and _channel/1
     put(this, :_initializer, initializer)
     this
+  end
+
+  # Elixir only: fields live in the heap by guid, and a guid can come back (`_newContextForReuse`
+  # re-creates the disposed context and its pages). `new X()` starts from fresh state, so drop what
+  # the heap still holds for a guid seen before, the listeners of both emitters included.
+  defp _reset_heap_state(%{heap: heap, guid: guid} = this) do
+    if get(this, :_guid) != nil do
+      EventLoop.with_baton(this.loop, fn ->
+        for id <- [guid, {:channel, guid}] do
+          :ets.match_delete(heap, {{id, :_}, :_})
+          :ets.match_delete(heap, {{id, :_, :_}, :_})
+        end
+      end)
+    end
   end
 
   # The EventEmitter behind `this._channel` (protocol events).
