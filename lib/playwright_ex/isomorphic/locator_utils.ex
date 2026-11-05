@@ -62,6 +62,9 @@ defmodule PlaywrightEx.Isomorphic.LocatorUtils do
     "internal:role=#{role}#{Enum.map_join(props, fn [n, v] -> "[#{n}=#{v}]" end)}"
   end
 
-  # String(value): booleans, "mixed" and numbers.
+  # String(value): booleans, "mixed" and numbers (an integral float prints as an integer).
+  defp string(value) when is_float(value) and value == trunc(value) and abs(value) < 1.0e21,
+    do: Integer.to_string(trunc(value))
+
   defp string(value), do: to_string(value)
 end

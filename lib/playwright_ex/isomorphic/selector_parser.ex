@@ -572,23 +572,47 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
   # `.slice(1, -1)` of a quoted string: the quotes are ASCII.
   defp unquote_string(quoted), do: binary_part(quoted, 1, byte_size(quoted) - 2)
 
-  # `+value`: JS Number(string), :nan when it is not a number.
-  defp to_number(""), do: 0
+  # JS whitespace and line terminators, which Number(string) trims.
+  @js_space "[\\t\\n\\x0B\\f\\r \\x{00A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*"
 
-  defp to_number(value) do
-    case Integer.parse(value) do
-      {i, ""} ->
-        i
+  @doc false
+  # `+value`: JS Number(string). An integral result is an integer, a non-finite one `:nan`,
+  # `:infinity` or `:neg_infinity`.
+  def to_number(value) do
+    [_, value] = Regex.run(~r/\A#{@js_space}(.*?)#{@js_space}\z/su, value)
 
-      _ ->
-        case Float.parse(value) do
+    cond do
+      value == "" ->
+        0
+
+      match = Regex.run(~r/\A0(?:([xX])([0-9a-fA-F]+)|([oO])([0-7]+)|([bB])([01]+))\z/, value) ->
+        [base, digits] = match |> tl() |> Enum.reject(&(&1 == ""))
+        String.to_integer(digits, %{"x" => 16, "o" => 8, "b" => 2}[String.downcase(base)])
+
+      match = Regex.run(~r/\A([+-]?)Infinity\z/, value) ->
+        if match == [value, "-"], do: :neg_infinity, else: :infinity
+
+      match = Regex.run(~r/\A([+-]?)(?:(\d+)\.?(\d*)|\.(\d+))(?:[eE]([+-]?\d+))?\z/, value) ->
+        [sign, int, frac, frac2, exp] = tl(match) ++ List.duplicate("", 6 - length(match))
+        int = if int == "", do: "0", else: int
+        frac = if frac <> frac2 == "", do: "0", else: frac <> frac2
+        exp = if exp == "", do: "0", else: exp
+
+        case Float.parse("#{sign}#{int}.#{frac}e#{exp}") do
+          {f, ""} when f == trunc(f) and abs(f) < 1.0e21 -> trunc(f)
           {f, ""} -> f
-          _ -> :nan
+          :error when sign == "-" -> :neg_infinity
+          :error -> :infinity
         end
+
+      true ->
+        :nan
     end
   end
 
   # `${value}`
   defp js_string(%RegExp{} = re), do: RegExp.to_string(re)
+  defp js_string(:infinity), do: "Infinity"
+  defp js_string(:neg_infinity), do: "-Infinity"
   defp js_string(value), do: to_string(value)
 end

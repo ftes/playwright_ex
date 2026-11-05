@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   """
 
   import PlaywrightEx.Isomorphic.SelectorParser,
-    only: [parse_attribute_selector: 2, parse_selector: 1, stringify_selector: 1, stringify_selector: 2]
+    only: [parse_attribute_selector: 2, parse_selector: 1, stringify_selector: 1, stringify_selector: 2, to_number: 1]
 
   alias PlaywrightEx.RegExp
 
@@ -291,20 +291,6 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
       else: options ++ [{key, value}]
   end
 
-  # attr.value = +attr.value
-  defp to_number(value) do
-    case Integer.parse(value) do
-      {i, ""} ->
-        i
-
-      _ ->
-        case Float.parse(value) do
-          {f, ""} -> f
-          _ -> :nan
-        end
-    end
-  end
-
   # factory.generateLocator(...), factory.chainLocators(...)
   defp generate_locator(factory, base, kind, body, options),
     do: factory.__struct__.generate_locator(factory, base, kind, body, options)
@@ -315,6 +301,8 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   # `${value}` of an option value.
   def js_string(nil), do: "null"
   def js_string(:nan), do: "NaN"
+  def js_string(:infinity), do: "Infinity"
+  def js_string(:neg_infinity), do: "-Infinity"
   def js_string(%RegExp{} = re), do: RegExp.to_string(re)
   def js_string(value) when is_float(value) and value == trunc(value), do: Integer.to_string(trunc(value))
   def js_string(value), do: to_string(value)
@@ -1006,6 +994,7 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
       do: stringify({:object, Enum.map(map, fn {key, value} -> {to_string(key), value} end)})
 
     defp stringify(list) when is_list(list), do: "[" <> Enum.map_join(list, ",", &stringify/1) <> "]"
+    defp stringify(value) when value in [:nan, :infinity, :neg_infinity], do: "null"
     defp stringify(value), do: JSON.encode!(value)
 
     # LocatorOptions as an object: `nil` entries are undefined.
