@@ -921,3 +921,16 @@ drift). Blockers for release, assigned to follow-up workstreams:
   count UTF-16 units. locator-generator.spec now runs `context._showRecorder` in beforeEach as
   upstream does. `expect.poll` sites use `Utils.poll/3`; issue annotations and file-level skips
   stay as comments. 4 findings rejected as ratified deviations.
+- VF-B (page/frame): 22 fixes, mostly verbatim assertions; Node fs error texts for addScriptTag/
+  addStyleTag/screenshot/pdf (X-05). C2a-05 frame side rejected: `wait_for_url`'s predicate runs in
+  the awaiting process (mailbox subscription), as upstream's runs in the caller. X-03 leak tests now
+  fail without frame.ex `setMaxListeners(0)`.
+- VF-H (harness): annotations known before the run are skip tags, using UpstreamCase's compile-time
+  `@browser_name`/`@browser_major_version` (driver browsers.json; setup_all checks the launched
+  major). ExUnit has no runtime skip. Test-server https is HTTP/1.1 only, as Node's
+  createHttpsServer. Remote servers launch with `_defaultLaunchOptions`. Parity flags upstream
+  `slow()` without `@slow_timeout`. `Utils.assert_truthy/1`/`assert_falsy/1` for JS truthiness.
+- Lead, H-16: keep the 10 s `assert_receive` default instead of bounding event waits by the test
+  timeout: the test timeout still bounds the test, and failures surface sooner.
+- Lead, H-17: keep one CI rerun of first-run failures instead of upstream's `retries: 3`: more
+  retries would hide the flakes we want to see (the FailuresFormatter lists them).
