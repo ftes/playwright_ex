@@ -63,8 +63,10 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
 
     Page.goto!(page, server.empty_page)
     # await expect.poll(() => received).toEqual([1, 2]);
-    assert_receive {:received, 1}, 5000
-    assert_receive {:received, 2}, 5000
+    assert_receive {:received, n1}, 5000
+    assert_receive {:received, n2}, 5000
+    assert [n1, n2] == [1, 2]
+    refute_received {:received, _}
   end
 
   test "should accept a function as the whole argument", %{page: page, server: server} do
@@ -200,8 +202,10 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
 
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     # Once for the main frame document, once for the child frame document.
-    assert_receive {:received, 42}, 5000
-    assert_receive {:received, 42}, 5000
+    assert_receive {:received, n1}, 5000
+    assert_receive {:received, n2}, 5000
+    assert [n1, n2] == [42, 42]
+    refute_received {:received, _}
   end
 
   test "should not register the callback on the global object", %{page: page, server: server} do

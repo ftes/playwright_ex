@@ -104,9 +104,10 @@ defmodule PlaywrightEx.Page.WorkersTest do
 
     Promise.await!(one)
     Promise.await!(two)
-    assert_received {:message, "1"}
-    assert_received {:message, "2"}
+    assert_received {:message, message1}
+    assert_received {:message, message2}
     refute_received {:message, _}
+    assert [message1, message2] == ["1", "2"]
     # Firefox's juggler had an issue that reported worker blob urls as frame urls.
     refute Page.url(page) =~ "blob"
   end
