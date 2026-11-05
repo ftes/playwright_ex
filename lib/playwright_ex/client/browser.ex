@@ -142,8 +142,7 @@ defmodule PlaywrightEx.Client.Browser do
   end
 
   def is_connected(this) do
-    # deviation: a disposed browser reads its last state (its rows are gone).
-    get(this, :_isConnected, false)
+    get(this, :_isConnected)
   end
 
   def new_browser_cdp_session(this) do

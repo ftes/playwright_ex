@@ -310,13 +310,11 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   def pages(this) do
-    # deviation: a disposed context has no pages (its rows are gone; JS: the last value, empty).
-    get(this, :_pages, [])
+    get(this, :_pages)
   end
 
   def is_closed(this) do
-    # deviation: a disposed context reads its last state (its rows are gone).
-    get(this, :_closingStatus, "closed") != "none"
+    get(this, :_closingStatus) != "none"
   end
 
   def new_page(this) do
@@ -620,10 +618,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     _dispose_har_routers(this)
     Tracing._reset_stack_counter(get(this, :tracing))
-    # deviation: the request context may be disposed already (JS reads its last fields); then its
-    # tracing is gone too.
-    request = get(this, :request)
-    if alive?(request), do: Tracing._reset_stack_counter(get(request, :tracing))
+    Tracing._reset_stack_counter(get(get(this, :request), :tracing))
     emit(this, Events.BrowserContext.close(), this)
   end
 
@@ -645,16 +640,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
           e -> e
         end
 
-      closed_promise = get(this, :_closedPromise)
       channel_call(this, :close, options, TimeoutSettings.k_no_timeout())
-
-      # deviation: the context is disposed (its rows, the latch's included, deleted) before the
-      # reply; disposed means closed.
-      try do
-        Promise.await(closed_promise)
-      rescue
-        PlaywrightEx.TargetClosedError -> nil
-      end
+      Promise.await(get(this, :_closedPromise))
 
       if har_error, do: raise(har_error)
       nil

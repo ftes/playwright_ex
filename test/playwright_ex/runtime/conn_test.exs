@@ -258,7 +258,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
   end
 
   describe "lifetimes" do
-    test "objects are readable as JS after close, where the handle holds the data", %{
+    test "objects are readable as JS after close", %{
       context: context,
       page: page,
       server: server
@@ -269,14 +269,29 @@ defmodule PlaywrightEx.RuntimeConnTest do
       # initializer data: in the handle
       assert Request.url(request) == server.empty_page
       assert Response.status(response) == 200
-      # mutable fields are gone (JS: last value)
-      assert_raise PlaywrightEx.TargetClosedError, fn -> Page.url(page) end
+      # mutable fields: the last value (retained until the browser closes)
+      assert Page.url(page) == server.empty_page
     end
 
-    test "close frees everything the context owned", %{browser: browser, page: page, server: server} do
-      conn = page.conn
+    test "a disposed object is readable until its anchor is freed", %{browser: browser, server: server} do
+      context = Browser.new_context!(browser)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.empty_page)
+      BrowserContext.close!(context)
+      # Retained under the browser (the context's anchor): last values, as JS.
+      assert BrowserContext.browser(context) == browser
+      assert BrowserContext.pages(context) == []
+      assert Page.is_closed(page)
+      assert Page.url(page) == server.empty_page
+      # Calls still fail.
+      assert {:error, %PlaywrightEx.TargetClosedError{}} = Page.goto(page, server.empty_page)
+    end
 
-      cycle = fn ->
+    test "closing a browser frees everything it anchored", %{browser: browser, page: page, server: server} do
+      conn = page.conn
+      browser_type = Browser.browser_type(browser)
+
+      cycle = fn browser ->
         context = Browser.new_context!(browser)
         page = BrowserContext.new_page!(context)
         Page.on(page, :request, fn _ -> :ok end)
@@ -290,14 +305,21 @@ defmodule PlaywrightEx.RuntimeConnTest do
 
       # Settle the fixture context's own startup and warm the caches (localUtils' glob cache).
       Page.goto!(page, server.empty_page)
-      cycle.()
+      cycle.(browser)
       Process.sleep(50)
       before = Conn.stats(conn)
-      for _ <- 1..20, do: cycle.()
+
+      own = PlaywrightEx.BrowserType.launch!(browser_type)
+      for _ <- 1..20, do: cycle.(own)
+      # Disposed contexts are retained while their browser lives.
+      assert Conn.stats(conn).rows > before.rows
+      Browser.close!(own)
 
       Process.sleep(50)
       after_ = Conn.stats(conn)
-      assert after_.rows == before.rows
+      # What stays: the closed browser's own rows (until the connection closes).
+      own_rows = length(:ets.select(own.table, [{{{own.guid, :_}, :_}, [], [true]}])) + 1
+      assert after_.rows == before.rows + own_rows
       assert after_.callbacks == 0
       assert after_.subscriptions <= before.subscriptions
       assert after_.frames == 0

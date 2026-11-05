@@ -203,35 +203,73 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def _dispose(this, reason) do
     # Clean up from parent and connection.
     if get(this, :_parent), do: map_delete(get(this, :_parent), :_objects, this.guid)
-    # this._wasCollected = reason === 'gc';  -- not ported: the object's rows are deleted (below)
+    # this._wasCollected = reason === 'gc';  -- not ported: a collected object's rows are freed at once (below)
     objects = map_values(this, :_objects)
     map_delete(get(this, :_connection), :_objects, this.guid)
 
     # Dispose all children.
     for object <- objects, do: _dispose(object, reason)
-    # this._objects.clear();  -- with the rows
-    _free(this, reason)
+    # this._objects.clear();  -- not ported: a disposed object's rows are kept (below), its children are gone
+    _retire(this, reason)
   end
 
-  # Elixir only, in the connection: deletes the object's rows (fields, listeners, latches, the
-  # objects it owns), stops its user listeners' processes and rejects its latches' awaiters.
-  defp _free(this, _reason) do
+  # Elixir only, in the connection. JS keeps a disposed object readable (its last field values,
+  # its settled promises) while referenced. Here its rows are kept until its anchor is freed: the
+  # nearest BrowserContext ancestor (for a context: its Browser), else the connection. A disposed
+  # Browser frees what it anchors at once (its own rows stay until the connection closes). Its
+  # listeners go (they never fire again; user listener processes stop) and pending latches are
+  # rejected. An object the driver collected (`reason: "gc"`) is freed at once (JS: unusable).
+  defp _retire(this, reason) do
     error = TargetClosedError.new()
 
     for {local, value} <- Heap.rows(this, this.guid) do
       case {sub(local), value} do
         {{:map, :_events, _}, {_seq, entries}} ->
           for %{kind: :user, pid: pid} <- entries, do: send(pid, :pw_stop)
+          :ets.delete(this.table, {this.guid, local})
 
         {{:latch, _}, {:pending, waiters}} ->
           for {pid, ref} <- waiters, do: send(pid, {:pw, ref, {:error, error}})
+          :ets.insert(this.table, {{this.guid, local}, {:settled, {:error, error}}})
 
         _ ->
           :ok
       end
     end
 
-    Heap.free_rows(this, this.guid)
+    cond do
+      reason == "gc" ->
+        _release(this.table, this.guid)
+
+      get(this, :_type) == "Browser" ->
+        for {{:retained, guid}, _} <- Heap.rows(this, this.guid), do: _release(this.table, guid)
+        :ets.insert(this.table, {{:connection, {:retained, this.guid}}, true})
+
+      true ->
+        :ets.insert(this.table, {{_anchor(this), {:retained, this.guid}}, true})
+    end
+
+    if reason != "gc", do: :ets.insert(this.table, {{this.guid, :__retained__}, true})
+  end
+
+  defp _anchor(this) do
+    types = if get(this, :_type) == "BrowserContext", do: ["Browser"], else: ["BrowserContext", "Browser"]
+    _anchor(get(this, :_parent), types)
+  end
+
+  defp _anchor(nil, _types), do: :connection
+
+  defp _anchor(object, types) do
+    if get(object, :_type) in types, do: object.guid, else: _anchor(get(object, :_parent), types)
+  rescue
+    # An ancestor freed already (not expected: children are disposed first).
+    TargetClosedError -> :connection
+  end
+
+  # Frees a retained object's rows, and those of the objects it anchors.
+  defp _release(table, guid) do
+    for {{:retained, child}, _} <- Heap.rows(%{table: table}, guid), do: _release(table, child)
+    Heap.free_rows(%{table: table}, guid)
   end
 
   defp sub({:latch, _} = sub), do: sub

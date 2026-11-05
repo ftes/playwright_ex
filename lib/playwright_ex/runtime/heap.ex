@@ -18,8 +18,9 @@ defmodule PlaywrightEx.Runtime.Heap do
 
   A handle carries the immutable part of its object (`guid`, `type`, `initializer`, its
   connection): `:_type`, `:_guid`, `:_initializer` and `:_connection` stay readable after dispose.
-  Other fields of a disposed object raise `PlaywrightEx.TargetClosedError` (JS keeps the last
-  value); writes to it are dropped.
+  A disposed object keeps its rows until its anchor is freed (see
+  `PlaywrightEx.Client.ChannelOwner._dispose/2`), so reads return the last value as in JS; writes
+  to it are dropped. Fields of a freed object raise `PlaywrightEx.TargetClosedError`.
 
   `new_object(module)` is a process-local object: its fields live in the process dictionary of
   its creator, which alone may use it (another process raises); `free/1` erases it.
@@ -90,17 +91,6 @@ defmodule PlaywrightEx.Runtime.Heap do
     end
   end
 
-  @doc """
-  `get/2`, but `disposed` for a field of a disposed object (instead of raising): for a state flag
-  whose last value JS reads after close (`isConnected()`, `isClosed()`), which dispose fixes.
-  """
-  def get(obj, field, disposed) do
-    case lookup(obj, key(obj, field)) do
-      [{_, value}] -> value
-      [] -> if alive?(obj), do: nil, else: disposed
-    end
-  end
-
   defp special(%{type: type}, :_type), do: type
   defp special(%{guid: guid}, :_guid), do: guid
   defp special(%{initializer: initializer}, :_initializer), do: initializer
@@ -108,7 +98,19 @@ defmodule PlaywrightEx.Runtime.Heap do
   defp special(%{conn: conn, table: table}, :_connection),
     do: struct(PlaywrightEx.Client.Connection, guid: :connection, conn: conn, table: table)
 
-  defp missing(obj), do: if(alive?(obj), do: nil, else: raise(TargetClosedError.new()))
+  # An absent field: `undefined` while the object is alive or retained after dispose, else (its
+  # rows freed) a TargetClosedError.
+  defp missing(obj), do: if(alive?(obj) or retained?(obj), do: nil, else: raise(TargetClosedError.new()))
+
+  @doc false
+  # Whether a disposed object's rows are kept (`PlaywrightEx.Client.ChannelOwner._dispose/2`).
+  def retained?(%{table: nil}), do: false
+
+  def retained?(%{guid: guid, table: table}) do
+    :ets.member(table, {root(guid), :__retained__})
+  rescue
+    ArgumentError -> false
+  end
 
   defp lookup(%{table: table}, key) do
     :ets.lookup(table, key)
