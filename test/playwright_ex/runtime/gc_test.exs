@@ -59,14 +59,68 @@ defmodule PlaywrightEx.Runtime.GCTest do
   end
 
   test "returned values are released when their process exits", %{loop: loop} do
-    guid =
-      fn -> baton(loop, fn -> Promise.new(fn resolve, _ -> resolve.(:value) end) end).guid end
-      |> Task.async()
-      |> Task.await()
+    test = self()
+    spawn(fn -> send(test, baton(loop, fn -> Promise.new(fn resolve, _ -> resolve.(:value) end) end).guid) end)
+    assert_receive guid
 
     eventually(fn -> :ets.select_count(loop.roots, [{{{{:returned, :_}, :_}, :_}, [], [true]}]) == 0 end)
     collect(loop)
     assert rows(loop.heap, guid) == []
+  end
+
+  test "a value a Task returns stays rooted for its caller", %{loop: loop} do
+    promise =
+      fn -> baton(loop, fn -> Promise.new(fn resolve, _ -> resolve.(:value) end) end) end
+      |> Task.async()
+      |> Task.await()
+
+    eventually(fn -> :ets.select_count(loop.roots, [{{{{:returned, :_}, :_}, :_}, [], [true]}]) == 1 end)
+    collect(loop)
+    assert Promise.await(promise) == :value
+    GC.unroot(promise)
+    collect(loop)
+    assert rows(loop.heap, promise.guid) == []
+  end
+
+  test "a unit parked forever holds back only what was allocated before it parked", %{
+    loop: loop,
+    connection: connection
+  } do
+    {old, gate} =
+      baton(loop, fn ->
+        old = Heap.new_object(Obj)
+        Heap.put(old, :value, :old)
+        Heap.put(connection, :old, old)
+        gate = Promise.new()
+        Heap.put(connection, :gate, gate)
+        {old, gate}
+      end)
+
+    parked =
+      Task.async(fn ->
+        baton(loop, fn ->
+          old = Heap.get(connection, :old)
+          Promise.await(gate)
+          Heap.get(old, :value)
+        end)
+      end)
+
+    eventually(fn -> :ets.select_count(loop.roots, [{{{:parked, :_}, :_}, [], [true]}]) == 1 end)
+    baton(loop, fn -> Heap.delete(connection, :old) end)
+
+    young =
+      baton(loop, fn ->
+        young = Heap.new_object(Obj)
+        Heap.put(young, :value, :young)
+        young.guid
+      end)
+
+    collect(loop)
+    assert rows(loop.heap, young) == []
+    assert rows(loop.heap, old.guid) != []
+
+    baton(loop, fn -> Promise.resolve(gate, nil) end)
+    assert Task.await(parked) == :old
   end
 
   test "a suspended unit keeps what it read, even once detached from the heap", %{loop: loop, connection: connection} do

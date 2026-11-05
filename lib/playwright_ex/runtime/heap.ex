@@ -19,9 +19,13 @@ defmodule PlaywrightEx.Runtime.Heap do
   alias PlaywrightEx.Runtime.GC
   alias PlaywrightEx.TargetClosedError
 
-  @doc "`new X()` for a runtime object: lives in the heap of the current loop (see `EventLoop.current!/0`)."
-  def new_object(module, guid \\ make_ref()) do
+  @doc """
+  `new X()` for a runtime object: lives in the heap of the current loop (see `EventLoop.current!/0`).
+  Its guid is a monotonic integer: its allocation time, for the collector.
+  """
+  def new_object(module, guid \\ nil) do
     %EventLoop{heap: heap} = loop = EventLoop.current!()
+    guid = guid || :erlang.unique_integer([:monotonic, :positive])
     GC.count_allocation(loop)
     struct(module, guid: guid, loop: loop, heap: heap)
   end

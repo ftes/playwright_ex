@@ -35,7 +35,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   Units: a unit is one run of client code with its own locals (variables the heap cannot see): a
   public API call or outermost `with_baton/2` (until it returns), a handed-off callback (until it
   returns) and a macrotask. Units in flight are listed in `roots`, so the collector frees nothing
-  a suspended unit may still hold; at the end of a unit the collector may run.
+  a suspended unit may still hold; at the end of a unit the collector may run. A unit awaiting in
+  `suspend/0` is parked (stamped in `roots`) until it is made ready.
 
   Process dictionary:
     * `:pw_baton` - `nil` (not holding), `{:server, loop}` (granted by the server),
@@ -233,6 +234,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   @doc "Schedule `pid` (suspended in `suspend/0`) to resume once the holder releases."
   def ready(pid) do
     if !held?(), do: raise("EventLoop.ready/1 outside the baton")
+    # It holds what it is woken with: no longer parked (see `suspend/0`).
+    :ets.delete(current!().roots, {:parked, pid})
     Process.put(@ready, [pid | Process.get(@ready, [])])
   end
 
@@ -244,14 +247,16 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   """
   def suspend do
     if Process.get(:pw_executor), do: raise("await is not allowed while dispatching (listener code must be handed off)")
-    %__MODULE__{pid: server} = loop = current!()
+    %__MODULE__{pid: server, roots: roots} = loop = current!()
     mon = Process.monitor(server)
+    park(roots)
     notify_async_parent()
     release()
 
     receive do
       {:pw_grant, ^server} ->
         Process.demonitor(mon, [:flush])
+        :ets.delete(roots, {:parked, self()})
         Process.put(@key, {:server, loop})
 
       {:DOWN, ^mon, :process, _, _reason} ->
@@ -259,6 +264,13 @@ defmodule PlaywrightEx.Runtime.EventLoop do
     end
 
     :ok
+  end
+
+  # A parked unit's locals hold no object allocated after it parked (the stamp, a runtime guid
+  # in the same monotonic order): the collector may free those while it stays parked.
+  defp park(roots) do
+    if unit = Process.get(@unit),
+      do: :ets.insert(roots, {{:parked, self()}, {unit, :erlang.unique_integer([:monotonic, :positive])}})
   end
 
   @doc "Block on non-baton work (e.g. a Task) without holding the baton; re-acquire afterwards."

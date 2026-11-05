@@ -24,6 +24,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.TargetClosedError
 
   require Logger
 
@@ -219,6 +220,11 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def channel_call(this, method, params, options \\ %{}) do
     method = to_string(method)
     type = get(this, :_type)
+    # Elixir only: a disposed object's rows were freed (PlaywrightEx.Runtime.GC); JS still sends,
+    # and the server answers for the unknown guid with a TargetClosedError.
+    if type == nil and is_binary(this.guid),
+      do: _wrap_api_call(this, fn _ -> raise TargetClosedError.new() end)
+
     # JS: a missing validator falls through to `obj[prop]`, i.e. `undefined is not a function`.
     validator =
       Validator.maybe_find_validator(type, method, "Params") || raise "#{type}.#{method} is not a protocol method"

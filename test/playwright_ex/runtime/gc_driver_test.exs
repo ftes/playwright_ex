@@ -94,4 +94,41 @@ defmodule PlaywrightEx.Runtime.GCDriverTest do
     assert :ets.select_count(page.loop.roots, [{{{{:returned, self()}, :_}, :_}, [], [true]}]) == 0
     assert :ets.info(page.loop.heap, :size) <= baseline + 10
   end
+
+  test "a wait handle a Task returns is awaitable after the Task exited", %{page: page} do
+    console = fn -> Page.wait_for_event(page, :console) end |> Task.async() |> Task.await()
+    Page.evaluate!(page, "console.log('hi')")
+    collect(page)
+    assert {:ok, message} = PlaywrightEx.Promise.await(console)
+    assert PlaywrightEx.ConsoleMessage.text(message) == "hi"
+  end
+
+  # JS keeps the handle; the server answers for the unknown guid with a TargetClosedError.
+  test "a handle of a closed page, beyond the last 500 disposed, rejects calls as closed", %{page: page} do
+    Page.set_content!(page, String.duplicate("<div>x</div>", 600))
+    [first | _] = Page.query_selector_all!(page, "div")
+    Page.close!(page)
+    collect(page)
+    assert {:error, error} = PlaywrightEx.ElementHandle.text_content(first)
+    assert Exception.message(error) == "elementHandle.textContent: Target page, context or browser has been closed"
+  end
+
+  test "a listener awaiting while traffic continues does not hold back new garbage", %{page: page} do
+    test = self()
+    gate = EventLoop.with_baton(page.loop, &PlaywrightEx.Runtime.Promise.new/0)
+    on_exit(fn -> EventLoop.with_baton(page.loop, fn -> PlaywrightEx.Runtime.Promise.resolve(gate, nil) end) end)
+
+    Page.once(page, :console, fn _ ->
+      send(test, :listening)
+      PlaywrightEx.Runtime.Promise.await(gate)
+    end)
+
+    Page.evaluate!(page, "console.log('hi')")
+    assert_receive :listening
+    collect(page)
+    baseline = rows(page)
+    # One row per call if nothing were freed.
+    sizes = for _ <- 1..10_000, do: Page.evaluate!(page, "1") && rows(page)
+    assert Enum.max(sizes) < baseline + 6000
+  end
 end
