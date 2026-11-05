@@ -9,14 +9,12 @@ defmodule PlaywrightEx.Client.ElementHandle do
   use PlaywrightEx.Client.ChannelOwner
 
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.JSHandle
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.WritableStream
   alias PlaywrightEx.Isomorphic.MimeType
-
-  # fileUtils.ts fileUploadSizeLimit
-  @file_upload_size_limit 50 * 1024 * 1024
 
   def from(handle) do
     handle
@@ -217,7 +215,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
     result = channel_call(this, :screenshot, copy, Frame._timeout(get(this, :_frame), options))
 
     if options[:path] do
-      mkdir_if_needed(options.path)
+      FileUtils.mkdir_if_needed(options.path)
       File.write!(options.path, result.binary)
     end
 
@@ -318,7 +316,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
 
   defp file_payload_exceeds_size_limit(payloads) do
     Enum.reduce(payloads, 0, fn item, size -> size + if(item[:buffer], do: byte_size(item.buffer), else: 0) end) >=
-      @file_upload_size_limit
+      FileUtils.file_upload_size_limit()
   end
 
   # fs.promises.stat / path.resolve: File.dir?/1 and Path.expand/1.
@@ -420,13 +418,6 @@ defmodule PlaywrightEx.Client.ElementHandle do
     else
       options[:type]
     end
-  end
-
-  # fileUtils.ts mkdirIfNeeded
-  @doc false
-  def mkdir_if_needed(file_path) do
-    # This will harmlessly throw on windows if the dirname is the root directory.
-    File.mkdir_p(Path.dirname(file_path))
   end
 
   # `value instanceof ElementHandle`

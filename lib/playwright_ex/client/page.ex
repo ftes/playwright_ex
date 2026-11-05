@@ -16,6 +16,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.FileChooser
+  alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.HarRouter
   alias PlaywrightEx.Client.JSHandle
@@ -820,7 +821,7 @@ defmodule PlaywrightEx.Client.Page do
     result = channel_call(this, :screenshot, copy, TimeoutSettings.timeout(get(this, :_timeoutSettings), options))
 
     if options[:path] do
-      ElementHandle.mkdir_if_needed(options.path)
+      FileUtils.mkdir_if_needed(options.path)
       File.write!(options.path, result.binary)
     end
 
