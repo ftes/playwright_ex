@@ -82,9 +82,10 @@ defmodule PlaywrightEx.UpstreamCase do
         _ -> nil
       end
 
-    if reason = TestRegistry.not_ported_reason(@root, Module.get_attribute(module, :upstream), describe, name) do
-      Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
-    end
+    # Modules with no `@upstream` (our own tests on this case) have no registry tests.
+    upstream = Module.get_attribute(module, :upstream)
+    reason = upstream && TestRegistry.not_ported_reason(@root, upstream, describe, name)
+    if reason, do: Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
   end
 
   setup_all %{module: module} do
