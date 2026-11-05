@@ -87,14 +87,26 @@ jobs:
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # --with-deps runs apt-get, and a stalled Azure mirror hung it for 40 min once. apt now times
-      # out stalled fetches and retries them itself; each attempt is capped, and an apt-get left
-      # running by a killed attempt (sudo puts it out of timeout's reach) is killed before the next.
+      # --with-deps runs apt-get against the runner's Azure mirror, which has stalled or trickled for
+      # whole attempts (webkit pulls ~140 MB). The .debs are cached per browser and driver version, so
+      # a warm run installs offline; archive.ubuntu.com is a fallback mirror; apt times out stalled
+      # fetches; each attempt is capped, and a killed attempt's apt-get (sudo puts it out of timeout's
+      # reach) is killed before the next.
+      - name: Restore browser system packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: apt-${{ matrix.browser }}-${{ hashFiles('lib/playwright_ex/driver.ex') }}-ubuntu-26.04
+          path: ~/apt-cache
       - name: Install driver and browsers
         run: |
-          printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "5";\nDPkg::Lock::Timeout "60";\n' | sudo tee /etc/apt/apt.conf.d/99timeouts
+          printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "5";\nDPkg::Lock::Timeout "60";\nAPT::Keep-Downloaded-Packages "true";\n' | sudo tee /etc/apt/apt.conf.d/99timeouts
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then echo "http://archive.ubuntu.com/ubuntu/" | sudo tee -a /etc/apt/apt-mirrors.txt; fi
+          if compgen -G ~/apt-cache/'*.deb' > /dev/null; then sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/; fi
           for attempt in 1 2 3; do
-            timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps && exit 0
+            if timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps; then
+              mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
+              exit 0
+            fi
             echo "::warning::browser install attempt $attempt failed or timed out"
             sudo pkill -x apt-get || true
           done
