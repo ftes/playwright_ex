@@ -28,7 +28,9 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Client
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
 
   using do
@@ -74,6 +76,15 @@ defmodule PlaywrightEx.UpstreamCase do
     TestServer.reset(server)
     TestServer.reset(https_server)
     :ok
+  end
+
+  # Upstream restarts the worker after a failed test; here the module's driver lives on. Close
+  # the contexts a test left open (say, a browser it launched and never closed), or one still
+  # tracing would add its stacks to the traces of the next tests.
+  setup %{playwright: playwright} do
+    contexts = fn -> Api.call(nil, playwright, fn -> Client.Playwright._all_contexts(playwright) end) end
+    before = contexts.()
+    on_exit(fn -> for context <- contexts.() -- before, do: BrowserContext.close(context) end)
   end
 
   setup %{browser: browser} do
