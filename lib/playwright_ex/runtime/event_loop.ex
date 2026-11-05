@@ -277,7 +277,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
      }}
   end
 
-  defp new_table, do: :ets.new(:playwright_ex_heap, [:set, :public, read_concurrency: true, write_concurrency: true])
+  defp new_table,
+    do: :ets.new(:playwright_ex_heap, [:ordered_set, :public, read_concurrency: true, write_concurrency: true])
 
   @impl true
   def handle_call(:loop, _from, s), do: {:reply, s.loop, s}

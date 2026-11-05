@@ -187,8 +187,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   def listener_count(this, type), do: length(map_get(this, :_events, type) || [])
 
-  def event_names(%{heap: heap, guid: guid}),
-    do: heap |> :ets.match({{guid, :_events, :"$1"}, :_}) |> Enum.map(&hd/1)
+  def event_names(this), do: map_keys(this, :_events)
 
   defp _wait_for(this, type) do
     promises =

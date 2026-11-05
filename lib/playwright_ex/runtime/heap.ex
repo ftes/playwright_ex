@@ -3,8 +3,10 @@ defmodule PlaywrightEx.Runtime.Heap do
   Runtime support (not ported from upstream): mutable object fields.
 
   `this._foo` becomes `get(this, :_foo)`, `this._foo = x` becomes `put(this, :_foo, x)`.
-  Fields live in the object's heap (an ETS table: the connection's, or the loop's for runtime objects) as `{{guid, field}, value}` rows; `Map` fields as
-  `{{guid, field, key}, value}` rows; `Set` fields as insertion-ordered lists.
+  Fields live in the object's heap (an `ordered_set` ETS table: the connection's, or the loop's for
+  runtime objects) as `{{guid, field}, value}` rows; `Map` fields as `{{guid, field, key}, value, seq}`
+  rows, read in insertion order (`seq`); `Set` fields as insertion-ordered lists. The table is
+  ordered so that one object's rows (a `{guid, ...}` key prefix) are a range.
   Reads are lock-free from any process; writes happen under the baton (acquired on demand).
 
   Objects with `loop: nil` are transient value objects (all fields `undefined`).
@@ -44,29 +46,43 @@ defmodule PlaywrightEx.Runtime.Heap do
   def set_delete(obj, field, item), do: update(obj, field, fn set -> List.delete(set || [], item) end)
   def set_has(obj, field, item), do: item in (get(obj, field) || [])
 
-  # Map<K, V> fields
+  # Map<K, V> fields: `{{guid, field, key}, value, seq}` rows. `seq` keeps JS insertion order:
+  # setting an existing key keeps its position, delete + set moves it to the end.
   def map_get(%{heap: heap, guid: guid}, field, key) do
     case :ets.lookup(heap, {guid, field, key}) do
-      [{_, value}] -> value
+      [{_, value, _}] -> value
       [] -> nil
     end
   end
 
   def map_set(%{loop: loop, heap: heap, guid: guid}, field, key, value) do
-    EventLoop.with_baton(loop, fn -> :ets.insert(heap, {{guid, field, key}, value}) end)
+    EventLoop.with_baton(loop, fn ->
+      seq =
+        case :ets.lookup(heap, {guid, field, key}) do
+          [{_, _, seq}] -> seq
+          [] -> :erlang.unique_integer([:monotonic])
+        end
+
+      :ets.insert(heap, {{guid, field, key}, value, seq})
+    end)
+
     value
   end
 
   def map_delete(%{loop: loop, heap: heap, guid: guid}, field, key),
     do: EventLoop.with_baton(loop, fn -> :ets.delete(heap, {guid, field, key}) end)
 
-  def map_values(%{heap: heap, guid: guid}, field),
-    do: heap |> :ets.match({{guid, field, :_}, :"$1"}) |> Enum.map(&hd/1)
+  # `map.keys()`, `map.values()`, `map.entries()` (insertion order)
+  def map_keys(obj, field), do: obj |> map_entries(field) |> Enum.map(&elem(&1, 0))
+  def map_values(obj, field), do: obj |> map_entries(field) |> Enum.map(&elem(&1, 1))
 
-  # `for (const [key, value] of map)` (unordered)
-  def map_entries(%{heap: heap, guid: guid}, field),
-    do: heap |> :ets.match({{guid, field, :"$1"}, :"$2"}) |> Enum.map(&List.to_tuple/1)
+  def map_entries(%{heap: heap, guid: guid}, field) do
+    heap
+    |> :ets.select([{{{guid, field, :"$1"}, :"$2", :"$3"}, [], [{{:"$3", :"$1", :"$2"}}]}])
+    |> Enum.sort()
+    |> Enum.map(fn {_seq, key, value} -> {key, value} end)
+  end
 
   def map_clear(%{loop: loop, heap: heap, guid: guid}, field),
-    do: EventLoop.with_baton(loop, fn -> :ets.match_delete(heap, {{guid, field, :_}, :_}) end)
+    do: EventLoop.with_baton(loop, fn -> :ets.match_delete(heap, {{guid, field, :_}, :_, :_}) end)
 end
