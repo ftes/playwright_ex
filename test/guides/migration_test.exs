@@ -25,7 +25,6 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.WebError
 
-  @moduletag timeout: 120_000
   @moduletag :tmp_dir
 
   # The doctype keeps firefox from logging a quirks-mode warning to the console.

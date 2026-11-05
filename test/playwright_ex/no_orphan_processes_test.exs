@@ -7,8 +7,6 @@ defmodule PlaywrightEx.NoOrphanProcessesTest do
   alias PlaywrightEx.RemoteServer.ChildProcess
 
   @moduletag :slow
-  @moduletag timeout: 120_000
-
   test "a killed BEAM leaves no driver, server, child BEAM or browser behind" do
     browser_name = System.get_env("BROWSER", "chromium")
     ebin = Path.dirname(:code.which(PlaywrightEx))

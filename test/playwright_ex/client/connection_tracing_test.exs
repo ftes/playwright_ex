@@ -9,8 +9,6 @@ defmodule PlaywrightEx.Client.ConnectionTracingTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.TestBrowser
 
-  @moduletag timeout: 120_000
-
   setup_all do
     start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
     %{playwright: PlaywrightEx.playwright(__MODULE__)}

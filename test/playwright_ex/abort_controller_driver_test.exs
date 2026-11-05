@@ -9,8 +9,6 @@ defmodule PlaywrightEx.AbortControllerDriverTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestBrowser
 
-  @moduletag timeout: 120_000
-
   setup_all do
     pages =
       for name <- [Module.concat(__MODULE__, A), Module.concat(__MODULE__, B)] do

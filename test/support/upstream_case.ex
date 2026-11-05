@@ -58,8 +58,9 @@ defmodule PlaywrightEx.UpstreamCase do
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
       @moduletag upstream: @upstream
       # tests/library/playwright.config.ts: `timeout: video || (darwin && x64) ? 60000 : 30000`
-      # (we never record video); `test.slow()` triples it: `@tag timeout: @slow_timeout`.
-      @moduletag timeout: PlaywrightEx.UpstreamCase.timeout()
+      # (we never record video); `test.slow()` triples it: `@tag timeout: @slow_timeout`. Our own
+      # tests (`@upstream nil`) keep test_helper's tighter default.
+      if @upstream, do: @moduletag(timeout: PlaywrightEx.UpstreamCase.timeout())
       @slow_timeout 3 * PlaywrightEx.UpstreamCase.timeout()
     end
   end

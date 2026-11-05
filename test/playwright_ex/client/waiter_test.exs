@@ -10,8 +10,6 @@ defmodule PlaywrightEx.Client.WaiterTest do
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TimeoutError
 
-  @moduletag timeout: 120_000
-
   setup_all do
     start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
     %{playwright: PlaywrightEx.playwright(__MODULE__)}
