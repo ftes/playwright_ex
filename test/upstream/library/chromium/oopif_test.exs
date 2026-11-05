@@ -25,7 +25,8 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Worker
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
+  @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
+  @moduletag skip: @chromium_only
 
   # it.use({ launchOptions: { ...launchOptions, args: ['--site-per-process'] } }): this module's
   # `browser` is launched with `--site-per-process`; contextTest's `context`/`page` use it.
@@ -219,10 +220,12 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
+  # A test's `skip: nil` would override the `@moduletag skip:`.
   @tag skip:
-         if(match?({:unix, :darwin}, :os.type()),
-           do: "env: golden rendered on Linux; on macOS the OOPIF screenshot is blank (upstream's JS client too)"
-         )
+         @chromium_only ||
+           if(match?({:unix, :darwin}, :os.type()),
+             do: "env: golden rendered on Linux; on macOS the OOPIF screenshot is blank (upstream's JS client too)"
+           )
   test "should take screenshot", %{page: page, browser: browser, server: server} do
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")

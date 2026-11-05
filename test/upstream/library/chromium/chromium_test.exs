@@ -19,7 +19,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
+  @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
+  @moduletag skip: @chromium_only
 
   # Deviations:
   #   * `Promise.all([context.waitForEvent(...), page.goto(...)])` starts the waits (promise
@@ -29,7 +30,11 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   # Network.responseReceived (its request and loadingFinished arrive), so that response never
   # resolves. Upstream's own client hits it too (~3% of runs in a loop); upstream CI retries.
   @linux match?({:unix, :linux}, :os.type())
-  @sw_script_response_skip if(@linux, do: "ci: Linux chromium intermittently drops the service worker script response")
+  # A test's `skip: nil` would override the `@moduletag skip:`.
+  @sw_script_response_skip @chromium_only ||
+                             if(@linux,
+                               do: "ci: Linux chromium intermittently drops the service worker script response"
+                             )
 
   defp req_header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 
