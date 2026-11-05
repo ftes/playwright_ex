@@ -11,6 +11,8 @@ defmodule PlaywrightEx.Matchers.MatcherUtils do
   most inputs).
   """
 
+  alias PlaywrightEx.Client.ClientHelper
+
   @max_diff_string_length 20_000
   @max_length 10_000
   @context_lines 5
@@ -397,9 +399,7 @@ defmodule PlaywrightEx.Matchers.MatcherUtils do
     "\n" <> Enum.map_join(items, "", &(inner <> &1 <> ",\n")) <> indentation
   end
 
-  # JS `String(number)`: integral floats have no fraction; `-0` prints as such.
-  defp print_number(+0.0), do: "0"
+  # pretty-format `printNumber`: `-0` prints as such, else `String(number)`.
   defp print_number(-0.0), do: "-0"
-  defp print_number(value) when value == trunc(value) and abs(value) < 1.0e21, do: Integer.to_string(trunc(value))
-  defp print_number(value), do: Float.to_string(value)
+  defp print_number(value), do: ClientHelper.number_to_string(value)
 end

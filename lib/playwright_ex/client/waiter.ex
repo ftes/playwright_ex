@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Client.Waiter do
   alias PlaywrightEx.AbortError
   alias PlaywrightEx.AbortSignal
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Runtime.EventLoop
@@ -19,7 +20,7 @@ defmodule PlaywrightEx.Client.Waiter do
     this = new_object(__MODULE__)
     put(this, :_failures, [])
     put(this, :_logs, [])
-    put(this, :_waitId, create_guid())
+    put(this, :_waitId, ClientHelper.create_guid())
     put(this, :_channelOwner, channel_owner)
 
     # this._savedZone = currentZone().without('apiZone');  -- n/a: listeners are handed off from dispatch, which runs outside any zone
@@ -208,7 +209,4 @@ defmodule PlaywrightEx.Client.Waiter do
       "\n#{String.duplicate("=", left_length)}#{header}#{String.duplicate("=", right_length)}\n#{Enum.join(log, "\n")}\n#{String.duplicate("=", header_length)}"
     end
   end
-
-  # utils/crypto.ts createGuid()
-  defp create_guid, do: Base.encode16(:crypto.strong_rand_bytes(16), case: :lower)
 end
