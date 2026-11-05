@@ -34,7 +34,13 @@ defmodule PlaywrightEx.Client.Route do
     # When page closes or crashes, we catch any potential rejects from this Route.
     # Note that page could be missing when routing popup's initial request that
     # does not have a Page initialized just yet.
-    LongStandingScope.safe_race(Request._target_closed_scope(request(this)), promise)
+    try do
+      LongStandingScope.safe_race(Request._target_closed_scope(request(this)), promise)
+    after
+      # Elixir only: the call is a latch (`shared: true`), so when the scope wins, its late
+      # result is no stray message; free its row.
+      Promise.free(promise)
+    end
   end
 
   def _start_handling(this) do
@@ -54,7 +60,9 @@ defmodule PlaywrightEx.Client.Route do
     _handle_route(this, fn ->
       _race_with_target_close(
         this,
-        Promise.async(fn -> channel_call(this, :abort, %{errorCode: error_code}, TimeoutSettings.k_no_timeout()) end)
+        Promise.async(fn -> channel_call(this, :abort, %{errorCode: error_code}, TimeoutSettings.k_no_timeout()) end,
+          shared: true
+        )
       )
     end)
   end
@@ -63,9 +71,12 @@ defmodule PlaywrightEx.Client.Route do
     _handle_route(this, fn ->
       _race_with_target_close(
         this,
-        Promise.async(fn ->
-          channel_call(this, :redirectNavigationRequest, %{url: url}, TimeoutSettings.k_no_timeout())
-        end)
+        Promise.async(
+          fn ->
+            channel_call(this, :redirectNavigationRequest, %{url: url}, TimeoutSettings.k_no_timeout())
+          end,
+          shared: true
+        )
       )
     end)
   end
@@ -181,20 +192,23 @@ defmodule PlaywrightEx.Client.Route do
 
     _race_with_target_close(
       this,
-      Promise.async(fn ->
-        channel_call(
-          this,
-          :fulfill,
-          %{
-            status: status_option || 200,
-            headers: Headers.headers_object_to_array(headers),
-            body: body,
-            isBase64: is_base64,
-            fetchResponseUid: fetch_response_uid
-          },
-          TimeoutSettings.k_no_timeout()
-        )
-      end)
+      Promise.async(
+        fn ->
+          channel_call(
+            this,
+            :fulfill,
+            %{
+              status: status_option || 200,
+              headers: Headers.headers_object_to_array(headers),
+              body: body,
+              isBase64: is_base64,
+              fetchResponseUid: fetch_response_uid
+            },
+            TimeoutSettings.k_no_timeout()
+          )
+        end,
+        shared: true
+      )
     )
   end
 
@@ -222,20 +236,23 @@ defmodule PlaywrightEx.Client.Route do
 
     _race_with_target_close(
       this,
-      Promise.async(fn ->
-        channel_call(
-          this,
-          :continue,
-          %{
-            url: options[:url],
-            method: options[:method],
-            headers: if(options[:headers], do: Headers.headers_object_to_array(options.headers)),
-            postData: options[:postDataBuffer],
-            isFallback: is_fallback
-          },
-          TimeoutSettings.k_no_timeout()
-        )
-      end)
+      Promise.async(
+        fn ->
+          channel_call(
+            this,
+            :continue,
+            %{
+              url: options[:url],
+              method: options[:method],
+              headers: if(options[:headers], do: Headers.headers_object_to_array(options.headers)),
+              postData: options[:postDataBuffer],
+              isFallback: is_fallback
+            },
+            TimeoutSettings.k_no_timeout()
+          )
+        end,
+        shared: true
+      )
     )
   end
 end

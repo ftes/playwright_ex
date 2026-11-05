@@ -253,6 +253,10 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Page.close!(page)
     # Should not throw.
     Route.continue!(route)
+    # Elixir only: the call lost its race with the closed page; its late result is no stray
+    # message in this process (OTP runtime).
+    Process.sleep(500)
+    refute_received {:pw, _, _}
   end
 
   test "route.fallback should not throw if page has been closed", %{page: page, server: server} do
