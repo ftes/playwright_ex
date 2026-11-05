@@ -522,3 +522,18 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **Facade** emits `signal:` on all 175 options (also Python-style waits and `expect_*`).
 - Revisit: abort listeners run under the aborter's baton, not necessarily the signal's loop
   (several drivers only).
+
+## 2026-11-05: Linux firefox/webkit CI (workstream W)
+
+- **Invalid tests were an upstream-source download race**: every module's `setup_all` ran
+  `Upstream.ensure!` at once; now serialized with a `:global.trans` lock (and a lost rename
+  race between OS processes is tolerated).
+- **`PlaywrightEx.TestBrowser`** (test support) reads `BROWSER` for non-upstream tests too.
+- **Module skips survive `@tag skip: nil`**: chromium-only modules combine their module
+  reason into per-test skip expressions.
+- **Linux env skips** (confirmed with the upstream Node client): headless Firefox WebGL without
+  `DISPLAY` (revisit: run the firefox job under `xvfb-run`, as upstream's CI does); WebKit
+  Modernizr `inputtypes.month`; Firefox third-party Partitioned cookies on all OSes against a
+  freshly started Bandit (mechanism unknown; revisit).
+- Race fixes: start racing waits with `Runtime.Promise.async` (a `Task` may start the call
+  late; JS sends it at once).
