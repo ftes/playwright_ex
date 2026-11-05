@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -231,8 +232,10 @@ defmodule PlaywrightEx.Library.PageCloseTest do
 
     Page.route!(page, "**/*", fn route ->
       # done = Promise.all([void route.continue(), page.close()]): the handler does not await it.
+      # `void` sends the continue before the close starts, as JS does (a page closed before its
+      # route continues hangs the close in the driver until the context closes).
       spawn(fn ->
-        Task.start(fn -> Route.continue(route) end)
+        Runtime.Promise.void(fn -> Route.continue(route) end)
         send(me, {:done, Page.close(page)})
       end)
     end)
