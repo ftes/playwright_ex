@@ -212,9 +212,9 @@ defmodule PlaywrightEx.RuntimeConnTest do
   end
 
   # JS runs the statements after `await channel.x()` before it dispatches the next message, so an
-  # event the call enables sees what they write. The caller is suspended from sending the call
-  # until after the event: the gap between the reply and the caller's next statement, made as long
-  # as the test needs (`ChannelOwner.channel_call/5`'s `on_reply` closes it).
+  # event the call enables sees what they write. The caller is suspended from the moment it sends
+  # the call until after the event: the gap between the reply and the caller's next statement, made
+  # as long as the test needs (`ChannelOwner.channel_call/5`'s `on_reply` closes it).
   describe "an event right after a reply" do
     test "bindingCall sees Page.expose_function's binding", %{page: page} do
       test = self()

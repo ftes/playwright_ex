@@ -15,7 +15,13 @@ in the Phase 1 audits:
   window. The continuation spans several functions, so `channel_call/5`'s `on_reply` doesn't fit
   as is.
 - **Waiter rejection**: JS rejects a waiter synchronously inside `emit`; here it settles in the
-  waiter's process, so "rejected before the next emit" isn't guaranteed.
+  waiter's process, so "rejected before the next emit" isn't guaranteed. The mailbox step only
+  sends the event; predicate, race, `dispose` and the facade latch's rejection follow in the
+  waiter's process. Closing that needs a blocking mailbox step (the connection waits for the
+  waiter's ack, its next await or exit) plus a per-process buffer for events of live subscriptions
+  the current await doesn't arm (`wait_for_navigation` holds `loadstate` while awaiting
+  `navigated`), else dispatch deadlocks. Even then a `.catch` runs in the awaiting process, so
+  `browsertype_connect_test`'s "rejected before disconnected" stays adapted.
 - **Stray messages from `Promise.all`** over local asyncs (`serialize_argument_with_callbacks`)
   when one rejects.
 - **Remote connections**: the child Conn, its forwarder and ETS table are never stopped after
