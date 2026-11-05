@@ -70,8 +70,8 @@ jobs:
     name: Test (${{ matrix.browser }})
     runs-on: ubuntu-latest
     needs: build
-    # firefox/webkit are non-blocking until their Linux suites have been green for a while.
-    continue-on-error: ${{ matrix.browser != 'chromium' }}
+    # firefox is non-blocking until its Linux viewport/worker-timestamp failures are fixed.
+    continue-on-error: ${{ matrix.browser == 'firefox' }}
     strategy:
       fail-fast: false
       matrix:
