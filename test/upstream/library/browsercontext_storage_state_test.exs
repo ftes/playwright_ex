@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Credentials
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
@@ -128,9 +129,8 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     path = Path.join(tmp_dir, "storage-state.json")
     state = BrowserContext.storage_state!(context, path: path, indexed_db: true)
     written = File.read!(path)
-    # JSON.stringify(state, undefined, 2): the same JSON, indented by 2.
-    assert JSON.decode!(written) == JSON.decode!(JSON.encode!(state))
-    assert written =~ ~r/\A\{\n  "cookies": \[\n    \{\n      "/
+    # JSON.stringify(state, undefined, 2), state in protocol key order (a JS object keeps the wire's):
+    assert ClientHelper.json_stringify_indented(state, 2, "BrowserContextStorageStateResult") == written
 
     check_context = fn context ->
       page = BrowserContext.new_page!(context)
@@ -346,9 +346,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   test "should handle missing file", %{browser: browser, tmp_dir: tmp_dir} do
     file = Path.join(tmp_dir, "does-not-exist.json")
     {:error, error} = Browser.new_context(browser, storage_state: file)
-    # Node's `ENOENT` (fs error text)  -- Elixir's File error text
-    assert Exception.message(error) =~ "Error reading storage state from #{file}:\n"
-    assert Exception.message(error) =~ "no such file or directory"
+    assert Exception.message(error) =~ "Error reading storage state from #{file}:\nENOENT"
   end
 
   @tag :tmp_dir

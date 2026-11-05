@@ -34,6 +34,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Runtime.Node
   alias PlaywrightEx.TargetClosedError
 
   def from(context) do
@@ -587,7 +588,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     if options[:path] do
       FileUtils.mkdir_if_needed(options.path)
-      File.write!(options.path, ClientHelper.json_stringify_indented(state, 2))
+      File.write!(options.path, ClientHelper.json_stringify_indented(state, 2, "BrowserContextStorageStateResult"))
     end
 
     state
@@ -692,17 +693,14 @@ defmodule PlaywrightEx.Client.BrowserContext do
       storage_state
     else
       try do
-        JSON.decode!(File.read!(storage_state))
+        JSON.decode!(Node.fs!(File.read(storage_state), "open", storage_state))
       rescue
         e ->
-          message = "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)
-          # A File.Error has no message field to rewrite: a RuntimeError.
-          e =
-            if Map.has_key?(e, :message),
-              do: Errors.rewrite_error_message(e, message),
-              else: RuntimeError.exception(message)
-
-          reraise e, __STACKTRACE__
+          reraise Errors.rewrite_error_message(
+                    e,
+                    "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)
+                  ),
+                  __STACKTRACE__
       end
     end
   end
@@ -727,7 +725,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
       })
 
     if context_params[:recordVideo] && context_params.recordVideo[:dir],
-      do: put_in(context_params, [:recordVideo, :dir], Path.expand(context_params.recordVideo.dir)),
+      do: put_in(context_params, [:recordVideo, :dir], Node.path_resolve(context_params.recordVideo.dir)),
       else: context_params
   end
 
