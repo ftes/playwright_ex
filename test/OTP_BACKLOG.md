@@ -2,46 +2,49 @@
 
 ## Status
 
-The full chromium `mix test` run (2026-11-05) had 4082 tests and 61 failures, 1257 s, with
-no stall. Phase 0 fixes since then:
+The full chromium `mix test --warnings-as-errors` run (2026-11-05, final runtime) had 4085
+tests and 7 failures, in 196 s with no stall. The old runtime's run took 1257 s and had 61
+failures.
 
-- The `add_init_script` callback tests: 14 fixed. The promise was awaited twice, so it is now a latch.
-- `waitForURL` on a frame: the glob is resolved before the url is read.
-- Dispose-read, about 35 tests (lead decision (a)): a disposed object keeps its rows until the
-  connection closes, so it reads, writes and settles latches as in JS.
-- WebSocket `wait_for_event` started from a `once` listener: the facade promise is a latch on
-  the receiver, because the listener process exits right after the event.
+Two of the 7 were fixed after the run: `browsercontext_basic_test.exs:88` and `:142`. A
+context created in one Task and closed from another was freed when its creator exited, before
+the closer read it. A closed context or browser now stays retained until every process that created or closed it has exited. That
+leaves 5 failures.
 
-After rerunning every affected spec file (627 tests), 4 failures are confirmed and 5 tests
-fail only under full-suite load. A new full run has not been done yet.
-
-| Group | Failing | Flaky under load |
+| Group | Failing | Flaky (load) |
 |---|---|---|
-| A | 1 | 1 |
-| B | 1 | 2 |
-| C | 0 | 1 |
+| A | 2 | 0 |
+| B | 1 | 1 |
+| C | 0 | 0 |
 | D | 0 | 0 |
-| E | 2 | 1 |
+| E | 1 | 0 |
+
+Tests that failed only under load in earlier runs, and passed in this one:
+- `library/page_close_test.exs:229`
+- `page/page_wait_for_navigation_test.exs:59`
+- `page/page_wait_for_url_test.exs:53`
+- `page/page_autowaiting_basic_test.exs:77`
+- `page/page_screenshot_test.exs:482`
+- `library/tracing_test.exs:918`
+
+Phase 1 should watch them.
 
 ## A: lifecycle and remote
-- `library/chromium/chromium_test.exs:763`: hang awaiting the console message. The test helper relies on an API scope holding dispatch (the old baton) to subscribe in the same tick.
-- Flaky: `library/page_close_test.exs:229`. `page.close` runs together with `route.continue`, and the 5 s `assert_receive` times out under load. It passes alone.
+- `library/chromium/chromium_test.exs:763` hangs awaiting the console message. Its helper assumes the old behaviour, where an API scope held dispatch, so subscribing happened in the same tick. The fix is to subscribe first (start `Worker.wait_for_event` in a `once :service_worker` listener).
+- `library/chromium/extensions_test.exs:74` hangs in `service_worker/1` for the same reason: the list read and the wait are not in one tick.
 
 ## B: page and frame
-- `page/page_history_test.exs:153`: hang. `page.evaluate(pushState)` never returns while the reload's request is stalled.
-- Flaky: `page/page_wait_for_navigation_test.exs:59` and `page/page_wait_for_url_test.exs:53`. Both time out under load; likely the `_loadStates` check-then-subscribe race (see below).
-
-## C: locators, handles and matchers
-- Flaky: `page/page_autowaiting_basic_test.exs:77`. The order came out as `route|click|navigated` instead of `route|navigated|click`.
+- `page/page_history_test.exs:153` hangs: `page.evaluate(pushState)` never returns while the reload's request is stalled.
+- Flaky (load): `page/page_wait_for_url_test.exs:145`. It passes alone and in its file. Under load, the frame navigation can commit between the url check and the `navigated` subscription (a check-then-subscribe race).
 
 ## E: artifacts
-- `library/coverage_test.exs:244`: hang in the task that collects coverage of an origin left without a page.
-- `library/tracing_test.exs:918`: hang awaiting a console promise. Its subscription assumes the same tick, like the chromium case above.
-- Flaky: `page/page_screenshot_test.exs:482`. A reload loop plus a screenshot loop hits the test timeout.
+- `library/coverage_test.exs:244` hangs in the task that collects coverage of an origin left without a page.
 
 ## Cross-cutting (Phase 1 audit)
-- **Check-then-subscribe.** JS runs `if (!cond) await waitForEvent(..)` in one tick. Here, dispatch can run in between. See PORTING.md, Traps. Open cases: the `_loadStates` check in `Frame.wait_for_navigation`, and the tests' service-worker and console helpers.
-- **Promises awaited twice, or stored in a field, must be latches.** See PORTING.md.
-- **Retention.** A closed context keeps about 175 rows until the connection closes (deviation, see `ChannelOwner._retire`).
+- **Check-then-subscribe races.** JS does `if (!cond) await waitForEvent(..)` in one tick; here dispatch can run in between. See PORTING.md, Traps. Known sites:
+  - `Frame.wait_for_url` and the `_loadStates` check in `Frame.wait_for_navigation`;
+  - the tests' service-worker and console helpers.
+- **Promises awaited twice or stored in a field must be latches.** See PORTING.md.
+- **Retention.** A closed context stays readable until the processes that created or closed it have exited; reads after that raise (deviation). A long-lived process keeps about 175 rows per closed context.
 - **Process-local leak.** The process-local `last_checked` in `to_have_url` leaks one entry per call.
-- **Stray messages.** A losing local promise in a race can leave a stray message behind.
+- **Stray messages.** A losing local promise in a race can leave a stray message.

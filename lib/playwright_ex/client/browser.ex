@@ -175,6 +175,8 @@ defmodule PlaywrightEx.Client.Browser do
 
   def close(this, options \\ %{}) do
     put(this, :_closeReason, options[:reason])
+    # Elixir only: the closing process anchors the closed browser (it reads it next).
+    ChannelOwner._set_creator(this)
 
     try do
       if get(this, :_shouldCloseConnectionOnClose),

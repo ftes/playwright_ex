@@ -630,6 +630,8 @@ defmodule PlaywrightEx.Client.BrowserContext do
     else
       put(this, :_closeReason, options[:reason])
       put(this, :_closingStatus, "closing")
+      # Elixir only: the closing process anchors the closed context (it reads it next).
+      ChannelOwner._set_creator(this)
       APIRequestContext.dispose(get(this, :request), options)
       # await this._instrumentation.runBeforeCloseBrowserContext(this);  -- not ported: instrumentation
       har_error =

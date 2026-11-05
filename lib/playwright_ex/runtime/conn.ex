@@ -86,10 +86,11 @@ defmodule PlaywrightEx.Runtime.Conn do
   ## Called in this process
 
   @doc false
-  # In the connection: `guid` (a retained object) is freed when `pid` exits.
+  # In the connection: `guid` (a retained object) is freed when the last of the pids anchored
+  # to it exits.
   def anchor(table, pid, guid) do
+    :ets.insert(table, [{{:connection, {:anchored, pid, guid}}, true}, {{guid, {:anchor, pid}}, true}])
     if !Process.get({:pw_anchor, pid}), do: Process.put({:pw_anchor, pid}, Process.monitor(pid))
-    :ets.insert(table, {{:connection, {:anchored, pid, guid}}, true})
   end
 
   @doc false
@@ -213,8 +214,13 @@ defmodule PlaywrightEx.Runtime.Conn do
     if Process.get({:pw_anchor, pid}) == mref do
       Process.delete({:pw_anchor, pid})
       anchored = :ets.select(table, [{{{:connection, {:anchored, pid, :"$1"}}, :_}, [], [:"$1"]}])
-      for guid <- anchored, do: Heap.release(table, guid)
       :ets.select_delete(table, [{{{:connection, {:anchored, pid, :_}}, :_}, [], [true]}])
+
+      for guid <- anchored do
+        :ets.delete(table, {guid, {:anchor, pid}})
+        # The last of its anchor processes.
+        if :ets.select_count(table, [{{{guid, {:anchor, :_}}, :_}, [], [true]}]) == 0, do: Heap.release(table, guid)
+      end
     end
 
     state =

@@ -216,12 +216,12 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   # Elixir only, in the connection. JS keeps a disposed object readable (its last field values,
   # its settled promises) while referenced. Here its rows are kept until its anchor is freed:
-  #   * a BrowserContext or Browser: the process that created it (`_set_creator/1`, inherited
-  #     from the parent chain; else the connection), freed when that process exits;
+  #   * a BrowserContext or Browser: the processes that created or closed it (`_set_creator/1`,
+  #     inherited from the parent chain; else the connection), freed when the last one exits;
   #   * anything else: the nearest BrowserContext (else Browser) ancestor, freed with it.
   # Its listeners go (they never fire again; user listener processes stop) and pending latches
   # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (JS: unusable).
-  # deviation: reads after the creating process exits raise TargetClosedError (JS: GC while
+  # deviation: reads after those processes exit raise TargetClosedError (JS: GC while
   # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
   defp _retire(this, reason) do
     error = TargetClosedError.new()
@@ -247,7 +247,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       :ets.insert(this.table, {{this.guid, :__retained__}, true})
 
       case _anchor(this) do
-        {:process, pid} -> Conn.anchor(this.table, pid, this.guid)
+        {:processes, pids} -> for pid <- pids, do: Conn.anchor(this.table, pid, this.guid)
         anchor -> :ets.insert(this.table, {{anchor, {:retained, this.guid}}, true})
       end
     end
@@ -271,9 +271,9 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   defp _creator(nil), do: :connection
 
   defp _creator(object) do
-    case get(object, :_creator) do
-      pid when is_pid(pid) -> {:process, pid}
-      nil -> _creator(get(object, :_browser) || get(object, :_parent))
+    case get(object, :_creators) do
+      [_ | _] = pids -> {:processes, pids}
+      _ -> _creator(get(object, :_browser) || get(object, :_parent))
     end
   rescue
     TargetClosedError -> :connection
@@ -281,9 +281,9 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   @doc false
   # Elixir only: records the calling process as the creator of a BrowserContext or Browser it
-  # obtained (the retention anchor of its rows after dispose, see `_retire/2`).
+  # obtained or closes (the retention anchor of its rows after dispose, see `_retire/2`).
   def _set_creator(this) do
-    if !Conn.in_conn?(), do: put(this, :_creator, self())
+    if !Conn.in_conn?(), do: set_add(this, :_creators, self())
     this
   end
 

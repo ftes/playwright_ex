@@ -236,9 +236,9 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
     regenerate the facade structs.
   - A disposed object keeps its plain-field rows and settled latches until its anchor is
     freed, so it reads and writes as in JS. Anchors: for a BrowserContext or Browser, the
-    process that created it (`ChannelOwner._set_creator/1` in the caller of newContext,
-    launchPersistentContext, launch/connect; implicit ones inherit the parent chain's creator,
-    else the connection), freed when that process exits (the Conn monitors it) or the
+    processes that created or closed it (`ChannelOwner._set_creator/1` in the caller of
+    newContext, launchPersistentContext, launch/connect, close; implicit ones inherit the parent chain's creator,
+    else the connection), freed when the last of them exits (the Conn monitors them) or the
     connection closes; for anything else, the nearest BrowserContext (else Browser) ancestor,
     freed with it. `_dispose` marks the object (`{guid, :__retained__}`) and records it under its
     anchor (`{anchor, {:retained, guid}}`, or `{:connection, {:anchored, pid, guid}}`); freeing
