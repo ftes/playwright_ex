@@ -54,8 +54,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `Expect.to_have_text(locator, ...)`, as upstream's matchers are one set of functions on the
       receiver. Each matcher has a `"matcher"` (its JS name, `isNot`, the receiver classes) and a
       `not` form (`not_to_have_text`, the Python name of `expect(x).not.toHaveText`). Matchers of
-      both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is dropped, as
-      are overloads, except that `toHaveAttribute(name, options)` makes `value` optional.
+      both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is the member
+      `not_` (`"negate"`: the receiver classes), as `and_`/`or_`, Java's `not()`: it wraps the
+      receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
+      Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
       `toHaveScreenshot` takes the snapshot file as a `path` option instead of the `name` that
       the test runner resolves (`to_have_screenshot(page, path: "home.png")`). Their option docs
       name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
@@ -212,6 +214,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
       |> Enum.map(&merge_receivers/1)
       |> Enum.flat_map(&[&1, not_matcher(&1)])
 
+    receivers = members |> Enum.flat_map(& &1["matcher"]["receivers"]) |> Enum.uniq()
+    members = [negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers) | members]
+
     spec = [
       %{
         "type" => "text",
@@ -219,7 +224,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
           "Web-first assertions: the methods of `LocatorAssertions`, `PageAssertions` and `APIResponseAssertions`, " <>
             "as functions of their receiver. `expect(locator).toHaveText(expected)` is " <>
             "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
-            "`not_to_have_text(locator, expected)`. They retry until the expectation is met or the timeout " <>
+            "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout " <>
             "(5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
             "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
       }
@@ -323,6 +328,25 @@ defmodule Mix.PlaywrightEx.ApiRules do
           do: if(arg["name"] == "options", do: put_in(arg, ["type", "properties"], props), else: arg)
 
     put_in(%{first | "args" => args}, ["matcher", "receivers"], receivers)
+  end
+
+  # `expect(x).not`: `not_(x)`, a negated receiver (`"negate"`), from `LocatorAssertions.not`.
+  defp negate(class, receivers) do
+    %{"kind" => "property"} = member = Enum.find(class["members"], &(&1["name"] == "not"))
+
+    text =
+      "In Elixir, `not_/1` wraps the receiver, which every matcher takes too: " <>
+        "`locator |> Expect.not_() |> Expect.to_contain_text(\"error\")` is " <>
+        "`Expect.not_to_contain_text(locator, \"error\")`. As JS has no `expect(x).not.not`, a negated " <>
+        "receiver is not negated again: `not_/1` and the `not_to_*` matchers raise `ArgumentError` for one."
+
+    Map.merge(member, %{
+      "kind" => "method",
+      "args" => [],
+      "type" => nil,
+      "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}],
+      "negate" => receivers
+    })
   end
 
   # `expect(x).not.toHaveText(...)`: Python's `not_to_have_text`.

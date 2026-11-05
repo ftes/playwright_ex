@@ -285,6 +285,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # --- members -----------------------------------------------------------------
 
+  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated receiver.
+  defp member_source(ctx, _class, %{"negate" => receivers} = member, _receiver) do
+    receiver_spec = Enum.map_join(receivers, " | ", &"#{inspect(facade(&1))}.t()")
+
+    """
+    @typedoc "A negated receiver (`not_/1`): `expect(actual).not` in JS."
+    @type t(actual) :: %__MODULE__{actual: actual, isNot: true}
+    @typedoc "A negated receiver of any matcher."
+    @type t :: t(#{receiver_spec})
+
+    defstruct [:actual, isNot: true]
+
+    #{since(member)}@doc #{doc(member_doc(ctx, member, []))}
+    @spec not_(actual) :: t(actual) when actual: #{receiver_spec}
+    def not_(%__MODULE__{}),
+      do: raise(ArgumentError, "expect.not: the receiver is negated already (JS has no expect(x).not.not)")
+
+    def not_(actual), do: %__MODULE__{actual: actual}
+    """
+  end
+
   # `to_have_text(locator, expected, options)`: `createMatcher(name, info, actual, matcher)(...args)`.
   defp member_source(ctx, class, %{"matcher" => matcher} = member, _receiver) do
     name = snake(member["alias"])
@@ -298,13 +319,23 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
 
     call =
-      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, %{isNot: #{matcher["isNot"]}}, " <>
+      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, %{isNot: is_not}, " <>
         "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
 
     m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
     receiver_spec = Enum.map_join(matcher["receivers"], " | ", &"#{inspect(facade(&1))}.t()")
+    # A negated receiver (`not_/1`) takes the place of the receiver, not of a negated one.
+    receiver_spec = if matcher["isNot"], do: receiver_spec, else: "#{receiver_spec} | t(#{receiver_spec})"
     m = Map.put(m, :spec_args, [receiver_spec | Enum.map(member["args"], &arg_spec(ctx, &1, name))])
-    conversions = Enum.map_join(attrs, "\n", &conversion(name, api_name, &1))
+
+    conversions =
+      Enum.join(
+        [
+          "{#{receiver}, is_not} = Facade.negated(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
+          | Enum.map(attrs, &conversion(name, api_name, &1))
+        ],
+        "\n"
+      )
 
     attributes =
       Enum.join(
@@ -912,7 +943,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     "$eval" => "eval_on_selector",
     "$$eval" => "eval_on_selector_all",
     "and" => "and_",
-    "or" => "or_"
+    "or" => "or_",
+    "not" => "not_"
   }
 
   defp snake(js_name), do: Map.get_lazy(@renamed, js_name, fn -> Macro.underscore(js_name) end)

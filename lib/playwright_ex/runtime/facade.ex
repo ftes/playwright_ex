@@ -89,6 +89,18 @@ defmodule PlaywrightEx.Runtime.Facade do
   """
   def matcher(receiver, fun), do: async_void(nil, receiver, fun)
 
+  @doc """
+  A matcher's receiver and `isNot`: a negated receiver (`PlaywrightEx.Expect.not_/1`, JS
+  `expect(x).not`) negates the matcher. JS has no `expect(x).not.not`, so a `not_to_*` matcher
+  (`is_not`) raises `ArgumentError` for one.
+  """
+  def negated(%{__struct__: PlaywrightEx.Expect, actual: actual}, false, _api_name), do: {actual, true}
+
+  def negated(%{__struct__: PlaywrightEx.Expect}, true, api_name),
+    do: raise(ArgumentError, "#{api_name}: the receiver is negated already (JS has no expect(x).not.not)")
+
+  def negated(actual, is_not, _api_name), do: {actual, is_not}
+
   @doc "Like `matcher/2`, but raises: `ExUnit.AssertionError` when the expectation is not met."
   def matcher!(receiver, fun) do
     async_void!(nil, receiver, fun)

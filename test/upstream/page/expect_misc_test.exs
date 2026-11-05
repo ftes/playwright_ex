@@ -551,7 +551,8 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       Expect.to_have_attribute!(locator, "checked", "")
       Expect.to_have_attribute!(locator, "checked", ~r/.*/)
 
-      {:error, error} = Expect.not_to_have_attribute(locator, "checked", "", timeout: 1000)
+      # `expect(locator).not` as `Expect.not_/1` here, as `not_to_*` elsewhere.
+      {:error, error} = locator |> Expect.not_() |> Expect.to_have_attribute("checked", "", timeout: 1000)
 
       assert error.message =~ """
              expect(locator).not.toHaveAttribute(expected) failed
@@ -593,7 +594,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       locator = Page.locator(page, "#node")
       Expect.to_have_attribute!(locator, "id", timeout: 5000)
       Expect.to_have_attribute!(locator, "checked", %{timeout: 5000})
-      Expect.not_to_have_attribute!(locator, "open", timeout: 5000)
+      locator |> Expect.not_() |> Expect.to_have_attribute!("open", timeout: 5000)
     end
 
     test "support ignoreCase", %{page: page} do

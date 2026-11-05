@@ -59,6 +59,8 @@ popup = PlaywrightEx.Promise.await!(promise)
 
 **Assertions.** `PlaywrightEx.Expect` has the web-first matchers. They retry, return
 `:ok | {:error, %ExpectError{}}`, and the bang forms raise `ExUnit.AssertionError`.
+`expect(locator).not.toHaveText("x")` is `Expect.not_to_have_text(locator, "x")` or
+`locator |> Expect.not_() |> Expect.to_have_text("x")`.
 
 **Promises.** `wait_for_*` members return a `PlaywrightEx.Promise`: the wait starts before the
 call returns, and any process can `await/1` it.
