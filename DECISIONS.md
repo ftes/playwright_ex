@@ -16,8 +16,7 @@ These shape the public API, so changing them after release would break users. Yo
 2. **Handle structs** [on the facade modules]: done (EE), `%PlaywrightEx.Page{}`.
 3. **Expect defaults** [ratified: app env only, no `Expect.configure/1`].
 4. **Release**: version 1.64.0 (`mix.exs` is 0.16.0) and CHANGELOG entry. Open.
-5. **AbortController ownership**: one driver per controller, JS's is global. Open (you asked
-   what a global one would change).
+5. **AbortController ownership** [done: global, as JS, workstream KK].
 6. **Doc examples** [ratified: stay JS for now], PLAN Then 5.
 
 ## 2026-11-04: Locators on Frame/Page
@@ -677,3 +676,13 @@ drift). Blockers for release, assigned to follow-up workstreams:
   answers JS for an unknown guid).
 - Open: a write barrier / cached edges to cut pause times (recommended); the cap of >1000 promise
   handles per process vs. the Promise docs.
+
+## 2026-11-05: Global AbortController, Expect.not_, bang waits (workstream KK)
+- `AbortController.new/0` only: signals live in a public ETS table owned by
+  `PlaywrightEx.Application`. Deviation: an aborted signal keeps one row (its reason) for the
+  application's lifetime. Listeners are GC roots of their loop; one added under another driver's
+  baton than the aborting process holds runs posted to its loop (no cross-baton waits).
+- `Expect.not_/1` follows JS `expect(x).not`: field `isNot`, no double negation.
+- Bang forms of the promise waits (`wait_for_event!` etc.); doc examples are generic.
+- "orOptions" rule: options may take the place of an optional scalar before them
+  (`to_have_attribute(l, "id", timeout: 1)`); optionsOr object fields take the other clients' docs.
