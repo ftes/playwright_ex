@@ -836,3 +836,33 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - The Phase 0 agent planned the groups and was then retired (about 340k tokens of context); the
   lead did the one frozen-file change (`Connection.close` in one atomic step).
 - Follow-ups for Phase 2 are in test/OTP_BACKLOG.md.
+
+## 2026-11-05: after Phase 1
+- Your calls: subscribe-first accepted and documented (migration guide, "Subscribe before you
+  check"), with a public `PlaywrightEx.Promise.free/1` for the wait you don't need. Durable
+  decisions go to `docs/architecture.md` (what plus a short why), not ADRs.
+- Binding registration gap fixed with a reply hook: `channel_call(..., on_reply)` runs a pure-state
+  fun in the Conn when the reply is dispatched, before the next message (JS's microtask
+  continuation). Used by expose_binding/expose_function, add_locator_handler, connectToBrowserType;
+  the upstream statements move unchanged into the hook. Rejected: write-then-rollback (the locator
+  handler uid comes from the reply).
+- Waiter rejection timing left as is: a fix needs a blocking mailbox step with acks plus a
+  per-process event buffer (150-250 lines, deadlock risk), and code after `await` runs in another
+  process anyway. Documented.
+- Test timeouts match upstream (30 s, 60 s on darwin x64; actionTimeout 0). That surfaced the
+  lifetimes bound test (200 contexts, past 30 s on webkit/firefox CI): cut to 20 contexts, which
+  measures the same per-context bound. Non-upstream tests get tight limits (harness agent).
+- workers_test:237 is a chromium race, not ours: upstream's JS client hangs too (6/510 under
+  2-CPU load). Tagged flaky on chromium and filed microsoft/playwright#43922.
+- A Linux Docker harness (`scripts/linux/run`) reproduces CI-only issues; manual only.
+- Daily upstream-update workflow: a cheap version check, then claude-code-action ports per PORTING
+  and opens a draft PR `upstream/<version>`. Live once on main. Owner to do: a ruleset on main
+  requiring PRs and the `Tests` check (the tool deny-list is prefix-based).
+- Config audit against 1.64.1 found the harness never applies upstream's default context and
+  launch options, ports conditional skips and `test.fail` as unconditional skips, and runs 4x
+  upstream's local concurrency. One harness-fidelity agent fixes these.
+- Lead error: agent prompts named ~/src/playwright (1.62-next) as upstream instead of the 1.64.1
+  cache. The code relied on is unchanged between the two; the parity pass names the cache.
+- Full line-by-line parity pass added to PLAN as the quality gate, needing your go-ahead.
+- North star (tests playwright-python runs that we don't): ports for env-var tests via a driver of
+  their own (CC-023, CD-018, CD-024, CD-025); agents on fetch cookies/TLS, misc, headful, Selenium.
