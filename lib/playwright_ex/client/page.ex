@@ -117,11 +117,13 @@ defmodule PlaywrightEx.Client.Page do
       emit(this, Events.Page.file_chooser(), FileChooser.new(this, ElementHandle.from(element), is_multiple))
     end)
 
-    EventEmitter.on(_channel(this), "frameAttached", fn %{frame: frame} ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "frameAttached", fn %{frame: frame} ->
       _on_frame_attached(this, Frame.from(frame))
     end)
 
-    EventEmitter.on(_channel(this), "frameDetached", fn %{frame: frame} ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "frameDetached", fn %{frame: frame} ->
       _on_frame_detached(this, Frame.from(frame))
     end)
 
@@ -135,7 +137,8 @@ defmodule PlaywrightEx.Client.Page do
       _on_web_socket_route(this, WebSocketRoute.from(web_socket_route))
     end)
 
-    EventEmitter.on(_channel(this), "viewportSizeChanged", fn event ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "viewportSizeChanged", fn event ->
       put(this, :_viewportSize, event[:viewportSize])
     end)
 
@@ -478,22 +481,27 @@ defmodule PlaywrightEx.Client.Page do
     # the handler raises), the `finally` statements follow, then the error is raised again.
     {remove, error} =
       try do
-        handler = map_get(this, :_locatorHandlers, uid)
+        # handler.times--: the entry is a value, written back in one atomic step with the read.
+        {handler, run} =
+          atomic(this, fn ->
+            handler = map_get(this, :_locatorHandlers, uid)
 
-        handler =
-          if handler && handler.times != 0 do
-            # handler.times--: the entry is a value, write it back.
-            handler =
-              if handler.times != nil,
-                do: map_set(this, :_locatorHandlers, uid, %{handler | times: handler.times - 1}),
-                else: handler
+            cond do
+              !handler or handler.times == 0 ->
+                {handler, false}
 
-            result = ClientHelper.call_function(handler.handler, [handler.locator])
-            if is_struct(result, Promise), do: Promise.await(result)
-            handler
-          else
-            handler
-          end
+              handler.times != nil ->
+                {map_set(this, :_locatorHandlers, uid, %{handler | times: handler.times - 1}), true}
+
+              true ->
+                {handler, true}
+            end
+          end)
+
+        if run do
+          result = ClientHelper.call_function(handler.handler, [handler.locator])
+          if is_struct(result, Promise), do: Promise.await(result)
+        end
 
         {handler != nil and handler.times == 0, nil}
       rescue
@@ -1112,7 +1120,9 @@ defmodule PlaywrightEx.Client.Page do
 
     LongStandingScope.safe_race(
       get(this, :_closedOrCrashedScope),
-      Promise.async(fn -> channel_call(context(this), :pause, %{}, TimeoutSettings.k_no_timeout()) end)
+      # A latch on the page: when the scope wins, the pause call's late result settles the latch
+      # (a local promise would leave a stray message).
+      Promise.async(fn -> channel_call(context(this), :pause, %{}, TimeoutSettings.k_no_timeout()) end, owner: this)
     )
 
     BrowserContext.set_default_navigation_timeout(context, default_navigation_timeout)

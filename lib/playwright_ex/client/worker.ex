@@ -29,12 +29,14 @@ defmodule PlaywrightEx.Client.Worker do
     put(this, :_closeReason, nil)
     _set_event_to_subscription_mapping(this, %{Events.Worker.console() => "console"})
 
-    EventEmitter.on(_channel(this), "console", fn event ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "console", fn event ->
       # Note: we only receive console events here for workers from "chromium._connectToWorker".
       emit(this, Events.Worker.console(), ConsoleMessage.new(event, nil, this))
     end)
 
-    EventEmitter.on(_channel(this), "close", fn _ ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "close", fn _ ->
       if page = get(this, :_page), do: set_delete(page, :_workers, this)
       if context = get(this, :_context), do: set_delete(context, :_serviceWorkers, this)
       emit(this, Events.Worker.close(), this)
