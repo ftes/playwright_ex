@@ -26,15 +26,27 @@ defmodule PlaywrightEx.Upstream do
       opts[:dir] || env() ->
         if not File.dir?(dir), do: raise("upstream checkout not found: #{dir}")
 
-      not Enum.all?(@paths, &File.dir?(Path.join(dir, &1))) ->
-        File.rm_rf!(dir)
-        install!(dir)
+      complete?(dir) ->
+        :ok
 
       true ->
-        :ok
+        # Concurrent callers (test modules' `setup_all`) wait for one download instead of racing it.
+        :global.trans(
+          {{__MODULE__, dir}, self()},
+          fn -> if not complete?(dir), do: reinstall!(dir) end,
+          [node()],
+          :infinity
+        )
     end
 
     dir
+  end
+
+  defp complete?(dir), do: Enum.all?(@paths, &File.dir?(Path.join(dir, &1)))
+
+  defp reinstall!(dir) do
+    File.rm_rf!(dir)
+    install!(dir)
   end
 
   defp install!(dir) do
@@ -52,11 +64,23 @@ defmodule PlaywrightEx.Upstream do
       members = Enum.map(@paths, &"playwright-#{version}/#{&1}")
 
       case System.cmd("tar", ["-xzf", tgz, "--strip-components=1", "-C", out | members], stderr_to_stdout: true) do
-        {_, 0} -> File.rename!(out, dir)
+        {_, 0} -> rename!(out, dir)
         {output, status} -> raise "extracting #{tgz} failed (#{status}): #{output}"
       end
     after
       File.rm_rf!(tmp)
+    end
+  end
+
+  # Another OS process (a parallel `mix test`) may have installed it meanwhile.
+  defp rename!(out, dir) do
+    case File.rename(out, dir) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        if not complete?(dir),
+          do: raise(File.RenameError, reason: reason, source: out, destination: dir, action: "rename")
     end
   end
 
