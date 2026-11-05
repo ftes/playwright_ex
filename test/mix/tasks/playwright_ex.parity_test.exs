@@ -176,6 +176,38 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
     refute Parity.conditional_annotation?(b, "fail")
   end
 
+  @tag :tmp_dir
+  test "slow_scopes/1 and check_slow/2: upstream slow() needs a timeout tag using @slow_timeout", %{tmp_dir: dir} do
+    assert Parity.slow_scopes("test.slow();\nit('a', () => {});\n") == [:file]
+
+    source = """
+    it.describe('d', () => {
+      it.beforeEach(async () => {
+        it.slow();
+      });
+      it('a', async ({ page }) => {
+        it.slow(trace === 'on');
+      });
+    });
+    it('b', {
+      annotation: { type: 'issue' },
+    }, async ({ page }) => {
+      it.slow(true, 'Large');
+    });
+    """
+
+    assert Parity.slow_scopes(source) == [{:describe, "d"}, {:test, "b", :file}]
+
+    File.mkdir_p!(Path.join(dir, "tests"))
+    File.write!(Path.join(dir, "tests/x.spec.ts"), source)
+    test = &%{name: &1, describe: &2, body?: true, slow?: &3, spec: "tests/x.spec.ts", file: "x_test.exs", line: 1}
+    tests = [test.("a", "d", false), test.("a", nil, false), test.("b", nil, true), test.("c", "d", true)]
+
+    assert Parity.check_slow(dir, tests) == [
+             ~s|x_test.exs:1: "a" is `slow()` upstream: tag it `timeout: @slow_timeout`|
+           ]
+  end
+
   test "cited_members/1: Class.member names outside parentheses of a reason that only lists API names" do
     assert Parity.cited_members("not ported: Page.emulateMedia") == [{"Page", "emulateMedia"}]
     assert Parity.cited_members("not ported: Locator.evaluate (ElementHandle), expect") == [{"Locator", "evaluate"}]

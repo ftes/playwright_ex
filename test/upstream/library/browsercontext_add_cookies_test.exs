@@ -309,9 +309,9 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     BrowserContext.close!(context)
   end
 
+  # playwrightTest.slow()
+  @tag timeout: @slow_timeout
   test "should isolate cookies between launches", %{browser_type: browser_type, server: server} do
-    # playwrightTest.slow();
-
     browser1 = BrowserType.launch!(browser_type)
     context1 = Browser.new_context!(browser1)
 

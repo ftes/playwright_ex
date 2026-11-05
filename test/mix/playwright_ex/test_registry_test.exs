@@ -95,4 +95,29 @@ defmodule Mix.PlaywrightEx.TestRegistryTest do
     assert %{describe: :dynamic, body?: false} = c
     assert Regex.match?(c.name, "c 1")
   end
+
+  test "test_modules/1: slow? from a timeout tag using @slow_timeout" do
+    source = ~S'''
+    defmodule T do
+      @upstream "tests/page/x.spec.ts"
+      @tag timeout: @slow_timeout
+      test "a"
+      @tag timeout: 5_000
+      test "b"
+      describe "d" do
+        @describetag timeout: if(true, do: @slow_timeout, else: 1)
+        test "c"
+      end
+    end
+    defmodule U do
+      @upstream "tests/page/y.spec.ts"
+      if true, do: @moduletag(timeout: 2 * @slow_timeout)
+      test "e"
+    end
+    '''
+
+    assert [{_, [a, b, c]}, {_, [e]}] = TestRegistry.test_modules(source)
+    assert a.slow? and c.slow? and e.slow?
+    refute b.slow?
+  end
 end

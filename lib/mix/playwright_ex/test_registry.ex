@@ -222,11 +222,12 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
   @doc """
   The test modules in a source that declare `@upstream`: `[{upstream, tests}]`, the tests in
-  order, each `%{name, describe, body?, line, skips, tag_skips}`. `name` is a string, or a regex for a
+  order, each `%{name, describe, body?, line, skips, tag_skips, slow?}`. `name` is a string, or a regex for a
   name built at runtime; `describe` as in `match/3`; `skips` the static `skip:` reasons of
   the test's `@tag`s, its `@describetag`s and the module's `@moduletag`s (those that are
   string literals, also joined with `<>`; conditional ones are not static); `tag_skips` those
-  of its own `@tag`s.
+  of its own `@tag`s; `slow?` whether a `timeout:` of its `@tag`s, `@describetag`s or the module's
+  `@moduletag`s (also under an `if`) uses `@slow_timeout` (`test.slow()`).
   """
   def test_modules(source) do
     source
@@ -241,8 +242,17 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
   defp test_module(exprs) do
     case for({:@, _, [{:upstream, _, [path]}]} when is_binary(path) <- exprs, do: path) do
-      [upstream | _] -> [{upstream, walk(exprs, %{describe: nil, skips: static_skips(exprs, :moduletag)}, [])}]
-      [] -> []
+      [upstream | _] ->
+        scope = %{
+          describe: nil,
+          skips: static_skips(exprs, :moduletag),
+          slow?: Enum.any?(exprs, &slow?(&1, :moduletag))
+        }
+
+        [{upstream, walk(exprs, scope, [])}]
+
+      [] ->
+        []
     end
   end
 
@@ -260,7 +270,8 @@ defmodule Mix.PlaywrightEx.TestRegistry do
     |> Enum.reverse()
   end
 
-  defp walk_expr({:@, _, [{:tag, _, [opts]}]}, _scope, tests, tags) do
+  defp walk_expr({:@, _, [{:tag, _, [opts]}]} = expr, _scope, tests, tags) do
+    tags = if slow?(expr, :tag), do: [:slow | tags], else: tags
     {tests, if(reason = static_skip(opts), do: [reason | tags], else: tags)}
   end
 
@@ -270,8 +281,9 @@ defmodule Mix.PlaywrightEx.TestRegistry do
       describe: scope.describe,
       body?: rest != [],
       line: meta[:line],
-      skips: tags ++ scope.skips,
-      tag_skips: tags
+      skips: Enum.filter(tags, &is_binary/1) ++ scope.skips,
+      tag_skips: Enum.filter(tags, &is_binary/1),
+      slow?: :slow in tags or scope.slow?
     }
 
     {[test | tests], []}
@@ -280,7 +292,13 @@ defmodule Mix.PlaywrightEx.TestRegistry do
   defp walk_expr({:describe, _, [name, [do: body]]}, scope, tests, _tags) do
     exprs = block(body)
     describe = if is_binary(name), do: name, else: :dynamic
-    scope = %{describe: describe, skips: static_skips(exprs, :describetag) ++ scope.skips}
+
+    scope = %{
+      describe: describe,
+      skips: static_skips(exprs, :describetag) ++ scope.skips,
+      slow?: scope.slow? or Enum.any?(exprs, &slow?(&1, :describetag))
+    }
+
     {Enum.reverse(walk(exprs, scope, []), tests), []}
   end
 
@@ -289,6 +307,25 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
   defp walk_expr({:__block__, _, exprs}, scope, tests, tags), do: {Enum.reverse(walk(exprs, scope, tags), tests), []}
   defp walk_expr(_expr, _scope, tests, tags), do: {tests, tags}
+
+  # `@attr timeout: ... @slow_timeout ...` in `expr` (also under an `if`).
+  defp slow?(expr, attr) do
+    expr
+    |> Macro.prewalk(false, fn
+      {:@, _, [{^attr, _, [opts]}]} = node, acc when is_list(opts) ->
+        {node, acc or (Keyword.keyword?(opts) and uses_slow_timeout?(opts[:timeout]))}
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp uses_slow_timeout?(ast) do
+    ast
+    |> Macro.prewalk(false, fn node, acc -> {node, acc or match?({:@, _, [{:slow_timeout, _, _}]}, node)} end)
+    |> elem(1)
+  end
 
   defp static_skip(opts) when is_list(opts), do: if(Keyword.keyword?(opts), do: static_string(opts[:skip]))
   defp static_skip(_), do: nil

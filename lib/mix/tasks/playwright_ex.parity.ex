@@ -96,6 +96,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         check_tests(upstream, test_modules) ++
         check_registry(registry) ++
         check_conditional_annotations(upstream, registry.tests) ++
+        check_slow(upstream, registry.tests) ++
         check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
         check_rule_reasons(registry.rules, &ported?/2) ++
         check_facade(upstream)
@@ -569,6 +570,69 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         "but upstream's `#{kind}` annotation has a condition: tag it under that condition"
     end
   end
+
+  @doc false
+  # Problems: a ported test that upstream marks `slow()` (in its body, a `beforeEach` or
+  # `describe` around it, or at the top of the file) with no `timeout:` tag using `@slow_timeout`.
+  def check_slow(upstream, tests) do
+    tests
+    |> Enum.filter(&(&1.body? and is_binary(&1.name)))
+    |> Enum.group_by(& &1.spec)
+    |> Enum.flat_map(fn {spec, tests} ->
+      source = Path.join(upstream, spec)
+      slow = if File.regular?(source), do: slow_scopes(File.read!(source)), else: []
+
+      for test <- tests, not test.slow?, Enum.any?(slow, &in_slow_scope?(&1, test)) do
+        "#{test.file}:#{test.line}: #{inspect(test.name)} is `slow()` upstream: tag it `timeout: @slow_timeout`"
+      end
+    end)
+  end
+
+  # Conditions that never hold here: we never trace or record video by default.
+  @never_slow ~r/\b(?:trace|video)\b/
+
+  # The scope of each `slow()` in a spec: `:file`, `{:test, title}` or `{:describe, title}`.
+  @doc false
+  def slow_scopes(source) do
+    lines = String.split(source, "\n")
+
+    for {line, index} <- Enum.with_index(lines),
+        [_, condition] <- [Regex.run(~r/^\s*(?:it|test|\w+Test)\.slow\(([^,)]*)/, line)],
+        not Regex.match?(@never_slow, condition),
+        uniq: true,
+        do: slow_scope(lines, index)
+  end
+
+  # The construct around line `index`: the nearest line above it that is indented less and does
+  # not close a bracket (`}, async ({ page }) => {` belongs to the head above it).
+  defp slow_scope(lines, index) do
+    indent = indentation(Enum.at(lines, index))
+
+    head_index =
+      Enum.find(
+        (index - 1)..0//-1,
+        &(String.trim(Enum.at(lines, &1)) != "" and indentation(Enum.at(lines, &1)) < indent and
+            not String.match?(Enum.at(lines, &1), ~r/^\s*[})\]]/))
+      )
+
+    head = head_index && Enum.at(lines, head_index)
+
+    title = fn kind -> Regex.run(~r/\b#{kind}\(\s*(['"`])((?:\\.|(?!\1).)*)\1/, head || "", capture: :all_but_first) end
+
+    cond do
+      is_nil(head) -> :file
+      t = title.("(?:describe|describe\\.\\w+)") -> {:describe, unescape(List.last(t))}
+      String.match?(head, ~r/\b(?:beforeEach|beforeAll)\(/) -> slow_scope(lines, head_index)
+      t = title.("(?:it|test|\\w+Test)(?:\\.\\w+)?") -> {:test, unescape(List.last(t)), slow_scope(lines, head_index)}
+      true -> :file
+    end
+  end
+
+  defp indentation(line), do: byte_size(line) - byte_size(String.trim_leading(line))
+
+  defp in_slow_scope?(:file, _test), do: true
+  defp in_slow_scope?({:test, title, outer}, test), do: test.name == title and in_slow_scope?(outer, test)
+  defp in_slow_scope?({:describe, title}, test), do: is_binary(test.describe) and String.contains?(test.describe, title)
 
   defp unconditional_kinds(skips) do
     for skip <- skips, [_, kind] <- [Regex.run(~r/^upstream (skip|fixme|fail):/, skip)], uniq: true, do: kind

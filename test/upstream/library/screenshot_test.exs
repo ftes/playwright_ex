@@ -245,6 +245,8 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
 
     # annotation: https://github.com/microsoft/playwright/issues/4038
     # browserTest.fixme(chromium && !headless && linux)  -- we run headless
+    # browserTest.slow(true, 'Large screenshot is slow')
+    @tag timeout: @slow_timeout
     test "should work with large size", %{context_factory: context_factory} do
       context = context_factory.([])
       page = BrowserContext.new_page!(context)

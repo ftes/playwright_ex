@@ -1035,7 +1035,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      @tag timeout: 360_000
+      # if (isMac) test.setTimeout(test.info().timeout * 3)
+      @tag timeout: if(match?({:unix, :darwin}, :os.type()), do: 3 * @slow_timeout, else: @slow_timeout)
       test "should upload large file", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
