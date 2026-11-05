@@ -3,31 +3,54 @@ defmodule PlaywrightEx.Runtime.Heap do
   Runtime support (not ported from upstream): mutable object fields.
 
   `this._foo` becomes `get(this, :_foo)`, `this._foo = x` becomes `put(this, :_foo, x)`.
-  Fields live in the object's heap (an `ordered_set` ETS table: the connection's, or the loop's for
-  runtime objects) as `{{guid, field}, value}` rows; `Map` fields as `{{guid, field, key}, value, seq}`
-  rows, read in insertion order (`seq`); `Set` fields as insertion-ordered lists. The table is
-  ordered so that one object's rows (a `{guid, ...}` key prefix) are a range.
-  Reads are lock-free from any process; writes happen under the baton (acquired on demand).
 
-  Objects with `loop: nil` are transient value objects (all fields `undefined`).
+  Fields of protocol objects (and of the objects they own) are rows of their connection's table
+  (`PlaywrightEx.Runtime.Conn`), an `ordered_set` the connection process alone writes: reads are
+  lock-free from any process, writes from other processes run in the connection
+  (`PlaywrightEx.Runtime.Conn.run/2`), so a read-modify-write (`update/3`, `atomic/2`) is atomic
+  as a synchronous JS section is.
 
-  Rows are freed by `PlaywrightEx.Runtime.GC` once their object is unreachable. A closed
-  connection's table is deleted once nothing in it is reachable: reading a handle from it raises
-  `TargetClosedError`.
+  Rows are keyed `{owner_guid, local}`: a protocol object's fields are `{guid, field}`, those of an
+  object it owns (`new_object/2`) `{guid, {ref, field}}`, `Map` entries `{.., {:map, field, key}}`
+  (with an insertion sequence: JS Map order), latches (`PlaywrightEx.Runtime.Promise`)
+  `{.., {:latch, ref}}`. So `_dispose` frees an object and all it owns with one bounded prefix
+  delete (`free_rows/2`). `Set` fields are insertion-ordered lists.
+
+  A handle carries the immutable part of its object (`guid`, `type`, `initializer`, its
+  connection): `:_type`, `:_guid`, `:_initializer` and `:_connection` stay readable after dispose.
+  Other fields of a disposed object raise `PlaywrightEx.TargetClosedError` (JS keeps the last
+  value); writes to it are dropped.
+
+  `new_object(module)` is a process-local object: its fields live in the process dictionary of
+  its creator, which alone may use it (another process raises); `free/1` erases it.
   """
-  alias PlaywrightEx.Runtime.EventLoop
-  alias PlaywrightEx.Runtime.GC
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.TargetClosedError
 
+  @special [:_type, :_guid, :_initializer, :_connection]
+
   @doc """
-  `new X()` for a runtime object: lives in the heap of the current loop (see `EventLoop.current!/0`).
-  Its guid is a monotonic integer: its allocation time, for the collector.
+  `new X()` for a runtime object. With an `owner` (a protocol object, the connection, or an object
+  they own), its rows live on the owner and go with it; without one, it is process-local.
   """
-  def new_object(module, guid \\ nil) do
-    %EventLoop{heap: heap} = loop = EventLoop.current!()
-    guid = guid || :erlang.unique_integer([:monotonic, :positive])
-    GC.count_allocation(loop)
-    struct(module, guid: guid, loop: loop, heap: heap)
+  def new_object(module, owner \\ nil)
+
+  def new_object(module, nil), do: struct(module, guid: make_ref(), conn: self(), table: nil)
+  def new_object(module, %{table: nil} = _local_owner), do: new_object(module, nil)
+
+  def new_object(module, %{guid: guid, conn: conn, table: table}),
+    do: struct(module, guid: {root(guid), make_ref()}, conn: conn, table: table)
+
+  @doc "Frees a runtime object's fields (process-local: erases them; owned: deletes its rows)."
+  def free(%{table: nil, guid: ref} = obj) do
+    check_local!(obj)
+    Process.delete({:pw_local, ref})
+    :ok
+  end
+
+  def free(%{guid: {owner, ref}} = obj) do
+    in_conn(obj, fn -> :ets.select_delete(obj.table, [{{{owner, {ref, :_}}, :_}, [], [true]}]) end)
+    :ok
   end
 
   @doc """
@@ -40,36 +63,88 @@ defmodule PlaywrightEx.Runtime.Heap do
     if function_exported?(module, :__client__, 0), do: module.__client__(), else: module
   end
 
-  def get(%{heap: nil}, _field), do: nil
+  @doc "Whether the object's rows exist: a disposed object (or one of a closed connection) is not alive."
+  def alive?(%{table: nil}), do: true
+  def alive?(%{guid: guid, table: table}), do: alive_guid?(table, guid)
 
-  def get(%{heap: heap, guid: guid}, field) do
-    case lookup(heap, {guid, field}) do
+  defp alive_guid?(table, :connection), do: table_alive?(table)
+  defp alive_guid?(table, {owner, _ref}), do: alive_guid?(table, owner)
+  # Rows owned by a process (`PlaywrightEx.Runtime.ProcessOwner`).
+  defp alive_guid?(_table, pid) when is_pid(pid), do: Process.alive?(pid)
+
+  defp alive_guid?(table, guid) do
+    :ets.member(table, {:connection, {:map, :_objects, guid}})
+  rescue
+    ArgumentError -> false
+  end
+
+  defp table_alive?(table), do: :ets.info(table, :id) != :undefined
+
+  def get(obj, field) when field in @special and is_binary(:erlang.map_get(:guid, obj)), do: special(obj, field)
+  def get(%{table: nil} = obj, field), do: local(obj) |> Map.get(field)
+
+  def get(obj, field) do
+    case lookup(obj, key(obj, field)) do
       [{_, value}] -> value
-      [] -> nil
+      [] -> missing(obj)
     end
   end
 
-  # `delete this._foo`
-  def delete(%{loop: loop, heap: heap, guid: guid}, field),
-    do: EventLoop.with_baton(loop, fn -> :ets.delete(heap, {guid, field}) end)
+  defp special(%{type: type}, :_type), do: type
+  defp special(%{guid: guid}, :_guid), do: guid
+  defp special(%{initializer: initializer}, :_initializer), do: initializer
 
-  # A deleted table: the connection closed and nothing in it was reachable any more.
-  defp lookup(heap, key) do
-    :ets.lookup(heap, key)
+  defp special(%{conn: conn, table: table}, :_connection),
+    do: struct(PlaywrightEx.Client.Connection, guid: :connection, conn: conn, table: table)
+
+  defp missing(obj), do: if(alive?(obj), do: nil, else: raise(TargetClosedError.new()))
+
+  defp lookup(%{table: table}, key) do
+    :ets.lookup(table, key)
   rescue
-    ArgumentError -> reraise TargetClosedError, __STACKTRACE__
+    # A deleted table: the connection is gone.
+    ArgumentError -> []
   end
 
-  def put(%{loop: nil} = obj, field, _value),
-    do: raise("cannot assign #{inspect(field)} on value object #{inspect(obj)}")
+  @doc false
+  # The row key of `sub` (a field, `{:map, field, key}`, `{:latch, ref}`) of an object.
+  def key(%{guid: {owner, ref}}, sub), do: {owner, {ref, sub}}
+  def key(%{guid: guid}, sub), do: {guid, sub}
 
-  def put(%{loop: %EventLoop{} = loop, heap: heap, guid: guid}, field, value) do
-    EventLoop.with_baton(loop, fn -> :ets.insert(heap, {{guid, field}, value}) end)
+  defp root({owner, _ref}), do: owner
+  defp root(guid), do: guid
+
+  # `delete this._foo`
+  def delete(%{table: nil} = obj, field), do: put_local(obj, Map.delete(local(obj), field))
+  def delete(obj, field), do: in_conn(obj, fn -> :ets.delete(obj.table, key(obj, field)) end)
+
+  def put(%{table: nil} = obj, field, value) do
+    put_local(obj, Map.put(local(obj), field, value))
     value
   end
 
-  def update(%{loop: loop} = obj, field, fun),
-    do: EventLoop.with_baton(loop, fn -> put(obj, field, fun.(get(obj, field))) end)
+  def put(obj, field, value) do
+    in_conn(obj, fn -> insert(obj, key(obj, field), value) end)
+    value
+  end
+
+  # In the connection: writes to a disposed object are dropped (they would leak rows).
+  defp insert(obj, key, value) do
+    if alive?(obj), do: :ets.insert(obj.table, {key, value})
+  end
+
+  def update(obj, field, fun), do: atomic(obj, fn -> put(obj, field, fun.(get(obj, field))) end)
+
+  @doc """
+  Runs `fun` atomically with respect to the object's connection (in it): a synchronous JS section
+  that reads, decides and writes. `fun` must not await (it raises). Process-local objects run it here.
+  """
+  def atomic(%{table: nil}, fun), do: fun.()
+  def atomic(obj, fun), do: in_conn(obj, fun)
+
+  defp in_conn(%{conn: conn}, fun) do
+    if self() == conn, do: fun.(), else: Conn.run(conn, fun)
+  end
 
   # Set<T> fields (insertion ordered)
   def set_add(obj, field, item),
@@ -78,43 +153,96 @@ defmodule PlaywrightEx.Runtime.Heap do
   def set_delete(obj, field, item), do: update(obj, field, fn set -> List.delete(set || [], item) end)
   def set_has(obj, field, item), do: item in (get(obj, field) || [])
 
-  # Map<K, V> fields: `{{guid, field, key}, value, seq}` rows. `seq` keeps JS insertion order:
-  # setting an existing key keeps its position, delete + set moves it to the end.
-  def map_get(%{heap: heap, guid: guid}, field, key) do
-    case lookup(heap, {guid, field, key}) do
-      [{_, value, _}] -> value
-      [] -> nil
+  # Map<K, V> fields: `{{.., {:map, field, key}}, {seq, value}}` rows. `seq` keeps JS insertion
+  # order: setting an existing key keeps its position, delete + set moves it to the end.
+  def map_get(%{table: nil} = obj, field, key), do: local(obj) |> Map.get({:map, field, key}) |> elem_or_nil()
+
+  def map_get(obj, field, key) do
+    case lookup(obj, key(obj, {:map, field, key})) do
+      [{_, {_seq, value}}] -> value
+      [] -> missing(obj)
     end
   end
 
-  def map_set(%{loop: loop, heap: heap, guid: guid}, field, key, value) do
-    EventLoop.with_baton(loop, fn ->
+  defp elem_or_nil(nil), do: nil
+  defp elem_or_nil({_seq, value}), do: value
+
+  def map_set(%{table: nil} = obj, field, key, value) do
+    fields = local(obj)
+    seq = elem(Map.get(fields, {:map, field, key}, {:erlang.unique_integer([:monotonic]), nil}), 0)
+    put_local(obj, Map.put(fields, {:map, field, key}, {seq, value}))
+    value
+  end
+
+  def map_set(obj, field, key, value) do
+    in_conn(obj, fn ->
+      row_key = key(obj, {:map, field, key})
+
       seq =
-        case :ets.lookup(heap, {guid, field, key}) do
-          [{_, _, seq}] -> seq
+        case :ets.lookup(obj.table, row_key) do
+          [{_, {seq, _}}] -> seq
           [] -> :erlang.unique_integer([:monotonic])
         end
 
-      :ets.insert(heap, {{guid, field, key}, value, seq})
+      insert(obj, row_key, {seq, value})
     end)
 
     value
   end
 
-  def map_delete(%{loop: loop, heap: heap, guid: guid}, field, key),
-    do: EventLoop.with_baton(loop, fn -> :ets.delete(heap, {guid, field, key}) end)
+  def map_delete(%{table: nil} = obj, field, key), do: put_local(obj, Map.delete(local(obj), {:map, field, key}))
+  def map_delete(obj, field, key), do: in_conn(obj, fn -> :ets.delete(obj.table, key(obj, {:map, field, key})) end)
 
   # `map.keys()`, `map.values()`, `map.entries()` (insertion order)
   def map_keys(obj, field), do: obj |> map_entries(field) |> Enum.map(&elem(&1, 0))
   def map_values(obj, field), do: obj |> map_entries(field) |> Enum.map(&elem(&1, 1))
 
-  def map_entries(%{heap: heap, guid: guid}, field) do
-    heap
-    |> :ets.select([{{{guid, field, :"$1"}, :"$2", :"$3"}, [], [{{:"$3", :"$1", :"$2"}}]}])
+  def map_entries(%{table: nil} = obj, field) do
+    for({{:map, ^field, key}, {seq, value}} <- local(obj), do: {seq, key, value})
     |> Enum.sort()
     |> Enum.map(fn {_seq, key, value} -> {key, value} end)
   end
 
-  def map_clear(%{loop: loop, heap: heap, guid: guid}, field),
-    do: EventLoop.with_baton(loop, fn -> :ets.match_delete(heap, {{guid, field, :_}, :_, :_}) end)
+  def map_entries(%{table: table} = obj, field) do
+    table
+    |> :ets.select([{{key(obj, {:map, field, :"$1"}), {:"$2", :"$3"}}, [], [{{:"$2", :"$1", :"$3"}}]}])
+    |> Enum.sort()
+    |> Enum.map(fn {_seq, key, value} -> {key, value} end)
+  rescue
+    ArgumentError -> raise TargetClosedError.new()
+  end
+
+  def map_clear(%{table: nil} = obj, field),
+    do: put_local(obj, Map.reject(local(obj), &match?({{:map, ^field, _}, _}, &1)))
+
+  def map_clear(obj, field),
+    do: in_conn(obj, fn -> :ets.select_delete(obj.table, [{{key(obj, {:map, field, :_}), :_}, [], [true]}]) end)
+
+  @doc false
+  # In the connection: all rows of a protocol object and of the objects it owns (a bounded prefix
+  # select), as `{local, value}`; `free_rows/2` deletes them.
+  def rows(%{table: table}, guid) when is_binary(guid),
+    do: :ets.select(table, [{{{guid, :"$1"}, :"$2"}, [], [{{:"$1", :"$2"}}]}])
+
+  @doc false
+  def free_rows(%{table: table}, guid) when is_binary(guid),
+    do: :ets.select_delete(table, [{{{guid, :_}, :_}, [], [true]}])
+
+  ## Process-local objects
+
+  defp local(obj) do
+    check_local!(obj)
+    Process.get({:pw_local, obj.guid}, %{})
+  end
+
+  defp put_local(obj, fields) do
+    check_local!(obj)
+    Process.put({:pw_local, obj.guid}, fields)
+    :ok
+  end
+
+  defp check_local!(%{conn: creator} = obj) do
+    if creator != self(),
+      do: raise("#{inspect(obj.__struct__)} is a process-local object of #{inspect(creator)}, used from #{inspect(self())}")
+  end
 end

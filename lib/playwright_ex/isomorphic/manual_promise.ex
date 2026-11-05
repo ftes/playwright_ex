@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Isomorphic.ManualPromise do
 
   def signal_to_promise(signal) do
     if AbortSignal.aborted(signal) do
-      {Promise.new(fn resolve, _reject -> resolve.(nil) end), fn -> nil end}
+      {Promise.resolved(nil), fn -> nil end}
     else
       # `let dispose` assigned inside the executor: the listener is created first.
       promise = Promise.new()
@@ -30,16 +30,19 @@ end
 
 defmodule PlaywrightEx.Isomorphic.LongStandingScope do
   @upstream "packages/isomorphic/manualPromise.ts"
-  @moduledoc "Port of `LongStandingScope` in `#{@upstream}`."
+  @moduledoc """
+  Port of `LongStandingScope` in `#{@upstream}`. Elixir only: `owner` (the page, worker, ...)
+  owns its rows; its terminate promises are latches, so any process races the scope.
+  """
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Isomorphic.ManualPromise
   alias PlaywrightEx.Runtime.Promise
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table]
 
-  def new do
-    this = new_object(__MODULE__)
+  def new(owner) do
+    this = new_object(__MODULE__, owner)
     put(this, :_isClosed, false)
     this
   end
@@ -48,6 +51,7 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
     put(this, :_isClosed, true)
     put(this, :_terminateError, error)
     for {_, p} <- map_values(this, :_terminatePromises), do: Promise.resolve(p, error)
+    nil
   end
 
   def close(this, error) do
@@ -56,6 +60,8 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
 
     for {frames, p} <- map_values(this, :_terminatePromises),
         do: Promise.resolve(p, ManualPromise.clone_error(error, frames))
+
+    nil
   end
 
   def is_closed(this) do
@@ -75,7 +81,8 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
   end
 
   defp _race(this, promises, safe, default_value \\ nil) do
-    terminate_promise = Promise.new()
+    # A latch on the scope: settled by whichever process closes it.
+    terminate_promise = Promise.new(this)
     # const frames = (new Error().stack || '').split('\n');  -- not ported: stack rewriting
     frames = []
     if get(this, :_terminateError), do: Promise.resolve(terminate_promise, get(this, :_terminateError))
@@ -94,7 +101,13 @@ defmodule PlaywrightEx.Isomorphic.LongStandingScope do
         ])
       )
     after
-      map_delete(this, :_terminatePromises, key)
+      # Elixir only: the latch's row goes too.
+      try do
+        map_delete(this, :_terminatePromises, key)
+        Promise.free(terminate_promise)
+      rescue
+        PlaywrightEx.TargetClosedError -> :ok
+      end
     end
   end
 end

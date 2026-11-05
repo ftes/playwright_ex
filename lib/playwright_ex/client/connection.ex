@@ -5,8 +5,8 @@ defmodule PlaywrightEx.Client.Connection do
 
   `dispatch/2` takes wire messages as decoded by `PlaywrightEx.Transport.Pipe` (string keys);
   the protocol validators turn results, events and initializers into atom-keyed maps.
-  Every connection gets its own heap table (guids are only unique per connection); nested
-  connections share the driver's baton.
+  Every connection is a process with its own table (`PlaywrightEx.Runtime.Conn`; guids are only
+  unique per connection), which dispatches.
   """
   use PlaywrightEx.Client.EventEmitter
 
@@ -47,12 +47,11 @@ defmodule PlaywrightEx.Client.Connection do
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
-  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Promise
-  alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table]
 
   defmodule Root do
     @moduledoc false
@@ -76,13 +75,13 @@ defmodule PlaywrightEx.Client.Connection do
     def new(parent, type, guid, initializer), do: ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
   end
 
-  def new(%EventLoop{} = loop, local_utils \\ nil, _instrumentation \\ nil, headers \\ []) do
-    heap = EventLoop.new_heap(loop)
-
-    EventLoop.with_baton(loop, fn ->
-      this = %__MODULE__{guid: :connection, loop: loop, heap: heap}
+  # Elixir only: `this` is the handle of the connection process (`PlaywrightEx.Runtime.Conn`),
+  # which calls this in its `init`.
+  def new(%__MODULE__{} = this, local_utils \\ nil, _instrumentation \\ nil, headers \\ []) do
+    (fn ->
       # super();
-      put(this, :onmessage, fn _message -> nil end)
+      # Elixir only: messages are buffered by the connection process and written per turn.
+      put(this, :onmessage, &Conn.post/1)
       put(this, :_nextCallId, create_call_id_generator())
       put(this, :_isRemote, false)
       put(this, :_rawBuffers, false)
@@ -135,7 +134,7 @@ defmodule PlaywrightEx.Client.Connection do
       })
 
       this
-    end)
+    end).()
   end
 
   def register_object_factories(this, factories) do
@@ -178,14 +177,12 @@ defmodule PlaywrightEx.Client.Connection do
     cond do
       # Fire-and-forget: server intentionally never replies to __waitInfo__,
       # so silently drop it after the connection is closed or the object was collected.
-      method == "__waitInfo__" and (get(this, :_closedError) || get(object, :_wasCollected)) ->
+      # (`_wasCollected`: not ported, a disposed object's rows are deleted.)
+      method == "__waitInfo__" and get(this, :_closedError) ->
         nil
 
       get(this, :_closedError) ->
         raise get(this, :_closedError)
-
-      get(object, :_wasCollected) ->
-        raise "The object has been collected to prevent unbounded heap growth."
 
       true ->
         signal = options[:signal]
@@ -208,22 +205,58 @@ defmodule PlaywrightEx.Client.Connection do
 
         if get(this, :_tracingCount) > 0 and options[:frames] != nil and type != "LocalUtils" do
           if local_utils = get(this, :_localUtils) do
-            Promise.async(fn ->
+            Promise.void(fn ->
               LocalUtils.add_stack_to_tracing_no_reply(local_utils, %{
                 callData: %{stack: options[:frames] || [], id: id}
               })
             end)
-            |> Promise.catch_(fn _ -> nil end)
           end
         end
 
-        # We need to exit zones before calling into the server, otherwise
-        # when we receive events from the server, we would be in an API zone.
-        Zones.empty(fn -> get(this, :onmessage).(Map.put(message, :metadata, metadata)) end)
         # Fire-and-forget: server intentionally never replies to __waitInfo__.
-        if method != "__waitInfo__" do
+        if method == "__waitInfo__" do
+          # We need to exit zones before calling into the server, otherwise
+          # when we receive events from the server, we would be in an API zone.
+          # (Elixir: the message is written by the connection process, outside any zone.)
+          atomic(this, fn -> get(this, :onmessage).(Map.put(message, :metadata, metadata)) end)
+          nil
+        else
+          # deviation: registering the callback and writing the message happen in one atomic
+          # step in the connection process (JS: the message is written, then the callback set,
+          # in one synchronous section). The reply is a message to this process; the promise
+          # monitors the connection process, whose exit rejects it.
+          ref = Process.monitor(this.conn)
+          promise = Promise.from_monitor(ref, fn -> Process.demonitor(ref, [:flush]) end)
+          resolve = fn value -> Promise.resolve(promise, value) end
+          reject = fn error -> Promise.reject(promise, error) end
+
+          closed =
+            atomic(this, fn ->
+              if closed_error = get(this, :_closedError) do
+                closed_error
+              else
+                map_set(this, :_callbacks, id, %{
+                  resolve: resolve,
+                  reject: reject,
+                  signal: signal,
+                  title: options[:title],
+                  type: type,
+                  method: method
+                })
+
+                get(this, :onmessage).(Map.put(message, :metadata, metadata))
+                nil
+              end
+            end)
+
+          if closed do
+            Process.demonitor(ref, [:flush])
+            raise closed
+          end
+
           abort_listener =
             if signal do
+              # deviation: the listener runs in the aborting process; it only sends to the connection.
               abort_listener = fn ->
                 reason = AbortSignal.reason(signal)
 
@@ -235,7 +268,7 @@ defmodule PlaywrightEx.Client.Connection do
                     true -> inspect(reason)
                   end
 
-                Zones.empty(fn ->
+                Conn.cast(this.conn, fn ->
                   get(this, :onmessage).(%{guid: guid, method: "__abort__", params: %{id: id, reason: reason}})
                 end)
               end
@@ -245,24 +278,31 @@ defmodule PlaywrightEx.Client.Connection do
             end
 
           try do
-            Promise.await(
-              Promise.new(fn resolve, reject ->
-                map_set(this, :_callbacks, id, %{
-                  resolve: resolve,
-                  reject: reject,
-                  signal: signal,
-                  title: options[:title],
-                  type: type,
-                  method: method
-                })
-              end)
-            )
+            Promise.await(promise)
           after
             if abort_listener, do: AbortSignal.remove_event_listener(signal, "abort", abort_listener)
           end
         end
     end
   end
+
+  @doc false
+  # Elixir only, in the connection process: sends a call whose reply is dropped (`_post`).
+  def post(this, object, method, params) do
+    if !get(this, :_closedError) do
+      id = get(this, :_nextCallId).()
+      noop = fn _ -> nil end
+      map_set(this, :_callbacks, id, %{resolve: noop, reject: noop, signal: nil, title: nil, type: object.type, method: method})
+      metadata = %{internal: true, timeout: 0}
+      get(this, :onmessage).(%{id: id, guid: object.guid, method: method, params: params, metadata: metadata})
+    end
+
+    nil
+  end
+
+  @doc false
+  # Diagnostics: the pending callbacks.
+  def callbacks(this), do: map_keys(this, :_callbacks)
 
   defp _validator_from_wire_context(this) do
     %{
@@ -353,8 +393,6 @@ defmodule PlaywrightEx.Client.Connection do
       for callback <- map_values(this, :_callbacks), do: callback.reject.(get(this, :_closedError))
       map_clear(this, :_callbacks)
       emit(this, "close")
-      # Elixir only: the heap table is deleted once nothing in it is reachable (PlaywrightEx.Runtime.GC).
-      PlaywrightEx.Runtime.GC.close_heap(this)
     end
   end
 

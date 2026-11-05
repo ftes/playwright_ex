@@ -23,7 +23,6 @@ defmodule PlaywrightEx.Runtime.Facade do
   """
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Runtime.GC
   alias PlaywrightEx.Runtime.Promise
 
   @doc "Runs an async call: `{:ok, value}`, or `{:error, exception}` for anything it raises."
@@ -52,44 +51,46 @@ defmodule PlaywrightEx.Runtime.Facade do
   the call runs until its first `await` (the wait is set up), then a promise handle is returned,
   awaited with `PlaywrightEx.Promise.await/1`.
   """
-  def promise(api_name, receiver, fun), do: Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+  def promise(api_name, receiver, fun),
+    do: Api.call(api_name, receiver, fn -> Promise.async(fun, shared: true) end)
+
+  @doc """
+  Runs `fun` (an `on`, `once`, `off`, ... of the facade) with its listener marked as a user
+  listener: it runs in a subscription process of its own (see `PlaywrightEx.Client.EventEmitter`).
+  """
+  def listen(fun) do
+    previous = Process.put(:pw_user_listener, true)
+
+    try do
+      fun.()
+    after
+      if previous, do: Process.put(:pw_user_listener, previous), else: Process.delete(:pw_user_listener)
+    end
+  end
 
   @doc """
   Awaits a promise of `promise/3` that never leaves the caller (`wait_for_request!`): its value,
   raising if it is rejected.
   """
-  def await!(promise) do
-    PlaywrightEx.Promise.await!(promise)
-  after
-    GC.unroot(promise)
-  end
+  def await!(promise), do: PlaywrightEx.Promise.await!(promise)
 
   @doc """
   The callback form of a wait (`expect_popup`): starts the wait (`promise/3`), runs `action`, then
   awaits the wait: `{:ok, value}` or `{:error, exception}`. Exceptions raised by `action` propagate.
   """
   def expect(api_name, receiver, fun, action) do
-    promise = promise(api_name, receiver, fun)
-
-    try do
-      action.()
-      PlaywrightEx.Promise.await(promise)
-    after
-      # The handle never leaves this function.
-      GC.unroot(promise)
-    end
+    # The handle never leaves this function: a local promise.
+    promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+    action.()
+    PlaywrightEx.Promise.await(promise)
   end
 
   @doc "Like `expect/4`, but returns the value and raises on error."
   def expect!(api_name, receiver, fun, action) do
-    promise = promise(api_name, receiver, fun)
-
-    try do
-      action.()
-      PlaywrightEx.Promise.await!(promise)
-    after
-      GC.unroot(promise)
-    end
+    # The handle never leaves this function: a local promise.
+    promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+    action.()
+    PlaywrightEx.Promise.await!(promise)
   end
 
   @doc """

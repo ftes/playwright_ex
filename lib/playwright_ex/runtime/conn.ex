@@ -1,0 +1,420 @@
+defmodule PlaywrightEx.Runtime.Conn do
+  @moduledoc """
+  Runtime support (not ported from upstream): one process per protocol connection (`connection.ts`).
+
+  The process owns the connection's state: an `ordered_set`, `:protected` ETS table (rows of
+  `PlaywrightEx.Runtime.Heap`; lock-free reads from any process) and the connection-level state.
+  Client code runs in the caller's process; writes from other processes are funs run here
+  (`run/2`), so a read-modify-write is atomic, as a synchronous JS section is.
+
+  Dispatch: driver messages are dispatched (`PlaywrightEx.Client.Connection.dispatch/2`) one at a
+  time, in this process. Emitting an event turns its listeners into steps
+  (`PlaywrightEx.Client.EventEmitter`), run in order behind a barrier: a step that runs a
+  listener in another process (a user listener's subscription process, an internal listener's
+  process per event, an async function started here) holds dispatch until the listener returns or
+  first blocks on Playwright (`PlaywrightEx.Runtime.Invocation.yield/0`), as JS runs listeners
+  synchronously until their first `await`. Calls from other processes (`run/2`) are served
+  meanwhile, so a listener calling back into the API cannot deadlock.
+
+  The barrier keeps a stack of frames: an `emit` from the process dispatch waits for (it holds the
+  barrier token) pushes a frame and returns once its listeners returned or yielded, which keeps
+  JS's order for nested emits. An emit from any other process waits for the current dispatch,
+  as a JS task waits for the running one.
+
+  Outgoing messages (`post/1`) are buffered and handed to the transport (a fun, called here with
+  the list) at the end of each turn of this process.
+  """
+  use GenServer
+
+  alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.TargetClosedError
+
+  require Logger
+
+  @doc """
+  Options: `:transport` (1-arity fun called here with each batch of outgoing messages; or set
+  later, `set_transport/2`), `:local_utils`, `:headers`, `:on_dispatch_error` (1-arity fun called
+  here with an exception raised by dispatch; default: log it).
+  """
+  def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, Map.new(opts))
+
+  @doc "The `PlaywrightEx.Client.Connection` of a connection process."
+  def connection(conn), do: GenServer.call(conn, :connection)
+
+  @doc false
+  def set_transport(conn, transport), do: GenServer.call(conn, {:set_transport, transport})
+
+  @doc "Whether the caller is a connection process."
+  def in_conn?, do: Process.get(:pw_conn) != nil
+
+  @doc """
+  Runs `fun` in the connection process and returns its result (raising what it raises). Event
+  listeners it emits to run before this returns (see the moduledoc). `fun` must not await.
+  """
+  def run(conn, fun) do
+    if self() == conn do
+      fun.()
+    else
+      call(conn, {:run, fun, Process.get(:pw_barrier)})
+    end
+  end
+
+  @doc "Runs `fun` in the connection process without waiting (abort listeners)."
+  def cast(conn, fun), do: GenServer.cast(conn, {:run, fun})
+
+  @doc false
+  # Waits until no listener invocation of `emitter` for `type` (`nil`: any) is running.
+  def wait_pending(%{conn: conn, guid: guid}, type), do: call(conn, {:wait_pending, guid, type})
+
+  defp call(conn, request) do
+    case GenServer.call(conn, request, :infinity) do
+      {:ok, value} -> value
+      {:raise, kind, reason, stacktrace} -> :erlang.raise(kind, reason, stacktrace)
+    end
+  catch
+    :exit, {reason, {GenServer, :call, _}} when reason in [:noproc, :normal, :shutdown] or is_tuple(reason) ->
+      raise TargetClosedError.new("Playwright driver closed")
+  end
+
+  ## Called in this process
+
+  @doc false
+  # `connection.onmessage`: buffered, sent at the end of this turn.
+  def post(message), do: Process.put(:pw_out, [message | Process.get(:pw_out, [])])
+
+  @doc false
+  # A dispatch step (listener invocation), run after the step that produced it (depth first).
+  def push_step(step) do
+    if !in_conn?(), do: raise("Conn.push_step/1 outside the connection process")
+    Process.put(:pw_steps, [step | Process.get(:pw_steps) || []])
+  end
+
+  @doc false
+  # Test and diagnostics: rows, running listener processes, pending callbacks.
+  def stats(conn), do: GenServer.call(conn, :stats)
+
+  ## Server
+
+  @impl true
+  def init(opts) do
+    Process.flag(:trap_exit, true)
+    Process.put(:pw_conn, true)
+    table = :ets.new(:playwright_ex_conn, [:ordered_set, :protected, read_concurrency: true])
+    handle = struct(Connection, guid: :connection, conn: self(), table: table)
+
+    {connection, _steps} =
+      collect(fn -> Connection.new(handle, opts[:local_utils], nil, Map.get(opts, :headers, [])) end)
+
+    {:ok,
+     %{
+       connection: connection,
+       table: table,
+       transport: opts[:transport],
+       on_dispatch_error: opts[:on_dispatch_error],
+       queue: :queue.new(),
+       frames: [],
+       # monitor ref => inv of a listener or async process the barrier may wait for
+       procs: %{},
+       # subscription pid => invocations sent and not done
+       busy: %{},
+       # inv => {emitter guid, type}: listener invocations still running (`_pendingHandlers`)
+       pending: %{},
+       pending_waiters: []
+     }}
+  end
+
+  @impl true
+  def handle_call(:connection, _from, state), do: {:reply, state.connection, state}
+
+  def handle_call({:set_transport, transport}, _from, state),
+    do: {:reply, :ok, flush_out(%{state | transport: transport})}
+
+  def handle_call(:stats, _from, state) do
+    {:reply,
+     %{
+       rows: :ets.info(state.table, :size),
+       callbacks: length(Connection.callbacks(state.connection)),
+       processes: map_size(state.procs),
+       subscriptions: map_size(state.busy),
+       frames: length(state.frames)
+     }, state}
+  end
+
+  def handle_call({:run, fun, token}, from, state) do
+    {result, steps} = collect(fn -> catch_run(fun) end)
+
+    state =
+      cond do
+        steps == [] ->
+          GenServer.reply(from, result)
+          state
+
+        nested?(state, token) or state.frames == [] ->
+          push_frame(state, %{steps: steps, blocked: nil, from: from, result: result})
+
+        true ->
+          %{state | queue: :queue.in({:frame, %{steps: steps, blocked: nil, from: from, result: result}}, state.queue)}
+      end
+
+    {:noreply, state |> drain() |> flush_out()}
+  end
+
+  def handle_call({:wait_pending, guid, type}, from, state) do
+    state = %{state | pending_waiters: [{from, guid, type} | state.pending_waiters]}
+    {:noreply, notify_pending(state)}
+  end
+
+  @impl true
+  def handle_cast({:run, fun}, state) do
+    {result, steps} = collect(fn -> catch_run(fun) end)
+
+    with {:raise, kind, reason, stacktrace} <- result,
+         do: Logger.error("Uncaught in connection: " <> Exception.format(kind, reason, stacktrace))
+
+    frame = %{steps: steps, blocked: nil, from: nil, result: nil}
+
+    state =
+      cond do
+        steps == [] -> state
+        state.frames == [] -> push_frame(state, frame)
+        true -> %{state | queue: :queue.in({:frame, frame}, state.queue)}
+      end
+
+    {:noreply, state |> drain() |> flush_out()}
+  end
+
+  @impl true
+  def handle_info({:pw_msg, message}, state),
+    do: {:noreply, %{state | queue: :queue.in({:msg, message}, state.queue)} |> drain() |> flush_out()}
+
+  def handle_info({:pw_yield, inv}, state), do: {:noreply, state |> unblock(inv) |> drain() |> flush_out()}
+
+  def handle_info({:pw_done, inv, pid}, state) do
+    busy = if state.busy[pid], do: Map.update!(state.busy, pid, &max(&1 - 1, 0)), else: state.busy
+    {:noreply, %{state | busy: busy} |> done(inv) |> drain() |> flush_out()}
+  end
+
+  def handle_info({:DOWN, mref, :process, pid, _reason}, state) do
+    state =
+      case Map.pop(state.procs, mref) do
+        {nil, _} -> %{state | busy: Map.delete(state.busy, pid)}
+        {inv, procs} -> done(%{state | procs: procs}, inv)
+      end
+
+    {:noreply, state |> drain() |> flush_out()}
+  end
+
+  def handle_info({:EXIT, _pid, _reason}, state), do: {:noreply, state}
+  def handle_info(_message, state), do: {:noreply, state}
+
+  @impl true
+  def terminate(_reason, state) do
+    for {pid, _} <- state.busy, do: send(pid, :pw_stop)
+    :ok
+  end
+
+  defp catch_run(fun) do
+    {:ok, fun.()}
+  catch
+    kind, reason -> {:raise, kind, reason, __STACKTRACE__}
+  end
+
+  # Runs `fun` collecting the steps it produces.
+  defp collect(fun) do
+    previous = Process.put(:pw_steps, [])
+    result = fun.()
+    steps = Process.get(:pw_steps)
+    Process.put(:pw_steps, previous)
+    {result, Enum.reverse(steps)}
+  end
+
+  defp nested?(%{frames: [%{blocked: inv} | _]}, inv) when inv != nil, do: true
+  defp nested?(_state, _token), do: false
+
+  defp push_frame(state, frame), do: %{state | frames: [frame | state.frames]}
+
+  ## Dispatch with the barrier
+
+  defp drain(%{frames: []} = state) do
+    case :queue.out(state.queue) do
+      {:empty, _} ->
+        state
+
+      {{:value, {:msg, message}}, queue} ->
+        {_, steps} = collect(fn -> dispatch(message, state) end)
+        state = %{state | queue: queue}
+        state = if steps != [], do: push_frame(state, %{steps: steps, blocked: nil, from: nil, result: nil}), else: state
+        drain(state)
+
+      {{:value, {:frame, frame}}, queue} ->
+        drain(push_frame(%{state | queue: queue}, frame))
+    end
+  end
+
+  defp drain(%{frames: [%{blocked: inv} | _]} = state) when inv != nil, do: state
+
+  defp drain(%{frames: [%{steps: [step | rest]} = frame | below]} = state) do
+    state = %{state | frames: [%{frame | steps: rest} | below]}
+    {state, steps} = collect(fn -> run_step(step, state) end)
+    [top | below] = state.frames
+    drain(%{state | frames: [%{top | steps: steps ++ top.steps} | below]})
+  end
+
+  defp drain(%{frames: [%{steps: []} = frame | below]} = state) do
+    if frame.from, do: GenServer.reply(frame.from, frame.result)
+    drain(%{state | frames: below})
+  end
+
+  defp dispatch(message, state) do
+    Connection.dispatch(state.connection, message)
+  rescue
+    e ->
+      if state.on_dispatch_error,
+        do: state.on_dispatch_error.(e),
+        else: Logger.error("Dispatch failed: " <> Exception.format(:error, e, __STACKTRACE__))
+  end
+
+  defp block(%{frames: [top | below]} = state, inv), do: %{state | frames: [%{top | blocked: inv} | below]}
+
+  defp unblock(state, inv) do
+    %{state | frames: Enum.map(state.frames, &if(&1.blocked == inv, do: %{&1 | blocked: nil}, else: &1))}
+  end
+
+  defp done(state, inv) do
+    state = unblock(state, inv)
+
+    case Map.pop(state.pending, inv) do
+      {nil, _} -> state
+      {_, pending} -> notify_pending(%{state | pending: pending})
+    end
+  end
+
+  defp notify_pending(state) do
+    {ready, waiting} =
+      Enum.split_with(state.pending_waiters, fn {_from, guid, type} ->
+        not Enum.any?(state.pending, fn {_inv, {g, t}} -> g == guid and (type == nil or t == type) end)
+      end)
+
+    for {from, _, _} <- ready, do: GenServer.reply(from, {:ok, nil})
+    %{state | pending_waiters: waiting}
+  end
+
+  # A listener run here (`EventEmitter.on_sync/3`): synchronously.
+  defp run_step({:sync, fun, arg, emitter}, state) do
+    invoke(fun, arg, emitter)
+    state
+  end
+
+  defp run_step({:mailbox, pid, ref, arg}, state) do
+    send(pid, {:pw, ref, {:event, arg}})
+    state
+  end
+
+  # An internal listener: one process per event, as each JS call is its own async chain.
+  defp run_step({:internal, fun, arg, emitter, type, zone}, state) do
+    inv = make_ref()
+    conn = self()
+
+    {_pid, mref} =
+      spawn_monitor(fn ->
+        Zones.restore(zone)
+        PlaywrightEx.Runtime.Invocation.start(conn, inv, inv)
+        invoke(fun, arg, emitter)
+      end)
+
+    state = %{state | procs: Map.put(state.procs, mref, inv), pending: Map.put(state.pending, inv, {emitter.guid, type})}
+    block(state, inv)
+  end
+
+  # A user listener runs in its subscription process, one invocation at a time (FIFO). If it is
+  # busy with an earlier one (that yielded), the barrier does not wait: JS would interleave both.
+  defp run_step({:user, pid, fun, arg, emitter, type, zone}, state) do
+    inv = make_ref()
+    send(pid, {:pw_invoke, inv, fun, arg, emitter, zone})
+    was_busy = Map.get(state.busy, pid, 0) > 0
+    if !Map.has_key?(state.busy, pid), do: Process.monitor(pid)
+
+    state = %{
+      state
+      | busy: Map.update(state.busy, pid, 1, &(&1 + 1)),
+        pending: Map.put(state.pending, inv, {emitter.guid, type})
+    }
+
+    if was_busy, do: state, else: block(state, inv)
+  end
+
+  defp run_step({:stop, pid}, state) do
+    send(pid, :pw_stop)
+    state
+  end
+
+  # An async function (or `void`) called here: it starts now and holds dispatch until it yields.
+  defp run_step({:start, pid, inv}, state) do
+    mref = Process.monitor(pid)
+    send(pid, {:pw_go, inv})
+    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv)
+  end
+
+  @doc false
+  # Runs a listener; an exception goes to the emitter's rejection handler (`removeAllListeners`
+  # with a behavior), else it is logged (JS: an uncaught exception).
+  def invoke(fun, arg, emitter) do
+    fun.(arg)
+  catch
+    kind, reason ->
+      handler =
+        try do
+          PlaywrightEx.Runtime.Heap.get(emitter, :_rejectionHandler)
+        rescue
+          _ -> nil
+        end
+
+      if handler,
+        do: handler.(Exception.normalize(kind, reason, __STACKTRACE__)),
+        else: Logger.error("Uncaught in event listener: " <> Exception.format(kind, reason, __STACKTRACE__))
+  end
+
+  @doc false
+  # The process of a user listener (`EventEmitter.on/3` under `PlaywrightEx.Runtime.Facade.listen/1`).
+  def subscription(conn) do
+    spawn(fn ->
+      mon = Process.monitor(conn)
+      subscription_loop(conn, mon)
+    end)
+  end
+
+  defp subscription_loop(conn, mon) do
+    receive do
+      {:pw_invoke, inv, fun, arg, emitter, zone} ->
+        Zones.restore(zone)
+        PlaywrightEx.Runtime.Invocation.start(conn, inv, inv)
+        invoke(fun, arg, emitter)
+        Process.delete(:pw_inv)
+        Process.delete(:pw_barrier)
+        send(conn, {:pw_done, inv, self()})
+        subscription_loop(conn, mon)
+
+      :pw_stop ->
+        :ok
+
+      {:DOWN, ^mon, :process, _, _} ->
+        :ok
+    end
+  end
+
+  defp flush_out(state) do
+    case Process.get(:pw_out, []) do
+      [] ->
+        state
+
+      out when state.transport != nil ->
+        Process.put(:pw_out, [])
+        state.transport.(Enum.reverse(out))
+        state
+
+      _ ->
+        state
+    end
+  end
+end

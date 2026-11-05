@@ -1,6 +1,11 @@
 defmodule PlaywrightEx.Client.Waiter do
   @upstream "packages/playwright-core/src/client/waiter.ts"
-  @moduledoc "Port of `#{@upstream}`."
+  @moduledoc """
+  Port of `#{@upstream}`. A Waiter lives in the process that waits (as a JS waiter lives in one
+  async chain): a process-local object (`PlaywrightEx.Runtime.Heap.new_object/1`), freed by
+  `dispose/1`. Its `_failures` are local promises (mailbox subscriptions, a timer, the abort
+  signal), so `Promise.race` is a selective receive over them.
+  """
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.AbortError
@@ -9,12 +14,11 @@ defmodule PlaywrightEx.Client.Waiter do
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.Errors
-  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TimeoutError
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table]
 
   def new(channel_owner, event) do
     this = new_object(__MODULE__)
@@ -23,7 +27,7 @@ defmodule PlaywrightEx.Client.Waiter do
     put(this, :_waitId, ClientHelper.create_guid())
     put(this, :_channelOwner, channel_owner)
 
-    # this._savedZone = currentZone().without('apiZone');  -- n/a: listeners are handed off from dispatch, which runs outside any zone
+    # this._savedZone = currentZone().without('apiZone');  -- n/a: predicates run in the waiting process
 
     title = "Wait for event \"#{event}\""
     _send_wait_info(this, %{waitId: get(this, :_waitId), phase: "before", event: event}, %{title: title})
@@ -101,10 +105,15 @@ defmodule PlaywrightEx.Client.Waiter do
     else
       if signal do
         # `let rejectPromise` assigned inside the executor: the promise is settled from outside.
+        # (The listener runs in the aborting process: it only sends to this one.)
         promise = Promise.new()
         listener = fn -> Promise.reject(promise, %AbortError{cause: AbortSignal.reason(signal)}) end
         AbortSignal.add_event_listener(signal, "abort", listener, %{once: true})
-        _reject_on(this, promise, fn -> AbortSignal.remove_event_listener(signal, "abort", listener) end)
+
+        _reject_on(this, promise, fn ->
+          AbortSignal.remove_event_listener(signal, "abort", listener)
+          Promise.flush(promise.ref)
+        end)
       end
 
       if timeout != 0 do
@@ -128,7 +137,10 @@ defmodule PlaywrightEx.Client.Waiter do
   end
 
   def dispose(this) do
-    for dispose <- get(this, :_dispose), do: dispose.()
+    for dispose <- get(this, :_dispose) || [], do: dispose.()
+    # Elixir only: the waiter's fields are erased (and late messages of its failures flushed).
+    for promise <- get(this, :_failures) || [], do: Promise.flush(promise.ref)
+    free(this)
   end
 
   def wait_for_promise(this, promise, dispose \\ nil) do
@@ -141,8 +153,9 @@ defmodule PlaywrightEx.Client.Waiter do
       e ->
         if dispose, do: dispose.()
         put(this, :_error, Exception.message(e))
+        logs = get(this, :_logs)
         dispose(this)
-        e = Errors.rewrite_error_message(e, Exception.message(e) <> format_log_recording(get(this, :_logs)))
+        e = Errors.rewrite_error_message(e, Exception.message(e) <> format_log_recording(logs))
         reraise e, __STACKTRACE__
     end
   end
@@ -157,44 +170,17 @@ defmodule PlaywrightEx.Client.Waiter do
     if dispose, do: update(this, :_dispose, &(&1 ++ [dispose]))
   end
 
+  # The listener is a mailbox subscription of this process; its predicate runs here when the
+  # event message is received (JS: in emit). removeListener is the promise's cancel.
   defp wait_for_event_(emitter, event, _saved_zone, predicate) do
-    # `let listener` assigned inside the executor and referenced by itself -> identify it by ref.
-    listener = make_ref()
-
-    promise =
-      Promise.new(fn resolve, reject ->
-        listener_fun = fn event_arg ->
-          try do
-            # await predicate(eventArg): a returned promise is awaited
-            result = if predicate, do: predicate.(event_arg)
-            result = if is_struct(result, Promise), do: Promise.await(result), else: result
-
-            if predicate && !result do
-              nil
-            else
-              impl(emitter).remove_listener(emitter, event, listener)
-              resolve.(event_arg)
-            end
-          rescue
-            e ->
-              impl(emitter).remove_listener(emitter, event, listener)
-              reject.(e)
-          end
-        end
-
-        impl(emitter).add_listener(emitter, event, {listener, listener_fun})
-      end)
-
-    dispose = fn -> impl(emitter).remove_listener(emitter, event, listener) end
-    {promise, dispose}
+    promise = impl(emitter).subscribe(emitter, event, predicate)
+    {promise, promise.cancel}
   end
 
   defp wait_for_timeout(timeout) do
     # `new Promise(resolve => timeoutId = setTimeout(resolve, timeout))`: closures cannot assign outer variables.
-    promise = Promise.new()
-    timeout_id = EventLoop.set_timeout(fn -> Promise.resolve(promise, nil) end, timeout)
-    dispose = fn -> EventLoop.clear_timeout(timeout_id) end
-    {promise, dispose}
+    promise = Promise.timer(timeout)
+    {promise, promise.cancel}
   end
 
   defp format_log_recording(log) do

@@ -1,247 +1,460 @@
 defmodule PlaywrightEx.Runtime.Promise do
   @moduledoc """
-  Runtime support (not ported from upstream): JS promises on the baton.
+  Runtime support (not ported from upstream): JS promises as messages.
 
-  * Heap promises (`new Promise(executor)`, `ManualPromise`): state in the heap, executors
-    and reactions run synchronously by the holder that creates/settles them.
-  * `await/1` releases the baton while pending (`EventLoop.suspend/0`); the settling holder
-    schedules the awaiting process, which resumes before the next macrotask.
-  * `async/1` mirrors calling a JS `async` function without awaiting it: the function runs
-    in a fresh process holding the baton until its first `await`, then the caller
-    continues (`EventLoop.spawn_handoff/1`). Outside the baton (test code) it is Task-backed
-    and returns once the task reaches its first suspension point.
+  Kinds:
 
-  * Rows: a pending promise has `:state`, `:reactions` and `:awaiters`, a settled one only
-    `:state`, freed by `PlaywrightEx.Runtime.GC` once nothing can reach the promise. Awaiters
-    get the result in their wake-up message.
+    * local (`new/0`, `new/1` with an executor, `timer/1`): a ref; settling it (`resolve/2`,
+      `reject/2`, from any process) sends `{:pw, ref, result}` to its creator, which alone awaits
+      it, once.
+    * latch (`new/1`, `new/2` with an owner): a row on its owner (`PlaywrightEx.Runtime.Heap`),
+      awaitable many times from any process; rejected with `PlaywrightEx.TargetClosedError` when
+      the owner is disposed. For promises kept in fields (`ManualPromise`, `_closedPromise`).
+    * settled (`resolved/1`, `rejected/1`): no storage.
 
-  Like JS, ported code names no loop: `new/0,1`, `race/1`, `all/1`, `rejected/1` and
-  `async/1` use the loop of the baton holder (`EventLoop.current!/0`).
+  `async/2` (an async function called without `await`) is no kind of its own: a process runs the
+  function and settles a local promise of the caller, or with `shared: true` a latch owned by the
+  caller process (`PlaywrightEx.Runtime.ProcessOwner`, freed when the caller exits).
+
+  `then_/2` and `catch_/2` are lazy: they run in the awaiting process when the result arrives.
+  `race/1` and `all/1` arm their promises, then receive selectively: a losing local promise stays
+  pending (its message may come later), losing latches are disarmed. `void/1` runs a
+  function for its effects (`promise.catch(() => {})`).
+
+  `await/1` first yields (`PlaywrightEx.Runtime.Invocation.yield/0`), as JS `await` returns
+  to the caller. Inside the connection process it raises: dispatch must not block.
   """
-  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Runtime.Invocation
+  alias PlaywrightEx.Runtime.ProcessOwner
+  alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.TargetClosedError
 
   require Logger
 
-  defstruct [:guid, :loop, :heap, :task]
+  defstruct [:kind, :ref, :pid, :owner, :result, :monitor, :cancel, :promises, handlers: []]
 
-  # new Promise((resolve, reject) => ...)
-  def new(executor \\ fn _resolve, _reject -> nil end) do
-    promise = Heap.new_object(__MODULE__)
-    Heap.put(promise, :state, :pending)
-    Heap.put(promise, :reactions, [])
-    Heap.put(promise, :awaiters, [])
+  @type t :: %__MODULE__{}
 
-    try do
-      executor.(fn value -> resolve(promise, value) end, fn error -> reject(promise, error) end)
-    rescue
-      e -> reject(promise, e)
-    end
+  ## Creating
 
+  @doc """
+  `new Promise(executor)` / `new ManualPromise()`: with no argument or an executor, a local
+  promise of this process; with an owner (a protocol object or an object it owns), a latch.
+  """
+  def new(executor_or_owner \\ nil)
+
+  def new(nil), do: %__MODULE__{kind: :local, ref: make_ref(), pid: self()}
+  def new(executor) when is_function(executor, 2), do: run_executor(new(), executor)
+  def new(%{conn: _, table: nil}), do: new()
+  def new(%{conn: _, table: _} = owner), do: %__MODULE__{kind: :latch, ref: make_ref(), owner: owner}
+
+  @doc "A latch on `owner` whose executor runs now (`new Promise(executor)` kept in a field)."
+  def new(owner, executor) when is_function(executor, 2), do: run_executor(new(owner), executor)
+
+  defp run_executor(promise, executor) do
+    executor.(fn value -> resolve(promise, value) end, fn error -> reject(promise, error) end)
     promise
+  rescue
+    e ->
+      reject(promise, e)
+      promise
   end
+
+  @doc false
+  # A local promise settled by a message `{:pw, ref, result}`, `ref` being a monitor (of the
+  # connection, for a call: its exit settles the promise with `TargetClosedError`).
+  def from_monitor(ref, cancel \\ nil),
+    do: %__MODULE__{kind: :local, ref: ref, pid: self(), monitor: ref, cancel: cancel}
+
+  @doc false
+  # A local promise settled by messages `{:pw, ref, payload}` that `handler` maps to a result, or
+  # to `:continue` (keep waiting); `cancel` undoes the source once settled.
+  def from_messages(ref, handler, cancel),
+    do: %__MODULE__{kind: :local, ref: ref, pid: self(), handlers: [handler], cancel: cancel}
+
+  @doc "`Promise.resolve(value)`"
+  def resolved(value), do: %__MODULE__{kind: :settled, result: {:ok, value}}
+
+  @doc "`Promise.reject(error)`"
+  def rejected(error), do: %__MODULE__{kind: :settled, result: {:error, error}}
+
+  @doc "`new Promise(resolve => setTimeout(resolve, ms))`, a local promise."
+  def timer(ms) do
+    ref = make_ref()
+    timer = Process.send_after(self(), {:pw, ref, {:ok, nil}}, ms)
+
+    %__MODULE__{
+      kind: :local,
+      ref: ref,
+      pid: self(),
+      cancel: fn ->
+        Process.cancel_timer(timer)
+        flush(ref)
+      end
+    }
+  end
+
+  ## Settling
 
   def resolve(promise, value), do: settle(promise, {:ok, value})
   def reject(promise, error), do: settle(promise, {:error, error})
 
-  # A settled promise keeps only its `:state` row; awaiters get the result in a message.
-  defp settle(%__MODULE__{loop: loop, guid: guid} = promise, result) do
-    EventLoop.with_baton(loop, fn ->
-      if Heap.get(promise, :state) == :pending do
-        Heap.put(promise, :state, result)
-        reactions = Heap.get(promise, :reactions)
-        awaiters = Heap.get(promise, :awaiters)
-        Heap.delete(promise, :reactions)
-        Heap.delete(promise, :awaiters)
-
-        Enum.each(awaiters, fn pid ->
-          send(pid, {:pw_settled, guid, result})
-          EventLoop.ready(pid)
-        end)
-
-        Enum.each(reactions, fn reaction -> run_reaction(reaction, result) end)
-      end
-
-      nil
-    end)
+  defp settle(%__MODULE__{kind: :local, pid: pid, ref: ref}, result) do
+    send(pid, {:pw, ref, result})
+    nil
   end
 
-  defp run_reaction(reaction, result) do
-    reaction.(result)
+  defp settle(%__MODULE__{kind: :latch, owner: owner, ref: ref}, result) do
+    Heap.atomic(owner, fn -> settle_latch(owner, ref, result) end)
+    nil
   rescue
-    e -> Logger.error("Uncaught in promise reaction: " <> Exception.format(:error, e, __STACKTRACE__))
+    # The owner's connection is gone: nothing can await the latch any more.
+    TargetClosedError -> nil
   end
 
-  @doc false
-  def on_settled(%__MODULE__{loop: loop} = promise, reaction) do
-    EventLoop.with_baton(loop, fn ->
-      case Heap.get(promise, :state) do
-        :pending -> Heap.update(promise, :reactions, &(&1 ++ [reaction]))
-        nil -> raise collected(promise)
-        result -> run_reaction(reaction, result)
-      end
-    end)
-  end
+  defp settle_latch(owner, ref, result) do
+    key = Heap.key(owner, {:latch, ref})
 
-  # promise.then(onFulfilled)
-  def then_(%__MODULE__{loop: loop} = promise, on_fulfilled) do
-    EventLoop.with_baton(loop, fn ->
-      new(fn resolve, reject ->
-        on_settled(promise, fn
-          {:ok, value} ->
-            try do
-              resolve.(on_fulfilled.(value))
-            rescue
-              e -> reject.(e)
-            end
+    case :ets.lookup(owner.table, key) do
+      [{_, {:settled, _}}] ->
+        :ok
 
-          {:error, error} ->
-            reject.(error)
-        end)
-      end)
-    end)
-  end
-
-  # promise.catch(onRejected)
-  def catch_(%__MODULE__{loop: loop} = promise, on_rejected) do
-    EventLoop.with_baton(loop, fn ->
-      new(fn resolve, _reject ->
-        on_settled(promise, fn
-          {:ok, value} -> resolve.(value)
-          {:error, error} -> resolve.(on_rejected.(error))
-        end)
-      end)
-    end)
-  end
-
-  # Promise.race([...])
-  def race(promises) do
-    new(fn resolve, reject ->
-      for promise <- promises do
-        on_settled(promise, fn
-          {:ok, value} -> resolve.(value)
-          {:error, error} -> reject.(error)
-        end)
-      end
-    end)
-  end
-
-  # Promise.all([...])
-  def all([]), do: new(fn resolve, _ -> resolve.([]) end)
-
-  def all(promises) do
-    new(fn resolve, reject ->
-      acc = Heap.new_object(__MODULE__)
-      Heap.put(acc, :values, %{})
-      count = length(promises)
-
-      for {promise, index} <- Enum.with_index(promises) do
-        on_settled(promise, fn
-          {:ok, value} ->
-            values = Heap.update(acc, :values, &Map.put(&1, index, value))
-            if map_size(values) == count, do: resolve.(Enum.map(0..(count - 1), &values[&1]))
-
-          {:error, error} ->
-            reject.(error)
-        end)
-      end
-    end)
-  end
-
-  # Promise.reject(e)
-  def rejected(error), do: new(fn _resolve, reject -> reject.(error) end)
-
-  # await promise
-  def await(%__MODULE__{task: %Task{} = task}) do
-    case EventLoop.blocking(fn -> Task.await(task, :infinity) end) do
-      {:ok, value} -> value
-      {:error, kind, reason, stacktrace} -> :erlang.raise(kind, reason, stacktrace)
+      found ->
+        with [{_, {:pending, waiters}}] <- found, do: for({pid, wref} <- waiters, do: send(pid, {:pw, wref, result}))
+        if Heap.alive?(owner), do: :ets.insert(owner.table, {key, {:settled, result}})
     end
   end
 
-  def await(%__MODULE__{loop: loop, guid: guid} = promise) do
-    result =
-      case Heap.get(promise, :state) do
-        :pending ->
-          EventLoop.with_baton(loop, fn ->
-            case Heap.get(promise, :state) do
-              :pending ->
-                Heap.update(promise, :awaiters, &(&1 ++ [self()]))
-                EventLoop.suspend()
+  ## Reactions
 
-                receive do
-                  {:pw_settled, ^guid, result} -> result
-                end
+  @doc "`promise.then(on_fulfilled)`: lazy, runs in the awaiting process."
+  def then_(%__MODULE__{} = promise, on_fulfilled) do
+    add_handler(promise, fn
+      {:ok, value} -> safe(fn -> {:ok, on_fulfilled.(value)} end)
+      other -> other
+    end)
+  end
 
-              settled ->
-                settled
+  @doc "`promise.catch(on_rejected)`: lazy, runs in the awaiting process."
+  def catch_(%__MODULE__{} = promise, on_rejected) do
+    add_handler(promise, fn
+      {:error, error} -> safe(fn -> {:ok, on_rejected.(error)} end)
+      other -> other
+    end)
+  end
+
+  defp add_handler(promise, handler), do: %{promise | handlers: promise.handlers ++ [handler]}
+
+  defp safe(fun) do
+    fun.()
+  catch
+    kind, reason -> {:error, Exception.normalize(kind, reason, __STACKTRACE__)}
+  end
+
+  @doc "`Promise.race(promises)`"
+  def race(promises), do: %__MODULE__{kind: :race, promises: promises}
+
+  @doc "`Promise.all(promises)`"
+  def all(promises), do: %__MODULE__{kind: :all, promises: promises}
+
+  ## Async functions
+
+  @doc """
+  Calls an async function without awaiting it: `fun` runs in a process of its own (with the
+  caller's zone); this returns once `fun` returned or first blocked on Playwright, so what it set
+  up (subscriptions, sent messages) is in place, as in JS. Inside the connection the process
+  starts at the current dispatch step, and dispatch waits for it the same way.
+
+  The result settles a local promise of the caller (awaited by it, once), or with `shared: true`
+  a latch owned by the caller process: awaitable from any process, any number of times, until
+  the caller exits.
+  """
+  def async(fun, opts \\ []) when is_function(fun, 0) do
+    promise = if Keyword.get(opts, :shared, false), do: new(ProcessOwner.owner(self())), else: new()
+
+    start(fn ->
+      result = run_async(fun)
+      settle(promise, result)
+      Invocation.yield()
+    end)
+
+    promise
+  end
+
+  @doc """
+  Runs `fun` for its effects, as `promise.catch(() => {})` of a call nobody awaits: like
+  `async/1`, but its result and errors are dropped.
+  """
+  def void(fun) when is_function(fun, 0) do
+    start(fn ->
+      run_async(fun)
+      Invocation.yield()
+    end)
+
+    nil
+  end
+
+  defp run_async(fun) do
+    {:ok, fun.()}
+  catch
+    kind, reason -> {:error, Exception.normalize(kind, reason, __STACKTRACE__)}
+  end
+
+  # Starts `body` in a process that runs as the caller until its first yield.
+  defp start(body) do
+    caller = self()
+    zone = Zones.current_zone()
+    barrier = Process.get(:pw_barrier)
+    in_conn = Conn.in_conn?()
+    inv = make_ref()
+
+    pid =
+      spawn(fn ->
+        Zones.restore(zone)
+        # Inside the connection: started (and waited for) at the current dispatch step.
+        barrier =
+          if in_conn do
+            receive do
+              {:pw_go, ^inv} -> inv
             end
-          end)
+          else
+            barrier
+          end
 
-        nil ->
-          raise collected(promise)
+        Invocation.start(caller, inv, barrier)
+        body.()
+      end)
 
-        # settled promises are immutable: no baton needed to read them
-        settled ->
-          settled
+    if in_conn do
+      Conn.push_step({:start, pid, inv})
+    else
+      mref = Process.monitor(pid)
+
+      receive do
+        {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
+        {:DOWN, ^mref, :process, _, reason} -> exit(reason)
       end
+    end
 
-    case result do
+    pid
+  end
+
+  ## Awaiting
+
+  @doc "`await promise`: its value, raising its error."
+  def await(%__MODULE__{} = promise) do
+    if Conn.in_conn?(), do: raise("await inside the connection process (dispatch must not block)")
+    Invocation.yield()
+
+    case wait(promise) do
       {:ok, value} -> value
       {:error, %{__exception__: true} = error} -> raise error
       {:error, other} -> raise "Promise rejected with #{inspect(other)}"
     end
   end
 
-  # Only an unreachable promise is collected; a handle older than the last 1000 returned to one
-  # process is (see `PlaywrightEx.Runtime.GC`).
-  defp collected(promise), do: %RuntimeError{message: "Promise #{inspect(promise.guid)} was garbage collected"}
-
-  @doc """
-  Call an async function without awaiting it. Under the baton: a heap promise (race-able,
-  awaitable by any process); outside it (test code): Task-backed.
-  """
-  def async(fun) when is_function(fun, 0) do
-    if EventLoop.held?(), do: heap_async(fun), else: task_async(fun)
+  @doc false
+  # Waits for the promise: `{:ok, value} | {:error, error}`.
+  def wait(promise) do
+    armed = arm(promise)
+    {result, armed} = receive_loop(armed)
+    finish(armed)
+    result
   end
 
-  defp heap_async(fun) do
-    promise = new()
+  # Armed nodes: {:done, result, leaves_to_finish} | {:leaf, ref, promise, mon} | {:race | :all, [node], handlers}
+  defp arm(%__MODULE__{kind: :settled, result: result, handlers: handlers}),
+    do: done(apply_handlers(handlers, result), [])
 
-    EventLoop.spawn_handoff(fn ->
+  defp arm(%__MODULE__{kind: :local, pid: pid} = promise) do
+    if pid != self(), do: raise("a local promise of #{inspect(pid)} is awaited by #{inspect(self())}")
+    {:leaf, promise.ref, promise, promise.monitor}
+  end
+
+  defp arm(%__MODULE__{kind: :latch, owner: owner, ref: ref} = promise) do
+    wref = make_ref()
+    me = self()
+
+    result =
       try do
-        resolve(promise, fun.())
-      catch
-        kind, reason -> reject(promise, Exception.normalize(kind, reason, __STACKTRACE__))
+        Heap.atomic(owner, fn ->
+          key = Heap.key(owner, {:latch, ref})
+
+          case :ets.lookup(owner.table, key) do
+            [{_, {:settled, result}}] ->
+              {:settled, result}
+
+            found ->
+              if Heap.alive?(owner) do
+                waiters = with [{_, {:pending, waiters}}] <- found, do: waiters
+                :ets.insert(owner.table, {key, {:pending, [{me, wref} | waiters || []]}})
+                :armed
+              else
+                {:settled, {:error, TargetClosedError.new()}}
+              end
+          end
+        end)
+      rescue
+        e in TargetClosedError -> {:settled, {:error, e}}
+      end
+
+    case result do
+      {:settled, result} -> done(apply_handlers(promise.handlers, result), [])
+      :armed -> {:leaf, wref, promise, nil}
+    end
+  end
+
+  defp arm(%__MODULE__{kind: kind, promises: promises, handlers: handlers}) when kind in [:race, :all],
+    do: settle_node({kind, Enum.map(promises, &arm/1), handlers})
+
+  defp done(:continue, _), do: raise("a settled promise cannot continue")
+  defp done(result, leaves), do: {:done, result, leaves}
+
+  defp apply_handlers(handlers, payload) do
+    Enum.reduce_while(handlers, payload, fn handler, payload ->
+      case handler.(payload) do
+        :continue -> {:halt, :continue}
+        result -> {:cont, result}
       end
     end)
-
-    promise
   end
 
-  defp task_async(fun) do
-    parent = self()
-    ref = make_ref()
+  defp receive_loop({:done, result, _} = armed), do: {result, armed}
 
-    task =
-      Task.async(fn ->
-        Process.put(:pw_async_parent, {parent, ref})
-
-        result =
-          try do
-            {:ok, fun.()}
-          catch
-            kind, reason -> {:error, kind, reason, __STACKTRACE__}
-          end
-
-        EventLoop.notify_async_parent()
-        result
-      end)
+  defp receive_loop(armed) do
+    {refs, mons} = waiting(armed, %{}, %{})
 
     receive do
-      {^ref, :suspended} -> :ok
+      {:pw, ref, payload} when is_map_key(refs, ref) -> receive_loop(feed(armed, ref, payload))
+      {:DOWN, mon, :process, _, reason} when is_map_key(mons, mon) -> receive_loop(feed(armed, mons[mon], {:down, reason}))
     end
-
-    %__MODULE__{task: task}
   end
+
+  defp waiting({:leaf, ref, _promise, mon}, refs, mons),
+    do: {Map.put(refs, ref, true), if(mon, do: Map.put(mons, mon, ref), else: mons)}
+
+  defp waiting({:done, _, _}, refs, mons), do: {refs, mons}
+
+  defp waiting({_kind, children, _handlers}, refs, mons),
+    do: Enum.reduce(children, {refs, mons}, fn child, {r, m} -> waiting(child, r, m) end)
+
+  defp feed({:leaf, ref, promise, _mon} = leaf, ref, payload) do
+    case apply_handlers(promise.handlers, payload(promise, payload)) do
+      :continue -> leaf
+      result -> done(result, [{:won, leaf}])
+    end
+  end
+
+  defp feed({kind, children, handlers}, ref, payload) when kind in [:race, :all],
+    do: settle_node({kind, Enum.map(children, &feed(&1, ref, payload)), handlers})
+
+  defp feed(node, _ref, _payload), do: node
+
+  defp payload(_promise, {:down, _reason}), do: {:error, TargetClosedError.new()}
+  defp payload(_promise, payload), do: payload
+
+  # A race settles with its first settled child, an all with its first error or all values.
+  defp settle_node({:race, children, handlers} = node) do
+    case Enum.find(children, &match?({:done, _, _}, &1)) do
+      {:done, result, _} -> done_composite(handlers, result, children)
+      nil -> node
+    end
+  end
+
+  defp settle_node({:all, children, handlers} = node) do
+    cond do
+      error = Enum.find(children, &match?({:done, {:error, _}, _}, &1)) ->
+        done_composite(handlers, elem(error, 1), children)
+
+      Enum.all?(children, &match?({:done, _, _}, &1)) ->
+        done_composite(handlers, {:ok, Enum.map(children, fn {:done, {:ok, value}, _} -> value end)}, children)
+
+      true ->
+        node
+    end
+  end
+
+  defp done_composite(handlers, result, children) do
+    case apply_handlers(handlers, result) do
+      :continue -> raise "a race or all cannot continue"
+      result -> {:done, result, Enum.flat_map(children, &leaves/1)}
+    end
+  end
+
+  # The leaves of a settled composite: those that settled (won) and those still armed (lost).
+  defp leaves({:done, _, leaves}), do: leaves
+  defp leaves({:leaf, _, _, _} = leaf), do: [{:lost, leaf}]
+  defp leaves({_kind, children, _}), do: Enum.flat_map(children, &leaves/1)
+
+  # Winners: cancel their source (unsubscribe, timer). Losers: a local stays pending (its
+  # message may still come), a latch is disarmed.
+  defp finish({:done, _result, leaves}), do: Enum.each(leaves, &finish_leaf/1)
+
+  defp finish_leaf({:won, {:leaf, _ref, promise, mon}}) do
+    if mon, do: Process.demonitor(mon, [:flush])
+    if promise.cancel, do: promise.cancel.()
+  end
+
+  defp finish_leaf({:lost, {:leaf, ref, %{kind: :latch, owner: owner, ref: latch}, _}}) do
+    disarm_latch(owner, latch, ref)
+    flush(ref)
+  end
+
+  defp finish_leaf({:lost, _leaf}), do: :ok
+
+  defp disarm_latch(owner, latch, wref) do
+    Heap.atomic(owner, fn ->
+      key = Heap.key(owner, {:latch, latch})
+
+      with [{_, {:pending, waiters}}] <- :ets.lookup(owner.table, key),
+           do: :ets.insert(owner.table, {key, {:pending, Enum.reject(waiters, &(elem(&1, 1) == wref))}})
+    end)
+  rescue
+    TargetClosedError -> :ok
+  end
+
+  @doc """
+  Elixir only: drops a promise nobody awaits any more (a latch's row, a timer, a subscription;
+  late messages of a local promise).
+  """
+  def free(%__MODULE__{kind: :latch, owner: owner, ref: ref}) do
+    Heap.atomic(owner, fn -> :ets.delete(owner.table, Heap.key(owner, {:latch, ref})) end)
+    :ok
+  rescue
+    TargetClosedError -> :ok
+  end
+
+  def free(%__MODULE__{kind: :local, cancel: cancel, ref: ref}) do
+    if cancel, do: cancel.()
+    flush(ref)
+  end
+
+  def free(%__MODULE__{}), do: :ok
+
+  @doc false
+  def flush(ref) do
+    receive do
+      {:pw, ^ref, _} -> flush(ref)
+    after
+      0 -> :ok
+    end
+  end
+
+  @doc false
+  # Whether the promise settled (a latch or a settled promise; locals: unknown, false).
+  def settled?(%__MODULE__{kind: :settled}), do: true
+
+  def settled?(%__MODULE__{kind: :latch, owner: owner, ref: ref}) do
+    match?([{_, {:settled, _}}], :ets.lookup(owner.table, Heap.key(owner, {:latch, ref})))
+  rescue
+    ArgumentError -> false
+  end
+
+  def settled?(_promise), do: false
+
+  @doc false
+  def log_uncaught(kind, reason, stacktrace, what \\ "promise"),
+    do: Logger.error("Uncaught in #{what}: " <> Exception.format(kind, reason, stacktrace))
 end

@@ -4,13 +4,17 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   Port of `#{@upstream}`.
 
   `abstract class ChannelOwner extends EventEmitter` becomes `use PlaywrightEx.Client.ChannelOwner`,
-  which injects the struct (`guid`, `loop`, `heap`; the facade's for a public class, see
-  `__using__/1`) and the inherited methods; `super(...)` in a
+  which injects the struct (`guid`, `conn`, `table`, `type`, `initializer`; the facade's for a
+  public class, see `__using__/1`) and the inherited methods; `super(...)` in a
   subclass constructor is `ChannelOwner.new(__MODULE__, parent, type, guid, initializer)`.
 
   Deviations: the `this._channel` Proxy is `channel_call(this, :method, params, options)`,
   and its event side is the separate emitter `_channel(this)`. Channels and their owners are
   the same handle, so `X.from(channel)` is the identity.
+
+  The handle carries the immutable part of the object (its connection process and table, `type`,
+  `initializer`); its fields are rows of the connection (`PlaywrightEx.Runtime.Heap`), deleted by
+  `_dispose`.
   """
   import PlaywrightEx.Runtime.Heap
 
@@ -21,8 +25,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   alias PlaywrightEx.Protocol.Metainfo
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
-  alias PlaywrightEx.Runtime.EventLoop
-  alias PlaywrightEx.Runtime.Promise
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
 
@@ -35,8 +38,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
     struct_def =
       if struct == __CALLER__.module,
-        do: quote(do: defstruct([:guid, :loop, :heap])),
-        else: quote(do: def(__struct_fields__, do: [:guid, :loop, :heap]))
+        do: quote(do: defstruct([:guid, :conn, :table, :type, :initializer])),
+        else: quote(do: def(__struct_fields__, do: [:guid, :conn, :table, :type, :initializer]))
 
     quote do
       use PlaywrightEx.Client.EventEmitter
@@ -62,10 +65,12 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       end
 
       defdelegate on(this, event, listener), to: ChannelOwner
+      defdelegate once(this, event, listener), to: ChannelOwner
       defdelegate add_listener(this, event, listener), to: ChannelOwner
       defdelegate prepend_listener(this, event, listener), to: ChannelOwner
       defdelegate off(this, event, listener), to: ChannelOwner
       defdelegate remove_listener(this, event, listener), to: ChannelOwner
+      defdelegate subscribe(this, event, predicate \\ nil), to: ChannelOwner
       defdelegate _wrap_api_call(this, func, options \\ %{}), to: ChannelOwner
       defdelegate _parent_of_type(this, type), to: ChannelOwner
       defdelegate _set_event_to_subscription_mapping(this, mapping), to: ChannelOwner
@@ -84,17 +89,23 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   def new(module, parent, type, guid, initializer) do
     connection = if is_channel_owner(parent), do: get(parent, :_connection), else: parent
-    this = struct(module.__handle__(), guid: guid, loop: connection.loop, heap: connection.heap)
-    _reset_heap_state(this)
+
+    this =
+      struct(module.__handle__(),
+        guid: guid,
+        conn: connection.conn,
+        table: connection.table,
+        type: type,
+        initializer: initializer
+      )
+
     # super();  -- EventEmitter state is heap fields
     # this.setMaxListeners(0);  -- not ported: no listener leak warning in EventEmitter
-    put(this, :_connection, connection)
-    put(this, :_type, type)
-    put(this, :_guid, guid)
+    # this._connection = ...; this._type = type; this._guid = guid;  -- in the handle
+    # Elixir only: registered first, its fields are rows of a live object.
+    map_set(connection, :_objects, guid, this)
     put(this, :_parent, if(is_channel_owner(parent), do: parent))
     # this._instrumentation = this._connection._instrumentation;  -- not ported: instrumentation
-
-    map_set(connection, :_objects, guid, this)
 
     if get(this, :_parent) do
       map_set(get(this, :_parent), :_objects, guid, this)
@@ -102,77 +113,72 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     end
 
     # this._channel = this._createChannel(new EventEmitter());  -- see channel_call/4 and _channel/1
-    put(this, :_initializer, initializer)
+    # this._initializer = initializer;  -- in the handle
     this
   end
 
-  # Elixir only: fields live in the heap by guid, and a guid can come back (`_newContextForReuse`
-  # re-creates the disposed context and its pages). `new X()` starts from fresh state, so drop what
-  # the heap still holds for a guid seen before, the listeners of both emitters included.
-  defp _reset_heap_state(%{heap: heap, guid: guid} = this) do
-    if get(this, :_guid) != nil do
-      EventLoop.with_baton(this.loop, fn ->
-        for id <- [guid, {:channel, guid}] do
-          :ets.match_delete(heap, {{id, :_}, :_})
-          :ets.match_delete(heap, {{id, :_, :_}, :_, :_})
-        end
-      end)
-    end
-  end
-
-  # The EventEmitter behind `this._channel` (protocol events).
-  def _channel(this), do: %EventEmitter{guid: {:channel, this.guid}, loop: this.loop, heap: this.heap}
+  # The EventEmitter behind `this._channel` (protocol events): owned by the object.
+  def _channel(this), do: %EventEmitter{guid: {this.guid, :channel}, conn: this.conn, table: this.table}
 
   def _set_event_to_subscription_mapping(this, mapping) do
     put(this, :_eventToSubscriptionMapping, mapping)
   end
 
+  # In the connection: posted without awaiting (upstream: `.catch(() => {})`), so it is ordered
+  # before any later call.
   defp _update_subscription(this, event, enabled) do
     protocol_event = (get(this, :_eventToSubscriptionMapping) || %{})[event]
 
-    # Under the baton: `on`/`off` are sync members, called without it.
     if protocol_event do
-      EventLoop.with_baton(this.loop, fn ->
-        Promise.async(fn ->
-          channel_call(
-            this,
-            :updateSubscription,
-            %{event: protocol_event, enabled: enabled},
-            PlaywrightEx.Client.TimeoutSettings.k_no_timeout()
-          )
-        end)
-        |> Promise.catch_(fn _ -> nil end)
-      end)
+      _post(this, :updateSubscription, %{event: protocol_event, enabled: enabled})
     end
   end
 
-  def on(this, event, listener) do
-    if listener_count(this, event) == 0, do: _update_subscription(this, event, true)
-    EventEmitter.on(this, event, listener)
+  @doc false
+  # Elixir only, in the connection: an internal call whose result is dropped (a message, no await).
+  def _post(this, method, params) do
+    method = to_string(method)
+    validator = Validator.find_validator(this.type, method, "Params")
+    validated = validator.(params, "", _validator_to_wire_context(this))
+    Connection.post(get(this, :_connection), this, method, validated)
+  end
+
+  def on(this, event, listener), do: _add(this, event, listener, false, false)
+  def add_listener(this, event, listener), do: _add(this, event, listener, false, false)
+  def prepend_listener(this, event, listener), do: _add(this, event, listener, true, false)
+  # Upstream: EventEmitter's `once` calls `this.on`, overridden here.
+  def once(this, event, listener), do: _add(this, event, listener, false, true)
+
+  # `if (!this.listenerCount(event)) this._updateSubscription(event, true); super.on(event, listener);`
+  # Elixir only: atomic, in the connection.
+  defp _add(this, event, listener, prepend, once) do
+    entry = EventEmitter.entry(this, listener, once)
+    _add_entry(this, event, entry, prepend)
     this
   end
 
-  def add_listener(this, event, listener) do
-    if listener_count(this, event) == 0, do: _update_subscription(this, event, true)
-    EventEmitter.add_listener(this, event, listener)
-    this
+  defp _add_entry(this, event, entry, prepend) do
+    Heap.atomic(this, fn ->
+      if listener_count(this, event) == 0 and Heap.alive?(this), do: _update_subscription(this, event, true)
+      EventEmitter._insert(this, event, entry, prepend)
+    end)
   end
 
-  def prepend_listener(this, event, listener) do
-    if listener_count(this, event) == 0, do: _update_subscription(this, event, true)
-    EventEmitter.prepend_listener(this, event, listener)
-    this
+  # EventEmitter.subscribe/3 (a waiter's listener), through addListener.
+  def subscribe(this, event, predicate \\ nil) do
+    {entry, promise} = EventEmitter._subscription(this, event, predicate)
+    _add_entry(this, event, entry, false)
+    promise
   end
 
-  def off(this, event, listener) do
-    EventEmitter.off(this, event, listener)
-    if listener_count(this, event) == 0, do: _update_subscription(this, event, false)
-    this
-  end
+  def off(this, event, listener), do: remove_listener(this, event, listener)
 
   def remove_listener(this, event, listener) do
-    EventEmitter.remove_listener(this, event, listener)
-    if listener_count(this, event) == 0, do: _update_subscription(this, event, false)
+    Heap.atomic(this, fn ->
+      EventEmitter._take(this, event, listener)
+      if listener_count(this, event) == 0 and Heap.alive?(this), do: _update_subscription(this, event, false)
+    end)
+
     this
   end
 
@@ -197,15 +203,41 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def _dispose(this, reason) do
     # Clean up from parent and connection.
     if get(this, :_parent), do: map_delete(get(this, :_parent), :_objects, this.guid)
+    # this._wasCollected = reason === 'gc';  -- not ported: the object's rows are deleted (below)
+    objects = map_values(this, :_objects)
     map_delete(get(this, :_connection), :_objects, this.guid)
-    put(this, :_wasCollected, reason == "gc")
-    # Elixir only: the rows stay readable a while, then GC frees them (see PlaywrightEx.Runtime.GC).
-    PlaywrightEx.Runtime.GC.dispose(this)
 
     # Dispose all children.
-    for object <- map_values(this, :_objects), do: _dispose(object, reason)
-    map_clear(this, :_objects)
+    for object <- objects, do: _dispose(object, reason)
+    # this._objects.clear();  -- with the rows
+    _free(this, reason)
   end
+
+  # Elixir only, in the connection: deletes the object's rows (fields, listeners, latches, the
+  # objects it owns), stops its user listeners' processes and rejects its latches' awaiters.
+  defp _free(this, _reason) do
+    error = TargetClosedError.new()
+
+    for {local, value} <- Heap.rows(this, this.guid) do
+      case {sub(local), value} do
+        {{:map, :_events, _}, {_seq, entries}} ->
+          for %{kind: :user, pid: pid} <- entries, do: send(pid, :pw_stop)
+
+        {{:latch, _}, {:pending, waiters}} ->
+          for {pid, ref} <- waiters, do: send(pid, {:pw, ref, {:error, error}})
+
+        _ ->
+          :ok
+      end
+    end
+
+    Heap.free_rows(this, this.guid)
+  end
+
+  defp sub({:latch, _} = sub), do: sub
+  defp sub({:map, _, _} = sub), do: sub
+  defp sub({_owned, sub}), do: sub
+  defp sub(sub), do: sub
 
   # _debugScopeState  -- not ported
 
@@ -220,10 +252,9 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def channel_call(this, method, params, options \\ %{}) do
     method = to_string(method)
     type = get(this, :_type)
-    # Elixir only: a disposed object's rows were freed (PlaywrightEx.Runtime.GC); JS still sends,
-    # and the server answers for the unknown guid with a TargetClosedError.
-    if type == nil and is_binary(this.guid),
-      do: _wrap_api_call(this, fn _ -> raise TargetClosedError.new() end)
+    # Elixir only: a disposed object's rows were deleted; JS still sends, and the server answers
+    # for the unknown guid with a TargetClosedError.
+    if !Heap.alive?(this), do: _wrap_api_call(this, fn _ -> raise TargetClosedError.new() end)
 
     # JS: a missing validator falls through to `obj[prop]`, i.e. `undefined is not a function`.
     validator =
@@ -265,7 +296,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   end
 
   def _wrap_api_call(this, func, options \\ %{}) do
-    logger = get(this, :_logger)
+    # Elixir only: a disposed object has no fields left (see `channel_call/4`).
+    logger = if Heap.alive?(this), do: get(this, :_logger)
     existing_api_zone = Zones.data(:apiZone)
 
     if existing_api_zone do

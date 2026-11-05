@@ -8,8 +8,8 @@ defmodule PlaywrightEx.Promise do
       {:ok, popup} = PlaywrightEx.Promise.await(popup)
 
   The wait is set up before the function returns, so events of the actions that follow are
-  seen. Any process can await a promise, any number of times. A promise that is never awaited
-  ends as in JS: when its wait settles or times out.
+  seen. Any process can await a promise, any number of times, while the process that started it
+  lives: its result is kept until then (awaiting after that process exited raises).
 
   The same waits have a callback form, as in the other official clients
   (`PlaywrightEx.Page.expect_popup(page, fn -> ... end)`).

@@ -1,6 +1,6 @@
 defmodule PlaywrightEx.Supervisor do
   @moduledoc """
-  The OTP form of `outofprocess.start()`: one driver with its event loop.
+  The OTP form of `outofprocess.start()`: one driver with its connection.
 
       children = [{PlaywrightEx.Supervisor, name: MyApp.Playwright}]
       playwright = PlaywrightEx.playwright(MyApp.Playwright)
@@ -11,13 +11,12 @@ defmodule PlaywrightEx.Supervisor do
     * `:executable`, `:node`, `:cache_dir` - see `PlaywrightEx.Driver`.
     * `:env` - extra environment variables for the driver process.
 
-  Children (`:rest_for_one`): the event loop (`PlaywrightEx.Runtime.EventLoop`), then the driver
-  connection (`PlaywrightEx.OutOfProcess`), so a driver restart keeps the loop.
+  Child: the driver connection (`PlaywrightEx.OutOfProcess`, which starts the connection process
+  `PlaywrightEx.Runtime.Conn` and the driver's pipe).
   """
   use Supervisor
 
   alias PlaywrightEx.OutOfProcess
-  alias PlaywrightEx.Runtime.EventLoop
 
   def start_link(opts \\ []) do
     opts = Keyword.validate!(opts, [:executable, :node, :cache_dir, name: PlaywrightEx, env: []])
@@ -35,12 +34,7 @@ defmodule PlaywrightEx.Supervisor do
     # event the second one waits for pass unseen.
     :code.ensure_modules_loaded(Application.spec(:playwright_ex, :modules) || [])
     name = Keyword.fetch!(opts, :name)
-    event_loop = Module.concat(name, EventLoop)
-
-    children = [
-      {EventLoop, name: event_loop},
-      {OutOfProcess, Keyword.merge(opts, name: out_of_process(name), event_loop: event_loop)}
-    ]
+    children = [{OutOfProcess, Keyword.merge(opts, name: out_of_process(name))}]
 
     Supervisor.init(children, strategy: :rest_for_one)
   end

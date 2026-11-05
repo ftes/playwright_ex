@@ -3,9 +3,9 @@ defmodule PlaywrightEx.OutOfProcess do
   @moduledoc """
   Port of `#{@upstream}`: `PlaywrightClient` as a process, started by `PlaywrightEx.Supervisor`.
 
-  `init/1` starts the driver over `PlaywrightEx.Transport.Pipe`, wires it to a
-  `PlaywrightEx.Client.Connection` and initializes the root `Playwright` object, so it is
-  ready once the supervisor has started.
+  `init/1` starts the driver over `PlaywrightEx.Transport.Pipe`, wires it to a connection process
+  (`PlaywrightEx.Runtime.Conn`, which holds the `PlaywrightEx.Client.Connection`) and initializes
+  the root `Playwright` object, so it is ready once the supervisor has started.
 
   Deviation: when the driver exits unexpectedly the connection is closed (pending and later
   calls fail with `TargetClosedError`, as in the Python client) and this process stops, so
@@ -15,7 +15,7 @@ defmodule PlaywrightEx.OutOfProcess do
 
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Driver
-  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Transport.Pipe
 
@@ -28,9 +28,10 @@ defmodule PlaywrightEx.OutOfProcess do
   @impl true
   def init(opts) do
     Process.flag(:trap_exit, true)
-    loop = EventLoop.get(Keyword.fetch!(opts, :event_loop))
     executable = Driver.ensure_installed(Keyword.take(opts, [:executable, :node, :cache_dir]))
-    connection = Connection.new(loop)
+    # const connection = new Connection(...): a process (Elixir only).
+    {:ok, conn} = Conn.start_link()
+    connection = Conn.connection(conn)
     parent = self()
 
     {:ok, transport} =
@@ -38,19 +39,18 @@ defmodule PlaywrightEx.OutOfProcess do
         executable: executable,
         env: Driver.driver_env() ++ Enum.to_list(Keyword.get(opts, :env, [])),
         # transport.onmessage = message => connection.dispatch(JSON.parse(message));
-        on_message: fn message ->
-          EventLoop.post(connection.loop, fn -> Connection.dispatch(connection, message) end)
-        end,
+        on_message: fn message -> send(conn, {:pw_msg, message}) end,
         # transport.onclose = () => this._closePromise.resolve();
         on_close: fn -> send(parent, :transport_closed) end
       )
 
     # connection.onmessage = message => transport.send(JSON.stringify(message));
-    Heap.put(connection, :onmessage, fn message -> Pipe.send_message(transport, message) end)
+    # (Elixir: the connection process writes each turn's messages together.)
+    Conn.set_transport(conn, fn messages -> Pipe.send_messages(transport, messages) end)
 
-    playwright = EventLoop.with_baton(connection.loop, fn -> Connection.initialize_playwright(connection) end)
+    playwright = Connection.initialize_playwright(connection)
     Heap.put(playwright, :driverProcess, transport)
-    {:ok, %{connection: connection, transport: transport, playwright: playwright}}
+    {:ok, %{conn: conn, connection: connection, transport: transport, playwright: playwright}}
   end
 
   @impl true
@@ -67,6 +67,7 @@ defmodule PlaywrightEx.OutOfProcess do
     {:stop, {:shutdown, {:transport_exit, reason}}, state}
   end
 
+  def handle_info({:EXIT, conn, reason}, %{conn: conn} = state), do: {:stop, {:shutdown, {:connection_exit, reason}}, state}
   def handle_info(_message, state), do: {:noreply, state}
 
   # stop(): closing the pipe makes the driver exit.
@@ -79,12 +80,10 @@ defmodule PlaywrightEx.OutOfProcess do
     :exit, _ -> close_connection(state)
   end
 
-  # Synchronous, not posted: on shutdown the supervisor stops the loop right after this process,
-  # and a posted close would run on the loop's deleted heaps.
   defp close_connection(state) do
-    EventLoop.with_baton(state.connection.loop, fn -> Connection.close(state.connection, "Playwright driver closed") end)
-  catch
-    # The loop is gone (it crashed, this process is restarted): the connection's heap went with it.
-    :exit, _ -> :ok
+    Conn.run(state.conn, fn -> Connection.close(state.connection, "Playwright driver closed") end)
+  rescue
+    # The connection process is gone already.
+    PlaywrightEx.TargetClosedError -> :ok
   end
 end

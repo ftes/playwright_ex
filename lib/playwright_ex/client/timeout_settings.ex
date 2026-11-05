@@ -1,17 +1,20 @@
 defmodule PlaywrightEx.Client.TimeoutSettings do
   @upstream "packages/playwright-core/src/client/timeoutSettings.ts"
-  @moduledoc "Port of `#{@upstream}`."
+  @moduledoc """
+  Port of `#{@upstream}`. Elixir only: `owner` (the page, context, ...) owns its rows; without
+  one it is process-local (`PlaywrightEx.Runtime.Heap.new_object/2`).
+  """
   import PlaywrightEx.Runtime.Heap
 
-  defstruct [:guid, :loop, :heap]
+  defstruct [:guid, :conn, :table]
 
   @default_playwright_timeout 30_000
   @default_playwright_launch_timeout 180_000
 
   def k_no_timeout, do: %{signal: nil, timeout: 0}
 
-  def new(parent \\ nil) do
-    this = new_object(__MODULE__)
+  def new(parent \\ nil, owner \\ nil) do
+    this = new_object(__MODULE__, owner)
     if parent, do: put(this, :_parent, parent)
     this
   end

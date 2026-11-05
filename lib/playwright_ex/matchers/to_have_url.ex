@@ -10,7 +10,6 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
   alias PlaywrightEx.Isomorphic.AbortSignal
   alias PlaywrightEx.Isomorphic.UrlMatch
   alias PlaywrightEx.Matchers.MatcherHint
-  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Heap
 
   def to_have_url_with_predicate(this, page, expected, options \\ nil) do
@@ -18,9 +17,8 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
     timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
     base_url = Heap.get(Page.context(page), :_options)[:baseURL]
     local_utils = Connection.local_utils(Heap.get(page, :_connection))
-    # `let lastCheckedURLString`, assigned in the predicate (which may run in a listener process).
-    %EventLoop{heap: heap} = loop = EventLoop.current!()
-    last_checked = %{guid: make_ref(), loop: loop, heap: heap}
+    # `let lastCheckedURLString`, assigned in the predicate (which runs in this process).
+    last_checked = Heap.new_object(PlaywrightEx.Client.Connect.Cell)
 
     try do
       Frame.wait_for_url(

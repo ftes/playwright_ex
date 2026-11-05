@@ -2,31 +2,20 @@ defmodule PlaywrightEx.Isomorphic.TimeoutRunner do
   @upstream "packages/isomorphic/timeoutRunner.ts"
   @moduledoc "Port of `#{@upstream}`."
 
-  alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.Promise
 
   def race_against_deadline(cb, deadline) do
     # `let timer` assigned in the executor: the executor runs synchronously, so it is computed first.
-    timed_out = Promise.new()
-
-    timer =
-      if deadline != 0,
-        do:
-          EventLoop.set_timeout(
-            fn -> Promise.resolve(timed_out, %{timedOut: true}) end,
-            max(0, round(deadline - monotonic_time()))
-          )
+    timer = if deadline != 0, do: Promise.timer(max(0, round(deadline - monotonic_time())))
+    timed_out = if timer, do: [Promise.then_(timer, fn _ -> %{timedOut: true} end)], else: []
 
     # Note: not including "await" here truncates the async stack inside cb(), so always include it.
     try do
       Promise.await(
-        Promise.race([
-          Promise.then_(Promise.async(cb), fn result -> %{result: result, timedOut: false} end),
-          timed_out
-        ])
+        Promise.race([Promise.then_(Promise.async(cb), fn result -> %{result: result, timedOut: false} end) | timed_out])
       )
     after
-      EventLoop.clear_timeout(timer)
+      if timer, do: Promise.free(timer)
     end
   end
 

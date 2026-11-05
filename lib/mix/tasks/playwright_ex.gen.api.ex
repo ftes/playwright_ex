@@ -25,12 +25,13 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       `void`), `name!/n` returns the value or raises.
     * Waits (`"promise"`, see `Mix.PlaywrightEx.ApiRules`): `name/n` returns a `PlaywrightEx.Promise`,
       `name!/n` awaits it; their docs show starting the wait before the action.
-    * `async: false` members and properties: plain values, called without the baton.
+    * `async: false` members and properties: plain values.
     * Handles: a class whose client module exports `__struct_fields__/0` gets the struct
       (`%PlaywrightEx.Page{}`) and `__client__/0`, its client module (`PlaywrightEx.Runtime.Heap.impl/1`).
     * Classes with events: `on/3`, `once/3`, `add_listener/3`, `remove_listener/3`, `off/3`,
       `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
-      string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`).
+      string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`). The
+      call runs in `PlaywrightEx.Runtime.Facade.listen/1`: the listener is a user listener.
 
   `--check` writes nothing and fails if a file is out of date (`mix playwright_ex.parity` runs it).
   """
@@ -799,8 +800,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       @doc #{inspect(doc)}
       @doc group: "Events"
       #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}#{if class["openEvents"], do: "\n@spec #{name}(t(), String.t(), (term() -> term())) :: t()"}
-      def #{name}(#{receiver}, event, listener),
-        do: #{inspect(impl(class["name"]))}.#{name}(#{receiver}, Facade.event!(event, @events, #{inspect(api_name)}#{if class["openEvents"], do: ", true"}), listener)
+      def #{name}(#{receiver}, event, listener) do
+        event = Facade.event!(event, @events, #{inspect(api_name)}#{if class["openEvents"], do: ", true"})
+        Facade.listen(fn -> #{inspect(impl(class["name"]))}.#{name}(#{receiver}, event, listener) end)
+      end
       """
     end)
   end

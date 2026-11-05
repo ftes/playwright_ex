@@ -30,8 +30,8 @@ defmodule PlaywrightEx.AbortController do
   def signal(%__MODULE__{signal: signal}), do: signal
 
   @doc """
-  `controller.abort(reason)`: aborts the signal, from any process; its listeners have run or are
-  queued on their drivers when it returns (see `PlaywrightEx.AbortSignal`). Without a reason
+  `controller.abort(reason)`: aborts the signal, from any process; its listeners have run when it
+  returns (see `PlaywrightEx.AbortSignal`). Without a reason
   (`nil`), the reason is an `AbortError` "This operation was aborted" (JS: a `DOMException` of that
   name). Aborting twice does nothing.
   """

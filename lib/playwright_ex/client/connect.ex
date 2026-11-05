@@ -4,7 +4,8 @@ defmodule PlaywrightEx.Client.Connect do
   Port of `#{@upstream}`.
 
   The remote connection goes through the local driver's `LocalUtils.connect` (the driver opens
-  the WebSocket, `JsonPipeTransport`). It gets its own heap on the driver's baton.
+  the WebSocket, `JsonPipeTransport`). It is a connection process of its own
+  (`PlaywrightEx.Runtime.Conn`, guids repeat across connections), linked to the local one.
   """
   import PlaywrightEx.Runtime.Heap
 
@@ -14,13 +15,13 @@ defmodule PlaywrightEx.Client.Connect do
   alias PlaywrightEx.Client.Events
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Isomorphic.TimeoutRunner
-  alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Promise
 
   # Elixir only: a `let` assigned later and read by closures.
   defmodule Cell do
     @moduledoc false
-    defstruct [:guid, :loop, :heap]
+    defstruct [:guid, :conn, :table]
   end
 
   def connect_to_browser(playwright, params) do
@@ -46,7 +47,7 @@ defmodule PlaywrightEx.Client.Connect do
       connect_to_endpoint(get(playwright, :_connection), connect_params, %{signal: nil, timeout: params[:timeout] || 0})
 
     # let browser: Browser;
-    browser_cell = new_object(Cell)
+    browser_cell = new_object(Cell, connection)
 
     Connection.on(connection, "close", fn _ ->
       browser = get(browser_cell, :browser)
@@ -56,7 +57,8 @@ defmodule PlaywrightEx.Client.Connect do
         BrowserContext._on_close(context)
       end
 
-      EventLoop.set_timeout(fn -> browser && Browser._did_close(browser) end, 0)
+      # setTimeout(() => browser?._didClose(), 0)
+      Promise.void(fn -> browser && Browser._did_close(browser) end)
     end)
 
     result =
@@ -96,36 +98,84 @@ defmodule PlaywrightEx.Client.Connect do
     # const transport = localUtils ? new JsonPipeTransport(localUtils) : new WebSocketTransport();  -- the driver always has LocalUtils
     transport = __MODULE__.JsonPipeTransport.new(local_utils)
     connect_headers = __MODULE__.JsonPipeTransport.connect(transport, params, timeout)
-    connection = Connection.new(parent_connection.loop, local_utils, nil, connect_headers)
+
+    # const connection = new Connection(localUtils, instrumentation, connectHeaders): a process,
+    # started by (and linked to) the local connection. Its messages go through `forwarder` (see
+    # `connection.onmessage` below).
+    {child, forwarder} =
+      Conn.run(parent_connection.conn, fn ->
+        forwarder = spawn_link(fn -> _forward(transport) end)
+
+        {:ok, child} =
+          Conn.start_link(
+            local_utils: local_utils,
+            headers: connect_headers,
+            transport: fn messages -> send(forwarder, {:send, messages}) end,
+            on_dispatch_error: fn e -> send(forwarder, {:dispatch_error, e}) end
+          )
+
+        {child, forwarder}
+      end)
+
+    connection = Conn.connection(child)
     Connection.mark_as_remote(connection)
     Connection.on(connection, "close", fn _ -> __MODULE__.JsonPipeTransport.close(transport) end)
 
     # let closeError: string | undefined;
-    close_error = new_object(Cell)
+    close_error = new_object(Cell, connection)
     # `reason || closeError`, JS truthiness: the pipe reports an empty reason.
     on_transport_closed = fn reason ->
-      Connection.close(connection, Enum.find([reason, get(close_error, :value)], &(&1 not in [nil, ""])))
+      atomic(connection, fn ->
+        Connection.close(connection, Enum.find([reason, get(close_error, :value)], &(&1 not in [nil, ""])))
+      end)
     end
 
     __MODULE__.JsonPipeTransport.on_close(transport, fn reason -> on_transport_closed.(reason) end)
 
-    put(connection, :onmessage, fn message ->
-      Promise.catch_(Promise.async(fn -> __MODULE__.JsonPipeTransport.send_message(transport, message) end), fn _ ->
-        on_transport_closed.(nil)
-      end)
-    end)
+    # connection.onmessage = message => transport.send(message).catch(() => onTransportClosed());
+    # (Elixir: the connection process hands its messages to `forwarder`, which sends them in order.)
+    send(forwarder, {:start, child, on_transport_closed, close_error})
 
-    __MODULE__.JsonPipeTransport.on_message(transport, fn message ->
-      try do
-        Connection.dispatch(connection, message)
-      rescue
-        e ->
-          put(close_error, :value, Exception.message(e))
-          Promise.catch_(Promise.async(fn -> __MODULE__.JsonPipeTransport.close(transport) end), fn _ -> nil end)
-      end
-    end)
+    # transport.onmessage = message => { try { connection!.dispatch(message); } catch (e) { ... } };
+    # (Elixir: dispatched by the connection process; a dispatch error is reported to `forwarder`.)
+    __MODULE__.JsonPipeTransport.on_message(transport, fn message -> send(child, {:pw_msg, message}) end)
 
     connection
+  end
+
+  # Elixir only: sends the remote connection's messages through the pipe, in order (each call
+  # is written before the next starts), and closes the pipe on a dispatch error.
+  defp _forward(transport) do
+    receive do
+      {:start, child, on_transport_closed, close_error} ->
+        mon = Process.monitor(child)
+        _forward_loop(transport, mon, on_transport_closed, close_error)
+    end
+  end
+
+  defp _forward_loop(transport, mon, on_transport_closed, close_error) do
+    receive do
+      {:send, messages} ->
+        for message <- messages do
+          Promise.void(fn ->
+            try do
+              __MODULE__.JsonPipeTransport.send_message(transport, message)
+            rescue
+              _ -> on_transport_closed.(nil)
+            end
+          end)
+        end
+
+        _forward_loop(transport, mon, on_transport_closed, close_error)
+
+      {:dispatch_error, e} ->
+        put(close_error, :value, Exception.message(e))
+        Promise.void(fn -> __MODULE__.JsonPipeTransport.close(transport) end)
+        _forward_loop(transport, mon, on_transport_closed, close_error)
+
+      {:DOWN, ^mon, :process, _, _} ->
+        :ok
+    end
   end
 
   # interface Transport  -- the JsonPipeTransport functions
@@ -139,10 +189,11 @@ defmodule PlaywrightEx.Client.Connect do
     alias PlaywrightEx.Client.EventEmitter
     alias PlaywrightEx.Client.TimeoutSettings
 
-    defstruct [:guid, :loop, :heap]
+    defstruct [:guid, :conn, :table]
 
+    # Elixir only: owned by `owner` (the local connection's LocalUtils).
     def new(owner) do
-      this = new_object(__MODULE__)
+      this = new_object(__MODULE__, owner)
       put(this, :_owner, owner)
       this
     end
@@ -160,8 +211,9 @@ defmodule PlaywrightEx.Client.Connect do
       ChannelOwner.channel_call(get(this, :_pipe), :send, %{message: message}, TimeoutSettings.k_no_timeout())
     end
 
+    # Elixir only: `on_sync`, the callback only forwards the message (in order).
     def on_message(this, callback) do
-      EventEmitter.on(ChannelOwner._channel(get(this, :_pipe)), "message", fn %{message: message} ->
+      EventEmitter.on_sync(ChannelOwner._channel(get(this, :_pipe)), "message", fn %{message: message} ->
         callback.(message)
       end)
     end
