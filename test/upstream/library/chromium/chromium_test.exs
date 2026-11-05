@@ -674,7 +674,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
                    "upstream fixme: Windows does not print something to the console when the profile is already in use by another instance of Chromium."
                )
 
-  @tag skip: @chromium_only || @win32_fixme
+  @tag skip: @win32_fixme || @chromium_only
   test "should throw when connecting twice to an already running persistent context (--remote-debugging-port)", %{
     browser_type: browser_type,
     create_user_data_dir: create_user_data_dir
@@ -700,7 +700,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     end
   end
 
-  @tag skip: @chromium_only || @win32_fixme
+  @tag skip: @win32_fixme || @chromium_only
   test "should throw when connecting twice to an already running persistent context (--remote-debugging-pipe)", %{
     browser_type: browser_type,
     create_user_data_dir: create_user_data_dir
