@@ -48,7 +48,9 @@ defmodule PlaywrightEx.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # The port of upstream tests/config/testserver.
-      {:bandit, "~> 1.6", only: :test}
+      {:bandit, "~> 1.6", only: :test},
+      # RFC 6455 framing of TestServer.WebSocket (`cow_ws`).
+      {:cowlib, "~> 2.21", only: :test}
     ]
   end
 

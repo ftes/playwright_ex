@@ -15,7 +15,6 @@ defmodule PlaywrightEx.TestServer.WebSocket do
 
   @listeners {__MODULE__, :listeners}
   @held {__MODULE__, :held}
-  @guid "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
   # ws's closeTimeout
   @close_timeout 30_000
 
@@ -125,7 +124,7 @@ defmodule PlaywrightEx.TestServer.WebSocket do
 
     ThousandIsland.Socket.send(socket, [
       "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n",
-      "Sec-WebSocket-Accept: #{accept_key(key)}\r\n",
+      "Sec-WebSocket-Accept: #{:cow_ws.encode_key(key)}\r\n",
       if(protocol, do: "Sec-WebSocket-Protocol: #{protocol}\r\n", else: []),
       "\r\n"
     ])
@@ -146,12 +145,10 @@ defmodule PlaywrightEx.TestServer.WebSocket do
     _destroy(socket)
   end
 
-  defp accept_key(key), do: Base.encode64(:crypto.hash(:sha, key <> @guid))
-
   # --- client -------------------------------------------------------------------
 
   defp connect(%URI{scheme: "ws"} = uri, protocols, options) do
-    key = Base.encode64(:crypto.strong_rand_bytes(16))
+    key = :cow_ws.key()
     headers = Map.get(options, :headers, %{})
 
     {host, inet, authority} =
@@ -203,6 +200,8 @@ defmodule PlaywrightEx.TestServer.WebSocket do
       socket: socket,
       mask: mask,
       buffer: "",
+      frag_state: :undefined,
+      utf8_state: 0,
       fragments: nil,
       close_frame_sent: false,
       close_frame_received: false,
@@ -230,10 +229,10 @@ defmodule PlaywrightEx.TestServer.WebSocket do
         emit_close(state)
 
       {__MODULE__, :send, {:binary, data}} ->
-        state |> send_frame(2, data) |> loop()
+        state |> send_frame({:binary, data}) |> loop()
 
       {__MODULE__, :send, data} ->
-        state |> send_frame(1, data) |> loop()
+        state |> send_frame({:text, data}) |> loop()
 
       {__MODULE__, :close, code, reason} ->
         state |> do_close(code, reason) |> loop()
@@ -260,92 +259,72 @@ defmodule PlaywrightEx.TestServer.WebSocket do
     emit(:close, [state.close_code, state.close_message])
   end
 
+  # Frames are parsed and built by cowlib's `cow_ws` (no extensions).
   defp receive_data(state, data) do
-    case parse_frame(data) do
-      {:ok, fin, opcode, payload, rest} -> state |> handle_frame(fin, opcode, payload) |> receive_data(rest)
-      :more -> %{state | buffer: data}
-    end
-  end
+    with {type, frag_state, rsv, length, key, rest} when byte_size(rest) >= length <-
+           :cow_ws.parse_header(data, %{}, state.frag_state),
+         {:ok, code, payload, utf8_state, rest} <-
+           parse_payload(rest, key, state.utf8_state, type, length, frag_state, rsv) do
+      frame = :cow_ws.make_frame(type, payload, code, frag_state)
+      frag_state = if match?({:fin, _, _}, frag_state), do: :undefined, else: frag_state
 
-  defp parse_frame(<<fin::1, _rsv::3, opcode::4, masked::1, length::7, rest::binary>>) do
-    with {:ok, length, rest} <- payload_length(length, rest),
-         {:ok, key, rest} <- masking_key(masked, rest),
-         <<payload::binary-size(^length), rest::binary>> <- rest do
-      {:ok, fin == 1, opcode, if(key, do: mask(payload, key), else: payload), rest}
+      %{state | frag_state: frag_state, utf8_state: utf8_state}
+      |> handle_frame(frame)
+      |> receive_data(rest)
     else
-      _ -> :more
+      :error -> protocol_error(state, :badframe)
+      {:error, reason} -> protocol_error(state, reason)
+      _more -> %{state | buffer: data}
     end
   end
 
-  defp parse_frame(_data), do: :more
+  defp parse_payload(data, key, utf8_state, type, length, frag_state, rsv) do
+    case :cow_ws.parse_payload(data, key, utf8_state, 0, type, length, frag_state, %{}, rsv) do
+      {:ok, payload, utf8_state, rest} -> {:ok, :undefined, payload, utf8_state, rest}
+      result -> result
+    end
+  end
 
-  defp payload_length(126, <<length::16, rest::binary>>), do: {:ok, length, rest}
-  defp payload_length(127, <<length::64, rest::binary>>), do: {:ok, length, rest}
-  defp payload_length(length, rest) when length < 126, do: {:ok, length, rest}
-  defp payload_length(_length, _rest), do: :more
-
-  defp masking_key(1, <<key::binary-4, rest::binary>>), do: {:ok, key, rest}
-  defp masking_key(0, rest), do: {:ok, nil, rest}
-  defp masking_key(_masked, _rest), do: :more
-
-  defp mask(payload, key) do
-    size = byte_size(payload)
-    :crypto.exor(payload, binary_part(:binary.copy(key, div(size, 4) + 1), 0, size))
+  # receiverOnError: `ws` emits the error (once) and closes with 1002 (1007 for invalid UTF-8).
+  defp protocol_error(state, reason) do
+    if not state.close_frame_sent, do: emit(:error, [reason])
+    do_close(%{state | buffer: ""}, if(reason == :badencoding, do: 1007, else: 1002), "")
   end
 
   # After a Close frame, `ws` reads no more data frames.
-  defp handle_frame(%{close_frame_received: true} = state, _fin, _opcode, _payload), do: state
+  defp handle_frame(%{close_frame_received: true} = state, _frame), do: state
+  defp handle_frame(state, {type, data}) when type in [:text, :binary], do: message(state, type, data)
 
-  defp handle_frame(state, fin, 0, payload) do
-    {opcode, acc} = state.fragments
+  defp handle_frame(state, {:fragment, :nofin, _type, data}),
+    do: %{state | fragments: [state.fragments || [], data]}
 
-    if fin,
-      do: message(%{state | fragments: nil}, opcode, [acc, payload]),
-      else: %{state | fragments: {opcode, [acc, payload]}}
-  end
-
-  defp handle_frame(state, true, opcode, payload) when opcode in [1, 2], do: message(state, opcode, payload)
-  defp handle_frame(state, false, opcode, payload) when opcode in [1, 2], do: %{state | fragments: {opcode, payload}}
+  defp handle_frame(state, {:fragment, :fin, type, data}),
+    do: message(%{state | fragments: nil}, type, [state.fragments || [], data])
 
   # receiverOnConclude: `ws` answers with the peer's code and reason.
-  defp handle_frame(state, _fin, 8, payload) do
-    {code, reason} =
-      case payload do
-        <<code::16, reason::binary>> -> {code, reason}
-        _ -> {1005, ""}
-      end
+  defp handle_frame(state, :close),
+    do: do_close(%{state | close_frame_received: true, close_code: 1005}, nil, "")
 
-    state = %{state | close_frame_received: true, close_code: code, close_message: reason}
-    if code == 1005, do: do_close(state, nil, ""), else: do_close(state, code, reason)
-  end
+  defp handle_frame(state, {:close, code, reason}),
+    do: do_close(%{state | close_frame_received: true, close_code: code, close_message: reason}, code, reason)
 
-  defp handle_frame(state, _fin, 9, payload), do: send_frame(state, 10, payload)
-  defp handle_frame(state, _fin, _opcode, _payload), do: state
+  defp handle_frame(state, :ping), do: send_frame(state, :pong)
+  defp handle_frame(state, {:ping, data}), do: send_frame(state, {:pong, data})
+  defp handle_frame(state, _pong), do: state
 
-  defp message(state, opcode, data) do
-    emit(:message, [IO.iodata_to_binary(data), opcode == 2])
+  defp message(state, type, data) do
+    emit(:message, [IO.iodata_to_binary(data), type == :binary])
     state
   end
 
-  defp send_frame(%{close_frame_sent: true} = state, _opcode, _payload), do: state
+  defp send_frame(%{close_frame_sent: true} = state, _frame), do: state
 
-  defp send_frame(state, opcode, payload) do
-    length =
-      cond do
-        byte_size(payload) < 126 -> <<byte_size(payload)::7>>
-        byte_size(payload) < 65_536 -> <<126::7, byte_size(payload)::16>>
-        true -> <<127::7, byte_size(payload)::64>>
-      end
+  defp send_frame(state, frame) do
+    state.transport.send(
+      state.socket,
+      if(state.mask, do: :cow_ws.masked_frame(frame, %{}), else: :cow_ws.frame(frame, %{}))
+    )
 
-    frame =
-      if state.mask do
-        key = :crypto.strong_rand_bytes(4)
-        [<<1::1, 0::3, opcode::4, 1::1, length::bitstring>>, key, mask(payload, key)]
-      else
-        [<<1::1, 0::3, opcode::4, 0::1, length::bitstring>>, payload]
-      end
-
-    state.transport.send(state.socket, frame)
     state
   end
 
@@ -356,7 +335,7 @@ defmodule PlaywrightEx.TestServer.WebSocket do
   end
 
   defp do_close(state, code, reason) do
-    state = send_frame(state, 8, if(code, do: <<code::16, reason::binary>>, else: ""))
+    state = send_frame(state, if(code, do: {:close, code, reason}, else: :close))
     if state.close_frame_received, do: state.transport.shutdown(state.socket, :write)
     Process.send_after(self(), {__MODULE__, :close_timeout}, @close_timeout)
     %{state | close_frame_sent: true}
