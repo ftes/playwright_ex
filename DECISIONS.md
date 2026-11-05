@@ -257,3 +257,16 @@ Review: these shape the assertion API.
   lazy code loading delayed a `wait_for_event` subscription past the event it waits for.
 - **`Page.pause`** skips the `inspector.url()` check (no JS debugger). **`pdf`** formats numeric
   sizes as `"#{n}px"` (`100.0` gives `"100.0px"`, JS `"100px"`).
+
+## 2026-11-05: Library specs group 8 (events, proxy, permissions, coverage)
+
+- **`tests/library/events/*`** test the client's `EventEmitter` and call
+  `Client.EventEmitter` directly (no facade for it). `_events` checks use `listeners/2` and
+  `event_names/1`. Node-only emitter features (`newListener`/`removeListener` events,
+  `setMaxListeners` leak warnings, listener type checks, multi-arg `emit`) are skipped as not
+  ported. Revisit: port them into `EventEmitter` if 1:1 there matters, or skip the files.
+- **Proxy specs (23 tests) skipped**: no `proxyServer`/`socksPort` fixture
+  (`tests/config/proxy.ts`). Follow-up: a small TestProxy in `test/support`.
+- **coverage spec** passes `_coverage: true` through `Runtime.Api.call` (upstream casts it
+  `as any`; the facade rejects unknown options).
+- **`logger` launch/context option** not exposed (both logger tests skipped).
