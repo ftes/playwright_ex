@@ -137,7 +137,9 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   @tag timeout: @slow_timeout
   test "should not leak listeners during navigation of 20 pages", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
-    # process.on('warning', ...): the client's MaxListenersExceededWarning is logged here.
+    # process.on('warning', ...): the client's MaxListenersExceededWarning is logged here. Deviation:
+    # no client emitter gets a second listener of one type in this scenario (the JS client's
+    # neither); upstream catches the in-process server's warnings, ours go to the driver's stderr.
     # Promise.all has no timeout of its own: the test's.
     warning =
       capture_log(fn ->
