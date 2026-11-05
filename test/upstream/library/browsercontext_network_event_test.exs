@@ -106,9 +106,15 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
            ]
   end
 
-  # it.skip(!headless && browserName === 'webkit', ...)  -- we run headless
+  @headless PlaywrightEx.TestBrowser.headless()
   @tag skip:
-         if(@browser_name != "firefox", do: "upstream skip: headless browsers, except firefox, do not request favicons")
+         if(@headless and @browser_name != "firefox",
+           do: "upstream skip: headless browsers, except firefox, do not request favicons"
+         ) ||
+           if(not @headless and @browser_name == "webkit",
+             do: "upstream skip: headed webkit does not have a favicon feature"
+           )
+  @tag :headed
   test "should not fire events for favicon or favicon redirects", %{context: context, page: page, server: server} do
     favicon = "/no-cache/favicon.ico"
     hashed_favicon_url = "/favicon-hashed.ico"

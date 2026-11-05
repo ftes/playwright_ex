@@ -972,9 +972,15 @@ defmodule PlaywrightEx.Library.HarTest do
     Supervisor.stop(http2_server)
   end
 
-  # it.skip(!headless && browserName === 'webkit', ...)  -- we run headless
+  @headless PlaywrightEx.TestBrowser.headless()
   @tag skip:
-         if(@browser_name != "firefox", do: "upstream skip: headless browsers, except firefox, do not request favicons")
+         if(@headless and @browser_name != "firefox",
+           do: "upstream skip: headless browsers, except firefox, do not request favicons"
+         ) ||
+           if(not @headless and @browser_name == "webkit",
+             do: "upstream skip: headed webkit does not have a favicon feature"
+           )
+  @tag :headed
   test "should filter favicon and favicon redirects", %{
     server: server,
     asset: asset,
