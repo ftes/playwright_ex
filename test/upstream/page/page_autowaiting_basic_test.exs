@@ -35,23 +35,17 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
 
   # Promise.all([page.click(selector).then(() => messages.push('click')),
   #              page.waitForEvent('framenavigated').then(() => messages.push('navigated'))])
+  # Test port: JS runs the `.then` push as a microtask of the event, before the click reply. Two
+  # tasks that push after their awaits race each other, so the push runs in a `once` listener
+  # (the connection waits for it before dispatching the click reply); the wait still awaits the
+  # event, as `Promise.all` does.
   defp click_and_wait_for_navigated(page, selector) do
     test = self()
+    Page.once(page, :frame_navigated, fn _ -> send(test, {:message, "navigated"}) end)
     navigated = Page.wait_for_event(page, :frame_navigated)
-
-    click =
-      Task.async(fn ->
-        Page.click!(page, selector)
-        send(test, {:message, "click"})
-      end)
-
-    navigated =
-      Task.async(fn ->
-        Promise.await!(navigated)
-        send(test, {:message, "navigated"})
-      end)
-
-    Task.await_many([click, navigated], :infinity)
+    Page.click!(page, selector)
+    send(test, {:message, "click"})
+    Promise.await!(navigated)
   end
 
   test "should await navigation when clicking anchor", %{page: page, server: server} do
