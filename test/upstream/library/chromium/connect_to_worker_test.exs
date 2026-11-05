@@ -44,11 +44,6 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     end)
   end
 
-  # Ported, but `--inspect-brk` is released on connect (the server sends
-  # `Runtime.runIfWaitingForDebugger` before replying), so the console event races the console
-  # subscription (`updateSubscription`, sent when the listener is added): over the out-of-process
-  # driver the event is often dropped, upstream's in-process one wins the race.
-  @tag skip: "flaky: the console event races the Worker console subscription (out-of-process driver)"
   test "should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([

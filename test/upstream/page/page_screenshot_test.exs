@@ -289,7 +289,6 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     @tag skip: "not ported: toMatchSnapshot"
     test "should work with Array deleted"
 
-    @tag skip: "flaky: page.screenshot times out (30s) under load, on CI and with parallel suites"
     test "should take fullPage screenshots during navigation", %{page: page, server: server} do
       # it.slow()
       Page.set_viewport_size!(page, %{width: 500, height: 500})
