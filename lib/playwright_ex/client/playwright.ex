@@ -49,6 +49,7 @@ defmodule PlaywrightEx.Client.Playwright do
   end
 
   def _pre_launched_browser(this) do
+    # Elixir only: the calling process anchors the browser (`_set_creator/1`).
     browser = ChannelOwner._set_creator(Browser.from(get(this, :_initializer).preLaunchedBrowser))
     Browser._connect_to_browser_type(browser, get(this, String.to_existing_atom(get(browser, :_name))), %{}, nil)
     browser

@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Client.BrowserType do
   alias PlaywrightEx.Client.Selectors
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
+  alias PlaywrightEx.Runtime.Node
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
@@ -51,6 +52,7 @@ defmodule PlaywrightEx.Client.BrowserType do
       })
 
     _wrap_api_call(this, fn _ ->
+      # Elixir only: `_set_creator/1`, the calling process anchors the browser (here and below).
       browser =
         ChannelOwner._set_creator(
           Browser.from(
@@ -93,7 +95,7 @@ defmodule PlaywrightEx.Client.BrowserType do
         userDataDir:
           if(Path.type(user_data_dir) == :absolute or user_data_dir == "",
             do: user_data_dir,
-            else: Path.expand(user_data_dir)
+            else: Node.path_resolve(user_data_dir)
           )
       })
 
@@ -161,8 +163,8 @@ defmodule PlaywrightEx.Client.BrowserType do
     if name(this) != "chromium" && name(this) != "webkit",
       do: raise("Connecting over CDP is only supported in Chromium and WebKit.")
 
-    # The statements up to the next await run on reply, before the contexts' events
-    # (`channel_call/5`): their close reads the browser type.
+    # `_browserFromConnectResult` up to its first await runs on reply, before the contexts'
+    # events (`channel_call/5`): their close reads the browser type.
     result =
       channel_call(
         this,
@@ -178,15 +180,15 @@ defmodule PlaywrightEx.Client.BrowserType do
           artifactsDir: params[:artifactsDir]
         },
         TimeoutSettings.timeout(TimeoutSettings.new(nil), params),
-        fn result -> _browser_from_connect_result(this, result) end
+        fn result -> Browser._connect_to_browser_type(Browser.from(result.browser), this, %{}, nil) end
       )
 
-    ChannelOwner._set_creator(Browser.from(result.browser))
+    ChannelOwner._set_creator(_browser_from_connect_result(this, result))
   end
 
   defp _browser_from_connect_result(this, result) do
     browser = Browser.from(result.browser)
-    Browser._connect_to_browser_type(browser, this, %{}, nil)
+    # browser._connectToBrowserType(this, {}, undefined);  -- in connect_over_cdp's `on_reply`
 
     if result[:defaultContext],
       do:

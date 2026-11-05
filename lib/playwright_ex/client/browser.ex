@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Client.Browser do
   alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Selectors
+  alias PlaywrightEx.Runtime.Node
 
   def from(browser) do
     browser
@@ -72,6 +73,7 @@ defmodule PlaywrightEx.Client.Browser do
         do: channel_call(this, :newContextForReuse, context_options, TimeoutSettings.k_no_timeout()),
         else: channel_call(this, :newContext, context_options, TimeoutSettings.k_no_timeout())
 
+    # Elixir only: the calling process anchors the context (`_set_creator/1`).
     context = ChannelOwner._set_creator(BrowserContext.from(response.context))
     if for_reuse, do: put(context, :_forReuse, true)
     if options[:logger], do: put(context, :_logger, options.logger)
@@ -166,7 +168,7 @@ defmodule PlaywrightEx.Client.Browser do
 
     if path = get(this, :_path) do
       FileUtils.mkdir_if_needed(path)
-      File.write!(path, buffer)
+      Node.fs!(File.write(path, buffer), "open", path)
       put(this, :_path, nil)
     end
 
