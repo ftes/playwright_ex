@@ -84,7 +84,7 @@ defmodule PlaywrightEx.UpstreamSnapshot do
   def snapshot_path(spec, name) do
     ext = Path.extname(name)
     base = String.slice(name, 0, String.length(name) - String.length(ext))
-    browser_name = System.get_env("BROWSER", "chromium")
+    browser_name = PlaywrightEx.TestBrowser.name()
     Path.join(PlaywrightEx.Upstream.dir(), "#{spec}-snapshots/#{sanitize_for_file_path(base)}-#{browser_name}#{ext}")
   end
 

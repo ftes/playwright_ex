@@ -21,13 +21,16 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.Selectors
+  alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.WebError
 
   @moduletag timeout: 120_000
   @moduletag :tmp_dir
 
+  # The doctype keeps firefox from logging a quirks-mode warning to the console.
   @html """
+  <!doctype html>
   <title>Home</title>
   <form><label>Email <input name="email"></label>
   <select name="role"><option>user</option><option>admin</option></select>
@@ -42,7 +45,7 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   setup_all do
     start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
     playwright = PlaywrightEx.playwright(__MODULE__)
-    browser = BrowserType.launch!(Playwright.chromium(playwright))
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
     %{playwright: playwright, browser: browser}
   end
 
@@ -260,7 +263,7 @@ defmodule PlaywrightEx.Guides.MigrationTest do
 
   test "README snippet (default supervisor name, routed instead of the network)" do
     {:ok, _} = start_supervised(PlaywrightEx.Supervisor, id: :readme)
-    browser = BrowserType.launch!(Playwright.chromium(PlaywrightEx.playwright()))
+    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright()))
     page = Browser.new_page!(browser)
 
     Page.route!(page, "https://elixir-lang.org/**", fn route, request ->

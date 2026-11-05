@@ -7,8 +7,8 @@ defmodule PlaywrightEx.Client.WaiterTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Waiter
-  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.TestBrowser
 
   @moduletag timeout: 120_000
 
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Client.WaiterTest do
   end
 
   test "waits for an event, or times out", %{playwright: playwright} do
-    browser = BrowserType.launch!(Playwright.chromium(playwright))
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
 
     waiting =
       Task.async(fn ->

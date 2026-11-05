@@ -6,15 +6,15 @@ defmodule PlaywrightEx.Runtime.GCDriverTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.EventLoop
   alias PlaywrightEx.Runtime.GC
+  alias PlaywrightEx.TestBrowser
 
   @moduletag timeout: 300_000
 
   setup_all do
     start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
-    browser = BrowserType.launch!(Playwright.chromium(PlaywrightEx.playwright(__MODULE__)))
+    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright(__MODULE__)))
     %{browser: browser}
   end
 

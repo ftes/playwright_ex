@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Client.ConnectionTracingTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Playwright
+  alias PlaywrightEx.TestBrowser
 
   @moduletag timeout: 120_000
 
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Client.ConnectionTracingTest do
 
     log =
       capture_log(fn ->
-        browser = BrowserType.launch!(Playwright.chromium(playwright))
+        browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
         put(connection, :_tracingCount, 0)
         Browser.close!(browser)
       end)

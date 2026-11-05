@@ -6,6 +6,7 @@ defmodule PlaywrightExTest do
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.TestBrowser
 
   @moduletag timeout: 120_000
 
@@ -21,12 +22,12 @@ defmodule PlaywrightExTest do
     assert %{"iPhone 15" => %{user_agent: _, viewport: %{width: _}}} = Playwright.devices(playwright)
   end
 
-  test "launches and closes chromium", %{playwright: playwright} do
-    assert {:ok, browser} = BrowserType.launch(Playwright.chromium(playwright))
+  test "launches and closes the browser", %{playwright: playwright} do
+    assert {:ok, browser} = BrowserType.launch(TestBrowser.browser_type(playwright))
     assert inspect(browser) =~ ~r/^#PlaywrightEx\.Browser<browser@\w+>$/
     assert Browser.version(browser) =~ ~r/^\d+\.\d+/
     assert Browser.is_connected(browser)
-    assert Browser.browser_type(browser) == Playwright.chromium(playwright)
+    assert Browser.browser_type(browser) == TestBrowser.browser_type(playwright)
     refute EventLoop.held?()
 
     assert Browser.close(browser) == :ok
@@ -37,7 +38,7 @@ defmodule PlaywrightExTest do
 
   test "disconnected listeners run during close", %{playwright: playwright} do
     test = self()
-    browser = BrowserType.launch!(Playwright.chromium(playwright))
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
     listener = fn b -> send(test, {:disconnected, b, EventLoop.held?()}) end
     assert Browser.on(browser, :disconnected, listener) == browser
     Browser.close!(browser)
@@ -50,13 +51,13 @@ defmodule PlaywrightExTest do
 
   test "protocol errors carry the API name and the call log", %{playwright: playwright} do
     assert {:error, %Errors.PlaywrightError{} = error} =
-             BrowserType.launch(Playwright.chromium(playwright), executable_path: "/nonexistent/chrome")
+             BrowserType.launch(TestBrowser.browser_type(playwright), executable_path: "/nonexistent/chrome")
 
     assert error.message =~ ~r/^browserType\.launch: .*\/nonexistent\/chrome/
     assert is_list(error.log)
 
     assert_raise Errors.PlaywrightError, ~r/^browserType\.launch: /, fn ->
-      BrowserType.launch!(Playwright.chromium(playwright), executable_path: "/nonexistent/chrome")
+      BrowserType.launch!(TestBrowser.browser_type(playwright), executable_path: "/nonexistent/chrome")
     end
   end
 
@@ -69,19 +70,19 @@ defmodule PlaywrightExTest do
   end
 
   test "options: snake_case keys, nested objects with JS keys, unknown keys", %{playwright: playwright} do
-    chromium = Playwright.chromium(playwright)
+    browser_type = TestBrowser.browser_type(playwright)
 
     browser =
-      BrowserType.launch!(chromium, timeout: :infinity, proxy: %{server: "per-context"}, chromium_sandbox: false)
+      BrowserType.launch!(browser_type, timeout: :infinity, proxy: %{server: "per-context"}, chromium_sandbox: false)
 
     Browser.close!(browser)
 
     assert_raise ArgumentError, ~r/browserType\.launch: unknown field :proxy\.servr, expected one of :bypass/, fn ->
-      BrowserType.launch(chromium, proxy: %{servr: "x"})
+      BrowserType.launch(browser_type, proxy: %{servr: "x"})
     end
 
     assert_raise ArgumentError, ~r/browserType\.launch: unknown option :chromiumSandbox/, fn ->
-      BrowserType.launch(chromium, chromiumSandbox: false)
+      BrowserType.launch(browser_type, chromiumSandbox: false)
     end
   end
 end

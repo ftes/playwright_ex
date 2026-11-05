@@ -31,6 +31,7 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.Client
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
 
   using do
@@ -45,8 +46,8 @@ defmodule PlaywrightEx.UpstreamCase do
     # Upstream runs its tests with the driver "under test" (`window.builtins`, ...).
     start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
     playwright = PlaywrightEx.playwright(module)
-    browser_name = System.get_env("BROWSER", "chromium")
-    browser_type = browser_type(playwright, browser_name)
+    browser_name = TestBrowser.name()
+    browser_type = TestBrowser.browser_type(playwright)
 
     assets = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/assets")
     cached = Path.join(assets, "cached")
@@ -154,8 +155,4 @@ defmodule PlaywrightEx.UpstreamCase do
       start_remote_server: start_remote_server
     }
   end
-
-  defp browser_type(playwright, "chromium"), do: Playwright.chromium(playwright)
-  defp browser_type(playwright, "firefox"), do: Playwright.firefox(playwright)
-  defp browser_type(playwright, "webkit"), do: Playwright.webkit(playwright)
 end

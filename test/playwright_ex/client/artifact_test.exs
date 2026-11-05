@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Client.ArtifactTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Download
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
+  alias PlaywrightEx.TestBrowser
 
   @moduletag timeout: 120_000
 
@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Client.ArtifactTest do
   # `BrowserType.connect` is not ported: the local connection is marked remote instead.
   @tag :tmp_dir
   test "saveAs streams the artifact when connected remotely", %{playwright: playwright, tmp_dir: tmp_dir} do
-    browser = BrowserType.launch!(Playwright.chromium(playwright))
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
     page = Browser.new_page!(browser)
     Page.set_content!(page, ~s(<a download="file.txt" href="data:text/plain;charset=utf8;,hello world">download</a>))
     download = Page.expect_download!(page, fn -> Page.click!(page, "a") end)
