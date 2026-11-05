@@ -108,7 +108,7 @@ SI-009      Needs the stallOnClose launch hook: __testHookGracefullyClose is a J
 # page/expect-boolean
 EX-069      a pending promise as receiver (Elixir calls return values)
 # page/expect-misc
-EX-222      URLPattern
+EX-222      expect(page).to_have_url(URLPattern): URLPattern is JS-only; to_have_url takes a string, regex or predicate.
 # page/frame-evaluate
 FR-003      toImpl (in-process server internals: page delegate _contextIdToContext)
 FR-004      toImpl (in-process server internals: page delegate _contextIdToContext)
