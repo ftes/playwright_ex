@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Client.Route do
 
   alias PlaywrightEx.Client.APIRequestContext
   alias PlaywrightEx.Client.APIResponse
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
@@ -108,7 +109,7 @@ defmodule PlaywrightEx.Client.Route do
     body =
       if options[:json] != nil do
         if options[:body] != nil, do: raise("Can specify either body or json parameters")
-        JSON.encode!(options.json)
+        ClientHelper.json_stringify(options.json)
       else
         body
       end
@@ -158,13 +159,13 @@ defmodule PlaywrightEx.Client.Route do
 
     headers =
       cond do
-        options[:contentType] ->
+        ClientHelper.truthy(options[:contentType]) ->
           Map.put(headers, "content-type", to_string(options.contentType))
 
-        options[:json] ->
+        ClientHelper.truthy(options[:json]) ->
           Map.put(headers, "content-type", "application/json")
 
-        options[:path] ->
+        ClientHelper.truthy(options[:path]) ->
           Map.put(headers, "content-type", MimeType.get_mime_type_for_path(options.path) || "application/octet-stream")
 
         true ->

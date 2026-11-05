@@ -5,7 +5,7 @@ defmodule PlaywrightEx.Client.ClientHelper do
 
   Scripts are JS source strings (PLAN: evaluate). A JS function script is a string with an
   `arg` (`"(arg) => ..."`), or any string when functions are exposed; `JSON.stringify(arg)` is
-  `json_stringify/1`.
+  `json_stringify/1`, `JSON.parse(text)` `json_parse/1`.
   """
   alias PlaywrightEx.Isomorphic.UtilityScriptSerializers
   alias PlaywrightEx.Runtime.Promise
@@ -87,6 +87,19 @@ defmodule PlaywrightEx.Client.ClientHelper do
   end
 
   defp to_json(value), do: value
+
+  # Elixir only: `JSON.parse(text)`, JS `null` is `:null`. Raises `JSON.DecodeError` (a JS SyntaxError).
+  @doc false
+  def json_parse(text) do
+    case JSON.decode(text, nil, null: :null) do
+      {value, nil, ""} -> value
+      _ -> JSON.decode!(text)
+    end
+  end
+
+  # Elixir only: JS truthiness (`!!value`, the left side of `||`).
+  @doc false
+  def truthy(value), do: value not in [nil, false, :null, "", 0, +0.0, -0.0]
 
   # Elixir only: JS calls a function with any number of arguments. Missing ones are `undefined`
   # (`nil`), extra ones are dropped, as for a JS function with fewer parameters.

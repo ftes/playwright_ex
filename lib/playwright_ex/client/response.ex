@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Response do
   @moduledoc "Port of `Response` in `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.Request
   alias PlaywrightEx.Isomorphic.LongStandingScope
@@ -95,7 +96,7 @@ defmodule PlaywrightEx.Client.Response do
   end
 
   def json(this) do
-    JSON.decode!(text(this))
+    ClientHelper.json_parse(text(this))
   end
 
   def request(this) do

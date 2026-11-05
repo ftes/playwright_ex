@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Client.Request do
   @moduledoc "Port of `Request` in `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.Response
@@ -73,9 +74,10 @@ defmodule PlaywrightEx.Client.Request do
       if content_type && String.contains?(content_type, "application/x-www-form-urlencoded") do
         URI.decode_query(post_data)
       else
-        case JSON.decode(post_data) do
-          {:ok, value} -> value
-          {:error, _} -> raise "POST data is not a valid JSON object: " <> post_data
+        try do
+          ClientHelper.json_parse(post_data)
+        rescue
+          _ -> reraise "POST data is not a valid JSON object: " <> post_data, __STACKTRACE__
         end
       end
     end
@@ -221,8 +223,12 @@ defmodule PlaywrightEx.Client.Request do
       match?({:binary, _}, overrides[:postData]) ->
         update(this, :_fallbackOverrides, &Map.put(&1, :postDataBuffer, elem(overrides.postData, 1)))
 
-      overrides[:postData] ->
-        update(this, :_fallbackOverrides, &Map.put(&1, :postDataBuffer, JSON.encode!(overrides.postData)))
+      ClientHelper.truthy(overrides[:postData]) ->
+        update(
+          this,
+          :_fallbackOverrides,
+          &Map.put(&1, :postDataBuffer, ClientHelper.json_stringify(overrides.postData))
+        )
 
       true ->
         nil

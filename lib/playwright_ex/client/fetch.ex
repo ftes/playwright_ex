@@ -154,6 +154,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   import PlaywrightEx.Runtime.Heap, except: [put: 3]
 
   alias PlaywrightEx.Client.APIResponse
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Fetch
   alias PlaywrightEx.Client.FileUtils
@@ -279,18 +280,16 @@ defmodule PlaywrightEx.Client.APIRequestContext do
             cond do
               is_binary(data) ->
                 if Fetch.is_json_content_type(headers),
-                  do: {if(Fetch.is_json_parsable(data), do: data, else: JSON.encode!(data)), nil, nil, nil},
+                  do:
+                    {if(Fetch.is_json_parsable(data), do: data, else: ClientHelper.json_stringify(data)), nil, nil, nil},
                   else: {nil, nil, nil, data}
 
               match?({:binary, _}, data) ->
                 {nil, nil, nil, elem(data, 1)}
 
               # typeof null === 'object'
-              data == :null ->
-                {JSON.encode!(nil), nil, nil, nil}
-
-              is_map(data) or is_list(data) or is_number(data) or is_boolean(data) ->
-                {JSON.encode!(data), nil, nil, nil}
+              data == :null or is_map(data) or is_list(data) or is_number(data) or is_boolean(data) ->
+                {ClientHelper.json_stringify(data), nil, nil, nil}
 
               true ->
                 raise "Unexpected 'data' type"
@@ -371,6 +370,7 @@ defmodule PlaywrightEx.Client.APIResponse do
   import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
 
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.RawHeaders
   alias PlaywrightEx.Client.TimeoutSettings
@@ -471,7 +471,7 @@ defmodule PlaywrightEx.Client.APIResponse do
 
   def json(this) do
     content = text(this)
-    JSON.decode!(content)
+    ClientHelper.json_parse(content)
   end
 
   # [Symbol.asyncDispose]  -- not ported: await using
