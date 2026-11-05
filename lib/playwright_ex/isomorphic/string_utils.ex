@@ -1,10 +1,11 @@
 defmodule PlaywrightEx.Isomorphic.StringUtils do
   @upstream "packages/isomorphic/stringUtils.ts"
   @moduledoc """
-  Port of `#{@upstream}`: the selector escaping that locators need. `RegExp` is `Regex`;
-  `String(re)` is `/source/flags` as in JS.
+  Port of `#{@upstream}`: the selector escaping that locators need and the case helpers of the
+  locator generators. `RegExp` is `Regex` here; `String(re)` is `/source/flags` as in JS.
   """
 
+  alias PlaywrightEx.Isomorphic.RegExp
   alias PlaywrightEx.Protocol.Serializers
 
   def escape_with_quotes(text, char \\ "'") do
@@ -27,8 +28,28 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
   end
 
   # isString  -- ported as is_binary/1
-  # toTitleCase, toSnakeCase, formatObject, formatObjectOrVoid, quoteCSSAttributeValue  -- not ported: codegen
-  # cacheNormalizedWhitespaces, normalizeWhiteSpace, normalizeEscapedRegexQuotes  -- not ported: locator parsing
+
+  def to_title_case(name) do
+    {first, rest} = String.split_at(name, 1)
+    String.upcase(first) <> rest
+  end
+
+  def to_snake_case(name) do
+    # E.g. ignoreHTTPSErrors => ignore_https_errors.
+    name
+    |> String.replace(~r/([a-z0-9])([A-Z])/, "\\1_\\2")
+    |> String.replace(~r/([A-Z])([A-Z][a-z])/, "\\1_\\2")
+    |> String.downcase()
+  end
+
+  # formatObject, formatObjectOrVoid, quoteCSSAttributeValue  -- not ported: codegen
+  # cacheNormalizedWhitespaces, normalizeWhiteSpace  -- not ported: locator parsing
+
+  def normalize_escaped_regex_quotes(source) do
+    # This function reverses the effect of escapeRegexForSelector below.
+    # Odd number of backslashes followed by the quote -> remove unneeded backslash.
+    String.replace(source, ~r/(^|[^\\])(\\\\)*\\(['"`])/, "\\1\\2\\3")
+  end
 
   defp escape_regex_for_selector(re) do
     # Unicode mode does not allow "identity character escapes", so we do not escape and
@@ -80,6 +101,6 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
   # truncateDataUrl, escapeRegExp, escapeHTMLAttribute, escapeHTML  -- not ported
   # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString, stripAnsiEscapes  -- not ported
 
-  # String(re)
-  defp regex_to_string(re), do: "/#{Regex.source(re)}/#{Serializers.regex_flags(re)}"
+  # String(re): JS escapes `/` in the source (`~r/a\/b/` has the source "a/b").
+  defp regex_to_string(re), do: RegExp.to_string(RegExp.new(Regex.source(re), Serializers.regex_flags(re)))
 end
