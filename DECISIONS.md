@@ -915,3 +915,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - CI fixes found on the way: a compile-time `||` short-circuit left `@win32_fixme` unused off
   chromium (warnings-as-errors failed webkit/firefox); the Selenium grid tests reused a port before
   the killed grid exited (now awaited, as upstream's fixture does).
+- VF-C1 (selectors/locators): isomorphic `+value` is a full JS `Number(string)`
+  (`SelectorParser.to_number/1`: hex/octal/binary, whitespace, `Infinity`; NaN/±Infinity as atoms,
+  JSONL writes null), checked against upstream's TS run in node. Selector syntax error positions
+  count UTF-16 units. locator-generator.spec now runs `context._showRecorder` in beforeEach as
+  upstream does. `expect.poll` sites use `Utils.poll/3`; issue annotations and file-level skips
+  stay as comments. 4 findings rejected as ratified deviations.
