@@ -14,7 +14,6 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
@@ -765,17 +764,14 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
       js_response(conn, "console.log('Hello from the first line of sw.js');")
     end)
 
-    worker = wait_for_service_worker(context)
+    me = self()
+    # deviation: subscribe-first (OTP runtime)
+    BrowserContext.once(context, :service_worker, fn worker ->
+      send(me, {:console, Worker.wait_for_event(worker, :console)})
+    end)
+
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
-
-    # JS adds the listener in the tick that resolves the wait; in an API scope (holding the
-    # baton) the test resumes before the next event too.
-    console_message =
-      Api.call(nil, context, fn ->
-        worker = Promise.await!(worker)
-        Worker.wait_for_event(worker, :console)
-      end)
-
+    assert_receive {:console, console_message}, 10_000
     console_message = Promise.await!(console_message)
     assert ConsoleMessage.text(console_message) == "Hello from the first line of sw.js"
     assert ConsoleMessage.type(console_message) == "log"

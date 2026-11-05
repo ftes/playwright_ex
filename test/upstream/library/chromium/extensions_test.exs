@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
-  alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
@@ -35,15 +35,20 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
   end
 
   # `serviceWorkers.length ? serviceWorkers[0] : await context.waitForEvent('serviceworker')`: JS
-  # reads the list and starts the wait in one tick; holding the baton (an API scope) does the same,
-  # so the event can't be dispatched in between.
+  # reads the list and starts the wait in one tick. Here dispatch runs in between, so the wait
+  # starts before the list is read.
   defp service_worker(context) do
-    Api.call(nil, context, fn ->
-      case BrowserContext.service_workers(context) do
-        [service_worker | _] -> service_worker
-        [] -> context |> BrowserContext.wait_for_event(:service_worker) |> Promise.await!()
-      end
-    end)
+    # deviation: subscribe-first (OTP runtime)
+    wait = BrowserContext.wait_for_event(context, :service_worker)
+
+    case BrowserContext.service_workers(context) do
+      [service_worker | _] ->
+        Runtime.Promise.free(wait)
+        service_worker
+
+      [] ->
+        Promise.await!(wait)
+    end
   end
 
   describe "MV3" do

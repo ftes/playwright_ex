@@ -52,8 +52,9 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     end
   end
 
-  # `then` runs in the tick that resolves the call, as JS code right after `await` does (in the API
-  # scope, holding the baton): no event is dispatched in between. Returns `{worker, then_result}`.
+  # `then` runs right after the call returns, as JS code right after `await` does. Unlike JS, the
+  # connection keeps dispatching in between (OTP runtime), so an event of the new worker can precede
+  # it (see the skip below). Returns `{worker, then_result}`.
   defp connect_to_worker(browser_type, endpoint, then \\ fn _worker -> nil end) do
     Api.call("browserType._connectToWorker", browser_type, fn ->
       worker = PlaywrightEx.Client.BrowserType._connect_to_worker(browser_type, endpoint)
