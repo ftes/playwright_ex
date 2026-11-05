@@ -102,10 +102,11 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       )
 
     # super();  -- EventEmitter state is heap fields
-    # this.setMaxListeners(0);  -- not ported: no listener leak warning in EventEmitter
     # this._connection = ...; this._type = type; this._guid = guid;  -- in the handle
     # Elixir only: registered first, its fields are rows of a live object.
     map_set(connection, :_objects, guid, this)
+    # this.setMaxListeners(0);  (once registered)
+    EventEmitter.set_max_listeners(this, 0)
     put(this, :_parent, if(is_channel_owner(parent), do: parent))
     put(this, :_instrumentation, get(connection, :_instrumentation))
 

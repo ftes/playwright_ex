@@ -23,8 +23,10 @@ defmodule PlaywrightEx.Client.EventEmitter do
   JS `let listener = ...`), removed by the listener, the pair or its id.
 
   Trimmed to what the client and the facade use, as the other language clients (Python's
-  `pyee`, Java's listener holder): no Node extras (max listeners and the leak warning, the
-  `newListener`/`removeListener` meta events, listener type checks, `rawListeners` & co.).
+  `pyee`, Java's listener holder): no Node extras (the `newListener`/`removeListener` meta
+  events, listener type checks, `rawListeners` & co.). The listener leak warning is logged
+  (`Logger.warning`), under test too (deviation: upstream skips it under test; its leak specs
+  catch the in-process server's Node warnings, which our driver writes to its stderr).
   Elixir has no variadic functions, so `emit` takes one event argument and listeners one
   parameter (as every listener in the client and the facade).
 
@@ -38,6 +40,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
+
+  require Logger
 
   defstruct [:guid, :conn, :table]
 
@@ -54,6 +58,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
       defdelegate remove_all_listeners(this, type \\ nil, options \\ nil), to: PlaywrightEx.Client.EventEmitter
       defdelegate on_sync(this, type, listener), to: PlaywrightEx.Client.EventEmitter
       defdelegate subscribe(this, type, predicate \\ nil), to: PlaywrightEx.Client.EventEmitter
+      defdelegate set_max_listeners(this, n), to: PlaywrightEx.Client.EventEmitter
+      defdelegate get_max_listeners(this), to: PlaywrightEx.Client.EventEmitter
 
       defoverridable add_listener: 3,
                      on: 3,
@@ -71,7 +77,20 @@ defmodule PlaywrightEx.Client.EventEmitter do
   # Elixir only: `owner` owns its rows (`nil`: a process-local emitter, whose listeners run in `emit`).
   def new(owner \\ nil), do: new_object(__MODULE__, owner)
 
-  # setMaxListeners, getMaxListeners  -- not ported: unused by the client (no listener leak warning)
+  def set_max_listeners(this, n) do
+    if !is_number(n) or n < 0,
+      do:
+        raise(
+          ArgumentError,
+          ~s(The value of "n" is out of range. It must be a non-negative number. Received #{inspect(n)}.)
+        )
+
+    put(this, :_maxListeners, n)
+    this
+  end
+
+  # `NodeEventEmitter.defaultMaxListeners`: 10.
+  def get_max_listeners(this), do: get(this, :_maxListeners) || 10
 
   def emit(this, type, arg \\ nil) do
     zone = Zones.current_zone()
@@ -118,11 +137,11 @@ defmodule PlaywrightEx.Client.EventEmitter do
         :ok
 
       [] ->
-        map_delete(this, :_events, type)
+        _set_listeners(this, type, [])
         if ChannelOwner.is_channel_owner(this), do: ChannelOwner._update_subscription(this, type, false)
 
       rest ->
-        map_set(this, :_events, type, rest)
+        _set_listeners(this, type, rest)
     end
   end
 
@@ -155,7 +174,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   def on(this, type, listener), do: _add_listener(this, type, listener, false)
 
-  # The listener check, the newListener meta event and the listener leak check: not ported (unused by the client).
+  # The listener check and the newListener meta event: not ported (unused by the client). The
+  # listener leak check: in `_insert/4`.
   defp _add_listener(this, type, listener, prepend, once \\ false) do
     entry = entry(this, listener, once)
     atomic(this, fn -> _insert(this, type, entry, prepend) end)
@@ -178,13 +198,43 @@ defmodule PlaywrightEx.Client.EventEmitter do
   def _insert(this, type, entry, prepend) do
     if alive?(this) do
       existing = map_get(this, :_events, type) || []
-      map_set(this, :_events, type, if(prepend, do: [entry | existing], else: existing ++ [entry]))
+      existing = if(prepend, do: [entry | existing], else: existing ++ [entry])
+      map_set(this, :_events, type, existing)
+      _check_listener_leak(this, type, length(existing))
     else
       _stop(entry)
     end
 
     :ok
   end
+
+  # Check for listener leak (`existing.warned`: a set of types, reset when one listener is left).
+  defp _check_listener_leak(this, type, count) do
+    m = get_max_listeners(this)
+
+    if m > 0 and count > m and !set_has(this, :_warned, type) do
+      set_add(this, :_warned, type)
+      # No error code for this since it is a Warning
+      Logger.warning(
+        "MaxListenersExceededWarning: Possible EventEmitter memory leak detected. " <>
+          "#{count} #{type} listeners added. Use emitter.setMaxListeners() to increase limit"
+      )
+    end
+  end
+
+  defp _set_listeners(this, type, []) do
+    map_delete(this, :_events, type)
+    _reset_warned(this, type)
+  end
+
+  defp _set_listeners(this, type, [_] = list) do
+    map_set(this, :_events, type, list)
+    _reset_warned(this, type)
+  end
+
+  defp _set_listeners(this, type, list), do: map_set(this, :_events, type, list)
+
+  defp _reset_warned(this, type), do: if(set_has(this, :_warned, type), do: set_delete(this, :_warned, type))
 
   defp _stop(%{kind: :user, pid: pid}), do: send(pid, :pw_stop)
   defp _stop(_entry), do: :ok
@@ -273,10 +323,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
       index = length(list) - 1 - position
       _stop(Enum.at(list, index))
 
-      case List.delete_at(list, index) do
-        [] -> map_delete(this, :_events, type)
-        rest -> map_set(this, :_events, type, rest)
-      end
+      _set_listeners(this, type, List.delete_at(list, index))
     end
 
     position != nil
@@ -322,6 +369,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
       entries = if type == nil, do: map_values(this, :_events), else: [map_get(this, :_events, type) || []]
       for list <- entries, entry <- list, do: _stop(entry)
       if type == nil, do: map_clear(this, :_events), else: map_delete(this, :_events, type)
+      if type == nil, do: put(this, :_warned, nil), else: _reset_warned(this, type)
     end)
   end
 
