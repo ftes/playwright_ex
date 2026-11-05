@@ -14,11 +14,27 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
 
   @moduletag :page
 
   # it.skip(({ mode }) => mode !== 'default');  -- we always run the default mode
+
+  # const __testHookLookup = ...: a Node function that only the in-process client can pass. As
+  # playwright-python does, the tests whose requests pass it use a context whose proxy resolves
+  # the host names with this function (see TestProxy.set_lookup/2): `lookup_context/1`.
+  defp test_hook_lookup(hostname) do
+    if hostname == "localhost" or String.ends_with?(hostname, "playwright.dev"),
+      do: "127.0.0.1",
+      else: raise("Failed to resolve hostname: #{hostname}")
+  end
+
+  defp lookup_context(context_factory) do
+    %{proxy_server: lookup_proxy} = TestProxy.proxy_server(%{})
+    TestProxy.set_lookup(lookup_proxy, &test_hook_lookup/1)
+    context_factory.(proxy: %{server: lookup_proxy.url})
+  end
 
   # tests/config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
@@ -215,9 +231,62 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "apiRequestContext.get: aborted"
   end
 
-  test "should add session cookies to request"
+  test "should add session cookies to request", %{context_factory: context_factory, server: server} do
+    # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
+    context = lookup_context(context_factory)
 
-  test "should filter cookies by domain"
+    BrowserContext.add_cookies!(context, [
+      %{
+        name: "username",
+        value: "John Doe",
+        domain: ".my.playwright.dev",
+        path: "/",
+        expires: -1,
+        httpOnly: false,
+        secure: false,
+        sameSite: "Lax"
+      }
+    ])
+
+    task = TestServer.wait_for_request(server, "/simple.json")
+    APIRequestContext.get!(BrowserContext.request(context), "http://www.my.playwright.dev:#{server.port}/simple.json")
+    req = Task.await(task, :infinity)
+    assert request_header(req, "cookie") == "username=John Doe"
+  end
+
+  test "should filter cookies by domain", %{context_factory: context_factory, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36069' }
+    # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
+    context = lookup_context(context_factory)
+
+    BrowserContext.add_cookies!(context, [
+      %{
+        name: "first",
+        value: "1",
+        domain: "playwright.dev",
+        path: "/",
+        expires: -1,
+        httpOnly: false,
+        secure: false,
+        sameSite: "Lax"
+      },
+      %{
+        name: "second",
+        value: "2",
+        domain: ".playwright.dev",
+        path: "/",
+        expires: -1,
+        httpOnly: false,
+        secure: false,
+        sameSite: "Lax"
+      }
+    ])
+
+    task = TestServer.wait_for_request(server, "/simple.json")
+    APIRequestContext.get!(BrowserContext.request(context), "http://my.playwright.dev:#{server.port}/simple.json")
+    req = Task.await(task, :infinity)
+    assert request_header(req, "cookie") == "second=2"
+  end
 
   for method <- [:fetch, :delete, :get, :head, :patch, :post, :put] do
     @method method
@@ -290,9 +359,65 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp request(method, request, url, options), do: apply(APIRequestContext, method, [request, url, options])
   defp request!(method, request, url, options), do: apply(APIRequestContext, :"#{method}!", [request, url, options])
 
-  test "should not add context cookie if cookie header passed as a parameter"
+  test "should not add context cookie if cookie header passed as a parameter", %{
+    context_factory: context_factory,
+    server: server
+  } do
+    # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
+    context = lookup_context(context_factory)
 
-  test "should follow redirects"
+    BrowserContext.add_cookies!(context, [
+      %{
+        name: "username",
+        value: "John Doe",
+        domain: ".my.playwright.dev",
+        path: "/",
+        expires: -1,
+        httpOnly: false,
+        secure: false,
+        sameSite: "Lax"
+      }
+    ])
+
+    task = TestServer.wait_for_request(server, "/empty.html")
+
+    APIRequestContext.get!(BrowserContext.request(context), "http://www.my.playwright.dev:#{server.port}/empty.html",
+      headers: %{"Cookie" => "foo=bar"}
+    )
+
+    req = Task.await(task, :infinity)
+    assert request_header(req, "cookie") == "foo=bar"
+  end
+
+  test "should follow redirects", %{context_factory: context_factory, server: server} do
+    # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
+    context = lookup_context(context_factory)
+    TestServer.set_redirect(server, "/redirect1", "/redirect2")
+    TestServer.set_redirect(server, "/redirect2", "/simple.json")
+
+    BrowserContext.add_cookies!(context, [
+      %{
+        name: "username",
+        value: "John Doe",
+        domain: ".my.playwright.dev",
+        path: "/",
+        expires: -1,
+        httpOnly: false,
+        secure: false,
+        sameSite: "Lax"
+      }
+    ])
+
+    task = TestServer.wait_for_request(server, "/simple.json")
+
+    response =
+      APIRequestContext.get!(BrowserContext.request(context), "http://www.my.playwright.dev:#{server.port}/redirect1")
+
+    req = Task.await(task, :infinity)
+    assert request_header(req, "cookie") == "username=John Doe"
+    assert APIResponse.url(response) == "http://www.my.playwright.dev:#{server.port}/simple.json"
+    assert APIResponse.json!(response) == %{"foo" => "bar"}
+  end
 
   test "should follow redirects correctly when Location header contains UTF-8 characters", %{
     context: context,

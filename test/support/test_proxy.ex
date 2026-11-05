@@ -20,6 +20,10 @@ defmodule PlaywrightEx.TestProxy do
     * Upstream listens dual-stack; this listens on `127.0.0.1` and `[::1]` (one port, see
       `PlaywrightEx.TestServer`), or on `ip:` only.
       `proxyServer.requestUrls = []` is `clear_request_urls/1`.
+    * `set_lookup/2` (not upstream) stands in for the `{ __testHookLookup }` request option, as
+      playwright-python's `tests/helpers/lookup_proxy.py`: the API request context sends every
+      request through a `CONNECT` tunnel, and the tunnel to `host:port` connects to
+      `lookup.(host):port`, so the cookie jar still sees the original URL.
   """
   use GenServer
 
@@ -68,6 +72,10 @@ defmodule PlaywrightEx.TestProxy do
   def clear_connect_hosts(%__MODULE__{pid: pid}), do: GenServer.call(pid, {:put, :connect_hosts, []})
   def clear_request_urls(%__MODULE__{pid: pid}), do: GenServer.call(pid, {:put, :request_urls, []})
 
+  # `lookup.(hostname)` returns the address to connect to, or raises (the proxy answers 502).
+  def set_lookup(%__MODULE__{pid: pid}, lookup) when is_function(lookup, 1),
+    do: GenServer.call(pid, {:put, :lookup, lookup})
+
   @impl true
   def init(opts) do
     {listen, port} = listen(opts, 10)
@@ -84,13 +92,14 @@ defmodule PlaywrightEx.TestProxy do
        request_hosts: [],
        ws_urls: [],
        forward_to: nil,
-       authenticate: nil
+       authenticate: nil,
+       lookup: nil
      }}
   end
 
   @impl true
   def handle_call(:server, _from, state), do: {:reply, state.server, state}
-  def handle_call(:config, _from, state), do: {:reply, Map.take(state, [:forward_to, :authenticate]), state}
+  def handle_call(:config, _from, state), do: {:reply, Map.take(state, [:forward_to, :authenticate, :lookup]), state}
   def handle_call({:get, key}, _from, state), do: {:reply, Map.fetch!(state, key), state}
   def handle_call({:put, key, value}, _from, state), do: {:reply, :ok, Map.put(state, key, value)}
   def handle_call({:push, key, value}, _from, state), do: {:reply, :ok, Map.update!(state, key, &(&1 ++ [value]))}
@@ -98,7 +107,15 @@ defmodule PlaywrightEx.TestProxy do
   def handle_call(:reset, _from, state),
     do:
       {:reply, :ok,
-       %{state | connect_hosts: [], request_urls: [], request_hosts: [], forward_to: nil, authenticate: nil}}
+       %{
+         state
+         | connect_hosts: [],
+           request_urls: [],
+           request_hosts: [],
+           forward_to: nil,
+           authenticate: nil,
+           lookup: nil
+       }}
 
   @impl true
   def terminate(_reason, state), do: Enum.each(state.listen, &:gen_tcp.close/1)
@@ -177,7 +194,19 @@ defmodule PlaywrightEx.TestProxy do
         req
       end
 
-    if authenticated?(config, req), do: tunnel(socket, req, rest), else: send_407(socket)
+    case lookup(config, req) do
+      {:ok, req} -> if authenticated?(config, req), do: tunnel(socket, req, rest), else: send_407(socket)
+      :error -> :gen_tcp.send(socket, "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
+    end
+  end
+
+  defp lookup(%{lookup: nil}, req), do: {:ok, req}
+
+  defp lookup(%{lookup: lookup}, req) do
+    [_, host, port] = Regex.run(~r/^\[?(.*?)\]?:(\d+)$/, req.url)
+    {:ok, %{req | url: "#{lookup.(host)}:#{port}"}}
+  rescue
+    _ -> :error
   end
 
   defp tunnel(socket, req, rest) do

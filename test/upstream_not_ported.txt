@@ -55,10 +55,6 @@ page/matchers.misc                  Generic matchers of @playwright/test.
 # library/browser
 BR-007      __testHookBeforeSetStorageState is a JS function
 # library/browsercontext-fetch
-FE-096      __testHookLookup (in-process test hook)
-FE-097      __testHookLookup (in-process test hook)
-FE-104      __testHookLookup (in-process test hook)
-FE-105      __testHookLookup (in-process test hook)
 # library/browsercontext-fetch-happy-eyeballs
 FE-185      __testHookLookup (in-process test hook)
 FE-186      __testHookLookup (in-process test hook)
@@ -96,13 +92,6 @@ DC-036      __testHookOnConnectToBrowser is a JS function
 FE-028      instrumentation (_instrumentation.runBeforeCreateRequestContext)
 FE-046      toJSON (no Elixir counterpart)
 # library/global-fetch-cookie
-FE-054      __testHookLookup (in-process test hook)
-FE-067      __testHookLookup (in-process test hook)
-FE-068      __testHookLookup (in-process test hook)
-FE-069      __testHookLookup (in-process test hook)
-FE-080      __testHookLookup (in-process test hook)
-FE-083      __testHookLookup (in-process test hook)
-FE-085      __testHookLookup (in-process test hook)
 # library/har-websocket
 HA-112      process.env of the in-process server (the driver's env is fixed at launch)
 # library/heap

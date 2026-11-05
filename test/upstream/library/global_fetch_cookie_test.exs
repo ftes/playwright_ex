@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
 
   # The spec overrides the `request` fixture: `playwright.request.newContext({ ignoreHTTPSErrors: true })`.
@@ -25,7 +26,49 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
   defp names(cookies), do: Enum.map(cookies, & &1.name)
 
-  test "should store cookie from Set-Cookie header"
+  # const __testHookLookup = ...: a Node function that only the in-process client can pass. As
+  # playwright-python does, the requests that pass it go through a proxy that resolves the host
+  # names with this function (see TestProxy.set_lookup/2). Tests tagged `request: false, lookup:
+  # true` get such a `request` in place of the fixture.
+  defp test_hook_lookup(hostname) do
+    if String.ends_with?(hostname, ["localhost", "one.com", "two.com"]),
+      do: "127.0.0.1",
+      else: raise("Failed to resolve hostname: #{hostname}")
+  end
+
+  defp start_lookup_proxy do
+    %{proxy_server: lookup_proxy} = TestProxy.proxy_server(%{})
+    TestProxy.set_lookup(lookup_proxy, &test_hook_lookup/1)
+    lookup_proxy
+  end
+
+  setup %{playwright: playwright} = tags do
+    if tags[:lookup] do
+      options = [ignore_https_errors: true, proxy: %{server: start_lookup_proxy().url}]
+      request = APIRequest.new_context!(Playwright.request(playwright), options)
+      on_exit(fn -> APIRequestContext.dispose(request) end)
+      %{request: request}
+    else
+      :ok
+    end
+  end
+
+  @tag request: false, lookup: true
+  test "should store cookie from Set-Cookie header", %{request: request, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, [
+        "a=b",
+        "c=d; max-age=3600; domain=b.one.com; path=/input",
+        "e=f; domain=b.one.com; path=/input/subfolder"
+      ])
+    end)
+
+    APIRequestContext.get!(request, "http://a.b.one.com:#{server.port}/setcookie.html")
+    task = TestServer.wait_for_request(server, "/input/button.html")
+    APIRequestContext.get!(request, "http://b.one.com:#{server.port}/input/button.html")
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "c=d"
+  end
 
   test "addCookies should add cookies to the cookie jar", %{request: request, server: server} do
     APIRequestContext.add_cookies!(request, [
@@ -182,11 +225,49 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "b=v; c=v"
   end
 
-  test "should filter outgoing cookies by domain"
+  @tag request: false, lookup: true
+  test "should filter outgoing cookies by domain", %{request: request, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, ["a=v; domain=one.com", "b=v; domain=.b.one.com", "c=v; domain=other.com"])
+    end)
 
-  test "should do case-insensitive match of cookie domain"
+    APIRequestContext.get!(request, "http://a.b.one.com:#{server.port}/setcookie.html")
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.get!(request, "http://www.b.one.com:#{server.port}/empty.html")
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "a=v; b=v"
 
-  test "should do case-insensitive match of request domain"
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.get!(request, "http://two.com:#{server.port}/empty.html")
+    server_request2 = Task.await(task, :infinity)
+    refute cookie_header(server_request2)
+  end
+
+  @tag request: false, lookup: true
+  test "should do case-insensitive match of cookie domain", %{request: request, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, ["a=v; domain=One.com", "b=v; domain=.B.oNe.com"])
+    end)
+
+    APIRequestContext.get!(request, "http://a.b.one.com:#{server.port}/setcookie.html")
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.get!(request, "http://www.b.one.com:#{server.port}/empty.html")
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "a=v; b=v"
+  end
+
+  @tag request: false, lookup: true
+  test "should do case-insensitive match of request domain", %{request: request, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, ["a=v; domain=one.com", "b=v; domain=.b.one.com"])
+    end)
+
+    APIRequestContext.get!(request, "http://a.b.one.com:#{server.port}/setcookie.html")
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.get!(request, "http://WWW.B.ONE.COM:#{server.port}/empty.html")
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "a=v; b=v"
+  end
 
   test "should send secure cookie over https", %{request: request, server: server, https_server: https_server} do
     TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; secure", "b=v"]) end)
@@ -325,7 +406,33 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     refute cookie_header(server_request)
   end
 
-  test "should store cookie from Set-Cookie header even if it contains equal signs"
+  @tag request: false, lookup: true
+  test "should store cookie from Set-Cookie header even if it contains equal signs", %{request: request, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/11612' });
+
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, ["f=value == value=; secure; httpOnly; path=/some=value"])
+    end)
+
+    APIRequestContext.get!(request, "http://a.b.one.com:#{server.port}/setcookie.html")
+    state = APIRequestContext.storage_state!(request)
+
+    assert state == %{
+             cookies: [
+               %{
+                 domain: "a.b.one.com",
+                 expires: -1,
+                 name: "f",
+                 path: "/some=value",
+                 sameSite: "Lax",
+                 httpOnly: true,
+                 secure: true,
+                 value: "value == value="
+               }
+             ],
+             origins: []
+           }
+  end
 
   test "should override cookie from Set-Cookie header", %{request: request, server: server} do
     tomorrow = DateTime.add(DateTime.utc_now(), 1, :day)
@@ -375,7 +482,58 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     refute cookie_header(server_request)
   end
 
-  test "should export cookies to storage state"
+  @tag request: false, lookup: true
+  test "should export cookies to storage state", %{request: request, server: server} do
+    # new Date('12/31/2100 PST')
+    expires = ~U[2100-12-31 08:00:00Z]
+
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, [
+        "a=b",
+        "c=d; expires=#{to_utc_string(expires)}; domain=b.one.com; path=/input",
+        "e=f; domain=b.one.com; path=/input/subfolder"
+      ])
+    end)
+
+    APIRequestContext.get!(request, "http://a.b.one.com:#{server.port}/setcookie.html")
+    state = APIRequestContext.storage_state!(request)
+
+    assert state == %{
+             cookies: [
+               %{
+                 name: "a",
+                 value: "b",
+                 domain: "a.b.one.com",
+                 path: "/",
+                 expires: -1,
+                 httpOnly: false,
+                 secure: false,
+                 sameSite: "Lax"
+               },
+               %{
+                 name: "c",
+                 value: "d",
+                 domain: ".b.one.com",
+                 path: "/input",
+                 expires: DateTime.to_unix(expires),
+                 httpOnly: false,
+                 secure: false,
+                 sameSite: "Lax"
+               },
+               %{
+                 name: "e",
+                 value: "f",
+                 domain: ".b.one.com",
+                 path: "/input/subfolder",
+                 expires: -1,
+                 httpOnly: false,
+                 secure: false,
+                 sameSite: "Lax"
+               }
+             ],
+             origins: []
+           }
+  end
 
   test "should preserve origin storage on import/export of storage state", %{playwright: playwright, server: server} do
     storage_state = %{
@@ -426,7 +584,58 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should send cookies from storage state"
+  test "should send cookies from storage state", %{playwright: playwright, server: server} do
+    # new Date('12/31/2099 PST')
+    expires = ~U[2099-12-31 08:00:00Z]
+
+    storage_state = %{
+      cookies: [
+        %{
+          name: "a",
+          value: "b",
+          domain: "a.b.one.com",
+          path: "/",
+          expires: -1,
+          httpOnly: false,
+          secure: false,
+          sameSite: "Lax"
+        },
+        %{
+          name: "c",
+          value: "d",
+          domain: ".b.one.com",
+          path: "/first/",
+          expires: DateTime.to_unix(expires),
+          httpOnly: false,
+          secure: false,
+          sameSite: "Lax"
+        },
+        %{
+          name: "e",
+          value: "f",
+          domain: ".b.one.com",
+          path: "/first/second",
+          expires: -1,
+          httpOnly: false,
+          secure: false,
+          sameSite: "Lax"
+        }
+      ],
+      origins: []
+    }
+
+    # deviation: the proxy stands in for { __testHookLookup } on the request below
+    request =
+      APIRequest.new_context!(Playwright.request(playwright),
+        storage_state: storage_state,
+        proxy: %{server: start_lookup_proxy().url}
+      )
+
+    task = TestServer.wait_for_request(server, "/first/second/third/not_found.html")
+    APIRequestContext.get!(request, "http://www.a.b.one.com:#{server.port}/first/second/third/not_found.html")
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "c=d; e=f"
+  end
 
   @tag :tmp_dir
   test "storage state should round-trip through file", %{playwright: playwright, tmp_dir: tmp_dir} do
