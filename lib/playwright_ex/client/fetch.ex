@@ -372,15 +372,14 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   # isomorphic/assert.ts
   defp assert(value, message), do: if(!value, do: raise(message))
 
-  # URLSearchParams.toString(): application/x-www-form-urlencoded serialization.
+  # URLSearchParams.toString(), via `URI.encode_www_form/1`: it escapes `*` and keeps `~` raw
+  # (JS: `*` raw, `~` as `%7E`); decoded values are identical.
   defp url_search_params_to_string(params) do
-    Enum.map_join(Fetch.object_to_array(params), "&", &(form_url_encode(&1.name) <> "=" <> form_url_encode(&1.value)))
-  end
-
-  defp form_url_encode(string) do
-    string
-    |> URI.encode(&(&1 in ?0..?9 or &1 in ?A..?Z or &1 in ?a..?z or &1 in ~c"*-._"))
-    |> String.replace("%20", "+")
+    Enum.map_join(
+      Fetch.object_to_array(params),
+      "&",
+      &(URI.encode_www_form(&1.name) <> "=" <> URI.encode_www_form(&1.value))
+    )
   end
 end
 
