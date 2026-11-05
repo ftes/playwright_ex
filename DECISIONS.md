@@ -713,3 +713,17 @@ drift). Blockers for release, assigned to follow-up workstreams:
   old tracer verifies counts against reachability before the switch.
 - Changes vs JS: a handle passed to another process by message dies with the first owner. Reading
   a request/response/handle of a closed page raises TargetClosedError.
+
+## 2026-11-05: Flake causes and fixes (workstream CC)
+- Measured in a Linux container (4 CPUs, xvfb, CI=true). The flakes are timing in the driver and
+  browser, and upstream's JS client hits them under load too. No client race was found; `lib/` is unchanged.
+- Fixes are in the test ports:
+  - Test-only timeouts upstream lacks: 402 `Task.await` 5 s defaults are now unbounded, poll
+    helpers use the expect timeout, `to_pass` uses the test timeout.
+  - `UpstreamCase` uses action and navigation timeouts of 0, like Playwright Test's fixture, so a hung
+    action fails at ExUnit's 120 s.
+  - connect_to_worker uses the driver's node: Ubuntu's node 22 breaks evaluate for upstream too.
+- 7 of 8 flaky tags removed. connect_to_worker stays skipped: our evaluate lands about 0.5 ms
+  later than JS's after the driver resumes node, and fails 5–10%.
+- CI: webkit is blocking. Firefox stays non-blocking until its Linux viewport (`innerWidth` vs
+  context viewport) and worker-timestamp failures are fixed; CC did not chase them.
