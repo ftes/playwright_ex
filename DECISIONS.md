@@ -797,3 +797,10 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - SE-092 and SE-097 now run.
 - Local only: page_wait_for_url "should work on frame" hangs on macOS, on the base revision
   too; CI passes it. Handed to OTP Phase 0.
+
+## 2026-11-05: credentials.create takes the returned credential (workstream TT, your call: b)
+- `Credentials.create!(creds, known.rpId, known)` works as JS's `create(known.rpId, known)`. The
+  options may be the credential map that `create`/`get` return (JS keys). `rpId` in the map is
+  ignored, as JS's `{ ...options, rpId }` overwrites it.
+- Opt-in per method: `ApiRules` `@result_options` (only `Credentials.create`), with
+  `Facade.result_options!/4`. Keyword options stay strict; unknown map keys still raise.
