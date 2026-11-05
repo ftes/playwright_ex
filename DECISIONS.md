@@ -457,3 +457,31 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **Matchers' `Locator:` line is Elixir** (client-rendered); call logs stay JS.
 - **Install hint**: `npx playwright install [args]` becomes `mix playwright_ex.install [-- args]`.
   Revisit: bare `mix playwright_ex.install` installs chromium only (upstream: all defaults).
+
+## 2026-11-05: Firefox/WebKit runs (workstream T), CI-only failures (workstream Q)
+
+- **Firefox and WebKit pass locally** (macOS): 0 and 2 failures left (a load-dependent
+  `count()` during navigation race, a one-off download flake). No lib bugs found.
+- **CI runs firefox and webkit** in a non-blocking `test-browsers` job (`continue-on-error`),
+  plus a nightly schedule. Their environment skips are macOS-specific; Linux results unknown
+  until the first CI run.
+- **Test-server fixes**: client-certificates server doesn't compress (Bandit sent zstd, which
+  the interception test re-fulfilled with a stale `content-encoding`); TestServer/TestProxy
+  listen on both 127.0.0.1 and [::1] on one port (an IPv6 server elsewhere could take the same
+  port on [::1], where `localhost` resolves first: the CI EPROTO); UpstreamCase closes contexts
+  a test leaves open (a timed-out test kept `_tracingCount` up for later ones).
+- **Environment skips** (`env:`): WebKit proxy host, screencast viewport, middle-click
+  pointerdown; Firefox partitioned third-party cookies; Firefox `wasClean=false` because Bandit
+  half-closes after its Close frame (test server, all OSes). Each confirmed with upstream's
+  Node client or a Node server.
+- **`download.saveAs: canceled`** for a routed `fulfill` with `content-disposition` on a
+  `download` link is upstream behaviour (Node client 1.64.1 does the same). Not a bug.
+- **5 Service Worker specs skipped on Linux** (`ci:`): Chromium intermittently drops
+  `Network.responseReceived` for the SW script (3/100 runs with the JS client on Linux, 0/100
+  on macOS); upstream's CI hides it with `retries: 3`. Revisit with a CI retry
+  (`mix test || mix test --failed`) or a newer Chromium.
+- **Tracing "should not emit after w/o before"**: the driver drops a console message if the
+  waiter's subscription lands >2 ms after the evaluate (upstream sends both in one tick). The
+  spec subscribes up front. Revisit: batch outgoing messages per baton hold in the runtime,
+  which would also fix the connect-to-worker console race.
+- `Task.await_many` in specs uses `:infinity` (upstream `Promise.all` has no timeout).
