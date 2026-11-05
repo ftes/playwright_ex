@@ -480,7 +480,9 @@ defmodule PlaywrightEx.Page.PageGotoTest do
                  ~s(page.goto: Navigation to "#{server.prefix <> "/empty.html"}" is interrupted by another navigation to "#{server.prefix <> "/one-style.html"}")
 
       _ ->
-        assert Exception.message(error) =~ "is interrupted by another navigation" or
+        # Firefox might yield either NS_BINDING_ABORTED or 'navigation interrupted by another one'
+        assert Exception.message(error) =~
+                 ~s(page.goto: Navigation to "#{server.prefix <> "/empty.html"}" is interrupted by another navigation to "#{server.prefix <> "/one-style.html"}") or
                  Exception.message(error) =~ "NS_BINDING_ABORTED"
     end
   end
@@ -786,6 +788,8 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: load/domcontentloaded events are flaky")
   test "should not resolve goto upon window.stop()", %{page: page, server: server} do
+    # it.fixme(browserName === 'firefox' && !isBidi, 'load/domcontentloaded events are flaky');
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     test = self()
 
     TestServer.set_route(server, "/module.js", fn conn ->
