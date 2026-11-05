@@ -27,7 +27,7 @@ defmodule PlaywrightEx.AbortController do
   of it (a page, locator, ...) or the name of its `PlaywrightEx.Supervisor`. By default, the
   driver of the calling Playwright callback, else the one named `PlaywrightEx`.
   """
-  @spec new(atom() | struct() | nil) :: t()
+  @spec new(atom() | map() | nil) :: t()
   def new(driver \\ nil) do
     loop =
       cond do

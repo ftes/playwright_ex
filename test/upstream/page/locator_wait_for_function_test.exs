@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
   @upstream "tests/page/locator-wait-for-function.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
 
@@ -89,9 +90,41 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     assert Exception.message(error) =~ "strict mode violation"
   end
 
-  @tag skip: "not ported: AbortSignal"
-  test "should abort via signal"
+  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
+  test "should abort via signal", %{page: page} do
+    Page.set_content!(page, "<div id=target>no</div>")
+    controller = AbortController.new(page)
 
-  @tag skip: "not ported: AbortSignal"
-  test "should abort via already-aborted signal"
+    task =
+      Task.async(fn ->
+        Locator.wait_for_function(
+          Page.locator(page, "#target"),
+          "element => element.textContent === 'yes'",
+          nil,
+          timeout: 0,
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    Page.wait_for_timeout!(page, 100)
+    reason = %RuntimeError{message: "Aborted by user"}
+    AbortController.abort(controller, reason)
+    {:error, error} = Task.await(task)
+    assert error.name == "AbortError"
+    assert error.cause == reason
+  end
+
+  test "should abort via already-aborted signal", %{page: page} do
+    Page.set_content!(page, "<div id=target>no</div>")
+    controller = AbortController.new(page)
+    AbortController.abort(controller, "already aborted")
+
+    {:error, error} =
+      Locator.wait_for_function(Page.locator(page, "#target"), "() => true", nil,
+        signal: AbortController.signal(controller)
+      )
+
+    assert error.name == "AbortError"
+    assert error.cause == "already aborted"
+  end
 end

@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
   @upstream "tests/page/expect-timeout.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
@@ -130,21 +131,139 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     Expect.to_be_visible!(Page.locator(page, "#target"), timeout: 1800)
   end
 
-  @tag skip: "not ported: AbortSignal"
-  test "should fail like a timeout when the signal is aborted mid-assertion"
+  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
+  test "should fail like a timeout when the signal is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new(page)
 
-  @tag skip: "not ported: AbortSignal"
-  test "should fail like a timeout when toHaveText is aborted mid-assertion"
+    promise =
+      Task.async(fn ->
+        Expect.to_be_visible(Page.locator(page, "span"), timeout: 5000, signal: AbortController.signal(controller))
+      end)
 
-  @tag skip: "not ported: AbortSignal"
-  test "should fail like a timeout when toHaveCount is aborted mid-assertion"
+    Page.wait_for_timeout!(page, 500)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Task.await(promise)
+    refute error.name == "AbortError"
 
-  @tag skip: "not ported: AbortSignal"
-  test "should fail like a timeout when toMatchAriaSnapshot is aborted mid-assertion"
+    expected = """
+    expect(locator).toBeVisible() failed
 
-  @tag skip: "not ported: AbortSignal"
-  test "should fail like a timeout when toHaveURL is aborted mid-assertion"
+    Locator: Page.locator(page, "span")
+    Expected: visible
+    Error: element(s) not found
 
-  @tag skip: "not ported: AbortSignal"
-  test "should fail the assertion when the signal is already aborted"
+    Call log:
+      - Expect "toBeVisible" locator('span') with timeout 5000ms
+      - waiting for locator('span')
+      - operation was aborted: stop it
+    """
+
+    assert error.message =~ String.trim_trailing(expected)
+  end
+
+  test "should fail like a timeout when toHaveText is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new(page)
+
+    promise =
+      Task.async(fn ->
+        Expect.to_have_text(Page.locator(page, "span"), "missing",
+          timeout: 5000,
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    Page.wait_for_timeout!(page, 300)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Task.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(locator).toHaveText(expected) failed"
+  end
+
+  test "should fail like a timeout when toHaveCount is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new(page)
+
+    promise =
+      Task.async(fn ->
+        Expect.to_have_count(Page.locator(page, "span"), 3, timeout: 5000, signal: AbortController.signal(controller))
+      end)
+
+    Page.wait_for_timeout!(page, 300)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Task.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(locator).toHaveCount(expected) failed"
+  end
+
+  test "should fail like a timeout when toMatchAriaSnapshot is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new(page)
+
+    promise =
+      Task.async(fn ->
+        Expect.to_match_aria_snapshot(Page.locator(page, "body"), "- list",
+          timeout: 5000,
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    Page.wait_for_timeout!(page, 300)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Task.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(locator).toMatchAriaSnapshot(expected) failed"
+  end
+
+  test "should fail like a timeout when toHaveURL is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new(page)
+
+    promise =
+      Task.async(fn ->
+        Expect.to_have_url(page, "https://example.com/", timeout: 5000, signal: AbortController.signal(controller))
+      end)
+
+    Page.wait_for_timeout!(page, 500)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Task.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(page).toHaveURL(expected) failed"
+  end
+
+  test "should fail the assertion when the signal is already aborted", %{page: page, server: server} do
+    Page.set_content!(page, "<div>content</div>")
+
+    controller = AbortController.new(page)
+    AbortController.abort(controller, %RuntimeError{message: "already aborted"})
+
+    {:error, error} =
+      Expect.to_be_visible(Page.locator(page, "div"), timeout: 5000, signal: AbortController.signal(controller))
+
+    refute error.name == "AbortError"
+
+    assert error.message == """
+           expect(locator).toBeVisible() failed
+
+           Locator: Page.locator(page, "div")
+           Expected: visible
+           Error: The assertion was aborted: already aborted
+           """
+
+    controller = AbortController.new(page)
+    AbortController.abort(controller, "stop it")
+
+    {:error, error} =
+      Expect.to_have_url(page, server.empty_page, timeout: 5000, signal: AbortController.signal(controller))
+
+    refute error.name == "AbortError"
+
+    assert error.message == """
+           expect(page).toHaveURL(expected) failed
+
+           Expected: #{JSON.encode!(server.empty_page)}
+           Error: The assertion was aborted: stop it
+           """
+  end
 end

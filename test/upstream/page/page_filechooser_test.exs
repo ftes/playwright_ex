@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
 
   import PlaywrightEx.Utils, only: [attach_frame: 3]
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.FileChooser
   alias PlaywrightEx.Frame
@@ -232,8 +233,15 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  @tag skip: "not ported: AbortSignal"
-  test "should abort with signal"
+  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
+  test "should abort with signal", %{page: page} do
+    controller = AbortController.new(page)
+    promise = Page.wait_for_event(page, :file_chooser, signal: AbortController.signal(controller))
+    AbortController.abort(controller, "Aborted by user")
+    {:error, error} = Promise.await(promise)
+    assert error.name == "AbortError"
+    assert error.cause == "Aborted by user"
+  end
 
   test "should return the same file chooser when there are many watchdogs simultaneously", %{page: page} do
     Page.set_content!(page, "<input type=file>")

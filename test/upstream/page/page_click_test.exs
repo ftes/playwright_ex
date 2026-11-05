@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
   import PlaywrightEx.Utils, only: [attach_frame: 3, rafraf: 2, rafraf: 1]
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
@@ -17,6 +18,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -1323,15 +1325,69 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == [[120, 140], [140, 180], [160, 220], [180, 260], [200, 300]]
   end
 
-  @tag skip: "not ported: AbortSignal"
-  test "should abort via signal"
+  # `new AbortController()` is `AbortController.new(page)`: a controller belongs to one driver.
+  test "should abort via signal", %{page: page} do
+    Page.set_content!(page, ~s|<button style="display:none">click me</button>|)
+    controller = AbortController.new(page)
 
-  @tag skip: "not ported: AbortSignal"
-  test "should throw an Error when aborted in-flight with a string reason"
+    task =
+      Task.async(fn ->
+        page |> Page.locator("button") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
+      end)
 
-  @tag skip: "not ported: AbortSignal"
-  test "should abort via already-aborted signal"
+    # Give the action time to start and emit call log entries before aborting.
+    Page.wait_for_timeout!(page, 500)
 
-  @tag skip: "not ported: AbortSignal"
-  test "should throw an Error when aborted via an already-aborted signal with a string reason"
+    reason = %RuntimeError{message: "foo bar"}
+    AbortController.abort(controller, reason)
+    {:error, error} = Task.await(task)
+    assert error.message =~ "locator.click: foo bar"
+    assert error.message =~ ~r/Call log:[\s\S]*operation was aborted: foo bar/
+    assert error.name == "AbortError"
+    assert error.cause == reason
+  end
+
+  test "should throw an Error when aborted in-flight with a string reason", %{page: page} do
+    Page.set_content!(page, ~s|<button style="display:none">click me</button>|)
+    controller = AbortController.new(page)
+
+    promise =
+      Runtime.Promise.async(fn ->
+        page |> Page.locator("button") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
+      end)
+
+    AbortController.abort(controller, "aborted by user")
+    {:error, error} = Runtime.Promise.await(promise)
+    assert is_exception(error)
+    assert error.message =~ "locator.click: aborted by user"
+    assert error.name == "AbortError"
+    assert error.cause == "aborted by user"
+  end
+
+  test "should abort via already-aborted signal", %{page: page} do
+    Page.set_content!(page, "<button>click me</button>")
+    controller = AbortController.new(page)
+    reason = %RuntimeError{message: "Already aborted"}
+    AbortController.abort(controller, reason)
+
+    {:error, error} =
+      page |> Page.locator("button") |> Locator.click(signal: AbortController.signal(controller))
+
+    assert error.message =~ "The operation was aborted"
+    assert error.name == "AbortError"
+    assert error.cause == reason
+  end
+
+  test "should throw an Error when aborted via an already-aborted signal with a string reason", %{page: page} do
+    Page.set_content!(page, "<button>click me</button>")
+    controller = AbortController.new(page)
+    AbortController.abort(controller, "already aborted")
+
+    {:error, error} =
+      page |> Page.locator("button") |> Locator.click(signal: AbortController.signal(controller))
+
+    assert is_exception(error)
+    assert error.name == "AbortError"
+    assert error.cause == "already aborted"
+  end
 end
