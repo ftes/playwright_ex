@@ -697,3 +697,19 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Regression test: `test/playwright_ex/no_orphan_processes_test.exs` (`:slow`, runs in the suite).
 - Known gap: the `--inspect-brk` node in connect_to_worker pauses before the preload runs, so a
   BEAM that dies in that short window can still orphan it. Accepted; a reaper risks PID reuse.
+
+## 2026-11-05: Heap lifetimes without tracing (design study, needs your decision)
+- Proposal: protocol objects (pages, contexts, handles, ...) are never traced; they live by
+  `_objects`/`__dispose__`. Once disposed, they stay readable until their parent scope closes
+  (page until its context, context until its browser), which replaces the 500 graveyard.
+- Runtime objects (promises, waiters, closures) are freed by counted ownership: Heap writes keep
+  per-slot holder counts, and units, processes, timers and posts count as holders. An object is
+  freed after an epoch delay once its count reaches zero. Cycles are tied to their outermost
+  protocol object.
+- Handles returned to user processes belong to that process, freed on its exit, on the bang
+  form or on `release/1`. No 1000 cap.
+- Effect: pauses go to about 0; net about -50 LOC.
+- Risks: a missed holder means an early free, which raises loudly. A shadow checker using the
+  old tracer verifies counts against reachability before the switch.
+- Changes vs JS: a handle passed to another process by message dies with the first owner. Reading
+  a request/response/handle of a closed page raises TargetClosedError.
