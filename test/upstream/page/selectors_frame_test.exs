@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -38,15 +39,6 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
         content_type: "text/html"
       )
     end)
-  end
-
-  # `expect.poll(fn).toBe(expected)`
-  defp poll(fun, expected, tries \\ 100) do
-    cond do
-      fun.() == expected -> true
-      tries == 0 -> false
-      true -> Process.sleep(100) && poll(fun, expected, tries - 1)
-    end
   end
 
   test "should work for iframe @smoke", %{page: page, server: server} do
@@ -470,7 +462,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
 
     # Make sure both child frames have their <div> before matching, otherwise resolution
     # may transiently collapse to a single frame.
-    assert poll(fn -> length(Page.frames(page)) end, 3)
+    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
 
     for frame <- Page.frames(page), frame != Page.main_frame(page) do
       Frame.wait_for_selector!(frame, "div")
