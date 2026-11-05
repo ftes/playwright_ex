@@ -129,6 +129,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   (`new_context(browser, viewport: %{width: 456, height: 789}, record_video: %{dir: dir})`).
 - Keep assertions verbatim (we announce `sdkLanguage: "javascript"`, as upstream). Options
   passed `as any` are rejected by the facade: assert that, with a comment.
+- CI-only failure or flake under load? Reproduce in the Linux container: `scripts/linux/README.md`.
 
 ## Bumping the pinned version
 
