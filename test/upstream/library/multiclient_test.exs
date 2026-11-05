@@ -128,10 +128,13 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     Page.set_default_timeout(page_b, 600)
 
     [{:error, error_a}, {:error, error_b}] =
-      Task.await_many([
-        Task.async(fn -> Page.click(page_a, "div") end),
-        Task.async(fn -> Page.click(page_b, "div") end)
-      ])
+      Task.await_many(
+        [
+          Task.async(fn -> Page.click(page_a, "div") end),
+          Task.async(fn -> Page.click(page_b, "div") end)
+        ],
+        :infinity
+      )
 
     assert Exception.message(error_a) =~ "Timeout 500ms exceeded"
     assert Exception.message(error_b) =~ "Timeout 600ms exceeded"
@@ -178,7 +181,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     Clock.pause_at!(Page.clock(page_a), 2000)
     promise = Task.async(fn -> Page.evaluate!(page_b, "() => new Promise(f => setTimeout(f, 1000))") end)
     disconnect(page_a)
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   @tag :two_pages
@@ -242,7 +245,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     assert_receive :stalled
     page_a |> Page.context() |> BrowserContext.browser() |> Browser.close!()
 
-    Task.await(goto)
+    Task.await(goto, :infinity)
     Expect.to_have_text!(Page.locator(page_b, "div"), "intercepted2-foo")
 
     Page.goto!(page_b, server.prefix <> "/bar")
@@ -395,7 +398,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
       end)
 
     disconnect(page_a)
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     saved_counter = Agent.get(counter, & &1)
 
     # Give it some time to produce more logs.

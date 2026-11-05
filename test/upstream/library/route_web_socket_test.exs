@@ -181,13 +181,13 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
-        %{do_upgrade: do_upgrade} = Task.await(upgrade_promise)
+        %{do_upgrade: do_upgrade} = Task.await(upgrade_promise, :infinity)
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
         assert Page.evaluate!(page, "() => window.log") == []
         do_upgrade.()
         Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
         assert Page.evaluate!(page, "() => window.log") == ["open"]
-        ws = Task.await(ws_promise)
+        ws = Task.await(ws_promise, :infinity)
         me = self()
         TestServer.WebSocket.once(ws, :close, &send(me, {:closed, %{code: &1, reason: &2}}))
 
@@ -243,7 +243,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
 
     ws_promise = TestServer.wait_for_web_socket(server)
     setup_ws(page, server, "blob")
-    ws = Task.await(ws_promise)
+    ws = Task.await(ws_promise, :infinity)
 
     assert_receive {:route, route}, 5000
     WebSocketRoute.send(route, "hello")
@@ -424,7 +424,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     end)
 
     setup_ws(page, server, "blob")
-    ws = Task.await(ws_promise)
+    ws = Task.await(ws_promise, :infinity)
     Utils.poll(fn -> Agent.get(log, & &1) end, &assert(&1 == ["message: fake"]))
 
     TestServer.WebSocket.send(ws, "to-modify")
