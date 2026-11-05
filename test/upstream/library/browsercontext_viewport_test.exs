@@ -192,8 +192,20 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
   end
 
   # it.skip(browserName !== 'webkit' || headless || !isWindows, 'Not relevant for this browser');
-  @tag skip: "upstream skip: webkit headed on Windows only"
-  test "WebKit Windows headed should have a minimal viewport"
+  @tag skip:
+         if(@browser_name != "webkit" or PlaywrightEx.TestBrowser.headless() or !match?({:win32, _}, :os.type()),
+           do: "upstream skip: Not relevant for this browser (webkit headed on Windows only)"
+         )
+  test "WebKit Windows headed should have a minimal viewport", %{browser: browser, context_factory: context_factory} do
+    {:error, error} = Browser.new_context(browser, viewport: %{width: 100, height: 100})
+    assert error.message =~ "WebKit on Windows has a minimal viewport of 250x240."
+
+    context = context_factory.([])
+    page = BrowserContext.new_page!(context)
+    {:error, error} = Page.set_viewport_size(page, %{width: 100, height: 100})
+    assert error.message =~ "WebKit on Windows has a minimal viewport of 250x240."
+    BrowserContext.close!(context)
+  end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: Desktop webkit dont support orientation API")
   test "should be able to get correct orientation angle on non-mobile devices", %{
