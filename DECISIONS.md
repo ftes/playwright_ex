@@ -958,3 +958,15 @@ drift). Blockers for release, assigned to follow-up workstreams:
   (`""` under `:default`/`:missing`, any under `:all`, a mismatch under `:changed`). Revisit if
   source rewriting is ever ported. C2a-05 rejected on both sides (the predicate runs in the
   awaiting process).
+- VF-A2 (browser context): storageState files are written in protocol key order and match
+  `JSON.stringify(v, undefined, 2)` verbatim; a missing state file raises Node's ENOENT text;
+  `recordVideo.dir` uses `path.resolve`. modernizr "Safari Desktop" on Linux overrides
+  `inputtypes.month` instead of skipping the test (verified by CI's Linux webkit).
+- X-03 outcome: the "should not leak listeners" specs cannot fail client-side for the 20-pages and
+  20-waitForNavigation cases (no client emitter collects per-page listeners; upstream's check catches
+  the in-process server's warnings). The EventEmitter warning and `setMaxListeners(0)` stay, as
+  upstream's client has them. (VF-B saw the waitForNavigation case warn with frame.ex's call removed;
+  VF-A2 did not reproduce it. Same code either way.)
+- Lead, A2b-06: keep library/heap's "should collect frames" and "cycle handles" ported (python rules
+  the whole file out): without `setMaxDispatchersForTest` no frame is collected, so the first is
+  marked a deviation that checks 310 frameattached events, not the GC path.
