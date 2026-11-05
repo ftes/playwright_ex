@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.RemoteServer.LaunchServer
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
@@ -55,6 +56,38 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
     context
   end
 
+  # class ConnectScenario: `browserType.launchServer()` is the `launch_server` fixture (the
+  # driver's `launch-server` command).
+  defp connect_scenario(browser_type, launch_server) do
+    {:ok, state} = Agent.start(fn -> %{browser_type: browser_type, server: nil, browser: nil} end)
+
+    close = fn ->
+      if browser = Agent.get(state, & &1.browser), do: Browser.close(browser)
+      if server = Agent.get(state, & &1.server), do: LaunchServer.close(server)
+      Agent.stop(state)
+    end
+
+    {&connect_reused_context(state, launch_server, &1), close}
+  end
+
+  defp server(state, launch_server) do
+    if server = Agent.get(state, & &1.server) do
+      server
+    else
+      {:ok, server} = launch_server.(%{})
+      Agent.update(state, &%{&1 | server: server})
+      server
+    end
+  end
+
+  defp connect_reused_context(state, launch_server, options) do
+    server = server(state, launch_server)
+    if browser = Agent.get(state, & &1.browser), do: Browser.close!(browser)
+    browser = BrowserType.connect!(Agent.get(state, & &1.browser_type), LaunchServer.ws_endpoint(server))
+    Agent.update(state, &%{&1 | browser: browser})
+    Api.call(nil, browser, fn -> Client.Browser._new_context_for_reuse(browser, options || %{}) end)
+  end
+
   # `window.log`
   defp log(page), do: Page.evaluate!(page, "() => window.log")
 
@@ -62,10 +95,14 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
     describe "reuse " <> scenario do
       # test.skip(({ mode }) => mode !== 'default' && scenario === 'connect');  -- always default mode
       # test.fixme(({ channel }) => channel?.startsWith('msedge'), ...)  -- we run no channel
-      @describetag skip: if(scenario == "connect", do: "not ported: launchServer (ConnectScenario)")
+      @describetag scenario: scenario
 
-      setup %{browser_type: browser_type} do
-        {reused_context, close} = launch_scenario(browser_type)
+      setup %{browser_type: browser_type, launch_server: launch_server, scenario: scenario} do
+        {reused_context, close} =
+          if scenario == "launch",
+            do: launch_scenario(browser_type),
+            else: connect_scenario(browser_type, launch_server)
+
         on_exit(close)
         %{reused_context: reused_context}
       end
@@ -351,11 +388,6 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
       end
 
       # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36480' }
-      @tag skip:
-             if(scenario == "connect",
-               do: "not ported: launchServer (ConnectScenario)",
-               else: nil
-             )
       test "should work with routeWebSocket", %{reused_context: reused_context, server: server} do
         setup = fn page, suffix ->
           Page.route_web_socket!(page, ~r/ws1/, fn ws ->

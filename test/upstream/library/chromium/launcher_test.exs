@@ -5,14 +5,26 @@ defmodule PlaywrightEx.Library.Chromium.LauncherTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.CDPSession
+  alias PlaywrightEx.RemoteServer.LaunchServer
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
-  @tag skip: "not ported: launchServer (PLAN: out of scope)"
-  test "should throw with remote-debugging-pipe argument"
+  # `browserType.launchServer(options)` is the `launch_server` fixture (the driver's
+  # `launch-server` command); it.skip(mode !== 'default')  -- always default mode.
 
-  @tag skip: "not ported: launchServer (PLAN: out of scope)"
-  test "should not throw with remote-debugging-port argument"
+  test "should throw with remote-debugging-pipe argument", %{launch_server: launch_server} do
+    options = %{}
+    options = Map.put(options, :args, ["--remote-debugging-pipe"] ++ (options[:args] || []))
+    {:error, error} = launch_server.(options)
+    assert error =~ "Playwright manages remote debugging connection itself"
+  end
+
+  test "should not throw with remote-debugging-port argument", %{launch_server: launch_server} do
+    options = %{}
+    options = Map.put(options, :args, ["--remote-debugging-port=0"] ++ (options[:args] || []))
+    {:ok, browser} = launch_server.(options)
+    LaunchServer.close(browser)
+  end
 
   test "should not create pages automatically", %{browser_type: browser_type} do
     test = self()
