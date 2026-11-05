@@ -138,13 +138,19 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     # it.slow(true, 'We open 20 pages here!')
     context = context_factory.([])
     # process.on('warning', ...): the client's MaxListenersExceededWarning is logged here.
+    # Promise.all has no timeout of its own: the test's.
     warning =
       capture_log(fn ->
         pages =
-          1..20 |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context) end) end) |> Task.await_many()
+          1..20
+          |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context) end) end)
+          |> Task.await_many(:infinity)
 
-        pages |> Enum.map(fn page -> Task.async(fn -> Page.goto!(page, server.empty_page) end) end) |> Task.await_many()
-        pages |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end) |> Task.await_many()
+        pages
+        |> Enum.map(fn page -> Task.async(fn -> Page.goto!(page, server.empty_page) end) end)
+        |> Task.await_many(:infinity)
+
+        pages |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end) |> Task.await_many(:infinity)
       end)
 
     refute warning =~ "MaxListenersExceededWarning"

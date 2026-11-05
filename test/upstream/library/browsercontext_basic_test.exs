@@ -101,6 +101,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     </script>
     """
 
+    # Promise.all has no timeout of its own: the test's.
     pages =
       [1, 2, 3, 4, 5]
       |> Enum.map(fn _ ->
@@ -111,7 +112,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
           page
         end)
       end)
-      |> Task.await_many()
+      |> Task.await_many(:infinity)
 
     # expect.soft(..., `Tooltip for page ${index + 1} should be visible`): a plain assertion (no soft asserts).
     pages
@@ -121,9 +122,9 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
         Expect.to_be_visible!(Page.get_by_role(page, "tooltip"))
       end)
     end)
-    |> Task.await_many()
+    |> Task.await_many(:infinity)
 
-    pages |> Enum.map(&Task.async(fn -> BrowserContext.close!(Page.context(&1)) end)) |> Task.await_many()
+    pages |> Enum.map(&Task.async(fn -> BrowserContext.close!(Page.context(&1)) end)) |> Task.await_many(:infinity)
   end
 
   test "window.open should use parent tab context", %{browser: browser, server: server} do

@@ -163,7 +163,8 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     me = self()
     Page.on(page, :frame_navigated, fn frame -> send(me, {:frame_evaluation, Frame.evaluate(frame, "() => 6 * 7")}) end)
     Page.goto!(page, server.empty_page)
-    assert_receive {:frame_evaluation, {:ok, 42}}
+    # `await frameEvaluation`: no timeout of its own.
+    assert_receive {:frame_evaluation, {:ok, 42}}, 30_000
   end
 
   test "should work right after a cross-origin navigation", %{page: page, server: server} do
@@ -171,7 +172,8 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     me = self()
     Page.on(page, :frame_navigated, fn frame -> send(me, {:frame_evaluation, Frame.evaluate(frame, "() => 6 * 7")}) end)
     Page.goto!(page, server.cross_process_prefix <> "/empty.html")
-    assert_receive {:frame_evaluation, {:ok, 42}}
+    # `await frameEvaluation`: no timeout of its own.
+    assert_receive {:frame_evaluation, {:ok, 42}}, 30_000
   end
 
   test "should work from-inside an exposed function", %{page: page} do

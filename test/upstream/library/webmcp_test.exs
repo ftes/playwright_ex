@@ -11,7 +11,8 @@ defmodule PlaywrightEx.Library.WebmcpTest do
   alias PlaywrightEx.WebMCP
 
   @moduletag :page
-  @moduletag skip: if(System.get_env("BROWSER") == "webkit", do: "upstream skip: WebKit does not implement WebMCP")
+  @webkit_skip if(System.get_env("BROWSER") == "webkit", do: "upstream skip: WebKit does not implement WebMCP")
+  @moduletag skip: @webkit_skip
   # test.skip(({ isBidi }) => isBidi, 'WebMCP is not implemented over BiDi');
 
   # test.use({ launchOptions }): this module's `browser` is launched with WebMCP enabled.
@@ -253,9 +254,11 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert Exception.message(error) =~ "Timeout 500ms exceeded"
   end
 
+  # A test's `skip: nil` would override the `@moduletag skip:`.
   @tag skip:
          if(@browser_name == "firefox",
-           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet"
+           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet",
+           else: @webkit_skip
          )
   test "should scope tools to their frame", %{page: page, server: server} do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
@@ -297,7 +300,8 @@ defmodule PlaywrightEx.Library.WebmcpTest do
 
   @tag skip:
          if(@browser_name == "firefox",
-           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet"
+           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet",
+           else: @webkit_skip
          )
   test "should call same-name tools in their own frame", %{page: page, server: server} do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
@@ -312,7 +316,8 @@ defmodule PlaywrightEx.Library.WebmcpTest do
 
   @tag skip:
          if(@browser_name == "firefox",
-           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet"
+           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet",
+           else: @webkit_skip
          )
   test "should list and call tools in cross-origin and nested frames", %{
     page: page,

@@ -187,49 +187,43 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
 
         TestServer.set_route(server, "/page.html", fn conn ->
           request_count = get.(conn.request_path) || 0
-
-          conn =
-            conn
-            |> Plug.Conn.put_resp_header("content-type", "text/html")
-            |> Plug.Conn.put_resp_header("cache-control", "max-age=3600")
-            |> Plug.Conn.send_resp(200, """
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <meta charset="UTF-8">
-                <title>Count: #{request_count}</title>
-                <link rel="stylesheet" href="style.css">
-                <script>
-                  fetch('simple.json').then(() => {});
-                </script>
-              </head>
-            </html>
-            """)
-
+          # Counted before the response is sent: node's `res.end` flushes after the handler returns.
           increment.(conn.request_path)
+
           conn
+          |> Plug.Conn.put_resp_header("content-type", "text/html")
+          |> Plug.Conn.put_resp_header("cache-control", "max-age=3600")
+          |> Plug.Conn.send_resp(200, """
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <title>Count: #{request_count}</title>
+              <link rel="stylesheet" href="style.css">
+              <script>
+                fetch('simple.json').then(() => {});
+              </script>
+            </head>
+          </html>
+          """)
         end)
 
         TestServer.set_route(server, "/style.css", fn conn ->
-          conn =
-            conn
-            |> Plug.Conn.put_resp_header("content-type", "text/css")
-            |> Plug.Conn.put_resp_header("cache-control", "max-age=3600")
-            |> Plug.Conn.send_resp(200, "body { background-color: red; }")
-
           increment.(conn.request_path)
+
           conn
+          |> Plug.Conn.put_resp_header("content-type", "text/css")
+          |> Plug.Conn.put_resp_header("cache-control", "max-age=3600")
+          |> Plug.Conn.send_resp(200, "body { background-color: red; }")
         end)
 
         TestServer.set_route(server, "/simple.json", fn conn ->
-          conn =
-            conn
-            |> Plug.Conn.put_resp_header("cache-control", "max-age=3600")
-            |> Plug.Conn.put_resp_header("content-type", "application/json")
-            |> Plug.Conn.send_resp(200, ~s({ "foo": "bar" }))
-
           increment.(conn.request_path)
+
           conn
+          |> Plug.Conn.put_resp_header("cache-control", "max-age=3600")
+          |> Plug.Conn.put_resp_header("content-type", "application/json")
+          |> Plug.Conn.send_resp(200, ~s({ "foo": "bar" }))
         end)
 
         context = reused_context.(nil)

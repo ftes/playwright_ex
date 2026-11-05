@@ -217,7 +217,8 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "alpha") == 10
     assert Page.evaluate!(page, "beta") == 20
     assert Page.evaluate!(page, "gamma") == 30
-    refute Page.evaluate!(page, "absolute")
+    # toBeFalsy(): WebKit's `absolute` is `null`.
+    assert Page.evaluate!(page, "absolute") in [false, :null]
   end
 
   test "should dispatch absolute device orientation event", %{page: page, server: server} do

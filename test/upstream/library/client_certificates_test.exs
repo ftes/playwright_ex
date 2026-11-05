@@ -88,6 +88,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   # test.extend({ startCCServer }): `start_cc_server.(options)` returns the server URL, the
   # server is stopped after the test. On Bandit: `http2: true` serves HTTP/2 only (Node's
   # `createHttp2Server` without `allowHTTP1`), `enable_http1_fallback_when_using_http2` both.
+  # Node's servers do not compress responses (`compress: false`; Firefox would get zstd).
   # Node's `tlsSocket.authorized` is a path validation of the peer certificate against the CA.
   # process.env.PWTEST_UNSUPPORTED_CUSTOM_CA = ...  -- not ported: unused by the driver
   setup %{asset: asset} do
@@ -109,6 +110,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
            ip: {127, 0, 0, 1},
            port: 0,
            startup_log: false,
+           http_options: [compress: false],
            http_1_options: [enabled: not http2 or options[:enable_http1_fallback_when_using_http2] == true],
            http_2_options: [enabled: http2],
            thousand_island_options: [
