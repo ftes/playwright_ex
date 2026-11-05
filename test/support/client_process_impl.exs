@@ -12,6 +12,8 @@ alias PlaywrightEx.BrowserType
 alias PlaywrightEx.Page
 alias PlaywrightEx.Playwright
 
+PlaywrightEx.ClientProcess.halt_on_stdin_eof()
+
 options = JSON.decode!(hd(System.argv()))
 out = fn key, value -> IO.puts("(#{key}=>#{value})") end
 

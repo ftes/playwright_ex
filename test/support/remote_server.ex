@@ -46,7 +46,8 @@ defmodule PlaywrightEx.RemoteServer do
 
     {node, [cli]} = PlaywrightEx.Driver.ensure_installed()
     impl = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/config/remote-server-impl.js")
-    process = ChildProcess.start(node, [impl, JSON.encode!(options)], %{"NODE_PATH" => node_path(cli)})
+    {node, args, env} = ChildProcess.exit_on_stdin_eof({node, [impl, JSON.encode!(options)]})
+    process = ChildProcess.start(node, args, Map.put(env, "NODE_PATH", node_path(cli)))
     this = %__MODULE__{_process: process, _browserType: browser_type}
     this = %{this | _wsEndpoint: out(this, "wsEndpoint")}
 
@@ -141,7 +142,13 @@ defmodule PlaywrightEx.RemoteServer do
       config = Path.join(System.tmp_dir!(), "playwright_ex-launch-server-#{System.unique_integer([:positive])}.json")
       File.write!(config, JSON.encode!(Map.new(options)))
       {program, args} = PlaywrightEx.Driver.ensure_installed()
-      process = ChildProcess.start(program, args ++ ["launch-server", "--browser", browser_name, "--config", config])
+
+      {program, args, env} =
+        ChildProcess.exit_on_stdin_eof(
+          {program, args ++ ["launch-server", "--browser", browser_name, "--config", config]}
+        )
+
+      process = ChildProcess.start(program, args, env)
 
       result =
         ChildProcess.await(
@@ -202,8 +209,31 @@ defmodule PlaywrightEx.RemoteServer do
     use it: a process that owns the port, collects the output (stdout and stderr) and the exit
     status, so that any test process can wait for them. Not linked: it outlives the test process
     until `stop/1`, for the `on_exit` callbacks.
+
+    Deviation: upstream kills the child's process group in an `exit` handler of the test runner.
+    The BEAM runs no code when it is killed (`kill -9`, a crash), so the children exit by
+    themselves when their stdin, the BEAM end of the port's pipe, closes: Node.js children
+    preload `exit_on_stdin_eof.js` (`exit_on_stdin_eof/1`), the child BEAM of
+    `PlaywrightEx.ClientProcess` reads its stdin until EOF.
     """
     use GenServer
+
+    @exit_on_stdin_eof Path.expand("exit_on_stdin_eof.js", __DIR__)
+
+    @doc """
+    The command `{program, args}` of a Node.js process (`node` or the driver,
+    `PlaywrightEx.Driver.executable/0`) with `exit_on_stdin_eof.js` preloaded, and the env for
+    that: `{program, args, env}`. A driver that is no `node` binary (`PLAYWRIGHT_EX_EXECUTABLE`)
+    gets the preload in `NODE_OPTIONS`.
+    """
+    def exit_on_stdin_eof({program, args}) do
+      if Path.basename(program, ".exe") == "node" do
+        {program, ["-r", @exit_on_stdin_eof | args], %{}}
+      else
+        node_options = String.trim(~s(#{System.get_env("NODE_OPTIONS")} --require "#{@exit_on_stdin_eof}"))
+        {program, args, %{"NODE_OPTIONS" => node_options}}
+      end
+    end
 
     def start(program, args, env \\ %{}) do
       {:ok, pid} = GenServer.start(__MODULE__, {program, args, env})
@@ -329,8 +359,12 @@ defmodule PlaywrightEx.RemoteServer do
     `run-server` started with the pinned driver (as `PlaywrightEx.Driver` runs `run-driver`).
 
     Deviation: `close/1` kills the process with `kill -9`: `run-server` ignores SIGTERM, and
-    an Erlang port can only close stdin.
+    an Erlang port can only close stdin. It exits when its stdin closes, see
+    `PlaywrightEx.RemoteServer.ChildProcess`: when the test BEAM dies, or the test process that
+    owns the port exits (before the `on_exit` callbacks).
     """
+    alias PlaywrightEx.RemoteServer.ChildProcess
+
     defstruct [:port, :os_pid, :_wsEndpoint]
 
     def start(options \\ %{}) do
@@ -343,10 +377,12 @@ defmodule PlaywrightEx.RemoteServer do
 
       command = if options[:unsafe], do: command ++ ["--unsafe"], else: command
 
+      {program, command, watchdog_env} = ChildProcess.exit_on_stdin_eof({program, command})
+
       # Upstream inherits the test runner's environment (PWTEST_UNDER_TEST=1); `nil` unsets.
       env =
         for {name, value} <-
-              Map.merge(%{"PWTEST_UNDER_TEST" => "1"}, options[:env] || %{}),
+              %{"PWTEST_UNDER_TEST" => "1"} |> Map.merge(watchdog_env) |> Map.merge(options[:env] || %{}),
             do: {String.to_charlist(name), (value && String.to_charlist(value)) || false}
 
       port =

@@ -9,6 +9,9 @@ defmodule PlaywrightEx.ClientProcess do
   which launches the browser with the client: the BEAM starts the driver, the driver launches the
   browser. `+Bd`: SIGINT ends the BEAM (no BREAK menu).
 
+  The child halts when its stdin closes (`halt_on_stdin_eof/0`): the test BEAM went away, see
+  `PlaywrightEx.RemoteServer.ChildProcess`.
+
   `out/2` returns what the child reported, like `RemoteServer.out()`. The script prints
   `tempDir`, `ready` and `closed`; the rest comes from the driver's `pw:browser` log (the child
   runs with `DEBUG=pw:browser`): `pid` of the browser process, `exitCode` and `signal` of its
@@ -67,6 +70,23 @@ defmodule PlaywrightEx.ClientProcess do
   after both). A signal `N` that ends the BEAM gives `128 + N`.
   """
   def child_exit_code(this), do: ChildProcess.exit_code(this._process)
+
+  @doc """
+  For the child: halts the BEAM when its stdin, the parent's end of the port's pipe, closes (the
+  parent went away, however it died). The driver then exits with its own stdin and closes the
+  browser.
+  """
+  def halt_on_stdin_eof do
+    spawn(fn -> read_stdin_until_eof() end)
+  end
+
+  defp read_stdin_until_eof do
+    case IO.binread(:stdio, 1024) do
+      :eof -> System.halt(0)
+      data when is_binary(data) -> read_stdin_until_eof()
+      _error -> :ok
+    end
+  end
 
   @doc "Kills what is left: the BEAM (the driver exits with its stdin)."
   def close(this) do

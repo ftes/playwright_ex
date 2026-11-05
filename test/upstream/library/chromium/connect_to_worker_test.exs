@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.ConsoleMessage
+  alias PlaywrightEx.RemoteServer.ChildProcess
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Worker
 
@@ -10,13 +11,19 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
 
   # Deviations:
   #   * `childProcess({ command })` (tests/config/commonFixtures.ts) is a port running the command,
-  #     its output collected by `wait_for_output/2`; `process.execPath` is `node` on the PATH.
+  #     its output collected by `wait_for_output/2`; `process.execPath` is `node` on the PATH. The
+  #     node preloads `exit_on_stdin_eof.js` (`PlaywrightEx.RemoteServer.ChildProcess`), so that it
+  #     exits when the test BEAM dies; `--inspect-brk` pauses it before the preload, until connected.
   #   * `(browserType as any)._connectToWorker(endpoint)` and `worker._disconnect()` are internal
   #     (not in the facade): client calls in an API scope.
 
   defp child_process(command) do
-    [executable | args] = command
-    port = Port.open({:spawn_executable, executable}, [:binary, :stderr_to_stdout, :exit_status, args: args])
+    {executable, args, env} = ChildProcess.exit_on_stdin_eof({hd(command), tl(command)})
+    env = for {name, value} <- env, do: {String.to_charlist(name), String.to_charlist(value)}
+
+    port =
+      Port.open({:spawn_executable, executable}, [:binary, :stderr_to_stdout, :exit_status, args: args, env: env])
+
     {:os_pid, os_pid} = Port.info(port, :os_pid)
     on_exit(fn -> System.cmd("kill", ["-9", to_string(os_pid)], stderr_to_stdout: true) end)
     %{port: port, os_pid: os_pid}
