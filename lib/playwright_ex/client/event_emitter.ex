@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
   end
 
   # this._events = Object.create(null); this._eventsCount = 0;  -- not ported: `_events` is a Map field (absent rows: empty), `_eventsCount` its size
-  # this.on = this.addListener; this.off = this.removeListener;  -- ported as on/3 and off/3
+  # this.on = this.addListener; this.off = this.removeListener; (see on/3, off/3)
   def new, do: new_object(__MODULE__)
 
   def set_max_listeners(this, n) do
