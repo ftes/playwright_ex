@@ -30,16 +30,20 @@ defmodule PlaywrightEx.Upstream do
         :ok
 
       true ->
-        # Concurrent callers (test modules' `setup_all`) wait for one download instead of racing it.
-        :global.trans(
-          {{__MODULE__, dir}, self()},
-          fn -> if not complete?(dir), do: reinstall!(dir) end,
-          [node()],
-          :infinity
-        )
+        install_once!(dir)
     end
 
     dir
+  end
+
+  # Concurrent callers (test modules' `setup_all`) wait for one download instead of racing it.
+  defp install_once!(dir) do
+    :global.trans(
+      {{__MODULE__, dir}, self()},
+      fn -> if not complete?(dir), do: reinstall!(dir) end,
+      [node()],
+      :infinity
+    )
   end
 
   defp complete?(dir), do: Enum.all?(@paths, &File.dir?(Path.join(dir, &1)))
