@@ -331,17 +331,20 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         kind: kind
       } do
         # test.skip(channel === 'chromium-headless-shell', 'shell is never headed');  -- we run no channel
-        # _defaultLaunchOptions.headless = false  -- the launch options the `connect` fixture sends
+        playwright = Heap.get(browser_type, :_playwright)
+        default_launch_options = Heap.get(playwright, :_defaultLaunchOptions)
+        Heap.put(playwright, :_defaultLaunchOptions, Map.put(default_launch_options, :headless, false))
+        # Elixir only: restored on exit too (upstream: at the end), the module shares its Playwright.
+        on_exit(fn -> Heap.put(playwright, :_defaultLaunchOptions, default_launch_options) end)
         remote_server = start_remote_server.(kind, %{})
-
-        browser =
-          connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server), [], launch_options: [headless: false])
+        browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
 
         browser_context = Browser.new_context!(browser)
         page = BrowserContext.new_page!(browser_context)
         # { __testHookKeepTestTimeout: true }  -- a test runner hook (instrumentation), not an API option
         Page.pause!(page)
         Browser.close!(browser)
+        Heap.put(playwright, :_defaultLaunchOptions, default_launch_options)
       end
 
       test "should be able to visit ipv6 through localhost", %{
@@ -412,7 +415,26 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert header(request, "foo") == "bar"
       end
 
-      test "should send extra headers with connect request in object form"
+      test "should send extra headers with connect request in object form", %{
+        browser_type: browser_type,
+        server: server
+      } do
+        request_promise = TestServer.wait_for_web_socket_connection_request(server)
+
+        # deviation: `connect({ wsEndpoint, ...options })`, a types.d.ts overload, is not in api.json
+        # (the facade has no object form): the test calls the client's.
+        Facade.promise("browserType.connect", browser_type, fn ->
+          PlaywrightEx.Client.BrowserType.connect(browser_type, %{
+            wsEndpoint: "ws://localhost:#{server.port}/ws",
+            headers: %{"User-Agent" => "Playwright", "foo" => "bar"},
+            timeout: 3000
+          })
+        end)
+
+        request = Task.await(request_promise, :infinity)
+        assert header(request, "user-agent") == "Playwright"
+        assert header(request, "foo") == "bar"
+      end
 
       test "should send default User-Agent and X-Playwright-Browser headers with connect request", %{
         browser_type: browser_type,

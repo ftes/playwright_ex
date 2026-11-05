@@ -59,7 +59,6 @@ FE-187      __testHookLookup (in-process test hook): the test checks the driver'
 # library/browsercontext-route
 RO-185      URLPattern
 # library/browsertype-connect
-BT-047      connect(options): a types.d.ts overload, api.json has only connect(endpoint, options), so the facade has no object form; playwright-python's counterpart names every argument (endpoint=...), Elixir's positional arguments have no names (the call would be BT-046's)
 # library/browsertype-launch
 BT-012      __testHookBeforeCreateBrowser is a JS function
 BT-013      __testHookBeforeCreateBrowser is a JS function
