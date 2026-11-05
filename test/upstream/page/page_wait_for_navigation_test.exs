@@ -9,13 +9,11 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
   # tests/config/utils.ts expectedSSLError
-  defp expected_ssl_error("chromium"), do: ~r/net::(ERR_CERT_AUTHORITY_INVALID|ERR_CERT_INVALID)/
-  defp expected_ssl_error("webkit"), do: ~r/The certificate for this server is invalid|Unacceptable TLS certificate/
-  defp expected_ssl_error(_firefox), do: ~r/SSL_ERROR_UNKNOWN/
 
   defp hang(_conn), do: Process.sleep(:infinity)
 
@@ -112,7 +110,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<a href='#{https_server.empty_page}'>foobar</a>")
     {:error, error} = Page.expect_navigation(page, fn -> Page.click!(page, "a") end)
-    assert Exception.message(error) =~ expected_ssl_error(browser_name)
+    assert Exception.message(error) =~ Utils.expected_ssl_error(browser_name)
   end
 
   test "should work with history.pushState()", %{page: page, server: server} do

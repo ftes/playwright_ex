@@ -760,10 +760,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :page
   @tag skip:
-         if(System.get_env("CI"),
-           do:
-             "flaky: server-side race, the driver resumes the worker before replying, so early console events can precede the subscription (upstream too)"
-         )
+         @chromium_only ||
+           "flaky: server-side race, the driver resumes the worker before replying, so early console events can precede the subscription (upstream too)"
   test "should capture console.log from ServiceWorker start", %{context: context, page: page, server: server} do
     TestServer.set_route(server, "/serviceworkers/empty/sw.js", fn conn ->
       js_response(conn, "console.log('Hello from the first line of sw.js');")

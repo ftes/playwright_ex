@@ -22,9 +22,6 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   defp path_to_file_url(path), do: "file://" <> URI.encode(path)
 
   # tests/config/utils.ts expectedSSLError
-  defp expected_ssl_error("chromium"), do: ~r/net::(ERR_CERT_AUTHORITY_INVALID|ERR_CERT_INVALID)/
-  defp expected_ssl_error("webkit"), do: ~r/The certificate for this server is invalid|Unacceptable TLS certificate/
-  defp expected_ssl_error(_firefox), do: ~r/SSL_ERROR_UNKNOWN/
 
   # `server.setRoute(path, (req, res) => {})`: the request hangs.
   defp hang(_conn), do: Process.sleep(:infinity)
@@ -319,7 +316,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     Page.on(page, :request_failed, fn request -> send(test, {:event, request}) end)
     {:error, error} = Page.goto(page, https_server.empty_page)
     assert Enum.all?(received())
-    assert Exception.message(error) =~ expected_ssl_error(browser_name)
+    assert Exception.message(error) =~ Utils.expected_ssl_error(browser_name)
   end
 
   test "should fail when navigating to bad SSL after redirects",
@@ -327,7 +324,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     TestServer.set_redirect(server, "/redirect/1.html", "/redirect/2.html")
     TestServer.set_redirect(server, "/redirect/2.html", "/empty.html")
     {:error, error} = Page.goto(page, https_server.prefix <> "/redirect/1.html")
-    assert Exception.message(error) =~ expected_ssl_error(browser_name)
+    assert Exception.message(error) =~ Utils.expected_ssl_error(browser_name)
   end
 
   test "should not crash when navigating to bad SSL after a cross origin navigation",

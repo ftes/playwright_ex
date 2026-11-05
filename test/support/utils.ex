@@ -38,7 +38,41 @@ defmodule PlaywrightEx.Utils do
     assert Page.evaluate!(page, "window.innerHeight") == height
   end
 
-  # expectedSSLError, isBidiChannel, chromiumVersionLessThan, suppressCertificateWarning  -- not ported: not needed yet
+  @doc "`expectedSSLError(browserName, platform, channel)`; `platform` is `process.platform`."
+  def expected_ssl_error(browser_name, platform \\ platform(), channel \\ nil) do
+    cond do
+      browser_name == "chromium" ->
+        ~r/net::(ERR_CERT_AUTHORITY_INVALID|ERR_CERT_INVALID)/
+
+      browser_name == "webkit" ->
+        cond do
+          platform == "darwin" -> ~r/The certificate for this server is invalid/
+          platform == "win32" and channel != "webkit-wsl" -> ~r/SSL peer certificate or SSH remote key was not OK/
+          true -> ~r/Unacceptable TLS certificate|Operation was cancelled/
+        end
+
+      browser_name == "firefox" and is_bidi_channel(channel) ->
+        ~r/MOZILLA_PKIX_ERROR_SELF_SIGNED_CERT/
+
+      true ->
+        ~r/SSL_ERROR_UNKNOWN/
+    end
+  end
+
+  def is_bidi_channel(channel) do
+    String.starts_with?(channel || "", ["bidi-chrom", "moz-firefox"])
+  end
+
+  # `process.platform`.
+  defp platform do
+    case :os.type() do
+      {:unix, :darwin} -> "darwin"
+      {:win32, _} -> "win32"
+      {:unix, os} -> to_string(os)
+    end
+  end
+
+  # chromiumVersionLessThan, suppressCertificateWarning  -- not ported: not needed yet
   @doc """
   `parseTraceCoverage(file)`: the merged istanbul coverage of the trace (string-keyed maps,
   `isomorphic/istanbulCoverage.ts` `mergeIstanbulCoverage`), `nil` when it has none.

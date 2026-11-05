@@ -546,7 +546,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   could arrive after the call it precedes. A 20 ms safety timer flushes when no release follows.
   This fixed the tracing spec (workaround dropped). Revisit: is the timer needed at all?
 - connect-to-worker and ServiceWorker-start console specs: server-side races (the driver resumes
-  the worker before replying), not ordering bugs. Tagged `flaky:` on CI only.
+  the worker before replying), not ordering bugs. Tagged `flaky:` everywhere (also fails locally
+  under load), keeping the chromium-only module reason first: a test `skip: nil` overrides it.
 
 ## 2026-11-05: Final fidelity audit, fixes (workstream Z)
 - A read-only audit compared sampled method bodies across 10 client files with upstream. It
@@ -582,3 +583,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - `ExUnit.start(assert_receive_timeout: 10_000)`: 139 mirrored tests use a bare
   `assert_receive` where upstream awaits with only the test timeout. The 100 ms default flaked
   on CI (multipart intercept).
+- `expectedSSLError`/`isBidiChannel` ported into `PlaywrightEx.Utils` (tests/config/utils.ts)
+  with the platform branch: Linux WebKit may report `Operation was cancelled`. `utils.ex`
+  joins credo's `upstream_shaped` files.
+- Flaky tags: webkit on CI "goto following click" (same driver timing as form-post), and the
+  tracing "WebSocket keeps streaming frames" test under full-suite load (a 100 ms chunk can
+  miss every frame; passes alone). Revisit the latter: stream from the server process itself.

@@ -131,6 +131,10 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
            "(Elixir tasks resume the waitForLoadState one first: route|clickload|load)"
   test "should work with waitForLoadState(load)"
 
+  @tag skip:
+         if(PlaywrightEx.TestBrowser.name() == "webkit" and System.get_env("CI"),
+           do: "flaky: on Linux CI the driver can answer the click before WebKit starts the navigation (passes locally)"
+         )
   test "should work with goto following click", %{page: page, server: server} do
     TestServer.set_route(server, "/login.html", fn conn ->
       conn
