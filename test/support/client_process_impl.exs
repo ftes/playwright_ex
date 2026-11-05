@@ -54,7 +54,8 @@ out.("ready", "true")
 wait = fn wait ->
   if Browser.is_connected(browser) do
     Process.sleep(100)
-    if (file = options["exitOnFile"]) && File.exists?(file), do: System.halt(42)
+    file = options["exitOnFile"]
+    if file && File.exists?(file), do: System.halt(42)
     wait.(wait)
   end
 end

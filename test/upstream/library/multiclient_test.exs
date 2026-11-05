@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   test "should connect two clients", %{connect: connect, remote_server: remote_server, server: server} do
     browser_a = connect.(LaunchServer.ws_endpoint(remote_server))
-    assert length(Browser.contexts(browser_a)) == 0
+    assert Browser.contexts(browser_a) == []
     context_a1 = Browser.new_context!(browser_a)
     page_a1 = BrowserContext.new_page!(context_a1)
     Page.goto!(page_a1, server.empty_page)
@@ -419,7 +419,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     )
 
     ensure_some_frames(page_a)
-    assert length(Agent.get(frames_a, & &1)) > 0
+    assert Agent.get(frames_a, & &1) != []
     last_frame_a = List.last(Agent.get(frames_a, & &1))
 
     {:ok, frames_b} = Agent.start_link(fn -> [] end)
@@ -429,7 +429,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     )
 
     # Second client should receive the cached last frame without waiting for a browser repaint.
-    [first_b | _] = poll(fn -> Agent.get(frames_b, & &1) end, &assert(length(&1) > 0))
+    [first_b | _] = poll(fn -> Agent.get(frames_b, & &1) end, &assert(&1 != []))
     assert first_b == last_frame_a
 
     Screencast.stop!(Page.screencast(page_a))

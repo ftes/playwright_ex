@@ -1515,7 +1515,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         # test.step('connect #' + i)
         browser = connect!(browser_type, RemoteServer.ws_endpoint(remote_server))
         browser_context = Browser.new_context!(browser)
-        assert length(BrowserContext.pages(browser_context)) == 0
+        assert BrowserContext.pages(browser_context) == []
         page = BrowserContext.new_page!(browser_context)
         assert Page.evaluate!(page, "11 * 11") == 121
         Page.goto!(page, server.empty_page)

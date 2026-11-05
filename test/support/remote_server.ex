@@ -65,12 +65,9 @@ defmodule PlaywrightEx.RemoteServer do
     dir = Path.join(System.tmp_dir!(), "playwright_ex-#{PlaywrightEx.Driver.version()}-node_modules")
     link = Path.join(dir, "playwright-core")
 
-    if not match?({:ok, _}, File.read_link(link)) do
-      File.mkdir_p!(dir)
-      File.rm(link)
-      File.ln_s(Path.dirname(cli), link)
-    end
-
+    File.mkdir_p!(dir)
+    # Concurrent callers: the first link wins.
+    File.ln_s(Path.dirname(cli), link)
     dir
   end
 
