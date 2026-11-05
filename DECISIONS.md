@@ -559,7 +559,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `form`/`multipart` already did. 3 specs un-skipped. Revisit if a struct is wanted.
 - Storage-state files are 2-space indented like `JSON.stringify(_, _, 2)`, written by a small
   `ClientHelper.json_stringify_indented/2`: `:json.format` folds single-member objects onto
-  one line. Key order follows Elixir maps.
+  one line. Key order follows Elixir maps. (Superseded by workstream QQ: now `:json.format`.)
 - `globToRegex` follow-up: done in workstream AA (below).
 - The firefox/webkit CI job runs under `xvfb-run` like upstream. Linux firefox WebGL (webgl
   screenshot, capabilities, oopif, connect) now runs and passes there; the no-DISPLAY `env:`
@@ -727,3 +727,23 @@ drift). Blockers for release, assigned to follow-up workstreams:
   later than JS's after the driver resumes node, and fails 5–10%.
 - CI: webkit is blocking. Firefox stays non-blocking until its Linux viewport (`innerWidth` vs
   context viewport) and worker-timestamp failures are fixed; CC did not chase them.
+
+## 2026-11-05: Stdlib in place of JS ports (workstream QQ)
+- `RawHeaders` groups with `Enum.group_by`. `waiter`/`matcher_utils` reuse ClientHelper's
+  `create_guid`/`number_to_string`; pretty-format keeps its `-0` clause.
+- Storage-state and fetch storage files use `:json.format`. Only `JSON.parse` reads them, and the
+  two upstream specs that compare text compare against their own formatter's output. Python uses
+  `json.dumps(indent=2)` and Java writes compact JSON.
+- Kept the URLSearchParams encoder (4 lines). Keyword-list `params` encode `*`/`~` as JS does
+  (`a*%7E`), so the server receives the same raw query. `form:` bodies are encoded by the driver anyway.
+- A `Regex` bound for JS (browser selectors and matchers, driver route patterns) raises
+  ArgumentError for PCRE-only options or syntax (`x`, `\A`, `\z`, possessive quantifiers,
+  atomic groups, inline flags, ...). Still semantic only: `$` before a final newline, and `u`
+  making `\w` Unicode-aware.
+- Open:
+  - A public `PlaywrightEx.RegExp.new(source, flags)` for JS-only syntax (`[^]`, `v`/`y`/`d`,
+    variable-length lookbehind). Needs about 15 call sites changed and 169 regenerated specs.
+  - JS regexes returned by the driver still crash `Regex.compile!` (serializers.ex:82).
+- Kept the jest-style matcher messages. The layout is Playwright's own `matcher_hint`, and
+  ExUnit.Diff is private and colour-only. Python writes its own simpler messages. Replacing ours
+  would take about a day and change user-visible text.
