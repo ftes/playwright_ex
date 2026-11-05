@@ -24,8 +24,8 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
   End of the tick: work deferred with `at_release/2` (writing the messages queued for the driver,
   see `PlaywrightEx.Transport.Pipe`) runs when the holder releases the baton to the server,
-  travelling with the baton through handoffs like `ready/1`. So what one tick sends reaches the
-  driver together, as upstream writes a tick's messages before it can react to any of them.
+  travelling with the baton through handoffs like `ready/1`. So the driver reads a tick's messages
+  together, as from upstream, which writes them all before the driver could react to any.
 
   The `%EventLoop{}` struct names the server and its own heap, for runtime objects that belong
   to no connection (promises, emitters, timeout settings); each connection gets its own heap
