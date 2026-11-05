@@ -463,8 +463,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   defp _dispose_har_routers(this) do
-    for router <- get(this, :_harRouters), do: HarRouter.dispose(router)
-    put(this, :_harRouters, [])
+    routers = get(this, :_harRouters)
+    for router <- routers, do: HarRouter.dispose(router)
+    # `this._harRouters = []` as `update/3`: keeps a router added meanwhile (`routeFromHAR`).
+    update(this, :_harRouters, &(&1 -- routers))
   end
 
   def unroute_all(this, options \\ nil) do
@@ -482,8 +484,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
     _unroute_internal(this, removed, remaining, "default")
   end
 
-  defp _unroute_internal(this, removed, remaining, behavior) do
-    put(this, :_routes, remaining)
+  defp _unroute_internal(this, removed, _remaining, behavior) do
+    # `this._routes = remaining` as `update/3`: an expiring route (`_on_route`) or a `route`
+    # call in another process may have changed `_routes` since the caller read it.
+    update(this, :_routes, &(&1 -- removed))
 
     if behavior && behavior != "default" do
       promises =
