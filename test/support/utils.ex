@@ -325,4 +325,14 @@ defmodule PlaywrightEx.Utils do
     padded = branches ++ List.duplicate(0, max(length(counts) - length(branches), 0))
     padded |> Enum.with_index() |> Enum.map(fn {c, i} -> c + (Enum.at(counts, i) || 0) end)
   end
+
+  @doc """
+  `{ ...playwright.devices[name] }` as `newContext`/`newPage` options: the facade takes snake_case
+  keys (`userAgent` is `user_agent`), and `defaultBrowserType` is no context option.
+  """
+  def device_options(device) do
+    for {key, value} <- device,
+        key != :defaultBrowserType,
+        do: {key |> Atom.to_string() |> Macro.underscore() |> String.to_atom(), value}
+  end
 end
