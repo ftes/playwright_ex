@@ -14,22 +14,26 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   alias PlaywrightEx.Isomorphic.RegExp
 
   def as_locator_description(lang, selector) do
-    parsed = parse_selector(selector)
-    custom_description = parse_custom_description(parsed)
+    try do
+      parsed = parse_selector(selector)
+      custom_description = parse_custom_description(parsed)
 
-    if custom_description,
-      do: custom_description,
-      else: hd(inner_as_locators(new_factory(lang), parsed, false, 1))
-  rescue
-    # Tolerate invalid input.
-    _ -> selector
+      if custom_description,
+        do: custom_description,
+        else: hd(inner_as_locators(new_factory(lang), parsed, false, 1))
+    rescue
+      # Tolerate invalid input.
+      _ -> selector
+    end
   end
 
   def locator_custom_description(selector) do
-    parsed = parse_selector(selector)
-    parse_custom_description(parsed)
-  rescue
-    _ -> nil
+    try do
+      parsed = parse_selector(selector)
+      parse_custom_description(parsed)
+    rescue
+      _ -> nil
+    end
   end
 
   defp parse_custom_description(parsed) do
@@ -46,10 +50,12 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   end
 
   def as_locators(lang, selector, is_frame_locator \\ false, max_output_size \\ 20, preferred_quote \\ nil) do
-    inner_as_locators(new_factory(lang, preferred_quote), parse_selector(selector), is_frame_locator, max_output_size)
-  rescue
-    # Tolerate invalid input.
-    _ -> [selector]
+    try do
+      inner_as_locators(new_factory(lang, preferred_quote), parse_selector(selector), is_frame_locator, max_output_size)
+    rescue
+      # Tolerate invalid input.
+      _ -> [selector]
+    end
   end
 
   defp inner_as_locators(factory, parsed, is_frame_locator, max_output_size) do
