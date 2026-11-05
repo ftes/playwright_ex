@@ -3,8 +3,6 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Browser
-  alias PlaywrightEx.Client.Errors.PlaywrightError
-  alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
@@ -14,7 +12,6 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -82,25 +79,9 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     end
   end
 
-  # The driver converts globs (`LocalUtils.globToRegex`, PLAN Decisions): `globToRegexPattern(glob)`
-  # is the driver's `resolveGlobToRegexPattern(undefined, glob)`, `urlMatches` is
-  # `Isomorphic.UrlMatch.url_matches/4` (it resolves globs through the driver too).
-  defp local_utils(playwright),
-    do: PlaywrightEx.Client.Connection.local_utils(PlaywrightEx.Runtime.Heap.get(playwright, :_connection))
-
-  defp glob_to_regex_pattern(playwright, glob) do
-    local_utils = local_utils(playwright)
-    Api.call(nil, local_utils, fn -> LocalUtils.glob_to_regex(local_utils, %{glob: glob}) end)
-  end
-
-  defp url_matches(playwright, base_url, url, match) do
-    local_utils = local_utils(playwright)
-    Api.call(nil, local_utils, fn -> UrlMatch.url_matches(local_utils, base_url, url, match) end)
-  end
-
-  test "should work with glob", %{playwright: playwright} do
-    glob_to_regex = fn glob -> Regex.compile!(glob_to_regex_pattern(playwright, glob)) end
-    url_matches = &url_matches(playwright, &1, &2, &3)
+  test "should work with glob" do
+    glob_to_regex = fn glob -> Regex.compile!(UrlMatch.glob_to_regex_pattern(glob)) end
+    url_matches = &UrlMatch.url_matches/3
 
     assert Regex.match?(glob_to_regex.("**/*.js"), "https://localhost:8080/foo.js")
     refute Regex.match?(glob_to_regex.("**/*.css"), "https://localhost:8080/foo.js")
@@ -143,12 +124,12 @@ defmodule PlaywrightEx.Page.InterceptionTest do
            )
 
     # toEqual(/.../): the regex sources.
-    assert glob_to_regex_pattern(playwright, "\\?") == ~S"^\?$"
-    assert glob_to_regex_pattern(playwright, "\\") == ~S"^\\$"
-    assert glob_to_regex_pattern(playwright, "\\\\") == ~S"^\\$"
-    assert glob_to_regex_pattern(playwright, "\\[") == ~S"^\[$"
-    assert glob_to_regex_pattern(playwright, "[a-z]") == ~S"^\[a-z\]$"
-    assert glob_to_regex_pattern(playwright, "$^+.\\*()|\\?\\{\\}\\[\\]") == ~S"^\$\^\+\.\*\(\)\|\?\{\}\[\]$"
+    assert UrlMatch.glob_to_regex_pattern("\\?") == ~S"^\?$"
+    assert UrlMatch.glob_to_regex_pattern("\\") == ~S"^\\$"
+    assert UrlMatch.glob_to_regex_pattern("\\\\") == ~S"^\\$"
+    assert UrlMatch.glob_to_regex_pattern("\\[") == ~S"^\[$"
+    assert UrlMatch.glob_to_regex_pattern("[a-z]") == ~S"^\[a-z\]$"
+    assert UrlMatch.glob_to_regex_pattern("$^+.\\*()|\\?\\{\\}\\[\\]") == ~S"^\$\^\+\.\*\(\)\|\?\{\}\[\]$"
 
     assert url_matches.(nil, "http://playwright.dev/", "http://playwright.dev")
     assert url_matches.(nil, "http://playwright.dev/?a=b", "http://playwright.dev?a=b")
@@ -217,21 +198,21 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     end
   end
 
-  test "should throw on unbalanced glob braces", %{playwright: playwright} do
-    glob_to_regex_pattern = &glob_to_regex_pattern(playwright, &1)
+  test "should throw on unbalanced glob braces" do
+    glob_to_regex_pattern = &UrlMatch.glob_to_regex_pattern/1
 
-    assert_raise PlaywrightError, ~r/Invalid glob pattern "{foo": unmatched '{'/, fn ->
+    assert_raise RuntimeError, ~r/Invalid glob pattern "{foo": unmatched '{'/, fn ->
       glob_to_regex_pattern.("{foo")
     end
 
-    assert_raise PlaywrightError, ~r/Invalid glob pattern "}foo": unmatched '}'/, fn ->
+    assert_raise RuntimeError, ~r/Invalid glob pattern "}foo": unmatched '}'/, fn ->
       glob_to_regex_pattern.("}foo")
     end
 
-    assert_raise PlaywrightError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("http://*/foo{") end
-    assert_raise PlaywrightError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("**/*.png?{") end
-    assert_raise PlaywrightError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("https://example.com/{a") end
-    assert_raise PlaywrightError, ~r/nested '{' is not supported/, fn -> glob_to_regex_pattern.("{{foo}") end
+    assert_raise RuntimeError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("http://*/foo{") end
+    assert_raise RuntimeError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("**/*.png?{") end
+    assert_raise RuntimeError, ~r/unmatched '{'/, fn -> glob_to_regex_pattern.("https://example.com/{a") end
+    assert_raise RuntimeError, ~r/nested '{' is not supported/, fn -> glob_to_regex_pattern.("{{foo}") end
     # Escaped braces remain literal and must not throw.
     glob_to_regex_pattern.("\\{foo")
     glob_to_regex_pattern.("foo\\}")

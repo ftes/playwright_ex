@@ -129,8 +129,8 @@ Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
 
 - Versions mirror upstream major.minor from the breaking release on (`1.64.x` drives
   Playwright 1.64), the patch is ours, as in playwright-python. So upstream `since` is ours.
-- URL globs via the driver's `LocalUtils.globToRegex` (as non-JS clients do; regex cached per
-  route). Locator rendering is ported (`locatorGenerators`, `selectorParser`; see Then, 4).
+- URL globs matched locally (`urlMatch.ts` port, on a reduced WHATWG `Isomorphic.URL`), as
+  the JS client does. Locator rendering is ported (`locatorGenerators`, `selectorParser`; see Then, 4).
 - `sdkLanguage: "javascript"` as upstream, so driver messages match upstream tests, docs and
   issues. The driver rejects anything but javascript|python|java|csharp (no "elixir").
 - Strings vs bytes: explicit `{:binary, b}` where JS branches on Buffer (WebSocket, fulfill, fetch).
@@ -167,7 +167,7 @@ All passed in `js_spike/` (22 tests) and `driver_install/` (3 tests, no Node on 
 1. Baton runtime; upstream send-then-register restored, `waitForLoadState` atomic.
 2. Ordering: console listener ran before `evaluate` returned (300/300); awaiting listeners.
 3. Routing: page/context handlers, `fallback`, `times`, `unrouteAll` with wait, globs via
-   `LocalUtils.globToRegex` cached per handler.
+   `LocalUtils.globToRegex` cached per handler (since ported locally, workstream AA).
 4. Re-entrancy: `exposeFunction`/`exposeBinding` handlers calling Playwright mid-call,
    including nested bindings.
 5. Dialogs: auto-dismiss without listener, accept with listener, dismiss after `off`.

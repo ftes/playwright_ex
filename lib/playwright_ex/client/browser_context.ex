@@ -431,7 +431,6 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     route_handler =
       RouteHandler.new(
-        Connection.local_utils(get(this, :_connection)),
         get(this, :_options)[:baseURL],
         url,
         handler,
@@ -446,7 +445,6 @@ defmodule PlaywrightEx.Client.BrowserContext do
   def route_web_socket(this, url, handler) do
     route_handler =
       WebSocketRouteHandler.new(
-        Connection.local_utils(get(this, :_connection)),
         get(this, :_options)[:baseURL],
         url,
         handler

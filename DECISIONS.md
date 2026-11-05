@@ -88,7 +88,7 @@ Review these first: they shape the public API.
 - **Function URL matchers get the URL string**, not a parsed URL (Python, Java, .NET).
   `URLPattern` is dropped from api.json unions (no Elixir counterpart).
 - **`LocalUtils.glob_to_regex` caches the driver's regex** per {glob, baseURL, ws}
-  (Elixir-only helper; PLAN Decisions: globs via the driver).
+  (Elixir-only helper; PLAN Decisions: globs via the driver). Superseded by workstream AA (globs local).
 - **`@events` emitted at the top of each generated module**, so `event` args accept atoms.
 
 ## 2026-11-04: ElementHandle, JSHandle, setInputFiles (workstream A)
@@ -132,7 +132,7 @@ Review these first: they shape the public API.
 - **`string|Buffer` is `binary() | {:binary, binary()}`** in generated specs (fulfill body,
   `post_data`, WebSocket messages, fetch `data`): PLAN strings-vs-bytes.
 - **Handlers validate globs through the driver** (cached); `LocalUtils.glob_to_regex` takes
-  the baton itself (sync `Page.frame(url:)` needs it).
+  the baton itself (sync `Page.frame(url:)` needs it). Superseded by workstream AA.
 - **RouteHandler `_savedZone` drops `:apiName`**, so calls inside a handler aren't named `page.route`.
 - **WebSocketRoute's server side** is the same struct with guid `"server:<guid>"`.
 - **`route`/`startHar` return nil** where upstream returns a Disposable (H ports Disposable;
@@ -411,6 +411,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   ...")`, and 21 missing upstream skips were added, so reports are honest per browser.
 - Proxy specs run on `TestProxy` (ipv6 via an `ip:` option). Glob specs go through the driver's
   glob conversion (not the same function as upstream's `globToRegexPattern`; commented).
+  Superseded by workstream AA (they call `UrlMatch` directly, as upstream).
 - Firefox: client-certificates "fetch should work in the browser with request interception"
   fails (no upstream skip). Revisit: lib or environment.
 
@@ -557,9 +558,20 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Storage-state files are 2-space indented like `JSON.stringify(_, _, 2)`, written by a small
   `ClientHelper.json_stringify_indented/2`: `:json.format` folds single-member objects onto
   one line. Key order follows Elixir maps.
-- `globToRegex` still runs through the driver (PLAN). A local port (~80 lines, pure) would
-  free sync members like `page.frame(url:)` from taking the baton; candidate follow-up.
+- `globToRegex` follow-up: done in workstream AA (below).
 - Linux firefox without a DISPLAY: the webgl screenshot differs from the golden, and the GC
   steady-state loop stops getting `newPage` replies. Both are tagged `env:` (no DISPLAY), and the
   firefox/webkit CI job now runs under `xvfb-run` like upstream, so they run there. The
   older no-DISPLAY skips (capabilities, oopif, connect) also run under xvfb now.
+
+## 2026-11-05: Local URL glob matching (workstream AA)
+- `urlMatch.ts` is fully ported (`globToRegexPattern`, `resolveGlobBase`, `toWebSocketBaseUrl`).
+  The `LocalUtils.globToRegex` round trip and its cache are gone, as upstream's
+  `localUtils.ts` has neither, and sync `page.frame(url:)` no longer takes the baton. This
+  reverses the PLAN decision to follow non-JS clients (Python/Java), for 1:1 with JS.
+- Elixir-only `Isomorphic.URL`: a reduced WHATWG `new URL(input, base)`, `href` and `origin`,
+  because `URI` is RFC 3986 and normalizes differently. 22,681 glob/baseURL/ws cases matched
+  the driver's output exactly. Not covered: IPv4 number forms, IPv6 compression, full UTS46,
+  `file:` drive letters. Revisit: a full WHATWG dependency, and its reuse where `URI.merge`
+  still stands in for `new URL` (e.g. `browser_context.ex` service worker scope).
+- `toHaveURL` with a baseURL now normalizes like JS (IDN, spaces, default ports).
