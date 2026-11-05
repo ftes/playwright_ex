@@ -9,20 +9,16 @@ Each entry: what, why, and what to revisit.
 0. **CI ruleset**: `main` requires `Test (port)`/`Test (websocket)`, which no longer exist. Require
    `Tests` (see "One CI test matrix" below), or PR #124 can't merge.
 
-These shape the public API, so changing them after release would break users:
-1. **Exception modules** live under `PlaywrightEx.Client.Errors` (`TimeoutError`,
-   `TargetClosedError`). Add public aliases (`PlaywrightEx.TimeoutError`, as Python's top-level
-   `TimeoutError`)? Matcher failures raise `PlaywrightEx.Matchers.MatcherHint.ExpectError`.
-2. **Handle structs** are `%PlaywrightEx.Client.Page{}` while the facade type is
-   `PlaywrightEx.Page.t()`; `%PlaywrightEx.Page{}` patterns don't work.
-3. **Expect defaults** come from the app env (`config :playwright_ex, :expect`). Also offer
-   `Expect.configure/1`?
-4. **Release**: version (`mix.exs` is 0.16.0; PLAN says major.minor follow upstream: 1.64.0)
-   and CHANGELOG entry.
-5. **AbortController ownership**: a controller belongs to one driver (`new/0` uses the current
-   loop or the default supervisor; `new(handle)` for others), unlike JS's global one.
-6. **Doc examples**: the generated facade docs carry 321 upstream JS examples. Translate them
-   in the generator, or state they stay JS?
+These shape the public API, so changing them after release would break users. Your verdicts
+(2026-11-05) in brackets:
+1. **Exceptions** [yes: top level] move from `PlaywrightEx.Client.Errors` to `PlaywrightEx.*`
+   (`PlaywrightEx.TimeoutError`, as Python's top-level `TimeoutError`). In progress.
+2. **Handle structs** [move them to the facade modules, `%PlaywrightEx.Page{}`]. In progress.
+3. **Expect defaults** [ratified: app env only, no `Expect.configure/1`].
+4. **Release**: version 1.64.0 (`mix.exs` is 0.16.0) and CHANGELOG entry. Open.
+5. **AbortController ownership**: one driver per controller, JS's is global. Open (you asked
+   what a global one would change).
+6. **Doc examples** [ratified: stay JS for now], PLAN Then 5.
 
 ## 2026-11-04: Locators on Frame/Page
 
@@ -604,3 +600,17 @@ drift). Blockers for release, assigned to follow-up workstreams:
   like upstream's `retries: 3` on CI. Compile/warnings errors (exit 1) are not retried.
 - `launchServer` specs stay `not ported` (your call): PORTING north star, no more specs than
   the non-JS clients.
+- CI concurrency like upstream: `max_cases` is half the schedulers on CI (Playwright's default
+  workers: half the logical cores; 2 on a 4-vCPU runner), ExUnit's default (2x) elsewhere.
+  Modules already run their tests serially, as upstream's `fullyParallel: false` on CI.
+- Bare `mix playwright_ex.install` (and `Driver.install_browsers/0`) installs the driver's
+  default browsers, as `npx playwright install`; it was `chromium --only-shell`.
+
+## 2026-11-05: TestServer WebSocket framing (workstream DD)
+- `TestServer.WebSocket` frames RFC 6455 itself on the raw socket after the upgrade: Bandit's
+  WebSock hides the peer's Close frame (answers 1000), so close codes/reasons and `wasClean`
+  couldn't match Node's `ws`. Also a small `:gen_tcp` ws client for the specs that use `ws`.
+  No new dependency. HTTP/1.1 responses carry Node's keep-alive headers (HAR sizes match);
+  `TestServer.send_resp/4` sets a custom status text (closes the connection).
+- 10 specs un-skipped (route-web-socket close codes, status text, HAR sizes, wss connect,
+  malformed frame, discarded-page CDP with a macOS-only `env:` skip).

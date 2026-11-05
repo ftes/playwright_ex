@@ -177,11 +177,11 @@ defmodule PlaywrightEx.Driver do
 
   @doc """
   Installs browsers with the driver's own Node, like `python -m playwright install ...`
-  (which forwards its argv to `node cli.js`). Defaults to `["chromium", "--only-shell"]`
-  (headless shell only, enough for headless runs). Browsers land in Playwright's usual
+  (which forwards its argv to `node cli.js`). No args installs its default browsers, as
+  `npx playwright install`. Browsers land in Playwright's usual
   location (`PLAYWRIGHT_BROWSERS_PATH`, default `~/Library/Caches/ms-playwright` etc).
   """
-  def install_browsers(args \\ ["chromium", "--only-shell"], opts \\ []) do
+  def install_browsers(args \\ [], opts \\ []) do
     {program, prefix} = ensure_installed(opts)
 
     case System.cmd(program, prefix ++ ["install" | args],

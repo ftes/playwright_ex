@@ -3,8 +3,8 @@ defmodule Mix.Tasks.PlaywrightEx.Install do
   @moduledoc """
   Usage: `mix playwright_ex.install [--no-browsers] [--force] [-- BROWSER_ARGS...]`
 
-  Browser args are forwarded to `playwright install` (default: `chromium --only-shell`),
-  e.g. `mix playwright_ex.install -- chromium firefox --with-deps`.
+  Browser args are forwarded to `playwright install` (none: its default browsers, as
+  `npx playwright install`), e.g. `mix playwright_ex.install -- chromium firefox --with-deps`.
   """
   use Mix.Task
 
@@ -23,8 +23,7 @@ defmodule Mix.Tasks.PlaywrightEx.Install do
     Mix.shell().info("Driver installed in #{PlaywrightEx.Driver.install_dir()}")
 
     if Keyword.get(opts, :browsers, true) do
-      args = if browser_args == [], do: ["chromium", "--only-shell"], else: browser_args
-      :ok = PlaywrightEx.Driver.install_browsers(args)
+      :ok = PlaywrightEx.Driver.install_browsers(browser_args)
     end
   end
 end

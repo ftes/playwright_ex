@@ -257,3 +257,5 @@ listener are auto-dismissed instead of hanging; error messages carry the API nam
    `cssParser` is not ported) with an `"elixir"` factory renders `Locator.toString`,
    `String.Chars`, `Inspect` and the matchers' `Locator:` line. The driver's install hint is
    rewritten to `mix playwright_ex.install`. Text the driver renders (call logs) stays JS.
+5. Later: the facade docs' 321 upstream examples are JS (ratified for 1.64). Translate them in
+   the generator (or take Python's and rewrite) after the release.
