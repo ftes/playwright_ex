@@ -52,12 +52,16 @@ defmodule PlaywrightEx.WebSocket do
     PlaywrightEx.Client.WebSocket.url(web_socket)
   end
 
-  @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+  @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
   @typedoc "Options of `wait_for_event`, see its docs."
   @type wait_for_event_options ::
-          [predicate: fun(), timeout: number() | :infinity]
-          | %{optional(:predicate) => fun(), optional(:timeout) => number() | :infinity}
+          [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
+          | %{
+              optional(:predicate) => fun(),
+              optional(:timeout) => number() | :infinity,
+              optional(:signal) => PlaywrightEx.AbortSignal.t()
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -75,6 +79,10 @@ defmodule PlaywrightEx.WebSocket do
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
   Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Await it with `PlaywrightEx.Promise.await/1`. The callback form is `expect_event/4`.
   """
@@ -88,12 +96,16 @@ defmodule PlaywrightEx.WebSocket do
     end)
   end
 
-  @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}}}
+  @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
   @typedoc "Options of `expect_event`, see its docs."
   @type expect_event_options ::
-          [predicate: fun(), timeout: number() | :infinity]
-          | %{optional(:predicate) => fun(), optional(:timeout) => number() | :infinity}
+          [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
+          | %{
+              optional(:predicate) => fun(),
+              optional(:timeout) => number() | :infinity,
+              optional(:signal) => PlaywrightEx.AbortSignal.t()
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -112,6 +124,12 @@ defmodule PlaywrightEx.WebSocket do
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
   @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options()) ::
           {:ok, term()} | {:error, Exception.t()}

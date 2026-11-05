@@ -94,6 +94,7 @@ defmodule PlaywrightEx.ElementHandle do
                     no_wait_after: {:noWaitAfter, nil},
                     position: {:position, {:fields, %{x: nil, y: nil}}},
                     scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                    signal: {:signal, nil},
                     timeout: {:timeout, nil},
                     trial: {:trial, nil}
                   }}
@@ -105,6 +106,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
             trial: boolean()
           ]
@@ -113,6 +115,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
             }
@@ -149,6 +152,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -195,6 +202,7 @@ defmodule PlaywrightEx.ElementHandle do
                     no_wait_after: {:noWaitAfter, nil},
                     position: {:position, {:fields, %{x: nil, y: nil}}},
                     scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                    signal: {:signal, nil},
                     steps: {:steps, nil},
                     timeout: {:timeout, nil},
                     trial: {:trial, nil}
@@ -211,6 +219,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             steps: integer(),
             timeout: number() | :infinity,
             trial: boolean()
@@ -224,6 +233,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:steps) => integer(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
@@ -267,6 +277,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:steps` - *Since 1.57.* Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -333,6 +347,7 @@ defmodule PlaywrightEx.ElementHandle do
                        no_wait_after: {:noWaitAfter, nil},
                        position: {:position, {:fields, %{x: nil, y: nil}}},
                        scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                       signal: {:signal, nil},
                        steps: {:steps, nil},
                        timeout: {:timeout, nil},
                        trial: {:trial, nil}
@@ -348,6 +363,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             steps: integer(),
             timeout: number() | :infinity,
             trial: boolean()
@@ -360,6 +376,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:steps) => integer(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
@@ -403,6 +420,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:steps` - *Since 1.57.* Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -592,14 +613,26 @@ defmodule PlaywrightEx.ElementHandle do
     end)
   end
 
-  @fill_options {:object, %{force: {:force, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+  @fill_options {:object,
+                 %{
+                   force: {:force, nil},
+                   no_wait_after: {:noWaitAfter, nil},
+                   signal: {:signal, nil},
+                   timeout: {:timeout, nil}
+                 }}
 
   @typedoc "Options of `fill`, see its docs."
   @type fill_options ::
-          [force: boolean(), no_wait_after: boolean(), timeout: number() | :infinity]
+          [
+            force: boolean(),
+            no_wait_after: boolean(),
+            signal: PlaywrightEx.AbortSignal.t(),
+            timeout: number() | :infinity
+          ]
           | %{
               optional(:force) => boolean(),
               optional(:no_wait_after) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -623,6 +656,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:no_wait_after` - This option has no effect.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -717,6 +754,7 @@ defmodule PlaywrightEx.ElementHandle do
                     no_wait_after: {:noWaitAfter, nil},
                     position: {:position, {:fields, %{x: nil, y: nil}}},
                     scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                    signal: {:signal, nil},
                     timeout: {:timeout, nil},
                     trial: {:trial, nil}
                   }}
@@ -729,6 +767,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
             trial: boolean()
           ]
@@ -738,6 +777,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
             }
@@ -774,6 +814,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1038,14 +1082,26 @@ defmodule PlaywrightEx.ElementHandle do
     end)
   end
 
-  @press_options {:object, %{delay: {:delay, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+  @press_options {:object,
+                  %{
+                    delay: {:delay, nil},
+                    no_wait_after: {:noWaitAfter, nil},
+                    signal: {:signal, nil},
+                    timeout: {:timeout, nil}
+                  }}
 
   @typedoc "Options of `press`, see its docs."
   @type press_options ::
-          [delay: number(), no_wait_after: boolean(), timeout: number() | :infinity]
+          [
+            delay: number(),
+            no_wait_after: boolean(),
+            signal: PlaywrightEx.AbortSignal.t(),
+            timeout: number() | :infinity
+          ]
           | %{
               optional(:delay) => number(),
               optional(:no_wait_after) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -1085,6 +1141,10 @@ defmodule PlaywrightEx.ElementHandle do
   * `:no_wait_after` - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
     opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as navigating
     to inaccessible pages. Defaults to `false`.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1178,6 +1238,7 @@ defmodule PlaywrightEx.ElementHandle do
                          path: {:path, nil},
                          quality: {:quality, nil},
                          scale: {:scale, {:enum, %{css: "css", device: "device"}}},
+                         signal: {:signal, nil},
                          style: {:style, nil},
                          timeout: {:timeout, nil},
                          type: {:type, {:enum, %{png: "png", jpeg: "jpeg", webp: "webp"}}}
@@ -1194,6 +1255,7 @@ defmodule PlaywrightEx.ElementHandle do
             path: String.t(),
             quality: integer(),
             scale: :css | :device,
+            signal: PlaywrightEx.AbortSignal.t(),
             style: String.t(),
             timeout: number() | :infinity,
             type: :png | :jpeg | :webp
@@ -1207,6 +1269,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:path) => String.t(),
               optional(:quality) => integer(),
               optional(:scale) => :css | :device,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:style) => String.t(),
               optional(:timeout) => number() | :infinity,
               optional(:type) => :png | :jpeg | :webp
@@ -1248,6 +1311,10 @@ defmodule PlaywrightEx.ElementHandle do
   * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
 
     Defaults to `"device"`.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:style` - *Since 1.41.* Text of the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible
     or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies
     to the inner frames.
@@ -1277,11 +1344,12 @@ defmodule PlaywrightEx.ElementHandle do
     end)
   end
 
-  @scroll_into_view_if_needed_options {:object, %{timeout: {:timeout, nil}}}
+  @scroll_into_view_if_needed_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `scroll_into_view_if_needed`, see its docs."
   @type scroll_into_view_if_needed_options ::
-          [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+          [signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -1300,6 +1368,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   ## Options
 
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1331,14 +1403,25 @@ defmodule PlaywrightEx.ElementHandle do
                            {:array, {:fields, %{value: nil, label: nil, index: nil}}}
                          ]}
   @select_option_options {:object,
-                          %{force: {:force, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+                          %{
+                            force: {:force, nil},
+                            no_wait_after: {:noWaitAfter, nil},
+                            signal: {:signal, nil},
+                            timeout: {:timeout, nil}
+                          }}
 
   @typedoc "Options of `select_option`, see its docs."
   @type select_option_options ::
-          [force: boolean(), no_wait_after: boolean(), timeout: number() | :infinity]
+          [
+            force: boolean(),
+            no_wait_after: boolean(),
+            signal: PlaywrightEx.AbortSignal.t(),
+            timeout: number() | :infinity
+          ]
           | %{
               optional(:force) => boolean(),
               optional(:no_wait_after) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -1382,6 +1465,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:no_wait_after` - This option has no effect.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1429,12 +1516,16 @@ defmodule PlaywrightEx.ElementHandle do
     end)
   end
 
-  @select_text_options {:object, %{force: {:force, nil}, timeout: {:timeout, nil}}}
+  @select_text_options {:object, %{force: {:force, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `select_text`, see its docs."
   @type select_text_options ::
-          [force: boolean(), timeout: number() | :infinity]
-          | %{optional(:force) => boolean(), optional(:timeout) => number() | :infinity}
+          [force: boolean(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          | %{
+              optional(:force) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
+              optional(:timeout) => number() | :infinity
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -1450,6 +1541,10 @@ defmodule PlaywrightEx.ElementHandle do
   ## Options
 
   * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1481,6 +1576,7 @@ defmodule PlaywrightEx.ElementHandle do
                           no_wait_after: {:noWaitAfter, nil},
                           position: {:position, {:fields, %{x: nil, y: nil}}},
                           scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                          signal: {:signal, nil},
                           timeout: {:timeout, nil},
                           trial: {:trial, nil}
                         }}
@@ -1492,6 +1588,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
             trial: boolean()
           ]
@@ -1500,6 +1597,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
             }
@@ -1539,6 +1637,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1570,12 +1672,17 @@ defmodule PlaywrightEx.ElementHandle do
                             {:fields, %{name: nil, mimeType: nil, buffer: nil}},
                             {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
                           ]}
-  @set_input_files_options {:object, %{no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+  @set_input_files_options {:object,
+                            %{no_wait_after: {:noWaitAfter, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `set_input_files`, see its docs."
   @type set_input_files_options ::
-          [no_wait_after: boolean(), timeout: number() | :infinity]
-          | %{optional(:no_wait_after) => boolean(), optional(:timeout) => number() | :infinity}
+          [no_wait_after: boolean(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          | %{
+              optional(:no_wait_after) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
+              optional(:timeout) => number() | :infinity
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -1600,6 +1707,10 @@ defmodule PlaywrightEx.ElementHandle do
   ## Options
 
   * `:no_wait_after` - This option has no effect.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1652,6 +1763,7 @@ defmodule PlaywrightEx.ElementHandle do
                   no_wait_after: {:noWaitAfter, nil},
                   position: {:position, {:fields, %{x: nil, y: nil}}},
                   scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                  signal: {:signal, nil},
                   timeout: {:timeout, nil},
                   trial: {:trial, nil}
                 }}
@@ -1664,6 +1776,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
             trial: boolean()
           ]
@@ -1673,6 +1786,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
             }
@@ -1713,6 +1827,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1763,14 +1881,26 @@ defmodule PlaywrightEx.ElementHandle do
     end)
   end
 
-  @type_options {:object, %{delay: {:delay, nil}, no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+  @type_options {:object,
+                 %{
+                   delay: {:delay, nil},
+                   no_wait_after: {:noWaitAfter, nil},
+                   signal: {:signal, nil},
+                   timeout: {:timeout, nil}
+                 }}
 
   @typedoc "Options of `type`, see its docs."
   @type type_options ::
-          [delay: number(), no_wait_after: boolean(), timeout: number() | :infinity]
+          [
+            delay: number(),
+            no_wait_after: boolean(),
+            signal: PlaywrightEx.AbortSignal.t(),
+            timeout: number() | :infinity
+          ]
           | %{
               optional(:delay) => number(),
               optional(:no_wait_after) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -1792,6 +1922,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   * `:delay` - Time to wait between key presses in milliseconds. Defaults to 0.
   * `:no_wait_after` - This option has no effect.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1825,6 +1959,7 @@ defmodule PlaywrightEx.ElementHandle do
                       no_wait_after: {:noWaitAfter, nil},
                       position: {:position, {:fields, %{x: nil, y: nil}}},
                       scroll: {:scroll, {:enum, %{auto: "auto", none: "none"}}},
+                      signal: {:signal, nil},
                       timeout: {:timeout, nil},
                       trial: {:trial, nil}
                     }}
@@ -1836,6 +1971,7 @@ defmodule PlaywrightEx.ElementHandle do
             no_wait_after: boolean(),
             position: %{x: number(), y: number()},
             scroll: :auto | :none,
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
             trial: boolean()
           ]
@@ -1844,6 +1980,7 @@ defmodule PlaywrightEx.ElementHandle do
               optional(:no_wait_after) => boolean(),
               optional(:position) => %{x: number(), y: number()},
               optional(:scroll) => :auto | :none,
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
               optional(:trial) => boolean()
             }
@@ -1880,6 +2017,10 @@ defmodule PlaywrightEx.ElementHandle do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1915,11 +2056,12 @@ defmodule PlaywrightEx.ElementHandle do
                                    disabled: "disabled",
                                    editable: "editable"
                                  }}
-  @wait_for_element_state_options {:object, %{timeout: {:timeout, nil}}}
+  @wait_for_element_state_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `wait_for_element_state`, see its docs."
   @type wait_for_element_state_options ::
-          [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
+          [signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc since: "1.8"
   @doc ~S"""
@@ -1945,6 +2087,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   ## Options
 
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1982,6 +2128,7 @@ defmodule PlaywrightEx.ElementHandle do
 
   @wait_for_selector_options {:object,
                               %{
+                                signal: {:signal, nil},
                                 state:
                                   {:state,
                                    {:enum,
@@ -1992,8 +2139,14 @@ defmodule PlaywrightEx.ElementHandle do
 
   @typedoc "Options of `wait_for_selector`, see its docs."
   @type wait_for_selector_options ::
-          [state: :attached | :detached | :visible | :hidden, strict: boolean(), timeout: number() | :infinity]
+          [
+            signal: PlaywrightEx.AbortSignal.t(),
+            state: :attached | :detached | :visible | :hidden,
+            strict: boolean(),
+            timeout: number() | :infinity
+          ]
           | %{
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:state) => :attached | :detached | :visible | :hidden,
               optional(:strict) => boolean(),
               optional(:timeout) => number() | :infinity
@@ -2032,6 +2185,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   ## Options
 
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:state` - Defaults to `'visible'`. Can be either:
 
     * `'attached'` - wait for element to be present in DOM.

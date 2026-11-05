@@ -8,8 +8,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
   here, each with its reason.
 
     * Drops JS-only classes the Elixir client has no use for (`@dropped_classes`), and every
-      member, argument and option whose type refers to one of them (the DOM `AbortSignal` of
-      `signal:` options), also from unions (`URLPattern` of `url:`).
+      member, argument and option whose type refers to one of them, also from unions
+      (`URLPattern` of `url:`).
     * Interfaces the user implements (`@callback_objects`: `logger: Logger`) are no classes but
       objects of functions, one per method, with the JS keys (`logger: %{isEnabled: fn name,
       severity -> ... end, log: fn name, severity, message, args, hints -> ... end}`).
@@ -22,7 +22,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
-    * Documents the Elixir forms of `timeout`.
+    * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
     * Classes whose emitters take any string as an event (`@open_events`: a `CDPSession` emits
@@ -30,7 +30,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     * Waits: the JS members that the Python client has as `expect_*` (`waitForEvent`,
       `waitForRequest`, `waitForNavigation`, ...) return a promise handle (`"promise"`), as JS
       code starts them without `await`. `waitForEvent` takes Python's arguments (`event`, then
-      options with `predicate` and `timeout`), not the JS `optionsOrPredicate`.
+      options with `predicate` and `timeout`, plus the JS `signal`), not the JS `optionsOrPredicate`.
     * Route handlers (`function(Route, Request)`) may also take only the route, as in the
       Python client.
     * Device descriptors (`Playwright.devices`) have the option keys of `Browser.newContext`
@@ -56,10 +56,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # Logger: an interface, see `@callback_objects`.
   # GenericAssertions, SnapshotAssertions: jest's `expect(value)`, `toMatchSnapshot` (test runner).
   # PlaywrightAssertions: `expect(locator)` itself; the matchers are functions of the receiver (`Expect`).
-  # AbortSignal: a DOM class (`signal:` options), not ported (PLAN).
   # URLPattern: a JS global (`url` matchers), dropped from unions.
   # Electron, Android and `connectOverCDP(transport)` are not in the JS view of api.json.
-  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions PlaywrightAssertions AbortSignal URLPattern)
+  @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions PlaywrightAssertions URLPattern)
 
   # Interfaces implemented by the user: a type naming one is an object of functions.
   @callback_objects ~w(Logger)
@@ -101,6 +100,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   }
 
   @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
 
   # Assertion classes and the class of their receiver (`expect(receiver)`).
   @assertions %{"LocatorAssertions" => "Locator", "PageAssertions" => "Page", "APIResponseAssertions" => "APIResponse"}
@@ -308,10 +308,24 @@ defmodule Mix.PlaywrightEx.ApiRules do
       expect ->
         args =
           if Enum.any?(member["args"], &(&1["name"] == "optionsOrPredicate")),
-            do: expect["args"],
+            do: js_options(expect["args"], member["args"]),
             else: member["args"]
 
         Map.merge(member, %{"promise" => expect["alias"], "args" => args})
+    end
+  end
+
+  # Python's arguments, with the JS-only options of the JS member (`signal`).
+  defp js_options(args, js_args) do
+    js_props = for %{"name" => "options"} = arg <- js_args, p <- arg["type"]["properties"], do: p
+
+    for arg <- args do
+      if arg["name"] == "options" do
+        names = for p <- arg["type"]["properties"], do: p["name"]
+        update_in(arg, ["type", "properties"], &(&1 ++ Enum.reject(js_props, fn p -> p["name"] in names end)))
+      else
+        arg
+      end
     end
   end
 
@@ -319,13 +333,21 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp callback(expect, class, members) do
     key = "#{class["name"]}.#{expect["name"]}"
 
-    {call, event, type} =
+    {call, event, type, js} =
       case Enum.find(members, &(&1["name"] == expect["name"])) do
-        %{} = js -> {js["alias"], nil, js["type"]}
-        nil -> {"waitForEvent", Map.fetch!(@callback_events, key), hd(expect["type"]["templates"])}
+        %{} = js ->
+          {js["alias"], nil, js["type"], js}
+
+        nil ->
+          {"waitForEvent", Map.fetch!(@callback_events, key), hd(expect["type"]["templates"]),
+           Enum.find(members, &(&1["name"] == "waitForEvent"))}
       end
 
-    Map.merge(expect, %{"callback" => %{"call" => call, "event" => event}, "type" => type})
+    Map.merge(expect, %{
+      "callback" => %{"call" => call, "event" => event},
+      "type" => type,
+      "args" => js_options(expect["args"], js["args"])
+    })
   end
 
   # `removeAllListeners(type)`: `type` is the event (`on(event, listener)`).
@@ -432,6 +454,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()
+
+  defp property(%{"name" => "signal", "type" => %{"name" => "AbortSignal"}} = property),
+    do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @signal_doc}])) |> type()
 
   # `errors: { TimeoutError: typeof TimeoutError }`: the exception module.
   defp property(%{"name" => name, "type" => %{"name" => "function"}} = property) when name in @exception_classes,

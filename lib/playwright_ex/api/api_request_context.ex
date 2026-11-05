@@ -214,6 +214,7 @@ defmodule PlaywrightEx.APIRequestContext do
                      max_retries: {:maxRetries, nil},
                      multipart: {:multipart, nil},
                      params: {:params, nil},
+                     signal: {:signal, nil},
                      timeout: {:timeout, nil}
                    }}
 
@@ -238,6 +239,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -259,6 +261,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -295,6 +298,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -364,6 +371,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     method: {:method, nil},
                     multipart: {:multipart, nil},
                     params: {:params, nil},
+                    signal: {:signal, nil},
                     timeout: {:timeout, nil}
                   }}
 
@@ -389,6 +397,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -411,6 +420,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -476,6 +486,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -512,6 +526,7 @@ defmodule PlaywrightEx.APIRequestContext do
                   max_retries: {:maxRetries, nil},
                   multipart: {:multipart, nil},
                   params: {:params, nil},
+                  signal: {:signal, nil},
                   timeout: {:timeout, nil}
                 }}
 
@@ -536,6 +551,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -557,6 +573,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -618,6 +635,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -653,6 +674,7 @@ defmodule PlaywrightEx.APIRequestContext do
                    max_retries: {:maxRetries, nil},
                    multipart: {:multipart, nil},
                    params: {:params, nil},
+                   signal: {:signal, nil},
                    timeout: {:timeout, nil}
                  }}
 
@@ -677,6 +699,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -698,6 +721,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -734,6 +758,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -769,6 +797,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     max_retries: {:maxRetries, nil},
                     multipart: {:multipart, nil},
                     params: {:params, nil},
+                    signal: {:signal, nil},
                     timeout: {:timeout, nil}
                   }}
 
@@ -793,6 +822,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -814,6 +844,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -850,6 +881,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -885,6 +920,7 @@ defmodule PlaywrightEx.APIRequestContext do
                    max_retries: {:maxRetries, nil},
                    multipart: {:multipart, nil},
                    params: {:params, nil},
+                   signal: {:signal, nil},
                    timeout: {:timeout, nil}
                  }}
 
@@ -909,6 +945,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -930,6 +967,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -1004,6 +1042,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -1039,6 +1081,7 @@ defmodule PlaywrightEx.APIRequestContext do
                   max_retries: {:maxRetries, nil},
                   multipart: {:multipart, nil},
                   params: {:params, nil},
+                  signal: {:signal, nil},
                   timeout: {:timeout, nil}
                 }}
 
@@ -1063,6 +1106,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                 },
             params: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity
           ]
           | %{
@@ -1084,6 +1128,7 @@ defmodule PlaywrightEx.APIRequestContext do
                       | %{name: String.t(), mimeType: String.t(), buffer: binary()}
                   },
               optional(:params) => %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
@@ -1120,6 +1165,10 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` - Query parameters to be sent with the URL.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).

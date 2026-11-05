@@ -51,12 +51,16 @@ defmodule PlaywrightEx.FileChooser do
                       {:fields, %{name: nil, mimeType: nil, buffer: nil}},
                       {:array, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
                     ]}
-  @set_files_options {:object, %{no_wait_after: {:noWaitAfter, nil}, timeout: {:timeout, nil}}}
+  @set_files_options {:object, %{no_wait_after: {:noWaitAfter, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
   @typedoc "Options of `set_files`, see its docs."
   @type set_files_options ::
-          [no_wait_after: boolean(), timeout: number() | :infinity]
-          | %{optional(:no_wait_after) => boolean(), optional(:timeout) => number() | :infinity}
+          [no_wait_after: boolean(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          | %{
+              optional(:no_wait_after) => boolean(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
+              optional(:timeout) => number() | :infinity
+            }
 
   @doc since: "1.8"
   @doc ~S"""
@@ -73,6 +77,10 @@ defmodule PlaywrightEx.FileChooser do
   ## Options
 
   * `:no_wait_after` - This option has no effect.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 

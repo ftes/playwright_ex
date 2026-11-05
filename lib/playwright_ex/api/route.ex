@@ -237,6 +237,7 @@ defmodule PlaywrightEx.Route do
                     max_retries: {:maxRetries, nil},
                     method: {:method, nil},
                     post_data: {:postData, nil},
+                    signal: {:signal, nil},
                     timeout: {:timeout, nil},
                     url: {:url, nil}
                   }}
@@ -249,6 +250,7 @@ defmodule PlaywrightEx.Route do
             max_retries: integer(),
             method: String.t(),
             post_data: String.t() | {:binary, binary()} | term(),
+            signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
             url: String.t()
           ]
@@ -258,6 +260,7 @@ defmodule PlaywrightEx.Route do
               optional(:max_retries) => integer(),
               optional(:method) => String.t(),
               optional(:post_data) => String.t() | {:binary, binary()} | term(),
+              optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
               optional(:url) => String.t()
             }
@@ -292,6 +295,10 @@ defmodule PlaywrightEx.Route do
   * `:post_data` - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
+  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+    Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` - *Since 1.33.* Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
