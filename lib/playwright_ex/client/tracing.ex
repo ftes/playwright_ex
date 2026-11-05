@@ -91,10 +91,13 @@ defmodule PlaywrightEx.Client.Tracing do
   end
 
   defp _start_collecting_stacks(this, trace_name, live) do
-    if !get(this, :_isTracing) do
-      put(this, :_isTracing, true)
-      Connection.set_is_tracing(get(this, :_connection), true)
-    end
+    # One step in the connection (JS: synchronous), as a context close may reset it meanwhile.
+    atomic(this, fn ->
+      if !get(this, :_isTracing) do
+        put(this, :_isTracing, true)
+        Connection.set_is_tracing(get(this, :_connection), true)
+      end
+    end)
 
     result =
       if local_utils = Connection.local_utils(get(this, :_connection)),
@@ -198,10 +201,16 @@ defmodule PlaywrightEx.Client.Tracing do
   end
 
   def _export_har(this, har_id) do
-    har_params = get(this, :_harRecorders)[har_id]
+    # The read and the delete are one step in the connection (JS: synchronous), so a stopHar and
+    # a context close export a HAR once.
+    har_params =
+      atomic(this, fn ->
+        har_params = get(this, :_harRecorders)[har_id]
+        if har_params, do: update(this, :_harRecorders, &Map.delete(&1, har_id))
+        har_params
+      end)
 
     if har_params do
-      update(this, :_harRecorders, &Map.delete(&1, har_id))
       is_local = !Connection.is_remote(get(this, :_connection))
       is_zip = String.ends_with?(har_params.path, ".zip")
 
@@ -364,9 +373,14 @@ defmodule PlaywrightEx.Client.Tracing do
   end
 
   def _reset_stack_counter(this) do
-    if get(this, :_isTracing) do
-      put(this, :_isTracing, false)
-      Connection.set_is_tracing(get(this, :_connection), false)
-    end
+    # One step in the connection (JS: synchronous): a context close and a stopChunk decrement once.
+    atomic(this, fn ->
+      if get(this, :_isTracing) do
+        put(this, :_isTracing, false)
+        Connection.set_is_tracing(get(this, :_connection), false)
+      end
+    end)
+
+    nil
   end
 end
