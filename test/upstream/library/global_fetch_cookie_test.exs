@@ -459,8 +459,9 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert state1 == storage_state
 
     written = File.read!(path)
-    # JSON.stringify(state1, undefined, 2): the client writes compact JSON (Elixir's JSON has no indentation).
-    assert JSON.encode!(state1) == written
+    # JSON.stringify(state1, undefined, 2): the same JSON, indented by 2.
+    assert JSON.decode!(written) == JSON.decode!(JSON.encode!(state1))
+    assert written =~ ~r/\A\{\n  "cookies": \[\n    \{\n      "/
 
     request2 = APIRequest.new_context!(Playwright.request(playwright), storage_state: path)
     state2 = APIRequestContext.storage_state!(request2)
