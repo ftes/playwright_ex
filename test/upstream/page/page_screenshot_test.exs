@@ -202,8 +202,9 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       verify_viewport(page, 500, 500)
     end
 
-    test "should allow transparency", %{page: page, browser_name: browser_name} do
-      # it.fail(browserName === 'firefox' || isBidi)  -- isBidi is false here
+    @tag skip: if(@browser_name == "firefox", do: "upstream fail: firefox")
+    test "should allow transparency", %{page: page} do
+      # it.fail(browserName === 'firefox' || isBidi)  -- see the tag; isBidi is false here
       Page.set_viewport_size!(page, %{width: 300, height: 300})
 
       Page.set_content!(page, """
@@ -218,9 +219,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
       screenshot = Page.screenshot!(page, omit_background: true)
 
-      if browser_name == "firefox",
-        do: assert_raise(ExUnit.AssertionError, fn -> to_match_snapshot(screenshot, "transparent.png") end),
-        else: to_match_snapshot(screenshot, "transparent.png")
+      to_match_snapshot(screenshot, "transparent.png")
     end
 
     test "should render white background on jpeg file", %{page: page, server: server} do
