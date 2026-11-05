@@ -94,6 +94,7 @@ defmodule PlaywrightEx.Client.APIRequest do
   alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Isomorphic.Headers
+  alias PlaywrightEx.Runtime.Node
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.APIRequest{}` (gen.api copies these fields).
   @doc false
@@ -115,7 +116,7 @@ defmodule PlaywrightEx.Client.APIRequest do
 
     storage_state =
       if is_binary(options[:storageState]),
-        do: JSON.decode!(File.read!(options.storageState)),
+        do: JSON.decode!(Node.fs!(File.read(options.storageState), "open", options.storageState)),
         else: options[:storageState]
 
     playwright = get(this, :_playwright)
@@ -171,6 +172,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   alias PlaywrightEx.Client.Tracing
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Runtime.Node
   alias PlaywrightEx.TargetClosedError
 
   def from(channel) do
@@ -254,7 +256,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
   def _inner_fetch(this, options \\ %{}) do
     _wrap_api_call(this, fn _ ->
-      if get(this, :_closeReason), do: raise(TargetClosedError.new(get(this, :_closeReason)))
+      if ClientHelper.truthy(get(this, :_closeReason)), do: raise(TargetClosedError.new(get(this, :_closeReason)))
       assert(options[:request] || is_binary(options[:url]), "First argument must be either URL string or Request")
 
       assert(
@@ -312,7 +314,16 @@ defmodule PlaywrightEx.Client.APIRequestContext do
             end
 
           options[:form] ->
-            # FormData  -- ported as a keyword list (repeated names allowed), handled by objectToArray
+            # FormData  -- ported as a keyword list (repeated names allowed): its values are strings or Files
+            if is_list(options.form) do
+              for {name, value} <- options.form,
+                  Fetch.is_file_payload(value),
+                  do:
+                    raise(
+                      "Expected string for options.form[\"#{name}\"], found File. Please use options.multipart instead."
+                    )
+            end
+
             {nil, Fetch.object_to_array(options.form), nil, nil}
 
           options[:multipart] ->
@@ -369,7 +380,8 @@ defmodule PlaywrightEx.Client.APIRequestContext do
 
     if options[:path] do
       FileUtils.mkdir_if_needed(options.path)
-      File.write!(options.path, ClientHelper.json_stringify_indented(state, 2, "APIRequestContextStorageStateResult"))
+      json = ClientHelper.json_stringify_indented(state, 2, "APIRequestContextStorageStateResult")
+      Node.fs!(File.write(options.path, json), "open", options.path)
     end
 
     state
@@ -378,14 +390,15 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   # isomorphic/assert.ts
   defp assert(value, message), do: if(!value, do: raise(message))
 
-  # URLSearchParams.toString(), via `URI.encode_www_form/1`: it escapes `*` and keeps `~` raw
-  # (JS: `*` raw, `~` as `%7E`); decoded values are identical.
+  # URLSearchParams.toString(): the application/x-www-form-urlencoded serializer.
   defp url_search_params_to_string(params) do
-    Enum.map_join(
-      Fetch.object_to_array(params),
-      "&",
-      &(URI.encode_www_form(&1.name) <> "=" <> URI.encode_www_form(&1.value))
-    )
+    Enum.map_join(Fetch.object_to_array(params), "&", &(form_urlencode(&1.name) <> "=" <> form_urlencode(&1.value)))
+  end
+
+  defp form_urlencode(string) do
+    string
+    |> URI.encode(&(&1 in ?a..?z or &1 in ?A..?Z or &1 in ?0..?9 or &1 in ~c"*-._ "))
+    |> String.replace(" ", "+")
   end
 end
 
