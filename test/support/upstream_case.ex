@@ -92,6 +92,14 @@ defmodule PlaywrightEx.UpstreamCase do
     # Upstream runs its tests with the driver "under test" (`window.builtins`, ...).
     start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
     playwright = PlaywrightEx.playwright(module)
+
+    # Playwright Test's `_setupContextOptions` fixture: `playwright._defaultContextTimeout =
+    # actionTimeout || 0` (likewise navigation): no action timeout, the test timeout bounds it.
+    Api.call(nil, playwright, fn ->
+      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultContextTimeout, 0)
+      PlaywrightEx.Runtime.Heap.put(playwright, :_defaultContextNavigationTimeout, 0)
+    end)
+
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)
 
