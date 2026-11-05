@@ -78,5 +78,11 @@ defmodule PlaywrightEx.Client.TimeoutSettings do
   end
 
   # utils/debug.ts debugMode()
-  defp debug_mode, do: if(System.get_env("PWDEBUG") in ["1", "console"], do: "inspector")
+  defp debug_mode do
+    case System.get_env("PWDEBUG") || "" do
+      "console" -> "console"
+      mode when mode in ["0", "false", ""] -> ""
+      _ -> "inspector"
+    end
+  end
 end
