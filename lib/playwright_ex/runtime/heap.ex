@@ -144,7 +144,8 @@ defmodule PlaywrightEx.Runtime.Heap do
     if alive?(obj), do: :ets.insert(obj.table, {key, value})
   end
 
-  def update(obj, field, fun), do: atomic(obj, fn -> put(obj, field, fun.(get(obj, field))) end)
+  # A disposed object's update is dropped, as its writes are.
+  def update(obj, field, fun), do: atomic(obj, fn -> if alive?(obj), do: put(obj, field, fun.(get(obj, field))) end)
 
   @doc """
   Runs `fun` atomically with respect to the object's connection (in it): a synchronous JS section
