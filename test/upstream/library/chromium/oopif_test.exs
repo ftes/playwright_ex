@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   @upstream "tests/library/chromium/oopif.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  import PlaywrightEx.UpstreamSnapshot
   import PlaywrightEx.Utils, only: [attach_frame: 3, poll: 2]
 
   alias PlaywrightEx.Browser
@@ -217,8 +218,18 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     assert_received :intercepted
   end
 
-  @tag skip: "not ported: toMatchSnapshot"
-  test "should take screenshot"
+  @tag :page
+  @tag skip:
+         if(match?({:unix, :darwin}, :os.type()),
+           do: "env: golden rendered on Linux; on macOS the OOPIF screenshot is blank (upstream's JS client too)"
+         )
+  test "should take screenshot", %{page: page, browser: browser, server: server} do
+    Page.set_viewport_size!(page, %{width: 500, height: 500})
+    Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
+    assert length(Page.frames(page)) == 2
+    assert_oopif_count(browser, 1)
+    to_match_snapshot(Page.screenshot!(page), "screenshot-oopif.png")
+  end
 
   @tag :page
   test "should load oopif iframes with subresources and route", %{page: page, browser: browser, server: server} do

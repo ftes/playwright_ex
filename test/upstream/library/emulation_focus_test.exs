@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
 
+  import PlaywrightEx.UpstreamSnapshot
   import PlaywrightEx.Utils, only: [attach_frame: 3]
 
   @moduletag :page
@@ -99,8 +100,33 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert active == ["INPUT", "TEXTAREA"]
   end
 
-  @tag skip: "not ported: toMatchSnapshot"
-  test "should not affect screenshots"
+  test "should not affect screenshots", %{page: page, server: server} do
+    # it.skip(browserName === 'webkit' && isWindows && !headless)  -- headless here
+    # it.skip(browserName === 'webkit' && isLinux && !headless)  -- headless here
+    # it.skip(browserName === 'firefox' && !headless)  -- headless here
+    page2 = BrowserContext.new_page!(Page.context(page))
+
+    Task.await_many([
+      Task.async(fn -> Page.set_viewport_size!(page, %{width: 500, height: 500}) end),
+      Task.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end),
+      Task.async(fn -> Page.set_viewport_size!(page2, %{width: 50, height: 50}) end),
+      Task.async(fn -> Page.goto!(page2, server.prefix <> "/grid.html") end)
+    ])
+
+    Task.await_many([
+      Task.async(fn -> Page.focus!(page, "body") end),
+      Task.async(fn -> Page.focus!(page2, "body") end)
+    ])
+
+    screenshots =
+      Task.await_many([
+        Task.async(fn -> Page.screenshot!(page) end),
+        Task.async(fn -> Page.screenshot!(page2) end)
+      ])
+
+    to_match_snapshot(Enum.at(screenshots, 0), "screenshot-sanity.png")
+    to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-0.png")
+  end
 
   test "should change focused iframe", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && !headless, 'Headed FF might lose focus'): we run headless

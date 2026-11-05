@@ -4,9 +4,12 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  import PlaywrightEx.UpstreamSnapshot
+
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
+  alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
@@ -109,14 +112,80 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     Task.await(fetch)
   end
 
-  @tag skip: "not ported: toMatchSnapshot"
-  test "should allow mocking binary responses"
+  test "should allow mocking binary responses", %{page: page, server: server, asset: asset} do
+    # it.skip(browserName === 'firefox' && !headless)  -- headless here
+    # it.skip(isAndroid)  -- not Android
+    Page.route!(page, "**/*", fn route ->
+      image_buffer = File.read!(asset.("pptr.png"))
+      Route.fulfill(route, content_type: "image/png", body: {:binary, image_buffer})
+    end)
 
-  @tag skip: "not ported: toMatchSnapshot"
-  test "should allow mocking svg with charset"
+    Page.evaluate!(
+      page,
+      """
+      PREFIX => {
+        const img = document.createElement('img');
+        img.src = PREFIX + '/does-not-exist.png';
+        document.body.appendChild(img);
+        return new Promise(fulfill => img.onload = fulfill);
+      }
+      """,
+      server.prefix
+    )
 
-  @tag skip: "not ported: toMatchSnapshot"
-  test "should work with file path"
+    img = Page.query_selector!(page, "img")
+    to_match_snapshot(ElementHandle.screenshot!(img), "mock-binary-response.png")
+  end
+
+  test "should allow mocking svg with charset", %{page: page, server: server} do
+    # it.skip(browserName === 'firefox' && !headless)  -- headless here
+    # it.skip(isAndroid)  -- not Android
+    # it.skip(isElectron && electronMajorVersion < 30)  -- not Electron
+    Page.route!(page, "**/*", fn route ->
+      Route.fulfill(route,
+        content_type: "image/svg+xml ; charset=utf-8",
+        body:
+          ~s(<svg width="50" height="50" version="1.1" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="30" height="30" stroke="black" fill="transparent" stroke-width="5"/></svg>)
+      )
+    end)
+
+    Page.evaluate!(
+      page,
+      """
+      PREFIX => {
+        const img = document.createElement('img');
+        img.src = PREFIX + '/does-not-exist.svg';
+        document.body.appendChild(img);
+        return new Promise((f, r) => { img.onload = f; img.onerror = r; });
+      }
+      """,
+      server.prefix
+    )
+
+    img = Page.query_selector!(page, "img")
+    to_match_snapshot(ElementHandle.screenshot!(img), "mock-svg.png")
+  end
+
+  test "should work with file path", %{page: page, server: server, asset: asset} do
+    # it.skip(isAndroid)  -- not Android
+    Page.route!(page, "**/*", &Route.fulfill(&1, content_type: "shouldBeIgnored", path: asset.("pptr.png")))
+
+    Page.evaluate!(
+      page,
+      """
+      PREFIX => {
+        const img = document.createElement('img');
+        img.src = PREFIX + '/does-not-exist.png';
+        document.body.appendChild(img);
+        return new Promise(fulfill => img.onload = fulfill);
+      }
+      """,
+      server.prefix
+    )
+
+    img = Page.query_selector!(page, "img")
+    to_match_snapshot(ElementHandle.screenshot!(img), "mock-binary-response.png")
+  end
 
   test "should stringify intercepted request response headers", %{page: page, server: server} do
     Page.route!(page, "**/*", &Route.fulfill(&1, status: 200, headers: %{"foo" => "true"}, body: "Yo, page!"))

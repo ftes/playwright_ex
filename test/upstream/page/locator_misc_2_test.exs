@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
   @upstream "tests/page/locator-misc-2.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  import PlaywrightEx.UpstreamSnapshot
+
   alias PlaywrightEx.Expect
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
@@ -85,8 +87,16 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "hello"
   end
 
-  @tag skip: "not ported: toMatchSnapshot"
-  test "should take screenshot"
+  test "should take screenshot", %{page: page, server: server} do
+    # it.skip(browserName === 'firefox' && !headless)  -- headless here
+    # it.skip(isAndroid)  -- not Android
+    Page.set_viewport_size!(page, %{width: 500, height: 500})
+    Page.goto!(page, server.prefix <> "/grid.html")
+    Page.evaluate!(page, "() => window.scrollBy(50, 100)")
+    element = Page.locator(page, ".box:nth-of-type(3)")
+    screenshot = Locator.screenshot!(element)
+    to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
+  end
 
   test "should return bounding box", %{page: page, server: server} do
     Page.set_viewport_size!(page, %{width: 500, height: 500})
