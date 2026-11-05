@@ -25,12 +25,19 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   The `%EventLoop{}` struct names the server and its own heap, for runtime objects that belong
   to no connection (promises, emitters, timeout settings); each connection gets its own heap
   table (`new_heap/1`). Ported code reaches the loop implicitly (`current!/0`), as JS has one.
+  `roots` and `gc` belong to the collector (`PlaywrightEx.Runtime.GC`).
+
+  Units: a unit is one run of client code with its own locals (variables the heap cannot see): a
+  public API call or outermost `with_baton/2` (until it returns), a handed-off callback (until it
+  returns) and a macrotask. Units in flight are listed in `roots`, so the collector frees nothing
+  a suspended unit may still hold; at the end of a unit the collector may run.
 
   Process dictionary:
     * `:pw_baton` - `nil` (not holding), `{:server, loop}` (granted by the server),
       `{:delegated, parent, ref, loop}` (handed over by `parent`, yield back to it)
     * `:pw_ready` - processes made ready while holding (reversed)
     * `:pw_scope` - inside a public API call (keep the baton until it returns)
+    * `:pw_unit` - the unit in flight (a ref, listed in `roots`)
 
   Failures: the server monitors every holder; if one dies, the baton is reclaimed and the
   next task is granted. A handoff parent monitors the child and continues when it dies.
@@ -46,15 +53,17 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   """
   use GenServer
 
+  alias PlaywrightEx.Runtime.GC
   alias PlaywrightEx.Runtime.Zones
 
   require Logger
 
-  defstruct [:pid, :heap]
+  defstruct [:pid, :heap, :roots, :gc]
 
   @key :pw_baton
   @ready :pw_ready
   @scope :pw_scope
+  @unit :pw_unit
 
   ## Client API
 
@@ -65,8 +74,14 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   @doc "The loop struct of a running loop server."
   def get(server), do: GenServer.call(server, :loop)
 
-  @doc "A heap table for a connection on this loop (owned by the loop server)."
+  @doc """
+  A heap table for a connection on this loop (owned by the loop server). While open, its
+  `:connection` object is a root of the collector; see `PlaywrightEx.Runtime.GC.close_heap/1`.
+  """
   def new_heap(%__MODULE__{pid: pid}), do: GenServer.call(pid, :new_heap)
+
+  @doc false
+  def heaps(%__MODULE__{pid: pid}), do: GenServer.call(pid, :heaps)
 
   def held?, do: Process.get(@key) != nil
 
@@ -90,13 +105,18 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
       true ->
         acquire(loop)
-
-        try do
-          fun.()
-        after
-          release()
-        end
+        unit_scope(loop, fun)
     end
+  end
+
+  # The outermost run of client code in a caller: its result goes to code outside the baton.
+  defp unit_scope(loop, fun) do
+    result = fun.()
+    end_unit(loop, {:returned, result})
+    result
+  after
+    end_unit(loop, :raised)
+    release()
   end
 
   @doc """
@@ -111,10 +131,16 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
       try do
         if loop = find(receiver), do: acquire(loop)
-        fun.()
+        result = fun.()
+        if held?(), do: end_unit(current!(), {:returned, result})
+        result
       after
         Process.delete(@scope)
-        if held?(), do: release()
+
+        if held?() do
+          end_unit(current!(), :raised)
+          release()
+        end
       end
     end
   end
@@ -133,9 +159,29 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   def acquire(%__MODULE__{pid: pid} = loop) do
     :ok = GenServer.call(pid, :acquire, :infinity)
     Process.put(@key, {:server, loop})
+    if !Process.get(@unit), do: begin_unit(loop)
     :ok
   catch
     :exit, {_reason, {GenServer, :call, _}} -> raise loop_stopped()
+  end
+
+  defp begin_unit(%__MODULE__{roots: roots}) do
+    unit = make_ref()
+    :ets.insert(roots, {{:unit, unit}, self()})
+    Process.put(@unit, unit)
+  end
+
+  # `{:returned, value}`: the value leaves the baton (rooted for this process, see `GC.root_returned/3`).
+  defp end_unit(%__MODULE__{roots: roots} = loop, how) do
+    case Process.delete(@unit) do
+      nil ->
+        :ok
+
+      unit ->
+        :ets.delete(roots, {:unit, unit})
+        with {:returned, value} <- how, do: GC.root_returned(loop, self(), value)
+        GC.maybe_collect(loop)
+    end
   end
 
   defp loop_stopped, do: PlaywrightEx.Client.Errors.TargetClosedError.new("Playwright driver closed")
@@ -214,6 +260,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
         Process.put(@key, {:delegated, parent, ref, loop})
 
         try do
+          begin_unit(loop)
           fun.()
         catch
           kind, reason ->
@@ -221,6 +268,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
               do: Logger.error("Uncaught in handed-off callback: " <> Exception.format(kind, reason, __STACKTRACE__))
         end
 
+        end_unit_quietly(loop)
         release()
       end)
 
@@ -244,13 +292,49 @@ defmodule PlaywrightEx.Runtime.EventLoop do
     end
   end
 
-  @doc "Queue `fun` as a macrotask (run by the executor under the baton)."
-  def post(%__MODULE__{pid: pid}, fun), do: GenServer.cast(pid, {:post, fun})
+  # A failing collector must not take the callback's process down (the baton would be reclaimed).
+  defp end_unit_quietly(loop) do
+    end_unit(loop, :done)
+  catch
+    kind, reason ->
+      if !abandoned?(loop), do: Logger.error("Collector failed: " <> Exception.format(kind, reason, __STACKTRACE__))
+  end
 
-  # setTimeout / clearTimeout
-  def set_timeout(fun, ms), do: Process.send_after(current!().pid, {:post, fun}, ms)
+  @doc """
+  Queue `fun` as a macrotask (run by the executor under the baton). Until it runs, `fun` is a
+  root of the collector (it may hold objects nothing else does).
+  """
+  def post(%__MODULE__{pid: pid} = loop, fun) do
+    GenServer.cast(pid, {:post, rooted(loop, {:task, make_ref()}, fun)})
+  rescue
+    # The loop stopped (its tables are gone): the work is abandoned.
+    ArgumentError -> :ok
+  end
+
+  # setTimeout / clearTimeout. The callback is a root until it runs or is cleared.
+  def set_timeout(fun, ms) do
+    %__MODULE__{pid: pid, roots: roots} = loop = current!()
+    key = {:timer, make_ref()}
+    {Process.send_after(pid, {:post, rooted(loop, key, fun)}, ms), roots, key}
+  end
+
   def clear_timeout(nil), do: :ok
-  def clear_timeout(ref), do: Process.cancel_timer(ref) && :ok
+
+  def clear_timeout({timer, roots, key}) do
+    :ets.delete(roots, key)
+    Process.cancel_timer(timer) && :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defp rooted(%__MODULE__{roots: roots}, key, fun) do
+    :ets.insert(roots, {key, fun})
+
+    fn ->
+      :ets.delete(roots, key)
+      fun.()
+    end
+  end
 
   @doc "Hold-time statistics per grant kind: %{kind => %{count, total_us, max_us}}."
   def stats(%__MODULE__{pid: pid}), do: GenServer.call(pid, :stats)
@@ -260,7 +344,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
   @impl true
   def init(_opts) do
-    loop = %__MODULE__{pid: self(), heap: new_table()}
+    loop = %__MODULE__{pid: self(), heap: new_table(), roots: GC.new_roots(), gc: GC.new_counters()}
     executor = spawn_link(fn -> executor_loop(loop) end)
 
     {:ok,
@@ -273,7 +357,9 @@ defmodule PlaywrightEx.Runtime.EventLoop do
        micro: :queue.new(),
        macro: :queue.new(),
        executor: executor,
-       stats: %{}
+       stats: %{},
+       heaps: %{},
+       watched: %{}
      }}
   end
 
@@ -282,7 +368,13 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
   @impl true
   def handle_call(:loop, _from, s), do: {:reply, s.loop, s}
-  def handle_call(:new_heap, _from, s), do: {:reply, new_table(), s}
+
+  def handle_call(:new_heap, _from, s) do
+    heap = new_table()
+    {:reply, heap, put_in(s.heaps[heap], :open)}
+  end
+
+  def handle_call(:heaps, _from, s), do: {:reply, Map.put(s.heaps, s.loop.heap, :loop), s}
   def handle_call(:stats, _from, s), do: {:reply, s.stats, s}
   def handle_call(:reset_stats, _from, s), do: {:reply, :ok, %{s | stats: %{}}}
   def handle_call(:acquire, from, s), do: {:noreply, s |> enqueue({:call, from}) |> schedule()}
@@ -302,6 +394,18 @@ defmodule PlaywrightEx.Runtime.EventLoop do
 
   def handle_cast({:post, fun}, s), do: {:noreply, s |> enqueue({:task, fun}) |> schedule()}
 
+  def handle_cast({:close_heap, heap}, s),
+    do: {:noreply, if(Map.has_key?(s.heaps, heap), do: put_in(s.heaps[heap], :closed), else: s)}
+
+  def handle_cast({:forget_heap, heap}, s), do: {:noreply, %{s | heaps: Map.delete(s.heaps, heap)}}
+
+  # A process holding values returned from the baton (`GC.root_returned/3`): drop its roots when it exits.
+  def handle_cast({:watch, pid}, s) do
+    if Map.has_key?(s.watched, pid),
+      do: {:noreply, s},
+      else: {:noreply, put_in(s.watched[pid], Process.monitor(pid))}
+  end
+
   @impl true
   def handle_info({:post, fun}, s), do: {:noreply, s |> enqueue({:task, fun}) |> schedule()}
 
@@ -309,6 +413,11 @@ defmodule PlaywrightEx.Runtime.EventLoop do
   def handle_info({:DOWN, mon, :process, pid, reason}, %{mon: mon} = s) do
     if reason != :noproc, do: Logger.error("Baton holder #{inspect(pid)} died: #{inspect(reason)}; reclaiming")
     {:noreply, schedule(%{record(s) | holder: nil, mon: nil})}
+  end
+
+  def handle_info({:DOWN, mon, :process, pid, _reason}, %{watched: watched} = s) when is_map_key(watched, pid) do
+    if watched[pid] == mon, do: GC.drop_returned(s.loop, pid)
+    {:noreply, %{s | watched: Map.delete(watched, pid)}}
   end
 
   def handle_info(_other, s), do: {:noreply, s}
@@ -372,6 +481,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
         Process.put(@key, {:server, loop})
 
         try do
+          begin_unit(loop)
           fun.()
         catch
           kind, reason ->
@@ -379,6 +489,7 @@ defmodule PlaywrightEx.Runtime.EventLoop do
               do: Logger.error("Uncaught in event loop task: " <> Exception.format(kind, reason, __STACKTRACE__))
         end
 
+        end_unit_quietly(loop)
         release()
     end
 

@@ -11,6 +11,10 @@ defmodule PlaywrightEx.Runtime.Promise do
     continues (`EventLoop.spawn_handoff/1`). Outside the baton (test code) it is Task-backed
     and returns once the task reaches its first suspension point.
 
+  * Rows: a pending promise has `:state`, `:reactions` and `:awaiters`, a settled one only
+    `:state`, freed by `PlaywrightEx.Runtime.GC` once nothing can reach the promise. Awaiters
+    get the result in their wake-up message.
+
   Like JS, ported code names no loop: `new/0,1`, `race/1`, `all/1`, `rejected/1` and
   `async/1` use the loop of the baton holder (`EventLoop.current!/0`).
   """
@@ -40,15 +44,21 @@ defmodule PlaywrightEx.Runtime.Promise do
   def resolve(promise, value), do: settle(promise, {:ok, value})
   def reject(promise, error), do: settle(promise, {:error, error})
 
-  defp settle(%__MODULE__{loop: loop} = promise, result) do
+  # A settled promise keeps only its `:state` row; awaiters get the result in a message.
+  defp settle(%__MODULE__{loop: loop, guid: guid} = promise, result) do
     EventLoop.with_baton(loop, fn ->
       if Heap.get(promise, :state) == :pending do
         Heap.put(promise, :state, result)
         reactions = Heap.get(promise, :reactions)
         awaiters = Heap.get(promise, :awaiters)
-        Heap.put(promise, :reactions, [])
-        Heap.put(promise, :awaiters, [])
-        Enum.each(awaiters, &EventLoop.ready/1)
+        Heap.delete(promise, :reactions)
+        Heap.delete(promise, :awaiters)
+
+        Enum.each(awaiters, fn pid ->
+          send(pid, {:pw_settled, guid, result})
+          EventLoop.ready(pid)
+        end)
+
         Enum.each(reactions, fn reaction -> run_reaction(reaction, result) end)
       end
 
@@ -67,6 +77,7 @@ defmodule PlaywrightEx.Runtime.Promise do
     EventLoop.with_baton(loop, fn ->
       case Heap.get(promise, :state) do
         :pending -> Heap.update(promise, :reactions, &(&1 ++ [reaction]))
+        nil -> raise collected(promise)
         result -> run_reaction(reaction, result)
       end
     end)
@@ -148,18 +159,27 @@ defmodule PlaywrightEx.Runtime.Promise do
     end
   end
 
-  def await(%__MODULE__{loop: loop} = promise) do
+  def await(%__MODULE__{loop: loop, guid: guid} = promise) do
     result =
       case Heap.get(promise, :state) do
         :pending ->
           EventLoop.with_baton(loop, fn ->
-            if Heap.get(promise, :state) == :pending do
-              Heap.update(promise, :awaiters, &(&1 ++ [self()]))
-              EventLoop.suspend()
-            end
+            case Heap.get(promise, :state) do
+              :pending ->
+                Heap.update(promise, :awaiters, &(&1 ++ [self()]))
+                EventLoop.suspend()
 
-            Heap.get(promise, :state)
+                receive do
+                  {:pw_settled, ^guid, result} -> result
+                end
+
+              settled ->
+                settled
+            end
           end)
+
+        nil ->
+          raise collected(promise)
 
         # settled promises are immutable: no baton needed to read them
         settled ->
@@ -172,6 +192,10 @@ defmodule PlaywrightEx.Runtime.Promise do
       {:error, other} -> raise "Promise rejected with #{inspect(other)}"
     end
   end
+
+  # Only an unreachable promise is collected; a handle older than the last 1000 returned to one
+  # process is (see `PlaywrightEx.Runtime.GC`).
+  defp collected(promise), do: %RuntimeError{message: "Promise #{inspect(promise.guid)} was garbage collected"}
 
   @doc """
   Call an async function without awaiting it. Under the baton: a heap promise (race-able,

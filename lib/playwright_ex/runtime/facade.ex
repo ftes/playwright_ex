@@ -23,6 +23,7 @@ defmodule PlaywrightEx.Runtime.Facade do
   """
   alias PlaywrightEx.Matchers.MatcherHint.ExpectError
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.Runtime.GC
   alias PlaywrightEx.Runtime.Promise
 
   @doc "Runs an async call: `{:ok, value}`, or `{:error, exception}` for anything it raises."
@@ -59,15 +60,26 @@ defmodule PlaywrightEx.Runtime.Facade do
   """
   def expect(api_name, receiver, fun, action) do
     promise = promise(api_name, receiver, fun)
-    action.()
-    PlaywrightEx.Promise.await(promise)
+
+    try do
+      action.()
+      PlaywrightEx.Promise.await(promise)
+    after
+      # The handle never leaves this function.
+      GC.unroot(promise)
+    end
   end
 
   @doc "Like `expect/4`, but returns the value and raises on error."
   def expect!(api_name, receiver, fun, action) do
     promise = promise(api_name, receiver, fun)
-    action.()
-    PlaywrightEx.Promise.await!(promise)
+
+    try do
+      action.()
+      PlaywrightEx.Promise.await!(promise)
+    after
+      GC.unroot(promise)
+    end
   end
 
   @doc """

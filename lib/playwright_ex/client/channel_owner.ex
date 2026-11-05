@@ -183,6 +183,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     if get(this, :_parent), do: map_delete(get(this, :_parent), :_objects, this.guid)
     map_delete(get(this, :_connection), :_objects, this.guid)
     put(this, :_wasCollected, reason == "gc")
+    # Elixir only: the rows stay readable a while, then GC frees them (see PlaywrightEx.Runtime.GC).
+    PlaywrightEx.Runtime.GC.dispose(this)
 
     # Dispose all children.
     for object <- map_values(this, :_objects), do: _dispose(object, reason)

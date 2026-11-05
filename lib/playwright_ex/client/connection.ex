@@ -317,6 +317,8 @@ defmodule PlaywrightEx.Client.Connection do
       for callback <- map_values(this, :_callbacks), do: callback.reject.(get(this, :_closedError))
       map_clear(this, :_callbacks)
       emit(this, "close")
+      # Elixir only: the heap table is deleted once nothing in it is reachable (PlaywrightEx.Runtime.GC).
+      PlaywrightEx.Runtime.GC.close_heap(this)
     end
   end
 

@@ -10,22 +10,40 @@ defmodule PlaywrightEx.Runtime.Heap do
   Reads are lock-free from any process; writes happen under the baton (acquired on demand).
 
   Objects with `loop: nil` are transient value objects (all fields `undefined`).
+
+  Rows are freed by `PlaywrightEx.Runtime.GC` once their object is unreachable. A closed
+  connection's table is deleted once nothing in it is reachable: reading a handle from it raises
+  `TargetClosedError`.
   """
+  alias PlaywrightEx.Client.Errors.TargetClosedError
   alias PlaywrightEx.Runtime.EventLoop
+  alias PlaywrightEx.Runtime.GC
 
   @doc "`new X()` for a runtime object: lives in the heap of the current loop (see `EventLoop.current!/0`)."
   def new_object(module, guid \\ make_ref()) do
     %EventLoop{heap: heap} = loop = EventLoop.current!()
+    GC.count_allocation(loop)
     struct(module, guid: guid, loop: loop, heap: heap)
   end
 
   def get(%{heap: nil}, _field), do: nil
 
   def get(%{heap: heap, guid: guid}, field) do
-    case :ets.lookup(heap, {guid, field}) do
+    case lookup(heap, {guid, field}) do
       [{_, value}] -> value
       [] -> nil
     end
+  end
+
+  # `delete this._foo`
+  def delete(%{loop: loop, heap: heap, guid: guid}, field),
+    do: EventLoop.with_baton(loop, fn -> :ets.delete(heap, {guid, field}) end)
+
+  # A deleted table: the connection closed and nothing in it was reachable any more.
+  defp lookup(heap, key) do
+    :ets.lookup(heap, key)
+  rescue
+    ArgumentError -> reraise TargetClosedError, __STACKTRACE__
   end
 
   def put(%{loop: nil} = obj, field, _value),
@@ -49,7 +67,7 @@ defmodule PlaywrightEx.Runtime.Heap do
   # Map<K, V> fields: `{{guid, field, key}, value, seq}` rows. `seq` keeps JS insertion order:
   # setting an existing key keeps its position, delete + set moves it to the end.
   def map_get(%{heap: heap, guid: guid}, field, key) do
-    case :ets.lookup(heap, {guid, field, key}) do
+    case lookup(heap, {guid, field, key}) do
       [{_, value, _}] -> value
       [] -> nil
     end
