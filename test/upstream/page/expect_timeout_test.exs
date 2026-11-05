@@ -8,6 +8,8 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   @moduletag :page
 
+  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+
   test "should print element not found", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
     {:error, error} = Expect.to_have_text(Page.locator(page, "no-such-thing"), "hey", timeout: 1000)
@@ -15,7 +17,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ """
            expect(locator).toHaveText(expected) failed
 
-           Locator: locator('no-such-thing')
+           Locator: Page.locator(page, "no-such-thing")
            Expected: "hey"
            Timeout: 1000ms
            Error: element(s) not found
@@ -31,7 +33,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ """
            expect(locator).toHaveText(expected) failed
 
-           Locator:  locator('div')
+           Locator:  Page.locator(page, "div")
            Expected: "hey"
            Received: "Text content"
            Timeout:  1000ms
@@ -47,7 +49,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ """
            expect(locator).toHaveText(expected) failed
 
-           Locator: locator('no-such-thing')
+           Locator: Page.locator(page, "no-such-thing")
            Expected: "hey"
            Timeout: 1ms
            Error: element(s) not found
@@ -63,7 +65,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ """
            expect(locator).toHaveText(expected) failed
 
-           Locator:  locator('div')
+           Locator:  Page.locator(page, "div")
            Expected: "hey"
            Received: "Text content"
            Timeout:  1ms
@@ -102,7 +104,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ """
            expect(locator).toHaveText(expected) failed
 
-           Locator:  locator('span')
+           Locator:  Page.locator(page, "span")
            Expected: "bye"
            Received: ""
            Timeout:  3000ms

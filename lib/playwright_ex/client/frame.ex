@@ -539,7 +539,10 @@ defmodule PlaywrightEx.Client.Frame do
   end
 
   def frame_locator(this, selector \\ nil) do
-    FrameLocator.new(this, if(selector == nil, do: Locator.k_any_frame_selector(), else: selector))
+    FrameLocator.new(
+      this,
+      if(selector == nil, do: PlaywrightEx.Isomorphic.SelectorParser.k_any_frame_selector(), else: selector)
+    )
   end
 
   def focus(this, selector, options \\ %{}) do

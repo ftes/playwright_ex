@@ -7,6 +7,8 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
 
   @moduletag :page
 
+  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+
   # JS `Error.prototype.toString()`
   defp to_string_js(e), do: "Error: " <> e.message
 
@@ -35,7 +37,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).toHaveText(expected) failed
 
-           Locator: locator('#node')
+           Locator: Page.locator(page, "#node")
            Expected pattern: /Text2/
            Received string:  \"Text content\"
            Timeout: 1ms
@@ -64,7 +66,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).not.toHaveText(expected) failed
 
-           Locator: locator('#node')
+           Locator: Page.locator(page, "#node")
            Expected pattern: not /Text/
            Received string: \"Text content\"
            Timeout: 1ms
@@ -96,7 +98,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).toBeVisible() failed
 
-           Locator: locator('#node2')
+           Locator: Page.locator(page, "#node2")
            Expected: visible
            Timeout: 1ms
            Error: element(s) not found
@@ -125,7 +127,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).not.toBeVisible() failed
 
-           Locator:  locator('#node')
+           Locator:  Page.locator(page, "#node")
            Expected: not visible
            Received: visible
            Timeout:  1ms
@@ -156,7 +158,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).toHaveCount(expected) failed
 
-           Locator:  locator('#node2')
+           Locator:  Page.locator(page, "#node2")
            Expected: 1
            Received: 0
            Timeout:  1ms
@@ -183,7 +185,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).not.toHaveCount(expected) failed
 
-           Locator:  locator('#node')
+           Locator:  Page.locator(page, "#node")
            Expected: not 1
            Received: 1
            Timeout:  1ms
@@ -222,7 +224,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).toBeChecked() failed
 
-           Locator:  locator('#unchecked')
+           Locator:  Page.locator(page, "#unchecked")
            Expected: checked
            Received: unchecked
            Timeout:  1ms
@@ -236,7 +238,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).not.toBeChecked() failed
 
-           Locator:  locator('#checked')
+           Locator:  Page.locator(page, "#checked")
            Expected: not checked
            Received: checked
            Timeout:  1ms
@@ -257,7 +259,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).toBeChecked({ checked: false }) failed
 
-           Locator:  locator('#checked')
+           Locator:  Page.locator(page, "#checked")
            Expected: unchecked
            Received: checked
            Timeout:  1ms
@@ -278,7 +280,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).not.toBeChecked({ checked: false }) failed
 
-           Locator:  locator('#unchecked')
+           Locator:  Page.locator(page, "#unchecked")
            Expected: not unchecked
            Received: unchecked
            Timeout:  1ms
@@ -299,7 +301,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
     assert to_string_js(e) =~ """
            Error: expect(locator).toBeChecked({ indeterminate: true }) failed
 
-           Locator:  locator('#unchecked')
+           Locator:  Page.locator(page, "#unchecked")
            Expected: indeterminate
            Received: unchecked
            Timeout:  1ms

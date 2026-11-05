@@ -7,24 +7,18 @@ defmodule PlaywrightEx.Client.Locator do
 
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.ClientHelper
-  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Frame
   alias PlaywrightEx.Client.FrameLocator
   alias PlaywrightEx.Client.JSHandle
-  alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.Client.TimeoutSettings
+  alias PlaywrightEx.Isomorphic.LocatorGenerators
   alias PlaywrightEx.Isomorphic.LocatorUtils
+  alias PlaywrightEx.Isomorphic.SelectorParser
   alias PlaywrightEx.Isomorphic.StringUtils
-  alias PlaywrightEx.Runtime.EventLoop
-  alias PlaywrightEx.Runtime.Heap
 
   defstruct [:_frame, :_selector, _apiName: "Locator"]
-
-  # selectorParser.ts kAnyFrameSelector
-  @doc false
-  def k_any_frame_selector, do: "internal:control=any-frame"
 
   def new(frame, selector, options \\ nil) do
     selector =
@@ -60,7 +54,7 @@ defmodule PlaywrightEx.Client.Locator do
         do: selector <> " >> visible=#{if options.visible, do: "true", else: "false"}",
         else: selector
 
-    # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- not ported: Inspect shows the selector, see below
+    # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- ported as the Inspect implementation below
     %__MODULE__{_frame: frame, _selector: selector}
   end
 
@@ -252,8 +246,7 @@ defmodule PlaywrightEx.Client.Locator do
   end
 
   def description(this) do
-    # locatorCustomDescription(this._selector) || null
-    case locator_custom_description(this._selector) do
+    case LocatorGenerators.locator_custom_description(this._selector) do
       "" -> nil
       description -> description
     end
@@ -501,16 +494,14 @@ defmodule PlaywrightEx.Client.Locator do
     Frame._expect(this._frame, expression, Map.put(options, :selector, this._selector))
   end
 
-  # _inspect  -- not ported: Inspect shows the selector (`toString` needs the driver, PLAN), see below
+  @doc false
+  def _inspect(this) do
+    __MODULE__.to_string(this)
+  end
 
-  # asLocatorDescription through the driver (PLAN, Decisions): a sync member that needs the baton.
+  # Deviation: Elixir syntax (`Page.get_by_role(page, :button)`), not 'javascript' (PLAN).
   def to_string(this) do
-    EventLoop.with_baton(this._frame.loop, fn ->
-      LocalUtils.as_locator_description(Connection.local_utils(Heap.get(this._frame, :_connection)), %{
-        selector: this._selector,
-        sdkLanguage: "javascript"
-      })
-    end)
+    LocatorGenerators.as_locator_description("elixir", this._selector)
   end
 
   # locator.ts module functions
@@ -537,21 +528,17 @@ defmodule PlaywrightEx.Client.Locator do
     end)
   end
 
-  # locatorGenerators.ts locatorCustomDescription: the last part of the selector if it is
-  # `internal:describe`. Without parseSelector: describe() appends it as a JSON string.
-  defp locator_custom_description(selector) do
-    case Regex.run(~r/(?:^| >> )internal:describe=("(?:[^"\\]|\\.)*")$/, selector) do
-      [_, json] -> JSON.decode!(json)
-      nil -> nil
-    end
-  end
-
   # utils monotonicTime(), in milliseconds.
   defp monotonic_time, do: System.monotonic_time(:millisecond)
 
-  # Elixir only: `#PlaywrightEx.Locator<selector>`, like the handles (`toString` needs the driver).
+  # `#PlaywrightEx.Locator<_inspect()>`, like the handles.
   defimpl Inspect do
-    def inspect(this, _opts), do: "#PlaywrightEx.Locator<#{this._selector}>"
+    def inspect(this, _opts), do: "#PlaywrightEx.Locator<#{PlaywrightEx.Client.Locator._inspect(this)}>"
+  end
+
+  # String(locator), as JSHandle.
+  defimpl String.Chars do
+    def to_string(this), do: PlaywrightEx.Client.Locator.to_string(this)
   end
 end
 
@@ -561,6 +548,7 @@ defmodule PlaywrightEx.Client.FrameLocator do
 
   alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Isomorphic.LocatorUtils
+  alias PlaywrightEx.Isomorphic.SelectorParser
 
   defstruct [:_frame, :_frameSelector]
 
@@ -569,7 +557,7 @@ defmodule PlaywrightEx.Client.FrameLocator do
   end
 
   defp _child_selector(this, selector) do
-    if this._frameSelector == Locator.k_any_frame_selector(),
+    if this._frameSelector == SelectorParser.k_any_frame_selector(),
       do: this._frameSelector <> " >> " <> selector,
       else: this._frameSelector <> " >> internal:control=enter-frame >> " <> selector
   end
@@ -620,7 +608,7 @@ defmodule PlaywrightEx.Client.FrameLocator do
   end
 
   defp _nth_selector(this, nth) do
-    if this._frameSelector == Locator.k_any_frame_selector(),
+    if this._frameSelector == SelectorParser.k_any_frame_selector(),
       do: raise("Selecting the nth frame is not allowed on frameLocator().")
 
     this._frameSelector <> " >> nth=#{nth}"

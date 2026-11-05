@@ -8,6 +8,8 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
 
   @moduletag :page
 
+  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+
   defp date(ms), do: DateTime.from_unix!(ms, :millisecond)
 
   describe "toHaveCount" do
@@ -73,7 +75,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveCount(expected) failed
 
-             Locator:  locator('span')
+             Locator:  Page.locator(page, "span")
              Expected: 0
              Received: 1
              Timeout:  1000ms\
@@ -90,7 +92,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).not.toHaveCount(expected) failed
 
-             Locator:  locator('span')
+             Locator:  Page.locator(page, "span")
              Expected: not 1
              Received: 1
              Timeout:  1000ms\
@@ -135,7 +137,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveJSProperty(expected) failed
 
-             Locator:  locator('div')
+             Locator:  Page.locator(page, "div")
              Expected: "error"
              Received: "string"
              Timeout:  200ms\
@@ -160,7 +162,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveJSProperty(expected) failed
 
-             Locator:  locator('div')
+             Locator:  Page.locator(page, "div")
              Expected: 1
              Received: 2021
              Timeout:  200ms\
@@ -185,7 +187,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveJSProperty(expected) failed
 
-             Locator:  locator('div')
+             Locator:  Page.locator(page, "div")
              Expected: true
              Received: false
              Timeout:  200ms\
@@ -210,7 +212,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveJSProperty(expected) failed
 
-             Locator:  locator('div')
+             Locator:  Page.locator(page, "div")
              Expected: true
              Received: false
              Timeout:  200ms\
@@ -292,7 +294,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveClass(expected) failed
 
-             Locator:  locator('div')
+             Locator:  Page.locator(page, "div")
              Expected: "foo bar baz"
              Received: "bar baz"
              Timeout:  1000ms
@@ -350,7 +352,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toContainClass(expected) failed
 
-             Locator:  locator('div')
+             Locator:  Page.locator(page, "div")
              Expected: "does-not-exist"
              Received: "bar baz"
              Timeout:  1000ms
@@ -513,7 +515,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveAttribute(expected) failed
 
-             Locator:  locator('#node')
+             Locator:  Page.locator(page, "#node")
              Expected: ""
              Received: serializes to the same string
              Timeout:  1000ms
@@ -528,7 +530,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).toHaveAttribute(expected) failed
 
-             Locator: locator('#node')
+             Locator: Page.locator(page, "#node")
              Expected pattern: /.*/
              Received string:  ""
              Timeout: 1000ms
@@ -553,7 +555,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).not.toHaveAttribute(expected) failed
 
-             Locator:  locator('#node')
+             Locator:  Page.locator(page, "#node")
              Expected: not ""
              Received: ""
              Timeout:  1000ms
@@ -568,7 +570,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       assert error.message =~ """
              expect(locator).not.toHaveAttribute(expected) failed
 
-             Locator: locator('#node')
+             Locator: Page.locator(page, "#node")
              Expected pattern: not /.*/
              Received string: ""
              Timeout: 1000ms\
@@ -721,7 +723,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
     assert error.message =~ """
            expect(locator).toHaveText(expected) failed
 
-           Locator: locator('div')
+           Locator: Page.locator(page, "div")
            Expected: "foo"
            Error: strict mode violation: locator('div') resolved to 2 elements:
                1) <div>a</div> aka getByText('a')
@@ -735,10 +737,11 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
     Page.set_content!(page, "<div>a</div><div>b</div>")
     {:error, error} = Expect.to_be_visible(Page.locator(page, "##"))
 
+    # Deviation: invalid CSS is rendered, not returned as is (parseCSS is not ported).
     assert error.message =~ """
            expect(locator).toBeVisible() failed
 
-           Locator: ##
+           Locator: Page.locator(page, "##")
            Expected: visible
            Error: Unexpected token "#" while parsing css selector "##". Did you mean to CSS.escape it?
 

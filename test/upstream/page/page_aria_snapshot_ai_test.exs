@@ -142,18 +142,19 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     assert href3 == server.prefix <> "/frames/frame.html"
 
     resolved = Locator.normalize!(Page.get_by_ref(page, "e1"))
-    assert Locator.to_string(resolved) == "locator('body')"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert Locator.to_string(resolved) == ~s'Page.locator(page, "body")'
 
     resolved = Locator.normalize!(Page.get_by_ref(page, "f4e2"))
 
     assert Locator.to_string(resolved) ==
-             ~S|locator('iframe[name="2frames"]').contentFrame().locator('iframe[name="dos"]').contentFrame().getByText('Hi, I\'m frame')|
+             ~S{Page.locator(page, "iframe[name=\"2frames\"]") |> Locator.content_frame() |> FrameLocator.locator("iframe[name=\"dos\"]") |> Locator.content_frame() |> FrameLocator.get_by_text("Hi, I'm frame")}
 
     # Should tolerate .describe().
     resolved = page |> Page.get_by_ref("f3e2") |> Locator.describe("foo bar") |> Locator.normalize!()
 
     assert Locator.to_string(resolved) ==
-             ~S|locator('iframe[name="2frames"]').contentFrame().locator('iframe[name="uno"]').contentFrame().getByText('Hi, I\'m frame')|
+             ~S{Page.locator(page, "iframe[name=\"2frames\"]") |> Locator.content_frame() |> FrameLocator.locator("iframe[name=\"uno\"]") |> Locator.content_frame() |> FrameLocator.get_by_text("Hi, I'm frame")}
 
     {:error, error} = Locator.normalize(Page.get_by_ref(page, "e1000"))
     assert Exception.message(error) =~ "No element matching aria-ref=e1000"
@@ -797,7 +798,9 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
 
     Expect.to_have_text!(Page.get_by_ref(page, "f1e1"), "Hi, I'm frame")
     resolved = Locator.normalize!(Page.get_by_ref(page, "f1e1"))
-    assert Locator.to_string(resolved) == "locator('frame').first().contentFrame().locator('body')"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert Locator.to_string(resolved) ==
+             ~s'Page.locator(page, "frame") |> Locator.first() |> Locator.content_frame() |> FrameLocator.locator("body")'
   end
 
   test "should stitch iframes inside a frameset frame", %{page: page, server: server} do
@@ -824,8 +827,9 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
 
     resolved = Locator.normalize!(Page.get_by_ref(page, "f2e2"))
 
+    # Elixir syntax: the client renders locators (PLAN).
     assert Locator.to_string(resolved) ==
-             "locator('frame').contentFrame().locator('iframe').contentFrame().getByRole('button', { name: 'In iframe' })"
+             ~s'Page.locator(page, "frame") |> Locator.content_frame() |> FrameLocator.locator("iframe") |> Locator.content_frame() |> FrameLocator.get_by_role(:button, name: "In iframe")'
   end
 
   test "should stitch nested frameset documents", %{page: page, server: server} do

@@ -11,6 +11,8 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
 
   @moduletag :page
 
+  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+
   describe "toBeChecked" do
     test "default", %{page: page} do
       Page.set_content!(page, "<input type=checkbox checked></input>")
@@ -53,7 +55,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ """
              expect(locator).toBeChecked() failed
 
-             Locator:  locator('input')
+             Locator:  Page.locator(page, "input")
              Expected: checked
              Received: unchecked
              Timeout:  1000ms\
@@ -82,7 +84,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ """
              expect(locator).not.toBeChecked() failed
 
-             Locator:  locator('input')
+             Locator:  Page.locator(page, "input")
              Expected: not checked
              Received: checked
              Timeout:  1000ms\
@@ -100,7 +102,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ """
              expect(locator).toBeChecked({ checked: false }) failed
 
-             Locator:  locator('input')
+             Locator:  Page.locator(page, "input")
              Expected: unchecked
              Received: checked
              Timeout:  1000ms\
@@ -118,7 +120,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ """
              expect(locator).toBeChecked({ indeterminate: true }) failed
 
-             Locator:  locator('input')
+             Locator:  Page.locator(page, "input")
              Expected: indeterminate
              Received: unchecked
              Timeout:  1000ms\
@@ -135,7 +137,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ """
              expect(locator).not.toBeChecked() failed
 
-             Locator: locator('input2')
+             Locator: Page.locator(page, "input2")
              Expected: not checked
              Timeout: 1000ms
              Error: element(s) not found
@@ -494,7 +496,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       assert error.message =~ """
              expect(locator).not.toBeHidden() failed
 
-             Locator: locator('button')
+             Locator: Page.locator(page, "button")
              Expected: not hidden
              Timeout: 1000ms
              Error: element(s) not found

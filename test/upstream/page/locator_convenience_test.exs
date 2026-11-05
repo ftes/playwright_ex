@@ -17,11 +17,11 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     text = Locator.evaluate_handle!(inner, "e => e.firstChild")
     # Give them a chance to calculate the preview.
     Page.evaluate!(page, "() => 1")
-    # String(locator): Locator.to_string/1 (a locator is not a String.Chars).
-    assert Locator.to_string(outer) == "locator('#outer')"
-    assert Locator.to_string(inner) == "locator('#outer').locator('#inner')"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert to_string(outer) == ~s'Page.locator(page, "#outer")'
+    assert to_string(inner) == ~s'Page.locator(page, "#outer") |> Locator.locator("#inner")'
     assert to_string(text) == "JSHandle@#text=Text,↵more text"
-    assert Locator.to_string(check) == "locator('#check')"
+    assert to_string(check) == ~s'Page.locator(page, "#check")'
   end
 
   test "getAttribute should work", %{page: page, server: server} do
@@ -223,7 +223,8 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
 
   test "toString() returns formatted locator", %{page: page} do
     locator = Page.get_by_role(page, "button", name: "Submit")
-    assert Locator.to_string(locator) == "getByRole('button', { name: 'Submit' })"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert Locator.to_string(locator) == ~s'Page.get_by_role(page, :button, name: "Submit")'
     assert Locator.description(locator) == nil
   end
 

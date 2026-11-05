@@ -8,6 +8,8 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
 
   @moduletag :page
 
+  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+
   describe "toHaveText with regex" do
     test "pass", %{page: page} do
       Page.set_content!(page, "<div id=node>Text   content</div>")
@@ -30,7 +32,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ """
              expect(locator).toHaveText(expected) failed
 
-             Locator: locator('#node')
+             Locator: Page.locator(page, "#node")
              Expected pattern: /Text 2/
              Received string:  "Text content"
              Timeout: 1000ms
@@ -74,7 +76,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ """
              expect(locator).toContainText(expected) failed
 
-             Locator: locator('#node')
+             Locator: Page.locator(page, "#node")
              Expected substring: "foo"
              Received string:    "Text content"
              Timeout: 1000ms
@@ -290,7 +292,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ """
              expect(locator).toHaveText(expected) failed
 
-             Locator: locator('div')
+             Locator: Page.locator(page, "div")
              Timeout: 1000ms
              - Expected  - 1
              + Received  + 0

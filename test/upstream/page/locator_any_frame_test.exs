@@ -143,7 +143,8 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     wait_for_all_frames(page, 3, "span")
     {:error, error} = Expect.to_have_count(page |> any_frame() |> FrameLocator.locator("span"), 2, timeout: 3000)
     assert error.message =~ "frameLocator() matched elements in multiple frames"
-    assert error.message =~ "Locator: frameLocator().locator('span')"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("span")'
   end
 
   test "should support toHaveText", %{page: page, server: server} do
@@ -168,7 +169,8 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     wait_for_all_frames(page, 3, "div")
     {:error, error} = Expect.to_have_text(page |> any_frame() |> FrameLocator.locator("div"), "one", timeout: 3000)
     assert error.message =~ "frameLocator() matched elements in multiple frames"
-    assert error.message =~ "Locator: frameLocator().locator('div')"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("div")'
   end
 
   test "should fail toHaveText with an array when elements match in multiple frames", %{page: page, server: server} do
@@ -191,7 +193,8 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     wait_for_all_frames(page, 2, "div")
     {:error, error} = Expect.to_have_text(page |> any_frame() |> FrameLocator.locator("div"), "one", timeout: 3000)
     assert error.message =~ "strict mode violation"
-    assert error.message =~ "Locator: frameLocator().locator('div')"
+    # Elixir syntax: the client renders locators (PLAN).
+    assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("div")'
   end
 
   test "should support evaluate", %{page: page, server: server} do
@@ -532,11 +535,13 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
   end
 
   test "should render frameLocator() in the locator description", %{page: page} do
+    # Elixir syntax: the client renders locators (PLAN).
     assert page
            |> any_frame()
            |> FrameLocator.frame_locator("#x")
            |> FrameLocator.locator("button")
-           |> Locator.to_string() == "frameLocator().locator('#x').contentFrame().locator('button')"
+           |> Locator.to_string() ==
+             ~s'Page.frame_locator(page) |> FrameLocator.locator("#x") |> Locator.content_frame() |> FrameLocator.locator("button")'
 
     assert page
            |> any_frame()
@@ -544,7 +549,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
            |> Locator.frame_locator("iframe")
            |> FrameLocator.get_by_text("foo")
            |> Locator.to_string() ==
-             "frameLocator().locator('section').locator('iframe').contentFrame().getByText('foo')"
+             ~s'Page.frame_locator(page) |> FrameLocator.locator("section") |> Locator.locator("iframe") |> Locator.content_frame() |> FrameLocator.get_by_text("foo")'
   end
 
   test "should not allow frameLocator() inside a composite locator", %{page: page, server: server} do
