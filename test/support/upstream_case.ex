@@ -16,8 +16,11 @@ defmodule PlaywrightEx.UpstreamCase do
       `:request`, or `request: options` (`newContext` options, for specs that override the fixture)
     * `create_user_data_dir` (`create_user_data_dir.()`, a fresh temp dir, removed after the test),
       `launch_persistent` (`launch_persistent.(options)` returns `%{context: _, page: _}`, closed
-      after the test), `start_remote_server` (`start_remote_server.("run-server", options)`,
-      `PlaywrightEx.RemoteServer.RunServer`, killed after the test; `launchServer` is not ported)
+      after the test), `start_remote_server` (`start_remote_server.(kind, options)`: kind
+      `"run-server"` (`PlaywrightEx.RemoteServer.RunServer`) or `"launchServer"`
+      (`PlaywrightEx.RemoteServer`), closed after the test)
+    * `launch_server` (`launch_server.(options)` for `browserType.launchServer(options)`:
+      `{:ok, PlaywrightEx.RemoteServer.LaunchServer}` or `{:error, message}`, killed after the test)
 
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
   """
@@ -124,7 +127,7 @@ defmodule PlaywrightEx.UpstreamCase do
     end
   end
 
-  setup %{browser_type: browser_type} do
+  setup %{browser_type: browser_type, browser_name: browser_name} do
     create_user_data_dir = fn ->
       dir = Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       File.mkdir_p!(dir)
@@ -139,20 +142,31 @@ defmodule PlaywrightEx.UpstreamCase do
       %{context: context, page: hd(BrowserContext.pages(context))}
     end
 
-    start_remote_server = fn
-      "run-server", options ->
-        server = PlaywrightEx.RemoteServer.RunServer.start(options)
-        on_exit(fn -> PlaywrightEx.RemoteServer.RunServer.close(server) end)
-        server
+    # Upstream also waits 1 s after `server.close()` for its reused workers' browsers.
+    start_remote_server = fn kind, options ->
+      server =
+        case kind do
+          "run-server" -> PlaywrightEx.RemoteServer.RunServer.start(options)
+          "launchServer" -> PlaywrightEx.RemoteServer._start(browser_type, options)
+        end
 
-      "launchServer", _options ->
-        raise "not ported: launchServer"
+      on_exit(fn -> PlaywrightEx.RemoteServer.PlaywrightServer.close(server) end)
+
+      server
+    end
+
+    launch_server = fn options ->
+      with {:ok, server} <- PlaywrightEx.RemoteServer.LaunchServer.start(browser_name, options) do
+        on_exit(fn -> PlaywrightEx.RemoteServer.LaunchServer.kill(server) end)
+        {:ok, server}
+      end
     end
 
     %{
       create_user_data_dir: create_user_data_dir,
       launch_persistent: launch_persistent,
-      start_remote_server: start_remote_server
+      start_remote_server: start_remote_server,
+      launch_server: launch_server
     }
   end
 end
