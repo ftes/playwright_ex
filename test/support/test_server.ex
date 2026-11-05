@@ -28,6 +28,7 @@ defmodule PlaywrightEx.TestServer do
   alias PlaywrightEx.TestServer
 
   defstruct [:pid, :port, :prefix, :cross_process_prefix, :empty_page, :host, :hostname, :hello_world]
+  @type t :: %__MODULE__{}
 
   def create(dir_path, port \\ 0, loopback \\ nil), do: start!(dir_path: dir_path, port: port, loopback: loopback)
 

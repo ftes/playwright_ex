@@ -113,7 +113,7 @@ defmodule PlaywrightEx.TestServer.WebSocket do
 
   # this._wsServer.handleUpgrade(request, socket, head, ws => this._wsServer.emit('connection', ws, request))
   @doc false
-  @spec _handle_upgrade(%TestServer{}, Plug.Conn.t(), ThousandIsland.Socket.t()) :: no_return()
+  @spec _handle_upgrade(TestServer.t(), Plug.Conn.t(), ThousandIsland.Socket.t()) :: no_return()
   def _handle_upgrade(%TestServer{pid: server_pid}, conn, socket) do
     [key] = Plug.Conn.get_req_header(conn, "sec-websocket-key")
     # `ws` accepts the first offered subprotocol (its default `handleProtocols`).
