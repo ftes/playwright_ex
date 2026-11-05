@@ -70,6 +70,8 @@ jobs:
     name: Test (${{ matrix.browser }})
     runs-on: ubuntu-latest
     needs: build
+    # firefox's slowest run (with retry) is ~40 min; a hang fails here instead of at GitHub's 6 h.
+    timeout-minutes: 60
     # firefox is non-blocking until its Linux viewport/worker-timestamp failures are fixed.
     continue-on-error: ${{ matrix.browser == 'firefox' }}
     strategy:
@@ -85,8 +87,14 @@ jobs:
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
+      # A stalled browser download hung this step for 40 min once: cap each attempt, retry twice.
       - name: Install driver and browsers
-        run: mix playwright_ex.install -- ${{ matrix.browser }} --with-deps
+        run: |
+          for attempt in 1 2 3; do
+            timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps && exit 0
+            echo "::warning::browser install attempt $attempt failed or timed out"
+          done
+          exit 1
       - name: Check parity with upstream
         if: matrix.browser == 'chromium'
         run: mix playwright_ex.parity
