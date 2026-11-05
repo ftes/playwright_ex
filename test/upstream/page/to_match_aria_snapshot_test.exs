@@ -955,6 +955,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
   end
 
   test "top-level deep-equal", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/36456
     Page.set_content!(page, """
     <ul>
       <li>
@@ -989,6 +990,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
   end
 
   test "generated snapshot includes text children when name is longer than text", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/40079
     Page.set_content!(page, """
     <section>
       <div role="progressbar" aria-label="Alpha Beta" aria-valuenow="7" aria-valuemin="0" aria-valuemax="10">
@@ -1023,6 +1025,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
   end
 
   test "invalid attribute", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/34839
     Page.set_content!(page, """
     <input type="text" aria-label="Email" aria-invalid="true" value="not-an-email">
     <input type="text" aria-label="Name" value="Alice">

@@ -413,7 +413,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
 
     check_and_match_snapshot(Page.locator(page, "body"), """
-    - paragraph: hello
+    - paragraph: \u{EAB2}hello
     """)
   end
 
@@ -564,7 +564,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
       <summary> one  \n two <a href="#"> link &nbsp;\n  1 </a> </summary>
     </details>
     <input value='  hello   &nbsp; world '>
-    <button>hello­​world</button>
+    <button>hello\u{AD}\u{200B}world</button>
     """)
 
     check_and_match_snapshot(Page.locator(page, "body"), """
@@ -585,7 +585,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
       - link "  link     1 ":
         - /url: "#"
     - textbox:        hello  world
-    - button "he­lloworld​"
+    - button "he\u{AD}lloworld\u{200B}"
     """)
   end
 
@@ -690,6 +690,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
   end
 
   test "should not show visible children of hidden elements", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/36296
     Page.set_content!(page, """
     <div style="visibility: hidden;">
       <div style="visibility: visible;">
@@ -702,6 +703,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
   end
 
   test "should not show unhidden children of aria-hidden elements", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/36296
     Page.set_content!(page, """
     <div aria-hidden="true">
       <div aria-hidden="false">
@@ -799,6 +801,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
   end
 
   test "should include frames on frameset pages", %{page: page, server: server} do
+    # issue: https://github.com/microsoft/playwright/issues/41784
     TestServer.set_route(server, "/frameset.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")

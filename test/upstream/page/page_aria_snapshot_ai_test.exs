@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   # `unshift(snapshot)` (tests/config/utils.ts).
   defp unshift(snapshot) do
     lines = String.split(snapshot, "\n")
-    prefix = lines |> Enum.reject(&(String.trim(&1) == "")) |> Enum.map(&indentation/1) |> Enum.min(fn -> 100 end)
+    prefix = lines |> Enum.reject(&(String.trim(&1) == "")) |> Enum.map(&indentation/1) |> Enum.reduce(100, &min/2)
     lines |> Enum.filter(&(String.trim(&1) != "")) |> Enum.map_join("\n", &String.slice(&1, prefix..-1//1))
   end
 
@@ -421,6 +421,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "should keep the name when the contributing wrapper collapses into repeating text", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/41985
     # The outer span is marked as represented while it still wraps the icon. Once the nameless
     # image is dropped, the span collapses into a lone text repeating the button's name and removes
     # itself, so the button must keep the name derived from it.
@@ -493,6 +494,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "should keep icon-only clickable elements", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/42013
     icon = ~s(<svg viewBox="0 0 1024 1024"><use xlink:href="#icon"></use></svg>)
 
     Page.set_content!(page, """
@@ -627,6 +629,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "should show visible children of hidden elements", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/36296
     Page.set_content!(page, """
       <div style="visibility: hidden">
         <div style="visibility: visible">
@@ -721,6 +724,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "return empty snapshot when iframe is not loaded", %{page: page, server: server} do
+    # issue: https://github.com/microsoft/playwright/pull/36710
     Page.set_content!(page, """
       <div style="height: 5000px;">Test</div>
       <iframe loading="lazy" src="#{server.prefix}/frame.html"></iframe>
@@ -759,6 +763,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "should snapshot frameset pages", %{page: page, server: server} do
+    # issue: https://github.com/microsoft/playwright/issues/41784
     html_route(
       server,
       "/frameset.html",
@@ -990,6 +995,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "should annotate aria-hidden elements", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/42223
     Page.set_content!(page, """
       <h2>Visible heading</h2>
       <div aria-hidden="true">
@@ -1014,6 +1020,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
   end
 
   test "should only annotate the top element in a hidden subtree", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/42223
     Page.set_content!(page, """
       <div aria-hidden="true">
         <h1>Heading</h1>

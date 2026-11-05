@@ -93,13 +93,13 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       # Should normalize whitespace.
       Expect.to_have_text!(locator, "Text                        content")
       # Should normalize zero width whitespace.
-      Expect.to_have_text!(locator, "T​e​x​t content")
+      Expect.to_have_text!(locator, "T\u{200B}e\u{200B}x\u{200B}t content")
       # Should support ignoreCase.
       Expect.to_have_text!(locator, "text CONTENT", ignore_case: true)
       # Should support falsy ignoreCase.
       Expect.not_to_have_text!(locator, "TEXT", ignore_case: false)
       # Should normalize soft hyphens.
-      Expect.to_have_text!(locator, "T­e­xt content")
+      Expect.to_have_text!(locator, "T\u{AD}e\u{AD}xt content")
     end
 
     test "pass contain", %{page: page} do

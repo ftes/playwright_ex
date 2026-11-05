@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -122,7 +123,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
 
     json = Page.aria_snapshot_json!(page, mode: "ai")
     iframe = find_node(json, &(&1["role"] == "iframe"))
-    assert iframe["ref"]
+    Utils.assert_truthy(iframe["ref"])
     button = find_node(iframe["children"], &(&1["role"] == "button"))
     assert button["name"] == "In frame"
     assert button["ref"] =~ ~r/^f\d+e\d+$/
