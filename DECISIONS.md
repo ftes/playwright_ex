@@ -641,3 +641,14 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - An `optionsOr<Name>` argument (`[function]|[Object]`) merges into options with a
   `when is_function/1` clause: `wait_for_event` and every `expect_*` built on it take a predicate.
 - Open: 4 `wait_for_event` timeout docs still carry the JS text (no same-type non-JS sibling).
+
+## 2026-11-05: launchServer specs (workstream BB2)
+- The launchServer, multiclient and signals specs run, as Python/Java run them. There are two
+  server mechanisms: upstream's `remote-server-impl.js` via NODE_PATH, unmodified, for the
+  RemoteServer fixture; and the driver's `launch-server` CLI, which is what Python's conftest uses.
+- The signals spec runs a child BEAM (`ClientProcess`). Deviation: exit codes are the BEAM's
+  (SIGHUP gives 129). The 3 tests Python skips (SI-007..009) stay skipped.
+- The browsertype-connect reuse scenarios are ported (commit vsuyrrrl) even though Python skips
+  that file. They pass, so drop the commit if you want strict north-star parity.
+- Fixtures are stopped only by an explicit close. An aborted run can orphan servers and their
+  browsers; workstream OO makes them exit on stdin EOF.
