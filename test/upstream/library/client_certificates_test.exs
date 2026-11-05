@@ -1032,8 +1032,9 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   end
 
   describe "browser persistentContext" do
+    # test.slow()
+    @tag timeout: @slow_timeout
     test "validate input", %{browser_type: browser_type, create_user_data_dir: create_user_data_dir} do
-      # test.slow();
       for {context_options, expected} <- @validation_sub_tests do
         {:error, error} = BrowserType.launch_persistent_context(browser_type, create_user_data_dir.(), context_options)
         assert error.message =~ expected

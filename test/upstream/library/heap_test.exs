@@ -39,7 +39,8 @@ defmodule PlaywrightEx.Library.HeapTest do
   test "should collect stale handles"
 
   @tag :page
-  @tag timeout: 300_000
+  # test.slow()
+  @tag timeout: @slow_timeout
   test "should collect frames", %{page: page, server: server} do
     k_frame_count = 310
 
@@ -75,6 +76,8 @@ defmodule PlaywrightEx.Library.HeapTest do
     Page.wait_for_timeout!(page, 500)
   end
 
+  # test.slow()
+  @tag timeout: @slow_timeout
   @tag :page
   test "cycle handles", %{page: page, server: server} do
     # test.skip(trace === 'on')  -- tracing is off

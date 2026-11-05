@@ -149,6 +149,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
     test "should respect the drop effect", %{page: page} do
       # it.fixme(browserName === 'webkit' && !isLinux, 'WebKit doesn\'t handle the drop effect correctly outside of linux.');
       # it.fixme(webkit && isLinux && !headless), it.fixme(chromium && !isMac && !headless)  -- we run headless
+      # it.slow(trace === 'on')  -- tracing is off
       assert test_if_dropped(page, "copy", "copy") == true
       assert test_if_dropped(page, "copy", "move") == false
       assert test_if_dropped(page, "all", "link") == true

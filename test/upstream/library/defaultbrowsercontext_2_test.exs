@@ -118,7 +118,8 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     BrowserContext.close!(context)
   end
 
-  @tag timeout: 180_000
+  # it.slow()
+  @tag timeout: @slow_timeout
   test "should restore state from userDataDir", %{
     browser_type: browser_type,
     server: server,

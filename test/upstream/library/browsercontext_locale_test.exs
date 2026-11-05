@@ -106,9 +106,9 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  @tag timeout: 360_000
+  # it.slow()
+  @tag timeout: @slow_timeout
   test "should be isolated between contexts", %{browser: browser} do
-    # it.slow();
     context1 = Browser.new_context!(browser, locale: "en-US")
     # By default firefox limits number of child web processes to 8.
     1..8

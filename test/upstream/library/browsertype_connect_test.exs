@@ -12,6 +12,9 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  # test.slow(true, 'All connect tests are slow')
+  @moduletag timeout: @slow_timeout
+
   import PlaywrightEx.Utils, only: [ensure_some_frames: 1, parse_trace_raw: 2]
 
   alias PlaywrightEx.APIRequest
@@ -1071,6 +1074,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert file1.size == 200 * 1024 * 1024
       end
 
+      # test.slow()
+      @tag timeout: @slow_timeout
       @tag :tmp_dir
       test "should upload a folder", %{
         browser_type: browser_type,
@@ -1510,6 +1515,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       assert Exception.message(error) =~ @k_target_closed_error_message
     end
 
+    # test.slow()
+    @tag timeout: @slow_timeout
     test "should be able to reconnect to a browser 12 times without warnings", %{
       browser_type: browser_type,
       start_remote_server: start_remote_server,

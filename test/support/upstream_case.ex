@@ -49,8 +49,20 @@ defmodule PlaywrightEx.UpstreamCase do
 
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
       @moduletag upstream: @upstream
-      @moduletag timeout: 120_000
+      # tests/library/playwright.config.ts: `timeout: video || (darwin && x64) ? 60000 : 30000`
+      # (we never record video); `test.slow()` triples it: `@tag timeout: @slow_timeout`.
+      @moduletag timeout: PlaywrightEx.UpstreamCase.timeout()
+      @slow_timeout 3 * PlaywrightEx.UpstreamCase.timeout()
     end
+  end
+
+  @doc "Upstream's per-test timeout (`tests/library/playwright.config.ts`)."
+  def timeout do
+    darwin_x64 =
+      match?({:unix, :darwin}, :os.type()) and
+        String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64")
+
+    if darwin_x64, do: 60_000, else: 30_000
   end
 
   @doc "`ExUnit.Case.test/1`, skipped when a rule rules it out."

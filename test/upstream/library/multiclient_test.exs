@@ -22,7 +22,9 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
-  # test.slow(true, 'All connect tests are slow'); test.skip(mode !== 'default')  -- always default mode
+  # test.skip(mode !== 'default')  -- always default mode
+  # test.slow(true, 'All connect tests are slow')
+  @moduletag timeout: @slow_timeout
 
   @moduletag :remote_server
 

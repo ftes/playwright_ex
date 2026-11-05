@@ -1172,7 +1172,7 @@ defmodule PlaywrightEx.Library.HarTest do
   end
 
   # it.slow()
-  @tag timeout: 300_000
+  @tag timeout: @slow_timeout
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: serializer is browser-agnostic; one browser is enough")
   test "should support HAR larger than 512MB", %{
     context_factory: context_factory,

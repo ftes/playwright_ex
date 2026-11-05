@@ -479,8 +479,9 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-grid-fullpage.png")
     end
 
+    # it.slow()
+    @tag timeout: @slow_timeout
     test "should take fullPage screenshots during navigation", %{page: page, server: server} do
-      # it.slow()
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       reload_several_times = Task.async(fn -> for _ <- 1..5, do: Page.reload!(page) end)

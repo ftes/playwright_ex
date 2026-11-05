@@ -82,6 +82,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
   describe "screencast" do
     # it.slow(); it.skip(({ mode }) => mode !== 'default', ...)  -- always default mode
+    @describetag timeout: @slow_timeout
 
     @tag :page
     test "should not have video by default", %{page: page} do
@@ -667,6 +668,8 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
   end
 
+  # it.slow()
+  @tag timeout: @slow_timeout
   @tag :tmp_dir
   test "should saveAs video", %{browser: browser, tmp_dir: videos_path} do
     size = %{width: 320, height: 240}

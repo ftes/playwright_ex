@@ -24,7 +24,9 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
-  # test.skip(mode !== 'default'), test.skip(video === 'on'), test.slow()  -- always default mode, no runner video
+  # test.skip(mode !== 'default'), test.skip(video === 'on')  -- always default mode, no runner video
+  # test.slow()
+  @moduletag timeout: @slow_timeout
 
   # Date.now()
   defp now, do: System.os_time(:millisecond)
@@ -202,6 +204,8 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
+  # test.slow()
+  @tag timeout: @slow_timeout
   @tag :tmp_dir
   test "start/stop twice without path creates two files in artifactsDir", %{
     browser_type: browser_type,
@@ -230,6 +234,8 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     Browser.close!(browser)
   end
 
+  # test.slow()
+  @tag timeout: @slow_timeout
   @tag :tmp_dir
   test "start should work when recordVideo is set", %{browser: browser, tmp_dir: tmp_dir} do
     auto_dir = Path.join(tmp_dir, "auto")
@@ -312,6 +318,8 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     expect_frames(video_path, size, &almost_white?/1)
   end
 
+  # test.slow()
+  @tag timeout: @slow_timeout
   @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
   @tag :tmp_dir
   test "start dispose stops recording", %{browser: browser, tmp_dir: tmp_dir} do

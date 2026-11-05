@@ -15,6 +15,9 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     do: @moduletag(skip: "not ported: toImpl (crash via the server-side page session)")
 
   # test.beforeEach: test.skip(chromium && ubuntu24.04 / webkit && debian13 / webkit-wsl)  -- not our hosts
+  # test.beforeEach: test.slow(platform === 'linux' && browserName === 'webkit', ...)
+  if System.get_env("BROWSER", "chromium") == "webkit" and match?({:unix, :linux}, :os.type()),
+    do: @moduletag(timeout: @slow_timeout)
 
   # The `crash` fixture: page.goto('chrome://crash').catch(e => {})
   defp crash(page), do: Task.start(fn -> Page.goto(page, "chrome://crash") end)

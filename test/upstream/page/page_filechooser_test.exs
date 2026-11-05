@@ -54,7 +54,8 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   end
 
   @tag :tmp_dir
-  @tag timeout: 600_000
+  # test.slow()
+  @tag timeout: @slow_timeout
   test "should upload multiple large files", %{page: page, server: server, tmp_dir: tmp_dir} do
     files_count = 10
     Page.goto!(page, server.prefix <> "/input/fileupload-multi.html")

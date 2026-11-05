@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
   # the browser when the BEAM goes away.
 
   # test.slow()
+  @moduletag timeout: @slow_timeout
 
   setup %{browser_name: browser_name} do
     start_remote_server = fn "launchServer", options ->

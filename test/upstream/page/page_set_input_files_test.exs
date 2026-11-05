@@ -133,7 +133,8 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
-  @tag timeout: 300_000
+  # test.slow()
+  @tag timeout: @slow_timeout
   test "should upload large file", %{page: page, server: server, tmp_dir: tmp_dir} do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     upload_file = Path.join(tmp_dir, "200MB.zip")
@@ -167,7 +168,8 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
-  @tag timeout: 300_000
+  # test.slow()
+  @tag timeout: @slow_timeout
   test "should upload large file with relative path", %{page: page, server: server, tmp_dir: tmp_dir} do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     upload_file = Path.join(tmp_dir, "200MB.zip")

@@ -133,9 +133,9 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     BrowserContext.close!(context)
   end
 
-  @tag timeout: 360_000
+  # it.slow(true, 'We open 20 pages here!')
+  @tag timeout: @slow_timeout
   test "should not leak listeners during navigation of 20 pages", %{context_factory: context_factory, server: server} do
-    # it.slow(true, 'We open 20 pages here!')
     context = context_factory.([])
     # process.on('warning', ...): the client's MaxListenersExceededWarning is logged here.
     # Promise.all has no timeout of its own: the test's.
