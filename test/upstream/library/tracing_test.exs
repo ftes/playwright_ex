@@ -371,6 +371,8 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert File.exists?(Path.join(traces_dir, "name2.trace")) == true
     assert File.exists?(Path.join(traces_dir, "name2.network")) == true
 
+    Browser.close!(browser)
+
     resource_names = fn resources ->
       resources
       |> Map.keys()
@@ -378,8 +380,7 @@ defmodule PlaywrightEx.Library.TracingTest do
       |> Enum.sort()
     end
 
-    %{resources: resources, actions: actions} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), context)
-    Browser.close!(browser)
+    %{resources: resources, actions: actions} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), browser_type)
     assert actions == ["Navigate #{host(server)}/one-style.html"]
 
     assert resource_names.(resources) == [
@@ -390,7 +391,8 @@ defmodule PlaywrightEx.Library.TracingTest do
              "trace.trace"
            ]
 
-    %{resources: resources} = parse_trace_raw(Path.join(tmp_dir, "trace2.zip"), context)
+    %{resources: resources, actions: actions} = parse_trace_raw(Path.join(tmp_dir, "trace2.zip"), browser_type)
+    assert actions == ["Navigate #{host(server)}/har.html"]
 
     assert resource_names.(resources) == [
              "resources/XXX.css",
@@ -560,7 +562,8 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   test "should survive browser.close with auto-created traces dir", %{browser_type: browser_type} do
-    # (browserType as any)._playwright._defaultTracesDir = undefined;  -- the runner sets no traces dir
+    # (browserType as any)._playwright._defaultTracesDir = undefined;  -- a no-op upstream too (no
+    # `_defaultTracesDir` in 1.64.1): the launch keeps the runner's tracesDir, as there
     browser = BrowserType.launch!(browser_type)
     page = Browser.new_page!(browser)
     Tracing.start!(tracing(Page.context(page)))
@@ -579,8 +582,10 @@ defmodule PlaywrightEx.Library.TracingTest do
     Process.sleep(1000)
 
     # Close the browser and give it some time to fail.
-    Browser.close!(browser)
-    Process.sleep(500)
+    Task.await_many(
+      [Task.async(fn -> Browser.close!(browser) end), Task.async(fn -> Process.sleep(500) end)],
+      :infinity
+    )
 
     Task.shutdown(go, :brutal_kill)
   end
@@ -952,16 +957,35 @@ defmodule PlaywrightEx.Library.TracingTest do
     tmp_dir: tmp_dir
   } do
     request2 = APIRequest.new_context!(Playwright.request(playwright))
-    # Promise.all([...]): run one after the other.
-    Tracing.start!(APIRequestContext.tracing(request), snapshots: true)
-    Tracing.start!(APIRequestContext.tracing(request2), snapshots: true)
+
+    Task.await_many(
+      [
+        Task.async(fn -> Tracing.start!(APIRequestContext.tracing(request), snapshots: true) end),
+        Task.async(fn -> Tracing.start!(APIRequestContext.tracing(request2), snapshots: true) end)
+      ],
+      :infinity
+    )
+
     url = server.prefix <> "/simple.json"
-    APIRequestContext.get!(request, url)
-    APIRequestContext.post!(request2, url)
+
+    Task.await_many(
+      [
+        Task.async(fn -> APIRequestContext.get!(request, url) end),
+        Task.async(fn -> APIRequestContext.post!(request2, url) end)
+      ],
+      :infinity
+    )
+
     trace_path = Path.join(tmp_dir, "trace.zip")
     trace2_path = Path.join(tmp_dir, "trace2.zip")
-    Tracing.stop!(APIRequestContext.tracing(request), path: trace_path)
-    Tracing.stop!(APIRequestContext.tracing(request2), path: trace2_path)
+
+    Task.await_many(
+      [
+        Task.async(fn -> Tracing.stop!(APIRequestContext.tracing(request), path: trace_path) end),
+        Task.async(fn -> Tracing.stop!(APIRequestContext.tracing(request2), path: trace2_path) end)
+      ],
+      :infinity
+    )
 
     trace = parse_trace_raw(trace_path, playwright)
     actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))
