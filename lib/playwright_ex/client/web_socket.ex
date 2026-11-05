@@ -19,7 +19,8 @@ defmodule PlaywrightEx.Client.WebSocket do
     put(this, :_isClosed, false)
     put(this, :_page, parent)
 
-    EventEmitter.on(_channel(this), "frameSent", fn event ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "frameSent", fn event ->
       cond do
         event.opcode == 1 ->
           emit(this, Events.WebSocket.frame_sent(), %{payload: event.data})
@@ -32,7 +33,8 @@ defmodule PlaywrightEx.Client.WebSocket do
       end
     end)
 
-    EventEmitter.on(_channel(this), "frameReceived", fn event ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "frameReceived", fn event ->
       cond do
         event.opcode == 1 ->
           emit(this, Events.WebSocket.frame_received(), %{payload: event.data})
@@ -45,9 +47,13 @@ defmodule PlaywrightEx.Client.WebSocket do
       end
     end)
 
-    EventEmitter.on(_channel(this), "socketError", fn %{error: error} -> emit(this, Events.WebSocket.error(), error) end)
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "socketError", fn %{error: error} ->
+      emit(this, Events.WebSocket.error(), error)
+    end)
 
-    EventEmitter.on(_channel(this), "close", fn _ ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "close", fn _ ->
       put(this, :_isClosed, true)
       emit(this, Events.WebSocket.close(), this)
     end)
