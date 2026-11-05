@@ -174,6 +174,7 @@ defmodule PlaywrightEx.Browser do
                           is_mobile: {:isMobile, nil},
                           java_script_enabled: {:javaScriptEnabled, nil},
                           locale: {:locale, nil},
+                          logger: {:logger, {:fields, %{isEnabled: nil, log: nil}}},
                           offline: {:offline, nil},
                           permissions: {:permissions, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
@@ -256,6 +257,11 @@ defmodule PlaywrightEx.Browser do
             is_mobile: boolean(),
             java_script_enabled: boolean(),
             locale: String.t(),
+            logger: %{
+              isEnabled: (String.t(), String.t() -> boolean()),
+              log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                      term())
+            },
             offline: boolean(),
             permissions: [String.t()],
             proxy: %{
@@ -368,6 +374,11 @@ defmodule PlaywrightEx.Browser do
               optional(:is_mobile) => boolean(),
               optional(:java_script_enabled) => boolean(),
               optional(:locale) => String.t(),
+              optional(:logger) => %{
+                isEnabled: (String.t(), String.t() -> boolean()),
+                log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                        term())
+              },
               optional(:offline) => boolean(),
               optional(:permissions) => [String.t()],
               optional(:proxy) => %{
@@ -514,6 +525,9 @@ defmodule PlaywrightEx.Browser do
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
   * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+  * `:logger` - Logger sink for Playwright logging.
+    * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
+    * `:log`
   * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
   * `:permissions` - A list of permissions to grant to all pages in this context. See
     `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.
@@ -648,6 +662,7 @@ defmodule PlaywrightEx.Browser do
                        is_mobile: {:isMobile, nil},
                        java_script_enabled: {:javaScriptEnabled, nil},
                        locale: {:locale, nil},
+                       logger: {:logger, {:fields, %{isEnabled: nil, log: nil}}},
                        offline: {:offline, nil},
                        permissions: {:permissions, nil},
                        proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
@@ -729,6 +744,11 @@ defmodule PlaywrightEx.Browser do
             is_mobile: boolean(),
             java_script_enabled: boolean(),
             locale: String.t(),
+            logger: %{
+              isEnabled: (String.t(), String.t() -> boolean()),
+              log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                      term())
+            },
             offline: boolean(),
             permissions: [String.t()],
             proxy: %{
@@ -841,6 +861,11 @@ defmodule PlaywrightEx.Browser do
               optional(:is_mobile) => boolean(),
               optional(:java_script_enabled) => boolean(),
               optional(:locale) => String.t(),
+              optional(:logger) => %{
+                isEnabled: (String.t(), String.t() -> boolean()),
+                log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                        term())
+              },
               optional(:offline) => boolean(),
               optional(:permissions) => [String.t()],
               optional(:proxy) => %{
@@ -969,6 +994,9 @@ defmodule PlaywrightEx.Browser do
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
   * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+  * `:logger` - Logger sink for Playwright logging.
+    * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
+    * `:log`
   * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
   * `:permissions` - A list of permissions to grant to all pages in this context. See
     `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.

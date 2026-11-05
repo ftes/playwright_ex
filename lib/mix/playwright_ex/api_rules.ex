@@ -8,8 +8,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
   here, each with its reason.
 
     * Drops JS-only classes the Elixir client has no use for (`@dropped_classes`), and every
-      member, argument and option whose type refers to one of them (`logger: Logger`, and the
-      DOM `AbortSignal` of `signal:` options), also from unions (`URLPattern` of `url:`).
+      member, argument and option whose type refers to one of them (the DOM `AbortSignal` of
+      `signal:` options), also from unions (`URLPattern` of `url:`).
+    * Interfaces the user implements (`@callback_objects`: `logger: Logger`) are no classes but
+      objects of functions, one per method, with the JS keys (`logger: %{isEnabled: fn name,
+      severity -> ... end, log: fn name, severity, message, args, hints -> ... end}`).
     * Drops JS-only members (`@dropped_members`), and options the JS client does not take
       (`@dropped_options`: `$eval` asserts at most 3 arguments).
     * Exception classes (`TimeoutError`) are exception modules, not handles: dropped as classes, a
@@ -46,13 +49,16 @@ defmodule Mix.PlaywrightEx.ApiRules do
   """
 
   # BrowserServer: `launchServer` is out of scope (PLAN), browsers run in the driver or remote.
-  # Logger: `logger:` options, the driver logs instead (`DEBUG=pw:api`).
+  # Logger: an interface, see `@callback_objects`.
   # GenericAssertions, SnapshotAssertions: jest's `expect(value)`, `toMatchSnapshot` (test runner).
   # PlaywrightAssertions: `expect(locator)` itself; the matchers are functions of the receiver (`Expect`).
   # AbortSignal: a DOM class (`signal:` options), not ported (PLAN).
   # URLPattern: a JS global (`url` matchers), dropped from unions.
   # Electron, Android and `connectOverCDP(transport)` are not in the JS view of api.json.
   @dropped_classes ~w(BrowserServer Logger GenericAssertions SnapshotAssertions PlaywrightAssertions AbortSignal URLPattern)
+
+  # Interfaces implemented by the user: a type naming one is an object of functions.
+  @callback_objects ~w(Logger)
 
   # "Class.member"
   # BrowserType.launchServer: out of scope (PLAN); also dropped with BrowserServer, its result.
@@ -94,7 +100,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   (`python`) for the waits and their callback forms.
   """
   def apply(classes, python) do
-    classes = expect_class(classes)
+    classes = classes |> callback_objects() |> expect_class()
 
     for class <- classes, class["name"] not in @dropped_classes, class["name"] not in @exception_classes do
       expects = expect_members(python, class["name"])
@@ -114,6 +120,36 @@ defmodule Mix.PlaywrightEx.ApiRules do
       Map.merge(class, %{"members" => members ++ callbacks, "openEvents" => class["name"] in @open_events})
     end
   end
+
+  # `logger: Logger` is `logger: {isEnabled: function, log: function}`, the methods as functions.
+  defp callback_objects(classes) do
+    objects =
+      for %{"name" => name} = class <- classes, name in @callback_objects, into: %{} do
+        properties =
+          for method <- class["members"] do
+            type = %{
+              "name" => "function",
+              "args" => Enum.map(method["args"], & &1["type"]),
+              "returnType" => method["type"]
+            }
+
+            method |> Map.drop(["args"]) |> Map.merge(%{"kind" => "property", "type" => type})
+          end
+
+        {name, %{"name" => "Object", "expression" => "[#{name}]", "properties" => properties}}
+      end
+
+    replace_types(classes, objects)
+  end
+
+  # Types are maps with a `name` (classes have `members`).
+  defp replace_types(%{"name" => name} = type, objects)
+       when is_map_key(objects, name) and not is_map_key(type, "members"),
+       do: objects[name]
+
+  defp replace_types(map, objects) when is_map(map), do: Map.new(map, fn {k, v} -> {k, replace_types(v, objects)} end)
+  defp replace_types(list, objects) when is_list(list), do: Enum.map(list, &replace_types(&1, objects))
+  defp replace_types(value, _objects), do: value
 
   # The assertion classes merged into `Expect`, after the other classes.
   defp expect_class(classes) do

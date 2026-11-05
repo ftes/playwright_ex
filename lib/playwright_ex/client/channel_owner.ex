@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   """
   import PlaywrightEx.Runtime.Heap
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.ClientStackTrace
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.EventEmitter
@@ -283,8 +284,12 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   # toJSON  -- not ported (Inspect shows the handle)
 
-  defp log_api_call(_logger, message) do
-    # if (logger && logger.isEnabled('api', 'info')) logger.log(...)  -- not ported: user Logger
+  # `logger` is the `logger:` option, `%{isEnabled: fun, log: fun}`. JS functions take any number of arguments.
+  defp log_api_call(logger, message) do
+    if logger && ClientHelper.call_function(logger.isEnabled, ["api", "info"]),
+      do: ClientHelper.call_function(logger.log, ["api", "info", message, [], %{color: "cyan"}])
+
+    # debugLogger.log('api', message)
     Logger.debug("pw:api " <> message)
   end
 

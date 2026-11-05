@@ -230,6 +230,7 @@ defmodule PlaywrightEx.BrowserType do
                      handle_sigterm: {:handleSIGTERM, nil},
                      headless: {:headless, nil},
                      ignore_default_args: {:ignoreDefaultArgs, nil},
+                     logger: {:logger, {:fields, %{isEnabled: nil, log: nil}}},
                      proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                      slow_mo: {:slowMo, nil},
                      timeout: {:timeout, nil},
@@ -252,6 +253,11 @@ defmodule PlaywrightEx.BrowserType do
             handle_sigterm: boolean(),
             headless: boolean(),
             ignore_default_args: boolean() | [String.t()],
+            logger: %{
+              isEnabled: (String.t(), String.t() -> boolean()),
+              log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                      term())
+            },
             proxy: %{
               required(:server) => String.t(),
               optional(:bypass) => String.t(),
@@ -276,6 +282,11 @@ defmodule PlaywrightEx.BrowserType do
               optional(:handle_sigterm) => boolean(),
               optional(:headless) => boolean(),
               optional(:ignore_default_args) => boolean() | [String.t()],
+              optional(:logger) => %{
+                isEnabled: (String.t(), String.t() -> boolean()),
+                log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                        term())
+              },
               optional(:proxy) => %{
                 required(:server) => String.t(),
                 optional(:bypass) => String.t(),
@@ -349,6 +360,9 @@ defmodule PlaywrightEx.BrowserType do
     [Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
   * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `args`. If an
     array is given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
+  * `:logger` - Logger sink for Playwright logging.
+    * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
+    * `:log`
   * `:proxy` - Network proxy settings.
     * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
       `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP
@@ -438,6 +452,7 @@ defmodule PlaywrightEx.BrowserType do
                                         is_mobile: {:isMobile, nil},
                                         java_script_enabled: {:javaScriptEnabled, nil},
                                         locale: {:locale, nil},
+                                        logger: {:logger, {:fields, %{isEnabled: nil, log: nil}}},
                                         offline: {:offline, nil},
                                         permissions: {:permissions, nil},
                                         proxy:
@@ -537,6 +552,11 @@ defmodule PlaywrightEx.BrowserType do
             is_mobile: boolean(),
             java_script_enabled: boolean(),
             locale: String.t(),
+            logger: %{
+              isEnabled: (String.t(), String.t() -> boolean()),
+              log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                      term())
+            },
             offline: boolean(),
             permissions: [String.t()],
             proxy: %{
@@ -638,6 +658,11 @@ defmodule PlaywrightEx.BrowserType do
               optional(:is_mobile) => boolean(),
               optional(:java_script_enabled) => boolean(),
               optional(:locale) => String.t(),
+              optional(:logger) => %{
+                isEnabled: (String.t(), String.t() -> boolean()),
+                log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                        term())
+              },
               optional(:offline) => boolean(),
               optional(:permissions) => [String.t()],
               optional(:proxy) => %{
@@ -789,6 +814,9 @@ defmodule PlaywrightEx.BrowserType do
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
   * `:java_script_enabled` - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
   * `:locale` - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+  * `:logger` - Logger sink for Playwright logging.
+    * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
+    * `:log`
   * `:offline` - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
   * `:permissions` - A list of permissions to grant to all pages in this context. See
     `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.
