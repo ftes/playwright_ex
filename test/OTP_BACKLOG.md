@@ -26,6 +26,9 @@ in the Phase 1 audits:
   when one rejects.
 - **Remote connections**: the child Conn, its forwarder and ETS table are never stopped after
   close (from code reading); one set leaks per `connect` until the parent connection exits.
+- **Route handler at teardown** (page_route_test RO-033): a route callback still pending when the
+  page closes is rejected with TargetClosedError, where JS leaves its promise pending forever;
+  ~10 "Uncaught in event listener ... while running route callback" log lines per run. Test passes.
 - **Harmless**: `Request`/`Response` `_actual_headers` may issue two `raw*Headers` calls.
 
 Possibly load-flaky, to watch: `locator_query_test.exs:324` (webkit), `conn_test.exs:360`
