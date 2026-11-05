@@ -890,3 +890,28 @@ drift). Blockers for release, assigned to follow-up workstreams:
   apt-get is killed before the retry), and test jobs time out at 60 min.
 - Gap, later: `test/support/remote_server.ex` builds its own launch options instead of merging
   `_defaultLaunchOptions`, so `HEADED=1` remote servers still launch headless.
+
+## 2026-11-05: parity pass (round 2)
+- Round 2 trimmed after your cost question: the full line-by-line parity pass first (your call: full,
+  not light), Phase 2 backlog/stress/perf/docs leaner afterwards (one backlog agent, one stress+perf,
+  docs written once into docs/architecture.md, not PLAN first). Stress tests: manual only, not CI.
+  RO-033: keep the teardown rejection, silence its log.
+- Audit: 20 read-only shards (~5k Elixir lines each, Phase 1 groups split in two) on a snapshot of
+  ad8d0dd5, then one verify-then-fix agent per group. 232 findings: 3 S1, 52 S2, 177 S3. Every
+  upstream test present. Plan and briefs: `$CLAUDE_JOB_DIR/tmp/round2/` (ROUND2_PLAN.md, findings/).
+- Repeated patterns go to one owner each (ROUTING.md), not to every group: un-awaited JS calls
+  ported as `Task.async` (93 files; fix: `Runtime.Promise.async/1`), version-gated skips ported as an
+  `if` around the body (pass silently), `slow()` untranslated, `toBeTruthy` as bare `assert`
+  (`:null` is truthy), leak tests asserting a warning nothing emitted.
+- Runtime fixes (VF-F): a listener process that dies no longer stalls its Conn (S1, F-22); a fired
+  `once` listener unsubscribes; an abort from another process is no longer lost between the check
+  and addEventListener; one API call is reported to the trace once (shared `:atomics` cell).
+- Deviations taken: the max-listeners leak warning is ported and logged under test too (upstream
+  skips it under test; its leak specs read the in-process server's warnings, ours can't); a
+  collected object keeps a tombstone so calls raise upstream's "has been collected" error, while
+  its fields stay freed (as ratified); an exception without a JS name serializes as "Error".
+- New helpers: `Runtime.Node.path_resolve/1` (path.resolve, not `Path.expand`: no `~`) and
+  `Runtime.Node.fs!/3` (Node's ENOENT text), so specs can keep upstream's assertions verbatim.
+- CI fixes found on the way: a compile-time `||` short-circuit left `@win32_fixme` unused off
+  chromium (warnings-as-errors failed webkit/firefox); the Selenium grid tests reused a port before
+  the killed grid exited (now awaited, as upstream's fixture does).
