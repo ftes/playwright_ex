@@ -91,9 +91,32 @@ jobs:
         if: matrix.browser == 'chromium'
         run: mix playwright_ex.parity
       # Under xvfb like upstream's CI (Linux firefox WebGL needs a display). Test failures (exit 2)
-      # are retried once, as upstream retries on CI (`retries: 3`); compile errors are not.
+      # are retried once, as upstream retries on CI (`retries: 3`); compile errors are not. The
+      # first run's failures (PlaywrightEx.FailuresFormatter) go to the job summary and annotations,
+      # so a green rerun does not hide them.
       - name: Run tests
-        run: xvfb-run --auto-servernum -- mix test --warnings-as-errors || if [[ $? = 2 ]]; then xvfb-run --auto-servernum -- mix test --failed; else false; fi
+        env:
+          PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
+        run: |
+          status=0
+          xvfb-run --auto-servernum -- mix test --warnings-as-errors || status=$?
+          if [[ -s "$PW_FAILURES_FILE" ]]; then
+            {
+              echo "### First-run failures ($BROWSER, retried once)"
+              echo
+              while IFS=$'\t' read -r location name; do echo "- \`$location\` $name"; done < "$PW_FAILURES_FILE"
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS=$'\t' read -r location name; do
+              message="First run failed ($BROWSER): $name"
+              message=${message//'%'/'%25'}
+              echo "::warning file=${location%:*},line=${location##*:}::$message"
+            done < "$PW_FAILURES_FILE"
+          fi
+          if [[ $status = 2 ]]; then
+            PW_FAILURES_FILE= xvfb-run --auto-servernum -- mix test --failed
+          else
+            exit $status
+          fi
       # tests/library/browsertype-launch-selenium.spec.ts, set up as upstream's installation test
       # (connect-to-selenium.spec.ts) does: the two Selenium Server jars (cached; downloaded on
       # chromium only), the runner image's Google Chrome and its ChromeDriver, Java 17 (the image's

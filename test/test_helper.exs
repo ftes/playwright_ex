@@ -10,4 +10,9 @@ max_cases =
 
 # Headed windows steal focus on macOS: `mix test --include headed` runs them (PORTING "Tests").
 if match?({:unix, :darwin}, :os.type()), do: ExUnit.configure(exclude: [:headed])
-ExUnit.start(assert_receive_timeout: 10_000, max_cases: max_cases)
+
+ExUnit.start(
+  assert_receive_timeout: 10_000,
+  max_cases: max_cases,
+  formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter]
+)
