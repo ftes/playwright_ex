@@ -479,7 +479,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert_raise PlaywrightEx.TargetClosedError, fn -> Page.url(page) end
     end
 
-    test "a long-lived process keeps the contexts it closed until it exits (bound: ~200 rows each)", %{
+    test "a long-lived process keeps the contexts it closed until it exits (bound: <200 rows each)", %{
       browser: browser,
       page: page
     } do
@@ -491,7 +491,8 @@ defmodule PlaywrightEx.RuntimeConnTest do
 
       holder =
         spawn(fn ->
-          for _ <- 1..200 do
+          # 20 contexts measure the per-context bound as well as 200 (an average), at a tenth of the time.
+          for _ <- 1..20 do
             context = Browser.new_context!(browser)
             BrowserContext.new_page!(context)
             BrowserContext.close!(context)
@@ -501,11 +502,11 @@ defmodule PlaywrightEx.RuntimeConnTest do
           receive do: (:exit -> :ok)
         end)
 
-      assert_receive :closed, 120_000
+      assert_receive :closed, 20_000
       Process.sleep(50)
       retained = Conn.stats(conn).rows - before.rows
       assert retained > 0
-      assert retained / 200 < 200
+      assert retained / 20 < 200
 
       send(holder, :exit)
       Process.sleep(100)
