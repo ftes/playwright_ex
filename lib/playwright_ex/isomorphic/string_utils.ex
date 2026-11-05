@@ -2,11 +2,11 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
   @upstream "packages/isomorphic/stringUtils.ts"
   @moduledoc """
   Port of `#{@upstream}`: the selector escaping that locators need and the case helpers of the
-  locator generators. `RegExp` is `Regex` here; `String(re)` is `/source/flags` as in JS.
+  locator generators. `RegExp` is a `Regex` or a `PlaywrightEx.RegExp`; `String(re)` is
+  `/source/flags` as in JS.
   """
 
-  alias PlaywrightEx.Isomorphic.RegExp
-  alias PlaywrightEx.Protocol.Serializers
+  alias PlaywrightEx.RegExp
 
   def escape_with_quotes(text, char \\ "'") do
     stringified = JSON.encode!(text)
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
     # hope that it does not contain quotes and/or >> signs.
     # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Character_escape
     # Upstream to-do: rework RE usages in internal selectors away from literal representation to json, e.g. {source,flags}.
-    if :unicode in Regex.opts(re) do
+    if String.contains?(RegExp.from_regex(re).flags, ["u", "v"]) do
       regex_to_string(re)
     else
       # Even number of backslashes followed by the quote -> insert a backslash.
@@ -102,5 +102,5 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
   # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString, stripAnsiEscapes  -- not ported
 
   # String(re): JS escapes `/` in the source (`~r/a\/b/` has the source "a/b").
-  defp regex_to_string(re), do: RegExp.to_string(RegExp.new(Regex.source(re), Serializers.regex_flags(re)))
+  defp regex_to_string(re), do: RegExp.to_string(RegExp.from_regex(re))
 end

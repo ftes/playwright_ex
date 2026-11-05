@@ -887,7 +887,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     "Buffer" => "binary()",
     # Node's `Readable`: the client returns an `Enumerable` of binary chunks.
     "Readable" => "Enumerable.t(binary())",
-    "RegExp" => "Regex.t()",
+    "RegExp" => "Regex.t() | PlaywrightEx.RegExp.t()",
     "AbortSignal" => "PlaywrightEx.AbortSignal.t()",
     "Date" => "DateTime.t()",
     "Error" => "Exception.t()",

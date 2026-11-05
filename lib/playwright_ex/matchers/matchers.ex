@@ -2,7 +2,8 @@ defmodule PlaywrightEx.Matchers.Matchers do
   @upstream "packages/playwright/src/matchers/matchers.ts"
   @moduledoc """
   Port of `#{@upstream}`: the web-first matchers (`toHaveText`, ...). `this` is the matcher state
-  (`PlaywrightEx.Matchers.Expect`), options are maps with the JS keys, `RegExp` is `Regex`.
+  (`PlaywrightEx.Matchers.Expect`), options are maps with the JS keys, `RegExp` is a `Regex` or a
+  `PlaywrightEx.RegExp`.
   The public form is the generated `PlaywrightEx.Expect`.
 
   Deviations: no test runner (`toPass` and the step title suffix are not ported).
@@ -19,16 +20,18 @@ defmodule PlaywrightEx.Matchers.Matchers do
   alias PlaywrightEx.Matchers.ToEqual
   alias PlaywrightEx.Matchers.ToHaveURL
   alias PlaywrightEx.Matchers.ToMatchText
-  alias PlaywrightEx.Protocol.Serializers
+  alias PlaywrightEx.RegExp
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Promise
 
   defp serialize_expected_text_values(items, options \\ %{}) do
     Enum.map(items, fn i ->
+      {regex_source, regex_flags} = RegExp.to_js(i)
+
       %{
         string: if(is_binary(i), do: i),
-        regexSource: if(is_struct(i, Regex), do: Regex.source(i)),
-        regexFlags: if(is_struct(i, Regex), do: Serializers.regex_flags(i)),
+        regexSource: regex_source,
+        regexFlags: regex_flags,
         matchSubstring: options[:matchSubstring],
         ignoreCase: options[:ignoreCase],
         normalizeWhiteSpace: options[:normalizeWhiteSpace]
@@ -376,7 +379,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
   def to_have_attribute(this, locator, name, expected, options \\ nil) do
     # Update params for the case toHaveAttribute(name, options);
     {expected, options} =
-      if !options and is_map(expected) and not is_struct(expected, Regex),
+      if !options and is_map(expected) and not RegExp.reg_exp?(expected),
         do: {nil, expected},
         else: {expected, options}
 
@@ -469,7 +472,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
 
   def to_contain_class(this, locator, expected, options \\ nil) do
     if is_list(expected) do
-      if Enum.any?(expected, &is_struct(&1, Regex)),
+      if Enum.any?(expected, &RegExp.reg_exp?(&1)),
         do: raise(~s("expected" argument in toContainClass cannot contain RegExp values))
 
       ToEqual.to_equal(
@@ -492,7 +495,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
         options
       )
     else
-      if is_struct(expected, Regex),
+      if RegExp.reg_exp?(expected),
         do: raise(~s("expected" argument in toContainClass cannot be a RegExp value))
 
       ToMatchText.to_match_text(

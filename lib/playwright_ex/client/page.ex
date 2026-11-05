@@ -44,7 +44,6 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Isomorphic.LongStandingScope
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
-  alias PlaywrightEx.Protocol.Serializers
   alias PlaywrightEx.TargetClosedError
 
   def from(page) do
@@ -549,7 +548,7 @@ defmodule PlaywrightEx.Client.Page do
     options = options || %{}
 
     predicate = fn request ->
-      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex) do
+      if is_binary(url_or_predicate) or PlaywrightEx.RegExp.reg_exp?(url_or_predicate) do
         _url_matches(this, Request.url(request), url_or_predicate)
       else
         # await urlOrPredicate(request): a returned promise is awaited
@@ -573,7 +572,7 @@ defmodule PlaywrightEx.Client.Page do
     options = options || %{}
 
     predicate = fn response ->
-      if is_binary(url_or_predicate) or is_struct(url_or_predicate, Regex) do
+      if is_binary(url_or_predicate) or PlaywrightEx.RegExp.reg_exp?(url_or_predicate) do
         _url_matches(this, Response.url(response), url_or_predicate)
       else
         # await urlOrPredicate(response): a returned promise is awaited
@@ -1196,8 +1195,9 @@ defmodule PlaywrightEx.Client.Page do
   # function trimUrl(param: any): string | undefined
   defp trim_url(param) do
     cond do
-      is_struct(param, Regex) ->
-        "/#{StringUtils.trim_string_with_ellipsis(Regex.source(param), 50)}/#{Serializers.regex_flags(param)}"
+      PlaywrightEx.RegExp.reg_exp?(param) ->
+        re = PlaywrightEx.RegExp.from_regex(param)
+        "/#{StringUtils.trim_string_with_ellipsis(re.source, 50)}/#{re.flags}"
 
       is_binary(param) ->
         ~s("#{StringUtils.trim_string_with_ellipsis(param, 50)}")

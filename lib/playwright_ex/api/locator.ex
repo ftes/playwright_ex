@@ -1557,15 +1557,15 @@ defmodule PlaywrightEx.Locator do
           [
             has: PlaywrightEx.Locator.t(),
             has_not: PlaywrightEx.Locator.t(),
-            has_not_text: String.t() | Regex.t(),
-            has_text: String.t() | Regex.t(),
+            has_not_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            has_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             visible: boolean()
           ]
           | %{
               optional(:has) => PlaywrightEx.Locator.t(),
               optional(:has_not) => PlaywrightEx.Locator.t(),
-              optional(:has_not_text) => String.t() | Regex.t(),
-              optional(:has_text) => String.t() | Regex.t(),
+              optional(:has_not_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:has_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:visible) => boolean()
             }
 
@@ -1750,7 +1750,8 @@ defmodule PlaywrightEx.Locator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_alt_text(t(), String.t() | Regex.t(), get_by_alt_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_alt_text(this, text, options \\ []) do
     options = Facade.options!(options, @get_by_alt_text_options, "locator.getByAltText")
     PlaywrightEx.Client.Locator.get_by_alt_text(this, text, options)
@@ -1788,7 +1789,8 @@ defmodule PlaywrightEx.Locator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_label(t(), String.t() | Regex.t(), get_by_label_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_label(this, text, options \\ []) do
     options = Facade.options!(options, @get_by_label_options, "locator.getByLabel")
     PlaywrightEx.Client.Locator.get_by_label(this, text, options)
@@ -1827,7 +1829,8 @@ defmodule PlaywrightEx.Locator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_placeholder(t(), String.t() | Regex.t(), get_by_placeholder_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_placeholder(this, text, options \\ []) do
     options = Facade.options!(options, @get_by_placeholder_options, "locator.getByPlaceholder")
     PlaywrightEx.Client.Locator.get_by_placeholder(this, text, options)
@@ -1936,25 +1939,25 @@ defmodule PlaywrightEx.Locator do
   @type get_by_role_options ::
           [
             checked: boolean(),
-            description: String.t() | Regex.t(),
+            description: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             disabled: boolean(),
             exact: boolean(),
             expanded: boolean(),
             include_hidden: boolean(),
             level: integer(),
-            name: String.t() | Regex.t(),
+            name: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             pressed: boolean(),
             selected: boolean()
           ]
           | %{
               optional(:checked) => boolean(),
-              optional(:description) => String.t() | Regex.t(),
+              optional(:description) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:disabled) => boolean(),
               optional(:exact) => boolean(),
               optional(:expanded) => boolean(),
               optional(:include_hidden) => boolean(),
               optional(:level) => integer(),
-              optional(:name) => String.t() | Regex.t(),
+              optional(:name) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:pressed) => boolean(),
               optional(:selected) => boolean()
             }
@@ -2159,7 +2162,7 @@ defmodule PlaywrightEx.Locator do
 
   * `test_id` - Id to locate the element by.
   """
-  @spec get_by_test_id(t(), String.t() | Regex.t()) :: PlaywrightEx.Locator.t()
+  @spec get_by_test_id(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t()) :: PlaywrightEx.Locator.t()
   def get_by_test_id(this, test_id) do
     PlaywrightEx.Client.Locator.get_by_test_id(this, test_id)
   end
@@ -2217,7 +2220,8 @@ defmodule PlaywrightEx.Locator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_text(t(), String.t() | Regex.t(), get_by_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_text(this, text, options \\ []) do
     options = Facade.options!(options, @get_by_text_options, "locator.getByText")
     PlaywrightEx.Client.Locator.get_by_text(this, text, options)
@@ -2254,7 +2258,8 @@ defmodule PlaywrightEx.Locator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_title(t(), String.t() | Regex.t(), get_by_title_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_title(this, text, options \\ []) do
     options = Facade.options!(options, @get_by_title_options, "locator.getByTitle")
     PlaywrightEx.Client.Locator.get_by_title(this, text, options)
@@ -2837,14 +2842,14 @@ defmodule PlaywrightEx.Locator do
           [
             has: PlaywrightEx.Locator.t(),
             has_not: PlaywrightEx.Locator.t(),
-            has_not_text: String.t() | Regex.t(),
-            has_text: String.t() | Regex.t()
+            has_not_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            has_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:has) => PlaywrightEx.Locator.t(),
               optional(:has_not) => PlaywrightEx.Locator.t(),
-              optional(:has_not_text) => String.t() | Regex.t(),
-              optional(:has_text) => String.t() | Regex.t()
+              optional(:has_not_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:has_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.14"

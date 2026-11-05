@@ -2,7 +2,8 @@ defmodule PlaywrightEx.Matchers.ToMatchText do
   @upstream "packages/playwright/src/matchers/toMatchText.ts"
   @moduledoc """
   Port of `#{@upstream}`. `this` is the matcher state (`PlaywrightEx.Matchers.Expect`);
-  `query` takes `(isNot, timeout, signal)`. `RegExp` is `Regex`.
+  `query` takes `(isNot, timeout, signal)`. `RegExp` is a `Regex` or a `PlaywrightEx.RegExp`
+  (matched here for the message only when PCRE can run it).
   """
 
   alias PlaywrightEx.Client.Locator
@@ -13,7 +14,7 @@ defmodule PlaywrightEx.Matchers.ToMatchText do
     MatcherHint.expect_types(receiver, [receiver_type], matcher_name)
     locator = if receiver_type == "Locator", do: receiver
 
-    if not is_binary(expected) and not is_struct(expected, Regex) do
+    if not is_binary(expected) and not PlaywrightEx.RegExp.reg_exp?(expected) do
       error_message =
         "Error: #{this.utils.expected_color("expected")} value must be a string or regular expression\n#{this.utils.print_with_type("Expected", expected, &this.utils.print_expected(&1))}"
 
@@ -76,7 +77,7 @@ defmodule PlaywrightEx.Matchers.ToMatchText do
                   MatcherHint.print_received_string_contain_expected_result(
                     this.utils,
                     received_string,
-                    Regex.run(expected, received_string, return: :index)
+                    PlaywrightEx.RegExp.exec_index(expected, received_string)
                   )
 
                 "Received#{received_suffix}: #{formatted_received}"

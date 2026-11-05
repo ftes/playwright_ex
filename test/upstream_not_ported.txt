@@ -168,6 +168,3 @@ PA-037      toImpl (server-side evaluateExpression in the utility world)
 WA-057      error stack rewriting (error.stack is the server's)
 WA-072      __testHookBeforeAdoptNode
 WA-073      __testHookBeforeAdoptNode
-# page/selectors-get-by
-SE-092      the JS RegExp v flag (Elixir Regex has no equivalent)
-SE-097      the JS RegExp g and y flags (Elixir Regex has no equivalent)

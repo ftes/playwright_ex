@@ -418,11 +418,15 @@ defmodule PlaywrightEx.BrowserContext do
 
   @typedoc "Options of `clear_cookies`, see its docs."
   @type clear_cookies_options ::
-          [domain: String.t() | Regex.t(), name: String.t() | Regex.t(), path: String.t() | Regex.t()]
+          [
+            domain: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            name: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            path: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
+          ]
           | %{
-              optional(:domain) => String.t() | Regex.t(),
-              optional(:name) => String.t() | Regex.t(),
-              optional(:path) => String.t() | Regex.t()
+              optional(:domain) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:name) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:path) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.8"
@@ -971,7 +975,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @spec route(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
         ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
@@ -987,7 +991,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc "Like `route/4`, but returns the value and raises on error."
   @spec route!(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
         ) :: PlaywrightEx.Disposable.t()
@@ -1015,14 +1019,14 @@ defmodule PlaywrightEx.BrowserContext do
             update: boolean(),
             update_content: :embed | :attach,
             update_mode: :full | :minimal,
-            url: String.t() | Regex.t()
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:not_found) => :abort | :fallback,
               optional(:update) => boolean(),
               optional(:update_content) => :embed | :attach,
               optional(:update_mode) => :full | :minimal,
-              optional(:url) => String.t() | Regex.t()
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.23"
@@ -1095,9 +1099,11 @@ defmodule PlaywrightEx.BrowserContext do
   * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `baseURL` context option.
   * `handler` - Handler function to route the WebSocket.
   """
-  @spec route_web_socket(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
-                                                                                     term())) ::
-          :ok | {:error, Exception.t()}
+  @spec route_web_socket(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          (PlaywrightEx.WebSocketRoute.t() -> term())
+        ) :: :ok | {:error, Exception.t()}
   def route_web_socket(browser_context, url, handler) do
     Facade.async_void("browserContext.routeWebSocket", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.route_web_socket(browser_context, url, handler)
@@ -1106,8 +1112,11 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.48"
   @doc "Like `route_web_socket/3`, but returns the value and raises on error."
-  @spec route_web_socket!(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
-                                                                                      term())) :: :ok
+  @spec route_web_socket!(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          (PlaywrightEx.WebSocketRoute.t() -> term())
+        ) :: :ok
   def route_web_socket!(browser_context, url, handler) do
     Facade.async_void!("browserContext.routeWebSocket", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.route_web_socket(browser_context, url, handler)
@@ -1622,7 +1631,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @spec unroute(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
         ) :: :ok | {:error, Exception.t()}
   def unroute(browser_context, url, handler \\ nil) do
@@ -1635,7 +1644,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc "Like `unroute/3`, but returns the value and raises on error."
   @spec unroute!(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
         ) :: :ok
   def unroute!(browser_context, url, handler \\ nil) do

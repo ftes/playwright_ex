@@ -5,13 +5,13 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   (`"javascript"`, `"python"`, `"java"`, `"csharp"`, `"jsonl"`) plus `"elixir"`, the facade syntax
   (`ElixirLocatorFactory`). `LocatorOptions` is a keyword list in JS insertion order (`nil` is
   `undefined`), a factory a struct whose module implements `generate_locator/5` and
-  `chain_locators/2`. `RegExp` values are `PlaywrightEx.Isomorphic.RegExp`.
+  `chain_locators/2`. `RegExp` values are `PlaywrightEx.RegExp`.
   """
 
   import PlaywrightEx.Isomorphic.SelectorParser,
     only: [parse_attribute_selector: 2, parse_selector: 1, stringify_selector: 1, stringify_selector: 2]
 
-  alias PlaywrightEx.Isomorphic.RegExp
+  alias PlaywrightEx.RegExp
 
   def as_locator_description(lang, selector) do
     try do
@@ -324,7 +324,7 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
     import PlaywrightEx.Isomorphic.StringUtils, only: [escape_with_quotes: 2, normalize_escaped_regex_quotes: 1]
     alias PlaywrightEx.Isomorphic.LocatorGenerators
 
-    alias PlaywrightEx.Isomorphic.RegExp
+    alias PlaywrightEx.RegExp
 
     defstruct [:preferredQuote]
 
@@ -960,7 +960,7 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
     @moduledoc false
     # JSON objects keep their key order: built and parsed as `{:object, [{key, value}]}`.
 
-    alias PlaywrightEx.Isomorphic.RegExp
+    alias PlaywrightEx.RegExp
 
     defstruct []
 

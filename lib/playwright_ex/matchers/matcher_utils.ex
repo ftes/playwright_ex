@@ -6,9 +6,9 @@ defmodule PlaywrightEx.Matchers.MatcherUtils do
 
   Deviations: no colors (the `*_color` functions return the text as is; upstream tests strip
   them). JS values are Elixir terms as the client parses them: `nil` is `undefined`, `:null` is
-  `null`, lists are arrays, maps are objects, `Regex` is `RegExp`. Multi-line strings are diffed
-  line by line (`diffStringsUnified` aligns a character diff, which gives the same lines for
-  most inputs).
+  `null`, lists are arrays, maps are objects, `Regex` and `PlaywrightEx.RegExp` are `RegExp`.
+  Multi-line strings are diffed line by line (`diffStringsUnified` aligns a character diff,
+  which gives the same lines for most inputs).
   """
 
   alias PlaywrightEx.Client.ClientHelper
@@ -99,6 +99,7 @@ defmodule PlaywrightEx.Matchers.MatcherUtils do
   defp get_type(value) when is_list(value), do: "array"
   defp get_type(value) when is_function(value), do: "function"
   defp get_type(%Regex{}), do: "regexp"
+  defp get_type(%PlaywrightEx.RegExp{}), do: "regexp"
   defp get_type(value) when is_atom(value), do: "symbol"
   defp get_type(_value), do: "object"
 
@@ -343,7 +344,9 @@ defmodule PlaywrightEx.Matchers.MatcherUtils do
     do: ~s(") <> String.replace(value, ~r/"|\\/, "\\\\\\0") <> ~s(")
 
   defp pretty_format(%Regex{} = re, _config, _indentation, _depth),
-    do: "/#{Regex.source(re)}/#{PlaywrightEx.Protocol.Serializers.regex_flags(re)}"
+    do: "/#{Regex.source(re)}/#{PlaywrightEx.RegExp.regex_flags(re)}"
+
+  defp pretty_format(%PlaywrightEx.RegExp{} = re, _config, _indentation, _depth), do: PlaywrightEx.RegExp.to_string(re)
 
   defp pretty_format(value, _config, _indentation, _depth) when is_function(value), do: "[Function anonymous]"
   defp pretty_format(value, _config, _indentation, _depth) when is_atom(value), do: "Symbol(#{value})"

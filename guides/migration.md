@@ -364,10 +364,13 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 - Error messages start with the API name (`locator.click: ...`).
 - `Tracing.start/2` no longer takes `coverage:`.
 - Unknown options raise `ArgumentError` instead of being passed through.
-- A `Regex` passed where JS takes a `RegExp` is sent to the browser or driver as a JS regex
-  (modifiers `i`, `m`, `s`, `u`). Options and PCRE-only syntax JS cannot run (`x`, `U`,
-  `\A`, `\z`, atomic groups, possessive quantifiers, inline `(?i)`, recursion, `\K`)
-  raise `ArgumentError`.
+- Strings are literal text (or globs, for URLs), never patterns. A `Regex` passed where JS
+  takes a `RegExp` is sent to the browser or driver as a JS regex (modifiers `i`, `m`, `s`,
+  `u`). Options and PCRE-only syntax JS cannot run (`x`, `U`, `\A`, `\z`, atomic groups,
+  possessive quantifiers, inline `(?i)`, recursion, `\K`) raise `ArgumentError`. For JS-only
+  syntax (`[^]`, the `v`, `g`, `y`, `d` flags, variable-length lookbehind), pass
+  `PlaywrightEx.RegExp.new(source, flags)`. JS regexes returned by `evaluate` are a `Regex`
+  when PCRE means the same, else a `PlaywrightEx.RegExp`.
 
 ## Known gaps
 

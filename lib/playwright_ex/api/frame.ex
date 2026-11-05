@@ -1197,7 +1197,8 @@ defmodule PlaywrightEx.Frame do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_alt_text(t(), String.t() | Regex.t(), get_by_alt_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_alt_text(frame, text, options \\ []) do
     options = Facade.options!(options, @get_by_alt_text_options, "frame.getByAltText")
     PlaywrightEx.Client.Frame.get_by_alt_text(frame, text, options)
@@ -1235,7 +1236,8 @@ defmodule PlaywrightEx.Frame do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_label(t(), String.t() | Regex.t(), get_by_label_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_label(frame, text, options \\ []) do
     options = Facade.options!(options, @get_by_label_options, "frame.getByLabel")
     PlaywrightEx.Client.Frame.get_by_label(frame, text, options)
@@ -1274,7 +1276,8 @@ defmodule PlaywrightEx.Frame do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_placeholder(t(), String.t() | Regex.t(), get_by_placeholder_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_placeholder(frame, text, options \\ []) do
     options = Facade.options!(options, @get_by_placeholder_options, "frame.getByPlaceholder")
     PlaywrightEx.Client.Frame.get_by_placeholder(frame, text, options)
@@ -1383,25 +1386,25 @@ defmodule PlaywrightEx.Frame do
   @type get_by_role_options ::
           [
             checked: boolean(),
-            description: String.t() | Regex.t(),
+            description: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             disabled: boolean(),
             exact: boolean(),
             expanded: boolean(),
             include_hidden: boolean(),
             level: integer(),
-            name: String.t() | Regex.t(),
+            name: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             pressed: boolean(),
             selected: boolean()
           ]
           | %{
               optional(:checked) => boolean(),
-              optional(:description) => String.t() | Regex.t(),
+              optional(:description) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:disabled) => boolean(),
               optional(:exact) => boolean(),
               optional(:expanded) => boolean(),
               optional(:include_hidden) => boolean(),
               optional(:level) => integer(),
-              optional(:name) => String.t() | Regex.t(),
+              optional(:name) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:pressed) => boolean(),
               optional(:selected) => boolean()
             }
@@ -1606,7 +1609,7 @@ defmodule PlaywrightEx.Frame do
 
   * `test_id` - Id to locate the element by.
   """
-  @spec get_by_test_id(t(), String.t() | Regex.t()) :: PlaywrightEx.Locator.t()
+  @spec get_by_test_id(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t()) :: PlaywrightEx.Locator.t()
   def get_by_test_id(frame, test_id) do
     PlaywrightEx.Client.Frame.get_by_test_id(frame, test_id)
   end
@@ -1664,7 +1667,8 @@ defmodule PlaywrightEx.Frame do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_text(t(), String.t() | Regex.t(), get_by_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_text(frame, text, options \\ []) do
     options = Facade.options!(options, @get_by_text_options, "frame.getByText")
     PlaywrightEx.Client.Frame.get_by_text(frame, text, options)
@@ -1701,7 +1705,8 @@ defmodule PlaywrightEx.Frame do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_title(t(), String.t() | Regex.t(), get_by_title_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_title(frame, text, options \\ []) do
     options = Facade.options!(options, @get_by_title_options, "frame.getByTitle")
     PlaywrightEx.Client.Frame.get_by_title(frame, text, options)
@@ -2373,14 +2378,14 @@ defmodule PlaywrightEx.Frame do
           [
             has: PlaywrightEx.Locator.t(),
             has_not: PlaywrightEx.Locator.t(),
-            has_not_text: String.t() | Regex.t(),
-            has_text: String.t() | Regex.t()
+            has_not_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            has_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:has) => PlaywrightEx.Locator.t(),
               optional(:has_not) => PlaywrightEx.Locator.t(),
-              optional(:has_not_text) => String.t() | Regex.t(),
-              optional(:has_text) => String.t() | Regex.t()
+              optional(:has_not_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:has_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.14"
@@ -3573,13 +3578,13 @@ defmodule PlaywrightEx.Frame do
           [
             signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit
           ]
           | %{
               optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
             }
 
@@ -3895,8 +3900,11 @@ defmodule PlaywrightEx.Frame do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec wait_for_url(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec wait_for_url(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          wait_for_url_options()
+        ) :: :ok | {:error, Exception.t()}
   def wait_for_url(frame, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "frame.waitForURL")
     Facade.async_void("frame.waitForURL", frame, fn -> PlaywrightEx.Client.Frame.wait_for_url(frame, url, options) end)
@@ -3904,7 +3912,11 @@ defmodule PlaywrightEx.Frame do
 
   @doc since: "1.11"
   @doc "Like `wait_for_url/3`, but returns the value and raises on error."
-  @spec wait_for_url!(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) :: :ok
+  @spec wait_for_url!(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          wait_for_url_options()
+        ) :: :ok
   def wait_for_url!(frame, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "frame.waitForURL")
     Facade.async_void!("frame.waitForURL", frame, fn -> PlaywrightEx.Client.Frame.wait_for_url(frame, url, options) end)
@@ -3939,13 +3951,13 @@ defmodule PlaywrightEx.Frame do
   @type expect_navigation_options ::
           [
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit,
             signal: PlaywrightEx.AbortSignal.t()
           ]
           | %{
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit,
               optional(:signal) => PlaywrightEx.AbortSignal.t()
             }

@@ -44,8 +44,8 @@ defmodule PlaywrightEx.Matchers.ToEqual do
               |> Enum.map(fn {exp, index} ->
                 rec = Enum.at(received_value, index)
 
-                if is_struct(exp, Regex),
-                  do: if(Regex.match?(exp, js_string(rec)), do: rec, else: exp),
+                if PlaywrightEx.RegExp.reg_exp?(exp),
+                  do: if(PlaywrightEx.RegExp.exec_index(exp, js_string(rec)), do: rec, else: exp),
                   else: exp
               end)
 

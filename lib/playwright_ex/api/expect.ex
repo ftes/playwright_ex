@@ -1590,7 +1590,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_contain_text(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_contain_text_options()
         ) :: :ok | {:error, Exception.t()}
   def to_contain_text(locator, expected, options \\ []) do
@@ -1611,7 +1611,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_contain_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_contain_text!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_contain_text_options()
         ) :: :ok
   def to_contain_text!(locator, expected, options \\ []) do
@@ -1675,7 +1675,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_contain_text(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_contain_text_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_contain_text(locator, expected, options \\ []) do
@@ -1696,7 +1696,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_contain_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_contain_text!(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_contain_text_options()
         ) :: :ok
   def not_to_contain_text!(locator, expected, options \\ []) do
@@ -1759,7 +1759,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_accessible_description(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_description_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_accessible_description(locator, description, options \\ []) do
@@ -1780,7 +1780,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_accessible_description/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_accessible_description!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_description_options()
         ) :: :ok
   def to_have_accessible_description!(locator, description, options \\ []) do
@@ -1836,7 +1836,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_accessible_description(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_description_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_accessible_description(locator, description, options \\ []) do
@@ -1859,7 +1859,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_accessible_description/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_have_accessible_description!(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_description_options()
         ) :: :ok
   def not_to_have_accessible_description!(locator, description, options \\ []) do
@@ -1924,7 +1924,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_accessible_error_message(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_error_message_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_accessible_error_message(locator, error_message, options \\ []) do
@@ -1945,7 +1945,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_accessible_error_message/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_accessible_error_message!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_error_message_options()
         ) :: :ok
   def to_have_accessible_error_message!(locator, error_message, options \\ []) do
@@ -2001,7 +2001,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_accessible_error_message(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_error_message_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_accessible_error_message(locator, error_message, options \\ []) do
@@ -2024,7 +2024,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_accessible_error_message/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_have_accessible_error_message!(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_error_message_options()
         ) :: :ok
   def not_to_have_accessible_error_message!(locator, error_message, options \\ []) do
@@ -2085,7 +2085,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_accessible_name(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_name_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_accessible_name(locator, name, options \\ []) do
@@ -2106,7 +2106,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_accessible_name/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_accessible_name!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_name_options()
         ) :: :ok
   def to_have_accessible_name!(locator, name, options \\ []) do
@@ -2162,7 +2162,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_accessible_name(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_name_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_accessible_name(locator, name, options \\ []) do
@@ -2183,7 +2183,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_accessible_name/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_have_accessible_name!(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_name_options()
         ) :: :ok
   def not_to_have_accessible_name!(locator, name, options \\ []) do
@@ -2246,13 +2246,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_attribute(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
-          String.t() | Regex.t() | nil,
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           to_have_attribute_options()
         ) :: :ok | {:error, Exception.t()}
   @spec to_have_attribute(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
-          String.t() | Regex.t() | nil | to_have_attribute_options()
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | to_have_attribute_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_attribute(locator, name, value \\ nil, options \\ [])
 
@@ -2279,13 +2279,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_attribute!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
-          String.t() | Regex.t() | nil,
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           to_have_attribute_options()
         ) :: :ok
   @spec to_have_attribute!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
-          String.t() | Regex.t() | nil | to_have_attribute_options()
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | to_have_attribute_options()
         ) :: :ok
   def to_have_attribute!(locator, name, value \\ nil, options \\ [])
 
@@ -2346,13 +2346,13 @@ defmodule PlaywrightEx.Expect do
   @spec not_to_have_attribute(
           PlaywrightEx.Locator.t(),
           String.t(),
-          String.t() | Regex.t() | nil,
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           not_to_have_attribute_options()
         ) :: :ok | {:error, Exception.t()}
   @spec not_to_have_attribute(
           PlaywrightEx.Locator.t(),
           String.t(),
-          String.t() | Regex.t() | nil | not_to_have_attribute_options()
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | not_to_have_attribute_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_attribute(locator, name, value \\ nil, options \\ [])
 
@@ -2379,13 +2379,13 @@ defmodule PlaywrightEx.Expect do
   @spec not_to_have_attribute!(
           PlaywrightEx.Locator.t(),
           String.t(),
-          String.t() | Regex.t() | nil,
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           not_to_have_attribute_options()
         ) :: :ok
   @spec not_to_have_attribute!(
           PlaywrightEx.Locator.t(),
           String.t(),
-          String.t() | Regex.t() | nil | not_to_have_attribute_options()
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | not_to_have_attribute_options()
         ) :: :ok
   def not_to_have_attribute!(locator, name, value \\ nil, options \\ [])
 
@@ -2455,7 +2455,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_class(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_class_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_class(locator, expected, options \\ []) do
@@ -2476,7 +2476,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_class!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_class_options()
         ) :: :ok
   def to_have_class!(locator, expected, options \\ []) do
@@ -2522,7 +2522,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_class(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_class_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_class(locator, expected, options \\ []) do
@@ -2543,7 +2543,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_have_class!(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_class_options()
         ) :: :ok
   def not_to_have_class!(locator, expected, options \\ []) do
@@ -2736,7 +2736,7 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_css(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_css_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_css(locator, name, value, options \\ []) do
@@ -2758,7 +2758,7 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_css!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_css_options()
         ) :: :ok
   def to_have_css!(locator, name, value, options \\ []) do
@@ -2813,8 +2813,12 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_have_css(PlaywrightEx.Locator.t(), String.t(), String.t() | Regex.t(), not_to_have_css_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec not_to_have_css(
+          PlaywrightEx.Locator.t(),
+          String.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_css_options()
+        ) :: :ok | {:error, Exception.t()}
   def not_to_have_css(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCSS")
     options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
@@ -2831,7 +2835,12 @@ defmodule PlaywrightEx.Expect do
 
   @doc since: "1.20"
   @doc "Like `not_to_have_css/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
-  @spec not_to_have_css!(PlaywrightEx.Locator.t(), String.t(), String.t() | Regex.t(), not_to_have_css_options()) :: :ok
+  @spec not_to_have_css!(
+          PlaywrightEx.Locator.t(),
+          String.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_css_options()
+        ) :: :ok
   def not_to_have_css!(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCSS")
     options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
@@ -2880,8 +2889,11 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec to_have_id(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), String.t() | Regex.t(), to_have_id_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec to_have_id(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          to_have_id_options()
+        ) :: :ok | {:error, Exception.t()}
   def to_have_id(locator, id, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveId")
     options = Facade.options!(options, @to_have_id_options, "expect.toHaveId")
@@ -2900,7 +2912,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_id/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_id!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_id_options()
         ) :: :ok
   def to_have_id!(locator, id, options \\ []) do
@@ -2944,8 +2956,11 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_have_id(PlaywrightEx.Locator.t(), String.t() | Regex.t(), not_to_have_id_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec not_to_have_id(
+          PlaywrightEx.Locator.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_id_options()
+        ) :: :ok | {:error, Exception.t()}
   def not_to_have_id(locator, id, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveId")
     options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
@@ -2962,7 +2977,11 @@ defmodule PlaywrightEx.Expect do
 
   @doc since: "1.20"
   @doc "Like `not_to_have_id/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
-  @spec not_to_have_id!(PlaywrightEx.Locator.t(), String.t() | Regex.t(), not_to_have_id_options()) :: :ok
+  @spec not_to_have_id!(
+          PlaywrightEx.Locator.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_id_options()
+        ) :: :ok
   def not_to_have_id!(locator, id, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveId")
     options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
@@ -4132,7 +4151,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_text(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_text_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_text(locator, expected, options \\ []) do
@@ -4153,7 +4172,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_text!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_text_options()
         ) :: :ok
   def to_have_text!(locator, expected, options \\ []) do
@@ -4217,7 +4236,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_text(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_text_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_text(locator, expected, options \\ []) do
@@ -4238,7 +4257,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_have_text!(
           PlaywrightEx.Locator.t(),
-          String.t() | Regex.t() | [String.t() | Regex.t()],
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_text_options()
         ) :: :ok
   def not_to_have_text!(locator, expected, options \\ []) do
@@ -4291,7 +4310,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_value(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_value_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_value(locator, value, options \\ []) do
@@ -4312,7 +4331,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_value/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_value!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_value_options()
         ) :: :ok
   def to_have_value!(locator, value, options \\ []) do
@@ -4356,8 +4375,11 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_have_value(PlaywrightEx.Locator.t(), String.t() | Regex.t(), not_to_have_value_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec not_to_have_value(
+          PlaywrightEx.Locator.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_value_options()
+        ) :: :ok | {:error, Exception.t()}
   def not_to_have_value(locator, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValue")
     options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
@@ -4374,7 +4396,11 @@ defmodule PlaywrightEx.Expect do
 
   @doc since: "1.20"
   @doc "Like `not_to_have_value/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
-  @spec not_to_have_value!(PlaywrightEx.Locator.t(), String.t() | Regex.t(), not_to_have_value_options()) :: :ok
+  @spec not_to_have_value!(
+          PlaywrightEx.Locator.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_value_options()
+        ) :: :ok
   def not_to_have_value!(locator, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValue")
     options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
@@ -4436,7 +4462,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_values(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          [String.t() | Regex.t()],
+          [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_values_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_values(locator, values, options \\ []) do
@@ -4457,7 +4483,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_values/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_values!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
-          [String.t() | Regex.t()],
+          [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_values_options()
         ) :: :ok
   def to_have_values!(locator, values, options \\ []) do
@@ -4501,8 +4527,11 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_have_values(PlaywrightEx.Locator.t(), [String.t() | Regex.t()], not_to_have_values_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec not_to_have_values(
+          PlaywrightEx.Locator.t(),
+          [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
+          not_to_have_values_options()
+        ) :: :ok | {:error, Exception.t()}
   def not_to_have_values(locator, values, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValues")
     options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
@@ -4519,7 +4548,11 @@ defmodule PlaywrightEx.Expect do
 
   @doc since: "1.23"
   @doc "Like `not_to_have_values/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
-  @spec not_to_have_values!(PlaywrightEx.Locator.t(), [String.t() | Regex.t()], not_to_have_values_options()) :: :ok
+  @spec not_to_have_values!(
+          PlaywrightEx.Locator.t(),
+          [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
+          not_to_have_values_options()
+        ) :: :ok
   def not_to_have_values!(locator, values, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValues")
     options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
@@ -4777,8 +4810,11 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec to_have_title(PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()), String.t() | Regex.t(), to_have_title_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec to_have_title(
+          PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          to_have_title_options()
+        ) :: :ok | {:error, Exception.t()}
   def to_have_title(page, title_or_reg_exp, options \\ []) do
     {page, is_not} = Facade.negated(page, false, "expect.toHaveTitle")
     options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle")
@@ -4797,7 +4833,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_title/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_title!(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_title_options()
         ) :: :ok
   def to_have_title!(page, title_or_reg_exp, options \\ []) do
@@ -4841,8 +4877,11 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_have_title(PlaywrightEx.Page.t(), String.t() | Regex.t(), not_to_have_title_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec not_to_have_title(
+          PlaywrightEx.Page.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_title_options()
+        ) :: :ok | {:error, Exception.t()}
   def not_to_have_title(page, title_or_reg_exp, options \\ []) do
     {page, is_not} = Facade.negated(page, true, "expect.notToHaveTitle")
     options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
@@ -4859,7 +4898,11 @@ defmodule PlaywrightEx.Expect do
 
   @doc since: "1.20"
   @doc "Like `not_to_have_title/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
-  @spec not_to_have_title!(PlaywrightEx.Page.t(), String.t() | Regex.t(), not_to_have_title_options()) :: :ok
+  @spec not_to_have_title!(
+          PlaywrightEx.Page.t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+          not_to_have_title_options()
+        ) :: :ok
   def not_to_have_title!(page, title_or_reg_exp, options \\ []) do
     {page, is_not} = Facade.negated(page, true, "expect.notToHaveTitle")
     options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
@@ -4929,7 +4972,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_url(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           to_have_url_options()
         ) :: :ok | {:error, Exception.t()}
   def to_have_url(page, url, options \\ []) do
@@ -4950,7 +4993,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_url/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec to_have_url!(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           to_have_url_options()
         ) :: :ok
   def to_have_url!(page, url, options \\ []) do
@@ -5003,7 +5046,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_url(
           PlaywrightEx.Page.t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           not_to_have_url_options()
         ) :: :ok | {:error, Exception.t()}
   def not_to_have_url(page, url, options \\ []) do
@@ -5024,7 +5067,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_url/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
   @spec not_to_have_url!(
           PlaywrightEx.Page.t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           not_to_have_url_options()
         ) :: :ok
   def not_to_have_url!(page, url, options \\ []) do

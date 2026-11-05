@@ -575,7 +575,7 @@ defmodule PlaywrightEx.BrowserType do
               optional(:content) => String.t(),
               required(:path) => String.t(),
               optional(:mode) => String.t(),
-              optional(:urlFilter) => String.t() | Regex.t()
+              optional(:urlFilter) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             },
             record_video: %{
               optional(:dir) => String.t(),
@@ -681,7 +681,7 @@ defmodule PlaywrightEx.BrowserType do
                 optional(:content) => String.t(),
                 required(:path) => String.t(),
                 optional(:mode) => String.t(),
-                optional(:urlFilter) => String.t() | Regex.t()
+                optional(:urlFilter) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
               },
               optional(:record_video) => %{
                 optional(:dir) => String.t(),

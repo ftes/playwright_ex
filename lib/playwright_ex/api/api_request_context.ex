@@ -106,11 +106,15 @@ defmodule PlaywrightEx.APIRequestContext do
 
   @typedoc "Options of `clear_cookies`, see its docs."
   @type clear_cookies_options ::
-          [domain: String.t() | Regex.t(), name: String.t() | Regex.t(), path: String.t() | Regex.t()]
+          [
+            domain: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            name: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            path: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
+          ]
           | %{
-              optional(:domain) => String.t() | Regex.t(),
-              optional(:name) => String.t() | Regex.t(),
-              optional(:path) => String.t() | Regex.t()
+              optional(:domain) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:name) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:path) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.64"

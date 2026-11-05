@@ -7,13 +7,15 @@ defmodule PlaywrightEx.Protocol.Serializers do
   JS values map to Elixir terms as follows: `undefined` is `nil`, `null` is `:null`,
   `NaN`/`Infinity`/`-Infinity` are `:nan`/`:infinity`/`:neg_infinity`, `-0` is `-0.0`,
   `bigint` is an integer outside ±(2^53 - 1), `Date` is `DateTime`, `URL` is `URI`,
-  `RegExp` is `Regex`, `Error` is `JSError` (or any exception, when serializing), objects are
-  maps with string keys (atom keys and structs are accepted when serializing). Other atoms
-  serialize as strings.
+  `RegExp` is `Regex` or `PlaywrightEx.RegExp`, `Error` is `JSError` (or any exception, when
+  serializing), objects are maps with string keys (atom keys and structs are accepted when
+  serializing). Other atoms serialize as strings.
 
-  Deviations: typed arrays parse to lists of numbers and are never produced; a function
-  parses to `{:function, name}`; Elixir terms are acyclic, so serializing never emits
-  `ref`, and parsing a reference to an enclosing (cyclic) value returns `:circular`.
+  Deviations: a JS regex parses to the `Regex` that means the same (flags `imsu`, same PCRE
+  syntax), else to a `PlaywrightEx.RegExp`; typed arrays parse to lists of numbers and are
+  never produced; a function parses to `{:function, name}`; Elixir terms are acyclic, so
+  serializing never emits `ref`, and parsing a reference to an enclosing (cyclic) value
+  returns `:circular`.
   """
   import Bitwise
 
@@ -79,7 +81,7 @@ defmodule PlaywrightEx.Protocol.Serializers do
         {%JSError{name: e[:n], message: e[:m], stack: e[:s]}, refs}
 
       %{r: r} ->
-        {Regex.compile!(r.p, regex_options(r.f)), refs}
+        {PlaywrightEx.RegExp.parse(r.p, r.f), refs}
 
       %{ta: ta} ->
         {parse_typed_array(ta.k, ta.b), refs}
@@ -212,8 +214,9 @@ defmodule PlaywrightEx.Protocol.Serializers do
       is_struct(value, URI) ->
         {%{u: URI.to_string(value)}, visitor_info}
 
-      is_struct(value, Regex) ->
-        {%{r: %{p: Regex.source(value), f: regex_flags(value)}}, visitor_info}
+      PlaywrightEx.RegExp.reg_exp?(value) ->
+        {p, f} = PlaywrightEx.RegExp.to_js(value)
+        {%{r: %{p: p, f: f}}, visitor_info}
 
       is_list(value) ->
         serialize_array(value, handle_serializer, visitor_info, access_chain)
@@ -271,15 +274,5 @@ defmodule PlaywrightEx.Protocol.Serializers do
       end)
 
     if chain_string == "", do: "", else: ~s( at position "#{chain_string}")
-  end
-
-  # RegExp flags <-> Regex options. JS-only flags (g, y, d, v) have no Regex equivalent; a
-  # `Regex` JS cannot run raises (`RegExp.check_js_compatible!/1`).
-  defp regex_options(flags), do: for(<<flag <- flags>>, flag in ~c"imsu", into: "", do: <<flag>>)
-
-  @doc false
-  def regex_flags(regex) do
-    opts = Regex.opts(PlaywrightEx.Isomorphic.RegExp.check_js_compatible!(regex))
-    for {opt, flag} <- [caseless: "i", multiline: "m", dotall: "s", unicode: "u"], opt in opts, into: "", do: flag
   end
 end

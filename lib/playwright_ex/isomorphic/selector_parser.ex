@@ -4,11 +4,11 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
   Port of `#{@upstream}`. A `ParsedSelector` is `%{parts: [part], capture: index | nil}`, a part
   `%{name, body, source}`, a nested body `%{parsed, distance}`. CSS parts keep their source as
   the body: `parseCSS` is not ported (`PlaywrightEx.Isomorphic.CssParser`), so invalid CSS is not
-  detected here. `RegExp` values are `PlaywrightEx.Isomorphic.RegExp`.
+  detected here. `RegExp` values are `PlaywrightEx.RegExp`.
   """
 
   alias PlaywrightEx.Isomorphic.CssParser.InvalidSelectorError
-  alias PlaywrightEx.Isomorphic.RegExp
+  alias PlaywrightEx.RegExp
 
   @k_nested_selector_names ~w(internal:has internal:has-not internal:and internal:or internal:chain left-of right-of above below near)
   @k_nested_selector_names_with_distance ~w(left-of right-of above below near)

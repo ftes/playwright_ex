@@ -6,19 +6,23 @@ defmodule PlaywrightEx.Client.Network do
   `PlaywrightEx.Client.WebSocketRoute`, `PlaywrightEx.Client.WebSocketRouteHandler`,
   `PlaywrightEx.Client.WebSocket`, `PlaywrightEx.Client.RouteHandler`, `PlaywrightEx.Client.RawHeaders`).
   """
-  alias PlaywrightEx.Protocol.Serializers
+  alias PlaywrightEx.RegExp
 
   def to_clear_cookies_params(options) do
+    {name_source, name_flags} = RegExp.to_js(options[:name])
+    {domain_source, domain_flags} = RegExp.to_js(options[:domain])
+    {path_source, path_flags} = RegExp.to_js(options[:path])
+
     %{
       name: if(is_binary(options[:name]), do: options.name),
-      nameRegexSource: if(is_struct(options[:name], Regex), do: Regex.source(options.name)),
-      nameRegexFlags: if(is_struct(options[:name], Regex), do: Serializers.regex_flags(options.name)),
+      nameRegexSource: name_source,
+      nameRegexFlags: name_flags,
       domain: if(is_binary(options[:domain]), do: options.domain),
-      domainRegexSource: if(is_struct(options[:domain], Regex), do: Regex.source(options.domain)),
-      domainRegexFlags: if(is_struct(options[:domain], Regex), do: Serializers.regex_flags(options.domain)),
+      domainRegexSource: domain_source,
+      domainRegexFlags: domain_flags,
       path: if(is_binary(options[:path]), do: options.path),
-      pathRegexSource: if(is_struct(options[:path], Regex), do: Regex.source(options.path)),
-      pathRegexFlags: if(is_struct(options[:path], Regex), do: Serializers.regex_flags(options.path))
+      pathRegexSource: path_source,
+      pathRegexFlags: path_flags
     }
   end
 

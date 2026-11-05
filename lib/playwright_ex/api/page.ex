@@ -1690,7 +1690,10 @@ defmodule PlaywrightEx.Page do
   @spec frame(
           t(),
           String.t()
-          | %{optional(:name) => String.t(), optional(:url) => String.t() | Regex.t() | (String.t() -> boolean())}
+          | %{
+              optional(:name) => String.t(),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean())
+            }
         ) :: nil | PlaywrightEx.Frame.t()
   def frame(page, frame_selector) do
     frame_selector = Facade.arg!(frame_selector, @frame_frame_selector, "page.frame")
@@ -1829,7 +1832,8 @@ defmodule PlaywrightEx.Page do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_alt_text(t(), String.t() | Regex.t(), get_by_alt_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_alt_text(page, text, options \\ []) do
     options = Facade.options!(options, @get_by_alt_text_options, "page.getByAltText")
     PlaywrightEx.Client.Page.get_by_alt_text(page, text, options)
@@ -1867,7 +1871,8 @@ defmodule PlaywrightEx.Page do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_label(t(), String.t() | Regex.t(), get_by_label_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_label(page, text, options \\ []) do
     options = Facade.options!(options, @get_by_label_options, "page.getByLabel")
     PlaywrightEx.Client.Page.get_by_label(page, text, options)
@@ -1906,7 +1911,8 @@ defmodule PlaywrightEx.Page do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_placeholder(t(), String.t() | Regex.t(), get_by_placeholder_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_placeholder(page, text, options \\ []) do
     options = Facade.options!(options, @get_by_placeholder_options, "page.getByPlaceholder")
     PlaywrightEx.Client.Page.get_by_placeholder(page, text, options)
@@ -2043,25 +2049,25 @@ defmodule PlaywrightEx.Page do
   @type get_by_role_options ::
           [
             checked: boolean(),
-            description: String.t() | Regex.t(),
+            description: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             disabled: boolean(),
             exact: boolean(),
             expanded: boolean(),
             include_hidden: boolean(),
             level: integer(),
-            name: String.t() | Regex.t(),
+            name: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             pressed: boolean(),
             selected: boolean()
           ]
           | %{
               optional(:checked) => boolean(),
-              optional(:description) => String.t() | Regex.t(),
+              optional(:description) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:disabled) => boolean(),
               optional(:exact) => boolean(),
               optional(:expanded) => boolean(),
               optional(:include_hidden) => boolean(),
               optional(:level) => integer(),
-              optional(:name) => String.t() | Regex.t(),
+              optional(:name) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:pressed) => boolean(),
               optional(:selected) => boolean()
             }
@@ -2266,7 +2272,7 @@ defmodule PlaywrightEx.Page do
 
   * `test_id` - Id to locate the element by.
   """
-  @spec get_by_test_id(t(), String.t() | Regex.t()) :: PlaywrightEx.Locator.t()
+  @spec get_by_test_id(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t()) :: PlaywrightEx.Locator.t()
   def get_by_test_id(page, test_id) do
     PlaywrightEx.Client.Page.get_by_test_id(page, test_id)
   end
@@ -2324,7 +2330,8 @@ defmodule PlaywrightEx.Page do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_text(t(), String.t() | Regex.t(), get_by_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_text(page, text, options \\ []) do
     options = Facade.options!(options, @get_by_text_options, "page.getByText")
     PlaywrightEx.Client.Page.get_by_text(page, text, options)
@@ -2361,7 +2368,8 @@ defmodule PlaywrightEx.Page do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_title(t(), String.t() | Regex.t(), get_by_title_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_title(page, text, options \\ []) do
     options = Facade.options!(options, @get_by_title_options, "page.getByTitle")
     PlaywrightEx.Client.Page.get_by_title(page, text, options)
@@ -3358,14 +3366,14 @@ defmodule PlaywrightEx.Page do
           [
             has: PlaywrightEx.Locator.t(),
             has_not: PlaywrightEx.Locator.t(),
-            has_not_text: String.t() | Regex.t(),
-            has_text: String.t() | Regex.t()
+            has_not_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            has_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:has) => PlaywrightEx.Locator.t(),
               optional(:has_not) => PlaywrightEx.Locator.t(),
-              optional(:has_not_text) => String.t() | Regex.t(),
-              optional(:has_text) => String.t() | Regex.t()
+              optional(:has_not_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:has_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.14"
@@ -4208,7 +4216,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec route(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
         ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
@@ -4221,7 +4229,7 @@ defmodule PlaywrightEx.Page do
   @doc "Like `route/4`, but returns the value and raises on error."
   @spec route!(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
         ) :: PlaywrightEx.Disposable.t()
@@ -4246,14 +4254,14 @@ defmodule PlaywrightEx.Page do
             update: boolean(),
             update_content: :embed | :attach,
             update_mode: :full | :minimal,
-            url: String.t() | Regex.t()
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:not_found) => :abort | :fallback,
               optional(:update) => boolean(),
               optional(:update_content) => :embed | :attach,
               optional(:update_mode) => :full | :minimal,
-              optional(:url) => String.t() | Regex.t()
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.23"
@@ -4317,9 +4325,11 @@ defmodule PlaywrightEx.Page do
   * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `baseURL` context option.
   * `handler` - Handler function to route the WebSocket.
   """
-  @spec route_web_socket(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
-                                                                                     term())) ::
-          :ok | {:error, Exception.t()}
+  @spec route_web_socket(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          (PlaywrightEx.WebSocketRoute.t() -> term())
+        ) :: :ok | {:error, Exception.t()}
   def route_web_socket(page, url, handler) do
     Facade.async_void("page.routeWebSocket", page, fn ->
       PlaywrightEx.Client.Page.route_web_socket(page, url, handler)
@@ -4328,8 +4338,11 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.48"
   @doc "Like `route_web_socket/3`, but returns the value and raises on error."
-  @spec route_web_socket!(t(), String.t() | Regex.t() | (String.t() -> boolean()), (PlaywrightEx.WebSocketRoute.t() ->
-                                                                                      term())) :: :ok
+  @spec route_web_socket!(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          (PlaywrightEx.WebSocketRoute.t() -> term())
+        ) :: :ok
   def route_web_socket!(page, url, handler) do
     Facade.async_void!("page.routeWebSocket", page, fn ->
       PlaywrightEx.Client.Page.route_web_socket(page, url, handler)
@@ -5538,7 +5551,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec unroute(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
         ) :: :ok | {:error, Exception.t()}
   def unroute(page, url, handler \\ nil) do
@@ -5549,7 +5562,7 @@ defmodule PlaywrightEx.Page do
   @doc "Like `unroute/3`, but returns the value and raises on error."
   @spec unroute!(
           t(),
-          String.t() | Regex.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
         ) :: :ok
   def unroute!(page, url, handler \\ nil) do
@@ -5871,13 +5884,13 @@ defmodule PlaywrightEx.Page do
           [
             signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit
           ]
           | %{
               optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
             }
 
@@ -6032,7 +6045,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec wait_for_request(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Request.t() -> boolean()),
           wait_for_request_options()
         ) :: PlaywrightEx.Promise.t()
   def wait_for_request(page, url_or_predicate, options \\ []) do
@@ -6063,7 +6076,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec wait_for_request!(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Request.t() -> boolean()),
           wait_for_request_options()
         ) :: PlaywrightEx.Request.t()
   def wait_for_request!(page, url_or_predicate, options \\ []),
@@ -6130,7 +6143,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec wait_for_response(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Response.t() -> boolean()),
           wait_for_response_options()
         ) :: PlaywrightEx.Promise.t()
   def wait_for_response(page, url_or_predicate, options \\ []) do
@@ -6161,7 +6174,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec wait_for_response!(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Response.t() -> boolean()),
           wait_for_response_options()
         ) :: PlaywrightEx.Response.t()
   def wait_for_response!(page, url_or_predicate, options \\ []),
@@ -6386,8 +6399,11 @@ defmodule PlaywrightEx.Page do
     * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `'commit'` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec wait_for_url(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) ::
-          :ok | {:error, Exception.t()}
+  @spec wait_for_url(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          wait_for_url_options()
+        ) :: :ok | {:error, Exception.t()}
   def wait_for_url(page, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
     Facade.async_void("page.waitForURL", page, fn -> PlaywrightEx.Client.Page.wait_for_url(page, url, options) end)
@@ -6395,7 +6411,11 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.11"
   @doc "Like `wait_for_url/3`, but returns the value and raises on error."
-  @spec wait_for_url!(t(), String.t() | Regex.t() | (String.t() -> boolean()), wait_for_url_options()) :: :ok
+  @spec wait_for_url!(
+          t(),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          wait_for_url_options()
+        ) :: :ok
   def wait_for_url!(page, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
     Facade.async_void!("page.waitForURL", page, fn -> PlaywrightEx.Client.Page.wait_for_url(page, url, options) end)
@@ -6773,13 +6793,13 @@ defmodule PlaywrightEx.Page do
   @type expect_navigation_options ::
           [
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit,
             signal: PlaywrightEx.AbortSignal.t()
           ]
           | %{
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit,
               optional(:signal) => PlaywrightEx.AbortSignal.t()
             }
@@ -6994,7 +7014,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec expect_request(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Request.t() -> boolean()),
           (-> term()),
           expect_request_options()
         ) :: {:ok, PlaywrightEx.Request.t()} | {:error, Exception.t()}
@@ -7013,7 +7033,7 @@ defmodule PlaywrightEx.Page do
   @doc "Like `expect_request/4`, but returns the value and raises on error."
   @spec expect_request!(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Request.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Request.t() -> boolean()),
           (-> term()),
           expect_request_options()
         ) :: PlaywrightEx.Request.t()
@@ -7158,7 +7178,7 @@ defmodule PlaywrightEx.Page do
   """
   @spec expect_response(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Response.t() -> boolean()),
           (-> term()),
           expect_response_options()
         ) :: {:ok, PlaywrightEx.Response.t()} | {:error, Exception.t()}
@@ -7177,7 +7197,7 @@ defmodule PlaywrightEx.Page do
   @doc "Like `expect_response/4`, but returns the value and raises on error."
   @spec expect_response!(
           t(),
-          String.t() | Regex.t() | (PlaywrightEx.Response.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (PlaywrightEx.Response.t() -> boolean()),
           (-> term()),
           expect_response_options()
         ) :: PlaywrightEx.Response.t()

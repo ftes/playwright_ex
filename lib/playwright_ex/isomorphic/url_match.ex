@@ -5,34 +5,49 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
 
   Deviations: globs become regexes through the driver (`LocalUtils.globToRegex`, PLAN
   Decisions), so the functions that resolve globs take the `LocalUtils` as first argument.
-  `RegExp` is `Regex`; a function matcher gets the URL string (Elixir has no `URL` class, as
+  `RegExp` is a `Regex` or a `PlaywrightEx.RegExp` (compiled to a `Regex` to match here); a function matcher gets the URL string (Elixir has no `URL` class, as
   in the Python, Java and .NET clients). `URLPattern` has no Elixir counterpart.
   """
 
+  import PlaywrightEx.RegExp, only: [reg_exp?: 1]
+
   alias PlaywrightEx.Client.LocalUtils
-  alias PlaywrightEx.Protocol.Serializers
+  alias PlaywrightEx.RegExp
 
   # isHttpUrl  -- not ported: unused
   # globToRegexPattern  -- not ported: LocalUtils.globToRegex (PLAN)
-  # isRegExp  -- ported as is_struct(match, Regex)
+  # isRegExp  -- ported as PlaywrightEx.RegExp.reg_exp?/1
   # isURLPattern, serializeURLPattern  -- not ported: URLPattern
 
   def serialize_url_match(match) do
     cond do
-      is_binary(match) -> %{glob: match}
-      is_struct(match, Regex) -> %{regexSource: Regex.source(match), regexFlags: Serializers.regex_flags(match)}
+      is_binary(match) ->
+        %{glob: match}
+
+      reg_exp?(match) ->
+        {source, flags} = RegExp.to_js(match)
+        %{regexSource: source, regexFlags: flags}
+
       # if (isURLPattern(match)) return { urlPattern: serializeURLPattern(match) };  -- not ported: URLPattern
       # Functions cannot be serialized
-      true -> nil
+      true ->
+        nil
     end
   end
 
   # deserializeURLPattern, deserializeURLMatch  -- not ported: URLPattern
 
   def url_matches_equal(match1, match2) do
-    if is_struct(match1, Regex) and is_struct(match2, Regex),
-      do: Regex.source(match1) == Regex.source(match2) and Regex.opts(match1) == Regex.opts(match2),
-      else: match1 == match2
+    cond do
+      is_struct(match1, Regex) and is_struct(match2, Regex) ->
+        Regex.source(match1) == Regex.source(match2) and Regex.opts(match1) == Regex.opts(match2)
+
+      reg_exp?(match1) and reg_exp?(match2) ->
+        RegExp.from_regex(match1) == RegExp.from_regex(match2)
+
+      true ->
+        match1 == match2
+    end
   end
 
   def url_matches(local_utils, base_url, url_string, match, web_socket_url \\ nil) do
@@ -49,9 +64,9 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
           web_socket_url
         )
 
-      is_struct(match, Regex) ->
+      reg_exp?(match) ->
         # match.lastIndex = 0;  -- n/a: Elixir regexes are stateless
-        Regex.match?(match, url_string)
+        RegExp.test(match, url_string)
 
       true ->
         url = parse_url(url_string)

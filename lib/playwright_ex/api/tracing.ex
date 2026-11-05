@@ -169,13 +169,13 @@ defmodule PlaywrightEx.Tracing do
             content: :omit | :embed | :attach,
             mode: :full | :minimal,
             resources_dir: String.t(),
-            url_filter: String.t() | Regex.t()
+            url_filter: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:content) => :omit | :embed | :attach,
               optional(:mode) => :full | :minimal,
               optional(:resources_dir) => String.t(),
-              optional(:url_filter) => String.t() | Regex.t()
+              optional(:url_filter) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.60"

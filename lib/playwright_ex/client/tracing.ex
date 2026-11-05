@@ -183,8 +183,8 @@ defmodule PlaywrightEx.Client.Tracing do
           options: %{
             content: options[:updateContent] || "attach",
             urlGlob: if(is_binary(url), do: url),
-            urlRegexSource: if(is_struct(url, Regex), do: Regex.source(url)),
-            urlRegexFlags: if(is_struct(url, Regex), do: PlaywrightEx.Protocol.Serializers.regex_flags(url)),
+            urlRegexSource: elem(PlaywrightEx.RegExp.to_js(url), 0),
+            urlRegexFlags: elem(PlaywrightEx.RegExp.to_js(url), 1),
             mode: options[:updateMode] || "minimal",
             harPath: if(is_zip, do: nil, else: har),
             resourcesDir: options[:resourcesDir]

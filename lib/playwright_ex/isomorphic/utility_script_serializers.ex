@@ -42,25 +42,61 @@ defmodule PlaywrightEx.Isomorphic.UtilityScriptSerializers do
 
   defp serialize_fall_through(value, handle_serializer, visitor_info) do
     cond do
-      value == nil -> {%{v: "undefined"}, visitor_info}
-      value == :null -> {%{v: "null"}, visitor_info}
-      value == :nan -> {%{v: "NaN"}, visitor_info}
-      value == :infinity -> {%{v: "Infinity"}, visitor_info}
-      value == :neg_infinity -> {%{v: "-Infinity"}, visitor_info}
-      is_float(value) and value === -0.0 -> {%{v: "-0"}, visitor_info}
-      is_boolean(value) -> {value, visitor_info}
-      is_integer(value) and abs(value) > @max_safe_integer -> {%{bi: Integer.to_string(value)}, visitor_info}
-      is_number(value) -> {value, visitor_info}
-      is_binary(value) -> {value, visitor_info}
-      is_atom(value) -> {Atom.to_string(value), visitor_info}
-      is_exception(value) -> {serialize_error(value), visitor_info}
-      is_struct(value, DateTime) -> {%{d: to_json_date(value)}, visitor_info}
-      is_struct(value, URI) -> {%{u: URI.to_string(value)}, visitor_info}
-      is_struct(value, Regex) -> {%{r: %{p: Regex.source(value), f: regex_flags(value)}}, visitor_info}
-      is_list(value) -> serialize_array(value, handle_serializer, visitor_info)
-      is_map(value) -> serialize_object(value, handle_serializer, visitor_info)
+      value == nil ->
+        {%{v: "undefined"}, visitor_info}
+
+      value == :null ->
+        {%{v: "null"}, visitor_info}
+
+      value == :nan ->
+        {%{v: "NaN"}, visitor_info}
+
+      value == :infinity ->
+        {%{v: "Infinity"}, visitor_info}
+
+      value == :neg_infinity ->
+        {%{v: "-Infinity"}, visitor_info}
+
+      is_float(value) and value === -0.0 ->
+        {%{v: "-0"}, visitor_info}
+
+      is_boolean(value) ->
+        {value, visitor_info}
+
+      is_integer(value) and abs(value) > @max_safe_integer ->
+        {%{bi: Integer.to_string(value)}, visitor_info}
+
+      is_number(value) ->
+        {value, visitor_info}
+
+      is_binary(value) ->
+        {value, visitor_info}
+
+      is_atom(value) ->
+        {Atom.to_string(value), visitor_info}
+
+      is_exception(value) ->
+        {serialize_error(value), visitor_info}
+
+      is_struct(value, DateTime) ->
+        {%{d: to_json_date(value)}, visitor_info}
+
+      is_struct(value, URI) ->
+        {%{u: URI.to_string(value)}, visitor_info}
+
+      PlaywrightEx.RegExp.reg_exp?(value) ->
+        {p, f} = PlaywrightEx.RegExp.to_js(value)
+        {%{r: %{p: p, f: f}}, visitor_info}
+
+      is_list(value) ->
+        serialize_array(value, handle_serializer, visitor_info)
+
+      is_map(value) ->
+        serialize_object(value, handle_serializer, visitor_info)
+
       # Functions without a binding (and other terms) are dropped: `undefined`.
-      true -> {%{v: "undefined"}, visitor_info}
+      true ->
+        {%{v: "undefined"}, visitor_info}
     end
   end
 
@@ -105,6 +141,4 @@ defmodule PlaywrightEx.Isomorphic.UtilityScriptSerializers do
   # Date.prototype.toJSON: millisecond precision, UTC.
   defp to_json_date(value),
     do: value |> DateTime.shift_zone!("Etc/UTC") |> DateTime.truncate(:millisecond) |> DateTime.to_iso8601()
-
-  defp regex_flags(regex), do: PlaywrightEx.Protocol.Serializers.regex_flags(regex)
 end

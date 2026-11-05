@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.RegExp
   alias PlaywrightEx.Selectors
 
   @moduletag :page
@@ -337,7 +338,13 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate_all!(Page.get_by_role(page, :button, name: "Click \\\\me", exact: true), @outer_html) == []
   end
 
-  test "getByRole should accept regexp with v flag"
+  test "getByRole should accept regexp with v flag", %{page: page} do
+    # Regression test for https://github.com/microsoft/playwright/issues/41457
+    Page.set_content!(page, "<button>Click me</button><button>Submit</button>")
+    Expect.to_have_count!(Page.get_by_role(page, :button, name: RegExp.new("Click me", "v")), 1)
+    Expect.to_have_count!(Page.get_by_role(page, :button, name: RegExp.new("click me", "iv")), 1)
+    Expect.to_have_count!(Page.get_by_role(page, :button, name: RegExp.new("Missing", "v")), 0, timeout: 1000)
+  end
 
   @text_content "els => els.map(e => e.textContent)"
 
@@ -427,5 +434,25 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
            ) == ["Alert"]
   end
 
-  test "locators should not be affected by global and sticky regex flags"
+  test "locators should not be affected by global and sticky regex flags", %{page: page} do
+    Page.set_content!(page, """
+      <div>foo</div><div>foo</div><div>foo</div>
+      <label>foo<input></label><label>foo<input></label><label>foo<input></label>
+      <button>foo</button><button>foo</button><button>foo</button>
+      <input placeholder=foo><input placeholder=foo><input placeholder=foo>
+    """)
+
+    Expect.to_have_count!(Page.get_by_text(page, ~r/foo/), 9)
+    Expect.to_have_count!(Page.get_by_text(page, RegExp.new("foo", "g")), 9)
+    Expect.to_have_count!(Page.get_by_text(page, RegExp.new("foo", "y")), 9)
+    Expect.to_have_count!(Page.get_by_label(page, ~r/foo/), 3)
+    Expect.to_have_count!(Page.get_by_label(page, RegExp.new("foo", "g")), 3)
+    Expect.to_have_count!(Page.get_by_label(page, RegExp.new("foo", "y")), 3)
+    Expect.to_have_count!(Page.get_by_role(page, :button, name: ~r/foo/), 3)
+    Expect.to_have_count!(Page.get_by_role(page, :button, name: RegExp.new("foo", "g")), 3)
+    Expect.to_have_count!(Page.get_by_role(page, :button, name: RegExp.new("foo", "y")), 3)
+    Expect.to_have_count!(Page.get_by_placeholder(page, ~r/foo/), 3)
+    Expect.to_have_count!(Page.get_by_placeholder(page, RegExp.new("foo", "g")), 3)
+    Expect.to_have_count!(Page.get_by_placeholder(page, RegExp.new("foo", "y")), 3)
+  end
 end

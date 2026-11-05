@@ -114,7 +114,8 @@ defmodule PlaywrightEx.FrameLocator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_alt_text(t(), String.t() | Regex.t(), get_by_alt_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_alt_text(frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_alt_text_options, "frameLocator.getByAltText")
     PlaywrightEx.Client.FrameLocator.get_by_alt_text(frame_locator, text, options)
@@ -152,7 +153,8 @@ defmodule PlaywrightEx.FrameLocator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_label(t(), String.t() | Regex.t(), get_by_label_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_label(frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_label_options, "frameLocator.getByLabel")
     PlaywrightEx.Client.FrameLocator.get_by_label(frame_locator, text, options)
@@ -191,7 +193,8 @@ defmodule PlaywrightEx.FrameLocator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_placeholder(t(), String.t() | Regex.t(), get_by_placeholder_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_placeholder(frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_placeholder_options, "frameLocator.getByPlaceholder")
     PlaywrightEx.Client.FrameLocator.get_by_placeholder(frame_locator, text, options)
@@ -300,25 +303,25 @@ defmodule PlaywrightEx.FrameLocator do
   @type get_by_role_options ::
           [
             checked: boolean(),
-            description: String.t() | Regex.t(),
+            description: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             disabled: boolean(),
             exact: boolean(),
             expanded: boolean(),
             include_hidden: boolean(),
             level: integer(),
-            name: String.t() | Regex.t(),
+            name: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
             pressed: boolean(),
             selected: boolean()
           ]
           | %{
               optional(:checked) => boolean(),
-              optional(:description) => String.t() | Regex.t(),
+              optional(:description) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:disabled) => boolean(),
               optional(:exact) => boolean(),
               optional(:expanded) => boolean(),
               optional(:include_hidden) => boolean(),
               optional(:level) => integer(),
-              optional(:name) => String.t() | Regex.t(),
+              optional(:name) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
               optional(:pressed) => boolean(),
               optional(:selected) => boolean()
             }
@@ -523,7 +526,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   * `test_id` - Id to locate the element by.
   """
-  @spec get_by_test_id(t(), String.t() | Regex.t()) :: PlaywrightEx.Locator.t()
+  @spec get_by_test_id(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t()) :: PlaywrightEx.Locator.t()
   def get_by_test_id(frame_locator, test_id) do
     PlaywrightEx.Client.FrameLocator.get_by_test_id(frame_locator, test_id)
   end
@@ -581,7 +584,8 @@ defmodule PlaywrightEx.FrameLocator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_text(t(), String.t() | Regex.t(), get_by_text_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_text(frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_text_options, "frameLocator.getByText")
     PlaywrightEx.Client.FrameLocator.get_by_text(frame_locator, text, options)
@@ -618,7 +622,8 @@ defmodule PlaywrightEx.FrameLocator do
 
   * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
-  @spec get_by_title(t(), String.t() | Regex.t(), get_by_title_options()) :: PlaywrightEx.Locator.t()
+  @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
+          PlaywrightEx.Locator.t()
   def get_by_title(frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_title_options, "frameLocator.getByTitle")
     PlaywrightEx.Client.FrameLocator.get_by_title(frame_locator, text, options)
@@ -647,14 +652,14 @@ defmodule PlaywrightEx.FrameLocator do
           [
             has: PlaywrightEx.Locator.t(),
             has_not: PlaywrightEx.Locator.t(),
-            has_not_text: String.t() | Regex.t(),
-            has_text: String.t() | Regex.t()
+            has_not_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+            has_text: String.t() | Regex.t() | PlaywrightEx.RegExp.t()
           ]
           | %{
               optional(:has) => PlaywrightEx.Locator.t(),
               optional(:has_not) => PlaywrightEx.Locator.t(),
-              optional(:has_not_text) => String.t() | Regex.t(),
-              optional(:has_text) => String.t() | Regex.t()
+              optional(:has_not_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
+              optional(:has_text) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
             }
 
   @doc since: "1.17"
