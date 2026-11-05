@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  import ExUnit.CaptureLog
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ElementHandle
@@ -135,11 +137,17 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   test "should not leak listeners during navigation of 20 pages", %{context_factory: context_factory, server: server} do
     # it.slow(true, 'We open 20 pages here!')
     context = context_factory.([])
-    # process.on('warning', ...): Node's MaxListenersExceededWarning has no counterpart here;
-    # the pages are opened, navigated and closed concurrently as upstream does.
-    pages = 1..20 |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context) end) end) |> Task.await_many()
-    pages |> Enum.map(fn page -> Task.async(fn -> Page.goto!(page, server.empty_page) end) end) |> Task.await_many()
-    pages |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end) |> Task.await_many()
+    # process.on('warning', ...): the client's MaxListenersExceededWarning is logged here.
+    warning =
+      capture_log(fn ->
+        pages =
+          1..20 |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context) end) end) |> Task.await_many()
+
+        pages |> Enum.map(fn page -> Task.async(fn -> Page.goto!(page, server.empty_page) end) end) |> Task.await_many()
+        pages |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end) |> Task.await_many()
+      end)
+
+    refute warning =~ "MaxListenersExceededWarning"
   end
 
   @tag :page

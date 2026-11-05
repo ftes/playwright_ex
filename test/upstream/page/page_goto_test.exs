@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  import ExUnit.CaptureLog
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Expect
@@ -571,21 +573,28 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Response.url(response) == server.empty_page
   end
 
-  # process.on('warning'): no MaxListeners warnings here, the navigations just have to succeed.
+  # process.on('warning'): the client's MaxListenersExceededWarning is logged here.
   test "should not leak listeners during navigation", %{page: page, server: server} do
-    for _ <- 1..20, do: Page.goto!(page, server.empty_page)
+    warning = capture_log(fn -> for _ <- 1..20, do: Page.goto!(page, server.empty_page) end)
+    refute warning =~ "MaxListenersExceededWarning"
   end
 
-  # process.on('warning'): no MaxListeners warnings here, the navigations just have to fail.
+  # process.on('warning'): the client's MaxListenersExceededWarning is logged here.
   test "should not leak listeners during bad navigation", %{page: page} do
-    for _ <- 1..20, do: {:error, _} = Page.goto(page, "asdf")
+    warning = capture_log(fn -> for _ <- 1..20, do: {:error, _} = Page.goto(page, "asdf") end)
+    refute warning =~ "MaxListenersExceededWarning"
   end
 
-  # process.on('warning'): no MaxListeners warnings here, the waits just have to resolve.
+  # process.on('warning'): the client's MaxListenersExceededWarning is logged here.
   test "should not leak listeners during 20 waitForNavigation", %{page: page, server: server} do
-    promises = for _ <- 1..20, do: Page.wait_for_navigation(page)
-    Page.goto!(page, server.empty_page)
-    for promise <- promises, do: PlaywrightEx.Promise.await!(promise)
+    warning =
+      capture_log(fn ->
+        promises = for _ <- 1..20, do: Page.wait_for_navigation(page)
+        Page.goto!(page, server.empty_page)
+        for promise <- promises, do: PlaywrightEx.Promise.await!(promise)
+      end)
+
+    refute warning =~ "MaxListenersExceededWarning"
   end
 
   test "should navigate to dataURL and not fire dataURL requests", %{page: page} do
