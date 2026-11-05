@@ -546,7 +546,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -672,7 +673,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -884,7 +886,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -971,7 +974,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -1081,7 +1085,8 @@ defmodule PlaywrightEx.Page do
   * `:target_position` - *Since 1.14.* Drops on the target element at this point relative to the top-left corner of the element's padding box. If not specified, some visible point of the element is used.
     * `:x`
     * `:y`
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -1581,7 +1586,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -1632,7 +1638,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -1760,7 +1767,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2399,7 +2407,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -2472,7 +2482,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -2598,7 +2610,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -2732,7 +2746,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2783,7 +2798,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2833,7 +2849,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2885,7 +2902,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2935,7 +2953,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -2994,7 +3013,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -3044,7 +3064,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -3094,7 +3115,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -3705,7 +3727,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -4049,7 +4072,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -4404,7 +4429,8 @@ defmodule PlaywrightEx.Page do
   * `:style` - *Since 1.41.* Text of the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible
     or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies
     to the inner frames.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -4503,7 +4529,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -4631,7 +4658,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -4699,7 +4727,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -4867,7 +4897,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -4998,7 +5029,8 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -5060,7 +5092,8 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -5168,7 +5201,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -5219,7 +5253,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -5313,7 +5348,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -5412,7 +5448,8 @@ defmodule PlaywrightEx.Page do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -5629,7 +5666,8 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
+  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
+    value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -5703,7 +5741,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -5795,7 +5835,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
@@ -6022,7 +6064,8 @@ defmodule PlaywrightEx.Page do
       This is opposite to the `'visible'` option.
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
+  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+    using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -6140,7 +6183,9 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
+  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+    The default value can be changed by using the
+    `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.

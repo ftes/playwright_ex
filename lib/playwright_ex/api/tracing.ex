@@ -5,12 +5,6 @@ defmodule PlaywrightEx.Tracing do
   @moduledoc ~S"""
   API for collecting and saving Playwright traces. Playwright traces can be opened in [Trace Viewer](https://playwright.dev/docs/trace-viewer) after Playwright script runs.
 
-  > #### Note {: .info}
-  >
-  > You probably want to [enable tracing in your config file](https://playwright.dev/docs/api/class-testoptions#test-options-trace) instead of using `context.tracing`.
-  >
-  > The `context.tracing` API captures browser operations and network activity, but it doesn't record test assertions (like `expect` calls). We recommend [enabling tracing through Playwright Test configuration](https://playwright.dev/docs/api/class-testoptions#test-options-trace), which includes those assertions and provides a more complete trace for debugging test failures.
-
   Start recording a trace before performing actions. At the end, stop tracing and save it to a file.
 
   ```js
@@ -63,12 +57,6 @@ defmodule PlaywrightEx.Tracing do
   @doc since: "1.12"
   @doc ~S"""
   Start tracing. Disposing the returned [`Disposable`](`PlaywrightEx.Disposable`) stops tracing without saving the trace, similarly to calling `PlaywrightEx.Tracing.stop/2` without a path.
-
-  > #### Note {: .info}
-  >
-  > You probably want to [enable tracing in your config file](https://playwright.dev/docs/api/class-testoptions#test-options-trace) instead of using `Tracing.start`.
-  >
-  > The `context.tracing` API captures browser operations and network activity, but it doesn't record test assertions (like `expect` calls). We recommend [enabling tracing through Playwright Test configuration](https://playwright.dev/docs/api/class-testoptions#test-options-trace), which includes those assertions and provides a more complete trace for debugging test failures.
 
   **Usage**
 

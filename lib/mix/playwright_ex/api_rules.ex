@@ -22,7 +22,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
-    * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`).
+    * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`), and
+      drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
     * Classes whose emitters take any string as an event (`@open_events`: a `CDPSession` emits
@@ -49,7 +50,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is dropped, as
       are overloads, except that `toHaveAttribute(name, options)` makes `value` optional.
       `toHaveScreenshot` takes the snapshot file as a `path` option instead of the `name` that
-      the test runner resolves (`to_have_screenshot(page, path: "home.png")`).
+      the test runner resolves (`to_have_screenshot(page, path: "home.png")`). Their option docs
+      name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
   """
 
   # BrowserServer: `launchServer` is out of scope (PLAN), browsers run in the driver or remote.
@@ -100,6 +102,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
   }
 
   @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @expect_timeout_doc "Time to retry the assertion for in milliseconds. Defaults to `timeout` in " <>
+                        "`config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
 
   # Assertion classes and the class of their receiver (`expect(receiver)`).
@@ -129,12 +133,25 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> storage_state()
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
+              |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
 
       callbacks = for expect <- expects, do: expect |> callback(class, members) |> member(false)
-      Map.merge(class, %{"members" => members ++ callbacks, "openEvents" => class["name"] in @open_events})
+
+      Map.merge(class, %{
+        "spec" => runner_notes(class["spec"]),
+        "members" => members ++ callbacks,
+        "openEvents" => class["name"] in @open_events
+      })
     end
   end
+
+  # Notes that point to the test runner's options instead (`Tracing`: "enable tracing in your
+  # config file").
+  defp runner_notes(spec) when is_list(spec),
+    do: Enum.reject(spec, &(&1["type"] == "note" and inspect(&1["children"]) =~ "/docs/api/class-testoptions"))
+
+  defp runner_notes(spec), do: spec
 
   # `logger: Logger` is `logger: {isEnabled: function, log: function}`, the methods as functions.
   defp callback_objects(classes) do
@@ -204,6 +221,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp matcher(class, member) do
     args =
       for arg <- member["args"] do
+        arg = expect_options(arg)
+
         if "#{class["name"]}.#{member["alias"]}.#{arg["name"]}" in @optional_args,
           do: %{arg | "required" => false},
           else: arg
@@ -217,6 +236,27 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "matcher" => %{"name" => member["alias"], "isNot" => false, "receivers" => [receiver]}
     })
   end
+
+  # Matcher options: the test runner's `TestConfig.expect` is `config :playwright_ex, :expect`.
+  defp expect_options(%{"name" => "options", "type" => %{"properties" => props}} = options) do
+    props =
+      for prop <- props do
+        if prop["name"] == "timeout",
+          do: %{prop | "spec" => [%{"type" => "text", "text" => @expect_timeout_doc}]},
+          else: Map.update!(prop, "spec", &expect_config_doc/1)
+      end
+
+    put_in(options, ["type", "properties"], props)
+  end
+
+  defp expect_options(arg), do: arg
+
+  defp expect_config_doc(text) when is_binary(text),
+    do: String.replace(text, "`TestConfig.expect`", "`config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`)")
+
+  defp expect_config_doc(spec) when is_list(spec), do: Enum.map(spec, &expect_config_doc/1)
+  defp expect_config_doc(node) when is_map(node), do: Map.new(node, fn {k, v} -> {k, expect_config_doc(v)} end)
+  defp expect_config_doc(value), do: value
 
   # `toHaveScreenshot(name, options)`: no test runner resolves `name`, `path` is an option.
   defp screenshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do

@@ -284,7 +284,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - *Since 1.17.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
@@ -470,7 +470,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
@@ -621,7 +621,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - *Since 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
@@ -744,7 +744,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - *Since 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
@@ -867,7 +867,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
@@ -1028,7 +1028,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
@@ -1151,7 +1151,7 @@ defmodule PlaywrightEx.APIRequestContext do
     for all status codes.
   * `:form` - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
-    unless explicitly provided.
+    unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:max_redirects` - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.

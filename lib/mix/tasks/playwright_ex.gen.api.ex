@@ -8,7 +8,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   `<playwright-repo>` is a checkout of microsoft/playwright at the pinned driver version, by
   default `PlaywrightEx.Upstream.ensure!/0`. `api.json` is built from its `docs/src/api` with
   upstream `utils/doclint/generateApiJson.js`, filtered to `langs: js` with upstream's own
-  `filterForLanguage`, using the installed driver's Node (no npm install). Then
+  `filterForLanguage`, using the installed driver's Node (no npm install); a JS-only option with a
+  variant of the same type for the other clients takes that variant's doc (`input-timeout`, not
+  `input-timeout-js` with the test runner's config). Then
   `Mix.PlaywrightEx.ApiRules` applies the Elixir rules.
 
   Writes `lib/playwright_ex/api/<class>.ex` for every class and member the rules keep (what is
@@ -50,8 +52,33 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   };
   const apiParser = require(path.join(repo, 'utils', 'doclint', 'api_parser.js'));
   const parseApi = apiParser.parseApi;
+  // A JS-only argument or option with a variant of the same type for the other clients
+  // (`input-timeout-js` and `input-timeout`) takes that variant's doc: the JS one describes the
+  // test runner (`actionTimeout` in its config).
+  const otherLangsDocs = (members, seen) => {
+    for (const m of members) {
+      const other = String(m.langs.only) === 'js' && members.find(o =>
+        o.name === m.name && o.langs.only && !o.langs.only.includes('js') && o.type?.expression === m.type?.expression);
+      if (other)
+        m.spec = other.spec;
+      otherLangsDocsOfType(m.type, seen);
+    }
+  };
+  const otherLangsDocsOfType = (type, seen) => {
+    if (!type || seen.has(type))
+      return;
+    seen.add(type);
+    otherLangsDocs(type.properties || [], seen);
+    for (const t of [...(type.union || []), ...(type.args || []), ...(type.templates || []), type.returnType])
+      otherLangsDocsOfType(t, seen);
+  };
   apiParser.parseApi = (...args) => {
     const documentation = parseApi(...args);
+    const seen = new Set();
+    for (const clazz of documentation.classesArray) {
+      for (const member of clazz.membersArray)
+        otherLangsDocs(member.argsArray, seen);
+    }
     documentation.filterForLanguage(process.argv[2]);
     return documentation;
   };
