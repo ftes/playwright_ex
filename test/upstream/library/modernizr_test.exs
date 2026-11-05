@@ -88,9 +88,6 @@ defmodule PlaywrightEx.Library.ModernizrTest do
             @browser_name != "webkit" ->
               "upstream skip: webkit only"
 
-            match?({:unix, :linux}, :os.type()) ->
-              "env: Linux WebKit supports <input type=month>, the safari-26 report does not (upstream client too)"
-
             true ->
               nil
           end)
@@ -103,6 +100,13 @@ defmodule PlaywrightEx.Library.ModernizrTest do
 
     {expected, actual} = normalize_media(expected, actual)
     {expected, actual} = platform_overrides(expected, actual)
+
+    # env: Linux WebKit supports <input type=month>, the safari-26 report does not (upstream client
+    # too). Deviation: an override for that one key, not a skip of the test.
+    expected =
+      if match?({:unix, :linux}, :os.type()),
+        do: put_in(expected, ["inputtypes", "month"], true),
+        else: expected
 
     assert actual == expected
   end
