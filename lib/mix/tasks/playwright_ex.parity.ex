@@ -4,16 +4,22 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   Checks that every ported module still covers its upstream file, and every mirrored test
   module its upstream spec.
 
-      mix playwright_ex.parity [--extra]
+      mix playwright_ex.parity [--extra] [--north-star [--python-rules PATH]]
 
   Sources: `PlaywrightEx.Upstream.ensure!/0` (the pinned upstream release).
 
     * Completeness: every upstream client file (`packages/playwright-core/src/client/*.ts`) needs a
-      module with `@upstream` for it (in `lib` or `test/support`), every spec
-      (`tests/page/**/*.spec.ts`, `tests/library/**/*.spec.ts`) a test module with `@upstream`
-      for it, unless listed with a reason in `@unported_client_files` / `@unmirrored_specs` in
-      this module. An exclusion for a file that is not upstream, or that has a module after all,
-      is stale. Review both lists on a version roll.
+      module with `@upstream` for it (in `lib` or `test/support`), unless listed with a reason in
+      `@unported_client_files` in this module. An exclusion for a file that is not upstream, or
+      that has a module after all, is stale. Review the list on a version roll.
+    * Test registry (`Mix.PlaywrightEx.TestRegistry`, as playwright-python's
+      `check_test_registry.py`): every test of `test/upstream_registry.md` that is at the pin is
+      ported (a mirrored test with a body), bodiless under a static `upstream ...` skip (upstream
+      does not run it in our setup), or ruled out in `test/upstream_not_ported.txt`. Fails on a
+      ported test that a rule rules out, on a rule that matches no test at the pin, and on a spec
+      with no test module whose tests are not all ruled out (or that is not in the registry).
+      Prints how many registry tests are not at the pin and which mirrored tests the registry
+      does not have (version skew: the registry comes from upstream main).
     * Modules with `@upstream "<path>.ts"` (nested modules inherit it): each upstream class
       maps to the module named after it (last alias segment), else to the module declaring
       `@upstream`; top-level functions map to that module too. An upstream method is
@@ -35,15 +41,20 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       snake_case function is a stale skip. Any other wording is an explanation and is not
       checked: a reason citing a ported member that still cannot be used says what is missing
       in words (`not ported: Page.removeAllListeners behavior option`).
-
+    * Rule reasons, as skip reasons (`not ported: <reason>`): a rule citing a ported member is stale.
     * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
       `api.json` must give the committed files. It has every member, so a client function it
       calls that is missing is a compile warning.
 
   Fails when anything is missing. `--extra` also lists public functions with no upstream
-  counterpart (informational: Elixir-only helpers are expected).
+  counterpart (informational: Elixir-only helpers are expected). `--north-star` compares our
+  rules with playwright-python's (`tests/upstream_not_ported.txt` on main, or `--python-rules
+  PATH`), by registry test at the pin: tests we rule out (or leave bodiless) that it runs, and
+  tests it rules out that we run (informational).
   """
   use Mix.Task
+
+  alias Mix.PlaywrightEx.TestRegistry
 
   # Upstream names that have no Elixir function by convention (see PORTING.md).
   @by_convention ~w(constructor from fromNullable)
@@ -63,78 +74,18 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "packages/playwright-core/src/client/types.ts" => "type-only"
   }
 
-  codegen = "inspector codegen/recorder UI (Node-only tooling)"
-  launch_server = "BrowserType.launchServer (out of scope, see PLAN.md)"
-  injected = "injected script internals (driver side, not the client)"
-  node_events = "Tests the EventEmitter class of the Node.js client."
-
-  @unmirrored_specs %{
-    "tests/library/browser-server.spec.ts" => launch_server,
-    "tests/library/browsertype-launch-server.spec.ts" => launch_server,
-    "tests/library/component-parser.spec.ts" => "isomorphic component parser (test-runner tooling)",
-    "tests/library/css-parser.spec.ts" => "isomorphic CSS selector parser (driver side)",
-    "tests/library/debug-controller.spec.ts" => "debug controller (driver-side tooling protocol)",
-    "tests/library/events/add-listeners.spec.ts" => node_events,
-    "tests/library/events/check-listener-leaks.spec.ts" => node_events,
-    "tests/library/events/events-list.spec.ts" => node_events,
-    "tests/library/events/listener-count.spec.ts" => node_events,
-    "tests/library/events/listeners-side-effects.spec.ts" => node_events,
-    "tests/library/events/listeners.spec.ts" => node_events,
-    "tests/library/events/max-listeners.spec.ts" => node_events,
-    "tests/library/events/method-names.spec.ts" => node_events,
-    "tests/library/events/modify-in-emit.spec.ts" => node_events,
-    "tests/library/events/num-args.spec.ts" => node_events,
-    "tests/library/events/once.spec.ts" => node_events,
-    "tests/library/events/prepend.spec.ts" => node_events,
-    "tests/library/events/remove-all-listeners-wait.spec.ts" => node_events,
-    "tests/library/events/remove-all-listeners.spec.ts" => node_events,
-    "tests/library/events/remove-listeners.spec.ts" => node_events,
-    "tests/library/events/set-max-listeners-side-effects.spec.ts" => node_events,
-    "tests/library/events/special-event-names.spec.ts" => node_events,
-    "tests/library/events/subclass.spec.ts" => node_events,
-    "tests/library/events/symbols.spec.ts" => node_events,
-    "tests/library/inspector/cli-codegen-1.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-2.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-3.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-aria.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-csharp.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-java.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-javascript.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-pick-locator.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-pytest.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-python-async.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-python.spec.ts" => codegen,
-    "tests/library/inspector/cli-codegen-test.spec.ts" => codegen,
-    "tests/library/inspector/console-api.spec.ts" => codegen,
-    "tests/library/inspector/pause.spec.ts" => codegen,
-    "tests/library/inspector/recorder-api.spec.ts" => codegen,
-    "tests/library/inspector/title.spec.ts" => codegen,
-    # Revisit with PLAN "Then" item 4 (Elixir locator rendering), or when locatorGenerators /
-    # locatorParser are ported.
-    "tests/library/locator-parser.spec.ts" => "isomorphic locator parser (not ported)",
-    "tests/library/role-utils.spec.ts" => injected,
-    "tests/library/selector-generator.spec.ts" => injected,
-    "tests/library/snapshot-renderer.spec.ts" => "trace snapshot renderer (trace viewer internals)",
-    "tests/library/trace-viewer.spec.ts" => "trace viewer UI (Node-only tooling)",
-    "tests/library/unit/android-webviews.spec.ts" => "server internals (Android)",
-    "tests/library/unit/clock.spec.ts" => "injected clock internals (driver side)",
-    "tests/library/unit/codegen.spec.ts" => "trace viewer codegen (Node-only tooling)",
-    "tests/library/unit/json-schema.spec.ts" => "isomorphic JSON schema validator (driver side)",
-    "tests/library/unit/sequence.spec.ts" => "server internals",
-    "tests/page/expect-builtins.spec.ts" => "jest generic matchers (test runner, see PLAN.md)",
-    "tests/page/matchers.misc.spec.ts" => "jest generic matchers (test runner, see PLAN.md)"
-  }
-
   @impl true
   def run(argv) do
-    {opts, _} = OptionParser.parse!(argv, strict: [extra: :boolean])
+    {opts, _} = OptionParser.parse!(argv, strict: [extra: :boolean, north_star: :boolean, python_rules: :string])
     upstream = PlaywrightEx.Upstream.ensure!()
     Mix.Task.run("compile")
 
     lib_modules =
       Enum.flat_map(Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), &elixir_modules/1)
 
-    test_modules = Enum.flat_map(Path.wildcard("test/**/*_test.exs"), &elixir_modules/1)
+    test_files = Path.wildcard("test/**/*_test.exs")
+    test_modules = Enum.flat_map(test_files, &elixir_modules/1)
+    registry = registry(upstream, test_files)
 
     problems =
       check_files(
@@ -143,16 +94,16 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         @unported_client_files,
         "no module with `@upstream` for it (port it or list it in @unported_client_files)"
       ) ++
-        check_files(
-          upstream_files(upstream, ["tests/page/**/*.spec.ts", "tests/library/**/*.spec.ts"]),
-          claimed(test_modules),
-          @unmirrored_specs,
-          "no test module with `@upstream` for it (mirror it or list it in @unmirrored_specs)"
-        ) ++
         check_modules(upstream, lib_modules, opts[:extra]) ++
         check_tests(upstream, test_modules) ++
+        check_registry(registry) ++
         check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
+        check_rule_reasons(registry.rules, &ported?/2) ++
         check_facade(upstream)
+
+    shell = Mix.shell()
+    Enum.each(registry_info(registry), &shell.info/1)
+    if opts[:north_star], do: Enum.each(north_star(registry, python_rules(opts[:python_rules])), &shell.info/1)
 
     if problems == [] do
       Mix.shell().info("parity: ok")
@@ -474,12 +425,207 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         do: unescape(name)
   end
 
+  @doc false
+  # Test names built from template literals in a spec file, as patterns (`${...}` matches anything).
+  def spec_templates(source) do
+    for match <- Regex.scan(@spec_test, source, capture: :all_but_first),
+        [_single, _double, template, _next] = pad(match, 4),
+        String.contains?(template, "${"),
+        do: ~r/^#{template |> unescape() |> String.split(~r/\$\{[^}]*\}/) |> Enum.map_join(".*", &Regex.escape/1)}$/
+  end
+
   defp pad(list, n), do: list ++ List.duplicate("", n - length(list))
 
   defp unescape(name), do: Regex.replace(~r/\\(.)/, name, "\\1")
 
   defp multiset_diff(expected, actual) do
     {Enum.sort(expected -- actual), Enum.sort(actual -- expected)}
+  end
+
+  # --- test registry ---------------------------------------------------------
+
+  @doc false
+  # The registry rows at the pin, the rules and our mirrored tests, matched up.
+  def registry(
+        upstream,
+        test_files,
+        registry_path \\ TestRegistry.registry_path(),
+        rules_path \\ TestRegistry.rules_path()
+      ) do
+    {rows, _subsystems} = TestRegistry.read_registry(registry_path)
+    {rules, rule_problems} = TestRegistry.read_rules(rules_path)
+    by_file = Enum.group_by(rows, & &1.file)
+
+    tests =
+      for file <- Enum.sort(test_files),
+          {spec, tests} <- TestRegistry.test_modules(File.read!(file)),
+          String.ends_with?(spec, ".spec.ts"),
+          test <- tests do
+        rows = Map.get(by_file, TestRegistry.file_key(spec), [])
+        Map.merge(test, %{file: file, spec: spec, match: TestRegistry.match(rows, test.describe, test.name)})
+      end
+
+    matched = fn pred ->
+      for test <- tests, pred.(test), row <- matched_rows(test.match), into: MapSet.new(), do: row.id
+    end
+
+    ported = matched.(& &1.body?)
+
+    upstream_skipped =
+      matched.(&(not &1.body? and Enum.any?(&1.skips, fn s -> String.starts_with?(s, "upstream ") end)))
+
+    pin = pin_titles(upstream, Map.keys(by_file))
+    {present, absent} = Enum.split_with(rows, &(&1.id in matched.(fn _ -> true end) or at_pin?(&1, pin)))
+
+    %{
+      rows: present,
+      absent: length(absent),
+      rules: rules,
+      rule_problems: rule_problems,
+      tests: tests,
+      ported: ported,
+      upstream_skipped: upstream_skipped,
+      mirrored: MapSet.new(tests, &TestRegistry.file_key(&1.spec)),
+      specs: for(file <- Map.keys(pin), pin[file], do: file)
+    }
+  end
+
+  defp matched_rows({:ok, row}), do: [row]
+  defp matched_rows({:pattern, rows}), do: rows
+  defp matched_rows(_), do: []
+
+  # file => {static titles, title patterns} of its spec at the pin (nil without one).
+  defp pin_titles(upstream, files) do
+    specs = upstream_files(upstream, ["tests/page/**/*.spec.ts", "tests/library/**/*.spec.ts"])
+    keys = Enum.map(specs, &TestRegistry.file_key/1)
+
+    Map.new(Enum.uniq(files ++ keys), fn file ->
+      path = Path.join(upstream, "tests/#{file}.spec.ts")
+      {file, if(File.regular?(path), do: {MapSet.new(spec_tests(File.read!(path))), spec_templates(File.read!(path))})}
+    end)
+  end
+
+  defp at_pin?(row, pin) do
+    case pin[row.file] do
+      {titles, patterns} ->
+        Enum.any?(row.variants, fn {_, leaf} -> leaf in titles or Enum.any?(patterns, &Regex.match?(&1, leaf)) end)
+
+      nil ->
+        false
+    end
+  end
+
+  @doc false
+  # Problems: a test at the pin neither ported nor ruled out, ported and ruled out, a rule
+  # that matches no test at the pin, a spec with neither a test module nor registry tests.
+  def check_registry(registry) do
+    %{rows: rows, rules: rules, mirrored: mirrored} = registry
+    rules_file = Path.basename(TestRegistry.rules_path())
+    ruled = Map.new(rows, &{&1.id, TestRegistry.rule_for(&1, rules)})
+
+    {mirrored_rows, unmirrored_rows} = Enum.split_with(rows, &(&1.file in mirrored))
+
+    row_problems =
+      for row <- mirrored_rows, problem = row_problem(row, ruled[row.id], registry, rules_file), do: problem
+
+    unmirrored =
+      for {file, rows} <- Enum.group_by(unmirrored_rows, & &1.file),
+          open = Enum.reject(rows, &ruled[&1.id]),
+          open != [] do
+        "tests/#{file}.spec.ts: no test module with `@upstream` for it, and #{length(open)} of its tests " <>
+          "(#{Enum.map_join(Enum.take(open, 3), ", ", & &1.id)}#{if length(open) > 3, do: ", ..."}) are not " <>
+          "ruled out in #{rules_file}: mirror it or rule them out"
+      end
+
+    files_with_rows = MapSet.new(rows, & &1.file)
+
+    unregistered =
+      for file <- Enum.sort(registry.specs), file not in mirrored, file not in files_with_rows do
+        "tests/#{file}.spec.ts: no test module with `@upstream` for it, and not in the registry: mirror it"
+      end
+
+    unused =
+      for rule <- rules, not Enum.any?(rows, &TestRegistry.matches?(rule, &1)) do
+        "#{rules_file}:#{rule.line}: #{rule.selector} matches no registry test at the pin"
+      end
+
+    registry.rule_problems ++ Enum.sort(row_problems) ++ Enum.sort(unmirrored) ++ unregistered ++ unused
+  end
+
+  defp row_problem(row, rule, %{ported: ported, upstream_skipped: upstream_skipped}, rules_file) do
+    cond do
+      row.id in ported and rule ->
+        "#{row.id} (#{row.file}: #{row.title}) is ported, but #{rules_file}:#{rule.line} rules it out"
+
+      row.id in ported or rule != nil or row.id in upstream_skipped ->
+        nil
+
+      true ->
+        "#{row.id} (#{row.file}: #{row.title}) is neither ported (a test with a body) nor ruled out in #{rules_file}"
+    end
+  end
+
+  @doc false
+  # Informational: registry rows not at the pin, mirrored tests not in the registry.
+  def registry_info(registry) do
+    unmatched = Enum.reject(registry.tests, &match?({kind, _} when kind in [:ok, :pattern], &1.match))
+
+    examples =
+      for test <- Enum.take(unmatched, 5) do
+        what = if match?({:ambiguous, _}, test.match), do: "ambiguous", else: "not in the registry"
+        "  #{test.file}:#{test.line}: #{inspect(test.describe)} #{inspect(test.name)} (#{what})"
+      end
+
+    [
+      "registry: #{registry.absent} tests not at the pin (ignored), #{length(unmatched)} mirrored tests not matched"
+      | examples
+    ]
+  end
+
+  # --- north star ------------------------------------------------------------
+
+  @python_rules "https://raw.githubusercontent.com/microsoft/playwright-python/main/tests/upstream_not_ported.txt"
+
+  defp python_rules(nil) do
+    path = Path.join(System.tmp_dir!(), "playwright-python-upstream_not_ported.txt")
+    PlaywrightEx.Driver.download!(@python_rules, path)
+    python_rules(path)
+  end
+
+  defp python_rules(path) do
+    {rules, _problems} = TestRegistry.read_rules(path)
+    rules
+  end
+
+  @doc false
+  # Our rules against playwright-python's, by registry test (informational).
+  def north_star(registry, python_rules) do
+    ours = Map.new(registry.rows, &{&1.id, TestRegistry.rule_for(&1, registry.rules)})
+    theirs = Map.new(registry.rows, &{&1.id, TestRegistry.rule_for(&1, python_rules)})
+
+    we_skip = for row <- registry.rows, ours[row.id] && !theirs[row.id], do: {row, ours[row.id].reason}
+
+    we_leave_bodiless =
+      for row <- registry.rows,
+          row.id in registry.upstream_skipped,
+          !theirs[row.id],
+          do: {row, "bodiless, upstream skip"}
+
+    they_skip = for row <- registry.rows, theirs[row.id] && row.id in registry.ported, do: {row, theirs[row.id].reason}
+
+    section("north star: tests we rule out that playwright-python runs", we_skip) ++
+      section(
+        "north star: tests we leave bodiless (upstream skips them) that playwright-python runs",
+        we_leave_bodiless
+      ) ++
+      section("north star: tests playwright-python rules out that we run", they_skip)
+  end
+
+  defp section(title, entries) do
+    [
+      "#{title} (#{length(entries)})"
+      | for({row, reason} <- entries, do: "  #{row.id} #{row.file}: #{row.title} -- #{reason}")
+    ]
   end
 
   # --- skip reasons ----------------------------------------------------------
@@ -492,6 +638,14 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         {class, member} <- cited_members(reason),
         ported?.(class, member) do
       "stale skip: #{file}:#{line} cites #{class}.#{member}, which is ported"
+    end
+  end
+
+  @doc false
+  # "stale rule" problems for rules whose reason (as `not ported: <reason>`) cites ported members.
+  def check_rule_reasons(rules, ported?) do
+    for rule <- rules, {class, member} <- cited_members("not ported: " <> rule.reason), ported?.(class, member) do
+      "stale rule: #{TestRegistry.rules_path()}:#{rule.line} cites #{class}.#{member}, which is ported"
     end
   end
 

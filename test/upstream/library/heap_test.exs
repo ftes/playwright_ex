@@ -22,26 +22,20 @@ defmodule PlaywrightEx.Library.HeapTest do
     # This test is here to create page instance
   end
 
-  @tag skip: "not ported: queryObjectCount (in-process V8 heap inspection)"
   test "should not leak fixtures w/ page"
 
-  @tag skip: "not ported: queryObjectCount (in-process V8 heap inspection)"
   test "should not leak fixtures w/o page"
 
-  @tag skip: "not ported: queryObjectCount (in-process V8 heap inspection)"
   test "should not leak server-side objects"
 
-  @tag skip: "not ported: queryObjectCount (in-process V8 heap inspection)"
   test "should not leak dispatchers after closing page"
 
-  @tag skip: "not ported: queryObjectCount (in-process V8 heap inspection)"
   test "should not leak workers"
 
   # test.describe(() => { ... })
   # test.beforeEach/afterEach: coreServer.setMaxDispatchersForTest(100 / null)  -- not ported:
   # in-process server internals (the driver runs with its default limit)
 
-  @tag skip: "not ported: coreServer.setMaxDispatchersForTest, queryObjectCount (in-process server internals)"
   test "should collect stale handles"
 
   @tag :page

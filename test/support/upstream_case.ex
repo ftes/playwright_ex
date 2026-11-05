@@ -23,9 +23,14 @@ defmodule PlaywrightEx.UpstreamCase do
       `{:ok, PlaywrightEx.RemoteServer.LaunchServer}` or `{:error, message}`, killed after the test)
 
   Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
+
+  `test` skips a test that a rule in `test/upstream_not_ported.txt` rules out (`skip: "not
+  ported: <reason>"`, over the test's own skip tags), so a bodiless test needs no tag of its own.
+  See `Mix.PlaywrightEx.TestRegistry`.
   """
   use ExUnit.CaseTemplate
 
+  alias Mix.PlaywrightEx.TestRegistry
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
@@ -39,9 +44,46 @@ defmodule PlaywrightEx.UpstreamCase do
 
   using do
     quote do
+      import ExUnit.Case, only: [describe: 2]
+      import PlaywrightEx.UpstreamCase, only: [test: 1, test: 2, test: 3]
+
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
       @moduletag upstream: @upstream
       @moduletag timeout: 120_000
+    end
+  end
+
+  @doc "`ExUnit.Case.test/1`, skipped when a rule rules it out."
+  defmacro test(message) do
+    quote do
+      PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
+      ExUnit.Case.test(unquote(message))
+    end
+  end
+
+  @doc "`ExUnit.Case.test/3`, skipped when a rule rules it out."
+  defmacro test(message, var \\ quote(do: _), contents) do
+    quote do
+      PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
+      ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
+    end
+  end
+
+  @root Path.expand("../..", __DIR__)
+
+  @doc false
+  # Tags the next test `skip: "not ported: <reason>"` when a rule rules it out. The last `@tag`
+  # wins, so the rule wins over the test's own skip tags.
+  def __not_ported__(module, name) do
+    # ExUnit keeps the current describe in `@ex_unit_describe` ({line, name, counter}).
+    describe =
+      case Module.get_attribute(module, :ex_unit_describe) do
+        {_line, describe, _counter} -> describe
+        _ -> nil
+      end
+
+    if reason = TestRegistry.not_ported_reason(@root, Module.get_attribute(module, :upstream), describe, name) do
+      Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
     end
   end
 

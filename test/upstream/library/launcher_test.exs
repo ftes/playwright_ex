@@ -13,7 +13,6 @@ defmodule PlaywrightEx.Library.LauncherTest do
     assert Playwright.devices(playwright)["iPhone 6"].default_browser_type == "webkit"
   end
 
-  @tag skip: "not ported: __testHookGracefullyClose is a JS function"
   test "should kill browser process on timeout after close"
 
   if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "upstream skip: linux only")

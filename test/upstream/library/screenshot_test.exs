@@ -304,7 +304,6 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     # browserTest.skip(mode === 'driver', 'test hooks are not available in driver mode')
-    @tag skip: "not ported: __testHookBeforeScreenshot (JS-only test hook)"
     test "should not hang when event loop is blocked"
   end
 
@@ -386,10 +385,8 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    @tag skip: "not ported: __testHookBeforeScreenshot (JS-only test hook)"
     test "should restore viewport after page screenshot and exception"
 
-    @tag skip: "not ported: __testHookAfterScreenshot (JS-only test hook)"
     test "should restore viewport after page screenshot and timeout"
 
     test "should take element screenshot when default viewport is null and restore back", %{browser: browser} do
@@ -424,7 +421,6 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    @tag skip: "not ported: __testHookBeforeScreenshot (JS-only test hook)"
     test "should restore viewport after element screenshot and exception"
 
     test "element screenshots should handle vh units ", %{context_factory: context_factory} do

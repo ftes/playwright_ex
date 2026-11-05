@@ -142,7 +142,6 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_selector)) == "anything"
   end
 
-  @tag skip: "not ported: error stack rewriting (error.stack is the server's)"
   test "should have correct stack trace for timeout"
 
   test "should throw for unknown state option", %{page: page} do
@@ -265,10 +264,8 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.wait_for_selector!(page, "div", state: :hidden)
   end
 
-  @tag skip: "not ported: __testHookBeforeAdoptNode"
   test "should work when navigating before node adoption"
 
-  @tag skip: "not ported: __testHookBeforeAdoptNode"
   test "should fail when navigating while on handle"
 
   test "should fail if element handle was detached while waiting", %{page: page} do

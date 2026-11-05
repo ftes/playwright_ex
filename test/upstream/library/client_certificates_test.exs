@@ -788,8 +788,6 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    @tag skip:
-           "not ported: TLS renegotiation requesting a client certificate (Erlang :ssl cannot change verify on renegotiate)"
     test "should handle TLS renegotiation with client certificates"
 
     test "should pass with matching certificates in pfx format when passing as content",

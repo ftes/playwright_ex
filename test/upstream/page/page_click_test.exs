@@ -921,13 +921,10 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  @tag skip: "not ported: JS-only test hooks (__testHookBeforeStable)"
   test "should not throw protocol error when navigating during the click"
 
-  @tag skip: "not ported: JS-only test hooks (__testHookBeforeStable)"
   test "should retry when navigating during the click"
 
-  @tag skip: "not ported: JS-only test hooks (__testHookBeforeStable)"
   test "should not hang when frame is detached"
 
   test "should climb dom for inner label with pointer-events:none", %{page: page} do

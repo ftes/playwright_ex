@@ -4,12 +4,9 @@ defmodule PlaywrightEx.Page.PageEvaluateNoStallTest do
 
   @moduletag :page
 
-  @tag skip: "not ported: toImpl (in-process server internals: Frame.nonStallingRawEvaluateInExistingMainContext)"
   test "should work"
 
-  @tag skip: "not ported: toImpl (in-process server internals: Frame.nonStallingRawEvaluateInExistingMainContext)"
   test "should throw while pending navigation"
 
-  @tag skip: "not ported: toImpl (in-process server internals: Frame.nonStallingRawEvaluateInExistingMainContext)"
   test "should throw when no main execution context"
 end

@@ -112,19 +112,10 @@ defmodule PlaywrightEx.Library.SignalsTest do
       assert ClientProcess.child_exit_code(remote_server) == 129
     end
 
-    @tag skip:
-           "not ported: stallOnClose (__testHookGracefullyClose is a JS function in the launch options; " <>
-             "the double-SIGINT kill runs in the signal handlers of the driver, which gets no signals)"
     test "should kill the browser on double SIGINT and remove temp dir"
 
-    @tag skip:
-           "not ported: stallOnClose (__testHookGracefullyClose is a JS function in the launch options; " <>
-             "the SIGINT + SIGTERM kill runs in the signal handlers of the driver, which gets no signals)"
     test "should kill the browser on SIGINT + SIGTERM"
 
-    @tag skip:
-           "not ported: stallOnClose (__testHookGracefullyClose is a JS function in the launch options; " <>
-             "the SIGTERM + SIGINT kill runs in the signal handlers of the driver, which gets no signals)"
     test "should kill the browser on SIGTERM + SIGINT"
 
     test "should not prevent default SIGTERM handling after browser close", %{start_remote_server: start_remote_server} do

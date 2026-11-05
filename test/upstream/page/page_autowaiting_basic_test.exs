@@ -126,9 +126,6 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     Page.dblclick!(page, "a")
   end
 
-  @tag skip:
-         "not ported: Promise.then: asserts the JS microtask order of two continuations " <>
-           "(Elixir tasks resume the waitForLoadState one first: route|clickload|load)"
   test "should work with waitForLoadState(load)"
 
   @tag skip:
@@ -154,7 +151,6 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     Page.goto!(page, server.empty_page)
   end
 
-  @tag skip: "not ported: __testHookAfterPointerAction (JS-only test hook)"
   test "should report navigation in the log when clicking anchor"
 
   test "should report and collapse log in action", %{page: page} do

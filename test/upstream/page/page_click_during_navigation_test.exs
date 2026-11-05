@@ -4,6 +4,5 @@ defmodule PlaywrightEx.Page.PageClickDuringNavigationTest do
 
   @moduletag :page
 
-  @tag skip: "not ported: __testHookAfterStable (in-process test hook)"
   test "should not fail with internal error upon navigation"
 end

@@ -28,10 +28,8 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
              "Hi, I'm frame"
   end
 
-  @tag skip: "not ported: toImpl (in-process server internals: page delegate _contextIdToContext)"
   test "should dispose context on navigation"
 
-  @tag skip: "not ported: toImpl (in-process server internals: page delegate _contextIdToContext)"
   test "should dispose context on cross-origin navigation"
 
   test "should execute after cross-site navigation", %{page: page, server: server} do

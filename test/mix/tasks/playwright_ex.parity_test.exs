@@ -209,4 +209,73 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
 
     assert Parity.check_files(~w(a.ts b.ts), claimed, %{"b.ts" => "type-only"}, "no module") == []
   end
+
+  @tag :tmp_dir
+  test "check_registry/1: tests at the pin ported, upstream-skipped or ruled out; rules that match", %{tmp_dir: dir} do
+    write = fn path, content ->
+      File.mkdir_p!(Path.dirname(Path.join(dir, path)))
+      File.write!(Path.join(dir, path), content)
+    end
+
+    write.("up/tests/page/a.spec.ts", """
+    it('ported', async () => {});
+    it('ported and ruled out', async () => {});
+    it('bodiless', async () => {});
+    it('upstream skipped', async () => {});
+    """)
+
+    write.("up/tests/page/b.spec.ts", "it('unmirrored', async () => {});\n")
+    write.("up/tests/page/c.spec.ts", "it('ruled out file', async () => {});\n")
+    write.("up/tests/page/d.spec.ts", "it('not in the registry', async () => {});\n")
+
+    write.("a_test.exs", """
+    defmodule ATest do
+      @upstream "tests/page/a.spec.ts"
+      test "ported", do: :ok
+      test "ported and ruled out", do: :ok
+      test "bodiless"
+      @tag skip: "upstream fixme: x"
+      test "upstream skipped"
+      test "not upstream", do: :ok
+    end
+    """)
+
+    write.("registry.md", """
+    | `AA-001` | `page/a.spec.ts` | ported |
+    | `AA-002` | `page/a.spec.ts` | ported and ruled out |
+    | `AA-003` | `page/a.spec.ts` | bodiless |
+    | `AA-004` | `page/a.spec.ts` | upstream skipped |
+    | `AA-005` | `page/a.spec.ts` | newer than the pin |
+    | `BB-001` | `page/b.spec.ts` | unmirrored |
+    | `CC-001` | `page/c.spec.ts` | ruled out file |
+    """)
+
+    write.("rules.txt", """
+    AA-002    Reason.
+    AA-005    Not at the pin.
+    page/c    Whole file.
+    """)
+
+    registry =
+      Parity.registry(
+        Path.join(dir, "up"),
+        [Path.join(dir, "a_test.exs")],
+        Path.join(dir, "registry.md"),
+        Path.join(dir, "rules.txt")
+      )
+
+    assert registry.absent == 1
+
+    assert Parity.check_registry(registry) == [
+             "AA-002 (page/a: ported and ruled out) is ported, but upstream_not_ported.txt:1 rules it out",
+             "AA-003 (page/a: bodiless) is neither ported (a test with a body) nor ruled out in upstream_not_ported.txt",
+             "tests/page/b.spec.ts: no test module with `@upstream` for it, and 1 of its tests (BB-001) are not " <>
+               "ruled out in upstream_not_ported.txt: mirror it or rule them out",
+             "tests/page/d.spec.ts: no test module with `@upstream` for it, and not in the registry: mirror it",
+             "upstream_not_ported.txt:2: AA-005 matches no registry test at the pin"
+           ]
+
+    assert ["registry: 1 tests not at the pin (ignored), 1 mirrored tests not matched", "  " <> _] =
+             Parity.registry_info(registry)
+  end
 end

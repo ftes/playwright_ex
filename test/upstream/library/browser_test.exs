@@ -63,6 +63,5 @@ defmodule PlaywrightEx.Library.BrowserTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: __testHookBeforeSetStorageState is a JS function"
   test "newContext should not leave a context upon failure"
 end

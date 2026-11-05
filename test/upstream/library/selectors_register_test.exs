@@ -46,7 +46,6 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip: "not ported: the global selectors of @playwright/test (upstream skips it in driver mode too)"
   test "should work when registered on global"
 
   test "should work with path", %{playwright: playwright, browser: browser, asset: asset} do

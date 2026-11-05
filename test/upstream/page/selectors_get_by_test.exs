@@ -337,7 +337,6 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate_all!(Page.get_by_role(page, :button, name: "Click \\\\me", exact: true), @outer_html) == []
   end
 
-  @tag skip: "not ported: the JS RegExp v flag (Elixir Regex has no equivalent)"
   test "getByRole should accept regexp with v flag"
 
   @text_content "els => els.map(e => e.textContent)"
@@ -428,6 +427,5 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
            ) == ["Alert"]
   end
 
-  @tag skip: "not ported: the JS RegExp g and y flags (Elixir Regex has no equivalent)"
   test "locators should not be affected by global and sticky regex flags"
 end

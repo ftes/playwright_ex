@@ -165,7 +165,6 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     end
   end
 
-  @tag skip: "not ported: toImpl (server internals)"
   test "should cleanup artifacts dir after connectOverCDP disconnects due to ws close"
 
   @tag :tmp_dir
@@ -507,7 +506,6 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  @tag skip: "not ported: toImpl (server internals)"
   test "setInputFiles should use local path when isLocal is set"
 
   test "should print custom ws close error", %{browser_type: browser_type, server: server} do
@@ -519,7 +517,6 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert Exception.message(error) =~ "Browser logs:\n\nOh my!\n"
   end
 
-  @tag skip: "not ported: toImpl (server internals)"
   test "should not reuse utility worlds between two clients"
 
   test "should get title and URL of existing page", %{browser_type: browser_type, server: server} do
@@ -580,6 +577,5 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  @tag skip: "not ported: connectOverCDP(transport) (PLAN: out of scope)"
   test "should connect over CDP using a ConnectionTransport"
 end

@@ -1245,6 +1245,5 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     assert length(received()) == 2
   end
 
-  @tag skip: "not ported: URLPattern"
   test "should respect URLPattern ignoreCase"
 end

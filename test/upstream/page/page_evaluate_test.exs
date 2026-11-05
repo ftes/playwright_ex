@@ -76,7 +76,6 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == true
   end
 
-  @tag skip: "not ported: typed arrays (Elixir has none to serialize; they parse to lists)"
   test "should transfer typed arrays"
 
   test "should transfer bigint", %{page: page} do
@@ -123,7 +122,6 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
            """) == %{"foo" => [%{"a" => nil}]}
   end
 
-  @tag skip: "not ported: method shorthand source needs isFunction (page functions are JS source, PLAN)"
   test "should work with function shorthands"
 
   test "should work with unicode chars", %{page: page} do
@@ -304,7 +302,6 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert Page.evaluate!(page, "() => Promise.resolve(42)") == 42
   end
 
-  @tag skip: "not ported: assertMaxArguments (Elixir arities are fixed, extra arguments do not compile)"
   test "should throw when passed more than one parameter"
 
   test "should accept \"undefined\" as one of multiple parameters", %{page: page} do
@@ -578,7 +575,6 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == nil
   end
 
-  @tag skip: "not ported: upstream skips it outside mode 'default' (too slow over the wire, we are a driver client)"
   test "should transfer 100Mb of data from page to node.js"
 
   test "should throw error with detailed information on exception inside promise ", %{page: page} do

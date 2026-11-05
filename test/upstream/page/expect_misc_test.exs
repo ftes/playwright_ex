@@ -497,7 +497,6 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       Expect.to_have_url!(page, "DATA:teXT/HTml,<div>a</div>", ignore_case: true)
     end
 
-    @tag skip: "not ported: URLPattern"
     test "support URLPattern"
   end
 
@@ -676,7 +675,6 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       Expect.not_to_be_in_viewport!(Page.locator(page, "div"), ratio: 0.8)
     end
 
-    @tag skip: "not ported: JS error.stack"
     test "should have good stack"
 
     test "should report intersection even if fully covered by other element", %{page: page} do

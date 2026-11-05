@@ -195,13 +195,10 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     assert Exception.message(error) =~ "can not specify page"
   end
 
-  @tag skip: "not ported: toImpl (server-side defaultArgs)"
   test "should have passed URL when launching with ignoreDefaultArgs: true"
 
-  @tag skip: "not ported: __testHookBeforeCreateBrowser is a JS function"
   test "should handle timeout"
 
-  @tag skip: "not ported: __testHookBeforeCreateBrowser is a JS function"
   test "should handle exception"
 
   test "should fire close event for a persistent context", %{launch_persistent: launch_persistent} do
@@ -244,7 +241,6 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     assert Page.inner_html!(page, "defaultContextCSS=div") == "hello"
   end
 
-  @tag skip: "not ported: __testHookOnConnectToBrowser is a JS function"
   test "should connect to a browser with the default page"
 
   test "should support har option", %{launch_persistent: launch_persistent, asset: asset} do

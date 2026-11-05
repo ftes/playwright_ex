@@ -126,6 +126,33 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Request.failure(Response.request(response)) == nil
   end
 
+  for cross_origin_embedder_policy <- [nil, "require-corp"] do
+    @cross_origin_embedder_policy cross_origin_embedder_policy
+    test "should work with Cross-Origin-Opener-Policy#{if cross_origin_embedder_policy, do: " and Cross-Origin-Embedder-Policy"} and history state",
+         %{page: page, server: server} do
+      TestServer.set_route(server, "/empty.html", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
+        |> then(fn conn ->
+          if policy = @cross_origin_embedder_policy,
+            do: Plug.Conn.put_resp_header(conn, "cross-origin-embedder-policy", policy),
+            else: conn
+        end)
+        |> Plug.Conn.send_resp(200, """
+          <!doctype html>
+          <h1>hello</h1>
+          <script type="module">history.replaceState({ key: 1 }, '', location.href);</script>
+        """)
+      end)
+
+      response = Page.goto!(page, server.empty_page)
+      assert Response.status(response) == 200
+      assert Page.url(page) == server.empty_page
+      assert Page.evaluate!(page, "() => history.state") == %{"key" => 1}
+      Expect.to_have_text!(Page.locator(page, "h1"), "hello")
+    end
+  end
+
   test "should work with Cross-Origin-Opener-Policy and interception", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn

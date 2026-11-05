@@ -596,6 +596,5 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   end
 
   # it.skip(mode !== 'default', 'no env vars in non-default mode')
-  @tag skip: "not ported: process.env of the in-process server (the driver's env is fixed at launch)"
   test "should respect PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES"
 end

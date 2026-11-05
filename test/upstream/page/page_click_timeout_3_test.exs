@@ -8,7 +8,6 @@ defmodule PlaywrightEx.Page.PageClickTimeout3Test do
   @moduletag :page
 
   # it.skip(mode !== 'default'): __testHookBeforeHitTarget is an in-process JS function.
-  @tag skip: "not ported: __testHookBeforeHitTarget (in-process test hook)"
   test "should fail when element jumps during hit testing"
 
   test "should timeout waiting for hit target", %{page: page, server: server} do

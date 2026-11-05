@@ -61,13 +61,10 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     assert Exception.message(wait_error) =~ "Failed to launch"
   end
 
-  @tag skip: "not ported: __testHookBeforeCreateBrowser is a JS function"
   test "should handle timeout"
 
-  @tag skip: "not ported: __testHookBeforeCreateBrowser is a JS function"
   test "should handle exception and report launch log"
 
-  @tag skip: "not ported: `process` is not a launch option (@ts-expect-error), the facade rejects it"
   test "should accept objects as options"
 
   test "should fire close event for all contexts", %{browser_type: browser_type} do
@@ -91,6 +88,5 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     refute Browser.is_connected(browser)
   end
 
-  @tag skip: "not ported: await using"
   test "should allow await using"
 end

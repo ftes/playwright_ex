@@ -168,9 +168,7 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
     assert Frame.content!(Enum.at(Page.frames(page), 1)) == "<html><head></head><body></body></html>"
   end
 
-  @tag skip: "not ported: toImpl (server-side evaluateExpression in the utility world)"
   test "should handle timeout properly"
 
-  @tag skip: "not ported: toImpl (server-side evaluateExpression in the utility world)"
   test "should handle timeout properly 2"
 end

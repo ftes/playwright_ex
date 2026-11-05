@@ -7,7 +7,6 @@ defmodule PlaywrightEx.Page.PageClickTimeout1Test do
   @moduletag :page
 
   # it.skip(mode !== 'default'): __testHookBeforePointerAction is an in-process JS function.
-  @tag skip: "not ported: __testHookBeforePointerAction (in-process test hook)"
   test "should avoid side effects after timeout"
 
   test "should timeout waiting for button to be enabled", %{page: page} do

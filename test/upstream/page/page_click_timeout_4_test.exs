@@ -30,7 +30,6 @@ defmodule PlaywrightEx.Page.PageClickTimeout4Test do
     assert Exception.message(error) =~ "retrying click action"
   end
 
-  @tag skip: "not ported: JS-only test hooks (__testHookBeforePointerAction)"
   test "should click for the second time after first timeout"
 
   test "should fail to click the button behind a large header after scrolling around", %{page: page} do

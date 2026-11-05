@@ -469,7 +469,6 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  @tag skip: "not ported: instrumentation (_instrumentation.runBeforeCreateRequestContext)"
   test "should be able to construct with context options"
 
   test "should return empty body", %{playwright: playwright, server: server} do
@@ -778,7 +777,6 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  @tag skip: "not ported: toJSON (no Elixir counterpart)"
   test "should serialize post data on the client"
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/27822' }

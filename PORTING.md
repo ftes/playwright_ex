@@ -82,20 +82,34 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
   driver's behaviour is the same under every client and upstream's to test. Port what
   exercises the client. Benchmark: playwright-python `tests/upstream_not_ported.txt` and
   playwright-java `playwright/src/test/upstream_not_ported.txt` (rules against upstream's
-  `tests/registry.md`); a spec they run (e.g. via the driver's `launch-server` CLI) we run too.
+  `tests/registry.md`, same format as ours); a spec they run (e.g. via the driver's
+  `launch-server` CLI) we run too.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream.
-- Keep the upstream order. A test that is not ported stays as a bodiless test with a reason:
-  `@tag skip: "not ported: Page"` followed by `test "should work"`.
-  `mix playwright_ex.parity` compares the names. It also fails on stale skips: a reason that
-  only lists API names (`not ported: Page.emulateMedia`, `not ported: Locator.evaluate
-  (ElementHandle), expect`) where a cited `Class.member` is exported by the client or facade.
-  Port the test then. If the member exists but the test still needs something missing, say so
-  in words (`not ported: Page.removeAllListeners behavior option`); the check skips prose.
-- Every spec in `tests/page` and `tests/library` (recursively) is mirrored, or listed with a
-  reason in `@unmirrored_specs` in `Mix.Tasks.PlaywrightEx.Parity` (driver internals, Node-only
-  tooling).
+- Keep the upstream order. A test that is not ported stays as a bodiless test (`test "should
+  work"`), and its reason goes in `test/upstream_not_ported.txt` (the playwright-python/java
+  mechanism): one rule per line, a selector then the reason; the selector is a registry ID
+  (`CL-067`), a subsystem code (`CG`) or a spec glob without `.spec.ts` (`library/inspector/*`).
+  IDs come from `test/upstream_registry.md` (upstream's `tests/registry.md`, copied from
+  playwright-python; a test matches its row by `@upstream` file and name, the `describe` tells
+  same-named tests apart). `PlaywrightEx.UpstreamCase` skips a rule-matched test at compile
+  time (`not ported: <reason>`, over the test's own skip tags). Conditional exclusions (one
+  browser, one loop variant) stay `@tag skip: if(..., do: "not ported: ...")` in the file;
+  env/upstream/flaky/ci tags stay in the file too.
+- `mix playwright_ex.parity` compares the names, and checks the rules as Python's
+  `check_test_registry.py`: every registry test at the pin is ported (has a body), bodiless under
+  an unconditional `upstream skip/fixme` tag, or ruled out; a ported test that a rule matches,
+  or a rule that matches nothing at the pin, fails. Registry rows of tests newer than the pin
+  are ignored; mirrored tests the registry lacks (renamed upstream) are listed, not failed. A
+  spec with no test module needs all its tests ruled out (driver internals, Node-only tooling).
+  It also fails on stale skips: a reason (tag or rule) that only lists API names (`not ported:
+  Page.emulateMedia`, `not ported: Locator.evaluate (ElementHandle), expect`) where a cited
+  `Class.member` is exported by the client or facade. Port the test then. If the member exists
+  but the test still needs something missing, say so in words (`not ported:
+  Page.removeAllListeners behavior option`); the check skips prose.
+- North star: `mix playwright_ex.parity --north-star` lists the tests we rule out that
+  playwright-python runs, and the tests it rules out that we run (informational).
 - Fixtures mirror upstream's (`server`, `https_server`, `browser_type`, `browser`, `asset`, ...),
   see `PlaywrightEx.UpstreamCase`. `PlaywrightEx.TestServer` ports `tests/config/testserver`;
   assets and certs come from `PlaywrightEx.Upstream` (the pinned release, not vendored).
@@ -114,4 +128,5 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 3. `git diff vA vB -- packages/playwright-core/src/client tests/page tests/library` in upstream; port the hunks.
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
-   update `@unported_client_files` / `@unmirrored_specs`.
+   update `@unported_client_files` / `test/upstream_not_ported.txt`. Refresh
+   `test/upstream_registry.md` from playwright-python (or upstream's `tests/registry.md`).

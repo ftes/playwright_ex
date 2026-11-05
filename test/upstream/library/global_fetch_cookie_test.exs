@@ -25,7 +25,6 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
   defp names(cookies), do: Enum.map(cookies, & &1.name)
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should store cookie from Set-Cookie header"
 
   test "addCookies should add cookies to the cookie jar", %{request: request, server: server} do
@@ -183,13 +182,10 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "b=v; c=v"
   end
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should filter outgoing cookies by domain"
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should do case-insensitive match of cookie domain"
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should do case-insensitive match of request domain"
 
   test "should send secure cookie over https", %{request: request, server: server, https_server: https_server} do
@@ -329,7 +325,6 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     refute cookie_header(server_request)
   end
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should store cookie from Set-Cookie header even if it contains equal signs"
 
   test "should override cookie from Set-Cookie header", %{request: request, server: server} do
@@ -380,7 +375,6 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     refute cookie_header(server_request)
   end
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should export cookies to storage state"
 
   test "should preserve origin storage on import/export of storage state", %{playwright: playwright, server: server} do
@@ -432,7 +426,6 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.dispose!(request)
   end
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should send cookies from storage state"
 
   @tag :tmp_dir

@@ -9,16 +9,12 @@ defmodule PlaywrightEx.Library.ChannelsTest do
 
   # expectScopeState compares the client's and the server's (toImplInWorkerScope) object trees.
 
-  @tag skip: "not ported: toImpl (server internals: _debugScopeState)"
   test "should scope context handles"
 
-  @tag skip: "not ported: toImpl (server internals: _debugScopeState)"
   test "should scope CDPSession handles"
 
-  @tag skip: "not ported: toImpl (server internals: _debugScopeState)"
   test "should scope browser handles"
 
-  @tag skip: "not ported: toImpl (server internals: _debugScopeState)"
   test "should not generate dispatchers for subresources w/o listeners"
 
   test "should work with the domain module", %{browser_type: browser_type, server: server} do
@@ -50,6 +46,5 @@ defmodule PlaywrightEx.Library.ChannelsTest do
     Browser.close!(browser)
   end
 
-  @tag skip: "not ported: toImpl (server internals: _debugScopeState)"
   test "exposeFunction should not leak"
 end

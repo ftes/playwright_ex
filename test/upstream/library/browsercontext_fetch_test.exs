@@ -215,10 +215,8 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "apiRequestContext.get: aborted"
   end
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should add session cookies to request"
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should filter cookies by domain"
 
   for method <- [:fetch, :delete, :get, :head, :patch, :post, :put] do
@@ -292,10 +290,8 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp request(method, request, url, options), do: apply(APIRequestContext, method, [request, url, options])
   defp request!(method, request, url, options), do: apply(APIRequestContext, :"#{method}!", [request, url, options])
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should not add context cookie if cookie header passed as a parameter"
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "should follow redirects"
 
   test "should follow redirects correctly when Location header contains UTF-8 characters", %{

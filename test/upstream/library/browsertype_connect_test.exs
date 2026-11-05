@@ -403,7 +403,6 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert header(request, "foo") == "bar"
       end
 
-      @tag skip: "not ported: connect(options) overload (the API docs have connect(wsEndpoint, options))"
       test "should send extra headers with connect request in object form"
 
       test "should send default User-Agent and X-Playwright-Browser headers with connect request", %{

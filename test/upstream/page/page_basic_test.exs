@@ -16,7 +16,6 @@ defmodule PlaywrightEx.Page.PageBasicTest do
     Promise.await!(load)
   end
 
-  @tag skip: "not ported: JS error.stack (__filename)"
   test "async stacks should work"
 
   test "should provide access to the opener page", %{page: page} do
@@ -164,6 +163,5 @@ defmodule PlaywrightEx.Page.PageBasicTest do
     assert Page.evaluate!(page, "() => navigator.webdriver") == true
   end
 
-  @tag skip: "not ported: JS for..in over object properties"
   test "should iterate over page properties"
 end

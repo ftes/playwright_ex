@@ -721,7 +721,6 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    @tag skip: "not ported: __testHookBeforeScreenshot"
     test "should stop animations that happen right before screenshot"
 
     test "should resume infinite animations", %{page: page, server: server} do

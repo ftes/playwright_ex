@@ -569,7 +569,6 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
     assert Exception.message(error) =~ "toBeOK can be only used with APIResponse object"
   end
 
-  @tag skip: "not ported: a pending promise as receiver (Elixir calls return values)"
   test "toBeOK fail with promise"
 
   describe "toBeOK should print response with text content type when fails" do

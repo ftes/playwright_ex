@@ -440,6 +440,5 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
     Expect.to_have_text!(Page.locator(popup, "body"), "hello")
   end
 
-  @tag skip: "not ported: URLPattern"
   test "should respect URLPattern ignoreCase"
 end

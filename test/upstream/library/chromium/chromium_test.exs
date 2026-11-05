@@ -839,6 +839,5 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     {:ok, _} = Task.await(evaluate_promise)
   end
 
-  @tag skip: "not ported: toImpl (server internals)"
   test "should not leak service worker session after context close"
 end

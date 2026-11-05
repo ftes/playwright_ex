@@ -17,13 +17,10 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchHappyEyeballsTest do
     :ok
   end
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "get should work"
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "get should work on request fixture"
 
-  @tag skip: "not ported: __testHookLookup (in-process test hook)"
   test "https post should work with ignoreHTTPSErrors option"
 
   @tag :request
