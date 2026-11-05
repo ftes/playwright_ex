@@ -371,7 +371,7 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
   - PORTING: shim rules (kinds, `atomic`, deviation markers).
   - DECISIONS: one entry with the deviation tally.
   - `PlaywrightEx.Promise` docs: owner lifetime, awaitable from any process.
-  - Guides: listeners run in processes; no blocking work in listeners.
+  - Guides: `guides/concurrency.md` (see "Before merging: preserve decisions").
 - Test WebSocket server per workstream SS.
 - Abandon the spike and forget workspace wpp.
 
@@ -389,6 +389,47 @@ compile against a reimplemented `Heap` and `Promise` with the same names.
 - Misclassified listeners or objects raise loudly.
 - Blocking user listeners stall their connection: document it.
 - Prefix-delete cost: measure; if not bounded, keep a child index.
+
+## Before merging: preserve decisions
+
+`DECISIONS.md` (a chronological review log) and this plan are working documents; they go when
+the PR merges (git history keeps them). Decisions that still matter, e.g. when porting or
+bumping upstream, move to durable docs first. Do this last, after Phase 2, so its decisions
+are included.
+
+- `docs/adr/NNNN-<slug>.md` (contributors; not in hexdocs): why. One decision per file,
+  Context / Decision / Consequences, 20–40 lines. A superseded decision is recorded in the ADR
+  that replaced it, not as its own file. Candidates:
+  1. 1:1 port of the JS client, pinned version, versioning (major.minor mirrors upstream).
+  2. Facade generated from api.json: `ApiRules`, out-of-scope members, Python names (`$eval`,
+     `and_`), docs from the spec AST, JS examples.
+  3. OTP-native runtime: Conn process, ETS heap, local and latch promises, `atomic`.
+     Supersedes the baton event loop and the tracing GC.
+  4. Object lifetimes: retained until creators and closers exit; reads after close.
+  5. Ordering: dispatch barrier, `on_sync`, subscribe-first deviations, waiter rejection.
+  6. BEAM and stdlib instead of JS runtime ports (JSON, form encoding, timers, global
+     AbortController); kept ports (MIME table, jest-diff).
+  7. Value mapping: `nil` vs `:null`, `{:binary, b}`, public `RegExp`, evaluate as JS source,
+     closures as bindings, credentials maps.
+  8. URL globs through the driver (supersedes local glob matching).
+  9. `sdkLanguage: "javascript"`; driver text stays JS, locators render as Elixir.
+  10. Mirroring upstream specs: registry, skips and `fixme`, flaky tag, parity, test-side
+      deviation markers.
+  11. Test infrastructure: TestServer, cowlib WebSocket framing, fixtures exit with the BEAM,
+      `launchServer` via the driver CLI.
+  12. CI: 3-browser matrix, firefox non-blocking, retry only on exit 2.
+- `docs/architecture.md` (contributors): what is. PLAN's Layers, Infrastructure and Tracking
+  upstream, with "Concurrency" rewritten for the OTP runtime.
+- `PORTING.md`: how (rules, idioms, traps, bumping). Link each rule to its ADR.
+- `guides/concurrency.md` (users, hexdocs extra): listeners run in processes, no blocking work
+  in listeners, subscribe before checking state (where Elixir differs from JS), latch promises
+  awaitable from any process, lifetimes after close. Link from the migration guide.
+- Open "later" items (e.g. translating the facade's JS examples, the Phase 2 backlog leftovers)
+  become GitHub issues.
+- Process: one agent distills `DECISIONS.md`, this plan and PORTING, and tags every
+  `DECISIONS.md` entry with where it went (ADR n, PORTING, architecture, guide, issue, or dropped
+  as obsolete) in a table for review, so nothing is lost silently. Then delete `DECISIONS.md`
+  and `PLAN.md`; update memory and README links.
 
 ## Then
 
