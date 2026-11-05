@@ -82,11 +82,16 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     page = BrowserContext.new_page!(context)
     Page.evaluate!(page, "undefined")
     # await expect.poll(() => args).toEqual(['context']);
-    assert_receive {:arg, "context"}, 5000
+    assert_receive {:arg, arg}, 5000
+    assert [arg] == ["context"]
+    refute_received {:arg, _}
     Page.add_init_script!(page, ~s|window["woof"]("page")|)
     Page.reload!(page)
-    assert_receive {:arg, "context"}, 5000
-    assert_receive {:arg, "page"}, 5000
+    # await expect.poll(() => args).toEqual(['context', 'page']);
+    assert_receive {:arg, arg1}, 5000
+    assert_receive {:arg, arg2}, 5000
+    assert [arg1, arg2] == ["context", "page"]
+    refute_received {:arg, _}
   end
 
   test "should work with CSP", %{context: context, server: server} do
@@ -112,6 +117,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     context: context,
     server: server
   } do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43064' }
     # it.fixme(browserName === 'chromium', 'Chromium drops CDP events from the old document after the frame host swap');
     page = BrowserContext.new_page!(context)
     test = self()
