@@ -397,9 +397,10 @@ the PR merges (git history keeps them). Decisions that still matter, e.g. when p
 bumping upstream, move to durable docs first. Do this last, after Phase 2, so its decisions
 are included.
 
-- `docs/adr/NNNN-<slug>.md` (contributors; not in hexdocs): why. One decision per file,
-  Context / Decision / Consequences, 20–40 lines. A superseded decision is recorded in the ADR
-  that replaced it, not as its own file. Candidates:
+- `docs/architecture.md` (contributors; not in hexdocs): what is, with a short why next to
+  each part (a few lines; name a rejected or superseded alternative in one line where it
+  helps, e.g. "not the baton event loop: ..."). Start from PLAN's Layers, Infrastructure and
+  Tracking upstream, with "Concurrency" rewritten for the OTP runtime. Topics:
   1. 1:1 port of the JS client, pinned version, versioning (major.minor mirrors upstream).
   2. Facade generated from api.json: `ApiRules`, out-of-scope members, Python names (`$eval`,
      `and_`), docs from the spec AST, JS examples.
@@ -418,16 +419,14 @@ are included.
   11. Test infrastructure: TestServer, cowlib WebSocket framing, fixtures exit with the BEAM,
       `launchServer` via the driver CLI.
   12. CI: 3-browser matrix, firefox non-blocking, retry only on exit 2.
-- `docs/architecture.md` (contributors): what is. PLAN's Layers, Infrastructure and Tracking
-  upstream, with "Concurrency" rewritten for the OTP runtime.
-- `PORTING.md`: how (rules, idioms, traps, bumping). Link each rule to its ADR.
+- `PORTING.md`: how (rules, idioms, traps, bumping). Link to architecture.md for the why.
 - `guides/concurrency.md` (users, hexdocs extra): listeners run in processes, no blocking work
   in listeners, subscribe before checking state (where Elixir differs from JS), latch promises
   awaitable from any process, lifetimes after close. Link from the migration guide.
 - Open "later" items (e.g. translating the facade's JS examples, the Phase 2 backlog leftovers)
   become GitHub issues.
 - Process: one agent distills `DECISIONS.md`, this plan and PORTING, and tags every
-  `DECISIONS.md` entry with where it went (ADR n, PORTING, architecture, guide, issue, or dropped
+  `DECISIONS.md` entry with where it went (architecture, PORTING, guide, issue, or dropped
   as obsolete) in a table for review, so nothing is lost silently. Then delete `DECISIONS.md`
   and `PLAN.md`; update memory and README links.
 

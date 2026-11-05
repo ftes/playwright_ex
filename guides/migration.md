@@ -46,9 +46,10 @@ BrowserContext.set_default_navigation_timeout(context, 10_000)
 `timeout:` remains on the members that have it in JS. Matchers default to 5 s; change it with
 `config :playwright_ex, :expect, timeout: 10_000`.
 
-**Events.** `on/3`, `once/3` and `off/3` take a listener function, as in JS. Listeners run while
-holding the driver's baton (see below), so keep them short; `send/2` to the owning process is the
-safe default. For one event, use a promise handle or the `expect_*` callback form:
+**Events.** `on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in
+its own process, and the connection dispatches the next driver message only once the listener
+returns or awaits a Playwright call (see below), so keep it short; `send/2` to the owning process
+is the safe default. For one event, use a promise handle or the `expect_*` callback form:
 
 ```elixir
 promise = Page.wait_for_event(page, :popup)
@@ -68,9 +69,33 @@ call returns, and any process can `await/1` it. Their bang forms (`Page.wait_for
 it at once, so they miss what the code before them triggered: start the wait before the action (as
 above), and keep the bang forms for what happens later on its own (a timer in the page).
 
-**The baton.** One driver runs one JS-like event loop: only one process runs client code at a time
-and yields while it awaits. Calls from many processes still overlap. A listener or route handler
-that blocks on non-Playwright work stalls the whole driver, as in JS.
+**Processes.** Each driver connection is one process that dispatches the driver's messages in
+order. Your code runs in your own processes, and calls from many processes overlap. Listeners and
+route handlers hold dispatch until they return or await Playwright, as JS runs them until their
+first `await`. One that blocks on other work (`receive`, `Process.sleep/1`, HTTP) stalls its
+connection, as blocking the event loop does in JS.
+
+**Subscribe before you check.** In JS, nothing runs between two lines without an `await`, so
+"read state, then wait for the event that changes it" cannot miss the event. Here the
+connection keeps dispatching between your two calls, so the event can land in between, and the
+wait then hangs. Start the wait first, then read the state, then await or free the wait:
+
+```elixir
+# JS: context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker')
+promise = BrowserContext.wait_for_event(context, :service_worker)
+
+case BrowserContext.service_workers(context) do
+  [worker | _] ->
+    PlaywrightEx.Promise.free(promise)
+    worker
+
+  [] ->
+    PlaywrightEx.Promise.await!(promise)
+end
+```
+
+The client's own waits (`wait_for_url`, `wait_for_load_state`, `wait_for_navigation`, the
+matchers) already do this. Only code that checks state itself and then waits needs it.
 
 ## Mapping
 

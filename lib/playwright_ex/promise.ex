@@ -29,4 +29,12 @@ defmodule PlaywrightEx.Promise do
   @doc "Like `await/1`, but returns the value and raises if the promise is rejected."
   @spec await!(t()) :: term()
   def await!(%PlaywrightEx.Runtime.Promise{} = promise), do: PlaywrightEx.Runtime.Promise.await(promise)
+
+  @doc """
+  Elixir only: drops a promise nobody will await, such as a wait started before checking state
+  that turned out to be ready (see the migration guide, "Subscribe before you check"). Its
+  result is no longer kept, and no late message reaches the caller.
+  """
+  @spec free(t()) :: :ok
+  def free(%PlaywrightEx.Runtime.Promise{} = promise), do: PlaywrightEx.Runtime.Promise.free(promise)
 end
