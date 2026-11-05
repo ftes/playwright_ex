@@ -2,7 +2,6 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
   @upstream "tests/page/selectors-css.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
   alias PlaywrightEx.JSHandle
@@ -10,8 +9,6 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
   alias PlaywrightEx.Page
 
   @moduletag :page
-
-  defp major_version(browser), do: browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
 
   @node_names "els => els.map(e => e.nodeName).join(',')"
 
@@ -304,35 +301,34 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "css=span:nth-child(23n+2)", "els => els.length") == 1
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 111,
+           do: "upstream skip: https://caniuse.com/css-nth-child-of"
+         )
   test "should work with :nth-child(of) notation with nested functions", %{
-    page: page,
-    browser: browser,
-    browser_name: browser_name
+    page: page
   } do
-    # https://caniuse.com/css-nth-child-of
-    if !(browser_name == "chromium" and major_version(browser) < 111) do
-      Page.set_content!(page, """
-        <div>
-          <span>span1</span>
-          <span class=foo>span2<dd></dd></span>
-          <span class=foo>span3<dd class=marker></dd></span>
-          <span class=foo>span4<dd class=marker></dd></span>
-          <span class=foo>span5<dd></dd></span>
-          <span>span6</span>
-        </div>
-      """)
+    Page.set_content!(page, """
+      <div>
+        <span>span1</span>
+        <span class=foo>span2<dd></dd></span>
+        <span class=foo>span3<dd class=marker></dd></span>
+        <span class=foo>span4<dd class=marker></dd></span>
+        <span class=foo>span5<dd></dd></span>
+        <span>span6</span>
+      </div>
+    """)
 
-      texts = "els => els.map(e => e.textContent)"
-      assert Page.eval_on_selector_all!(page, "css=span:nth-child(1)", texts) == ["span1"]
-      assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo)", texts) == ["span2"]
-      assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:has(dd.marker))", texts) == ["span3"]
-      assert Page.eval_on_selector_all!(page, "css=span:nth-last-child(1 of .foo:has(dd.marker))", texts) == ["span4"]
-      assert Page.eval_on_selector_all!(page, "css=span:nth-last-child(1 of .foo)", texts) == ["span5"]
-      assert Page.eval_on_selector_all!(page, "css=span:nth-last-child(  1  )", texts) == ["span6"]
+    texts = "els => els.map(e => e.textContent)"
+    assert Page.eval_on_selector_all!(page, "css=span:nth-child(1)", texts) == ["span1"]
+    assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo)", texts) == ["span2"]
+    assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:has(dd.marker))", texts) == ["span3"]
+    assert Page.eval_on_selector_all!(page, "css=span:nth-last-child(1 of .foo:has(dd.marker))", texts) == ["span4"]
+    assert Page.eval_on_selector_all!(page, "css=span:nth-last-child(1 of .foo)", texts) == ["span5"]
+    assert Page.eval_on_selector_all!(page, "css=span:nth-last-child(  1  )", texts) == ["span6"]
 
-      assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:nth-child(3))", texts) == ["span3"]
-      assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:nth-child(6))", texts) == []
-    end
+    assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:nth-child(3))", texts) == ["span3"]
+    assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:nth-child(6))", texts) == []
   end
 
   test "should work with :not", %{page: page, server: server} do

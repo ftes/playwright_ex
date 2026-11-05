@@ -1140,38 +1140,38 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Expect.not_to_have_text!(Page.locator(page, "body"), "intercepted")
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 155,
+           do:
+             "upstream skip: Chromium drops a request that is intercepted while Fetch.disable is being processed; fix is not rolled yet"
+         )
   test "route abort with times: 1 should not affect second sequential fetch", %{
     page: page,
-    server: server,
-    browser_name: browser_name,
-    browser: browser
+    server: server
   } do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41802' });
-    # it.skip(browserName === 'chromium' && browserMajorVersion < 155, 'Chromium drops a request that is intercepted while Fetch.disable is being processed; fix is not rolled yet');
-    if !(browser_name == "chromium" and major_version(browser) < 155) do
-      TestServer.set_route(server, "/data", fn conn ->
-        conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(200, "ok")
-      end)
+    TestServer.set_route(server, "/data", fn conn ->
+      conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(200, "ok")
+    end)
 
-      Page.goto!(page, server.empty_page)
-      Page.route!(page, "**/data", &Route.abort(&1, "timedout"), times: 1)
+    Page.goto!(page, server.empty_page)
+    Page.route!(page, "**/data", &Route.abort(&1, "timedout"), times: 1)
 
-      results =
-        Page.evaluate!(page, """
-        async () => {
-          async function fetchOrHung(url) {
-            const timeout = new Promise(resolve => setTimeout(() => resolve('hung'), 3000));
-            const request = fetch(url).then(r => String(r.status)).catch(() => 'aborted');
-            return Promise.race([request, timeout]);
-          }
-          const first = await fetchOrHung('/data');
-          const second = await fetchOrHung('/data');
-          return [first, second];
+    results =
+      Page.evaluate!(page, """
+      async () => {
+        async function fetchOrHung(url) {
+          const timeout = new Promise(resolve => setTimeout(() => resolve('hung'), 3000));
+          const request = fetch(url).then(r => String(r.status)).catch(() => 'aborted');
+          return Promise.race([request, timeout]);
         }
-        """)
+        const first = await fetchOrHung('/data');
+        const second = await fetchOrHung('/data');
+        return [first, second];
+      }
+      """)
 
-      assert results == ["aborted", "200"]
-    end
+    assert results == ["aborted", "200"]
   end
 
   test "should contain raw request header", %{page: page, server: server} do

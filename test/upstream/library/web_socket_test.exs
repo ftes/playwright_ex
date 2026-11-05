@@ -2,7 +2,6 @@ defmodule PlaywrightEx.Library.WebSocketTest do
   @upstream "tests/library/web-socket.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.TestServer
@@ -326,54 +325,48 @@ defmodule PlaywrightEx.Library.WebSocketTest do
   @tag skip: "upstream fixme: it.fixme() (no reason given)"
   test "should turn off when offline"
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 151,
+           do: "upstream fixme: Chromium before 151 does not send extra HTTP headers on WebSocket handshake"
+         )
   test "should send extra HTTP headers on WebSocket handshake", %{
     page: page,
-    server: server,
-    browser_name: browser_name,
-    browser: browser
+    server: server
   } do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/28948' }
-    major = browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
-
-    # it.fixme(browserName === 'chromium' && browserMajorVersion < 151, 'Chromium before 151 does not send extra HTTP headers on WebSocket handshake');
-    if !(browser_name == "chromium" and major < 151) do
-      Page.set_extra_http_headers!(page, %{foo: "bar"})
-      Page.goto!(page, server.empty_page)
-      req_promise = TestServer.wait_for_web_socket_connection_request(server)
-      Page.evaluate!(page, "host => { new WebSocket(`ws://${host}/ws`); }", server.host)
-      req = Task.await(req_promise, :infinity)
-      assert Plug.Conn.get_req_header(req, "foo") == ["bar"]
-    end
+    Page.set_extra_http_headers!(page, %{foo: "bar"})
+    Page.goto!(page, server.empty_page)
+    req_promise = TestServer.wait_for_web_socket_connection_request(server)
+    Page.evaluate!(page, "host => { new WebSocket(`ws://${host}/ws`); }", server.host)
+    req = Task.await(req_promise, :infinity)
+    assert Plug.Conn.get_req_header(req, "foo") == ["bar"]
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 151,
+           do: "upstream fixme: Chromium before 151 does not send extra HTTP headers on WebSocket handshake"
+         )
   test "should send extra HTTP headers on WebSocket handshake from a worker", %{
     page: page,
-    server: server,
-    browser_name: browser_name,
-    browser: browser
+    server: server
   } do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/28948' }
-    major = browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
+    Page.set_extra_http_headers!(page, %{foo: "bar"})
+    Page.goto!(page, server.empty_page)
+    req_promise = TestServer.wait_for_web_socket_connection_request(server)
 
-    # it.fixme(browserName === 'chromium' && browserMajorVersion < 151, 'Chromium before 151 does not send extra HTTP headers on WebSocket handshake');
-    if !(browser_name == "chromium" and major < 151) do
-      Page.set_extra_http_headers!(page, %{foo: "bar"})
-      Page.goto!(page, server.empty_page)
-      req_promise = TestServer.wait_for_web_socket_connection_request(server)
+    Page.evaluate!(
+      page,
+      """
+      host => {
+        const code = `new WebSocket(${JSON.stringify('ws://' + host + '/ws')});`;
+        new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
+      }
+      """,
+      server.host
+    )
 
-      Page.evaluate!(
-        page,
-        """
-        host => {
-          const code = `new WebSocket(${JSON.stringify('ws://' + host + '/ws')});`;
-          new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
-        }
-        """,
-        server.host
-      )
-
-      req = Task.await(req_promise, :infinity)
-      assert Plug.Conn.get_req_header(req, "foo") == ["bar"]
-    end
+    req = Task.await(req_promise, :infinity)
+    assert Plug.Conn.get_req_header(req, "foo") == ["bar"]
   end
 end

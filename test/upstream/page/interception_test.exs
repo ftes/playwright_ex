@@ -2,7 +2,6 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   @upstream "tests/page/interception.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
   alias PlaywrightEx.PlaywrightError
   alias PlaywrightEx.Client.LocalUtils
   alias PlaywrightEx.ConsoleMessage
@@ -271,43 +270,38 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert ConsoleMessage.text(msg) == "intercepted"
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 130, do: "upstream skip: fixed in Chromium 130")
   test "should intercept worker requests when enabled after worker creation", %{
     page: page,
-    server: server,
-    browser_name: browser_name,
-    browser: browser
+    server: server
   } do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/32355' }
-    major = browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
+    Page.goto!(page, server.empty_page)
+    TestServer.set_route(server, "/data_for_worker", &Plug.Conn.send_resp(&1, 200, "failed to intercept"))
+    url = server.prefix <> "/data_for_worker"
 
-    # it.skip(browserName === 'chromium' && browserMajorVersion < 130, 'fixed in Chromium 130');
-    if !(browser_name == "chromium" and major < 130) do
-      Page.goto!(page, server.empty_page)
-      TestServer.set_route(server, "/data_for_worker", &Plug.Conn.send_resp(&1, 200, "failed to intercept"))
-      url = server.prefix <> "/data_for_worker"
+    Page.expect_event!(page, :worker, fn ->
+      Page.evaluate!(
+        page,
+        """
+        url => {
+          window.w = new Worker(URL.createObjectURL(new Blob([`
+            onmessage = function(e) {
+              fetch("${url}").then(response => response.text()).then(console.log);
+            };
+          `], { type: 'application/javascript' })));
+        }
+        """,
+        url
+      )
+    end)
 
-      Page.expect_event!(page, :worker, fn ->
-        Page.evaluate!(
-          page,
-          """
-          url => {
-            window.w = new Worker(URL.createObjectURL(new Blob([`
-              onmessage = function(e) {
-                fetch("${url}").then(response => response.text()).then(console.log);
-              };
-            `], { type: 'application/javascript' })));
-          }
-          """,
-          url
-        )
-      end)
+    # Install the route **after** the worker has been created.
+    Page.route!(page, url, fn route -> Route.fulfill(route, status: 200, body: "intercepted") end)
 
-      # Install the route **after** the worker has been created.
-      Page.route!(page, url, fn route -> Route.fulfill(route, status: 200, body: "intercepted") end)
-
-      msg = Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => window.w.postMessage('')") end)
-      assert ConsoleMessage.text(msg) == "intercepted"
-    end
+    msg = Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => window.w.postMessage('')") end)
+    assert ConsoleMessage.text(msg) == "intercepted"
   end
 
   test "should intercept network activity from worker 2", %{page: page, server: server} do

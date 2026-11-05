@@ -74,43 +74,37 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
       BrowserContext.close!(context)
     end
 
+    @tag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
     test "should reset scroll top after a navigation", %{
       server: server,
       context_factory: context_factory,
-      playwright: playwright,
-      browser_name: browser_name
+      playwright: playwright
     } do
-      # it.skip(browserName === 'webkit')
-      if browser_name != "webkit" do
-        device = Playwright.devices(playwright)["iPhone 6"]
-        context = context_factory.(device)
-        page = BrowserContext.new_page!(context)
-        Page.goto!(page, server.prefix <> "/input/scrollable.html")
-        Page.evaluate!(page, "() => window.scroll(0, 100)")
+      device = Playwright.devices(playwright)["iPhone 6"]
+      context = context_factory.(device)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/input/scrollable.html")
+      Page.evaluate!(page, "() => window.scroll(0, 100)")
 
-        Page.goto!(page, server.prefix <> "/input/scrollable2.html")
-        assert Page.evaluate!(page, "() => window.scrollY") == 0
-        BrowserContext.close!(context)
-      end
+      Page.goto!(page, server.prefix <> "/input/scrollable2.html")
+      assert Page.evaluate!(page, "() => window.scrollY") == 0
+      BrowserContext.close!(context)
     end
 
+    @tag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
     test "should scroll to a precise position with mobile scale", %{
       server: server,
       context_factory: context_factory,
-      playwright: playwright,
-      browser_name: browser_name
+      playwright: playwright
     } do
-      # it.skip(browserName === 'webkit')
-      if browser_name != "webkit" do
-        device = Playwright.devices(playwright)["iPhone 6"]
-        context = context_factory.(device)
-        page = BrowserContext.new_page!(context)
-        Page.goto!(page, server.prefix <> "/input/scrollable.html")
-        assert Page.evaluate!(page, "() => document.body.scrollHeight") > 1000
-        Page.evaluate!(page, "() => window.scroll(0, 100)")
-        assert Page.evaluate!(page, "() => window.scrollY") == 100
-        BrowserContext.close!(context)
-      end
+      device = Playwright.devices(playwright)["iPhone 6"]
+      context = context_factory.(device)
+      page = BrowserContext.new_page!(context)
+      Page.goto!(page, server.prefix <> "/input/scrollable.html")
+      assert Page.evaluate!(page, "() => document.body.scrollHeight") > 1000
+      Page.evaluate!(page, "() => window.scroll(0, 100)")
+      assert Page.evaluate!(page, "() => window.scrollY") == 100
+      BrowserContext.close!(context)
     end
 
     test "should emulate viewport and screen size", %{context_factory: context_factory, playwright: playwright} do

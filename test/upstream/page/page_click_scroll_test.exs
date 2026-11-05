@@ -2,7 +2,6 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   @upstream "tests/page/page-click-scroll.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
@@ -10,8 +9,6 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   @moduletag :page
 
   @browser_name System.get_env("BROWSER", "chromium")
-
-  defp major_version(browser), do: browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
 
   test "should not hit scroll bar", %{page: page} do
     Page.set_content!(page, """
@@ -33,35 +30,37 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
     Page.click!(page, "text=Story", timeout: 2000)
   end
 
-  test "should scroll into view display:contents", %{page: page, browser: browser, browser_name: browser_name} do
-    # it.skip(browserName === 'chromium' && browserMajorVersion < 105, 'Needs https://chromium-review.googlesource.com/c/chromium/src/+/3758670');
-    if !(browser_name == "chromium" and major_version(browser) < 105) do
-      Page.set_content!(page, """
-      <div style="background:red;height:2000px">filler</div>
-      <div>
-        Example text, and button here:
-        <button style="display: contents" onclick="window._clicked=true;">click me</button>
-      </div>
-      """)
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 105,
+           do: "upstream skip: Needs https://chromium-review.googlesource.com/c/chromium/src/+/3758670"
+         )
+  test "should scroll into view display:contents", %{page: page} do
+    Page.set_content!(page, """
+    <div style="background:red;height:2000px">filler</div>
+    <div>
+      Example text, and button here:
+      <button style="display: contents" onclick="window._clicked=true;">click me</button>
+    </div>
+    """)
 
-      Page.click!(page, "text=click me", timeout: 5000)
-      assert Page.evaluate!(page, "window._clicked") == true
-    end
+    Page.click!(page, "text=click me", timeout: 5000)
+    assert Page.evaluate!(page, "window._clicked") == true
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 105,
+           do: "upstream skip: Needs https://chromium-review.googlesource.com/c/chromium/src/+/3758670"
+         )
   test "should scroll into view display:contents with a child",
-       %{page: page, browser: browser, browser_name: browser_name} do
-    # it.skip(browserName === 'chromium' && browserMajorVersion < 105, 'Needs https://chromium-review.googlesource.com/c/chromium/src/+/3758670');
-    if !(browser_name == "chromium" and major_version(browser) < 105) do
-      Page.set_content!(page, """
-      <div style="background:red;height:2000px">filler</div>
-      Example text, and button here:
-      <button style="display: contents" onclick="window._clicked=true;"><div>click me</div></button>
-      """)
+       %{page: page} do
+    Page.set_content!(page, """
+    <div style="background:red;height:2000px">filler</div>
+    Example text, and button here:
+    <button style="display: contents" onclick="window._clicked=true;"><div>click me</div></button>
+    """)
 
-      Page.click!(page, "text=click me", timeout: 5000)
-      assert Page.evaluate!(page, "window._clicked") == true
-    end
+    Page.click!(page, "text=click me", timeout: 5000)
+    assert Page.evaluate!(page, "window._clicked") == true
   end
 
   # it.fixme(browserName === 'chromium', 'DOM.getBoxModel does not work for display:contents');

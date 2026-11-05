@@ -645,93 +645,84 @@ defmodule PlaywrightEx.Library.PageClockTest do
 
   describe "Temporal.Now" do
     # it.beforeEach: it.skip(!await page.evaluate(() => 'Temporal' in globalThis), 'Temporal is not supported');
-    # ExUnit cannot skip at runtime: each test returns early instead.
-    defp temporal?(page), do: Page.evaluate!(page, "() => 'Temporal' in globalThis")
+    # -- not ported: every pinned browser has Temporal (ExUnit has no runtime skip; one without it fails here)
 
     test "should follow fixed time", %{page: page} do
-      if temporal?(page) do
-        Clock.set_fixed_time!(Page.clock(page), ~U[2020-01-01 00:00:00Z])
-        Page.goto!(page, "data:text/html,")
+      Clock.set_fixed_time!(Page.clock(page), ~U[2020-01-01 00:00:00Z])
+      Page.goto!(page, "data:text/html,")
 
-        assert Page.evaluate!(page, """
-               () => {
-                 const Temporal = globalThis.Temporal;
-                 return {
-                   instant: Temporal.Now.instant().toString(),
-                   zonedDateTime: Temporal.Now.zonedDateTimeISO('UTC').toString(),
-                   plainDateTime: Temporal.Now.plainDateTimeISO('UTC').toString(),
-                   plainDate: Temporal.Now.plainDateISO('UTC').toString(),
-                   plainTime: Temporal.Now.plainTimeISO('UTC').toString(),
-                 };
-               }
-               """) == %{
-                 "instant" => "2020-01-01T00:00:00Z",
-                 "zonedDateTime" => "2020-01-01T00:00:00+00:00[UTC]",
-                 "plainDateTime" => "2020-01-01T00:00:00",
-                 "plainDate" => "2020-01-01",
-                 "plainTime" => "00:00:00"
-               }
-      end
+      assert Page.evaluate!(page, """
+             () => {
+               const Temporal = globalThis.Temporal;
+               return {
+                 instant: Temporal.Now.instant().toString(),
+                 zonedDateTime: Temporal.Now.zonedDateTimeISO('UTC').toString(),
+                 plainDateTime: Temporal.Now.plainDateTimeISO('UTC').toString(),
+                 plainDate: Temporal.Now.plainDateISO('UTC').toString(),
+                 plainTime: Temporal.Now.plainTimeISO('UTC').toString(),
+               };
+             }
+             """) == %{
+               "instant" => "2020-01-01T00:00:00Z",
+               "zonedDateTime" => "2020-01-01T00:00:00+00:00[UTC]",
+               "plainDateTime" => "2020-01-01T00:00:00",
+               "plainDate" => "2020-01-01",
+               "plainTime" => "00:00:00"
+             }
     end
 
     test "should advance with the clock", %{page: page} do
-      if temporal?(page) do
-        Clock.install!(Page.clock(page), time: 0)
-        Page.goto!(page, "data:text/html,")
-        Clock.pause_at!(Page.clock(page), 1000)
-        Clock.run_for!(Page.clock(page), 2000)
-        assert Page.evaluate!(page, "() => globalThis.Temporal.Now.instant().epochMilliseconds") == 3000
-      end
+      Clock.install!(Page.clock(page), time: 0)
+      Page.goto!(page, "data:text/html,")
+      Clock.pause_at!(Page.clock(page), 1000)
+      Clock.run_for!(Page.clock(page), 2000)
+      assert Page.evaluate!(page, "() => globalThis.Temporal.Now.instant().epochMilliseconds") == 3000
     end
 
-    test "should use the system time zone by default", %{page: page, browser: browser} do
-      if temporal?(page) do
-        context = Browser.new_context!(browser, timezone_id: "America/Los_Angeles")
-        page = BrowserContext.new_page!(context)
-        Clock.set_fixed_time!(Page.clock(page), ~U[2020-01-01 00:00:00Z])
-        Page.goto!(page, "data:text/html,")
+    test "should use the system time zone by default", %{browser: browser} do
+      context = Browser.new_context!(browser, timezone_id: "America/Los_Angeles")
+      page = BrowserContext.new_page!(context)
+      Clock.set_fixed_time!(Page.clock(page), ~U[2020-01-01 00:00:00Z])
+      Page.goto!(page, "data:text/html,")
 
-        assert Page.evaluate!(page, """
-               () => {
-                 const Temporal = globalThis.Temporal;
-                 return {
-                   timeZoneId: Temporal.Now.timeZoneId(),
-                   zonedDateTime: Temporal.Now.zonedDateTimeISO().toString(),
-                   plainDateTime: Temporal.Now.plainDateTimeISO().toString(),
-                 };
-               }
-               """) == %{
-                 "timeZoneId" => "America/Los_Angeles",
-                 "zonedDateTime" => "2019-12-31T16:00:00-08:00[America/Los_Angeles]",
-                 "plainDateTime" => "2019-12-31T16:00:00"
-               }
+      assert Page.evaluate!(page, """
+             () => {
+               const Temporal = globalThis.Temporal;
+               return {
+                 timeZoneId: Temporal.Now.timeZoneId(),
+                 zonedDateTime: Temporal.Now.zonedDateTimeISO().toString(),
+                 plainDateTime: Temporal.Now.plainDateTimeISO().toString(),
+               };
+             }
+             """) == %{
+               "timeZoneId" => "America/Los_Angeles",
+               "zonedDateTime" => "2019-12-31T16:00:00-08:00[America/Los_Angeles]",
+               "plainDateTime" => "2019-12-31T16:00:00"
+             }
 
-        BrowserContext.close!(context)
-      end
+      BrowserContext.close!(context)
     end
 
     test "should keep the rest of Temporal intact", %{page: page} do
-      if temporal?(page) do
-        Clock.install!(Page.clock(page), time: 0)
-        Page.goto!(page, "data:text/html,")
+      Clock.install!(Page.clock(page), time: 0)
+      Page.goto!(page, "data:text/html,")
 
-        assert Page.evaluate!(page, """
-               () => {
-                 const Temporal = globalThis.Temporal;
-                 return {
-                   tag: Object.prototype.toString.call(Temporal.Now),
-                   enumerable: Object.keys(Temporal).concat(Object.keys(Temporal.Now)),
-                   isInstant: Temporal.Now.instant() instanceof Temporal.Instant,
-                   duration: Temporal.Duration.from({ hours: 1 }).toString(),
-                 };
-               }
-               """) == %{
-                 "tag" => "[object Temporal.Now]",
-                 "enumerable" => [],
-                 "isInstant" => true,
-                 "duration" => "PT1H"
-               }
-      end
+      assert Page.evaluate!(page, """
+             () => {
+               const Temporal = globalThis.Temporal;
+               return {
+                 tag: Object.prototype.toString.call(Temporal.Now),
+                 enumerable: Object.keys(Temporal).concat(Object.keys(Temporal.Now)),
+                 isInstant: Temporal.Now.instant() instanceof Temporal.Instant,
+                 duration: Temporal.Duration.from({ hours: 1 }).toString(),
+               };
+             }
+             """) == %{
+               "tag" => "[object Temporal.Now]",
+               "enumerable" => [],
+               "isInstant" => true,
+               "duration" => "PT1H"
+             }
     end
   end
 

@@ -4,7 +4,6 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
@@ -16,8 +15,6 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
 
   # url.pathToFileURL(path).href
   defp path_to_file_url(path), do: "file://" <> URI.encode(path)
-
-  defp major_version(browser), do: browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
 
   # `res.writeHead(200, headers); res.end()`: Plug's default `cache-control` is dropped, and the
   # response is chunked, as Node's without a body (`transfer-encoding` is filtered by the tests).
@@ -191,33 +188,34 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
 
   # issue: https://github.com/microsoft/playwright/issues/40510
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit encodes the response body")
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 151,
+           do: "upstream fixme: older chromium re-encodes the non-utf8 response body and lacks Response.bytes()"
+         )
   test "should return non-utf8 body even when content-type says utf8",
-       %{page: page, server: server, browser: browser, browser_name: browser_name} do
-    # it.fixme(browserName === 'chromium' && browserMajorVersion < 151, ...)
-    if !(browser_name == "chromium" and major_version(browser) < 151) do
-      # Binary data with bytes that are invalid UTF-8.
-      bytes = [0x80, 0x81, 0x82, 0xFF, 0xFE, 0x00, 0x01, 0x02]
-      buffer = :binary.list_to_bin(bytes)
+       %{page: page, server: server} do
+    # Binary data with bytes that are invalid UTF-8.
+    bytes = [0x80, 0x81, 0x82, 0xFF, 0xFE, 0x00, 0x01, 0x02]
+    buffer = :binary.list_to_bin(bytes)
 
-      TestServer.set_route(server, "/binary-as-text", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "text/plain;charset=UTF-8")
-        |> Plug.Conn.put_resp_header("content-length", to_string(byte_size(buffer)))
-        |> Plug.Conn.send_resp(200, buffer)
-      end)
+    TestServer.set_route(server, "/binary-as-text", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/plain;charset=UTF-8")
+      |> Plug.Conn.put_resp_header("content-length", to_string(byte_size(buffer)))
+      |> Plug.Conn.send_resp(200, buffer)
+    end)
 
-      Page.goto!(page, server.empty_page)
-      response_promise = Page.wait_for_response(page, server.prefix <> "/binary-as-text")
+    Page.goto!(page, server.empty_page)
+    response_promise = Page.wait_for_response(page, server.prefix <> "/binary-as-text")
 
-      bytes_received =
-        Page.evaluate!(page, "url => fetch(url).then(r => r.bytes())", server.prefix <> "/binary-as-text")
+    bytes_received =
+      Page.evaluate!(page, "url => fetch(url).then(r => r.bytes())", server.prefix <> "/binary-as-text")
 
-      response = PlaywrightEx.Promise.await!(response_promise)
-      body = Response.body!(response)
-      assert body == buffer
-      # `Array.from(bytesReceived)`: a Uint8Array serializes as an array.
-      assert bytes_received == bytes
-    end
+    response = PlaywrightEx.Promise.await!(response_promise)
+    body = Response.body!(response)
+    assert body == buffer
+    # `Array.from(bytesReceived)`: a Uint8Array serializes as an array.
+    assert bytes_received == bytes
   end
 
   test "should return status text", %{page: page, server: server} do
@@ -375,20 +373,19 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          if(@browser_name == "webkit",
            do: "upstream skip: No prefetch in WebKit: https://caniuse.com/link-rel-prefetch"
          )
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 138,
+           do: "upstream skip: Requires Sec-Purpose header, shipped in Chrome 138"
+         )
   test "should return body for prefetch script", %{
     page: page,
-    server: server,
-    browser: browser,
-    browser_name: browser_name
+    server: server
   } do
-    # it.skip(browserName === 'chromium' && browserMajorVersion < 138, 'Requires Sec-Purpose header, shipped in Chrome 138');
-    if !(browser_name == "chromium" and major_version(browser) < 138) do
-      response =
-        Page.expect_response!(page, "**/prefetch.js", fn -> Page.goto!(page, server.prefix <> "/prefetch.html") end)
+    response =
+      Page.expect_response!(page, "**/prefetch.js", fn -> Page.goto!(page, server.prefix <> "/prefetch.html") end)
 
-      body = Response.body!(response)
-      assert body == "// Scripts will be pre-fetched"
-    end
+    body = Response.body!(response)
+    assert body == "// Scripts will be pre-fetched"
   end
 
   @tag skip:

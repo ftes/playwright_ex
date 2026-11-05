@@ -213,58 +213,55 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     assert Response.text!(response) =~ "Hello there!"
   end
 
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: This test is specifically testing Chromium race")
   test "should fire requestfailed when intercepting race", %{
     page: page,
-    server: server,
-    browser_name: browser_name
+    server: server
   } do
-    # it.skip(browserName !== 'chromium', 'This test is specifically testing Chromium race');
-    if browser_name == "chromium" do
-      me = self()
-      Page.on(page, :request, &send(me, {:request, &1}))
-      Page.on(page, :request_failed, &send(me, {:request_failed, &1}))
+    me = self()
+    Page.on(page, :request, &send(me, {:request, &1}))
+    Page.on(page, :request_failed, &send(me, {:request_failed, &1}))
 
-      # Stall requests to make sure we don't get requestfinished.
-      Page.route!(page, "**", fn _route -> nil end)
+    # Stall requests to make sure we don't get requestfinished.
+    Page.route!(page, "**", fn _route -> nil end)
 
-      iframes = String.duplicate(~s|<iframe src="#{server.empty_page}"></iframe>\n|, 10)
+    iframes = String.duplicate(~s|<iframe src="#{server.empty_page}"></iframe>\n|, 10)
 
-      Page.set_content!(page, """
-      #{iframes}
-      <script>
-        function abortAll() {
-          const frames = document.querySelectorAll("iframe");
-          for (const frame of frames)
-            frame.src = "about:blank";
-        }
-        abortAll();
-      </script>
-      """)
+    Page.set_content!(page, """
+    #{iframes}
+    <script>
+      function abortAll() {
+        const frames = document.querySelectorAll("iframe");
+        for (const frame of frames)
+          frame.src = "about:blank";
+      }
+      abortAll();
+    </script>
+    """)
 
-      # The listeners' `expect`s, checked here in event order, until `++counter === 10`.
-      check_events = fn check_events, counter, alive, failures ->
-        if counter < 10 do
-          receive do
-            {:request, request} ->
-              refute request in alive
-              refute request in failures
-              check_events.(check_events, counter, [request | alive], failures)
+    # The listeners' `expect`s, checked here in event order, until `++counter === 10`.
+    check_events = fn check_events, counter, alive, failures ->
+      if counter < 10 do
+        receive do
+          {:request, request} ->
+            refute request in alive
+            refute request in failures
+            check_events.(check_events, counter, [request | alive], failures)
 
-            {:request_failed, request} ->
-              refute request in failures
-              assert request in alive
+          {:request_failed, request} ->
+            refute request in failures
+            assert request in alive
 
-              check_events.(check_events, counter + 1, List.delete(alive, request), [
-                request | failures
-              ])
-          after
-            30_000 -> flunk("timed out waiting for requestfailed")
-          end
+            check_events.(check_events, counter + 1, List.delete(alive, request), [
+              request | failures
+            ])
+        after
+          30_000 -> flunk("timed out waiting for requestfailed")
         end
       end
-
-      check_events.(check_events, 0, [], [])
     end
+
+    check_events.(check_events, 0, [], [])
   end
 
   # https://github.com/microsoft/playwright/issues/22812

@@ -111,53 +111,56 @@ defmodule PlaywrightEx.Page.PageFillTest do
     @type_ type
     @value value
     # https://github.com/microsoft/playwright/issues/28726
+    @tag skip:
+           if(
+             (@browser_name != "chromium" and @type_ in ["month", "week"]) or
+               (@browser_name == "webkit" and match?({:win32, _}, :os.type()) and
+                  @type_ in ["color", "date", "time", "datetime-local"]),
+             do: "upstream skip: Some browser/platforms do not implement certain input types"
+           )
     test "input event.composed should be true and cross shadow dom boundary - #{type}",
-         %{page: page, server: server, browser_name: browser_name} do
-      # Some browser/platforms do not implement certain input types.
-      if !(browser_name != "chromium" and @type_ in ["month", "week"]) and
-           !(browser_name == "webkit" and windows?() and @type_ in ["color", "date", "time", "datetime-local"]) do
-        Page.goto!(page, server.empty_page)
+         %{page: page, server: server} do
+      Page.goto!(page, server.empty_page)
 
-        Page.set_content!(page, """
-        <body><script>
-        const div = document.createElement('div');
-        const shadowRoot = div.attachShadow({mode: 'open'});
-        shadowRoot.innerHTML = '<input type=#{@type_}></input>';
-        document.body.appendChild(div);
-        </script></body>
-        """)
+      Page.set_content!(page, """
+      <body><script>
+      const div = document.createElement('div');
+      const shadowRoot = div.attachShadow({mode: 'open'});
+      shadowRoot.innerHTML = '<input type=#{@type_}></input>';
+      document.body.appendChild(div);
+      </script></body>
+      """)
 
-        page
-        |> Page.locator("body")
-        |> Locator.evaluate!("""
-        select => {
-          window.firedBodyEvents = [];
-          for (const event of ['input', 'change']) {
-            select.addEventListener(event, e => {
-              window.firedBodyEvents.push(e.type + ':' + e.composed);
-            }, false);
-          }
+      page
+      |> Page.locator("body")
+      |> Locator.evaluate!("""
+      select => {
+        window.firedBodyEvents = [];
+        for (const event of ['input', 'change']) {
+          select.addEventListener(event, e => {
+            window.firedBodyEvents.push(e.type + ':' + e.composed);
+          }, false);
         }
-        """)
+      }
+      """)
 
-        page
-        |> Page.locator("input")
-        |> Locator.evaluate!("""
-        select => {
-          window.firedEvents = [];
-          for (const event of ['input', 'change']) {
-            select.addEventListener(event, e => {
-              window.firedEvents.push(e.type + ':' + e.composed);
-            }, false);
-          }
+      page
+      |> Page.locator("input")
+      |> Locator.evaluate!("""
+      select => {
+        window.firedEvents = [];
+        for (const event of ['input', 'change']) {
+          select.addEventListener(event, e => {
+            window.firedEvents.push(e.type + ':' + e.composed);
+          }, false);
         }
-        """)
+      }
+      """)
 
-        page |> Page.locator("input") |> Locator.fill!(@value)
+      page |> Page.locator("input") |> Locator.fill!(@value)
 
-        assert Page.evaluate!(page, "() => window['firedEvents']") == ["input:true", "change:false"]
-        assert Page.evaluate!(page, "() => window['firedBodyEvents']") == ["input:true"]
-      end
+      assert Page.evaluate!(page, "() => window['firedEvents']") == ["input:true", "change:false"]
+      assert Page.evaluate!(page, "() => window['firedBodyEvents']") == ["input:true"]
     end
   end
 

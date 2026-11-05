@@ -62,6 +62,11 @@ defmodule PlaywrightEx.UpstreamCase do
       # tests (`@upstream nil`) keep test_helper's tighter default.
       if @upstream, do: @moduletag(timeout: PlaywrightEx.UpstreamCase.timeout())
       @slow_timeout 3 * PlaywrightEx.UpstreamCase.timeout()
+      # ExUnit has no runtime skip: an annotation whose condition is known before the run (browser,
+      # browser version, host OS, env) is a tag, `@tag skip: if(@browser_name == "chromium" and
+      # @browser_major_version < 155, do: "upstream skip: ...")`, not an `if` around the body.
+      @browser_name PlaywrightEx.TestBrowser.name()
+      @browser_major_version PlaywrightEx.UpstreamCase.browser_major_version()
     end
   end
 
@@ -73,6 +78,30 @@ defmodule PlaywrightEx.UpstreamCase do
 
     if darwin_x64, do: 60_000, else: 30_000
   end
+
+  @doc """
+  Upstream's `browserMajorVersion` fixture (`Number(browser.version().split('.')[0])`), known
+  before the run: the major `browserVersion` of the browser under test (`TestBrowser.name/0`) in
+  the driver's `browsers.json`, the build `launch` runs (no channels here). `setup_all` checks it
+  against the launched browser.
+  """
+  def browser_major_version(name \\ TestBrowser.name()) do
+    key = {__MODULE__, :browser_major_version, name}
+
+    with nil <- :persistent_term.get(key, nil) do
+      PlaywrightEx.Driver.ensure_installed()
+
+      %{"browsers" => browsers} =
+        [PlaywrightEx.Driver.install_dir(), "package", "browsers.json"] |> Path.join() |> File.read!() |> JSON.decode!()
+
+      %{"browserVersion" => version} = Enum.find(browsers, &(&1["name"] == name))
+      major = major_version(version)
+      :persistent_term.put(key, major)
+      major
+    end
+  end
+
+  defp major_version(version), do: version |> String.split(".") |> hd() |> String.to_integer()
 
   @doc """
   `test.fail(condition)`: when `condition` holds, runs `body` and fails the test unless `body`
@@ -237,12 +266,20 @@ defmodule PlaywrightEx.UpstreamCase do
 
     TestServer.enable_http_cache(https_server, cached)
 
+    browser = BrowserType.launch!(browser_type)
+    launched = major_version(Browser.version(browser))
+
+    if launched != browser_major_version(browser_name) do
+      raise "#{browser_name} #{launched} is not the browsers.json version (#{browser_major_version(browser_name)}) " <>
+              "that compile-time `@browser_major_version` tags use"
+    end
+
     %{
       playwright: playwright,
       browser_name: browser_name,
       headless: TestBrowser.headless(),
       browser_type: browser_type,
-      browser: BrowserType.launch!(browser_type),
+      browser: browser,
       server: server,
       https_server: https_server,
       asset: fn path -> Path.join([assets | String.split(path, "/")]) end

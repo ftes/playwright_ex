@@ -403,26 +403,25 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert is_number(start_time)
   end
 
+  @tag skip: if(System.get_env("PW_CLOCK"), do: "upstream skip: PW_CLOCK")
   test "should properly serialize window.performance object", %{page: page} do
-    if !System.get_env("PW_CLOCK") do
-      assert %{
-               "navigation" => %{"redirectCount" => 0, "type" => type},
-               "timeOrigin" => time_origin,
-               "timing" => timing
-             } = Page.evaluate!(page, "() => performance")
+    assert %{
+             "navigation" => %{"redirectCount" => 0, "type" => type},
+             "timeOrigin" => time_origin,
+             "timing" => timing
+           } = Page.evaluate!(page, "() => performance")
 
-      assert is_number(type)
-      assert is_number(time_origin)
+    assert is_number(type)
+    assert is_number(time_origin)
 
-      keys =
-        ~w(connectEnd connectStart domComplete domContentLoadedEventEnd domContentLoadedEventStart domInteractive
-           domLoading domainLookupEnd domainLookupStart fetchStart loadEventEnd loadEventStart navigationStart
-           redirectEnd redirectStart requestStart responseEnd responseStart secureConnectionStart unloadEventEnd
-           unloadEventStart)
+    keys =
+      ~w(connectEnd connectStart domComplete domContentLoadedEventEnd domContentLoadedEventStart domInteractive
+         domLoading domainLookupEnd domainLookupStart fetchStart loadEventEnd loadEventStart navigationStart
+         redirectEnd redirectStart requestStart responseEnd responseStart secureConnectionStart unloadEventEnd
+         unloadEventStart)
 
-      assert timing |> Map.keys() |> Enum.sort() == Enum.sort(keys)
-      assert Enum.all?(Map.values(timing), &is_number/1)
-    end
+    assert timing |> Map.keys() |> Enum.sort() == Enum.sort(keys)
+    assert Enum.all?(Map.values(timing), &is_number/1)
   end
 
   test "should return undefined for non-serializable objects", %{page: page} do

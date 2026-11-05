@@ -436,38 +436,37 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and @browser_major_version < 155,
+           do: "upstream skip: does not survive cross-process navgiation"
+         )
   test "should emulate navigator.onLine across navigations", %{
     browser: browser,
     server: server,
     browser_name: browser_name
   } do
-    browser_major_version = browser |> Browser.version() |> String.split(".") |> hd() |> String.to_integer()
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+    assert Page.evaluate!(page, "() => window.navigator.onLine") == true
+    BrowserContext.set_offline!(context, true)
+    assert Page.evaluate!(page, "() => window.navigator.onLine") == false
 
-    # it.skip(browserName === 'chromium' && browserMajorVersion < 155, 'does not survive cross-process navgiation');
-    if !(browser_name == "chromium" and browser_major_version < 155) do
-      context = Browser.new_context!(browser)
-      page = BrowserContext.new_page!(context)
-      Page.goto!(page, server.empty_page)
-      assert Page.evaluate!(page, "() => window.navigator.onLine") == true
-      BrowserContext.set_offline!(context, true)
+    Page.goto!(page, "about:blank")
+    assert Page.evaluate!(page, "() => window.navigator.onLine") == false
+    Page.goto!(page, "data:text/html,<title>offline</title>")
+    assert Page.evaluate!(page, "() => window.navigator.onLine") == false
+
+    if browser_name == "chromium" do
+      # Try a cross-process navigation in Chromium, which allows routing while offline.
+      Page.route!(page, "**/*", &Route.fulfill(&1, content_type: "text/html", body: "<html></html>"))
+      Page.goto!(page, server.cross_process_prefix <> "/empty.html")
       assert Page.evaluate!(page, "() => window.navigator.onLine") == false
-
-      Page.goto!(page, "about:blank")
-      assert Page.evaluate!(page, "() => window.navigator.onLine") == false
-      Page.goto!(page, "data:text/html,<title>offline</title>")
-      assert Page.evaluate!(page, "() => window.navigator.onLine") == false
-
-      if browser_name == "chromium" do
-        # Try a cross-process navigation in Chromium, which allows routing while offline.
-        Page.route!(page, "**/*", &Route.fulfill(&1, content_type: "text/html", body: "<html></html>"))
-        Page.goto!(page, server.cross_process_prefix <> "/empty.html")
-        assert Page.evaluate!(page, "() => window.navigator.onLine") == false
-      end
-
-      BrowserContext.set_offline!(context, false)
-      assert Page.evaluate!(page, "() => window.navigator.onLine") == true
-      BrowserContext.close!(context)
     end
+
+    BrowserContext.set_offline!(context, false)
+    assert Page.evaluate!(page, "() => window.navigator.onLine") == true
+    BrowserContext.close!(context)
   end
 
   test "should emulate offline event", %{browser: browser} do
