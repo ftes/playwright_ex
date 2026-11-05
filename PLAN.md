@@ -208,6 +208,174 @@ Behaviour changes for the guide: `timeout: 0` now means no timeout; dialogs with
 listener are auto-dismissed instead of hanging; error messages carry the API name prefix;
 `Tracing` `coverage:` is removed.
 
+## OTP-native runtime migration (ratified 2026-11-05)
+
+This replaces the baton, heap, GC and JS-runtime emulation with OTP primitives, as the spike
+(change `omuunqursqzs`, workspace wpp, `lib/playwright_ex/otp_spike/*`) proved; see DECISIONS
+"OTP-native runtime spike". It starts after workstream RR (RegExp) lands.
+
+**Phase 0: infrastructure (one agent, serial; afterwards the integrator).** The client files
+compile against a reimplemented `Heap` and `Promise` with the same names.
+- `runtime/conn.ex` (new, from spike `connection.ex`): one GenServer per connection, sole
+  writer of an `ordered_set, :protected` table. `run/2` runs funs from other processes inside
+  the connection.
+  - Dispatch: `Client.Connection.dispatch/2` runs one message at a time, behind the barrier.
+    The barrier keeps a frame stack, so a nested `emit` returns after its listeners have returned
+    or yielded, which keeps JS's order for nested emits.
+  - Outgoing messages are buffered and flushed per drain, replacing `at_release` tick batching.
+  - The transport is a fun: Pipe for OutOfProcess, JsonPipe for connect.
+  - `runtime/invocation.ex`: `yield/0`.
+- `runtime/heap.ex` (same API): rows keyed `{owner_guid, local}`, so `_dispose` is one bounded
+  prefix `select_delete`.
+  - `new_object(module, owner)` puts the rows on the owner. `new_object(module)` is a
+    process-local object in the process dictionary: reading it from another process raises,
+    `free/1` erases it.
+  - `atomic/2` runs a fun in the connection and raises if the fun awaits.
+  - `:_type`, `:_guid`, `:_initializer` and `:_connection` come from the handle struct, so they
+    stay readable after dispose. Handle fields are `[:guid, :conn, :table, :type, :initializer]`;
+    regenerate the facade structs.
+  - Mutable fields of a disposed object raise TargetClosedError.
+- `runtime/promise.ex` (same names), three kinds:
+  - local `new/0,1`: resolve sends to the creator, from any process. Only the creator awaits,
+    once.
+  - latch `new(owner[, executor])`: a row on the owner, awaitable many times from any process,
+    rejected on dispose.
+  - async `async/1`: a holder process, taken once; `shared: true` for the facade.
+  - Also: `void/1` is fire-and-forget; `then_`/`catch_` are lazy and run in the awaiter.
+    `race`/`all` arm the promises, then selective-receive: a losing local stays pending, losing
+    latches and asyncs are disarmed. Plus `timer/1`, `resolved/1`, `rejected/1`. `await` inside
+    the connection raises.
+- `zones.ex` stays; holder and listener processes inherit the zone. `api.ex` drops the baton.
+  `facade.ex` drops `GC.unroot`; `promise/3` becomes `Promise.async(fun, shared: true)`. Add
+  `listen/1`, which marks a listener as a user listener.
+- Delete `event_loop.ex`, `gc.ex`, and their tests (`event_loop`, `gc`, `gc_driver`). Rewrite
+  `heap_test.exs`.
+- Client infrastructure (frozen after Phase 0):
+  - `event_emitter.ex`, listener kinds:
+    - user: a process per subscription, FIFO.
+    - internal (default): a process per event, behind the barrier.
+    - `on_sync/3`: runs inline in the connection, for pure state updates.
+    - mailbox: for waiters.
+    - `_pendingHandlers` holds invocation refs.
+  - `channel_owner.ex`: `_dispose` deletes rows, stops subscription processes and rejects
+    latches. `_update_subscription` becomes a post from inside the connection. Remove
+    `_reset_heap_state`.
+  - `connection.ex`: registering the callback and writing the message happen in one `atomic`
+    (`# deviation:`). The await monitors the connection process.
+  - `waiter.ex`: the spike design, with state in the waiter's process dictionary.
+  - `timeout_settings.ex`: rows on the owner.
+  - `manual_promise.ex`: `LongStandingScope.new(owner)` with latches. `timeout_runner.ex`:
+    `Promise.timer`.
+  - `abort_*.ex`: no loop. Listeners run synchronously in the aborting process and only send
+    messages. The table owner frees a signal's rows when its creator exits.
+  - `out_of_process.ex` and `supervisor.ex`: no EventLoop child; OutOfProcess starts Conn and
+    Pipe. `transport/pipe.ex`: no `at_release`.
+  - `connect.ex`: each connect gets a child Conn under the supervisor, linked to its parent.
+    `Cell` becomes an owned object.
+  - `matchers/to_have_url.ex`: a process-local object.
+  - `gen.api` wraps `on`, `once`, `add_listener`, `prepend_listener`, `off` and
+    `remove_listener` in `Facade.listen`. Regenerate.
+- Mechanical edits:
+  - The `with_baton` sites in selectors, local_utils and web_socket_route become `Heap.atomic`.
+  - About 12 `catch_(async(f), fn _ -> nil end)` become `Promise.void(f)`.
+  - Promises stored in fields become latches: route, response, browser,
+    `browser_context.ex:163`, `route_handler.ex:61`.
+  - The 15 `new_object` sites get an owner or become local.
+  - `test/support/{upstream_case,utils}.ex`, `page_listeners_test.exs`.
+- Done when:
+  - compile `--warnings-as-errors`, dialyzer `--force-check`, parity and `gen.api --check`
+    pass.
+  - Green: `test/playwright_ex/**` (including a new `runtime/conn_test.exs` porting the spike's
+    20 semantics tests), `test/mix/**` and `no_orphan_processes_test`.
+  - Green on chromium: page_goto, page_wait_for_navigation, page_event_network,
+    page_event_console, page_event_popup, page_route, page_listeners, browsercontext_basic,
+    browsertype_launch, interception.
+  - One full chromium run with no hangs; its failure list is committed as the per-group backlog.
+
+**Phase 1: fan-out (5 agents, one workspace each).**
+- Frozen; only the integrator edits them, and groups send change requests:
+  - `runtime/*`, `test/support/*`, `lib/mix/**`
+  - `client/{channel_owner,connection,event_emitter,waiter,timeout_settings,errors,client_helper,client_stack_trace,events}.ex`
+  - `isomorphic/{manual_promise,timeout_runner}.ex`, `abort_*.ex`
+  - PLAN/PORTING/DECISIONS
+- Groups:
+  - **A, lifecycle and remote.**
+    - Files: browser, browser_type, browser_context (except routing), playwright, connect,
+      local_utils, json_pipe, cdp_session, selectors, credentials, debugger, webmcp,
+      web_storage, clock.
+    - Specs: library browser*, browsercontext_* (non-network), browsertype_*, launcher,
+      defaultbrowsercontext_*, multiclient, browser_server, playwright_client, logger, signals,
+      page_close, page_event_crash, page_clock*, chromium, firefox, headful,
+      selectors_register, webmcp*, debugger.
+  - **B, page and frame.**
+    - Files: page (except routing; also bindings and locator handlers in page/browser_context),
+      frame, worker, console_message, dialog, web_error, file_chooser, input.
+    - Specs: page basic, goto, navigation, history, wait_for_*, event_*, dialog, listeners,
+      add_init_script*, add_locator_handler, expose_function, evaluate*, set_content,
+      network_idle, keyboard, mouse; frame_*, workers; library popup, beforeunload,
+      browsercontext_expose_function, shared_worker.
+  - **C, locators, handles and matchers.**
+    - Files: locator, element_handle, js_handle, writable_stream,
+      `isomorphic/{locator_*,selector_parser}`, matchers/*.
+    - Specs: locator_*, elementhandle_*, jshandle_*, eval_on_selector*, selectors_*,
+      queryselector, expect_*, to_match_aria_snapshot, page_aria_*, page_click*, page_fill,
+      page_check, page_select_option, page_set_input_files, page_drag, page_drop, wheel,
+      retarget, page_strict, page_autowaiting*; library hit_target, tap, locator_*.
+  - **D, network.**
+    - Files: network, request, response, route, route_handler, har_router, web_socket*, fetch,
+      raw_headers; plus routing in page/browser_context (`route`, `unroute*`, `_on_route`,
+      `route_from_har`, `route_web_socket`, `_update_*interception*`).
+    - Specs: page_route, page_request_*, page_network_*, interception, network_post_data,
+      firefox_network_response, page_set_extra_http_headers; library browsercontext_{route,
+      network_event, fetch*, har, set_extra_http_headers}, global_fetch*, har*,
+      route_web_socket, web_socket, unroute_behavior, proxy*, client_certificates,
+      network_timeout, fetch_proxy.
+  - **E, artifacts.**
+    - Files: artifact, stream, download, video, screencast, tracing, coverage, disposable,
+      file_utils.
+    - Specs: download*, downloads_path, tracing, video, screencast*, coverage, pdf, screenshot,
+      page_screenshot, expect_with_snapshot.
+- Each agent:
+  1. Audits every await. Check-then-act windows get a subscribe-first reorder marked
+     `# deviation: subscribe-first (OTP runtime)`. A read-modify-write spanning an await
+     becomes `update/3` or `atomic/2`.
+  2. Fixes promise kinds (latch, local or async), un-awaited `then_` and double awaits.
+  3. Moves hot pure-state listeners to `on_sync`.
+  4. Gets its specs green on chromium, then firefox and webkit.
+  5. Keeps a deviation log in its change description.
+- Merge order: A, B, D, C, E. Each group rebases onto trunk and reruns its specs.
+
+**Phase 2: integration.**
+- Full suite on 3 browsers, compared against the baseline and the CI flake tags.
+- Stress tests, 100 runs each: event-before-reply, listener order and `once`, re-entrant
+  handlers (routes, bindings, locator handlers), nested emit order, concurrent callers on one
+  page, `connect` nested close.
+- Perf: 5k handles and 1000 pages; p50/p99 call latency against the baton baseline; no pauses;
+  rows back to baseline after close.
+- Docs:
+  - PLAN: rewrite "Concurrency".
+  - PORTING: shim rules (kinds, `atomic`, deviation markers).
+  - DECISIONS: one entry with the deviation tally.
+  - `PlaywrightEx.Promise` docs: owner lifetime, awaitable from any process.
+  - Guides: listeners run in processes; no blocking work in listeners.
+- Test WebSocket server per workstream SS.
+- Abandon the spike and forget workspace wpp.
+
+**Risks.**
+- The facade structs and Dialyzer specs change; fix in Phase 0.
+- `PlaywrightEx.Promise` keeps its names, but an await after the owner process exits raises.
+- AbortController listener funs must not block; test aborts from a third process.
+- `connect`: one Conn per connection, separate tables because guids repeat.
+- Route handlers run in a process per event; RouteHandler state goes through `update/3`.
+- Locator handlers and bindings are re-entrant: the barrier and yield cover them; add stress
+  tests.
+- WebSocketRoute and HarRouter: `atomic` and `void`.
+- Stray `{:pw, ref, _}` messages: waiter dispose flushes them, and `conn_test` asserts empty
+  mailboxes.
+- Misclassified listeners or objects raise loudly.
+- Blocking user listeners stall their connection: document it.
+- Prefix-delete cost: measure; if not bounded, keep a child index.
+
 ## Then
 
 1. Done: generator for the `api.json` facade (`mix playwright_ex.gen.api`, phase 2). Callback
