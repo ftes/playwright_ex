@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.PdfTest do
   @upstream "tests/library/pdf.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
 
