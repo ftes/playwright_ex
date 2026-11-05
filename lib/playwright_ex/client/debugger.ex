@@ -11,12 +11,14 @@ defmodule PlaywrightEx.Client.Debugger do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
     put(this, :_pausedDetails, nil)
 
-    EventEmitter.on(_channel(this), "pausedStateChanged", fn event ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "pausedStateChanged", fn event ->
       put(this, :_pausedDetails, event[:pausedDetails])
       emit(this, Events.Debugger.paused_state_changed())
     end)
 
-    EventEmitter.on(_channel(this), "apiCallsUpdated", fn %{apiCalls: api_calls} ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "apiCallsUpdated", fn %{apiCalls: api_calls} ->
       emit(this, Events.Debugger.api_calls_updated(), api_calls)
     end)
 

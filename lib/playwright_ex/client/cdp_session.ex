@@ -13,12 +13,14 @@ defmodule PlaywrightEx.Client.CDPSession do
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
 
-    EventEmitter.on(_channel(this), "event", fn event ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "event", fn event ->
       emit(this, event.method, event[:params])
       emit(this, "event", event)
     end)
 
-    EventEmitter.on(_channel(this), "close", fn _ ->
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "close", fn _ ->
       emit(this, "close", this)
     end)
 
