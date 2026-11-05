@@ -51,13 +51,25 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
 
     # Upstream SIGKILLs the process group (killProcessGroup): the chromedriver that Selenium 3 keeps
     # running after the session, and its browser, go too. Here: the process and its descendants.
+    # Upstream awaits the exit: the next test reuses the port, and a dying server still accepts.
     on_exit(fn ->
       pid = ChildProcess.pid(process)
-      System.cmd("kill", ["-9" | Enum.map([pid | descendants(pid)], &to_string/1)], stderr_to_stdout: true)
+      pids = Enum.map([pid | descendants(pid)], &to_string/1)
+      System.cmd("kill", ["-9" | pids], stderr_to_stdout: true)
+      await_exit(pids, 100)
       ChildProcess.stop(process)
     end)
 
     process
+  end
+
+  defp await_exit(_pids, 0), do: :ok
+
+  defp await_exit(pids, tries) do
+    if Enum.any?(pids, &match?({_, 0}, System.cmd("kill", ["-0", &1], stderr_to_stdout: true))) do
+      Process.sleep(100)
+      await_exit(pids, tries - 1)
+    end
   end
 
   defp descendants(pid) do
