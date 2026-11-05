@@ -18,7 +18,8 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
     parsed_frames =
       Enum.map(stack, fn {module, function, arity, location} ->
         frame = %{
-          file: to_string(location[:file] || ""),
+          # JS stack frames carry absolute paths (metadata.location.file)
+          file: if(file = location[:file], do: Path.expand(to_string(file)), else: ""),
           line: location[:line] || 0,
           column: 0,
           function: Exception.format_mfa(module, function, arity)
