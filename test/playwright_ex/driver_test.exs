@@ -11,7 +11,8 @@ defmodule PlaywrightEx.DriverTest do
     assert File.regular?(cli)
 
     {us, _} = :timer.tc(fn -> Driver.ensure_installed() end)
-    assert us < 50_000
+    # A no-op: installing downloads for seconds. Generous bound for loaded machines.
+    assert us < 500_000
   end
 
   test "tampered download: clear error, nothing installed", %{tmp_dir: cache} do

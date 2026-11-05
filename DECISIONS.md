@@ -496,3 +496,12 @@ drift). Blockers for release, assigned to follow-up workstreams:
   macOS at upstream's tolerance.
 - **oopif "should take screenshot"** skipped on darwin (`env:`): blank OOPIF screenshot, also
   with upstream's JS client.
+
+## 2026-11-05: VideoPlayer (workstream U1)
+
+- **`PlaywrightEx.VideoPlayer`** (test support, port of `tests/library/videoPlayer.ts`): runs the
+  driver registry's ffmpeg (as upstream `registry.findExecutable('ffmpeg')`), PATH fallback,
+  else an `env:` skip. JPEG frames go through ffmpeg's mjpeg decoder (Playwright's ffmpeg has
+  no PNG decoder). All 20 VideoPlayer tests ported.
+- **Mac WebKit video frames** leave the right/bottom gray (macOS 26; upstream client too): 7
+  pixel checks skipped on darwin+webkit (`env:`).
