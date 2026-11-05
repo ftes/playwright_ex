@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
   @upstream "tests/library/locator-generator.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Client.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.FrameLocator
@@ -26,7 +27,10 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     Map.new(~w(javascript python java csharp), &{&1, as_locator(&1, selector)})
   end
 
-  # generateForNode  -- not ported: needs the recorder's injected `window.playwright.selector` (context._showRecorder)
+  defp generate_for_node(page_or_frame, target) do
+    selector = Locator.evaluate!(Page.locator(page_or_frame, target), "e => window.playwright.selector(e)")
+    Map.new(~w(javascript python java csharp), &{&1, as_locator(&1, selector)})
+  end
 
   # `channel.method(params)` on a client handle.
   defp channel_call(owner, method, params) do
@@ -627,9 +631,23 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     for lang <- ~w(javascript java python csharp), do: assert(as_locators(lang, selector) == locators[lang])
   end
 
-  # it.beforeEach: context._showRecorder({ language: 'javascript' })  -- not ported: recorder internals.
-  # The generateForNode part needs it; the asLocator assertions do not.
-  test "reverse engineer internal:has-text locators" do
+  # it.describe(() => { it.beforeEach(...) }): the beforeEach runs at the top of its one test.
+  test "reverse engineer internal:has-text locators", %{context: context, page: page} do
+    Api.call(nil, context, fn -> BrowserContext._show_recorder(context, %{language: "javascript"}) end)
+
+    Page.set_content!(page, """
+      <div>Hello <span>world</span></div>
+      <div>Goodbye <span mark=1>world</span></div>
+    """)
+
+    assert generate_for_node(page, "[mark=\"1\"]") == %{
+             "csharp" => "Locator(\"div\").Filter(new() { HasText = \"Goodbye world\" }).Locator(\"span\")",
+             "java" =>
+               "locator(\"div\").filter(new Locator.FilterOptions().setHasText(\"Goodbye world\")).locator(\"span\")",
+             "javascript" => "locator('div').filter({ hasText: 'Goodbye world' }).locator('span')",
+             "python" => "locator(\"div\").filter(has_text=\"Goodbye world\").locator(\"span\")"
+           }
+
     assert as_locator("javascript", "div >> internal:has-text=\"foo\"s") ==
              "locator('div').locator('internal:has-text=\"foo\"s')"
 
