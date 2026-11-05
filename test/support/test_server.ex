@@ -140,6 +140,8 @@ defmodule PlaywrightEx.TestServer do
         startup_log: false,
         # Node's http server does not compress responses (gzip only via enable_gzip/2).
         http_options: [compress: false],
+        # Node's https server (`createHttpsServer`) speaks HTTP/1.1 only; Bandit offers h2 over TLS.
+        http_2_options: [enabled: false],
         thousand_island_options: if(ssl_options, do: [transport_options: ssl_options], else: [])
       )
     after
