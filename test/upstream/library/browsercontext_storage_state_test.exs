@@ -128,8 +128,9 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     path = Path.join(tmp_dir, "storage-state.json")
     state = BrowserContext.storage_state!(context, path: path, indexed_db: true)
     written = File.read!(path)
-    # JSON.stringify(state, undefined, 2)  -- compact, as `storageState` writes it (Elixir's JSON has no indentation)
-    assert JSON.encode!(state) == written
+    # JSON.stringify(state, undefined, 2): the same JSON, indented by 2.
+    assert JSON.decode!(written) == JSON.decode!(JSON.encode!(state))
+    assert written =~ ~r/\A\{\n  "cookies": \[\n    \{\n      "/
 
     check_context = fn context ->
       page = BrowserContext.new_page!(context)

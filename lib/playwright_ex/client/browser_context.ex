@@ -581,8 +581,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
     if options[:path] do
       FileUtils.mkdir_if_needed(options.path)
-      # JSON.stringify(state, undefined, 2)  -- compact: Elixir's JSON has no indentation
-      File.write!(options.path, JSON.encode!(state))
+      File.write!(options.path, ClientHelper.json_stringify_indented(state, 2))
     end
 
     state
@@ -676,8 +675,15 @@ defmodule PlaywrightEx.Client.BrowserContext do
       try do
         JSON.decode!(File.read!(storage_state))
       rescue
-        # rewriteErrorMessage(e, ...); throw e;  -- File and JSON errors have no message field: a RuntimeError
-        e -> reraise "Error reading storage state from #{storage_state}:\n" <> Exception.message(e), __STACKTRACE__
+        e ->
+          message = "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)
+          # A File.Error has no message field to rewrite: a RuntimeError.
+          e =
+            if Map.has_key?(e, :message),
+              do: Errors.rewrite_error_message(e, message),
+              else: RuntimeError.exception(message)
+
+          reraise e, __STACKTRACE__
       end
     end
   end

@@ -88,6 +88,28 @@ defmodule PlaywrightEx.Client.ClientHelper do
 
   defp to_json(value), do: value
 
+  # Elixir only: `JSON.stringify(value, undefined, indent)` of a protocol value (`nil` is `null`).
+  @doc false
+  def json_stringify_indented(value, indent),
+    do: IO.iodata_to_binary(json_stringify_indented(value, String.duplicate(" ", indent), ""))
+
+  defp json_stringify_indented(value, _gap, _indent) when value == %{}, do: "{}"
+  defp json_stringify_indented([], _gap, _indent), do: "[]"
+
+  defp json_stringify_indented(value, gap, indent) when is_map(value) and not is_struct(value) do
+    inner = indent <> gap
+    members = for {k, v} <- value, do: [inner, JSON.encode!(to_string(k)), ": ", json_stringify_indented(v, gap, inner)]
+    ["{\n", Enum.intersperse(members, ",\n"), "\n", indent, "}"]
+  end
+
+  defp json_stringify_indented(value, gap, indent) when is_list(value) do
+    inner = indent <> gap
+    elements = for v <- value, do: [inner, json_stringify_indented(v, gap, inner)]
+    ["[\n", Enum.intersperse(elements, ",\n"), "\n", indent, "]"]
+  end
+
+  defp json_stringify_indented(value, _gap, _indent), do: JSON.encode!(value)
+
   # Elixir only: `JSON.parse(text)`, JS `null` is `:null`. Raises `JSON.DecodeError` (a JS SyntaxError).
   @doc false
   def json_parse(text) do
