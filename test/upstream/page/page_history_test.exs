@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   import PlaywrightEx.Utils, only: [to_pass: 1]
@@ -169,13 +170,16 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     request_promise = TestServer.wait_for_request(server, "/empty.html")
 
     # 3. Trigger push state that could resolve the reload.
-    Page.evaluate(page, "() => { window.history.pushState({}, ''); }")
+    # deviation: not awaited, as upstream (`.catch(() => {})`): the evaluate after the reload is
+    # answered only once the reload commits, which the stalled request holds. `Runtime.Promise`
+    # returns once each call is sent, so the three are sent in upstream's order.
+    Runtime.Promise.void(fn -> Page.evaluate(page, "() => { window.history.pushState({}, ''); }") end)
 
     # 4. Trigger the reload, it should not resolve.
-    reload_promise = Task.async(fn -> Page.reload!(page) end)
+    reload_promise = Runtime.Promise.async(fn -> Page.reload!(page) end)
 
     # 5. Trigger push state again, for the good measure :)
-    Page.evaluate(page, "() => { window.history.pushState({}, ''); }")
+    Runtime.Promise.void(fn -> Page.evaluate(page, "() => { window.history.pushState({}, ''); }") end)
 
     # 5. Serve the request, it should resolve the reload.
     Task.await(request_promise, :infinity)
@@ -183,7 +187,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     send(response, {:end, "hello"})
 
     # 6. Check the reload response.
-    got_response = Task.await(reload_promise, :infinity)
+    got_response = Runtime.Promise.await(reload_promise)
     assert Response.text!(got_response) == "hello"
   end
 
