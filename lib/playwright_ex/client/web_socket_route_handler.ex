@@ -6,8 +6,10 @@ defmodule PlaywrightEx.Client.WebSocketRouteHandler do
   Deviation: the constructor takes the `LocalUtils` first, as string globs become regexes
   through the driver (`PlaywrightEx.Isomorphic.UrlMatch`).
   """
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.WebSocketRoute
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Runtime.Promise
 
   defstruct [:_localUtils, :_baseURL, :url, :handler]
 
@@ -36,7 +38,9 @@ defmodule PlaywrightEx.Client.WebSocketRouteHandler do
 
   def handle(this, web_socket_route) do
     handler = this.handler
-    handler.(web_socket_route)
+    result = ClientHelper.call_function(handler, [web_socket_route])
+    # `await` adopts a returned promise
+    if is_struct(result, Promise), do: Promise.await(result)
     WebSocketRoute._after_handle(web_socket_route)
   end
 end
