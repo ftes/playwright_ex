@@ -15,13 +15,13 @@ defmodule PlaywrightEx.Transport.Pipe do
       the protocol validators turn known keys into atoms.
     * Frames are accumulated as iodata, so a large message costs one copy instead of one
       concatenation per chunk.
-    * Messages sent under the baton are written together when the holder releases it (the end
-      of the JS tick, `PlaywrightEx.Runtime.EventLoop.at_release/2`). Upstream writes each
-      message right away, but a tick's messages reach the driver before it can react to any:
-      `const p = page.evaluate(...); page.waitForEvent('console')` subscribes in time. Here the
-      calls of one tick are processes taking turns, so the gap between their sends could exceed
-      a round trip. A holder that blocks on other work still has its messages written after
-      #{@max_hold_ms}ms.
+    * Messages sent under the baton are queued and written together when the holder releases
+      it (the end of the JS tick, `PlaywrightEx.Runtime.EventLoop.at_release/2`), so the driver
+      reads a tick's messages at once: `const p = page.evaluate(...); page.waitForEvent('console')`
+      subscribes before the console event can be dispatched. Upstream writes each message right
+      away, microseconds apart; here a tick's calls run in several processes and the gap could
+      exceed the driver's round trip to the browser. A holder blocked on other work has its
+      messages written after #{@max_hold_ms}ms.
   """
   use GenServer
 
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Transport.Pipe do
 
   def handle_cast({:queue, message}, state) do
     state = queue(state, message)
-    {:noreply, if(state.timer, do: state, else: %{state | timer: Process.send_after(self(), :flush, @max_hold_ms)})}
+    {:noreply, if(state.timer, do: state, else: %{state | timer: :erlang.start_timer(@max_hold_ms, self(), :flush)})}
   end
 
   def handle_cast(:flush, state), do: {:noreply, flush(state)}
@@ -92,14 +92,16 @@ defmodule PlaywrightEx.Transport.Pipe do
   defp flush(%{queue: []} = state), do: state
 
   defp flush(state) do
-    if state.timer, do: Process.cancel_timer(state.timer)
+    if state.timer, do: :erlang.cancel_timer(state.timer)
     if !state.closed, do: Port.command(state.port, state.queue)
     %{state | queue: [], timer: nil}
   end
 
   @impl true
   def handle_info({port, {:data, data}}, %{port: port} = state), do: {:noreply, _dispatch(state, data)}
-  def handle_info(:flush, state), do: {:noreply, flush(%{state | timer: nil})}
+  def handle_info({:timeout, timer, :flush}, %{timer: timer} = state), do: {:noreply, flush(%{state | timer: nil})}
+  # A timeout that fired while its batch was flushed.
+  def handle_info({:timeout, _timer, :flush}, state), do: {:noreply, state}
 
   def handle_info({port, {:exit_status, _status}}, %{port: port} = state), do: {:stop, :normal, on_close(state)}
 
