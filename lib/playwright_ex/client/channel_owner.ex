@@ -71,7 +71,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     connection = if is_channel_owner(parent), do: get(parent, :_connection), else: parent
     this = struct(module, guid: guid, loop: connection.loop, heap: connection.heap)
     _reset_heap_state(this)
-    # super(); this.setMaxListeners(0);  -- EventEmitter state is implicit
+    # super();  -- EventEmitter state is heap fields
+    EventEmitter.set_max_listeners(this, 0)
     put(this, :_connection, connection)
     put(this, :_type, type)
     put(this, :_guid, guid)
