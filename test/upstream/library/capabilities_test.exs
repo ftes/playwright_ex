@@ -138,7 +138,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
             @is_windows and @browser_name == "webkit" ->
               "upstream fixme: https://github.com/microsoft/playwright/issues/10892"
 
-            @browser_name == "webkit" and @mac_version == 15 ->
+            @mac_version == 15 and @browser_name == "webkit" ->
               "upstream skip: audio output is unreliable on hosted macOS 15 runners"
 
             true ->
