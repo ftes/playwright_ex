@@ -319,3 +319,18 @@ drift). Blockers for release, assigned to follow-up workstreams:
   CI), page-screenshot "fullPage screenshots during navigation" (30s screenshot timeout under
   load), chromium/connect-to-worker console race. Revisit each before release: find the race
   or confirm it upstream.
+
+## 2026-11-05: Library specs groups 9-10; spec mirroring complete
+
+- **Coverage**: 261 of 296 upstream `tests/{page,library}` spec files mirrored; the other 35
+  are the exclusions above (`inspector/pause.spec` tests the inspector UI, so it counts as one).
+- **Bugs found, assigned**: device descriptors rejected by `newContext` (JS keys,
+  `defaultBrowserType`) and double dispatch after `_newContextForReuse`, both workstream N;
+  `EventEmitter.event_names` order, workstream M. Fixed here: `EventEmitter.listeners` returns
+  the wrapped listener (JS `wrapperFunction.listener`), and `removeListener` matches it.
+- **storage-state error text**: the missing/malformed file tests assert Elixir's error text
+  (`prepare_storage_state`), not Node's ENOENT/JSON messages. Revisit if Node text matters.
+- **Test-only helpers inline**: PNG decoders in screenshot/screencast-overlay tests (no PNG
+  dep); event subclasses as top-level modules (parity treats nested modules as specs).
+- **Not portable**: slowmo (patches the in-process `_doSlowMo`), selenium (grid, jars, test hook),
+  playwright-client (bundle not built), har-websocket env test (driver env fixed at launch).
