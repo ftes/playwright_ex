@@ -132,6 +132,9 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. See `PL
 
 ## Bumping the pinned version
 
+`.github/workflows/upstream-update.yml` checks npm daily and opens a draft PR doing these steps
+(`.github/prompts/upstream-update.md`); finish its checklist by hand.
+
 1. Bump `@driver_version` (and Node if Python did) in `PlaywrightEx.Driver`, run
    `mix playwright_ex.checksums`.
 2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`, commit the generated diff.

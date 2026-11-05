@@ -1,0 +1,139 @@
+# Opens a draft PR porting a new upstream Playwright release (PORTING.md "Bumping the pinned
+# version"). Goes live only once this file is on the default branch (main), i.e. after the
+# restructure PR merges: GitHub runs schedules from the default branch only, lists
+# workflow_dispatch workflows from it only, and claude-code-action's token exchange rejects a
+# workflow file that differs from the default branch's.
+#
+# Owner setup: the Claude GitHub App installed on the repo and the CLAUDE_CODE_OAUTH_TOKEN
+# secret (both already used by claude-code-review.yml). Recommended: a ruleset on main
+# requiring PRs, so no token can push to main whatever the prompt says.
+name: Upstream update
+
+on:
+  schedule:
+    - cron: "17 5 * * *" # daily, off the hour (top-of-hour schedules are delayed or dropped)
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Upstream version (X.Y.Z), default: npm's latest. Also retries a release whose PR was closed."
+        required: false
+        type: string
+
+# One run at a time and no cancelling: a queued run waits for the port in progress, then finds
+# its branch and stops in `check`.
+concurrency:
+  group: upstream-update
+  cancel-in-progress: false
+
+# Nothing by default; each job asks for what it needs.
+permissions: {}
+
+jobs:
+  # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # read driver.ex and mix.exs
+      pull-requests: read # gh pr list (dedup)
+    outputs:
+      update: ${{ steps.check.outputs.update }}
+      from: ${{ steps.check.outputs.from }}
+      to: ${{ steps.check.outputs.to }}
+      version: ${{ steps.check.outputs.version }}
+      branch: ${{ steps.check.outputs.branch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            .github/scripts
+            lib/playwright_ex/driver.ex
+            mix.exs
+          sparse-checkout-cone-mode: false
+      - name: Find a newer upstream release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Via env, not interpolated into the script (injection).
+          TARGET: ${{ inputs.version }}
+        run: .github/scripts/upstream-check.sh "$TARGET"
+
+  update:
+    needs: check
+    if: needs.check.outputs.update == 'true'
+    runs-on: ubuntu-latest
+    # A minor release can mean hours of porting; GitHub-hosted jobs stop at 6 h anyway.
+    timeout-minutes: 240
+    permissions:
+      # The workflow token only checks out and restores caches. Claude pushes and opens the PR
+      # with the Claude GitHub App's installation token, which the action gets by exchanging
+      # this job's OIDC token (id-token: write) at api.anthropic.com
+      # (contents/pull-requests/issues: write on this repo only). Unlike GITHUB_TOKEN, an app
+      # token's push and PR do trigger workflows, so elixir.yml runs on the PR as on any other.
+      contents: read
+      id-token: write
+    env:
+      BROWSER: chromium
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup languages
+        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+      - name: Install dependencies
+        run: mix "do" deps.get, deps.compile
+      # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
+      - name: Install driver and browsers
+        run: mix playwright_ex.install -- chromium --with-deps
+      # Restore only (elixir.yml saves it), so `mix dialyzer --force-check` needn't build PLTs.
+      - name: Get runner image
+        id: runner_image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      - name: Restore Dialyzer PLT cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
+          path: priv/plts
+      - name: Build prompt
+        id: prompt
+        env:
+          FROM: ${{ needs.check.outputs.from }}
+          TO: ${{ needs.check.outputs.to }}
+          VERSION: ${{ needs.check.outputs.version }}
+          BRANCH: ${{ needs.check.outputs.branch }}
+        run: |
+          # The upstream clone (see the prompt) lives outside the checkout; --add-dir needs it.
+          mkdir -p /tmp/playwright
+          {
+            echo "prompt<<PROMPT_EOF"
+            echo "FROM: $FROM"
+            echo "TO: $TO"
+            echo "VERSION: $VERSION"
+            echo "BRANCH: $BRANCH"
+            echo "RELEASE: https://github.com/microsoft/playwright/releases/tag/v$TO"
+            echo
+            cat .github/prompts/upstream-update.md
+            echo "PROMPT_EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Port the release
+        uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # No github_token input: that makes the action use the Claude App token (see above).
+          prompt: ${{ steps.prompt.outputs.prompt }}
+          # The owner forbids attribution; the prompt says so too.
+          settings: |
+            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
+          # Tools: file tools and subagents; mix (build, generators, tests), git (upstream
+          # fetch/diff, commits, push), gh (release notes, PR), curl (playwright-python's
+          # NODE_VERSION); a few read-only shell helpers. Prefix rules can't fence pushes
+          # tightly, so the denials are a backstop; main's ruleset is the real guard.
+          # --add-dir: the upstream clone, and the driver cache holding the TO sources
+          # (PlaywrightEx.Upstream).
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 600
+            --add-dir /tmp/playwright /home/runner/.cache/playwright_ex
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Agent,Task,TodoWrite,Bash(mix:*),Bash(MIX_ENV=test mix:*),Bash(git:*),Bash(gh:*),Bash(curl:*),Bash(ls:*),Bash(mkdir:*),Bash(wc:*),Bash(diff:*)"
+            --disallowedTools "Bash(gh pr merge:*),Bash(gh pr ready:*),Bash(gh repo:*),Bash(gh workflow:*),Bash(git push origin main:*),Bash(git push origin HEAD:main:*),Bash(git push --force:*),Bash(git push -f:*)"
