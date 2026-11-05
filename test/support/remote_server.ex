@@ -27,8 +27,17 @@ defmodule PlaywrightEx.RemoteServer do
   defstruct [:_process, :_browserType, :_browser, :_wsEndpoint]
 
   def _start(browser_type, remote_server_options \\ %{}) do
-    # `browserType._playwright._defaultLaunchOptions`: the tests launch with the defaults.
-    launch_options = %{handleSIGINT: true, handleSIGTERM: true, handleSIGHUP: true}
+    browser_options =
+      PlaywrightEx.Runtime.Api.call(nil, browser_type, fn ->
+        PlaywrightEx.Runtime.Heap.get(PlaywrightEx.Runtime.Heap.get(browser_type, :_playwright), :_defaultLaunchOptions)
+      end) || %{}
+
+    # JSON.stringify drops the `undefined` ones.
+    launch_options =
+      browser_options
+      |> Map.take([:args, :headless, :channel, :executablePath])
+      |> Map.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.merge(%{handleSIGINT: true, handleSIGTERM: true, handleSIGHUP: true})
 
     launch_options =
       if remote_server_options[:sharedBrowser], do: Map.put(launch_options, :_sharedBrowser, true), else: launch_options

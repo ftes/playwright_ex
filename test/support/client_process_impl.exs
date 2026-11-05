@@ -27,7 +27,13 @@ browser_type =
     "webkit" -> Playwright.webkit(playwright)
   end
 
-launch_options = [handle_sigint: true, handle_sigterm: true, handle_sighup: true]
+# remoteServer.ts: the parent's `_defaultLaunchOptions` (`headless`; no args, channel or executablePath here).
+launch_options = [
+  headless: PlaywrightEx.TestBrowser.headless(),
+  handle_sigint: true,
+  handle_sigterm: true,
+  handle_sighup: true
+]
 
 if options["startStopAndRunHttp"] do
   browser = BrowserType.launch!(browser_type, launch_options)
