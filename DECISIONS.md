@@ -821,3 +821,18 @@ drift). Blockers for release, assigned to follow-up workstreams:
   page_history:153, coverage:244) and load-only flakes, all for Phase 1.
 - Fixed on the way: page_wait_for_url "on frame" hung because the URL was read before the
   glob-to-regex driver round trip. The macOS-only hang on the old runtime was very likely the same.
+
+## 2026-11-05: OTP-native runtime, Phase 1 done
+- Five group agents (A–E) audited the client for the new runtime: subscribe-first where JS relies
+  on same-tick ordering, `atomic` around read-modify-writes, latches for stored or shared
+  promises, `on_sync` for listeners that only update state (closer to JS, where listeners run
+  synchronously on dispatch).
+- Most failures were test ports, not the client: helpers that ported `.then` as racing Tasks
+  (page_autowaiting_basic), awaited what upstream fires and forgets (page_history:153), or
+  subscribed after the event (chromium:763, tracing:918). The client fixes closed windows in
+  `Frame.wait_for_url/wait_for_navigation/wait_for_load_state` (coverage:244), double closes,
+  double HAR exports, and stray result messages from lost races.
+- Merged in report order (D, E, C, B, A) instead of the planned A, B, D, C, E: no conflicts.
+- The Phase 0 agent planned the groups and was then retired (about 340k tokens of context); the
+  lead did the one frozen-file change (`Connection.close` in one atomic step).
+- Follow-ups for Phase 2 are in test/OTP_BACKLOG.md.

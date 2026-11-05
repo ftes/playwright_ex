@@ -1,53 +1,25 @@
-# OTP runtime backlog (Phase 0)
+# OTP runtime backlog (Phase 2)
 
-## Status
+Phase 1 fixed every Phase 0 backlog item and the CI failures on bf8975c0. Most were test ports
+that assumed the old runtime's same-tick ordering; they now subscribe first. What's left, found
+in the Phase 1 audits:
 
-The full chromium `mix test --warnings-as-errors` run (2026-11-05, final runtime) had 4085
-tests and 7 failures, in 196 s with no stall. The old runtime's run took 1257 s and had 61
-failures.
+- **Route `complete` latches** (`route_handler.ex` `_handle_impl`): one settled latch row per
+  handled route stays on the page or context until it is disposed. Freeing it needs `stop` to
+  read the invocation and arm the latch in one atomic step.
+- **`_update_interception_patterns`**: computes and sends patterns in different processes, so a
+  concurrent `route()` can send stale patterns. Needs compute-and-send in one step.
+- **Binding and locator-handler registration**: `expose_binding`, `expose_function` and
+  `add_locator_handler` write their maps after the driver's reply, as upstream does, but a
+  `bindingCall` can be dispatched before that write lands. JS has no such gap. Needs a hook that
+  runs when the reply is dispatched.
+- **Waiter rejection**: JS rejects a waiter synchronously inside `emit`; here it settles in the
+  waiter's process, so "rejected before the next emit" isn't guaranteed.
+- **Stray messages from `Promise.all`** over local asyncs (`serialize_argument_with_callbacks`)
+  when one rejects.
+- **Remote connections**: the child Conn, its forwarder and ETS table are never stopped after
+  close (from code reading); one set leaks per `connect` until the parent connection exits.
+- **Harmless**: `Request`/`Response` `_actual_headers` may issue two `raw*Headers` calls.
 
-Two of the 7 were fixed after the run: `browsercontext_basic_test.exs:88` and `:142`. A
-context created in one Task and closed from another was freed when its creator exited, before
-the closer read it. A closed context or browser now stays retained until every process that
-created or closed it has exited.
-
-A second full run after that fix had 4085 tests and 6 failures, in 192 s with no stall. All 6
-are below: the 4 hangs, plus tests that fail only under load.
-
-| Group | Failing | Flaky (load) |
-|---|---|---|
-| A | 1 | 1 |
-| B | 1 | 3 |
-| C | 0 | 0 |
-| D | 0 | 0 |
-| E | 1 | 0 |
-
-Tests that failed only under load in earlier runs, and passed in the latest one:
-- `library/page_close_test.exs:229`
-- `page/page_wait_for_url_test.exs:53`
-- `page/page_autowaiting_basic_test.exs:77`
-- `page/page_screenshot_test.exs:482`
-- `library/tracing_test.exs:918`
-
-Phase 1 should watch them.
-
-## A: lifecycle and remote
-- `library/chromium/chromium_test.exs:763` hangs awaiting the console message. Its helper assumes the old behaviour, where an API scope held dispatch, so subscribing happened in the same tick. The fix is to subscribe first (start `Worker.wait_for_event` in a `once :service_worker` listener).
-- Flaky (same tick): `library/chromium/extensions_test.exs:74` and `:143` hang in `service_worker/1` because the list read and the wait are not in one tick. The failing test differs from run to run.
-
-## B: page and frame
-- `page/page_history_test.exs:153` hangs: `page.evaluate(pushState)` never returns while the reload's request is stalled.
-- Flaky (load): `page/page_wait_for_url_test.exs:24` and `page/page_wait_for_navigation_test.exs:59` ("both domcontentloaded and load", second run). Likely the `_loadStates` check-then-subscribe race.
-- Flaky (load): `page/page_wait_for_url_test.exs:145`. It passes alone and in its file. Under load, the frame navigation can commit between the url check and the `navigated` subscription (a check-then-subscribe race).
-
-## E: artifacts
-- `library/coverage_test.exs:244` hangs in the task that collects coverage of an origin left without a page.
-
-## Cross-cutting (Phase 1 audit)
-- **Check-then-subscribe races.** JS does `if (!cond) await waitForEvent(..)` in one tick; here dispatch can run in between. See PORTING.md, Traps. Known sites:
-  - `Frame.wait_for_url` and the `_loadStates` check in `Frame.wait_for_navigation`;
-  - the tests' service-worker and console helpers.
-- **Promises awaited twice or stored in a field must be latches.** See PORTING.md.
-- **Retention.** A closed context stays readable until the processes that created or closed it have exited; reads after that raise (deviation). A long-lived process keeps about 175 rows per closed context.
-- **Process-local leak.** The process-local `last_checked` in `to_have_url` leaks one entry per call.
-- **Stray messages.** A losing local promise in a race can leave a stray message.
+Possibly load-flaky, to watch: `locator_query_test.exs:324` (webkit), `conn_test.exs:360`
+(120 s timeout once in a loaded full run), `page_screenshot_test.exs:482`.
