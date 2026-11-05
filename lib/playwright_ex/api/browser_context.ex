@@ -238,21 +238,6 @@ defmodule PlaywrightEx.BrowserContext do
     PlaywrightEx.Client.BrowserContext.debugger(browser_context)
   end
 
-  @add_cookies_cookies {:array,
-                        {:fields,
-                         %{
-                           name: nil,
-                           value: nil,
-                           url: nil,
-                           domain: nil,
-                           path: nil,
-                           expires: nil,
-                           httpOnly: nil,
-                           secure: nil,
-                           sameSite: nil,
-                           partitionKey: nil
-                         }}}
-
   @doc since: "1.8"
   @doc ~S"""
   Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies can be
@@ -289,12 +274,11 @@ defmodule PlaywrightEx.BrowserContext do
             optional(:httpOnly) => boolean(),
             optional(:secure) => boolean(),
             optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t()
+            optional(:partitionKey) => String.t(),
+            optional(atom()) => term()
           }
         ]) :: :ok | {:error, Exception.t()}
   def add_cookies(browser_context, cookies) do
-    cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies")
-
     Facade.async_void("browserContext.addCookies", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.add_cookies(browser_context, cookies)
     end)
@@ -313,12 +297,11 @@ defmodule PlaywrightEx.BrowserContext do
             optional(:httpOnly) => boolean(),
             optional(:secure) => boolean(),
             optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t()
+            optional(:partitionKey) => String.t(),
+            optional(atom()) => term()
           }
         ]) :: :ok
   def add_cookies!(browser_context, cookies) do
-    cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies")
-
     Facade.async_void!("browserContext.addCookies", browser_context, fn ->
       PlaywrightEx.Client.BrowserContext.add_cookies(browser_context, cookies)
     end)

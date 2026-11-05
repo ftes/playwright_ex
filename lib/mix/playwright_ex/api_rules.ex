@@ -17,7 +17,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
     * `removeAllListeners(type)` takes an `event`, as `on/3` does (atoms accepted).
     * A storage state (`storageState/1` results, `storageState` options and arguments) is an open
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
-      facade passes it back unchecked.
+      facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
+      protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
     * Documents the Elixir forms of `timeout`.
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
@@ -337,6 +338,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     do: %{property | "type" => %{"name" => "typeof", "templates" => [%{"name" => name}]}}
 
   defp property(%{"name" => "storageState", "type" => type} = property), do: type(%{property | "type" => open(type)})
+  defp property(%{"name" => "cookies", "type" => type} = property), do: type(%{property | "type" => open(type)})
   defp property(property), do: type(property)
 
   defp type(%{"type" => type} = property) when is_map(type), do: %{property | "type" => type_of(type)}

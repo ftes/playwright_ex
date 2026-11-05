@@ -257,8 +257,6 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
   @tag skip: "not ported: BrowserContext.storageState"
   test "save/load third party 'Partitioned;' cookies"
 
-  @tag skip:
-         "bug: BrowserContext.addCookies: rejects the protocol field `_crHasCrossSiteAncestor` (cookies() returns it)"
   test "add 'Partitioned;' cookie via API", %{
     page: page,
     context: context,

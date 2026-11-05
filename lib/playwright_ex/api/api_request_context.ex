@@ -28,21 +28,6 @@ defmodule PlaywrightEx.APIRequestContext do
   @typedoc "A `APIRequestContext` handle. Compare handles with `==`, their fields are internal."
   @type t :: %PlaywrightEx.Client.APIRequestContext{}
 
-  @add_cookies_cookies {:array,
-                        {:fields,
-                         %{
-                           name: nil,
-                           value: nil,
-                           url: nil,
-                           domain: nil,
-                           path: nil,
-                           expires: nil,
-                           httpOnly: nil,
-                           secure: nil,
-                           sameSite: nil,
-                           partitionKey: nil
-                         }}}
-
   @doc since: "1.64"
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `PlaywrightEx.BrowserContext.request/1`
@@ -79,12 +64,11 @@ defmodule PlaywrightEx.APIRequestContext do
             optional(:httpOnly) => boolean(),
             optional(:secure) => boolean(),
             optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t()
+            optional(:partitionKey) => String.t(),
+            optional(atom()) => term()
           }
         ]) :: :ok | {:error, Exception.t()}
   def add_cookies(api_request_context, cookies) do
-    cookies = Facade.arg!(cookies, @add_cookies_cookies, "apiRequestContext.addCookies")
-
     Facade.async_void("apiRequestContext.addCookies", api_request_context, fn ->
       PlaywrightEx.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
@@ -103,12 +87,11 @@ defmodule PlaywrightEx.APIRequestContext do
             optional(:httpOnly) => boolean(),
             optional(:secure) => boolean(),
             optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t()
+            optional(:partitionKey) => String.t(),
+            optional(atom()) => term()
           }
         ]) :: :ok
   def add_cookies!(api_request_context, cookies) do
-    cookies = Facade.arg!(cookies, @add_cookies_cookies, "apiRequestContext.addCookies")
-
     Facade.async_void!("apiRequestContext.addCookies", api_request_context, fn ->
       PlaywrightEx.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
