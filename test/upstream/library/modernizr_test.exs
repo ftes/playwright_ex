@@ -82,9 +82,14 @@ defmodule PlaywrightEx.Library.ModernizrTest do
 
   @tag skip:
          (cond do
-            @browser_name != "webkit" -> "upstream skip: webkit only"
-            @intel_mac -> "upstream skip: Modernizr uses WebGL which is not available on Intel macOS"
-            true -> nil
+            @intel_mac and @browser_name == "webkit" ->
+              "upstream skip: Modernizr uses WebGL which is not available on Intel macOS"
+
+            @browser_name != "webkit" ->
+              "upstream skip: webkit only"
+
+            true ->
+              nil
           end)
   test "Safari Desktop", %{browser: browser, https_server: https_server, asset: asset} do
     context = Browser.new_context!(browser, device_scale_factor: 2, ignore_https_errors: true)
@@ -101,11 +106,11 @@ defmodule PlaywrightEx.Library.ModernizrTest do
 
   @tag skip:
          (cond do
+            @intel_mac and @browser_name == "webkit" ->
+              "upstream skip: Modernizr uses WebGL which is not available on Intel macOS"
+
             @browser_name != "webkit" ->
               "upstream skip: webkit only"
-
-            @intel_mac ->
-              "upstream skip: Modernizr uses WebGL which is not available on Intel macOS"
 
             true ->
               nil
