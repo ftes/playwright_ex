@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Client.Frame do
   use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Frame
 
   alias PlaywrightEx.AbortError
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.ElementHandle
   alias PlaywrightEx.Client.Errors
@@ -467,7 +468,7 @@ defmodule PlaywrightEx.Client.Frame do
     copy =
       if copy[:path] do
         copy = Map.put(copy, :content, File.read!(copy.path))
-        Map.put(copy, :content, add_source_url_to_script(copy.content, copy.path))
+        Map.put(copy, :content, ClientHelper.add_source_url_to_script(copy.content, copy.path))
       else
         copy
       end
@@ -774,11 +775,6 @@ defmodule PlaywrightEx.Client.Frame do
       end,
       %{title: title}
     )
-  end
-
-  # clientHelper.ts addSourceUrlToScript
-  defp add_source_url_to_script(source, path) do
-    "#{source}\n//# sourceURL=#{String.replace(path, "\n", "")}"
   end
 
   def verify_load_state(name, wait_until) do
