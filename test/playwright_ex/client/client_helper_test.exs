@@ -21,6 +21,23 @@ defmodule PlaywrightEx.Client.ClientHelperTest do
            }
   end
 
+  test "json_stringify_indented: a scheme gives JS's key order" do
+    state = %{
+      origins: [%{localStorage: [%{value: "v", name: "n"}], origin: "o"}],
+      cookies: [
+        %{secure: false, name: "a", value: "b", domain: "d", path: "/", expires: -1, httpOnly: false, sameSite: "Lax"}
+      ]
+    }
+
+    json = ClientHelper.json_stringify_indented(state, 2, "BrowserContextStorageStateResult")
+    keys = Regex.scan(~r/"(\w+)":/, json, capture: :all_but_first) |> List.flatten()
+
+    assert keys ==
+             ~w(cookies name value domain path expires httpOnly secure sameSite origins origin localStorage name value)
+
+    assert ClientHelper.json_parse(json) == JSON.decode!(JSON.encode!(state))
+  end
+
   test "json_parse: null is :null, invalid JSON raises" do
     assert ClientHelper.json_parse("null") == :null
     assert ClientHelper.json_parse(~s( {"a": null, "b": [null, 1]} )) == %{"a" => :null, "b" => [:null, 1]}

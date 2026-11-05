@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Client.ClientHelper do
   `json_stringify/1`, `JSON.parse(text)` `json_parse/1`.
   """
   alias PlaywrightEx.Isomorphic.UtilityScriptSerializers
+  alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Runtime.Promise
 
   # envObjectToArray  -- not ported: inlined in BrowserType.launch
@@ -90,11 +91,27 @@ defmodule PlaywrightEx.Client.ClientHelper do
 
   # Elixir only: `JSON.stringify(value, undefined, indent)` of a protocol value (`nil` is `null`).
   # `:json.format` lays out short values on one line; only readers that parse the file see it.
+  # `scheme` (a protocol type, `"BrowserContextStorageStateResult"`) gives the keys JS's order,
+  # the validator's (decoded maps lose it); keys it does not name follow.
   @doc false
-  def json_stringify_indented(value, indent),
-    do: IO.iodata_to_binary(:json.format(value, &format_json_value/3, %{indent: indent}))
+  def json_stringify_indented(value, indent, scheme \\ nil) do
+    value = if scheme, do: _in_scheme_order(value, {:type, scheme}), else: value
+    IO.iodata_to_binary(:json.format(value, &format_json_value/3, %{indent: indent}))
+  end
+
+  defp _in_scheme_order(value, {:type, name}), do: _in_scheme_order(value, Validator.scheme(name))
+  defp _in_scheme_order(value, {:optional, scheme}), do: _in_scheme_order(value, scheme)
+  defp _in_scheme_order(value, {:array, scheme}) when is_list(value), do: Enum.map(value, &_in_scheme_order(&1, scheme))
+
+  defp _in_scheme_order(value, {:object, fields}) when is_map(value) and not is_struct(value) do
+    known = for {key, scheme} <- fields, Map.has_key?(value, key), do: {key, _in_scheme_order(value[key], scheme)}
+    {:ordered, known ++ Enum.sort(Map.to_list(Map.drop(value, Keyword.keys(fields))))}
+  end
+
+  defp _in_scheme_order(value, _scheme), do: value
 
   defp format_json_value(nil, _encode, _state), do: "null"
+  defp format_json_value({:ordered, list}, encode, state), do: :json.format_key_value_list(list, encode, state)
   defp format_json_value(value, encode, state), do: :json.format_value(value, encode, state)
 
   # Elixir only: `JSON.parse(text)`, JS `null` is `:null`. Raises `JSON.DecodeError` (a JS SyntaxError).
