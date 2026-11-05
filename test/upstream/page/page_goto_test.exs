@@ -598,19 +598,22 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Response.url(response) == server.empty_page
   end
 
-  # process.on('warning'): the client's MaxListenersExceededWarning is logged here.
+  # process.on('warning'): the client's MaxListenersExceededWarning is logged (Logger); the
+  # driver's own Node warnings (upstream: the in-process server's) go to its stderr, unchecked.
   test "should not leak listeners during navigation", %{page: page, server: server} do
     warning = capture_log(fn -> for _ <- 1..20, do: Page.goto!(page, server.empty_page) end)
     refute warning =~ "MaxListenersExceededWarning"
   end
 
-  # process.on('warning'): the client's MaxListenersExceededWarning is logged here.
+  # process.on('warning'): the client's MaxListenersExceededWarning is logged (Logger); the
+  # driver's own Node warnings (upstream: the in-process server's) go to its stderr, unchecked.
   test "should not leak listeners during bad navigation", %{page: page} do
     warning = capture_log(fn -> for _ <- 1..20, do: {:error, _} = Page.goto(page, "asdf") end)
     refute warning =~ "MaxListenersExceededWarning"
   end
 
-  # process.on('warning'): the client's MaxListenersExceededWarning is logged here.
+  # process.on('warning'): the client's MaxListenersExceededWarning is logged (Logger); the
+  # driver's own Node warnings (upstream: the in-process server's) go to its stderr, unchecked.
   test "should not leak listeners during 20 waitForNavigation", %{page: page, server: server} do
     warning =
       capture_log(fn ->
