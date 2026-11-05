@@ -135,8 +135,8 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
     assert APIResponse.text!(res) =~ "Served by the proxy"
   end
 
+  @tag skip: if(System.get_env("INSIDE_DOCKER", "") != "", do: "upstream skip: connect ECONNREFUSED 127.0.0.1:<port>")
   test "should use socks proxy", %{playwright: playwright, server: server, socks_port: socks_port} do
-    # it.skip(!!process.env.INSIDE_DOCKER, 'connect ECONNREFUSED 127.0.0.1:<port>');
     request =
       APIRequest.new_context!(Playwright.request(playwright), proxy: %{server: "socks5://localhost:#{socks_port}"})
 

@@ -364,9 +364,12 @@ defmodule PlaywrightEx.Library.ProxyTest do
     close_proxy_server.()
   end
 
+  @tag skip:
+         if(match?({:unix, :darwin}, :os.type()) and match?({22, _, _}, :os.version()),
+           do: "upstream skip: Times out on Mac 13"
+         )
   test "should use http proxy for websocket requests",
        %{browser_name: browser_name, browser_type: browser_type, server: server, proxy_server: proxy_server} do
-    # it.skip(isMac && macVersion === 13, 'Times out on Mac 13');
     TestProxy.forward_to(proxy_server, server.port, allow_connect_requests: true)
     browser = BrowserType.launch!(browser_type, proxy: %{server: "localhost:#{proxy_server.port}"})
 

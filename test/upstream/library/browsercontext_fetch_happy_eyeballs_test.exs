@@ -24,8 +24,8 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchHappyEyeballsTest do
   test "https post should work with ignoreHTTPSErrors option"
 
   @tag :request
+  @tag skip: if(System.get_env("INSIDE_DOCKER", "") != "", do: "upstream skip: docker does not support IPv6 by default")
   test "should work with ip6 and port as the host", %{request: request, server: server} do
-    # it.skip(!!process.env.INSIDE_DOCKER, 'docker does not support IPv6 by default');
     response = APIRequestContext.get!(request, "http://[::1]:#{server.port}/simple.json")
     assert APIResponse.url(response) == "http://[::1]:#{server.port}/simple.json"
     Expect.to_be_ok!(response)
