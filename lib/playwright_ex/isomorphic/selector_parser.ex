@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
               try do
                 unescaped = JSON.decode!("[" <> part.body <> "]")
 
-                if !is_list(unescaped) or length(unescaped) < 1 or length(unescaped) > 2 or
+                if !is_list(unescaped) or unescaped == [] or length(unescaped) > 2 or
                      !is_binary(hd(unescaped)),
                    do: raise(InvalidSelectorError, "Malformed selector: #{part.name}=" <> part.body)
 

@@ -1,9 +1,10 @@
 defmodule PlaywrightEx.Isomorphic.RegExp do
-  @moduledoc false
-  # Elixir only: the JS `RegExp` values the selector and locator parsers build (`new RegExp(source,
-  # flags)`), as `source` and `flags` normalized like JS. They are rendered, never matched, so JS
-  # syntax that PCRE lacks (`[^]`, the `d`/`g`/`v`/`y` flags) survives. Not a `Regex`: the source
-  # is not validated beyond the flags.
+  @moduledoc """
+  Elixir only: the JS `RegExp` values the selector and locator parsers build (`new RegExp(source,
+  flags)`), as `source` and `flags` normalized like JS. They are rendered, never matched, so JS
+  syntax that PCRE lacks (`[^]`, the `d`/`g`/`v`/`y` flags) survives. Not a `Regex`: the source
+  is not validated beyond the flags.
+  """
 
   defstruct source: "(?:)", flags: ""
 
