@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     this = struct(module.__handle__(), guid: guid, loop: connection.loop, heap: connection.heap)
     _reset_heap_state(this)
     # super();  -- EventEmitter state is heap fields
-    EventEmitter.set_max_listeners(this, 0)
+    # this.setMaxListeners(0);  -- not ported: no listener leak warning in EventEmitter
     put(this, :_connection, connection)
     put(this, :_type, type)
     put(this, :_guid, guid)

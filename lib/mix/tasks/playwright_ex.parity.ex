@@ -66,6 +66,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   codegen = "inspector codegen/recorder UI (Node-only tooling)"
   launch_server = "BrowserType.launchServer (out of scope, see PLAN.md)"
   injected = "injected script internals (driver side, not the client)"
+  node_events = "Tests the EventEmitter class of the Node.js client."
 
   @unmirrored_specs %{
     "tests/library/browser-server.spec.ts" => launch_server,
@@ -73,6 +74,25 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "tests/library/component-parser.spec.ts" => "isomorphic component parser (test-runner tooling)",
     "tests/library/css-parser.spec.ts" => "isomorphic CSS selector parser (driver side)",
     "tests/library/debug-controller.spec.ts" => "debug controller (driver-side tooling protocol)",
+    "tests/library/events/add-listeners.spec.ts" => node_events,
+    "tests/library/events/check-listener-leaks.spec.ts" => node_events,
+    "tests/library/events/events-list.spec.ts" => node_events,
+    "tests/library/events/listener-count.spec.ts" => node_events,
+    "tests/library/events/listeners-side-effects.spec.ts" => node_events,
+    "tests/library/events/listeners.spec.ts" => node_events,
+    "tests/library/events/max-listeners.spec.ts" => node_events,
+    "tests/library/events/method-names.spec.ts" => node_events,
+    "tests/library/events/modify-in-emit.spec.ts" => node_events,
+    "tests/library/events/num-args.spec.ts" => node_events,
+    "tests/library/events/once.spec.ts" => node_events,
+    "tests/library/events/prepend.spec.ts" => node_events,
+    "tests/library/events/remove-all-listeners-wait.spec.ts" => node_events,
+    "tests/library/events/remove-all-listeners.spec.ts" => node_events,
+    "tests/library/events/remove-listeners.spec.ts" => node_events,
+    "tests/library/events/set-max-listeners-side-effects.spec.ts" => node_events,
+    "tests/library/events/special-event-names.spec.ts" => node_events,
+    "tests/library/events/subclass.spec.ts" => node_events,
+    "tests/library/events/symbols.spec.ts" => node_events,
     "tests/library/inspector/cli-codegen-1.spec.ts" => codegen,
     "tests/library/inspector/cli-codegen-2.spec.ts" => codegen,
     "tests/library/inspector/cli-codegen-3.spec.ts" => codegen,

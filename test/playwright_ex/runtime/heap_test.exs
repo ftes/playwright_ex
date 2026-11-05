@@ -48,9 +48,8 @@ defmodule PlaywrightEx.Runtime.HeapTest do
     end
   end
 
-  test "EventEmitter.event_names/1 is in insertion order", %{obj: obj} do
-    emitter = EventLoop.with_baton(obj.loop, &PlaywrightEx.Client.EventEmitter.new/0)
-    for type <- ["z", "a", "m"], do: PlaywrightEx.Client.EventEmitter.on(emitter, type, fn _ -> nil end)
-    assert PlaywrightEx.Client.EventEmitter.event_names(emitter) == ["z", "a", "m"]
+  test "map_keys/2 is in insertion order", %{obj: obj} do
+    for key <- ["z", "a", "m"], do: Heap.map_set(obj, :_events, key, [])
+    assert Heap.map_keys(obj, :_events) == ["z", "a", "m"]
   end
 end
