@@ -318,16 +318,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # Python's arguments, with the JS-only options of the JS member (`signal`).
   defp js_options(args, js_args) do
     js_props = for %{"name" => "options"} = arg <- js_args, p <- arg["type"]["properties"], do: p
-
-    for arg <- args do
-      if arg["name"] == "options" do
-        names = for p <- arg["type"]["properties"], do: p["name"]
-        update_in(arg, ["type", "properties"], &(&1 ++ Enum.reject(js_props, fn p -> p["name"] in names end)))
-      else
-        arg
-      end
-    end
+    Enum.map(args, &add_missing_options(&1, js_props))
   end
+
+  defp add_missing_options(%{"name" => "options"} = arg, props) do
+    names = for p <- arg["type"]["properties"], do: p["name"]
+    update_in(arg, ["type", "properties"], &(&1 ++ Enum.reject(props, fn p -> p["name"] in names end)))
+  end
+
+  defp add_missing_options(arg, _props), do: arg
 
   # `expect_popup(page, action, options)`: starts the JS member (or `waitForEvent(event)`), runs `action`.
   defp callback(expect, class, members) do
