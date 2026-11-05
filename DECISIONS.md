@@ -485,3 +485,14 @@ drift). Blockers for release, assigned to follow-up workstreams:
   spec subscribes up front. Revisit: batch outgoing messages per baton hold in the runtime,
   which would also fix the connect-to-worker console race.
 - `Task.await_many` in specs uses `:infinity` (upstream `Promise.all` has no timeout).
+
+## 2026-11-05: toMatchSnapshot via the driver's comparator (workstream U2)
+
+- **`PlaywrightEx.UpstreamSnapshot.to_match_snapshot/3`** (test support, port of the runner's
+  `toMatchSnapshot.ts`): resolves `<spec>-snapshots/<name>-<browser>.png` in the upstream cache
+  and compares with the driver's own `utils.getComparator` (bundled node, `coreBundle.js`),
+  same route as upstream's `tests/config/comparator.ts`. Also `compare_pngs/3`,
+  `decode_image/2` (webp/png). All 63 toMatchSnapshot tests ported; Linux goldens match on
+  macOS at upstream's tolerance.
+- **oopif "should take screenshot"** skipped on darwin (`env:`): blank OOPIF screenshot, also
+  with upstream's JS client.
