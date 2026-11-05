@@ -608,12 +608,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   defp slow_scope(lines, index) do
     indent = indentation(Enum.at(lines, index))
 
-    head_index =
-      Enum.find(
-        (index - 1)..0//-1,
-        &(String.trim(Enum.at(lines, &1)) != "" and indentation(Enum.at(lines, &1)) < indent and
-            not String.match?(Enum.at(lines, &1), ~r/^\s*[})\]]/))
-      )
+    head_index = Enum.find((index - 1)..0//-1, &head?(Enum.at(lines, &1), indent))
 
     head = head_index && Enum.at(lines, head_index)
 
@@ -627,6 +622,9 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       true -> :file
     end
   end
+
+  defp head?(line, indent),
+    do: String.trim(line) != "" and indentation(line) < indent and not String.match?(line, ~r/^\s*[})\]]/)
 
   defp indentation(line), do: byte_size(line) - byte_size(String.trim_leading(line))
 
