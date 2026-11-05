@@ -29,10 +29,9 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   # Chromium on Linux intermittently never sends the service worker main script's
   # Network.responseReceived (its request and loadingFinished arrive), so that response never
   # resolves. Upstream's own client hits it too (~3% of runs in a loop); upstream CI retries.
-  @linux match?({:unix, :linux}, :os.type())
   # A test's `skip: nil` would override the `@moduletag skip:`.
   @sw_script_response_skip @chromium_only ||
-                             if(@linux,
+                             if(match?({:unix, :linux}, :os.type()),
                                do: "ci: Linux chromium intermittently drops the service worker script response"
                              )
 

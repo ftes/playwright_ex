@@ -546,3 +546,19 @@ drift). Blockers for release, assigned to follow-up workstreams:
   This fixed the tracing spec (workaround dropped). Revisit: is the timer needed at all?
 - connect-to-worker and ServiceWorker-start console specs: server-side races (the driver resumes
   the worker before replying), not ordering bugs. Tagged `flaky:` on CI only.
+
+## 2026-11-05: Final fidelity audit, fixes (workstream Z)
+- A read-only audit compared sampled method bodies across 10 client files with upstream. It
+  found no real bugs, only edge cases, now fixed: empty `postDataJSON`, unawaited promises
+  returned by predicates and route handlers, `String(1.0)` in fulfill headers and env.
+  Every remaining `not ported:` group in lib and test was judged justified.
+- Keyword lists stand in for `URLSearchParams` and `FormData` (repeated names allowed), as
+  `form`/`multipart` already did. 3 specs un-skipped. Revisit if a struct is wanted.
+- Storage-state files are 2-space indented like `JSON.stringify(_, _, 2)`, written by a small
+  `ClientHelper.json_stringify_indented/2`: `:json.format` folds single-member objects onto
+  one line. Key order follows Elixir maps.
+- `globToRegex` still runs through the driver (PLAN). A local port (~80 lines, pure) would
+  free sync members like `page.frame(url:)` from taking the baton; candidate follow-up.
+- Linux firefox CI: webgl screenshot differs from the golden, and the GC steady-state loop's
+  `newPage` stops answering. Both tagged `ci:`. Revisit: run the firefox job under `xvfb-run`
+  like upstream.

@@ -346,11 +346,17 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     end
 
     @tag skip:
-           if(
-             @browser_name == "webkit" and match?({:unix, :darwin}, :os.type()) and
-               String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64"),
-             do: "upstream skip: WebGL is not available on Intel macOS - https://bugs.webkit.org/show_bug.cgi?id=278277"
-           )
+           (cond do
+              @browser_name == "webkit" and match?({:unix, :darwin}, :os.type()) and
+                  String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64") ->
+                "upstream skip: WebGL is not available on Intel macOS - https://bugs.webkit.org/show_bug.cgi?id=278277"
+
+              @browser_name == "firefox" and System.get_env("CI") ->
+                "ci: headless Linux firefox renders WebGL differently from the golden (upstream CI runs it under xvfb)"
+
+              true ->
+                nil
+            end)
     test "should work for webgl", %{page: page, server: server} do
       # it.skip(isElectron)  -- not Electron
       Page.set_viewport_size!(page, %{width: 640, height: 480})
