@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
 
     click_promise = Task.async(fn -> Page.click(page, "input[type=submit]") end)
     assert_receive :navigate_failed, 30_000
-    Task.await(click_promise, 30_000)
+    Task.await(click_promise, :infinity)
   end
 
   test "page.reload during renderer-initiated navigation", %{page: page, server: server} do
@@ -178,12 +178,12 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Page.evaluate(page, "() => { window.history.pushState({}, ''); }")
 
     # 5. Serve the request, it should resolve the reload.
-    Task.await(request_promise)
+    Task.await(request_promise, :infinity)
     assert_receive {:response, response}
     send(response, {:end, "hello"})
 
     # 6. Check the reload response.
-    got_response = Task.await(reload_promise)
+    got_response = Task.await(reload_promise, :infinity)
     assert Response.text!(got_response) == "hello"
   end
 

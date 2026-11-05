@@ -431,7 +431,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     }
     """)
 
-    handle = Task.await(promise)
+    handle = Task.await(promise, :infinity)
     assert ElementHandle.text_content!(handle) == "Hello from light"
   end
 

@@ -11,11 +11,21 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
 
   # Deviations:
   #   * `childProcess({ command })` (tests/config/commonFixtures.ts) is a port running the command,
-  #     its output collected by `wait_for_output/2`; `process.execPath` is `node` on the PATH. The
-  #     node preloads `exit_on_stdin_eof.js` (`PlaywrightEx.RemoteServer.ChildProcess`), so that it
-  #     exits when the test BEAM dies; `--inspect-brk` pauses it before the preload, until connected.
+  #     its output collected by `wait_for_output/2`; `process.execPath` (the node running the
+  #     client) is the driver's node. Node 22 (Ubuntu's) fails `worker.evaluate` with "Resulting
+  #     promise was garbage collected" in most runs, with the JS client too. The node preloads
+  #     `exit_on_stdin_eof.js` (`PlaywrightEx.RemoteServer.ChildProcess`), so that it exits when
+  #     the test BEAM dies; `--inspect-brk` pauses it before the preload, until connected.
   #   * `(browserType as any)._connectToWorker(endpoint)` and `worker._disconnect()` are internal
   #     (not in the facade): client calls in an API scope.
+
+  defp exec_path do
+    case PlaywrightEx.Driver.executable() do
+      {node, [_cli]} -> node
+      # PLAYWRIGHT_EX_EXECUTABLE: a driver binary, not node.
+      {_driver, []} -> System.find_executable("node")
+    end
+  end
 
   defp child_process(command) do
     {executable, args, env} = ChildProcess.exit_on_stdin_eof({hd(command), tl(command)})
@@ -55,7 +65,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   test "should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([
-        System.find_executable("node"),
+        exec_path(),
         "--inspect-brk=0",
         "-e",
         ~s[console.log("hello from node"); setTimeout(() => {}, 1e9)]
@@ -77,7 +87,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   end
 
   test "should receive close when node process exits", %{browser_type: browser_type} do
-    child = child_process([System.find_executable("node"), "--inspect-brk=0", "-e", "setTimeout(() => {}, 1e9)"])
+    child = child_process([exec_path(), "--inspect-brk=0", "-e", "setTimeout(() => {}, 1e9)"])
     output = wait_for_output(child, "Debugger listening on ws://")
     [_, endpoint] = Regex.run(~r/Debugger listening on (ws:\/\/\S+)/, output)
     {worker, nil} = connect_to_worker(browser_type, endpoint)

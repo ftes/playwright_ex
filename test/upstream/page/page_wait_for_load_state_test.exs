@@ -33,11 +33,11 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     stall_route(server, "/one-style.css")
     request = TestServer.wait_for_request(server, "/one-style.css")
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
-    Task.await(request)
+    Task.await(request, :infinity)
     wait_promise = Task.async(fn -> Page.wait_for_load_state!(page) end)
     assert_receive {:response, response}
     send(response, {:end, 404, "Not found"})
-    Task.await(wait_promise)
+    Task.await(wait_promise, :infinity)
   end
 
   test "should respect timeout", %{page: page, server: server} do
@@ -165,14 +165,14 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
         Page.evaluate!(page, "url => window['popup'] = window.open(url)", server.prefix <> "/one-style.html")
       end)
 
-    Task.await(css_request)
+    Task.await(css_request, :infinity)
     assert_receive {:response, css_response}
     load_sate_promise = Task.async(fn -> Page.wait_for_load_state!(popup) end)
     # Round trips!
     for _ <- 1..5, do: Page.evaluate!(page, "window")
     refute resolved?(load_sate_promise)
     send(css_response, {:end, 200, ""})
-    Task.await(load_sate_promise)
+    Task.await(load_sate_promise, :infinity)
     assert Page.url(popup) == server.prefix <> "/one-style.html"
   end
 
@@ -189,7 +189,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     Page.evaluate!(page, "1")
     refute resolved?(load_promise)
     Route.continue!(request)
-    Task.await(load_promise)
+    Task.await(load_promise, :infinity)
   end
 
   test "should work with javascript: iframe", %{page: page, server: server} do

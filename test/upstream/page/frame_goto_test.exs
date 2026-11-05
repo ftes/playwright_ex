@@ -31,10 +31,10 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
     css_request = TestServer.wait_for_request(server, "/one-style.css")
     frame = Enum.at(Page.frames(page), 1)
     navigation_promise = Task.async(fn -> Frame.goto(frame, server.prefix <> "/one-style.html") end)
-    Task.await(css_request)
+    Task.await(css_request, :infinity)
 
     Page.eval_on_selector!(page, "iframe", "frame => frame.remove()")
-    {:error, error} = Task.await(navigation_promise)
+    {:error, error} = Task.await(navigation_promise, :infinity)
     message = Exception.message(error)
 
     if browser_name == "chromium" do
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
         request = TestServer.wait_for_request(server, "/#{i}.html")
         frame = Enum.at(frames, i)
         navigation = Task.async(fn -> Frame.goto!(frame, server.prefix <> "/#{i}.html") end)
-        Task.await(request)
+        Task.await(request, :infinity)
         navigation
       end
 
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
 
     for i <- [1, 2, 0] do
       send(server_responses[i], {:end, Enum.at(server_response_texts, i)})
-      response = Task.await(Enum.at(navigations, i))
+      response = Task.await(Enum.at(navigations, i), :infinity)
       assert Response.frame(response) == Enum.at(frames, i)
       assert Response.text!(response) == Enum.at(server_response_texts, i)
     end

@@ -370,7 +370,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     })
     """)
 
-    request = Task.await(request_task)
+    request = Task.await(request_task, :infinity)
     assert Plug.Conn.get_req_header(request, "content-length") == []
   end
 

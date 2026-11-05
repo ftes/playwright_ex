@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
     assert Page.evaluate!(page, "() => navigator.userAgent") == "foobar"
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    assert header(Task.await(request), "user-agent") == "foobar"
+    assert header(Task.await(request, :infinity), "user-agent") == "foobar"
   end
 
   test "should support bypassCSP option", %{server: server, launch_persistent: launch_persistent} do

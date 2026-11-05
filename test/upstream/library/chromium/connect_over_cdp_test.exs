@@ -312,7 +312,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
       timeout: 100
     )
 
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     assert header(request, "user-agent") == "Playwright"
     assert header(request, "foo") == "bar"
 
@@ -323,7 +323,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
       timeout: 100
     )
 
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     assert header(request, "user-agent") == "Playwright"
     assert header(request, "foo") == "bar"
   end
@@ -331,13 +331,13 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   test "should keep URL parameters when adding json/version", %{browser_type: browser_type, server: server} do
     request = TestServer.wait_for_request(server, "/browser/json/version/?foo=bar")
     BrowserType.connect_over_cdp(browser_type, "http://localhost:#{server.port}/browser/?foo=bar")
-    Task.await(request)
+    Task.await(request, :infinity)
   end
 
   test "should append /json/version with a slash if there isnt one", %{browser_type: browser_type, server: server} do
     request = TestServer.wait_for_request(server, "/browser/json/version/?foo=bar")
     BrowserType.connect_over_cdp(browser_type, "http://localhost:#{server.port}/browser?foo=bar")
-    Task.await(request)
+    Task.await(request, :infinity)
   end
 
   test "should send default User-Agent header with connect request", %{browser_type: browser_type, server: server} do
@@ -348,7 +348,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
       timeout: 100
     )
 
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     # `getUserAgent()` of the driver (the test can't compute it): `Playwright/<version> (<os>) ...`.
     assert header(request, "user-agent") =~ ~r"^Playwright/#{PlaywrightEx.Driver.version()} \(.+\) "
     assert header(request, "foo") == "bar"

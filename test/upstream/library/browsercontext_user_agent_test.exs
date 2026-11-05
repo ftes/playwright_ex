@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    assert header(Task.await(request), "user-agent") == "foobar"
+    assert header(Task.await(request, :infinity), "user-agent") == "foobar"
     BrowserContext.close!(context)
   end
 
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
     attach_frame(page, "frame1", server.empty_page)
-    assert header(Task.await(request), "user-agent") == "foobar"
+    assert header(Task.await(request, :infinity), "user-agent") == "foobar"
     BrowserContext.close!(context)
   end
 
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    assert header(Task.await(request), "user-agent") == "foobar"
+    assert header(Task.await(request, :infinity), "user-agent") == "foobar"
     BrowserContext.close!(context)
   end
 
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     Page.set_content!(page, ~s(<a id="download" download="name" href="/download">Download</a>))
     server_request = TestServer.wait_for_request(server, "/download")
     Task.start(fn -> Locator.click(Page.locator(page, "#download")) end)
-    req = Task.await(server_request)
+    req = Task.await(server_request, :infinity)
     assert header(req, "user-agent") == "MyCustomUA"
   end
 
@@ -97,7 +97,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     assert header(request, "sec-ch-ua") =~ ~s("Chromium")
     assert header(request, "sec-ch-ua-mobile") == "?0"
     assert header(request, "sec-ch-ua-platform")
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     assert header(request, "sec-ch-ua") =~ ~s("Chromium")
     assert header(request, "sec-ch-ua-mobile") == "?1"
     assert header(request, "sec-ch-ua-platform") == ~s("Android")

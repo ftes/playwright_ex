@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     %{page: page} = launch_persistent.(extra_http_headers: %{"foo" => "bar"})
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    assert header(Task.await(request), "foo") == "bar"
+    assert header(Task.await(request, :infinity), "foo") == "bar"
   end
 
   test "should accept userDataDir", %{create_user_data_dir: create_user_data_dir, browser_type: browser_type} do

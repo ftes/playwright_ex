@@ -467,8 +467,8 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     first = Task.async(fn -> Page.goto(page, server.prefix <> "/empty.html") end)
     assert_receive :another, 5_000
     another = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
-    {:error, error} = Task.await(first)
-    Task.await(another)
+    {:error, error} = Task.await(first, :infinity)
+    Task.await(another, :infinity)
 
     case browser_name do
       "chromium" ->
@@ -663,9 +663,9 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     request1 = TestServer.wait_for_request(server, "/grid.html")
     request2 = TestServer.wait_for_request(server, "/digits/1.png")
     Page.goto!(page, server.prefix <> "/grid.html", referer: "http://google.com/")
-    assert header(Task.await(request1), "referer") == "http://google.com/"
+    assert header(Task.await(request1, :infinity), "referer") == "http://google.com/"
     # Make sure subresources do not inherit referer.
-    assert header(Task.await(request2), "referer") == server.prefix <> "/grid.html"
+    assert header(Task.await(request2, :infinity), "referer") == server.prefix <> "/grid.html"
     assert Page.url(page) == server.prefix <> "/grid.html"
   end
 
@@ -673,9 +673,9 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     request1 = TestServer.wait_for_request(server, "/grid.html")
     request2 = TestServer.wait_for_request(server, "/digits/1.png")
     Page.goto!(page, server.prefix <> "/grid.html", referer: "https://microsoft.com/xbox/")
-    assert header(Task.await(request1), "referer") == "https://microsoft.com/xbox/"
+    assert header(Task.await(request1, :infinity), "referer") == "https://microsoft.com/xbox/"
     # Make sure subresources do not inherit referer.
-    assert header(Task.await(request2), "referer") == server.prefix <> "/grid.html"
+    assert header(Task.await(request2, :infinity), "referer") == server.prefix <> "/grid.html"
     assert Page.url(page) == server.prefix <> "/grid.html"
   end
 
@@ -694,9 +694,9 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     request1 = TestServer.wait_for_request(server, "/grid.html")
     request2 = TestServer.wait_for_request(server, "/digits/1.png")
     Page.goto!(page, server.prefix <> "/grid.html", referer: "http://microsoft.com/")
-    assert header(Task.await(request1), "referer") == "http://microsoft.com/"
+    assert header(Task.await(request1, :infinity), "referer") == "http://microsoft.com/"
     # Make sure subresources do not inherit referer.
-    assert header(Task.await(request2), "referer") == nil
+    assert header(Task.await(request2, :infinity), "referer") == nil
     assert Page.url(page) == server.prefix <> "/grid.html"
   end
 
@@ -704,9 +704,9 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     TestServer.set_route(server, "/one-style.html", &hang/1)
     request = TestServer.wait_for_request(server, "/one-style.html")
     failed = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
-    Task.await(request)
+    Task.await(request, :infinity)
     Page.goto!(page, server.prefix <> "/empty.html")
-    {:error, error} = Task.await(failed)
+    {:error, error} = Task.await(failed, :infinity)
     assert Exception.message(error) != ""
   end
 
@@ -795,7 +795,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
     module_request = TestServer.wait_for_request(server, "/module.js")
     navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/window-stop.html") end)
-    Task.await(module_request)
+    Task.await(module_request, :infinity)
     done? = fn -> match?({:ok, {:ok, _}}, Task.yield(navigation, 0)) end
     refute done?.()
     # give it some time to erroneously resolve
@@ -813,7 +813,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     Process.sleep(500)
     assert Task.yield(navigation, 0) == nil
     Page.goto!(page, server.empty_page)
-    assert Response.status(Task.await(navigation)) == 200
+    assert Response.status(Task.await(navigation, :infinity)) == 200
   end
 
   test "should return when navigation is committed if commit is specified", %{page: page, server: server} do
@@ -860,7 +860,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     done = Task.async(fn -> Page.goto!(page, server.empty_page, wait_until: :load) end)
     # Make sure that iframe is gone.
     PlaywrightEx.Promise.await!(frame_detached)
-    Task.await(done)
+    Task.await(done, :infinity)
     assert Page.query_selector!(page, "iframe") == nil
   end
 

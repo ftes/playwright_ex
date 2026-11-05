@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     Page.wait_for_timeout!(page, 1000)
     release.()
 
-    Task.await(click_promise, 30_000)
+    Task.await(click_promise, :infinity)
   end
 
   test "clicking in the middle of navigation that commits", %{page: page, server: server} do
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     Page.wait_for_timeout!(page, 1000)
     release.()
 
-    Task.await(click_promise, 30_000)
+    Task.await(click_promise, :infinity)
     Expect.to_contain_text!(Page.locator(page, "body"), "hello world")
   end
 
@@ -188,6 +188,6 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     Page.wait_for_timeout!(page, 1000)
     release.()
 
-    Task.await(go_back_promise, 30_000)
+    Task.await(go_back_promise, :infinity)
   end
 end

@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
 
     promise = Task.async(fn -> Page.wait_for_selector!(page, "div:visible", state: :attached) end)
     Page.eval_on_selector!(page, "#target2", "div => div.textContent = 'Now visible'")
-    element = Task.await(promise)
+    element = Task.await(promise, :infinity)
     assert JSHandle.evaluate!(element, "e => e.id") == "target2"
 
     assert Page.eval_on_selector!(page, "div:visible", "div => div.id") == "target2"
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
 
     promise = Task.async(fn -> Page.wait_for_selector!(page, "div >> visible=true", state: :attached) end)
     Page.eval_on_selector!(page, "#target2", "div => div.textContent = 'Now visible'")
-    element = Task.await(promise)
+    element = Task.await(promise, :infinity)
     assert JSHandle.evaluate!(element, "e => e.id") == "target2"
 
     assert Page.eval_on_selector!(page, "div >> visible=true", "div => div.id") == "target2"
@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     }
     """)
 
-    element = Task.await(promise)
+    element = Task.await(promise, :infinity)
     assert JSHandle.evaluate!(element, "e => e.id") == "target3"
   end
 
@@ -150,7 +150,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     }
     """)
 
-    element = Task.await(promise)
+    element = Task.await(promise, :infinity)
     assert JSHandle.evaluate!(element, "e => e.id") == "target3"
 
     Page.set_content!(page, """

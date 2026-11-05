@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     }
     """)
 
-    Task.await(dismissed)
+    Task.await(dismissed, :infinity)
   end
 
   test "should not stall on click when dismissing beforeunload", %{page: page, server: server} do

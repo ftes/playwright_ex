@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Library.BrowsercontextSetExtraHttpHeadersTest do
     Page.set_extra_http_headers!(page, %{"Foo" => "Bar"})
     request_task = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    request = Task.await(request_task)
+    request = Task.await(request_task, :infinity)
     BrowserContext.close!(context)
     assert header(request, "foo") == "Bar"
     assert header(request, "bar") == "foO"

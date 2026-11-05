@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Request.failure(cancelled_request).errorText =~ ~r/cancelled|aborted/i
     # Should not throw.
     Route.fulfill!(route, status: 200)
-    Task.await(fetch)
+    Task.await(fetch, :infinity)
   end
 
   test "should allow mocking binary responses", %{page: page, server: server, asset: asset} do

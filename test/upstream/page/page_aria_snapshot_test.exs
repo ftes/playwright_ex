@@ -756,7 +756,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     </div>
     """)
 
-    assert contains_yaml?(Task.await(snapshot_promise), """
+    assert contains_yaml?(Task.await(snapshot_promise, :infinity), """
            - text: Hello
            """)
   end

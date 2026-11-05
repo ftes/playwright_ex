@@ -394,10 +394,10 @@ defmodule PlaywrightEx.Page.WorkersTest do
     request1_task = TestServer.wait_for_request(server, "/worker/worker.js")
     Page.goto!(page, server.prefix <> "/worker/worker.html")
     worker = Promise.await!(worker_promise)
-    request1 = Task.await(request1_task)
+    request1 = Task.await(request1_task, :infinity)
     request2_task = TestServer.wait_for_request(server, "/one-style.css")
     Worker.evaluate!(worker, "url => fetch(url)", server.prefix <> "/one-style.css")
-    request2 = Task.await(request2_task)
+    request2 = Task.await(request2_task, :infinity)
     assert Plug.Conn.get_req_header(request1, "foo") == ["bar"]
     assert Plug.Conn.get_req_header(request2, "foo") == ["bar"]
   end

@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     response_promise = Page.wait_for_event(page, :response)
     server_request = TestServer.wait_for_request(server, "/get")
     Page.evaluate!(page, "() => fetch('./get', { method: 'GET' })")
-    Task.await(server_request)
+    Task.await(server_request, :infinity)
     page_response = PlaywrightEx.Promise.await!(response_promise)
 
     assert_receive {:server_response, server_response}, 5000
@@ -166,7 +166,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     server_write(server_response, "wor")
     # Finish response.
     server_write(server_response, "ld!", :end)
-    assert Task.await(response_text) == "hello world!"
+    assert Task.await(response_text, :infinity) == "hello world!"
   end
 
   test "should return json", %{page: page, server: server} do
@@ -504,7 +504,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     server_request = TestServer.wait_for_request(server, "/get")
     Page.evaluate!(page, "() => { void fetch('./get', { method: 'GET' }); }")
     request = PlaywrightEx.Promise.await!(request_promise)
-    Task.await(server_request)
+    Task.await(server_request, :infinity)
     assert_receive {:server_response, server_response}, 5000
 
     # Response hasn't been received yet

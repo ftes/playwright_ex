@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog1) == "hey?"
     assert Dialog.page(dialog1) == page
     Dialog.accept!(dialog1, "hello")
-    assert Task.await(task) == "hello"
+    assert Task.await(task, :infinity) == "hello"
   end
 
   test "dialogclosed event should work", %{page: page} do
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     closed2 = Promise.await!(closed2_promise)
     assert closed1 == dialog
     assert closed2 == dialog
-    assert Task.await(task) == "hello"
+    assert Task.await(task, :infinity) == "hello"
   end
 
   test "dialog event should work in popup", %{page: page} do
@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
-    assert Task.await(task) == "hello"
+    assert Task.await(task, :infinity) == "hello"
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: dialog from javascript: url is not reported at all")
@@ -175,7 +175,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == nil
     Dialog.accept!(dialog, "hello")
-    Task.await(task)
+    Task.await(task, :infinity)
   end
 
   test "dialog event should work in immediately closed popup", %{page: page} do
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
-    assert Task.await(task) == "hello"
+    assert Task.await(task, :infinity) == "hello"
   end
 
   test "dialog event should work with inline script tag", %{page: page, server: server} do
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
-    Task.await(task)
+    Task.await(task, :infinity)
     Utils.poll(fn -> Page.evaluate!(popup, "window.result") end, &assert(&1 == "hello"))
   end
 

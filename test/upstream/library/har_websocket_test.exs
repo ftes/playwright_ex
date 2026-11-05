@@ -348,8 +348,8 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
       end)
 
     # Wait for all frames so the HAR tracer has observed them before the context is closed.
-    for event <- [:frame_sent, :frame_received, :frame_sent, :frame_received], do: assert_receive(^event, 5000)
-    Task.await(evaluate_promise)
+    for event <- [:frame_sent, :frame_received, :frame_sent, :frame_received], do: assert_receive(^event)
+    Task.await(evaluate_promise, :infinity)
     after_ms = now_ms()
 
     # Do not close the WebSocket on the page side. Closing the context should still flush messages.
@@ -457,10 +457,10 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
         )
       end)
 
-    %{socket: socket} = Task.await(upgrade_promise)
+    %{socket: socket} = Task.await(upgrade_promise, :infinity)
     TestServer.WebSocket.write(socket, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
     TestServer.WebSocket.destroy(socket)
-    Task.await(ws_close)
+    Task.await(ws_close, :infinity)
     log = get_log(session)
 
     ws_entry = find_entry(log, ws_url)

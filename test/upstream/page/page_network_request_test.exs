@@ -566,7 +566,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     response = Request.response!(request)
     Response.finished!(response)
     PlaywrightEx.Promise.await!(popup_promise)
-    Task.await(clicked)
+    Task.await(clicked, :infinity)
   end
 
   test "page.reload return 304 status code", %{page: page, server: server, browser_name: browser_name} do

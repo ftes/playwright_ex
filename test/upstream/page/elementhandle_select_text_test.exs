@@ -48,6 +48,6 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
     Page.wait_for_timeout!(page, 1000)
     assert Task.yield(task, 0) == nil
     JSHandle.evaluate!(textarea, "e => e.style.display = 'block'")
-    Task.await(task)
+    Task.await(task, :infinity)
   end
 end

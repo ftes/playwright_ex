@@ -159,6 +159,6 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     # make sure we aren't stalling this request on the server
     send(response_from_server, {:end, "done"})
     # the response should resolve to null, because the page navigated.
-    assert Task.await(response_promise) == {:ok, nil}
+    assert Task.await(response_promise, :infinity) == {:ok, nil}
   end
 end

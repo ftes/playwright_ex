@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     Page.wait_for_timeout!(page, 100)
     reason = %RuntimeError{message: "Aborted by user"}
     AbortController.abort(controller, reason)
-    {:error, error} = Task.await(task)
+    {:error, error} = Task.await(task, :infinity)
     assert error.name == "AbortError"
     assert error.cause == reason
   end

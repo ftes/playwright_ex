@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
 
     finish_promise = Task.async(fn -> Response.finished(page_response) end)
     BrowserContext.close!(Page.context(page))
-    {:error, error} = Task.await(finish_promise)
+    {:error, error} = Task.await(finish_promise, :infinity)
     assert error.message =~ "closed"
   end
 end

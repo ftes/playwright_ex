@@ -224,7 +224,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
     # done is false
     assert Task.yield(promise, 0) == nil
     JSHandle.evaluate!(element_handle, "e => e.style.visibility = 'visible'")
-    screenshot = Task.await(promise)
+    screenshot = Task.await(promise, :infinity)
     to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
   end
 

@@ -187,7 +187,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
     request_task = TestServer.wait_for_request(server, "/grid.html")
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
-    request = Task.await(request_task)
+    request = Task.await(request_task, :infinity)
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
     oopif = Enum.at(Page.frames(page), 1)

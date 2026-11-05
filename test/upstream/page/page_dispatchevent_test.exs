@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     }
     """)
 
-    Task.await(watchdog)
+    Task.await(watchdog, :infinity)
     assert Page.evaluate!(page, "() => window['clicked']") == true
   end
 

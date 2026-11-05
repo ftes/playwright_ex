@@ -111,8 +111,12 @@ defmodule PlaywrightEx.AbortControllerTest do
         end
       end)
 
-    Task.await(Task.async(fn -> AbortController.abort(controller, %RuntimeError{message: "from a task"}) end))
-    assert %RuntimeError{message: "from a task"} = Task.await(waiter)
+    Task.await(
+      Task.async(fn -> AbortController.abort(controller, %RuntimeError{message: "from a task"}) end),
+      :infinity
+    )
+
+    assert %RuntimeError{message: "from a task"} = Task.await(waiter, :infinity)
   end
 
   test "listeners run once, in order; removed and late listeners do not run", %{loop: loop} do

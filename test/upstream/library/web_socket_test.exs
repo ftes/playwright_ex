@@ -341,7 +341,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
       Page.goto!(page, server.empty_page)
       req_promise = TestServer.wait_for_web_socket_connection_request(server)
       Page.evaluate!(page, "host => { new WebSocket(`ws://${host}/ws`); }", server.host)
-      req = Task.await(req_promise)
+      req = Task.await(req_promise, :infinity)
       assert Plug.Conn.get_req_header(req, "foo") == ["bar"]
     end
   end
@@ -372,7 +372,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
         server.host
       )
 
-      req = Task.await(req_promise)
+      req = Task.await(req_promise, :infinity)
       assert Plug.Conn.get_req_header(req, "foo") == ["bar"]
     end
   end

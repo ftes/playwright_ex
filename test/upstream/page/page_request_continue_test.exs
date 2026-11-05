@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Page.goto!(page, server.empty_page)
     request = TestServer.wait_for_request(server, "/sleep.zzz")
     Page.evaluate!(page, "() => fetch('/sleep.zzz')")
-    assert req_header(Task.await(request), "foo") == "bar"
+    assert req_header(Task.await(request, :infinity), "foo") == "bar"
   end
 
   test "should not allow to override unsafe HTTP headers", %{page: page, server: server} do
@@ -97,10 +97,10 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       headers: Map.merge(Request.headers(Route.request(route)), %{"host" => "bar", "trailer" => "baz"})
     )
 
-    server_request = Task.await(server_request_promise)
+    server_request = Task.await(server_request_promise, :infinity)
     assert req_header(server_request, "trailer") == nil
     assert req_header(server_request, "host") == url_host(server.empty_page)
-    Task.await(goto)
+    Task.await(goto, :infinity)
   end
 
   test "should delete header with undefined value", %{page: page, server: server} do
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
         server.prefix <> "/something"
       )
 
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     assert text == "done"
     assert_received {:intercepted_request, intercepted_request}
     assert Request.headers(intercepted_request)["foo"] == nil
@@ -151,8 +151,8 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Page.route!(page, "**/*", &Route.continue(&1, method: "POST"))
     request = TestServer.wait_for_request(server, "/sleep.zzz")
     Page.evaluate!(page, "() => fetch('/sleep.zzz')")
-    assert Task.await(request).method == "POST"
-    assert Task.await(s_request).method == "POST"
+    assert Task.await(request, :infinity).method == "POST"
+    assert Task.await(s_request, :infinity).method == "POST"
   end
 
   test "should override request url", %{page: page, server: server} do
@@ -162,7 +162,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Request.url(Response.request(response)) == server.prefix <> "/global-var.html"
     assert Response.url(response) == server.prefix <> "/global-var.html"
     assert Page.evaluate!(page, "() => window['globalVar']") == 123
-    assert Task.await(server_request).method == "GET"
+    assert Task.await(server_request, :infinity).method == "GET"
   end
 
   test "should not allow changing protocol when overriding url", %{page: page, server: server} do
@@ -208,21 +208,21 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Request.failure(cancelled_request).errorText =~ ~r/cancelled|aborted/i
     # Should not throw.
     Route.continue!(route)
-    Task.await(fetch)
+    Task.await(fetch, :infinity)
   end
 
   test "should override method along with url", %{page: page, server: server} do
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.route!(page, "**/foo", &Route.continue(&1, url: server.empty_page, method: "POST"))
     Page.goto!(page, server.prefix <> "/foo")
-    assert Task.await(request).method == "POST"
+    assert Task.await(request, :infinity).method == "POST"
   end
 
   test "should amend method on main request", %{page: page, server: server} do
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.route!(page, "**/*", &Route.continue(&1, method: "POST"))
     Page.goto!(page, server.empty_page)
-    assert Task.await(request).method == "POST"
+    assert Task.await(request, :infinity).method == "POST"
   end
 
   describe "post data" do
@@ -231,7 +231,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       Page.route!(page, "**/*", &Route.continue(&1, post_data: "doggo"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      assert Task.await(server_request).assigns.post_body == "doggo"
+      assert Task.await(server_request, :infinity).assigns.post_body == "doggo"
     end
 
     test "should compute content-length from post data", %{page: page, server: server} do
@@ -245,7 +245,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'PATCH', body: 'birdy' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert server_request.assigns.post_body == data
       assert req_header(server_request, "content-length") == to_string(String.length(data))
       assert req_header(server_request, "content-type") == "application/json"
@@ -256,7 +256,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       Page.route!(page, "**/*", &Route.continue(&1, method: "POST", post_data: "doggo"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'GET' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert server_request.method == "POST"
       assert server_request.assigns.post_body == "doggo"
     end
@@ -266,7 +266,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       Page.route!(page, "**/*", &Route.continue(&1, post_data: "пушкин"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert server_request.method == "POST"
       assert server_request.assigns.post_body == "пушкин"
     end
@@ -276,7 +276,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       Page.route!(page, "**/*", &Route.continue(&1, post_data: "doggo-is-longer-than-birdy"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert server_request.method == "POST"
       assert server_request.assigns.post_body == "doggo-is-longer-than-birdy"
     end
@@ -287,7 +287,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       Page.route!(page, "**/*", &Route.continue(&1, post_data: {:binary, arr}))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert server_request.method == "POST"
       buffer = server_request.assigns.post_body
       assert byte_size(buffer) == byte_size(arr)
@@ -313,7 +313,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
         "#{server.prefix}/title.html"
       )
 
-      request = Task.await(request)
+      request = Task.await(request, :infinity)
       assert req_header(request, "content-type") == "application/json"
       assert request.assigns.post_body == ~s({"b":2})
     end
@@ -393,7 +393,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
         server.cross_process_prefix <> "/something"
       )
 
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     assert text == "done"
     assert_received {:intercepted_origin, intercepted_origin}
     assert intercepted_origin == server.prefix
@@ -410,7 +410,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request = TestServer.wait_for_request(server, "/one-style.css")
     Page.goto!(page, server.prefix <> "/preload.html")
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     assert req_header(server_request, "custom") == "value"
     Page.wait_for_function!(page, "() => window.preloadedStyles")
     assert_received :intercepted
@@ -435,7 +435,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request_promise = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.prefix <> "/set-cookie-redirect")
-    server_request = Task.await(server_request_promise)
+    server_request = Task.await(server_request_promise, :infinity)
     assert req_header(server_request, "cookie") == "foo=bar"
     assert Page.evaluate!(page, "() => document.cookie") == "foo=bar"
   end
@@ -455,7 +455,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.prefix <> "/redirect")
-    assert req_header(Task.await(server_request), "cookie") == "foo=bar"
+    assert req_header(Task.await(server_request, :infinity), "cookie") == "foo=bar"
   end
 
   test "continue should not override cookie", %{page: page, server: server} do
@@ -473,7 +473,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     # Original cookie from the browser's cookie jar should be sent.
     assert req_header(server_request, "cookie") == "foo=bar"
     assert req_header(server_request, "custom") == "value"
@@ -499,7 +499,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
     # The fresh cookie from the browser cookie store should be sent, not the stale captured value.
-    assert req_header(Task.await(server_request), "cookie") == "foo=v2"
+    assert req_header(Task.await(server_request, :infinity), "cookie") == "foo=v2"
   end
 
   test "continue with headers should send fresh cookie after a redirect", %{page: page, server: server} do
@@ -525,7 +525,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.prefix <> "/redirect")
     # The redirected request should carry the cookie updated by the redirect, not the stale captured value.
-    assert req_header(Task.await(server_request), "cookie") == "foo=v2"
+    assert req_header(Task.await(server_request, :infinity), "cookie") == "foo=v2"
   end
 
   test "redirect after continue should be able to delete cookie", %{page: page, server: server} do
@@ -551,7 +551,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Page.goto!(page, server.prefix <> "/redirect")
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    refute req_header(Task.await(server_request), "cookie")
+    refute req_header(Task.await(server_request, :infinity), "cookie")
   end
 
   test "continue should propagate headers to redirects", %{page: page, server: server} do
@@ -563,7 +563,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.prefix <> "/redirect")
-    assert req_header(Task.await(server_request), "custom") == "value"
+    assert req_header(Task.await(server_request, :infinity), "custom") == "value"
   end
 
   test "continue should drop content-length on redirects", %{page: page, server: server} do
@@ -576,7 +576,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.evaluate!(page, "url => fetch(url, { method: 'POST', body: 'foo' })", server.prefix <> "/redirect")
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     assert server_request.method == "GET"
     assert req_header(server_request, "content-length") == nil
     assert req_header(server_request, "content-type") == nil
@@ -593,7 +593,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
 
     server_request = TestServer.wait_for_request(server, "/empty.html")
     response = Page.goto!(page, server.prefix <> "/redirect")
-    assert req_header(Task.await(server_request), "custom") == "value"
+    assert req_header(Task.await(server_request, :infinity), "custom") == "value"
     assert Request.url(Response.request(response)) == server.empty_page
     assert Request.headers(Response.request(response))["custom"] == "value"
     assert Request.all_headers!(Response.request(response))["custom"] == "value"
@@ -631,7 +631,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       )
 
     assert text == "done"
-    refute req_header(Task.await(server_request), "foo")
+    refute req_header(Task.await(server_request, :infinity), "foo")
   end
 
   test "propagate headers same origin redirect", %{page: page, server: server} do
@@ -764,7 +764,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Page.route!(page, "**/*", &Route.continue/1)
     url = Task.async(fn -> Page.wait_for_url!(page, "#{server.prefix}/final") end)
     Locator.click!(Page.locator(page, "input"))
-    Task.await(url)
+    Task.await(url, :infinity)
     Expect.to_have_text!(Page.locator(page, "p"), "ok")
   end
 
@@ -821,7 +821,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       }
       """)
 
-    req = Task.await(req_promise)
+    req = Task.await(req_promise, :infinity)
     assert status == 200
     req
   end

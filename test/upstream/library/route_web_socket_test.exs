@@ -71,13 +71,13 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
-        %{do_upgrade: do_upgrade} = Task.await(upgrade_promise)
+        %{do_upgrade: do_upgrade} = Task.await(upgrade_promise, :infinity)
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
         assert Page.evaluate!(page, "() => window.log") == []
         do_upgrade.()
         Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
         assert Page.evaluate!(page, "() => window.log") == ["open"]
-        ws = Task.await(ws_promise)
+        ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, "hello")
 
         Utils.poll(
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       test "should work with binaryType=blob", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         setup_ws(page, server, "blob")
-        ws = Task.await(ws_promise)
+        ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, {:binary, "hi"})
 
         Utils.poll(
@@ -120,7 +120,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       test "should work with binaryType=arraybuffer", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         setup_ws(page, server, "arraybuffer")
-        ws = Task.await(ws_promise)
+        ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, {:binary, "hi"})
 
         Utils.poll(
@@ -140,7 +140,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       test "should work when connection errors out", %{page: page, server: server} do
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
-        %{socket: socket} = Task.await(upgrade_promise)
+        %{socket: socket} = Task.await(upgrade_promise, :infinity)
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
         assert Page.evaluate!(page, "() => window.log") == []
         TestServer.WebSocket.destroy(socket)
@@ -166,7 +166,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       test "should work with error after successful open", %{page: page, server: server} do
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
-        %{socket: socket, do_upgrade: do_upgrade} = Task.await(upgrade_promise)
+        %{socket: socket, do_upgrade: do_upgrade} = Task.await(upgrade_promise, :infinity)
         do_upgrade.()
         Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
         assert Page.evaluate!(page, "() => window.log") == ["open"]
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       test "should work with relative WebSocket URL", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         setup_ws(page, server, "blob", nil, true)
-        ws = Task.await(ws_promise)
+        ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, {:binary, "hi"})
 
         Utils.poll(
@@ -290,7 +290,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
 
     upgrade_promise = TestServer.wait_for_upgrade(server)
     setup_ws(page, server, "blob")
-    %{socket: socket} = Task.await(upgrade_promise)
+    %{socket: socket} = Task.await(upgrade_promise, :infinity)
     TestServer.WebSocket.write(socket, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
     TestServer.WebSocket.destroy(socket)
 
@@ -381,7 +381,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       %{host: server.host}
     )
 
-    ws = Task.await(ws_promise)
+    ws = Task.await(ws_promise, :infinity)
     TestServer.WebSocket.on(ws, :message, fn -> TestServer.WebSocket.send(ws, "response") end)
 
     Page.evaluate!(page, "() => window.ws1.send('request')")
@@ -695,7 +695,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive {:route, route}, 5000
     close = Task.async(fn -> Page.close!(page) end)
     assert WebSocketRoute.send(route, "hello") == :ok
-    Task.await(close)
+    Task.await(close, :infinity)
   end
 
   test "should not throw with empty handler", %{page: page, server: server} do

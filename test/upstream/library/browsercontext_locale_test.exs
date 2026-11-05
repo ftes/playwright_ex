@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     assert String.slice(header(request, "accept-language"), 0, 5) == "fr-CH"
     BrowserContext.close!(context)
   end
@@ -211,7 +211,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
       server.empty_page
     )
 
-    req = Task.await(req_promise)
+    req = Task.await(req_promise, :infinity)
     assert header(req, "accept-language") == "de"
 
     req_promise = TestServer.wait_for_request(server, "/empty.html")
@@ -230,7 +230,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
       server.empty_page
     )
 
-    req = Task.await(req_promise)
+    req = Task.await(req_promise, :infinity)
     assert header(req, "accept-language") =~ "en-GB"
     BrowserContext.close!(context)
   end
@@ -243,7 +243,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     Page.goto!(page, server.empty_page)
     req_promise = TestServer.wait_for_web_socket_connection_request(server)
     Page.evaluate!(page, "port => { new WebSocket(`ws://localhost:${port}/ws`); }", server.port)
-    req = Task.await(req_promise)
+    req = Task.await(req_promise, :infinity)
     assert header(req, "accept-language") =~ "en-GB"
     BrowserContext.close!(context)
   end
@@ -267,7 +267,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
       server.port
     )
 
-    req = Task.await(req_promise)
+    req = Task.await(req_promise, :infinity)
     assert header(req, "accept-language") =~ "en-GB"
     BrowserContext.close!(context)
   end

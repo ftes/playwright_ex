@@ -319,7 +319,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == ""
 
     Page.eval_on_selector!(page, "input", "i => i.disabled = false")
-    Task.await(task)
+    Task.await(task, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
@@ -333,7 +333,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == ""
 
     Page.eval_on_selector!(page, "textarea", "i => i.readOnly = false")
-    Task.await(task)
+    Task.await(task, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
@@ -347,7 +347,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == ""
 
     Page.eval_on_selector!(page, "input", "i => i.style.display = 'inline'")
-    Task.await(task)
+    Task.await(task, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 

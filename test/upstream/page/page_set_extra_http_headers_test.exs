@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Page.PageSetExtraHttpHeadersTest do
     Page.set_extra_http_headers!(page, %{"foo" => "bar"})
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    request = Task.await(request)
+    request = Task.await(request, :infinity)
     assert header(request, "foo") == "bar"
     assert header(request, "baz") == nil
   end
@@ -29,14 +29,14 @@ defmodule PlaywrightEx.Page.PageSetExtraHttpHeadersTest do
     Page.set_extra_http_headers!(page, %{"foo" => "bar"})
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.prefix <> "/foo.html")
-    assert header(Task.await(request), "foo") == "bar"
+    assert header(Task.await(request, :infinity), "foo") == "bar"
   end
 
   test "should work with extra headers from browser context", %{page: page, server: server} do
     BrowserContext.set_extra_http_headers!(Page.context(page), %{"foo" => "bar"})
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    assert header(Task.await(request), "foo") == "bar"
+    assert header(Task.await(request, :infinity), "foo") == "bar"
   end
 
   test "should throw for non-string header values", %{page: page} do

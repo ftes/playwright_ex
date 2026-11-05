@@ -152,7 +152,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
 
     server_request = TestServer.wait_for_request(server, "/title.html")
     Page.evaluate!(page, "url => fetch(url, { headers: { foo: 'bar' } })", server.prefix <> "/title.html")
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     assert Plug.Conn.get_req_header(server_request, "foo") == []
   end
 
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
 
     server_req = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    server_req = Task.await(server_req)
+    server_req = Task.await(server_req, :infinity)
 
     assert_received {:cookie_value_in_route, cookie_value_in_route}
     if browser_name != "webkit", do: assert(cookie_value_in_route == "original=value")
@@ -265,7 +265,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Process.sleep(500)
     assert Task.yield(status_promise, 0) == nil
     Route.continue!(route)
-    assert Task.await(status_promise) == 200
+    assert Task.await(status_promise, :infinity) == 200
   end
 
   test "should pause intercepted fetch request until continue", %{page: page, server: server} do
@@ -288,7 +288,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Process.sleep(500)
     assert Task.yield(status_promise, 0) == nil
     Route.continue!(route)
-    assert Task.await(status_promise) == 200
+    assert Task.await(status_promise, :infinity) == 200
   end
 
   test "should work with custom referer headers", %{
@@ -375,7 +375,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Page.route!(page, "**/*", &Route.continue/1)
     request = TestServer.wait_for_request(server, "/grid.html")
     Page.goto!(page, server.prefix <> "/grid.html")
-    assert Plug.Conn.get_req_header(Task.await(request), "referer") == ["http://google.com/"]
+    assert Plug.Conn.get_req_header(Task.await(request, :infinity), "referer") == ["http://google.com/"]
   end
 
   test "should fail navigation when aborting main resource", %{page: page, server: server, browser_name: browser_name} do

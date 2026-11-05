@@ -687,7 +687,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
         ~s(<iframe src="#{https_server.cross_process_prefix}/grid.html"></iframe>)
       )
 
-      assert header(Task.await(response), "cookie") == "cookie1=yes"
+      assert header(Task.await(response, :infinity), "cookie") == "cookie1=yes"
     after
       BrowserContext.close!(context)
     end

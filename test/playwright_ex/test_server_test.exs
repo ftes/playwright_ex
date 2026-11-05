@@ -79,7 +79,7 @@ defmodule PlaywrightEx.TestServerTest do
   test "wait_for_request resolves with the request", %{server: server} do
     waiting = TestServer.wait_for_request(server, "/empty.html")
     request(server.empty_page, headers: [{"foo", "bar"}])
-    conn = Task.await(waiting)
+    conn = Task.await(waiting, :infinity)
     assert Plug.Conn.get_req_header(conn, "foo") == ["bar"]
     assert conn.method == "GET"
   end

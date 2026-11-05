@@ -189,14 +189,14 @@ defmodule PlaywrightEx.Page.EvalOnSelectorTest do
     input_promise = Task.async(fn -> Page.wait_for_selector!(page, ~s([placeholder="Select date"])) end)
     assert Page.query_selector!(page, ~s([placeholder="Select date"])) == nil
     Page.set_content!(page, ~s(<div><input placeholder="Select date"></div>))
-    Task.await(input_promise)
+    Task.await(input_promise, :infinity)
   end
 
   test "should work with quotes in css attributes when missing", %{page: page} do
     input_promise = Task.async(fn -> Page.wait_for_selector!(page, ~S([placeholder="Select\"date"])) end)
     assert Page.query_selector!(page, ~S([placeholder="Select\"date"])) == nil
     Page.set_content!(page, ~s(<div><input placeholder="Select&quot;date"></div>))
-    Task.await(input_promise)
+    Task.await(input_promise, :infinity)
   end
 
   test "should return complex values", %{page: page} do

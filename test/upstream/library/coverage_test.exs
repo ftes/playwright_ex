@@ -270,7 +270,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     # the opener, so that the pull after the action does not race the navigation.
     task = Task.async(fn -> Page.wait_for_url!(popup, server.cross_process_prefix <> "/empty.html") end)
     Page.evaluate!(page, "() => window.__popup.__go()")
-    Task.await(task)
+    Task.await(task, :infinity)
     # Leave the origin of the stash without a page to relay it.
     Page.goto!(page, server.cross_process_prefix <> "/empty.html")
 

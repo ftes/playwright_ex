@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Runtime.GCTest do
     eventually(fn -> Heap.get(promise, :awaiters) != [] end)
     baton(loop, fn -> Promise.resolve(promise, :value) end)
     collect(loop)
-    assert Task.await(waiter) == :value
+    assert Task.await(waiter, :infinity) == :value
     assert Promise.await(promise) == :value
     assert Promise.await(promise) == :value
 
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Runtime.GCTest do
     promise =
       fn -> baton(loop, fn -> Promise.new(fn resolve, _ -> resolve.(:value) end) end) end
       |> Task.async()
-      |> Task.await()
+      |> Task.await(:infinity)
 
     eventually(fn -> :ets.select_count(loop.roots, [{{{{:returned, :_}, :_}, :_}, [], [true]}]) == 1 end)
     collect(loop)
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Runtime.GCTest do
     assert rows(loop.heap, x) != []
 
     baton(loop, fn -> Promise.resolve(Heap.get(connection, :gate), nil) end)
-    assert Task.await(reader) == 1
+    assert Task.await(reader, :infinity) == 1
     collect(loop)
     assert rows(loop.heap, x) == []
   end

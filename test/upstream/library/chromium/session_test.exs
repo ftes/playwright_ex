@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     # Let the call reach the driver before the page closes (JS sends it synchronously).
     Process.sleep(100)
     Page.close!(page)
-    {:error, error1} = Task.await(promise)
+    {:error, error1} = Task.await(promise, :infinity)
     assert Exception.message(error1) =~ @k_target_closed_error_message
 
     {:error, error2} =

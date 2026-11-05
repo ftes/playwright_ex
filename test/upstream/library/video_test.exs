@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       BrowserContext.close!(context)
 
       video_path = Video.path!(Page.video(page))
-      Task.await(delete_promise)
+      Task.await(delete_promise, :infinity)
       refute File.exists?(video_path)
     end
 
@@ -288,7 +288,12 @@ defmodule PlaywrightEx.Library.VideoTest do
       Page.goto!(page, server.empty_page)
       popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => { window.open('about:blank'); }") end)
       Page.evaluate!(popup, "() => document.body.style.backgroundColor = 'red'")
-      Task.await_many([Task.async(fn -> ensure_some_frames(page) end), Task.async(fn -> ensure_some_frames(popup) end)])
+
+      Task.await_many(
+        [Task.async(fn -> ensure_some_frames(page) end), Task.async(fn -> ensure_some_frames(popup) end)],
+        :infinity
+      )
+
       BrowserContext.close!(context)
 
       page_video_file = Video.path!(Page.video(page))

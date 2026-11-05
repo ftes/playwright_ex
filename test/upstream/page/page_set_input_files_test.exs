@@ -247,7 +247,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     page |> Page.query_selector!("input[name=file2]") |> ElementHandle.set_input_files!(asset.("pptr.png"))
     request = TestServer.wait_for_request(server, "/upload")
     Page.click!(page, "input[type=submit]")
-    Task.await(request)
+    Task.await(request, :infinity)
     assert_receive {:files, %{"file1" => file1, "file2" => file2}}
     assert file1.original_filename == "file-to-upload.txt"
     assert file1.mimetype == "text/plain"
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
       data_size
     )
 
-    Task.await(request)
+    Task.await(request, :infinity)
     assert_receive {:files, %{"file" => file}}
     assert file.size == data_size
   end

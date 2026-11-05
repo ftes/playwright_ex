@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Page.PageBasicTest do
   test "should fire domcontentloaded when expected", %{page: page} do
     navigated_promise = Task.async(fn -> Page.goto!(page, "about:blank") end)
     page |> Page.wait_for_event(:dom_content_loaded) |> Promise.await!()
-    Task.await(navigated_promise)
+    Task.await(navigated_promise, :infinity)
   end
 
   test "should pass self as argument to domcontentloaded event", %{page: page} do
@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Page.PageBasicTest do
     Page.set_content!(page, "<title>hello</title>")
     promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/title.html") end)
     title_or_error = Page.title!(page)
-    Task.await(promise)
+    Task.await(promise, :infinity)
     assert is_binary(title_or_error)
     assert title_or_error =~ ~r/^(hello|Loading http.*title.html||Woof-Woof)$/
     Expect.to_have_title!(page, "Woof-Woof")

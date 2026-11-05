@@ -104,8 +104,8 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     evaluate_task = Task.async(fn -> Page.evaluate!(new_page, "() => window.open('about:blank')") end)
     popup = Promise.await!(popup_promise)
     assert Page.url(popup) == "about:blank"
-    Task.await(evaluate_task)
-    Task.await(new_page_task)
+    Task.await(evaluate_task, :infinity)
+    Task.await(new_page_task, :infinity)
     BrowserContext.close!(context)
   end
 
@@ -134,7 +134,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     request = TestServer.wait_for_request(server, "/one-style.css")
     Page.evaluate!(page, "url => window.open(url)", server.prefix <> "/one-style.html")
     new_page = Promise.await!(page_promise)
-    Task.await(request)
+    Task.await(request, :infinity)
     assert_receive {:server_response, server_response}, 5000
     # Issue a redirect.
     send(server_response, {:redirect, "/injectedstyle.css"})

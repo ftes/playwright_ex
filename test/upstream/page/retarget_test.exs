@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     give_it_a_chance_to_resolve(page)
     assert Task.yield(task, 0) == nil
     JSHandle.evaluate!(span, "span => span.parentElement.disabled = true")
-    Task.await(task)
+    Task.await(task, :infinity)
   end
 
   test "should wait for enclosing button with a disabled fieldset", %{page: page} do
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     give_it_a_chance_to_resolve(page)
     assert Task.yield(task, 0) == nil
     JSHandle.evaluate!(span, "span => span.parentElement.parentElement.disabled = false")
-    Task.await(task)
+    Task.await(task, :infinity)
   end
 
   test "should wait for enclosing enabled button", %{page: page} do
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     give_it_a_chance_to_resolve(page)
     assert Task.yield(task, 0) == nil
     JSHandle.evaluate!(span, "span => span.parentElement.disabled = false")
-    Task.await(task)
+    Task.await(task, :infinity)
   end
 
   test "should check the box outside shadow dom label", %{page: page} do

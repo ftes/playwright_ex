@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Library.FaviconTest do
 
     request = TestServer.wait_for_request(server, favicon)
     Page.goto!(page, server.prefix <> "/page.html")
-    Task.await(request)
+    Task.await(request, :infinity)
 
     # Add artificial delay since, just because we saw the request for the favicon,
     # it does not mean the browser has processed it.

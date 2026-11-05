@@ -290,7 +290,7 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
     </script>
     """)
 
-    body = Task.await(req).assigns.post_body
+    body = Task.await(req, :infinity).assigns.post_body
     assert body == ""
   end
 

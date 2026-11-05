@@ -398,7 +398,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
           timeout: 100
         )
 
-        request = Task.await(request)
+        request = Task.await(request, :infinity)
         assert header(request, "user-agent") == "Playwright"
         assert header(request, "foo") == "bar"
       end
@@ -412,7 +412,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       } do
         request = TestServer.wait_for_web_socket_connection_request(server)
         connect(browser_type, "ws://localhost:#{server.port}/ws", headers: %{"foo" => "bar"}, timeout: 100)
-        request = Task.await(request)
+        request = Task.await(request, :infinity)
         # `getUserAgent()` of the driver (the test can't compute it): `Playwright/<version> (<os>) ...`.
         assert header(request, "user-agent") =~ ~r"^Playwright/#{PlaywrightEx.Driver.version()} \(.+\) "
         assert header(request, "x-playwright-browser") == browser_name
@@ -553,9 +553,9 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         page = Browser.new_page!(browser)
         request = TestServer.wait_for_request(server, "/one-style.css")
         navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
-        Task.await(request)
+        Task.await(request, :infinity)
         Browser.close!(browser)
-        {:error, error} = Task.await(navigation)
+        {:error, error} = Task.await(navigation, :infinity)
         assert Exception.message(error) =~ "has been closed"
       end
 
@@ -580,7 +580,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Page.wait_for_selector!(page, "body", state: :attached)
 
         Browser.close!(browser)
-        {:error, error} = Task.await(watchdog)
+        {:error, error} = Task.await(watchdog, :infinity)
         assert Exception.message(error) =~ "has been closed"
       end
 
@@ -882,7 +882,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         request = TestServer.wait_for_request(server, "/one-style.css")
         navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
         wait_for_navigation = Page.wait_for_navigation(page)
-        Task.await(request)
+        Task.await(request, :infinity)
 
         ref = disconnected(browser)
         # This closes the websocket.
@@ -891,7 +891,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert_receive {^ref, _}
         assert Browser.is_connected(browser) == false
 
-        {:error, nav_error} = Task.await(navigation)
+        {:error, nav_error} = Task.await(navigation, :infinity)
         assert Exception.message(nav_error) =~ @k_target_closed_error_message
         {:error, error} = Promise.await(wait_for_navigation)
         assert Exception.message(error) =~ @k_target_closed_error_message
@@ -1485,7 +1485,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       request = TestServer.wait_for_request(server, "/one-style.css")
       navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
       wait_for_navigation = Page.wait_for_navigation(page)
-      Task.await(request)
+      Task.await(request, :infinity)
 
       ref = disconnected(browser)
       # This closes the websocket server.
@@ -1493,7 +1493,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       assert_receive {^ref, _}
       assert Browser.is_connected(browser) == false
 
-      {:error, nav_error} = Task.await(navigation)
+      {:error, nav_error} = Task.await(navigation, :infinity)
       assert Exception.message(nav_error) =~ "has been closed"
       {:error, error} = Promise.await(wait_for_navigation)
       assert Exception.message(error) =~ @k_target_closed_error_message

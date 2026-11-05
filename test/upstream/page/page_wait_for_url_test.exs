@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
   test "should respect timeout", %{page: page, server: server} do
     promise = Task.async(fn -> Page.wait_for_url(page, "**/frame.html", timeout: 2500) end)
     Page.goto!(page, server.empty_page)
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert Exception.message(error) =~ "page.waitForURL: Timeout 2500ms exceeded."
   end
 
@@ -41,13 +41,13 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     # `bothFired`: the load wait is still pending once domcontentloaded has fired.
     load_promise = Task.async(fn -> Page.wait_for_url!(page, "**/one-style.html", wait_until: :load) end)
 
-    Task.await(css_request)
+    Task.await(css_request, :infinity)
     assert_receive {:response, response}
-    Task.await(dom_content_loaded_promise)
+    Task.await(dom_content_loaded_promise, :infinity)
     assert Task.yield(load_promise, 0) == nil
     send(response, :end)
-    Task.await(load_promise)
-    Task.await(navigation_promise)
+    Task.await(load_promise, :infinity)
+    Task.await(navigation_promise, :infinity)
   end
 
   test "should work with commit", %{page: page, server: server} do
@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     Page.evaluate!(page, "() => { history.pushState({}, '', '/second.html'); }")
     assert Task.yield(wait_promise, 0) == nil
     Page.evaluate!(page, "() => { history.pushState({}, '', '/third.html'); }")
-    assert Task.await(wait_promise) == :ok
+    assert Task.await(wait_promise, :infinity) == :ok
   end
 
   test "should work on frame", %{page: page, server: server} do

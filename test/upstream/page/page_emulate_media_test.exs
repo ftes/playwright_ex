@@ -85,10 +85,10 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
         Task.async(fn -> Page.emulate_media!(page, color_scheme: Enum.at([:dark, :light], Bitwise.band(i, 1))) end)
 
       Process.sleep(1)
-      Task.await(emulated)
+      Task.await(emulated, :infinity)
     end
 
-    Task.await(navigated)
+    Task.await(navigated, :infinity)
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
   end
 

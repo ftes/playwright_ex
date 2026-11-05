@@ -74,13 +74,13 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     load_promise = Page.wait_for_navigation(page, wait_until: :load)
     both_fired = then_resolved(load_promise)
 
-    Task.await(css_request)
+    Task.await(css_request, :infinity)
     assert_receive {:response, response}
     Promise.await!(dom_content_loaded_promise)
     refute resolved?(both_fired)
     send(response, :end)
     Promise.await!(load_promise)
-    Task.await(navigation_promise)
+    Task.await(navigation_promise, :infinity)
   end
 
   test "should work with commit", %{page: page, server: server} do
@@ -177,7 +177,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert_receive {:attached, frame}, 5000
     assert_receive {:navigated, ^frame}, 5000
     Frame.evaluate!(frame, "() => window.stop()")
-    assert {:ok, _} = Task.await(done)
+    assert {:ok, _} = Task.await(done, :infinity)
   end
 
   test "should work with url match", %{page: page, server: server} do
@@ -238,7 +238,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Response.url(response) == url
     assert Page.url(page) == url
     assert Page.evaluate!(page, "document.location.href") == url
-    Task.await(goto_promise)
+    Task.await(goto_promise, :infinity)
   end
 
   test "should work on frame", %{page: page, server: server} do
@@ -265,7 +265,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     promise = Frame.wait_for_navigation(frame)
     Page.eval_on_selector!(page, "iframe", "frame => { frame.contentWindow.location.href = '/one-style.html'; }")
     # Make sure policy checks pass and navigation actually begins before removing the frame to avoid other errors
-    Task.await(css_request)
+    Task.await(css_request, :infinity)
     Page.eval_on_selector!(page, "iframe", "frame => window.builtins.setTimeout(() => frame.remove(), 0)")
     {:error, error} = Promise.await(promise)
     assert Exception.message(error) =~ ~s(waiting for navigation until "load")

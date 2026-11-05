@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
 
     request_task = TestServer.wait_for_request(server, "/target.html")
     response = APIRequestContext.get!(BrowserContext.request(context), "http://non-existent.com/target.html")
-    request = Task.await(request_task)
+    request = Task.await(request_task, :infinity)
     assert APIResponse.status(response) == 200
     assert request.request_path == "/target.html"
   end

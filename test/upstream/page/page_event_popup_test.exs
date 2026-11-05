@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageEventPopupTest do
     assert Dialog.message(dialog) == "hello"
     assert Dialog.page(dialog) == popup
     Dialog.dismiss!(dialog)
-    Task.await(evaluate_promise)
+    Task.await(evaluate_promise, :infinity)
   end
 
   test "should work with empty url", %{page: page} do

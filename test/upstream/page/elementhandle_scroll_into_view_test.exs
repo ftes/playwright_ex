@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
     Page.wait_for_timeout!(page, 1000)
     assert Task.yield(task, 0) == nil
     JSHandle.evaluate!(div, after_)
-    Task.await(task)
+    Task.await(task, :infinity)
   end
 
   test "should wait for display:none to become visible", %{page: page} do

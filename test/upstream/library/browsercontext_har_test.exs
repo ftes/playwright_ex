@@ -197,7 +197,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     url = Task.async(fn -> Page.wait_for_url!(page, "https://www.theverge.com/") end)
     Page.goto!(page, "https://theverge.com/")
     response = Promise.await!(navigation)
-    Task.await(url)
+    Task.await(url, :infinity)
     Expect.to_have_url!(page, "https://www.theverge.com/")
     assert Request.url(Response.request(response)) == "https://www.theverge.com/"
     assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
@@ -495,7 +495,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     req_promise = TestServer.wait_for_request(server, "/form.html")
     Locator.click!(Page.locator(page1, "button"))
     Expect.to_have_text!(Page.locator(page1, "div"), "done")
-    req = Task.await(req_promise)
+    req = Task.await(req_promise, :infinity)
     assert req.assigns.post_body =~ "---"
     BrowserContext.close!(context1)
 
@@ -674,8 +674,8 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Page.goto!(page1, server.empty_page)
     req_promise = TestServer.wait_for_request(server, "/x")
     eval_promise = Task.async(fn -> Page.evaluate!(page1, fetch_x, server.prefix <> "/x") end)
-    Task.await(req_promise)
-    req = Task.await(eval_promise)
+    Task.await(req_promise, :infinity)
+    req = Task.await(eval_promise, :infinity)
     assert req == "cancelled"
     BrowserContext.close!(context1)
 
@@ -702,6 +702,6 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert result == "timeout"
     # Not upstream: settle the pending evaluate before the test process exits.
     BrowserContext.close!(context2)
-    Task.await(eval_promise)
+    Task.await(eval_promise, :infinity)
   end
 end

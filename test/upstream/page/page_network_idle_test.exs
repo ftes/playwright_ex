@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     end
 
     await_both = fn {server_request, page_request} ->
-      Task.await(server_request)
+      Task.await(server_request, :infinity)
       Promise.await!(page_request)
     end
 
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     assert_receive {:response_b, response_b}
     send(response_b, {:end, 404, "File not found"})
 
-    response = Task.await(action_promise)
+    response = Task.await(action_promise, :infinity)
     timer_triggered = System.monotonic_time(:millisecond) - timer >= 500
     assert timer_triggered == true
     if !is_set_content, do: assert(Response.ok(response) == true)
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     Page.wait_for_timeout!(page, 600)
     refute Task.yield(promise, 0)
     Page.evaluate!(page, "() => { document.querySelector('iframe').remove(); }")
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   # issue: https://github.com/microsoft/playwright/issues/18283

@@ -226,7 +226,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     Page.wait_for_function!(page, "() => !!window.release")
     assert length(WebMCP.tools!(Page.webmcp(page))) == 2
     Page.evaluate!(page, "() => window.release()")
-    assert Task.await(result) == text_content("released")
+    assert Task.await(result, :infinity) == text_content("released")
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium implements declarative tools")

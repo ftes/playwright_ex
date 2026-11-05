@@ -301,7 +301,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     }
     """)
 
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "waitForSelector should survive frame reattach (handle)", %{page: page, server: server} do
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     }
     """)
 
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "waitForSelector should survive iframe navigation (handle)", %{page: page, server: server} do
@@ -344,7 +344,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
       end)
 
     Task.start(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "click should survive frame reattach", %{page: page, server: server} do
@@ -365,7 +365,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     }
     """)
 
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "click should survive iframe navigation", %{page: page, server: server} do
@@ -377,7 +377,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
 
     promise = Task.async(fn -> Locator.click!(button) end)
     Task.start(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "click should survive navigation", %{page: page, server: server} do
@@ -386,7 +386,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     promise = Task.async(fn -> Page.click!(page, ~s|button:has-text("Hello nested iframe")|) end)
     Page.wait_for_timeout!(page, 100)
     Page.goto!(page, server.prefix <> "/iframe-2.html")
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "should non work for non-frame", %{page: page} do

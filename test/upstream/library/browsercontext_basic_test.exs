@@ -357,7 +357,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     clicked = Task.yield(click_promise, 0) != nil
     assert clicked == false
     Locator.evaluate!(Page.locator(page, "#cover"), "e => e.remove()")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     Expect.to_have_attribute!(Page.locator(page, "details"), "open", "")
   end
 

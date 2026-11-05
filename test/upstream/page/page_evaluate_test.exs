@@ -531,7 +531,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
       """)
     end)
 
-    error = Task.await(error_promise)
+    error = Task.await(error_promise, :infinity)
     assert message(error) =~ "navigation"
   end
 
@@ -800,7 +800,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     frame = Enum.at(Page.frames(page), 1)
     promise = Task.async(fn -> Frame.evaluate(frame, "() => new Promise(() => {})") end)
     detach_frame(page, "frame1")
-    error = Task.await(promise)
+    error = Task.await(promise, :infinity)
     assert {:error, _} = error
     assert message(error) =~ ~r/frame.evaluate: (Frame was detached|Execution context was destroyed)/
   end

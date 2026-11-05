@@ -237,7 +237,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     give_it_a_chance_to_resolve(page)
     assert Task.yield(select_promise, 0) == nil
     Page.eval_on_selector!(page, "select", @add_scarlet)
-    items = Task.await(select_promise)
+    items = Task.await(select_promise, :infinity)
     assert items == ["scarlet"]
   end
 
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     give_it_a_chance_to_resolve(page)
     assert Task.yield(select_promise, 0) == nil
     Page.eval_on_selector!(page, "select", @add_scarlet)
-    items = Task.await(select_promise)
+    items = Task.await(select_promise, :infinity)
     assert items == ["scarlet"]
   end
 
@@ -259,7 +259,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     give_it_a_chance_to_resolve(page)
     assert Task.yield(select_promise, 0) == nil
     Page.eval_on_selector!(page, "select", @add_scarlet)
-    items = Task.await(select_promise)
+    items = Task.await(select_promise, :infinity)
     assert items == ["green", "scarlet"]
   end
 
@@ -326,7 +326,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise)
+    Task.await(select_promise, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "two"
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
@@ -356,7 +356,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise)
+    Task.await(select_promise, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "two"
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
@@ -388,7 +388,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise)
+    Task.await(select_promise, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "two"
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
@@ -425,7 +425,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise)
+    Task.await(select_promise, :infinity)
     Expect.to_have_value!(Page.locator(page, "select"), "two")
     assert Page.evaluate!(page, "() => window['result']") == "two"
   end

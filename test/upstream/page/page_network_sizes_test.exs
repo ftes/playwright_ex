@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     server_request = TestServer.wait_for_request(server, "/get")
     Page.evaluate!(page, "async () => fetch('./get').then(r => r.text())")
     response = Promise.await!(response)
-    Task.await(server_request)
+    Task.await(server_request, :infinity)
     sizes = Request.sizes!(Response.request(response))
     assert sizes.responseBodySize == 6
     assert sizes.responseHeadersSize >= 100

@@ -246,7 +246,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Was not clicked"
     refute done?(clicked)
     Page.eval_on_selector!(page, "button", "b => b.style.display = 'block'")
-    Task.await(clicked)
+    Task.await(clicked, :infinity)
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
@@ -258,7 +258,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Was not clicked"
     refute done?(clicked)
     Page.eval_on_selector!(page, "button", "b => b.style.visibility = 'visible'")
-    Task.await(clicked)
+    Task.await(clicked, :infinity)
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
@@ -269,7 +269,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     give_it_a_chance_to_click(page)
     refute done?(clicked)
     Page.eval_on_selector!(page, "button", "b => b.parentElement.style.display = 'block'")
-    Task.await(clicked)
+    Task.await(clicked, :infinity)
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
@@ -617,7 +617,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     refute done?(click_promise)
 
     Page.eval_on_selector!(page, ".flyover", "flyOver => flyOver.style.left = '200px'")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
@@ -632,7 +632,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     refute done?(click_promise)
 
     Page.eval_on_selector!(page, ".flyover", "flyOver => flyOver.style.left = '200px'")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
 
     # Should not actually click.
     assert Page.evaluate!(page, "() => window['result']") == "Was not clicked"
@@ -698,7 +698,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('button').removeAttribute('disabled')")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -709,7 +709,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('input').removeAttribute('disabled')")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -729,7 +729,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('select').removeAttribute('disabled')")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -750,7 +750,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('button').style.removeProperty('pointer-events')")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -765,7 +765,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     for _ <- 1..5, do: assert(Page.evaluate!(page, "window.__CLICKED") == nil)
     # remove `pointer-events: none` css from button.
     Page.evaluate!(page, "() => document.querySelector('label').style.removeProperty('pointer-events')")
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -813,7 +813,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     handle = Page.query_selector!(page, "button")
     promise = Task.async(fn -> ElementHandle.click(handle) end)
     Page.evaluate!(page, "stopButton(true)")
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert Page.evaluate!(page, "window.clicked") == nil
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
@@ -833,7 +833,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     refute done?(promise)
     assert Page.evaluate!(page, "window.clicked") == nil
     Page.evaluate!(page, "stopButton(false)")
-    Task.await(promise)
+    Task.await(promise, :infinity)
     assert Page.evaluate!(page, "clicked") == true
   end
 
@@ -864,7 +864,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     handle = Page.query_selector!(page, "button")
     promise = Task.async(fn -> ElementHandle.click!(handle) end)
     JSHandle.evaluate!(handle, "button => button.className = 'animated'")
-    Task.await(promise)
+    Task.await(promise, :infinity)
     assert Page.evaluate!(page, "clicked") == true
   end
 
@@ -873,7 +873,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     handle = Page.query_selector!(page, "button")
     promise = Task.async(fn -> ElementHandle.click(handle, force: true) end)
     JSHandle.evaluate!(handle, "button => button.className = 'animated'")
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert Page.evaluate!(page, "window.clicked") == nil
     assert Exception.message(error) =~ "Element is outside of the viewport"
   end
@@ -1336,7 +1336,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
     reason = %RuntimeError{message: "foo bar"}
     AbortController.abort(controller, reason)
-    {:error, error} = Task.await(task)
+    {:error, error} = Task.await(task, :infinity)
     assert error.message =~ "locator.click: foo bar"
     assert error.message =~ ~r/Call log:[\s\S]*operation was aborted: foo bar/
     assert error.name == "AbortError"

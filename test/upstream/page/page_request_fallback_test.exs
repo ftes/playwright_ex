@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
     Page.goto!(page, server.empty_page)
     server_request = TestServer.wait_for_request(server, "/sleep.zzz")
     Page.evaluate!(page, "() => fetch('/sleep.zzz')")
-    request = Task.await(server_request)
+    request = Task.await(server_request, :infinity)
     values = received() ++ [Plug.Conn.get_req_header(request, "foo") |> List.first()]
     assert values == ["bar", "bar", "bar"]
   end
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
         server.prefix <> "/something"
       )
 
-    server_request = Task.await(server_request)
+    server_request = Task.await(server_request, :infinity)
     assert text == "done"
     assert_received {:intercepted_request, intercepted_request}
     assert Request.headers(intercepted_request)["foo"] == nil
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
 
     assert_received {:method, "POST"}
     assert Request.method(request) == "POST"
-    assert Task.await(s_request).method == "POST"
+    assert Task.await(s_request, :infinity).method == "POST"
   end
 
   test "should override request url", %{page: page, server: server} do
@@ -205,7 +205,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
     assert Request.url(Response.request(response)) == server.prefix <> "/global-var.html"
     assert Response.url(response) == server.prefix <> "/global-var.html"
     assert Page.evaluate!(page, "() => window['globalVar']") == 123
-    assert Task.await(server_request).method == "GET"
+    assert Task.await(server_request, :infinity).method == "GET"
   end
 
   describe "post data" do
@@ -221,7 +221,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
       Page.route!(page, "**/*", &Route.fallback(&1, post_data: "doggo"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert_received {:post_data, "doggo"}
       assert server_request.assigns.post_body == "doggo"
     end
@@ -239,7 +239,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
       Page.route!(page, "**/*", &Route.fallback(&1, post_data: {:binary, arr}))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      buffer = Task.await(server_request).assigns.post_body
+      buffer = Task.await(server_request, :infinity).assigns.post_body
       assert_received {:post_data_buffer, post_data_buffer}
       assert byte_size(post_data_buffer) == byte_size(arr)
       assert byte_size(buffer) == byte_size(arr)
@@ -259,7 +259,7 @@ defmodule PlaywrightEx.Page.PageRequestFallbackTest do
       Page.route!(page, "**/*", &Route.fallback(&1, post_data: %{foo: "bar"}))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
       Page.evaluate!(page, "() => fetch('/sleep.zzz', { method: 'POST', body: 'birdy' })")
-      server_request = Task.await(server_request)
+      server_request = Task.await(server_request, :infinity)
       assert_received {:post_data, %{"foo" => "bar"}}
       assert server_request.assigns.post_body == ~s({"foo":"bar"})
     end

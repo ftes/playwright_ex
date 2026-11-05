@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     paused = resume_when_paused(dbg)
     Page.click!(page, "div")
 
-    assert %{title: title, location: %{file: file, line: line, column: column}} = Task.await(paused)
+    assert %{title: title, location: %{file: file, line: line, column: column}} = Task.await(paused, :infinity)
     assert title =~ "Click"
     assert file =~ "debugger_test"
     assert is_number(line)
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert title =~ "Pause"
 
     Debugger.resume!(dbg)
-    Task.await(pause_promise)
+    Task.await(pause_promise, :infinity)
   end
 
   test "should run to location", %{context: context} do
@@ -128,7 +128,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     # should pause here
     Page.click!(page, "div")
 
-    assert %{title: title} = Task.await(paused)
+    assert %{title: title} = Task.await(paused, :infinity)
     assert title =~ "Click"
   end
 
@@ -230,7 +230,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     once_paused(dbg)
     Debugger.resume!(dbg)
     assert_receive :paused_state_changed, 5000
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
   end
 
   test "should expose the action point while paused on an input action", %{context: context} do
@@ -263,7 +263,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     once_paused(dbg)
     Debugger.resume!(dbg)
     assert_receive :paused_state_changed, 5000
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
   end
 
   test "should replay ongoing calls when enabled late", %{context: context} do
@@ -295,7 +295,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Debugger.once(dbg, :paused_state_changed, fn _ -> send(helper.pid, :paused_state_changed) end)
     Page.click!(page, "button")
 
-    click_call = Task.await(helper)
+    click_call = Task.await(helper, :infinity)
     assert click_call.location.file =~ "debugger_test"
   end
 
@@ -314,7 +314,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     once_paused(dbg)
     Debugger.resume!(dbg)
     assert_receive :paused_state_changed, 5000
-    Task.await(click_promise)
+    Task.await(click_promise, :infinity)
     assert Debugger.paused_details(dbg) == nil
   end
 end

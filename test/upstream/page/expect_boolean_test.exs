@@ -410,7 +410,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       Page.wait_for_timeout!(page, 1000)
       assert Task.yield(promise, 0) == nil
       Page.set_content!(page, ~s(<iframe srcdoc="<input>"></iframe>))
-      assert Task.await(promise) == :ok
+      assert Task.await(promise, :infinity) == :ok
     end
 
     test "with frameLocator 2", %{page: page} do
@@ -420,7 +420,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       Page.wait_for_timeout!(page, 1000)
       assert Task.yield(promise, 0) == nil
       Page.set_content!(page, ~s(<iframe srcdoc="<input>"></iframe>))
-      assert Task.await(promise) == :ok
+      assert Task.await(promise, :infinity) == :ok
     end
 
     test "over navigation", %{page: page, server: server} do
@@ -429,7 +429,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       Page.wait_for_timeout!(page, 1000)
       assert Task.yield(promise, 0) == nil
       Page.goto!(page, server.prefix <> "/input/checkbox.html")
-      assert Task.await(promise) == :ok
+      assert Task.await(promise, :infinity) == :ok
     end
   end
 
@@ -704,7 +704,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       Page.wait_for_timeout!(page, 1000)
       assert Task.yield(promise, 0) == nil
       Page.set_content!(page, ~s(<iframe srcdoc="<input>"></iframe>))
-      assert Task.await(promise) == :ok
+      assert Task.await(promise, :infinity) == :ok
     end
 
     test "over navigation", %{page: page, server: server} do
@@ -713,7 +713,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
       Page.wait_for_timeout!(page, 1000)
       assert Task.yield(promise, 0) == nil
       Page.goto!(page, server.prefix <> "/input/checkbox.html")
-      assert Task.await(promise) == :ok
+      assert Task.await(promise, :infinity) == :ok
     end
   end
 end

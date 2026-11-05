@@ -164,13 +164,13 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     resp_promise = Task.async(fn -> Request.response(req) end)
     headers_promise = Task.async(fn -> Request.all_headers(req) end)
     Page.close!(page)
-    assert message(Task.await(resp_promise)) =~ @k_target_closed_error_message
+    assert message(Task.await(resp_promise, :infinity)) =~ @k_target_closed_error_message
     # All headers are the same as "provisional" headers in Firefox.
     if browser_name == "firefox" do
-      {:ok, headers} = Task.await(headers_promise)
+      {:ok, headers} = Task.await(headers_promise, :infinity)
       assert headers["user-agent"]
     else
-      assert message(Task.await(headers_promise)) =~ @k_target_closed_error_message
+      assert message(Task.await(headers_promise, :infinity)) =~ @k_target_closed_error_message
     end
   end
 
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
 
     finish_promise = Task.async(fn -> Response.finished(page_response) end)
     Page.close!(page)
-    error = Task.await(finish_promise)
+    error = Task.await(finish_promise, :infinity)
     assert message(error) =~ "closed"
   end
 

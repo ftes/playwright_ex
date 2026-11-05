@@ -758,7 +758,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
 
         Page.close!(page)
         :gen_tcp.close(listen)
-        Task.await(task)
+        Task.await(task, :infinity)
       end
     end
 

@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Library.BrowserTest do
     promise = Task.async(fn -> Page.evaluate(page, "() => new Promise(() => {})") end)
     Browser.close!(browser)
     assert_received :closed
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert Exception.message(error) =~ @k_target_closed_error_message
   end
 

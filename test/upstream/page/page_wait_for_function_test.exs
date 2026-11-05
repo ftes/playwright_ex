@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   test "should accept a string", %{page: page} do
     watchdog = Task.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end)
     Page.evaluate!(page, "() => window['__FOO'] = 1")
-    Task.await(watchdog)
+    Task.await(watchdog, :infinity)
   end
 
   test "should work when resolved right before execution context disposal", %{page: page} do
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
       Task.async(fn -> Page.wait_for_function!(page, "() => window['__FOO'] === 'hit'", %{}, polling: :raf) end)
 
     Page.evaluate!(page, "() => window['__FOO'] = 'hit'")
-    Task.await(watchdog)
+    Task.await(watchdog, :infinity)
   end
 
   test "should fail with predicate throwing on first call", %{page: page} do
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
 
     Page.wait_for_timeout!(page, 1000)
     Page.evaluate!(page, "() => window['__FOO'] = 'hit'")
-    assert {:ok, _} = Task.await(p)
+    assert {:ok, _} = Task.await(p, :infinity)
   end
 
   test "should throw on bad polling value", %{page: page} do
@@ -177,7 +177,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     wait_for_function = Task.async(fn -> Page.wait_for_function!(page, "element => !element.parentElement", div) end)
     assert Task.yield(wait_for_function, 0) == nil
     Page.evaluate!(page, "element => element.remove()", div)
-    Task.await(wait_for_function)
+    Task.await(wait_for_function, :infinity)
   end
 
   test "should respect timeout", %{page: page} do
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
 
     Page.wait_for_function!(page, "() => window['__counter'] > 10")
     Page.evaluate!(page, "() => window['__injected'] = true")
-    Task.await(watchdog)
+    Task.await(watchdog, :infinity)
   end
 
   test "should survive cross-process navigation", %{page: page, server: server} do
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Page.goto!(page, server.cross_process_prefix <> "/grid.html")
     assert Task.yield(wait_for_function, 0) == nil
     Page.evaluate!(page, "() => window['__FOO'] = 1")
-    assert Task.await(wait_for_function)
+    assert Task.await(wait_for_function, :infinity)
   end
 
   test "should survive navigations", %{page: page, server: server} do
@@ -233,7 +233,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Page.goto!(page, server.empty_page)
     Page.goto!(page, server.prefix <> "/consolelog.html")
     Page.evaluate!(page, "() => window['__done'] = true")
-    Task.await(watchdog)
+    Task.await(watchdog, :infinity)
   end
 
   test "should work with multiline body", %{page: page} do
@@ -319,7 +319,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     frame = Enum.at(Page.frames(page), 1)
     promise = Task.async(fn -> Frame.wait_for_function(frame, "() => false") end)
     Utils.detach_frame(page, "frame1")
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert error
     assert Exception.message(error) =~ ~r/frame.waitForFunction: (Frame was detached|Execution context was destroyed)/
   end

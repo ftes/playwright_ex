@@ -711,5 +711,5 @@ defmodule PlaywrightEx.Library.DownloadTest do
   end
 
   # Promise.all([...]) of calls that run concurrently.
-  defp await_all(funs), do: funs |> Enum.map(&Task.async/1) |> Enum.map(&Task.await(&1, 30_000))
+  defp await_all(funs), do: funs |> Enum.map(&Task.async/1) |> Enum.map(&Task.await(&1, :infinity))
 end

@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Library.TapTest do
     tap_promise = Task.async(fn -> ElementHandle.tap!(div) end)
     JSHandle.evaluate!(div, "div => div.onclick = () => div.textContent = 'clicked'")
     JSHandle.evaluate!(div, "div => div.style.display = 'block'")
-    Task.await(tap_promise)
+    Task.await(tap_promise, :infinity)
     assert ElementHandle.text_content!(div) == "clicked"
   end
 

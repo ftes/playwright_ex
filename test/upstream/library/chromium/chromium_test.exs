@@ -307,7 +307,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     server_request = TestServer.wait_for_request(server, "/serviceworkers/fetch/sw.js")
     main = wait_for_request(context, &url_ends_with?(&1, "sw.js"))
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
-    Task.await(server_request)
+    Task.await(server_request, :infinity)
     main = Promise.await!(main)
     # This will timeout today
     Request.response!(main)
@@ -324,7 +324,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     server_request = TestServer.wait_for_request(server, "/serviceworkers/empty/sw.js")
     main = wait_for_request(context, &url_ends_with?(&1, "sw.js"))
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
-    Task.await(server_request)
+    Task.await(server_request, :infinity)
     main = Promise.await!(main)
     # This will timeout today
     resp = Request.response!(main)
@@ -652,7 +652,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     BrowserContext.set_extra_http_headers!(context, %{"x-custom-header" => "custom!"})
     request_promise = TestServer.wait_for_request(server, "/inner.txt")
     Worker.evaluate!(worker, "() => fetch('/inner.txt')")
-    req = Task.await(request_promise)
+    req = Task.await(request_promise, :infinity)
     assert req_header(req, "x-custom-header") == "custom!"
   end
 
@@ -834,7 +834,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     # Handle the dialog out of band, similar to the user closing it in the headed browser.
     CDPSession.send!(client, "Page.handleJavaScriptDialog", %{accept: true})
     assert Promise.await!(closed_promise) == dialog
-    {:ok, _} = Task.await(evaluate_promise)
+    {:ok, _} = Task.await(evaluate_promise, :infinity)
   end
 
   test "should not leak service worker session after context close"

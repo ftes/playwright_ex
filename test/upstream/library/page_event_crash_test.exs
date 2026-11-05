@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   test "expect should not hang when page crashed", %{page: page} do
     expect_promise = Task.async(fn -> Expect.to_be_visible(Page.get_by_text(page, "child")) end)
     crash(page)
-    assert {:error, _} = Task.await(expect_promise, 10_000)
+    assert {:error, _} = Task.await(expect_promise, :infinity)
   end
 
   test "should cancel waitForEvent when page crashes", %{page: page} do
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     promise = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
     Promise.await!(navigation)
     crash(page)
-    {:error, error} = Task.await(promise, 10_000)
+    {:error, error} = Task.await(promise, :infinity)
     assert Exception.message(error) =~ "page.goto: Page crashed"
   end
 

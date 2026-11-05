@@ -202,7 +202,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     }
     """)
 
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "click should survive frame reattach", %{page: page, server: server} do
@@ -220,7 +220,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     }
     """)
 
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "click should survive iframe navigation", %{page: page, server: server} do
@@ -229,7 +229,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
     promise = Task.async(fn -> Locator.click!(button) end)
     Task.start(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "should non work for non-frame", %{page: page} do

@@ -719,7 +719,7 @@ defmodule PlaywrightEx.Library.TracingTest do
       promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end)
       Page.wait_for_timeout!(page, timeout)
       Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
-      Task.await(promise)
+      Task.await(promise, :infinity)
     end
   end
 

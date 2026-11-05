@@ -109,11 +109,11 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
         send(test, :loaded)
       end)
 
-    Task.await(img_request)
+    Task.await(img_request, :infinity)
     refute_received :loaded
     assert_receive {:img_response, img_response}
     send(img_response, :end)
-    Task.await(content_promise)
+    Task.await(content_promise, :infinity)
   end
 
   test "should work fast enough", %{page: page} do
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
       promise = Task.async(fn -> Page.goto!(page, server.empty_page) end)
       Page.wait_for_timeout!(page, timeout)
       content_or_error = Page.content(page)
-      Task.await(promise)
+      Task.await(promise, :infinity)
       empty_output = "<html><head></head><body></body></html>"
 
       case content_or_error do

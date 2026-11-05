@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     never_resolves = Task.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end)
     Page.evaluate!(page, "() => new Promise(f => window.builtins.setTimeout(f, 0))")
     Browser.close!(browser)
-    {:error, error} = Task.await(never_resolves)
+    {:error, error} = Task.await(never_resolves, :infinity)
     # WebKit under task-set -c 1 is giving browser, rest are giving target.
     assert Exception.message(error) =~ " closed"
   end

@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     div = Page.query_selector!(page, "div")
     promise = Task.async(fn -> ElementHandle.wait_for_selector!(div, "span", state: :attached) end)
     JSHandle.evaluate!(div, "div => div.innerHTML = '<span>target</span>'")
-    span = Task.await(promise)
+    span = Task.await(promise, :infinity)
     assert JSHandle.evaluate!(span, "e => e.textContent") == "target"
   end
 
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     # Give it some time before navigating.
     for _ <- 1..10, do: Page.evaluate!(page, "() => 1")
     Page.goto!(page, server.empty_page)
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert Exception.message(error) =~ "waiting for locator('span') to be visible"
   end
 
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     Page.evaluate!(page, "() => delete window.MutationObserver")
     task = Task.async(fn -> Page.wait_for_selector!(page, ".zombo") end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
-    handle = Task.await(task)
+    handle = Task.await(task, :infinity)
     assert Page.evaluate!(page, "x => x.textContent", handle) == "anything"
   end
 
@@ -91,7 +91,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     watchdog = Task.async(fn -> Frame.wait_for_selector!(frame, "div", state: :attached) end)
     Frame.evaluate!(frame, @add_element, "br")
     Frame.evaluate!(frame, @add_element, "div")
-    e_handle = Task.await(watchdog)
+    e_handle = Task.await(watchdog, :infinity)
     tag_name = e_handle |> JSHandle.get_property!("tagName") |> JSHandle.json_value!()
     assert tag_name == "DIV"
   end
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     }
     """)
 
-    handle = Task.await(watchdog)
+    handle = Task.await(watchdog, :infinity)
     assert JSHandle.evaluate!(handle, "e => e.textContent") == "Hello from shadow"
   end
 
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     watchdog = Task.async(fn -> Page.wait_for_selector!(page, "h3 div", state: :attached) end)
     Page.evaluate!(page, @add_element, "span")
     Page.evaluate!(page, "() => document.querySelector('span').innerHTML = '<h3><div></div></h3>'")
-    Task.await(watchdog)
+    Task.await(watchdog, :infinity)
   end
 
   test "page.waitForSelector is shortcut for main frame", %{page: page, server: server} do
@@ -232,7 +232,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     watchdog = Task.async(fn -> Page.wait_for_selector!(page, "div", state: :attached) end)
     Frame.evaluate!(other_frame, @add_element, "div")
     Page.evaluate!(page, @add_element, "div")
-    e_handle = Task.await(watchdog)
+    e_handle = Task.await(watchdog, :infinity)
     assert ElementHandle.owner_frame!(e_handle) == Page.main_frame(page)
   end
 
@@ -244,7 +244,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     wait_for_selector_promise = Task.async(fn -> Frame.wait_for_selector!(frame2, "div", state: :attached) end)
     Frame.evaluate!(frame1, @add_element, "div")
     Frame.evaluate!(frame2, @add_element, "div")
-    e_handle = Task.await(wait_for_selector_promise)
+    e_handle = Task.await(wait_for_selector_promise, :infinity)
     assert ElementHandle.owner_frame!(e_handle) == frame2
   end
 
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     frame = Enum.at(Page.frames(page), 1)
     wait_promise = Task.async(fn -> Frame.wait_for_selector(frame, ".box") end)
     Utils.detach_frame(page, "frame1")
-    {:error, wait_error} = Task.await(wait_promise)
+    {:error, wait_error} = Task.await(wait_promise, :infinity)
     assert wait_error
     assert Exception.message(wait_error) =~ "frame.waitForSelector: Frame was detached"
   end

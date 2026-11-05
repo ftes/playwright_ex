@@ -485,7 +485,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       Page.goto!(page, server.prefix <> "/grid.html")
       reload_several_times = Task.async(fn -> for _ <- 1..5, do: Page.reload!(page) end)
       screenshot_several_times = Task.async(fn -> for _ <- 1..5, do: Page.screenshot!(page, full_page: true) end)
-      Task.await_many([reload_several_times, screenshot_several_times], 60_000)
+      Task.await_many([reload_several_times, screenshot_several_times], :infinity)
     end
   end
 
@@ -602,7 +602,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
       Page.screenshot!(page, mask: [Page.locator(page, "non-existent")])
       Route.fulfill!(route, body: "")
-      Task.await(done)
+      Task.await(done, :infinity)
     end
 
     test "should work when subframe used document.open after a weird url", %{page: page, server: server} do

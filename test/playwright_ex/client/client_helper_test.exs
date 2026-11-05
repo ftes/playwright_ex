@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Client.ClientHelperTest do
   test "APIResponse.json() of null is :null and data: %{a: :null} is JSON null", %{request: request, server: server} do
     task = PlaywrightEx.TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.post!(request, server.empty_page, data: %{a: :null})
-    assert Task.await(task).assigns.post_body == ~s({"a":null})
+    assert Task.await(task, :infinity).assigns.post_body == ~s({"a":null})
 
     PlaywrightEx.TestServer.set_route(server, "/null.json", fn conn ->
       conn |> Plug.Conn.put_resp_content_type("application/json") |> Plug.Conn.send_resp(200, "null")

@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.reload!(page)
     assert Task.yield(wait_for_selector, 0) == nil
     Page.goto!(page, server.cross_process_prefix <> "/grid.html")
-    assert Task.await(wait_for_selector)
+    assert Task.await(wait_for_selector, :infinity)
   end
 
   test "should wait for visible", %{page: page} do
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.evaluate!(page, "() => document.querySelector('div').style.removeProperty('display')")
     assert Task.yield(wait_for_selector, 0) == nil
     Page.evaluate!(page, "() => document.querySelector('div').style.removeProperty('visibility')")
-    assert Task.await(wait_for_selector)
+    assert Task.await(wait_for_selector, :infinity)
   end
 
   test "should not consider visible when zero-sized", %{page: page} do
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.evaluate!(page, "() => document.querySelector('div').style.removeProperty('display')")
     assert Task.yield(wait_for_selector, 0) == nil
     Page.evaluate!(page, "() => document.querySelector('div').style.removeProperty('visibility')")
-    assert Task.await(wait_for_selector)
+    assert Task.await(wait_for_selector, :infinity)
   end
 
   test "should consider outside of viewport visible", %{page: page} do
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.wait_for_selector!(page, "div")
     assert Task.yield(wait_for_selector, 0) == nil
     Page.evaluate!(page, "() => document.querySelector('div').style.setProperty('visibility', 'hidden')")
-    Task.await(wait_for_selector)
+    Task.await(wait_for_selector, :infinity)
   end
 
   test "hidden should wait for display: none", %{page: page} do
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.wait_for_selector!(page, "div")
     assert Task.yield(wait_for_selector, 0) == nil
     Page.evaluate!(page, "() => document.querySelector('div').style.setProperty('display', 'none')")
-    Task.await(wait_for_selector)
+    Task.await(wait_for_selector, :infinity)
   end
 
   test "hidden should wait for removal", %{page: page} do
@@ -104,7 +104,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.wait_for_selector!(page, "div")
     assert Task.yield(wait_for_selector, 0) == nil
     Page.evaluate!(page, "() => document.querySelector('div').remove()")
-    Task.await(wait_for_selector)
+    Task.await(wait_for_selector, :infinity)
   end
 
   test "should return null if waiting to hide non-existing element", %{page: page} do
@@ -133,13 +133,13 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.set_content!(page, "<div class='notZombo'></div>")
     assert Task.yield(wait_for_selector, 0) == nil
     Page.evaluate!(page, "() => document.querySelector('div').className = 'zombo'")
-    assert Task.await(wait_for_selector)
+    assert Task.await(wait_for_selector, :infinity)
   end
 
   test "should return the element handle", %{page: page} do
     wait_for_selector = Task.async(fn -> Page.wait_for_selector!(page, ".zombo") end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
-    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_selector)) == "anything"
+    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_selector, :infinity)) == "anything"
   end
 
   test "should have correct stack trace for timeout"
@@ -177,7 +177,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Frame.evaluate!(frame, @add_element, "br")
     Frame.evaluate!(frame, @add_element, "div")
     Frame.evaluate!(frame, "() => document.querySelector('div').appendChild(document.createElement('span'))")
-    e_handle = Task.await(watchdog)
+    e_handle = Task.await(watchdog, :infinity)
     tag_name = e_handle |> JSHandle.get_property!("tagName") |> JSHandle.json_value!()
     assert tag_name == "SPAN"
   end
@@ -194,13 +194,13 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.wait_for_selector!(page, "css=section")
     assert Task.yield(wait_for, 0) == nil
     Page.eval_on_selector!(page, "div", "div => div.remove()")
-    Task.await(wait_for)
+    Task.await(wait_for, :infinity)
   end
 
   test "should support some fancy xpath", %{page: page} do
     Page.set_content!(page, "<p>red herring</p><p>hello  world  </p>")
     wait_for_x_path = Task.async(fn -> Page.wait_for_selector!(page, ~s|//p[normalize-space(.)="hello world"]|) end)
-    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_x_path)) == "hello  world  "
+    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_x_path, :infinity)) == "hello  world  "
   end
 
   test "should respect timeout xpath", %{page: page} do
@@ -219,7 +219,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     wait_for_x_path_promise = Task.async(fn -> Frame.wait_for_selector!(frame2, "//div", state: :attached) end)
     Frame.evaluate!(frame1, @add_element, "div")
     Frame.evaluate!(frame2, @add_element, "div")
-    e_handle = Task.await(wait_for_x_path_promise)
+    e_handle = Task.await(wait_for_x_path_promise, :infinity)
     assert ElementHandle.owner_frame!(e_handle) == frame2
   end
 
@@ -228,7 +228,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     frame = Enum.at(Page.frames(page), 1)
     wait_promise = Task.async(fn -> Frame.wait_for_selector(frame, ~s|//*[@class="box"]|) end)
     Utils.detach_frame(page, "frame1")
-    {:error, wait_error} = Task.await(wait_promise)
+    {:error, wait_error} = Task.await(wait_promise, :infinity)
     assert wait_error
     assert Exception.message(wait_error) =~ "frame.waitForSelector: Frame was detached"
   end
@@ -236,13 +236,13 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
   test "should return the element handle xpath", %{page: page} do
     wait_for_x_path = Task.async(fn -> Page.wait_for_selector!(page, ~s|//*[@class="zombo"]|) end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
-    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_x_path)) == "anything"
+    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_x_path, :infinity)) == "anything"
   end
 
   test "should allow you to select an element with single slash xpath", %{page: page} do
     Page.set_content!(page, "<div>some text</div>")
     wait_for_x_path = Task.async(fn -> Page.wait_for_selector!(page, "//html/body/div") end)
-    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_x_path)) == "some text"
+    assert Page.evaluate!(page, "x => x.textContent", Task.await(wait_for_x_path, :infinity)) == "some text"
   end
 
   test "should correctly handle hidden shadow host", %{page: page} do
@@ -274,7 +274,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     promise = Task.async(fn -> ElementHandle.wait_for_selector(button, "something") end)
     Page.wait_for_timeout!(page, 100)
     Page.evaluate!(page, "() => document.body.innerText = ''")
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     promise = Task.async(fn -> ElementHandle.wait_for_selector!(button, "something", state: :hidden) end)
     Page.wait_for_timeout!(page, 1000)
     Page.evaluate!(page, "() => document.body.innerText = ''")
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "should succeed if element handle was detached while waiting for detached", %{page: page} do
@@ -293,6 +293,6 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     promise = Task.async(fn -> ElementHandle.wait_for_selector!(button, "something", state: :detached) end)
     Page.wait_for_timeout!(page, 1000)
     Page.evaluate!(page, "() => document.body.innerText = ''")
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 end

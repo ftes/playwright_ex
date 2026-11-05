@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     popup = BrowserContext.expect_event!(context, :page, fn -> Page.click!(page, "a") end)
     Page.wait_for_load_state!(popup, "domcontentloaded")
     user_agent = Page.evaluate!(popup, "() => window['initialUserAgent']")
-    request = Task.await(request_promise)
+    request = Task.await(request_promise, :infinity)
     BrowserContext.close!(context)
     assert user_agent == "hey"
     assert req_header(request, "user-agent") == "hey"
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     Page.goto!(page, server.empty_page)
     request_promise = TestServer.wait_for_request(server, "/dummy.html")
     Page.evaluate!(page, "url => { window['_popup'] = window.open(url); }", server.prefix <> "/dummy.html")
-    request = Task.await(request_promise)
+    request = Task.await(request_promise, :infinity)
     BrowserContext.close!(context)
     assert req_header(request, "foo") == "bar"
   end

@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 500)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     refute error.name == "AbortError"
 
     expected = """
@@ -175,7 +175,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 300)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     refute error.name == "AbortError"
     assert error.message =~ "expect(locator).toHaveText(expected) failed"
   end
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 300)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     refute error.name == "AbortError"
     assert error.message =~ "expect(locator).toHaveCount(expected) failed"
   end
@@ -210,7 +210,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 300)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     refute error.name == "AbortError"
     assert error.message =~ "expect(locator).toMatchAriaSnapshot(expected) failed"
   end
@@ -226,7 +226,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 500)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise)
+    {:error, error} = Task.await(promise, :infinity)
     refute error.name == "AbortError"
     assert error.message =~ "expect(page).toHaveURL(expected) failed"
   end

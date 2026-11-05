@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
     task = TestServer.wait_for_request(server, "/input/button.html")
     APIRequestContext.get!(request, "#{server.prefix}/input/button.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=b; c=d"
     state = APIRequestContext.storage_state!(request)
 
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert APIRequestContext.cookies!(request) == []
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == nil
   end
 
@@ -178,7 +178,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/input/button.html")
     APIRequestContext.get!(request, "#{server.prefix}/input/button.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "b=v; c=v"
   end
 
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(https_server, "/empty.html")
     APIRequestContext.get!(request, https_server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
@@ -202,7 +202,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, "#{prefix}/empty.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
       APIRequestContext.get!(request, "#{prefix}/setcookie.html")
       task = TestServer.wait_for_request(server, "/empty.html")
       APIRequestContext.get!(request, "#{prefix}/empty.html")
-      server_request = Task.await(task)
+      server_request = Task.await(task, :infinity)
       assert cookie_header(server_request) == "a=v; b=v"
       assert names(APIRequestContext.cookies!(request, "#{prefix}/")) == ["a", "b"]
     end
@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
@@ -252,7 +252,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v"
   end
 
@@ -270,7 +270,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/removecookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "c=v"
   end
 
@@ -291,7 +291,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
@@ -304,7 +304,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert cookie_header(server_request) == "a=v; b=v; c=v"
     %{cookies: cookies} = APIRequestContext.storage_state!(request)
     assert Enum.map(cookies, & &1.expires) == [-1, -1, -1]
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.get!(request, "#{server.prefix}/removecookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     refute cookie_header(server_request)
   end
 
@@ -370,7 +370,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
 
     refute cookie_header(server_request)
   end

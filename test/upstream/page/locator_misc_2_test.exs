@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     locator = Page.locator(page, "span")
     promise = Task.async(fn -> Locator.wait_for!(locator) end)
     Page.eval_on_selector!(page, "div", "div => div.innerHTML = '<span>target</span>'")
-    Task.await(promise)
+    Task.await(promise, :infinity)
     Expect.to_have_text!(locator, "target")
   end
 
@@ -120,7 +120,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     locator = Page.locator(page, "span")
     promise = Task.async(fn -> Locator.wait_for!(locator, state: :hidden) end)
     Page.eval_on_selector!(page, "div", "div => div.innerHTML = ''")
-    Task.await(promise)
+    Task.await(promise, :infinity)
   end
 
   test "should combine visible with other selectors", %{page: page} do

@@ -227,7 +227,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       params = %{"param1" => "value1", "парам2" => "знач2"}
       task = TestServer.wait_for_request(server, "/empty.html?" <> URI.encode_query(params))
       response = request!(@method, BrowserContext.request(context), server.empty_page, params: params)
-      request = Task.await(task)
+      request = Task.await(task, :infinity)
 
       request_params = URI.decode_query(request.query_string)
       assert request_params["param1"] == "value1"
@@ -246,7 +246,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
 
       task = TestServer.wait_for_request(server, "/empty.html?" <> URI.encode_query(search_params, :www_form))
       response = request!(@method, BrowserContext.request(context), server.empty_page, params: search_params)
-      request = Task.await(task)
+      request = Task.await(task, :infinity)
 
       assert get_all(request.query_string, "param1") == ["value1", "value2"]
       assert get_all(request.query_string, "парам2") == ["знач2"]
@@ -260,7 +260,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       params = "?param1=value1&param1=value2&парам2=знач2"
       task = TestServer.wait_for_request(server, "/empty.html" <> URI.encode(params))
       response = request!(@method, BrowserContext.request(context), server.empty_page, params: params)
-      request = Task.await(task)
+      request = Task.await(task, :infinity)
 
       assert get_all(request.query_string, "param1") == ["value1", "value2"]
       assert get_all(request.query_string, "парам2") == ["знач2"]
@@ -346,7 +346,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
 
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(BrowserContext.request(context), server.empty_page)
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert sorted_cookie_pairs(request_header(req, "cookie")) == ["a=b", "c=d"]
     Page.goto!(page, server.empty_page)
     assert sorted_cookie_pairs(Page.evaluate!(page, "() => document.cookie")) == ["a=b", "c=d"]
@@ -377,7 +377,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert BrowserContext.cookies!(context) == []
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(Page.request(page), server.empty_page)
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert request_header(req, "cookie") == nil
   end
 
@@ -399,7 +399,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Page.evaluate!(page, "() => document.cookie") == "cookie.0=foo; cookie.1=bar"
     request_promise = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(Page.request(page), server.empty_page)
-    request = Task.await(request_promise)
+    request = Task.await(request_promise, :infinity)
     assert request_header(request, "cookie") == "cookie.0=foo; cookie.1=bar"
   end
 
@@ -438,7 +438,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     APIRequestContext.get!(Page.request(page), "#{server.prefix}/removecookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(Page.request(page), server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert request_header(server_request, "cookie") == "c=v"
   end
 
@@ -455,7 +455,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     APIRequestContext.get!(Page.request(page), "#{server.prefix}/removecookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(Page.request(page), server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     refute request_header(server_request, "cookie")
   end
 
@@ -557,7 +557,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
         headers: %{"authorization" => "Basic " <> Base.encode64("user:pass")}
       )
 
-    request = Task.await(task)
+    request = Task.await(task, :infinity)
     assert APIResponse.status(response) == 200
     assert request.request_path == "/empty.html"
   end
@@ -606,13 +606,13 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(BrowserContext.request(context), server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert request_header(server_request, "authorization") == "Basic " <> Base.encode64("user:pass")
     assert APIResponse.status(response) == 200
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(BrowserContext.request(context), server.cross_process_prefix <> "/empty.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     # Not sent to another origin.
     assert request_header(server_request, "authorization") == nil
     assert APIResponse.status(response) == 200
@@ -627,13 +627,13 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(Page.request(page), server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert request_header(server_request, "authorization") == "Basic " <> Base.encode64("user:pass")
     assert APIResponse.status(response) == 200
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(Page.request(page), server.cross_process_prefix <> "/empty.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     # Not sent to another origin.
     assert request_header(server_request, "authorization") == nil
     assert APIResponse.status(response) == 200
@@ -643,7 +643,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp assert_post_data(method, http_method, context, server) do
     task = TestServer.wait_for_request(server, "/simple.json")
     response = request!(method, BrowserContext.request(context), "#{server.prefix}/simple.json", data: "My request")
-    request = Task.await(task)
+    request = Task.await(task, :infinity)
     assert request.method == http_method
     assert request.assigns.post_body == "My request"
     assert APIResponse.status(response) == 200
@@ -677,7 +677,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   test "should add default headers", %{context: context, server: server, page: page} do
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(BrowserContext.request(context), server.empty_page)
-    request = Task.await(task)
+    request = Task.await(task, :infinity)
     assert request_header(request, "accept") == "*/*"
     user_agent = Page.evaluate!(page, "() => navigator.userAgent")
     assert request_header(request, "user-agent") == user_agent
@@ -688,7 +688,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     bytes = :binary.list_to_bin(Enum.to_list(0..255))
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.post!(BrowserContext.request(context), server.empty_page, data: {:binary, bytes})
-    request = Task.await(task)
+    request = Task.await(task, :infinity)
     assert request_header(request, "content-length") == "256"
     assert request_header(request, "content-type") == "application/octet-stream"
   end
@@ -697,7 +697,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     TestServer.set_redirect(server, "/redirect", "/empty.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/redirect")
-    request = Task.await(task)
+    request = Task.await(task, :infinity)
     assert request_header(request, "accept") == "*/*"
     user_agent = Page.evaluate!(page, "() => navigator.userAgent")
     assert request_header(request, "user-agent") == user_agent
@@ -711,7 +711,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       headers: %{"User-Agent" => "Playwright", "Accept" => "text/html", "Accept-Encoding" => "br"}
     )
 
-    request = Task.await(task)
+    request = Task.await(task, :infinity)
     assert request_header(request, "accept") == "text/html"
     assert request_header(request, "user-agent") == "Playwright"
     assert request_header(request, "accept-encoding") == "br"
@@ -938,7 +938,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       data: "data"
     )
 
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert req.method == "POST"
     assert request_header(req, "foo") == "bar"
     assert req.assigns.post_body == "data"
@@ -951,7 +951,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       form: %{"firstName" => "John", "lastName" => "Doe", "file" => "f.js"}
     )
 
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert req.method == "POST"
     assert request_header(req, "content-type") == "application/x-www-form-urlencoded"
     body = req.assigns.post_body
@@ -968,7 +968,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     form = form ++ [foo: "2"]
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.post!(BrowserContext.request(context), server.empty_page, form: form)
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert req.method == "POST"
     assert request_header(req, "content-type") == "application/x-www-form-urlencoded"
     body = req.assigns.post_body
@@ -980,7 +980,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     data = %{"firstName" => "John", "lastName" => "Doe", "file" => %{"name" => "f.js"}}
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.post!(BrowserContext.request(context), server.empty_page, data: data)
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert req.method == "POST"
     assert request_header(req, "content-type") == "application/json"
     body = req.assigns.post_body
@@ -997,7 +997,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
         multipart: %{"firstName" => "John", "middleName" => "", "lastName" => "Doe", "file" => file}
       )
 
-    server_request = Task.await(form_received)
+    server_request = Task.await(form_received, :infinity)
     parts = parse_multipart(server_request)
     fields = Map.new(fields(parts))
     files = files(parts)
@@ -1021,7 +1021,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
         multipart: %{"firstName" => "John", "lastName" => "Doe", "readStream" => read_stream}
       )
 
-    server_request = Task.await(form_received)
+    server_request = Task.await(form_received, :infinity)
     parts = parse_multipart(server_request)
     fields = Map.new(fields(parts))
     files = files(parts)
@@ -1043,7 +1043,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     given_keys = Enum.map(Keyword.keys(given), &Atom.to_string/1)
     form_received = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.post!(BrowserContext.request(context), server.empty_page, multipart: given)
-    fields = fields(parse_multipart(Task.await(form_received)))
+    fields = fields(parse_multipart(Task.await(form_received, :infinity)))
     actual_keys = Enum.map(fields, &elem(&1, 0))
     assert actual_keys == given_keys
     assert APIResponse.status(response) == 200
@@ -1097,7 +1097,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       data: data
     )
 
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     assert req.method == "POST"
     assert request_header(req, "content-type") == "unknown"
     body = req.assigns.post_body
@@ -1137,7 +1137,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     APIRequestContext.get!(Page.request(page), "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(Page.request(page), server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert request_header(server_request, "cookie") == "a=v"
   end
 
@@ -1178,7 +1178,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     request_received = TestServer.wait_for_request(server, "/empty.html")
     get = Task.async(fn -> APIRequestContext.get(BrowserContext.request(context), server.empty_page) end)
     post = Task.async(fn -> APIRequestContext.post(BrowserContext.request(context), server.empty_page) end)
-    Task.await(request_received)
+    Task.await(request_received, :infinity)
     BrowserContext.close!(context)
     [{:error, error}, {:error, _}] = Task.await_many([get, post], :infinity)
     assert is_exception(error)
@@ -1308,7 +1308,9 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Agent.get(redirect_count, & &1) == 2
     Expect.to_be_ok!(response)
     assert APIResponse.text!(response) == "Hello!"
-    assert request_header(Task.await(req_promise), "host") == URI.parse(server.cross_process_prefix).authority
+
+    assert request_header(Task.await(req_promise, :infinity), "host") ==
+             URI.parse(server.cross_process_prefix).authority
   end
 
   test "should not work after dispose", %{context: context, server: server} do

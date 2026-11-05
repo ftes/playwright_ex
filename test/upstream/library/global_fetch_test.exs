@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     request = new_context(playwright, user_agent: "My Agent")
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert APIResponse.ok(response)
     assert APIResponse.url(response) == server.empty_page
     assert header(server_request, "user-agent") == "My Agent"
@@ -139,12 +139,12 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
 
     task = TestServer.wait_for_request(server, "/same/dest")
     APIRequestContext.get!(request, "#{server.prefix}/same/redirect")
-    same_dest_req = Task.await(task)
+    same_dest_req = Task.await(task, :infinity)
     assert header(same_dest_req, "authorization") == "Bearer secret"
 
     task = TestServer.wait_for_request(server, "/cross/dest")
     APIRequestContext.get!(request, "#{server.prefix}/cross/redirect")
-    cross_dest_req = Task.await(task)
+    cross_dest_req = Task.await(task, :infinity)
     assert header(cross_dest_req, "authorization") == nil
 
     APIRequestContext.dispose!(request)
@@ -267,13 +267,13 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert header(server_request, "authorization") == "Basic " <> Base.encode64("user:pass")
     assert APIResponse.status(response) == 200
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(request, server.cross_process_prefix <> "/empty.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     # Not sent to another origin.
     assert header(server_request, "authorization") == nil
     assert APIResponse.status(response) == 200
@@ -311,13 +311,13 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     assert header(server_request, "authorization") == "Basic " <> Base.encode64("user1:pass1")
     assert APIResponse.status(response) == 200
 
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(request, server.cross_process_prefix <> "/empty.html")
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
     # This origin has send: 'unauthorized', so credentials are not sent proactively.
     assert header(server_request, "authorization") == nil
     assert APIResponse.status(response) == 200
@@ -438,7 +438,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     request = new_context(playwright)
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
-    server_request = Task.await(task)
+    server_request = Task.await(task, :infinity)
 
     user_agent_masked =
       server_request
@@ -492,7 +492,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
       Task.async(fn -> APIRequestContext.delete(request, server.empty_page) end)
     ]
 
-    Task.await(wait)
+    Task.await(wait, :infinity)
     APIRequestContext.dispose!(request)
 
     for result <- Task.await_many(tasks, :infinity) do
@@ -511,9 +511,9 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     request = new_context(playwright)
     wait = TestServer.wait_for_request(server, "/test")
     task = Task.async(fn -> APIRequestContext.get(request, server.prefix <> "/redirect") end)
-    Task.await(wait)
+    Task.await(wait, :infinity)
     APIRequestContext.dispose!(request)
-    assert {:error, result} = Task.await(task)
+    assert {:error, result} = Task.await(task, :infinity)
     assert Exception.message(result) =~ ~r/Request context disposed|Target page, context or browser has been closed/
     assert_receive :connection_closed, 5000
     APIRequestContext.dispose!(request)
@@ -560,7 +560,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
         data: @value
       )
 
-      req = Task.await(task)
+      req = Task.await(task, :infinity)
       body = req.assigns.post_body
       assert body == @stringified_value
       APIRequestContext.dispose!(request)
@@ -576,7 +576,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
         data: @stringified_value
       )
 
-      req = Task.await(task)
+      req = Task.await(task, :infinity)
       body = req.assigns.post_body
       assert body == @stringified_value
       APIRequestContext.dispose!(request)
@@ -594,7 +594,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
       data: {:binary, value}
     )
 
-    req = Task.await(task)
+    req = Task.await(task, :infinity)
     body = req.assigns.post_body
     assert body == value
     APIRequestContext.dispose!(request)

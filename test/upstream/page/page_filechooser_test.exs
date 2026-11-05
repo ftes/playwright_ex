@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
       }
       """)
 
-    Task.await(set_files)
+    Task.await(set_files, :infinity)
     assert content == "contents of the file"
   end
 
@@ -290,7 +290,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
       data_size
     )
 
-    Task.await(request)
+    Task.await(request, :infinity)
     assert_receive {:files, %{"file" => file}}
     assert file.size == data_size
   end
@@ -299,7 +299,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.set_content!(page, "<input type=file>")
     set_files = set_files_on_chooser(page, asset.("file-to-upload.txt"))
     content = Page.eval_on_selector!(page, "input", @read_selected_file)
-    Task.await(set_files)
+    Task.await(set_files, :infinity)
     assert content == "contents of the file"
   end
 
@@ -307,11 +307,11 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.set_content!(page, "<input type=file>")
     set_files1 = set_files_on_chooser(page, asset.("file-to-upload.txt"))
     file_length1 = Page.eval_on_selector!(page, "input", @pick_files_length)
-    Task.await(set_files1)
+    Task.await(set_files1, :infinity)
     assert file_length1 == 1
     set_files2 = set_files_on_chooser(page, [])
     file_length2 = Page.eval_on_selector!(page, "input", @pick_files_length)
-    Task.await(set_files2)
+    Task.await(set_files2, :infinity)
     assert file_length2 == 0
   end
 

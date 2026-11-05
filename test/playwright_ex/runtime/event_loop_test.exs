@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Runtime.EventLoopTest do
     # The waiter does not hold the baton while suspended: we can take it and settle.
     Process.sleep(20)
     EventLoop.with_baton(loop, fn -> Promise.resolve(promise, :done) end)
-    assert Task.await(waiter) == :done
+    assert Task.await(waiter, :infinity) == :done
     # Settled promises are read without the baton.
     assert Promise.await(promise) == :done
   end
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Runtime.EventLoopTest do
       Promise.resolve(promise, nil)
     end)
 
-    Task.await(waiter)
+    Task.await(waiter, :infinity)
     assert_receive {:order, first}
     assert_receive {:order, second}
     assert [first, second] == [:microtask, :macrotask]

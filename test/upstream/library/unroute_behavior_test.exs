@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert_receive {:route_callback, handler_pid}, 5000
     BrowserContext.unroute!(context, ~r/.*/, handler)
     send(handler_pid, :continue)
-    Task.await(navigation_promise)
+    Task.await(navigation_promise, :infinity)
     assert_received :second_handler_called
   end
 
@@ -84,8 +84,8 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Process.sleep(500)
     assert Task.yield(unroute_promise, 0) == nil
     send(handler_pid, :continue)
-    Task.await(unroute_promise)
-    Task.await(navigation_promise)
+    Task.await(unroute_promise, :infinity)
+    Task.await(navigation_promise, :infinity)
     refute_received :second_handler_called
   end
 
@@ -110,9 +110,9 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert_receive {:route_callback, handler_pid}, 5000
     unroute_promise = Task.async(fn -> BrowserContext.unroute_all!(context, behavior: :ignore_errors) end)
     Process.sleep(500)
-    Task.await(unroute_promise)
+    Task.await(unroute_promise, :infinity)
     send(handler_pid, :continue)
-    Task.await(navigation_promise)
+    Task.await(navigation_promise, :infinity)
     # The error in the unrouted handler should be silently caught and remaining handler called.
     refute_received :second_handler_called
   end
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert_receive {:route_callback, handler_pid}, 5000
     Page.unroute!(page, ~r/.*/, handler)
     send(handler_pid, :continue)
-    Task.await(navigation_promise)
+    Task.await(navigation_promise, :infinity)
     assert_received :second_handler_called
   end
 
@@ -194,8 +194,8 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Process.sleep(500)
     assert Task.yield(unroute_promise, 0) == nil
     send(handler_pid, :continue)
-    Task.await(unroute_promise)
-    Task.await(navigation_promise)
+    Task.await(unroute_promise, :infinity)
+    Task.await(navigation_promise, :infinity)
     refute_received :second_handler_called
   end
 
@@ -220,9 +220,9 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert_receive {:route_callback, handler_pid}, 5000
     unroute_promise = Task.async(fn -> Page.unroute_all!(page, behavior: :ignore_errors) end)
     Process.sleep(500)
-    Task.await(unroute_promise)
+    Task.await(unroute_promise, :infinity)
     send(handler_pid, :continue)
-    Task.await(navigation_promise)
+    Task.await(navigation_promise, :infinity)
     # The error in the unrouted handler should be silently caught.
     refute_received :second_handler_called
   end

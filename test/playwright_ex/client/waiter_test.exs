@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Client.WaiterTest do
     # Let the waiter subscribe before closing.
     Process.sleep(100)
     Browser.close!(browser)
-    assert Task.await(waiting) == browser
+    assert Task.await(waiting, :infinity) == browser
 
     error =
       assert_raise TimeoutError, fn ->

@@ -97,7 +97,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     end)
 
     response = Page.goto!(page, server.prefix <> "/title.html")
-    request = Task.await(request_promise)
+    request = Task.await(request_promise, :infinity)
     assert request.request_path == "/title.html"
     original = File.read!(asset.("title.html"))
     assert Response.text!(response) == original
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
            ]
 
     Route.fulfill!(route, response: response)
-    Task.await(eval_promise)
+    Task.await(eval_promise, :infinity)
   end
 
   test "should give access to the intercepted response body", %{page: page, server: server} do
@@ -143,7 +143,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
 
     Route.fulfill!(route, response: response)
-    Task.await(eval_promise)
+    Task.await(eval_promise, :infinity)
   end
 
   # it.fixme(browserName !== 'firefox')
@@ -233,7 +233,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     end)
 
     Page.goto!(page, server.prefix <> "/empty.html")
-    request = Task.await(request_promise)
+    request = Task.await(request_promise, :infinity)
     assert request.assigns.post_body == JSON.encode!(%{"foo" => "bar"})
   end
 

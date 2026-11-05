@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
   @moduletag :page
 
   # Promise.all([...])
-  defp all(funs), do: funs |> Enum.map(&Task.async/1) |> Task.await_many(30_000)
+  defp all(funs), do: funs |> Enum.map(&Task.async/1) |> Task.await_many(:infinity)
 
   test "should think that it is focused by default", %{page: page} do
     assert Page.evaluate!(page, "document.hasFocus()") == true

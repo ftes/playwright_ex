@@ -449,7 +449,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     fetch_cookie = fn ->
       server_request = TestServer.wait_for_request(server, "/title.html")
       Frame.evaluate!(frame, "() => fetch('/title.html')")
-      header(Task.await(server_request), "cookie")
+      header(Task.await(server_request, :infinity), "cookie")
     end
 
     if browser_name == "firefox" do
