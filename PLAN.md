@@ -143,7 +143,8 @@ Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
 - Evaluate: JS source strings, omit `isFunction` (like Python); string + `arg` is function source.
 - `exposeFunctions`: Elixir closures in `arg` become bindings (port utilityScriptSerializers).
 - GC: a tracing collector over the heap (`Runtime.GC`, see DECISIONS "Heap GC"). AbortSignal:
-  drop at first.
+  `PlaywrightEx.AbortController`/`AbortSignal`, objects in the loop's heap like promises (any
+  process aborts, under the baton); a controller belongs to one driver (`new(page)`).
 - Zones: process dictionary, handed over with the baton.
 - `Expect.to_have_screenshot(target, path: ...)` is one more generated matcher
   (`Page`/`LocatorAssertions.toHaveScreenshot`, JS-only in api.json, kept by the rules file,

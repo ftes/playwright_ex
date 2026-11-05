@@ -2,9 +2,11 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   # The snippets of `guides/migration.md`, run against the facade.
   use ExUnit.Case, async: true
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Client.Errors.AbortError
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Dialog
@@ -279,5 +281,17 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   test "bounding calls without a timeout", %{page: page} do
     task = Task.async(fn -> Page.close(page) end)
     assert {:ok, :ok} = Task.yield(task, 5_000) || Task.shutdown(task)
+  end
+
+  test "cancelling a call with a signal", %{page: page} do
+    controller = AbortController.new(page)
+
+    Task.start(fn ->
+      Process.sleep(1_000)
+      AbortController.abort(controller, "user cancelled")
+    end)
+
+    {:error, %AbortError{cause: "user cancelled"}} =
+      Page.locator(page, "#x") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
   end
 end

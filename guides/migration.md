@@ -334,6 +334,18 @@ task = Task.async(fn -> BrowserContext.close(context) end)
 Task.yield(task, 5_000) || Task.shutdown(task)
 ```
 
+Calls with a `timeout:` also take a `signal:` (a JS `AbortSignal`), so that another process can
+cancel them with a `PlaywrightEx.AbortController`. The controller belongs to the driver of the
+handle it is created with:
+
+```elixir
+controller = AbortController.new(page)
+Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user cancelled") end)
+
+{:error, %AbortError{cause: "user cancelled"}} =
+  Page.locator(page, "#x") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
+```
+
 ## Behaviour changes
 
 - `timeout: 0` means no timeout (as in JS), not "don't wait". `:infinity` is accepted too.
@@ -344,7 +356,6 @@ Task.yield(task, 5_000) || Task.shutdown(task)
 
 ## Known gaps
 
-- `signal:` (AbortSignal) options are not supported.
 - Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`,
   soft assertions, file-based aria snapshots, `toMatchSnapshot`.
 - `inspect(locator)` and locators in matcher messages show JS syntax and raw selectors.
