@@ -387,7 +387,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
       Route.fulfill!(route,
         status: response["status"],
         headers: headers,
-        body: if(response["content"]["encoding"] == "base64", do: Base.decode64!(text), else: text)
+        body: {:binary, if(response["content"]["encoding"] == "base64", do: Base.decode64!(text), else: text)}
       )
     end)
 
