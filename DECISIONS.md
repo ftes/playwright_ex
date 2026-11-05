@@ -429,3 +429,14 @@ drift). Blockers for release, assigned to follow-up workstreams:
   checked. Revisit if the prose escape gets misused.
 - **Flaky tags**: connect-to-worker console race dropped (30/30 locally; watch CI); popup
   close-on-click skipped on CI only; fullPage screenshot during navigation kept.
+
+## 2026-11-05: Completeness checks (workstream S)
+
+- **Parity checks every upstream file**: each `client/*.ts` needs a module with `@upstream` or
+  an entry in `@unported_client_files`; each `tests/{page,library}/**/*.spec.ts` needs a mirror
+  or an entry in `@unmirrored_specs` (both in `playwright_ex.parity.ex`, per file, with reasons).
+  Stale entries (file gone upstream, or now ported) fail too, so version rolls surface new files.
+- **Unported client files**: `types.ts`, `channels.d.ts` (type-only), `clientInstrumentation.ts`
+  (instrumentation not ported, per-call-site markers), `android.ts`, `electron.ts` (not in the
+  JS api.json at 1.64.1; DummyChannelOwner in Connection). Revisit if they enter api.json.
+- `unit/timeout-runner.spec` is mirrored (TimeoutRunner is ported): 262 of 296 spec files.
