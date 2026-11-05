@@ -78,7 +78,8 @@ defmodule PlaywrightEx.Client.Request do
       content_type = headers(this)["content-type"]
 
       if content_type && String.contains?(content_type, "application/x-www-form-urlencoded") do
-        URI.decode_query(post_data)
+        # `new URLSearchParams(postData)` drops one leading "?".
+        URI.decode_query(String.replace_prefix(post_data, "?", ""))
       else
         try do
           ClientHelper.json_parse(post_data)
