@@ -112,10 +112,18 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
 
   # On macOS headed Chrome shows each page in its own window: the victim stays "visible", so
   # chrome://discards disables [Urgent Discard] and the click times out.
+  # A test-level `skip: nil` would override the module's chromium-only skip.
   @tag skip:
-         if(match?({:unix, :darwin}, :os.type()),
-           do: "env: headed Chrome on macOS: the page is visible and can't be discarded"
-         )
+         (cond do
+            System.get_env("BROWSER", "chromium") != "chromium" ->
+              "upstream skip: chromium only"
+
+            match?({:unix, :darwin}, :os.type()) ->
+              "env: headed Chrome on macOS: the page is visible and can't be discarded"
+
+            true ->
+              nil
+          end)
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41714' }
   test "should connect when an existing page has been discarded", %{
     browser_type: browser_type,
