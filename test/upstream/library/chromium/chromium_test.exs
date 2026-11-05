@@ -27,7 +27,9 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   # Chromium on Linux intermittently never sends the service worker main script's
   # Network.responseReceived (its request and loadingFinished arrive), so that response never
-  # resolves. Upstream's own client hits it too (~3% of runs in a loop); upstream CI retries.
+  # resolves (or the HAR lacks its headers). Upstream's own client hits it too (~3% of runs in a
+  # loop); upstream CI retries. Re-measured 2026-11-05 (linux/arm64 container, 2 CPUs): 7 of 100
+  # test runs failed sequentially, 46 of 300 with three suites at once: too often for one retry.
   # A test's `skip: nil` would override the `@moduletag skip:`.
   @sw_script_response_skip @chromium_only ||
                              if(match?({:unix, :linux}, :os.type()),
@@ -259,8 +261,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     assert Response.from_service_worker(Request.response!(inner_sw)) == false
   end
 
-  @tag skip: @sw_script_response_skip
   @tag :page
+  @tag skip: @sw_script_response_skip
   test "should intercept service worker requests (main and within)", %{context: context, page: page, server: server} do
     BrowserContext.route!(context, "**/request-from-within-worker", fn route ->
       Route.fulfill(route, content_type: "application/json", status: 200, body: ~s("intercepted!"))
@@ -373,8 +375,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     %{context: context, page: page, get_log: get_log}
   end
 
-  @tag skip: @sw_script_response_skip
   @tag :tmp_dir
+  @tag skip: @sw_script_response_skip
   test "should report intercepted service worker requests in HAR", %{
     context_factory: context_factory,
     tmp_dir: tmp_dir,
@@ -479,8 +481,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     end
   end
 
-  @tag skip: @sw_script_response_skip
   @tag :page
+  @tag skip: @sw_script_response_skip
   test "should produce network events, routing, and annotations for Service Worker", %{
     page: page,
     context: context,
@@ -532,8 +534,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
            ]
   end
 
-  @tag skip: @sw_script_response_skip
   @tag :page
+  @tag skip: @sw_script_response_skip
   test "should produce network events, routing, and annotations for Service Worker (advanced)", %{
     page: page,
     context: context,

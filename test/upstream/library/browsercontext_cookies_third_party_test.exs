@@ -12,8 +12,9 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
   alias PlaywrightEx.TestServer
 
   @browser_name System.get_env("BROWSER", "chromium")
-  # Linux and macOS; mostly against a Bandit server just started (each module starts its own),
-  # not against a warm one or Node's https server. Not understood beyond that.
+  # Linux and macOS; against a Bandit server just started (each module starts its own), not
+  # against a warm one or Node's https server. Not understood beyond that. Re-run 2026-11-05 with
+  # the fixture defaults and connections closed on reset: both failed in 5 of 5 runs (macOS).
   @firefox_partitioned_skip if(@browser_name == "firefox",
                               do:
                                 "env: Firefox mostly withholds Partitioned cookies from third-party frames of a fresh Bandit test server (upstream client too)"

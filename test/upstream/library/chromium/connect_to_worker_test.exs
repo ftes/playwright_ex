@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
 
   # `then` runs right after the call returns, as JS code right after `await` does. Unlike JS, the
   # connection keeps dispatching in between (OTP runtime), so an event of the new worker can precede
-  # it (see the skip below). Returns `{worker, then_result}`.
+  # it (see the test below). Returns `{worker, then_result}`.
   defp connect_to_worker(browser_type, endpoint, then \\ fn _worker -> nil end) do
     Api.call("browserType._connectToWorker", browser_type, fn ->
       worker = PlaywrightEx.Client.BrowserType._connect_to_worker(browser_type, endpoint)
@@ -62,14 +62,11 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     end)
   end
 
-  @tag skip:
-         if(System.get_env("BROWSER", "chromium") != "chromium",
-           do: "upstream skip: chromium only",
-           else:
-             "flaky: the driver resumes node before replying; an evaluate landing ~1 ms later runs mid-bootstrap " <>
-               "(node: setDispatchBufferFull is not a function) and the console can precede the subscription. " <>
-               "The JS client wins that window (0/150 in a 4-CPU Linux container), this client loses 5-10%"
-         )
+  # The driver resumes node before replying; an evaluate landing ~1 ms later runs mid-bootstrap
+  # (node: setDispatchBufferFull is not a function) and the console can precede the subscription.
+  # The JS client wins that window more often. Re-measured 2026-11-05: 1 of 60 runs failed (two
+  # loops at once in a 2-CPU Linux container), 0 of 15 on macOS: CI's retry covers it.
+  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
   test "should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([
