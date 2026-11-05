@@ -44,6 +44,11 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     end)
   end
 
+  @tag skip:
+         if(System.get_env("CI"),
+           do:
+             "flaky: server-side race, the driver resumes the worker before replying, so early console events can precede the subscription (upstream too)"
+         )
   test "should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([

@@ -537,3 +537,12 @@ drift). Blockers for release, assigned to follow-up workstreams:
   freshly started Bandit (mechanism unknown; revisit).
 - Race fixes: start racing waits with `Runtime.Promise.async` (a `Task` may start the call
   late; JS sends it at once).
+
+## 2026-11-05: Driver message batching (workstream Y)
+- A baton hold's outgoing messages are queued and written in one `Port.command` at release
+  (`EventLoop.at_release/2`), like JS writing a tick's messages before the driver reads any.
+  Sending each message on its own reached the driver about 1 ms apart, so a subscription update
+  could arrive after the call it precedes. A 20 ms safety timer flushes when no release follows.
+  This fixed the tracing spec (workaround dropped). Revisit: is the timer needed at all?
+- connect-to-worker and ServiceWorker-start console specs: server-side races (the driver resumes
+  the worker before replying), not ordering bugs. Tagged `flaky:` on CI only.

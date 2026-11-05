@@ -48,7 +48,7 @@ a migration guide maps old calls to new ones.
 - Errors: one exception per JS class (`Error`, `TimeoutError`, `TargetClosedError`) with the
   JS `message` (API-name prefix, call log), plus a `log` field.
 - `on/3` returns the emitter and `off/3` takes the same fun, as in JS. The subscription
-  update is sent before `on/3` returns.
+  update is queued before `on/3` returns and written at the end of the tick.
 - The facade sets the API name for errors (`page.waitForURL`), validates options, carries
   docs/specs and delegates to `Client.*`. `mix playwright_ex.gen.api` emits every api.json member
   except those dropped explicitly in `Mix.PlaywrightEx.ApiRules`, so a missing client impl is
