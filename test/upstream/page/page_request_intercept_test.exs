@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
   @upstream "tests/page/page-request-intercept.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
   alias PlaywrightEx.Locator
@@ -224,45 +226,43 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     assert request.assigns.post_body == JSON.encode!(%{"foo" => "bar"})
   end
 
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: The body is empty in WebKit when intercepting")
   test "request.postData is not null when fetching FormData with a Blob", %{
     page: page,
-    server: server,
-    browser_name: browser_name
+    server: server
   } do
-    if browser_name != "webkit" do
-      Page.goto!(page, server.empty_page)
+    Page.goto!(page, server.empty_page)
 
-      Page.set_content!(page, """
+    Page.set_content!(page, """
 
-      <script>
-        function doStuff() {
-          const formData = new FormData();
-          formData.append('file', new Blob(["hello"], { type: "text/plain" }));
-          fetch('/upload', {
-            method: 'POST',
-            body: formData
-          });
-        }
-      </script>
-      <body>
-      <button onclick="doStuff()" data-testid="click-me">Click me!</button>
-      </body>
-      """)
+    <script>
+      function doStuff() {
+        const formData = new FormData();
+        formData.append('file', new Blob(["hello"], { type: "text/plain" }));
+        fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+      }
+    </script>
+    <body>
+    <button onclick="doStuff()" data-testid="click-me">Click me!</button>
+    </body>
+    """)
 
-      me = self()
+    me = self()
 
-      Page.route!(page, server.prefix <> "/upload", fn route, request ->
-        send(me, {:method, Request.method(request)})
-        send(me, {:post_data, Request.post_data(request)})
-        Route.fulfill!(route, status: 200, body: "ok")
-      end)
+    Page.route!(page, server.prefix <> "/upload", fn route, request ->
+      send(me, {:method, Request.method(request)})
+      send(me, {:post_data, Request.post_data(request)})
+      Route.fulfill!(route, status: 200, body: "ok")
+    end)
 
-      page |> Page.get_by_test_id("click-me") |> Locator.click!()
-      assert_receive {:post_data, post_data}, 5000
-      assert_received {:method, "POST"}
-      assert post_data =~ ~s(Content-Disposition: form-data; name="file"; filename="blob")
-      assert post_data =~ "\r\nhello\r\n"
-    end
+    page |> Page.get_by_test_id("click-me") |> Locator.click!()
+    assert_receive {:post_data, post_data}, 5000
+    assert_received {:method, "POST"}
+    assert post_data =~ ~s(Content-Disposition: form-data; name="file"; filename="blob")
+    assert post_data =~ "\r\nhello\r\n"
   end
 
   test "should abort favicon requests if interception is enabled", %{page: page, server: server} do

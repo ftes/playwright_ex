@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
   @upstream "tests/page/page-set-content.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
@@ -158,13 +160,12 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
     end
   end
 
-  test "should return empty content there is no iframe src", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: there is no utility context")
+  test "should return empty content there is no iframe src", %{page: page} do
     # it.fixme(browserName === 'webkit', 'there is no utility context');
-    if browser_name != "webkit" do
-      Page.set_content!(page, ~s[<iframe src="javascript:console.log(1)"></iframe>])
-      assert length(Page.frames(page)) == 2
-      assert Frame.content!(Enum.at(Page.frames(page), 1)) == "<html><head></head><body></body></html>"
-    end
+    Page.set_content!(page, ~s[<iframe src="javascript:console.log(1)"></iframe>])
+    assert length(Page.frames(page)) == 2
+    assert Frame.content!(Enum.at(Page.frames(page), 1)) == "<html><head></head><body></body></html>"
   end
 
   @tag skip: "not ported: toImpl (server-side evaluateExpression in the utility world)"

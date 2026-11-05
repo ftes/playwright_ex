@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageRouteTest do
   @upstream "tests/page/page-route.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Expect
@@ -215,57 +217,55 @@ defmodule PlaywrightEx.Page.PageRouteTest do
   end
 
   # @see https://github.com/GoogleChrome/puppeteer/issues/4337
-  test "should work with redirect inside sync XHR", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: No Network.requestIntercepted for the request")
+  test "should work with redirect inside sync XHR", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/28461' });
     # it.fixme(browserName === 'webkit', 'No Network.requestIntercepted for the request');
-    if browser_name != "webkit" do
-      Page.goto!(page, server.empty_page)
-      TestServer.set_redirect(server, "/logo.png", "/pptr.png")
-      me = self()
-      Page.route!(page, "**/*", fn route -> send(me, {:continue_promise, Route.continue(route)}) end)
+    Page.goto!(page, server.empty_page)
+    TestServer.set_redirect(server, "/logo.png", "/pptr.png")
+    me = self()
+    Page.route!(page, "**/*", fn route -> send(me, {:continue_promise, Route.continue(route)}) end)
 
-      status =
+    status =
+      Page.evaluate!(page, """
+      async () => {
+        const request = new XMLHttpRequest();
+        request.open('GET', '/logo.png', false);  // `false` makes the request synchronous
+        request.send(null);
+        return request.status;
+      }
+      """)
+
+    assert status == 200
+    assert_receive {:continue_promise, continue_promise}
+    assert continue_promise == :ok
+  end
+
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: Redirected request is not paused in WebKit")
+  test "should pause intercepted XHR until continue", %{page: page, server: server} do
+    # it.fixme(browserName === 'webkit', 'Redirected request is not paused in WebKit');
+    Page.goto!(page, server.empty_page)
+    me = self()
+    Page.route!(page, "**/global-var.html", fn route -> send(me, {:route, route}) end)
+
+    status_promise =
+      Task.async(fn ->
         Page.evaluate!(page, """
         async () => {
           const request = new XMLHttpRequest();
-          request.open('GET', '/logo.png', false);  // `false` makes the request synchronous
+          request.open('GET', '/global-var.html', false);  // `false` makes the request synchronous
           request.send(null);
           return request.status;
         }
         """)
+      end)
 
-      assert status == 200
-      assert_receive {:continue_promise, continue_promise}
-      assert continue_promise == :ok
-    end
-  end
-
-  test "should pause intercepted XHR until continue", %{page: page, server: server, browser_name: browser_name} do
-    # it.fixme(browserName === 'webkit', 'Redirected request is not paused in WebKit');
-    if browser_name != "webkit" do
-      Page.goto!(page, server.empty_page)
-      me = self()
-      Page.route!(page, "**/global-var.html", fn route -> send(me, {:route, route}) end)
-
-      status_promise =
-        Task.async(fn ->
-          Page.evaluate!(page, """
-          async () => {
-            const request = new XMLHttpRequest();
-            request.open('GET', '/global-var.html', false);  // `false` makes the request synchronous
-            request.send(null);
-            return request.status;
-          }
-          """)
-        end)
-
-      assert_receive {:route, route}, 5000
-      # Check that intercepted request is actually paused.
-      Process.sleep(500)
-      assert Task.yield(status_promise, 0) == nil
-      Route.continue!(route)
-      assert Task.await(status_promise) == 200
-    end
+    assert_receive {:route, route}, 5000
+    # Check that intercepted request is actually paused.
+    Process.sleep(500)
+    assert Task.yield(status_promise, 0) == nil
+    Route.continue!(route)
+    assert Task.await(status_promise) == 200
   end
 
   test "should pause intercepted fetch request until continue", %{page: page, server: server} do
@@ -621,32 +621,34 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     assert_received :intercepted
   end
 
-  test "should fulfill with redirect status", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream fixme: in WebKit the redirects are handled by the network stack and we intercept before"
+         )
+  test "should fulfill with redirect status", %{page: page, server: server} do
     # it.fixme(browserName === 'webkit', 'in WebKit the redirects are handled by the network stack and we intercept before');
-    if browser_name != "webkit" do
-      Page.goto!(page, server.prefix <> "/title.html")
-      TestServer.set_route(server, "/final", &Plug.Conn.send_resp(&1, 200, "foo"))
+    Page.goto!(page, server.prefix <> "/title.html")
+    TestServer.set_route(server, "/final", &Plug.Conn.send_resp(&1, 200, "foo"))
 
-      Page.route!(page, "**/*", fn route, request ->
-        if Request.url(request) != server.prefix <> "/redirect_this",
-          do: Route.continue(route),
-          else: Route.fulfill!(route, status: 301, headers: %{"location" => "/final"})
-      end)
+    Page.route!(page, "**/*", fn route, request ->
+      if Request.url(request) != server.prefix <> "/redirect_this",
+        do: Route.continue(route),
+        else: Route.fulfill!(route, status: 301, headers: %{"location" => "/final"})
+    end)
 
-      text =
-        Page.evaluate!(
-          page,
-          """
-          async url => {
-            const data = await fetch(url);
-            return data.text();
-          }
-          """,
-          server.prefix <> "/redirect_this"
-        )
+    text =
+      Page.evaluate!(
+        page,
+        """
+        async url => {
+          const data = await fetch(url);
+          return data.text();
+        }
+        """,
+        server.prefix <> "/redirect_this"
+      )
 
-      assert text == "foo"
-    end
+    assert text == "foo"
   end
 
   @tag skip: "upstream skip: we should support fulfill with redirect in webkit and delete this test"

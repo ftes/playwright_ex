@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   @upstream "tests/page/page-mouse.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Locator
@@ -341,6 +343,10 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     end
   end
 
+  @tag skip:
+         if(@browser_name == "chromium" and match?({:win32, _}, :os.type()),
+           do: "upstream fixme: context menu support is best-effort for Linux and MacOS"
+         )
   test "should dispatch mouse move after context menu was opened", %{page: page} do
     Page.evaluate!(page, """
     () => {

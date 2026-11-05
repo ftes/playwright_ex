@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   @upstream "tests/library/defaultbrowsercontext-2.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
@@ -156,26 +158,24 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     assert File.ls!(user_data_dir) != []
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox (non-BiDi)")
   test "should goto about:blank on relaunched persistent context", %{
     browser_type: browser_type,
-    create_user_data_dir: create_user_data_dir,
-    browser_name: browser_name
+    create_user_data_dir: create_user_data_dir
   } do
     # it.fixme(browserName === 'firefox' && !isBidi);
-    if browser_name != "firefox" do
-      user_data_dir = create_user_data_dir.()
+    user_data_dir = create_user_data_dir.()
 
-      context1 = BrowserType.launch_persistent_context!(browser_type, user_data_dir)
-      Page.goto!(hd(BrowserContext.pages(context1)), "about:blank")
-      BrowserContext.close!(context1)
+    context1 = BrowserType.launch_persistent_context!(browser_type, user_data_dir)
+    Page.goto!(hd(BrowserContext.pages(context1)), "about:blank")
+    BrowserContext.close!(context1)
 
-      # When relaunching with an existing profile, Firefox session restore can race with the user's goto and cause "interrupted by another navigation".
-      # This issue is timing-sensitive and might not fire on every run, so rely on CI's --repeat-each matrix for coverage.
-      context2 = BrowserType.launch_persistent_context!(browser_type, user_data_dir)
-      Page.goto!(hd(BrowserContext.pages(context2)), "about:blank")
-      assert Page.url(hd(BrowserContext.pages(context2))) == "about:blank"
-      BrowserContext.close!(context2)
-    end
+    # When relaunching with an existing profile, Firefox session restore can race with the user's goto and cause "interrupted by another navigation".
+    # This issue is timing-sensitive and might not fire on every run, so rely on CI's --repeat-each matrix for coverage.
+    context2 = BrowserType.launch_persistent_context!(browser_type, user_data_dir)
+    Page.goto!(hd(BrowserContext.pages(context2)), "about:blank")
+    assert Page.url(hd(BrowserContext.pages(context2))) == "about:blank"
+    BrowserContext.close!(context2)
   end
 
   test "should have default URL when launching browser", %{launch_persistent: launch_persistent} do
@@ -184,17 +184,15 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
     assert urls == ["about:blank"]
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
   test "should throw if page argument is passed", %{
     browser_type: browser_type,
     server: server,
-    create_user_data_dir: create_user_data_dir,
-    browser_name: browser_name
+    create_user_data_dir: create_user_data_dir
   } do
-    if browser_name != "firefox" do
-      options = [args: [server.empty_page]]
-      {:error, error} = BrowserType.launch_persistent_context(browser_type, create_user_data_dir.(), options)
-      assert Exception.message(error) =~ "can not specify page"
-    end
+    options = [args: [server.empty_page]]
+    {:error, error} = BrowserType.launch_persistent_context(browser_type, create_user_data_dir.(), options)
+    assert Exception.message(error) =~ "can not specify page"
   end
 
   @tag skip: "not ported: toImpl (server-side defaultArgs)"

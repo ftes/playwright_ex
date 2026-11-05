@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.DownloadTest do
   @upstream "tests/library/download.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
   alias PlaywrightEx.Browser
@@ -294,24 +296,23 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report alt-click downloads", %{browser: browser, server: server, browser_name: browser_name} do
+    @tag skip: if(@browser_name == "firefox", do: "upstream skip: Firefox does not download on alt-click.")
+    test "should report alt-click downloads", %{browser: browser, server: server} do
       # it.skip(browserName === 'firefox', 'Firefox does not download on alt-click.');
-      if browser_name != "firefox" do
-        TestServer.set_route(server, "/download", fn conn ->
-          conn
-          |> Plug.Conn.put_resp_header("content-type", "application/octet-stream")
-          |> Plug.Conn.send_resp(200, "Hello world")
-        end)
+      TestServer.set_route(server, "/download", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/octet-stream")
+        |> Plug.Conn.send_resp(200, "Hello world")
+      end)
 
-        page = Browser.new_page!(browser)
-        Page.goto!(page, server.empty_page)
-        Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
-        download = click_download(page, "a", modifiers: [:alt])
-        path = Download.path!(download)
-        assert File.exists?(path)
-        assert File.read!(path) == "Hello world"
-        Page.close!(page)
-      end
+      page = Browser.new_page!(browser)
+      Page.goto!(page, server.empty_page)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
+      download = click_download(page, "a", modifiers: [:alt])
+      path = Download.path!(download)
+      assert File.exists?(path)
+      assert File.read!(path) == "Hello world"
+      Page.close!(page)
     end
 
     test "should report new window downloads", %{browser: browser, server: server} do
@@ -390,100 +391,102 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
+    @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium downloads on alt-click")
     test "should close the context without awaiting the failed download", %{
       browser: browser,
       server: server,
       https_server: https_server,
-      browser_name: browser_name,
       tmp_dir: tmp_dir
     } do
       # it.skip(browserName !== 'chromium', 'Only Chromium downloads on alt-click');
-      if browser_name == "chromium" do
-        page = Browser.new_page!(browser)
-        Page.goto!(page, server.empty_page)
+      page = Browser.new_page!(browser)
+      Page.goto!(page, server.empty_page)
 
-        Page.set_content!(
-          page,
-          ~s(<a href="#{https_server.prefix}/downloadWithFilename" download="file.txt">click me</a>)
-        )
+      Page.set_content!(
+        page,
+        ~s(<a href="#{https_server.prefix}/downloadWithFilename" download="file.txt">click me</a>)
+      )
 
-        # Use alt-click to force the download. Otherwise browsers might try to navigate first,
-        # probably because of http -> https link.
-        download = click_download(page, "a", modifiers: [:alt])
+      # Use alt-click to force the download. Otherwise browsers might try to navigate first,
+      # probably because of http -> https link.
+      download = click_download(page, "a", modifiers: [:alt])
 
-        [download_error, save_error, _] =
-          await_all([
-            fn -> Download.path(download) end,
-            fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
-            fn -> BrowserContext.close!(Page.context(page)) end
-          ])
+      [download_error, save_error, _] =
+        await_all([
+          fn -> Download.path(download) end,
+          fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
+          fn -> BrowserContext.close!(Page.context(page)) end
+        ])
 
-        assert {:error, %{message: "download.path: canceled"}} = download_error
-        {:error, %{message: message}} = save_error
+      assert {:error, %{message: "download.path: canceled"}} = download_error
+      {:error, %{message: message}} = save_error
 
-        assert message in [
-                 "download.saveAs: File not found on disk. Check download.failure() for details.",
-                 "download.saveAs: canceled"
-               ]
-      end
+      assert message in [
+               "download.saveAs: File not found on disk. Check download.failure() for details.",
+               "download.saveAs: canceled"
+             ]
     end
 
     @tag :tmp_dir
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
+             do: "upstream skip: WebKit on linux does not convert to the download immediately upon receiving headers"
+           )
     test "should close the context without awaiting the download", %{
       browser: browser,
       server: server,
       tmp_dir: tmp_dir
     } do
       # it.skip(browserName === 'webkit' && (platform === 'linux' || channel === 'webkit-wsl'), ...)
-      if !webkit_on_linux?() do
-        TestServer.set_route(server, "/downloadStall", &stall(&1, ["Hello world"]))
-        page = Browser.new_page!(browser)
-        Page.goto!(page, server.empty_page)
-        Page.set_content!(page, ~s(<a href="#{server.prefix}/downloadStall" download="file.txt">click me</a>))
-        download = click_download(page)
+      TestServer.set_route(server, "/downloadStall", &stall(&1, ["Hello world"]))
+      page = Browser.new_page!(browser)
+      Page.goto!(page, server.empty_page)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/downloadStall" download="file.txt">click me</a>))
+      download = click_download(page)
 
-        [download_error, save_error, _] =
-          await_all([
-            fn -> Download.path(download) end,
-            fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
-            fn -> BrowserContext.close!(Page.context(page)) end
-          ])
+      [download_error, save_error, _] =
+        await_all([
+          fn -> Download.path(download) end,
+          fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
+          fn -> BrowserContext.close!(Page.context(page)) end
+        ])
 
-        # The exact error message is racy, because sometimes browser is fast enough
-        # to cancel the download.
-        {:error, %{message: download_message}} = download_error
-        {:error, %{message: save_message}} = save_error
-        assert download_message in ["download.path: canceled", "download.path: " <> @k_target_closed_error_message]
+      # The exact error message is racy, because sometimes browser is fast enough
+      # to cancel the download.
+      {:error, %{message: download_message}} = download_error
+      {:error, %{message: save_message}} = save_error
+      assert download_message in ["download.path: canceled", "download.path: " <> @k_target_closed_error_message]
 
-        assert save_message in [
-                 "download.saveAs: canceled",
-                 "download.saveAs: " <> @k_target_closed_error_message
-               ]
-      end
+      assert save_message in [
+               "download.saveAs: canceled",
+               "download.saveAs: " <> @k_target_closed_error_message
+             ]
     end
 
     @tag :tmp_dir
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
+             do: "upstream skip: WebKit on linux does not convert to the download immediately upon receiving headers"
+           )
     test "should throw if browser dies", %{server: server, browser_type: browser_type, tmp_dir: tmp_dir} do
-      if !webkit_on_linux?() do
-        TestServer.set_route(server, "/downloadStall", &stall(&1, ["Hello world"]))
-        browser = BrowserType.launch!(browser_type)
-        page = Browser.new_page!(browser)
-        Page.set_content!(page, ~s(<a href="#{server.prefix}/downloadStall">click me</a>))
-        download = click_download(page)
+      TestServer.set_route(server, "/downloadStall", &stall(&1, ["Hello world"]))
+      browser = BrowserType.launch!(browser_type)
+      page = Browser.new_page!(browser)
+      Page.set_content!(page, ~s(<a href="#{server.prefix}/downloadStall">click me</a>))
+      download = click_download(page)
 
-        [download_error, save_error, _] =
-          await_all([
-            fn -> Download.path(download) end,
-            fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
-            # (browser as any)._channel.killForTests()
-            fn -> Api.call(nil, browser, fn -> ChannelOwner.channel_call(browser, :killForTests, %{}) end) end
-          ])
+      [download_error, save_error, _] =
+        await_all([
+          fn -> Download.path(download) end,
+          fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
+          # (browser as any)._channel.killForTests()
+          fn -> Api.call(nil, browser, fn -> ChannelOwner.channel_call(browser, :killForTests, %{}) end) end
+        ])
 
-        assert {:error, %{message: "download.path: " <> @k_target_closed_error_message}} = download_error
-        {:error, %{message: save_message}} = save_error
-        assert save_message =~ "download.saveAs: " <> @k_target_closed_error_message
-        Browser.close!(browser)
-      end
+      assert {:error, %{message: "download.path: " <> @k_target_closed_error_message}} = download_error
+      {:error, %{message: save_message}} = save_error
+      assert save_message =~ "download.saveAs: " <> @k_target_closed_error_message
+      Browser.close!(browser)
     end
 
     @tag :tmp_dir
@@ -584,31 +587,29 @@ defmodule PlaywrightEx.Library.DownloadTest do
     Page.close!(page)
   end
 
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit")
   test "should be able to download a inline PDF file via response interception", %{
     browser: browser,
     server: server,
-    asset: asset,
-    browser_name: browser_name
+    asset: asset
   } do
     # it.fixme(browserName === 'webkit')
-    if browser_name != "webkit" do
-      page = Browser.new_page!(browser)
-      Page.goto!(page, server.empty_page)
+    page = Browser.new_page!(browser)
+    Page.goto!(page, server.empty_page)
 
-      Page.route!(page, "**/empty.pdf", fn route ->
-        response = APIRequestContext.fetch!(BrowserContext.request(Page.context(page)), Route.request(route))
+    Page.route!(page, "**/empty.pdf", fn route ->
+      response = APIRequestContext.fetch!(BrowserContext.request(Page.context(page)), Route.request(route))
 
-        Route.fulfill!(route,
-          response: response,
-          headers: Map.merge(APIResponse.headers(response), %{"Content-Disposition" => "attachment"})
-        )
-      end)
+      Route.fulfill!(route,
+        response: response,
+        headers: Map.merge(APIResponse.headers(response), %{"Content-Disposition" => "attachment"})
+      )
+    end)
 
-      Page.set_content!(page, ~s(\n    <a href="/empty.pdf">open</a>\n  ))
-      download = click_download(page)
-      assert_download_to_pdf(download, asset.("empty.pdf"))
-      Page.close!(page)
-    end
+    Page.set_content!(page, ~s(\n    <a href="/empty.pdf">open</a>\n  ))
+    download = click_download(page)
+    assert_download_to_pdf(download, asset.("empty.pdf"))
+    Page.close!(page)
   end
 
   test "should be able to download a inline PDF file via navigation", %{
@@ -711,6 +712,4 @@ defmodule PlaywrightEx.Library.DownloadTest do
 
   # Promise.all([...]) of calls that run concurrently.
   defp await_all(funs), do: funs |> Enum.map(&Task.async/1) |> Enum.map(&Task.await(&1, 30_000))
-
-  defp webkit_on_linux?, do: System.get_env("BROWSER") == "webkit" and :os.type() == {:unix, :linux}
 end

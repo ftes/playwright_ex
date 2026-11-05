@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
   @upstream "tests/library/browsercontext-service-worker-policy.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Expect
@@ -36,86 +38,87 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
     @mode mode
     @worker_response worker_response
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42775' }
+    @tag skip:
+           if(@browser_name == "firefox" and @mode in ["network-fallback", "preload-fallback"],
+             do: "upstream fixme: Firefox does not apply offline emulation to service worker requests."
+           )
     test "should allow #{mode} service worker navigation while offline", %{
       context: context,
       page: page,
-      server: server,
-      browser_name: browser_name
+      server: server
     } do
       # it.skip(isElectron); it.skip(isFrozenWebkit, ...): neither applies here.
       # it.fixme(browserName === 'firefox' && (mode === 'network-fallback' || mode === 'preload-fallback'),
       #   'Firefox does not apply offline emulation to service worker requests.')
-      if not (browser_name == "firefox" and @mode in ["network-fallback", "preload-fallback"]) do
-        network_requests = :counters.new(1, [])
+      network_requests = :counters.new(1, [])
 
-        TestServer.set_route(server, "/target.html", fn conn ->
-          :counters.add(network_requests, 1, 1)
+      TestServer.set_route(server, "/target.html", fn conn ->
+        :counters.add(network_requests, 1, 1)
 
-          conn
-          |> Plug.Conn.put_resp_header("cache-control", "no-store")
-          |> Plug.Conn.send_resp(200, "online")
-        end)
+        conn
+        |> Plug.Conn.put_resp_header("cache-control", "no-store")
+        |> Plug.Conn.send_resp(200, "online")
+      end)
 
-        TestServer.set_route(server, "/offline.html", fn conn ->
-          conn
-          |> Plug.Conn.put_resp_header("content-type", "text/html")
-          |> Plug.Conn.send_resp(200, "<h1>offline</h1>")
-        end)
+      TestServer.set_route(server, "/offline.html", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "text/html")
+        |> Plug.Conn.send_resp(200, "<h1>offline</h1>")
+      end)
 
-        TestServer.set_route(server, "/sw.js", fn conn ->
-          conn
-          |> Plug.Conn.put_resp_header("content-type", "application/javascript")
-          |> Plug.Conn.send_resp(200, """
-            self.addEventListener('install', event => event.waitUntil((async () => {
-              const cache = await caches.open('offline');
-              await cache.add('/offline.html');
-              await self.skipWaiting();
-            })()));
-            self.addEventListener('activate', event => event.waitUntil((async () => {
-              #{if @mode == "preload-fallback", do: "await self.registration.navigationPreload.enable();", else: ""}
-              await self.clients.claim();
-            })()));
-            self.addEventListener('fetch', event => {
-              if (event.request.mode === 'navigate')
-                event.respondWith(#{@worker_response});
-            });
-          """)
-        end)
-
-        Page.goto!(page, server.empty_page)
-
-        Page.evaluate!(page, """
-        async () => {
-          await navigator.serviceWorker.register('/sw.js');
-          await navigator.serviceWorker.ready;
-        }
+      TestServer.set_route(server, "/sw.js", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/javascript")
+        |> Plug.Conn.send_resp(200, """
+          self.addEventListener('install', event => event.waitUntil((async () => {
+            const cache = await caches.open('offline');
+            await cache.add('/offline.html');
+            await self.skipWaiting();
+          })()));
+          self.addEventListener('activate', event => event.waitUntil((async () => {
+            #{if @mode == "preload-fallback", do: "await self.registration.navigationPreload.enable();", else: ""}
+            await self.clients.claim();
+          })()));
+          self.addEventListener('fetch', event => {
+            if (event.request.mode === 'navigate')
+              event.respondWith(#{@worker_response});
+          });
         """)
+      end)
 
-        Page.wait_for_function!(page, "() => !!navigator.serviceWorker.controller")
-        BrowserContext.set_offline!(context, true)
+      Page.goto!(page, server.empty_page)
 
-        response = Page.goto!(page, server.prefix <> "/target.html")
-        assert Response.status(response) == 200
-        assert Response.from_service_worker(response) == true
-        Expect.to_have_text!(Page.locator(page, "h1"), "offline")
-        assert Page.evaluate!(page, "() => navigator.onLine") == false
-        assert :counters.get(network_requests, 1) == 0
+      Page.evaluate!(page, """
+      async () => {
+        await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+      }
+      """)
 
-        new_page = BrowserContext.new_page!(context)
-        new_response = Page.goto!(new_page, server.prefix <> "/target.html")
-        assert Response.status(new_response) == 200
-        assert Response.from_service_worker(new_response) == true
-        Expect.to_have_text!(Page.locator(new_page, "h1"), "offline")
-        assert Page.evaluate!(new_page, "() => navigator.onLine") == false
-        assert :counters.get(network_requests, 1) == 0
+      Page.wait_for_function!(page, "() => !!navigator.serviceWorker.controller")
+      BrowserContext.set_offline!(context, true)
 
-        BrowserContext.set_offline!(context, false)
+      response = Page.goto!(page, server.prefix <> "/target.html")
+      assert Response.status(response) == 200
+      assert Response.from_service_worker(response) == true
+      Expect.to_have_text!(Page.locator(page, "h1"), "offline")
+      assert Page.evaluate!(page, "() => navigator.onLine") == false
+      assert :counters.get(network_requests, 1) == 0
 
-        assert Page.evaluate!(page, "() => fetch('/target.html').then(response => response.text())") ==
-                 "online"
+      new_page = BrowserContext.new_page!(context)
+      new_response = Page.goto!(new_page, server.prefix <> "/target.html")
+      assert Response.status(new_response) == 200
+      assert Response.from_service_worker(new_response) == true
+      Expect.to_have_text!(Page.locator(new_page, "h1"), "offline")
+      assert Page.evaluate!(new_page, "() => navigator.onLine") == false
+      assert :counters.get(network_requests, 1) == 0
 
-        assert :counters.get(network_requests, 1) == 1
-      end
+      BrowserContext.set_offline!(context, false)
+
+      assert Page.evaluate!(page, "() => fetch('/target.html').then(response => response.text())") ==
+               "online"
+
+      assert :counters.get(network_requests, 1) == 1
     end
   end
 

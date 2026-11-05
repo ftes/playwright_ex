@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.ElementhandlePressTest do
   @upstream "tests/page/elementhandle-press.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Page
 
   @moduletag :page
@@ -48,12 +50,11 @@ defmodule PlaywrightEx.Page.ElementhandlePressTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "hewo"
   end
 
-  test "should work with number input", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream fail: webkit")
+  test "should work with number input", %{page: page} do
     # it.fail(browserName === 'webkit')
-    if browser_name != "webkit" do
-      Page.set_content!(page, "<input type='number' value=2 />")
-      Page.press!(page, "input", "1")
-      assert Page.eval_on_selector!(page, "input", "input => input.value") == "12"
-    end
+    Page.set_content!(page, "<input type='number' value=2 />")
+    Page.press!(page, "input", "1")
+    assert Page.eval_on_selector!(page, "input", "input => input.value") == "12"
   end
 end

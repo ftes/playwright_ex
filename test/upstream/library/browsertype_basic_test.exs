@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
   @upstream "tests/library/browsertype-basic.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserType
 
   test "browserType.executablePath should work", %{browser_type: browser_type} do
@@ -13,13 +15,11 @@ defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
     assert BrowserType.name(browser_type) == browser_name
   end
 
+  @tag skip: if(@browser_name in ["chromium", "webkit"], do: "upstream skip: chromium or webkit")
   test "should throw when trying to connect with not-chromium", %{
-    browser_type: browser_type,
-    browser_name: browser_name
+    browser_type: browser_type
   } do
-    if browser_name not in ["chromium", "webkit"] do
-      {:error, error} = BrowserType.connect_over_cdp(browser_type, "ws://foo")
-      assert Exception.message(error) == "Connecting over CDP is only supported in Chromium and WebKit."
-    end
+    {:error, error} = BrowserType.connect_over_cdp(browser_type, "ws://foo")
+    assert Exception.message(error) == "Connecting over CDP is only supported in Chromium and WebKit."
   end
 end

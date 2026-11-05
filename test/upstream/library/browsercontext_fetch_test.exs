@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   @upstream "tests/library/browsercontext-fetch.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import Bitwise
 
   alias PlaywrightEx.APIRequestContext
@@ -1126,24 +1128,23 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert_receive :connection_closed, 5000
   end
 
-  test "should work with connectOverCDP", %{browser_name: browser_name, browser_type: browser_type, server: server} do
-    if browser_name == "chromium" do
-      # `9339 + testInfo.workerIndex`: a free port (modules run in parallel).
-      {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
-      {:ok, port} = :inet.port(socket)
-      :gen_tcp.close(socket)
-      browser_server = BrowserType.launch!(browser_type, args: ["--remote-debugging-port=#{port}"])
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium only")
+  test "should work with connectOverCDP", %{browser_type: browser_type, server: server} do
+    # `9339 + testInfo.workerIndex`: a free port (modules run in parallel).
+    {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
+    {:ok, port} = :inet.port(socket)
+    :gen_tcp.close(socket)
+    browser_server = BrowserType.launch!(browser_type, args: ["--remote-debugging-port=#{port}"])
 
-      try do
-        cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
-        [context] = Browser.contexts(cdp_browser)
-        response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json")
-        assert APIResponse.url(response) == server.prefix <> "/simple.json"
-        assert APIResponse.status(response) == 200
-        assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
-      after
-        Browser.close(browser_server)
-      end
+    try do
+      cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
+      [context] = Browser.contexts(cdp_browser)
+      response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json")
+      assert APIResponse.url(response) == server.prefix <> "/simple.json"
+      assert APIResponse.status(response) == 200
+      assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
+    after
+      Browser.close(browser_server)
     end
   end
 

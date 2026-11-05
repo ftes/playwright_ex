@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageDragTest do
   @upstream "tests/page/page-drag.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
@@ -50,23 +52,22 @@ defmodule PlaywrightEx.Page.PageDragTest do
              ]
     end
 
+    @tag skip: if(@browser_name != "chromium", do: "upstream fixme: not chromium")
     test "should not send dragover on the first mousemove", %{page: page, server: server, browser_name: browser_name} do
       # it.fixme(browserName !== 'chromium');
-      if browser_name == "chromium" do
-        Page.goto!(page, server.prefix <> "/drag-n-drop.html")
-        events = track_events(Page.query_selector!(page, "body"))
-        Page.hover!(page, "#source")
-        Mouse.down!(Page.mouse(page))
-        Page.hover!(page, "#target")
+      Page.goto!(page, server.prefix <> "/drag-n-drop.html")
+      events = track_events(Page.query_selector!(page, "body"))
+      Page.hover!(page, "#source")
+      Mouse.down!(Page.mouse(page))
+      Page.hover!(page, "#target")
 
-        assert JSHandle.json_value!(events) == [
-                 "mousemove at 120;86",
-                 "mousedown at 120;86",
-                 if(browser_name == "firefox", do: "dragstart at 120;86", else: "mousemove at 240;350"),
-                 if(browser_name == "firefox", do: "mousemove at 240;350", else: "dragstart at 120;86"),
-                 "dragenter at 240;350"
-               ]
-      end
+      assert JSHandle.json_value!(events) == [
+               "mousemove at 120;86",
+               "mousedown at 120;86",
+               if(browser_name == "firefox", do: "dragstart at 120;86", else: "mousemove at 240;350"),
+               if(browser_name == "firefox", do: "mousemove at 240;350", else: "dragstart at 120;86"),
+               "dragenter at 240;350"
+             ]
     end
 
     test "should work inside iframe", %{page: page, server: server, browser_name: browser_name} do
@@ -141,29 +142,31 @@ defmodule PlaywrightEx.Page.PageDragTest do
     @tag skip: "upstream fixme: implement dragging with iframes"
     test "should drag out of an iframe"
 
-    test "should respect the drop effect", %{page: page, browser_name: browser_name} do
+    @tag skip:
+           if(@browser_name == "webkit" and not match?({:unix, :linux}, :os.type()),
+             do: "upstream fixme: WebKit doesn't handle the drop effect correctly outside of linux."
+           )
+    test "should respect the drop effect", %{page: page} do
       # it.fixme(browserName === 'webkit' && !isLinux, 'WebKit doesn\'t handle the drop effect correctly outside of linux.');
       # it.fixme(webkit && isLinux && !headless), it.fixme(chromium && !isMac && !headless)  -- we run headless
-      if !(browser_name == "webkit" and !match?({:unix, :linux}, :os.type())) do
-        assert test_if_dropped(page, "copy", "copy") == true
-        assert test_if_dropped(page, "copy", "move") == false
-        assert test_if_dropped(page, "all", "link") == true
-        assert test_if_dropped(page, "all", "none") == false
+      assert test_if_dropped(page, "copy", "copy") == true
+      assert test_if_dropped(page, "copy", "move") == false
+      assert test_if_dropped(page, "all", "link") == true
+      assert test_if_dropped(page, "all", "none") == false
 
-        assert test_if_dropped(page, "copyMove", "copy") == true
-        assert test_if_dropped(page, "copyLink", "copy") == true
-        assert test_if_dropped(page, "linkMove", "copy") == false
+      assert test_if_dropped(page, "copyMove", "copy") == true
+      assert test_if_dropped(page, "copyLink", "copy") == true
+      assert test_if_dropped(page, "linkMove", "copy") == false
 
-        assert test_if_dropped(page, "copyMove", "link") == false
-        assert test_if_dropped(page, "copyLink", "link") == true
-        assert test_if_dropped(page, "linkMove", "link") == true
+      assert test_if_dropped(page, "copyMove", "link") == false
+      assert test_if_dropped(page, "copyLink", "link") == true
+      assert test_if_dropped(page, "linkMove", "link") == true
 
-        assert test_if_dropped(page, "copyMove", "move") == true
-        assert test_if_dropped(page, "copyLink", "move") == false
-        assert test_if_dropped(page, "linkMove", "move") == true
+      assert test_if_dropped(page, "copyMove", "move") == true
+      assert test_if_dropped(page, "copyLink", "move") == false
+      assert test_if_dropped(page, "linkMove", "move") == true
 
-        assert test_if_dropped(page, "uninitialized", "copy") == true
-      end
+      assert test_if_dropped(page, "uninitialized", "copy") == true
     end
 
     test "should work if the drag is canceled", %{page: page, server: server} do
@@ -400,46 +403,45 @@ defmodule PlaywrightEx.Page.PageDragTest do
            ]
   end
 
-  test "should handle custom dataTransfer", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit" and match?({:win32, _}, :os.type()), do: "upstream fixme: webkit on Windows")
+  test "should handle custom dataTransfer", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/18013' }
     # it.fixme(browserName === 'webkit' && isWindows);
-    if !(browser_name == "webkit" and match?({:win32, _}, :os.type())) do
-      Page.set_content!(page, ~s(<button draggable="true">Draggable</button>))
+    Page.set_content!(page, ~s(<button draggable="true">Draggable</button>))
 
-      result_promise =
-        Task.async(fn ->
-          Page.evaluate!(page, """
-          () =>
-            new Promise(resolve => {
-              document.addEventListener('dragstart', event => {
-                event.dataTransfer.setData('custom-type', 'Hello World');
-              }, false);
+    result_promise =
+      Task.async(fn ->
+        Page.evaluate!(page, """
+        () =>
+          new Promise(resolve => {
+            document.addEventListener('dragstart', event => {
+              event.dataTransfer.setData('custom-type', 'Hello World');
+            }, false);
 
-              document.addEventListener('dragenter', event => {
-                event.preventDefault();
-              }, false);
-              document.addEventListener('dragover', event => {
-                event.preventDefault();
-              }, false);
+            document.addEventListener('dragenter', event => {
+              event.preventDefault();
+            }, false);
+            document.addEventListener('dragover', event => {
+              event.preventDefault();
+            }, false);
 
-              document.addEventListener('drop', event => {
-                event.preventDefault();
-                resolve({
-                  types: event.dataTransfer.types,
-                  data: event.dataTransfer.getData('custom-type'),
-                });
-              }, false);
-            })
-          """)
-        end)
+            document.addEventListener('drop', event => {
+              event.preventDefault();
+              resolve({
+                types: event.dataTransfer.types,
+                data: event.dataTransfer.getData('custom-type'),
+              });
+            }, false);
+          })
+        """)
+      end)
 
-      Page.hover!(page, ~s([draggable="true"]))
-      Mouse.down!(Page.mouse(page))
-      Mouse.move!(Page.mouse(page), 100, 100)
-      Mouse.up!(Page.mouse(page))
+    Page.hover!(page, ~s([draggable="true"]))
+    Mouse.down!(Page.mouse(page))
+    Mouse.move!(Page.mouse(page), 100, 100)
+    Mouse.up!(Page.mouse(page))
 
-      assert Task.await(result_promise) == %{"types" => ["custom-type"], "data" => "Hello World"}
-    end
+    assert Task.await(result_promise) == %{"types" => ["custom-type"], "data" => "Hello World"}
   end
 
   test "what happens when dragging element is destroyed", %{page: page} do

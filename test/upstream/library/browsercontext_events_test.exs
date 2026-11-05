@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
   @upstream "tests/library/browsercontext-events.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Dialog
@@ -57,6 +59,10 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert ConsoleMessage.page(message) == popup
   end
 
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream fixme: console message from javascript: url is not reported at all"
+         )
   test "console event should work in popup 2", %{page: page} do
     message_promise =
       BrowserContext.wait_for_event(Page.context(page), :console,
@@ -80,6 +86,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert ConsoleMessage.page(message) == popup
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: console message is not reported at all")
   test "console event should work in immediately closed popup", %{page: page} do
     message_promise = BrowserContext.wait_for_event(Page.context(page), :console)
     popup_promise = Page.wait_for_event(page, :popup)
@@ -150,6 +157,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Task.await(task) == "hello"
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: dialog from javascript: url is not reported at all")
   test "dialog event should work in popup 2", %{page: page} do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
 

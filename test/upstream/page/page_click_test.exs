@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageClickTest do
   @upstream "tests/page/page-click.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils, only: [attach_frame: 3, rafraf: 2, rafraf: 1]
 
   alias PlaywrightEx.ConsoleMessage
@@ -390,22 +392,21 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Frame.evaluate!(frame, "() => window['result']") == "Clicked"
   end
 
+  @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
   test "should click the button with fixed position inside an iframe",
-       %{page: page, server: server, browser_name: browser_name} do
+       %{page: page, server: server} do
     # it.fixme(browserName === 'chromium');
-    if browser_name != "chromium" do
-      # @see https://github.com/GoogleChrome/puppeteer/issues/4110
-      # @see https://bugs.chromium.org/p/chromium/issues/detail?id=986390
-      # @see https://chromium-review.googlesource.com/c/chromium/src/+/1742784
-      Page.goto!(page, server.empty_page)
-      Page.set_viewport_size!(page, %{width: 500, height: 500})
-      Page.set_content!(page, ~s(<div style="width:100px;height:2000px">spacer</div>))
-      attach_frame(page, "button-test", server.cross_process_prefix <> "/input/button.html")
-      frame = Enum.at(Page.frames(page), 1)
-      Frame.eval_on_selector!(frame, "button", "button => button.style.setProperty('position', 'fixed')")
-      Frame.click!(frame, "button")
-      assert Frame.evaluate!(frame, "() => window['result']") == "Clicked"
-    end
+    # @see https://github.com/GoogleChrome/puppeteer/issues/4110
+    # @see https://bugs.chromium.org/p/chromium/issues/detail?id=986390
+    # @see https://chromium-review.googlesource.com/c/chromium/src/+/1742784
+    Page.goto!(page, server.empty_page)
+    Page.set_viewport_size!(page, %{width: 500, height: 500})
+    Page.set_content!(page, ~s(<div style="width:100px;height:2000px">spacer</div>))
+    attach_frame(page, "button-test", server.cross_process_prefix <> "/input/button.html")
+    frame = Enum.at(Page.frames(page), 1)
+    Frame.eval_on_selector!(frame, "button", "button => button.style.setProperty('position', 'fixed')")
+    Frame.click!(frame, "button")
+    assert Frame.evaluate!(frame, "() => window['result']") == "Clicked"
   end
 
   test "should click the button behind sticky header", %{page: page} do

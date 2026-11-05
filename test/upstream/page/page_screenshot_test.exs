@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   @upstream "tests/page/page-screenshot.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils
 
   alias PlaywrightEx.ConsoleMessage
@@ -49,27 +51,29 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
+    @tag skip:
+           if(@browser_name == "firefox",
+             do: "upstream skip: browser-level screenshot API in firefox does not capture caret"
+           )
     test "should capture blinking caret if explicitly asked for",
-         %{page: page, server: server, browser_name: browser_name} do
+         %{page: page, server: server} do
       # it.skip(browserName === 'firefox', 'browser-level screenshot API in firefox does not capture caret')
-      if browser_name != "firefox" do
-        Page.set_content!(page, String.replace(@caret_content, "CROSS_PROCESS_PREFIX", server.cross_process_prefix))
-        div = Page.locator(page, "div")
-        Locator.type!(div, "foo bar")
-        screenshot = Locator.screenshot!(div)
+      Page.set_content!(page, String.replace(@caret_content, "CROSS_PROCESS_PREFIX", server.cross_process_prefix))
+      div = Page.locator(page, "div")
+      Locator.type!(div, "foo bar")
+      screenshot = Locator.screenshot!(div)
 
-        # Caret blinking time is set to 500ms.
-        # Try to capture variety of screenshots to make
-        # sure we capture blinking caret.
-        has_different_screenshots =
-          Enum.reduce_while(0..9, false, fn _, _ ->
-            Process.sleep(150)
-            new_screenshot = Locator.screenshot!(div, caret: :initial)
-            if new_screenshot != screenshot, do: {:halt, true}, else: {:cont, false}
-          end)
+      # Caret blinking time is set to 500ms.
+      # Try to capture variety of screenshots to make
+      # sure we capture blinking caret.
+      has_different_screenshots =
+        Enum.reduce_while(0..9, false, fn _, _ ->
+          Process.sleep(150)
+          new_screenshot = Locator.screenshot!(div, caret: :initial)
+          if new_screenshot != screenshot, do: {:halt, true}, else: {:cont, false}
+        end)
 
-        assert has_different_screenshots
-      end
+      assert has_different_screenshots
     end
 
     test "should capture blinking caret in shadow dom", %{page: page} do
@@ -617,51 +621,50 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   end
 
   @tag :tmp_dir
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit")
   test "page screenshot should capture css transform", %{page: page, browser_name: browser_name, tmp_dir: tmp_dir} do
     # it.fixme(browserName === 'webkit')
     # it.skip(isElectron || isAndroid, 'Returns screenshot of a different size.')
-    if browser_name != "webkit" do
-      Page.set_content!(page, """
-      <style>
-      .container {
-        width: 150px;
-        height: 150px;
-        margin: 75px 0 0 75px;
-        border: none;
-      }
+    Page.set_content!(page, """
+    <style>
+    .container {
+      width: 150px;
+      height: 150px;
+      margin: 75px 0 0 75px;
+      border: none;
+    }
 
-      .cube {
-        width: 100%;
-        height: 100%;
-        perspective: 550px;
-        perspective-origin: 150% 150%;
-      }
+    .cube {
+      width: 100%;
+      height: 100%;
+      perspective: 550px;
+      perspective-origin: 150% 150%;
+    }
 
-      .face {
-        display: block;
-        position: absolute;
-        width: 100px;
-        height: 100px;
-        border: none;
-      }
+    .face {
+      display: block;
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border: none;
+    }
 
-      .right {
-        background: rgba(196, 0, 0, 0.7);
-        transform: rotateY(70deg);
-      }
+    .right {
+      background: rgba(196, 0, 0, 0.7);
+      transform: rotateY(70deg);
+    }
 
-      </style>
-      <div class="container">
-        <div class="cube showbf">
-          <div class="face right"></div>
-        </div>
+    </style>
+    <div class="container">
+      <div class="cube showbf">
+        <div class="face right"></div>
       </div>
-      """)
+    </div>
+    """)
 
-      Expect.to_have_screenshot!(page,
-        path: upstream_snapshot(tmp_dir, "page-screenshot-should-capture-css-transform-1", browser_name)
-      )
-    end
+    Expect.to_have_screenshot!(page,
+      path: upstream_snapshot(tmp_dir, "page-screenshot-should-capture-css-transform-1", browser_name)
+    )
   end
 
   @tag :tmp_dir

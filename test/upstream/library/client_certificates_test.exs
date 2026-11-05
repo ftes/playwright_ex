@@ -67,6 +67,8 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   @upstream "tests/library/client-certificates.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
@@ -899,41 +901,42 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: WebKit on macOS does not proxy localhost"
+           )
     test "support http2", %{
       browser: browser,
       start_cc_server: start_cc_server,
-      asset: asset,
-      browser_name: browser_name
+      asset: asset
     } do
-      if not fake_localhost?(browser_name) do
-        server_url = start_cc_server.(http2: true)
+      server_url = start_cc_server.(http2: true)
 
-        page =
-          Browser.new_page!(browser,
-            ignore_https_errors: true,
-            client_certificates: [trusted(asset, origin(server_url))]
-          )
-
-        Page.goto!(page, String.replace(server_url, "127.0.0.1", "local.playwright"))
-
-        Expect.to_have_text!(
-          Page.get_by_test_id(page, "message"),
-          "Sorry, but you need to provide a client certificate to continue."
+      page =
+        Browser.new_page!(browser,
+          ignore_https_errors: true,
+          client_certificates: [trusted(asset, origin(server_url))]
         )
 
-        Expect.to_have_text!(Page.get_by_test_id(page, "alpn-protocol"), "h2")
-        Expect.to_have_text!(Page.get_by_test_id(page, "servername"), "local.playwright")
+      Page.goto!(page, String.replace(server_url, "127.0.0.1", "local.playwright"))
 
-        Page.goto!(page, server_url)
+      Expect.to_have_text!(
+        Page.get_by_test_id(page, "message"),
+        "Sorry, but you need to provide a client certificate to continue."
+      )
 
-        Expect.to_have_text!(
-          Page.get_by_test_id(page, "message"),
-          "Hello Alice, your certificate was issued by localhost!"
-        )
+      Expect.to_have_text!(Page.get_by_test_id(page, "alpn-protocol"), "h2")
+      Expect.to_have_text!(Page.get_by_test_id(page, "servername"), "local.playwright")
 
-        Expect.to_have_text!(Page.get_by_test_id(page, "alpn-protocol"), "h2")
-        Page.close!(page)
-      end
+      Page.goto!(page, server_url)
+
+      Expect.to_have_text!(
+        Page.get_by_test_id(page, "message"),
+        "Hello Alice, your certificate was issued by localhost!"
+      )
+
+      Expect.to_have_text!(Page.get_by_test_id(page, "alpn-protocol"), "h2")
+      Page.close!(page)
     end
 
     @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: browserName !== 'chromium'")
@@ -965,16 +968,18 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Browser.close!(browser)
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: WebKit on macOS does not proxy localhost"
+           )
     test "should return target connection errors when using http2",
-         %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
+         %{browser: browser, start_cc_server: start_cc_server, asset: asset} do
       # test.skip(nodeVersion.major < 20, ...)  -- the driver's Node is newer
-      if not fake_localhost?(browser_name) do
-        server_url = start_cc_server.(http2: true)
-        page = Browser.new_page!(browser, client_certificates: [trusted(asset, origin(server_url))])
-        Page.goto!(page, server_url)
-        Expect.to_be_visible!(Page.get_by_text(page, "Playwright client-certificate error: self-signed certificate"))
-        Page.close!(page)
-      end
+      server_url = start_cc_server.(http2: true)
+      page = Browser.new_page!(browser, client_certificates: [trusted(asset, origin(server_url))])
+      Page.goto!(page, server_url)
+      Expect.to_be_visible!(Page.get_by_text(page, "Playwright client-certificate error: self-signed certificate"))
+      Page.close!(page)
     end
 
     test "should handle rejected certificate in handshake with HTTP/2",

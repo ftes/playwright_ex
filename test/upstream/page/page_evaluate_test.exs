@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   @upstream "tests/page/page-evaluate.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils, only: [attach_frame: 3, detach_frame: 2]
 
   alias PlaywrightEx.Frame
@@ -371,51 +373,52 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert Page.evaluate!(page, "() => function() {}") == nil
   end
 
-  test "should throw for too deep reference chain", %{page: page, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream fixme: Firefox Juggler -> Playwright serialiser does not throw for deep references."
+         )
+  test "should throw for too deep reference chain", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/33997
     # it.fixme(browserName === 'firefox' && !isBidi, 'Firefox Juggler -> Playwright serialiser does not throw for deep references.')
-    if browser_name != "firefox" do
-      error =
-        Page.evaluate(
-          page,
-          """
-          depth => {
-            const obj = {};
-            let temp = obj;
-            for (let i = 0; i < depth; i++) {
-              temp[i] = {};
-              temp = temp[i];
-            }
-            return obj;
+    error =
+      Page.evaluate(
+        page,
+        """
+        depth => {
+          const obj = {};
+          let temp = obj;
+          for (let i = 0; i < depth; i++) {
+            temp[i] = {};
+            temp = temp[i];
           }
-          """,
-          1000
-        )
+          return obj;
+        }
+        """,
+        1000
+      )
 
-      assert message(error) =~ "Cannot serialize result: object reference chain is too long."
-    end
+    assert message(error) =~ "Cannot serialize result: object reference chain is too long."
   end
 
-  test "should throw for too deep reference chain 2", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: this is a chromium-only limitation")
+  test "should throw for too deep reference chain 2", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/40940
     # it.skip(browserName !== 'chromium', 'this is a chromium-only limitation');
-    if browser_name == "chromium" do
-      error =
-        Page.evaluate(
-          page,
-          """
-          depth => {
-            let node = {};
-            for (let i = 0; i < depth; i++)
-              node = { child: node };
-            return node;
-          }
-          """,
-          200
-        )
+    error =
+      Page.evaluate(
+        page,
+        """
+        depth => {
+          let node = {};
+          for (let i = 0; i < depth; i++)
+            node = { child: node };
+          return node;
+        }
+        """,
+        200
+      )
 
-      assert message(error) =~ "Cannot serialize result: object reference chain is too long."
-    end
+    assert message(error) =~ "Cannot serialize result: object reference chain is too long."
   end
 
   # `String(fn)` is `inspect(fn)` here.
@@ -887,25 +890,24 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
            """) == "([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})"
   end
 
-  test "should work with a using declaration", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit does not support using declarations")
+  test "should work with a using declaration", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/41511
     # it.skip(nodeVersion.major < 24, ...)  -- n/a: the page function is JS source, not lowered
     # it.skip(browserName === 'chromium' && browserMajorVersion < 134, ...)  -- we run a recent chromium
-    if browser_name != "webkit" do
-      disposed =
-        Page.evaluate!(page, """
-        () => {
-          let disposed = false;
-          {
-            using r = { [Symbol.dispose]: () => { disposed = true; } };
-            void r;
-          }
-          return disposed;
+    disposed =
+      Page.evaluate!(page, """
+      () => {
+        let disposed = false;
+        {
+          using r = { [Symbol.dispose]: () => { disposed = true; } };
+          void r;
         }
-        """)
+        return disposed;
+      }
+      """)
 
-      assert disposed == true
-    end
+    assert disposed == true
   end
 
   test "should ignore dangerous object keys", %{page: page} do

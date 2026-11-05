@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.ElementhandleTypeTest do
   @upstream "tests/page/elementhandle-type.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Page
 
   @moduletag :page
@@ -48,6 +50,11 @@ defmodule PlaywrightEx.Page.ElementhandleTypeTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "heworldo"
   end
 
+  @tag skip:
+         if(@browser_name == "webkit",
+           do:
+             "upstream fail: Started failing after https://github.com/WebKit/WebKit/commit/c92a2aea185d63b5e9998608a9c0321a461c496c"
+         )
   test "should work with number input", %{page: page} do
     Page.set_content!(page, "<input type='number' value=2 />")
     Page.type!(page, "input", "13")

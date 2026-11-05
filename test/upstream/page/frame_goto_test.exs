@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
   @upstream "tests/page/frame-goto.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Response
@@ -42,15 +44,15 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
     end
   end
 
-  test "should continue after client redirect", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "firefox", do: "upstream fixme: script.js is requested before navigationCommitted arrives")
+  test "should continue after client redirect", %{page: page, server: server} do
     # it.fixme(browserName === 'firefox' && !isBidi, 'script.js is requested before navigationCommitted arrives');
-    if browser_name != "firefox" do
-      TestServer.set_route(server, "/frames/script.js", &hang/1)
-      url = server.prefix <> "/frames/child-redirect.html"
-      {:error, error} = Page.goto(page, url, timeout: 5000, wait_until: :networkidle)
-      assert Exception.message(error) =~ "page.goto: Timeout 5000ms exceeded."
-      assert Exception.message(error) =~ ~s(navigating to "#{url}", waiting until "networkidle")
-    end
+    TestServer.set_route(server, "/frames/script.js", &hang/1)
+    url = server.prefix <> "/frames/child-redirect.html"
+    {:error, error} = Page.goto(page, url, timeout: 5000, wait_until: :networkidle)
+    assert Exception.message(error) =~ "page.goto: Timeout 5000ms exceeded."
+    assert Exception.message(error) =~ ~s(navigating to "#{url}", waiting until "networkidle")
   end
 
   test "should return matching responses", %{page: page, server: server} do

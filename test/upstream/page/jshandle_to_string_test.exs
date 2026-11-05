@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
   @upstream "tests/page/jshandle-to-string.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
@@ -75,12 +77,11 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
              if(browser_name == "chromium", do: "Proxy(Object)", else: "Proxy")
   end
 
-  test "should work with previewable subtypes", %{page: page, browser_name: browser_name} do
-    if browser_name != "firefox" do
-      assert to_string(Page.evaluate_handle!(page, "/foo/")) == "/foo/"
-      assert to_string(Page.evaluate_handle!(page, "new Date(0)")) =~ "GMT"
-      assert to_string(Page.evaluate_handle!(page, "new Int32Array()")) =~ "Int32Array"
-    end
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
+  test "should work with previewable subtypes", %{page: page} do
+    assert to_string(Page.evaluate_handle!(page, "/foo/")) == "/foo/"
+    assert to_string(Page.evaluate_handle!(page, "new Date(0)")) =~ "GMT"
+    assert to_string(Page.evaluate_handle!(page, "new Int32Array()")) =~ "Int32Array"
   end
 
   defp poll(fun, expected, tries \\ 50) do

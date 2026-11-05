@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
   @upstream "tests/page/page-event-console.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
@@ -108,6 +110,8 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
            ]
   end
 
+  # it.fixme(browserName === 'firefox' && !isBidi, 'https://github.com/microsoft/playwright/issues/10580');
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: https://github.com/microsoft/playwright/issues/10580")
   test "should format the message correctly with time/timeLog/timeEnd", %{page: page, browser_name: browser_name} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:event, msg}) end)
@@ -158,19 +162,21 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
       else: assert(ConsoleMessage.text(message) == "JSHandle@object")
   end
 
-  test "should trigger correct Log", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream skip: Upstream issue https://bugs.webkit.org/show_bug.cgi?id=229515"
+         )
+  test "should trigger correct Log", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && isWindows, 'Upstream issue https://bugs.webkit.org/show_bug.cgi?id=229515');
-    if !(browser_name == "webkit" and match?({:win32, _}, :os.type())) do
-      Page.goto!(page, "about:blank")
+    Page.goto!(page, "about:blank")
 
-      message =
-        Page.expect_event!(page, :console, fn ->
-          Page.evaluate!(page, "async url => fetch(url).catch(e => {})", server.empty_page)
-        end)
+    message =
+      Page.expect_event!(page, :console, fn ->
+        Page.evaluate!(page, "async url => fetch(url).catch(e => {})", server.empty_page)
+      end)
 
-      assert ConsoleMessage.text(message) =~ ~r/Access-Control-Allow-Origin|CORS/
-      assert ConsoleMessage.type(message) == "error"
-    end
+    assert ConsoleMessage.text(message) =~ ~r/Access-Control-Allow-Origin|CORS/
+    assert ConsoleMessage.type(message) == "error"
   end
 
   test "should have location for console API calls", %{page: page, server: server} do

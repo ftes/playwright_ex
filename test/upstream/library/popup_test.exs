@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.PopupTest do
   @upstream "tests/library/popup.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Locator
@@ -282,30 +284,32 @@ defmodule PlaywrightEx.Library.PopupTest do
   end
 
   @tag :page
-  @tag skip: "flaky: on Linux CI the driver answers the click with TargetClosedError (passes locally)"
+  # it.fixme(browserName === 'firefox', 'locator.click: Target page, context or browser has been closed');
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream fixme: locator.click: Target page, context or browser has been closed",
+           else: "flaky: on Linux CI the driver answers the click with TargetClosedError (passes locally)"
+         )
   test "should not throw when click closes popup", %{browser_name: browser_name, page: page, server: server} do
-    # it.fixme(browserName === 'firefox', 'locator.click: Target page, context or browser has been closed');
-    if browser_name != "firefox" do
-      Page.goto!(page, server.empty_page)
+    Page.goto!(page, server.empty_page)
 
-      popup =
-        Page.expect_popup!(page, fn ->
-          Page.evaluate!(
-            page,
-            """
-            async browserName => {
-              const w = window.open('about:blank');
-              if (browserName === 'firefox')
-                await new Promise(x => w.onload = x);
-              w.document.body.innerHTML = `<button onclick="window.close()">close</button>`;
-            }
-            """,
-            browser_name
-          )
-        end)
+    popup =
+      Page.expect_popup!(page, fn ->
+        Page.evaluate!(
+          page,
+          """
+          async browserName => {
+            const w = window.open('about:blank');
+            if (browserName === 'firefox')
+              await new Promise(x => w.onload = x);
+            w.document.body.innerHTML = `<button onclick="window.close()">close</button>`;
+          }
+          """,
+          browser_name
+        )
+      end)
 
-      popup |> Page.get_by_role("button") |> Locator.click!()
-    end
+    popup |> Page.get_by_role("button") |> Locator.click!()
   end
 
   defp wait_for_rafs(page, count) do

@@ -18,6 +18,8 @@ defmodule PlaywrightEx.Library.HarTest do
   @upstream "tests/library/har.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
@@ -359,6 +361,10 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(cookies, 0) == %{"name" => "name", "value" => "value"}
   end
 
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream fixme: We get \"name1=val, ue1, name2=val, ue2\" as a header value"
+         )
   test "should include set-cookies with comma", %{
     context_factory: context_factory,
     output_path: output_path,
@@ -776,6 +782,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert security_details == %{}
   end
 
+  @tag skip: if(@browser_name == "webkit" and match?({:win32, _}, :os.type()), do: "upstream fail: webkit on Windows")
   test "should have security details", %{
     context_factory: context_factory,
     output_path: output_path,
@@ -784,54 +791,52 @@ defmodule PlaywrightEx.Library.HarTest do
   } do
     # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl');
     # it.skip(isFrozenWebkit);  -- not ported: no frozen WebKit
-    if !(browser_name == "webkit" and match?({:win32, _}, :os.type())) do
-      %{page: page, context: context} = session = page_with_har(context_factory, output_path)
-      api_har_path = output_path.("api.har")
-      Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), api_har_path)
-      Page.goto!(page, https_server.empty_page)
-      APIRequestContext.get!(Page.request(page), https_server.empty_page)
-      Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
-      log = get_log(session)
-      assert length(log["entries"]) == 1
+    %{page: page, context: context} = session = page_with_har(context_factory, output_path)
+    api_har_path = output_path.("api.har")
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), api_har_path)
+    Page.goto!(page, https_server.empty_page)
+    APIRequestContext.get!(Page.request(page), https_server.empty_page)
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    log = get_log(session)
+    assert length(log["entries"]) == 1
 
-      %{"serverIPAddress" => server_ip_address, "_serverPort" => port, "_securityDetails" => security_details} =
-        hd(log["entries"])
+    %{"serverIPAddress" => server_ip_address, "_serverPort" => port, "_securityDetails" => security_details} =
+      hd(log["entries"])
 
-      assert server_ip_address =~ ~r/^127\.0\.0\.1|\[::1\]/
-      assert port == https_server.port
+    assert server_ip_address =~ ~r/^127\.0\.0\.1|\[::1\]/
+    assert port == https_server.port
 
-      if browser_name == "webkit",
-        do:
-          assert(
-            security_details == %{
-              "protocol" => "TLS 1.3",
-              "subjectName" => "playwright-test",
-              "validFrom" => 1_691_708_270,
-              "validTo" => 2_007_068_270
-            }
-          ),
-        else:
-          assert(
-            security_details == %{
-              "issuer" => "playwright-test",
-              "protocol" => "TLS 1.3",
-              "subjectName" => "playwright-test",
-              "validFrom" => 1_691_708_270,
-              "validTo" => 2_007_068_270
-            }
-          )
+    if browser_name == "webkit",
+      do:
+        assert(
+          security_details == %{
+            "protocol" => "TLS 1.3",
+            "subjectName" => "playwright-test",
+            "validFrom" => 1_691_708_270,
+            "validTo" => 2_007_068_270
+          }
+        ),
+      else:
+        assert(
+          security_details == %{
+            "issuer" => "playwright-test",
+            "protocol" => "TLS 1.3",
+            "subjectName" => "playwright-test",
+            "validFrom" => 1_691_708_270,
+            "validTo" => 2_007_068_270
+          }
+        )
 
-      api_log = read_log(api_har_path)
-      assert length(api_log["entries"]) == 1
+    api_log = read_log(api_har_path)
+    assert length(api_log["entries"]) == 1
 
-      assert hd(api_log["entries"])["_securityDetails"] == %{
-               "issuer" => "playwright-test",
-               "protocol" => "TLSv1.3",
-               "subjectName" => "playwright-test",
-               "validFrom" => 1_691_708_270,
-               "validTo" => 2_007_068_270
-             }
-    end
+    assert hd(api_log["entries"])["_securityDetails"] == %{
+             "issuer" => "playwright-test",
+             "protocol" => "TLSv1.3",
+             "subjectName" => "playwright-test",
+             "validFrom" => 1_691_708_270,
+             "validTo" => 2_007_068_270
+           }
   end
 
   test "should have connection details for redirects", %{
@@ -1149,44 +1154,42 @@ defmodule PlaywrightEx.Library.HarTest do
 
   # it.slow()
   @tag timeout: 300_000
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: serializer is browser-agnostic; one browser is enough")
   test "should support HAR larger than 512MB", %{
     context_factory: context_factory,
     output_path: output_path,
-    server: server,
-    browser_name: browser_name
+    server: server
   } do
     # it.skip(browserName !== 'chromium', 'serializer is browser-agnostic; one browser is enough');
-    if browser_name == "chromium" do
-      # annotation: https://github.com/microsoft/playwright/issues/36707
-      har_path = output_path.("test.har")
-      context = context_factory.([])
-      Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+    # annotation: https://github.com/microsoft/playwright/issues/36707
+    har_path = output_path.("test.har")
+    context = context_factory.([])
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
 
-      # 30 x 20MB textual responses push the HAR JSON past V8's ~512MB max
-      # string length. Each body still fits in a single string; only the
-      # aggregate would overflow the previous tokens.join('').
-      body = String.duplicate("a", 20 * 1024 * 1024)
+    # 30 x 20MB textual responses push the HAR JSON past V8's ~512MB max
+    # string length. Each body still fits in a single string; only the
+    # aggregate would overflow the previous tokens.join('').
+    body = String.duplicate("a", 20 * 1024 * 1024)
 
-      TestServer.set_route(server, "/large", fn conn ->
-        conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(200, body)
-      end)
+    TestServer.set_route(server, "/large", fn conn ->
+      conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_resp(200, body)
+    end)
 
-      for _ <- 1..30, do: APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/large")
-      Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
-      BrowserContext.close!(context)
+    for _ <- 1..30, do: APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/large")
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    BrowserContext.close!(context)
 
-      %File.Stat{size: size} = File.stat!(har_path)
-      assert size > 512 * 1024 * 1024
+    %File.Stat{size: size} = File.stat!(har_path)
+    assert size > 512 * 1024 * 1024
 
-      # Reading the whole file as a string would re-hit V8's limit, so
-      # sample the head and tail to verify structural sanity.
-      {:ok, fd} = :file.open(har_path, [:read, :binary, :raw])
-      {:ok, head} = :file.pread(fd, 0, 64)
-      {:ok, tail} = :file.pread(fd, size - 64, 64)
-      :ok = :file.close(fd)
-      assert head =~ ~r/^\{\s*"log"\s*:\s*\{/
-      assert tail =~ ~r/\}\s*\}\s*$/
-    end
+    # Reading the whole file as a string would re-hit V8's limit, so
+    # sample the head and tail to verify structural sanity.
+    {:ok, fd} = :file.open(har_path, [:read, :binary, :raw])
+    {:ok, head} = :file.pread(fd, 0, 64)
+    {:ok, tail} = :file.pread(fd, size - 64, 64)
+    :ok = :file.close(fd)
+    assert head =~ ~r/^\{\s*"log"\s*:\s*\{/
+    assert tail =~ ~r/\}\s*\}\s*$/
   end
 
   test "should record resource type", %{

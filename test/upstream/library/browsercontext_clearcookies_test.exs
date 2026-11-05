@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
   @upstream "tests/library/browsercontext-clearcookies.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.JSHandle
@@ -112,6 +114,11 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "cookie1=1"
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do:
+             "upstream skip: cookieStore change events not supported on WebKit/Windows (curl backend lacks cookie change notifications)"
+         )
   test "should not transiently delete non-matching cookies when filtering", %{
     context: context,
     page: page,
@@ -144,50 +151,48 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "keep_me=1"
   end
 
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Partitioned cookies (CHIPS) are Chromium-specific")
   test "should remove partitioned cookies by name", %{
     browser: browser,
-    https_server: https_server,
-    browser_name: browser_name
+    https_server: https_server
   } do
-    if browser_name == "chromium" do
-      context = Browser.new_context!(browser, ignore_https_errors: true)
+    context = Browser.new_context!(browser, ignore_https_errors: true)
 
-      BrowserContext.add_cookies!(context, [
-        %{
-          name: "delete_me",
-          value: "1",
-          domain: https_server.hostname,
-          path: "/",
-          secure: true,
-          sameSite: "None",
-          partitionKey: "https://#{https_server.hostname}"
-        },
-        %{
-          name: "keep_me",
-          value: "2",
-          domain: https_server.hostname,
-          path: "/",
-          secure: true,
-          sameSite: "None",
-          partitionKey: "https://#{https_server.hostname}"
-        }
-      ])
+    BrowserContext.add_cookies!(context, [
+      %{
+        name: "delete_me",
+        value: "1",
+        domain: https_server.hostname,
+        path: "/",
+        secure: true,
+        sameSite: "None",
+        partitionKey: "https://#{https_server.hostname}"
+      },
+      %{
+        name: "keep_me",
+        value: "2",
+        domain: https_server.hostname,
+        path: "/",
+        secure: true,
+        sameSite: "None",
+        partitionKey: "https://#{https_server.hostname}"
+      }
+    ])
 
-      before = BrowserContext.cookies!(context)
+    before = BrowserContext.cookies!(context)
 
-      assert [
-               %{name: "delete_me", partitionKey: partition_key1},
-               %{name: "keep_me", partitionKey: partition_key2}
-             ] = before
+    assert [
+             %{name: "delete_me", partitionKey: partition_key1},
+             %{name: "keep_me", partitionKey: partition_key2}
+           ] = before
 
-      assert partition_key1 == "https://#{https_server.hostname}"
-      assert partition_key2 == "https://#{https_server.hostname}"
+    assert partition_key1 == "https://#{https_server.hostname}"
+    assert partition_key2 == "https://#{https_server.hostname}"
 
-      BrowserContext.clear_cookies!(context, name: "delete_me")
-      assert [%{name: "keep_me", partitionKey: partition_key}] = BrowserContext.cookies!(context)
-      assert partition_key == "https://#{https_server.hostname}"
-      BrowserContext.close!(context)
-    end
+    BrowserContext.clear_cookies!(context, name: "delete_me")
+    assert [%{name: "keep_me", partitionKey: partition_key}] = BrowserContext.cookies!(context)
+    assert partition_key == "https://#{https_server.hostname}"
+    BrowserContext.close!(context)
   end
 
   test "should remove nameless cookies by empty name", %{context: context} do

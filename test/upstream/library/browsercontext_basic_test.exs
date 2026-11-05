@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @upstream "tests/library/browsercontext-basic.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
@@ -318,6 +320,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox (non-BiDi)")
   test "should not hang on promises after disabling javascript", %{context_factory: context_factory} do
     context = context_factory.(java_script_enabled: false)
     page = BrowserContext.new_page!(context)

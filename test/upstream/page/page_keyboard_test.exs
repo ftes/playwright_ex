@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   @upstream "tests/page/page-keyboard.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
@@ -695,19 +697,21 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').textContent") == "123123"
   end
 
-  test "should support undo-redo", %{page: page, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
+           do: "upstream fixme: https://github.com/microsoft/playwright/issues/12000"
+         )
+  test "should support undo-redo", %{page: page} do
     # it.fixme(browserName === 'webkit' && isLinux || channel === 'webkit-wsl', 'https://github.com/microsoft/playwright/issues/12000');
-    if !(browser_name == "webkit" and match?({:unix, :linux}, :os.type())) do
-      Page.set_content!(page, "<div contenteditable></div>")
-      div = Page.locator(page, "div")
-      Expect.to_have_text!(div, "")
-      Locator.type!(div, "123")
-      Expect.to_have_text!(div, "123")
-      Keyboard.press!(Page.keyboard(page), "ControlOrMeta+KeyZ")
-      Expect.to_have_text!(div, "")
-      Keyboard.press!(Page.keyboard(page), "Shift+ControlOrMeta+KeyZ")
-      Expect.to_have_text!(div, "123")
-    end
+    Page.set_content!(page, "<div contenteditable></div>")
+    div = Page.locator(page, "div")
+    Expect.to_have_text!(div, "")
+    Locator.type!(div, "123")
+    Expect.to_have_text!(div, "123")
+    Keyboard.press!(Page.keyboard(page), "ControlOrMeta+KeyZ")
+    Expect.to_have_text!(div, "")
+    Keyboard.press!(Page.keyboard(page), "Shift+ControlOrMeta+KeyZ")
+    Expect.to_have_text!(div, "123")
   end
 
   test "should type repeatedly in contenteditable in shadow dom", %{page: page} do

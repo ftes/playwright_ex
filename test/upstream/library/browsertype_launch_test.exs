@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   @upstream "tests/library/browsertype-launch.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
@@ -43,6 +45,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     assert Exception.message(error) =~ "browserType.launchPersistentContext: unknown option :port"
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
   test "should throw if page argument is passed", %{browser_type: browser_type} do
     {:error, wait_error} = BrowserType.launch(browser_type, args: ["http://example.com"])
     assert Exception.message(wait_error) =~ "can not specify page"

@@ -10,6 +10,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   @upstream "tests/library/browsertype-connect.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils, only: [ensure_some_frames: 1, parse_trace_raw: 2]
 
   alias PlaywrightEx.APIRequest
@@ -1088,143 +1090,147 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       assert_received :reached_original_target
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: no localhost proxying"
+           )
     test "should proxy localhost requests @smoke", %{
       start_remote_server: start_remote_server,
       server: server,
-      browser_name: browser_name,
       browser_type: browser_type,
       kind: kind
     } do
       # test.skip(browserName === 'webkit' && platform === 'darwin', 'no localhost proxying');
-      if not (browser_name == "webkit" and match?({:unix, :darwin}, :os.type())) do
-        dummy_server_port = dummy_server_port()
-        reached_route(server, "/foo.html", "<html><body></body></html>")
-        example_port = free_port()
-        remote_server = start_remote_server.(kind, %{})
+      dummy_server_port = dummy_server_port()
+      reached_route(server, "/foo.html", "<html><body></body></html>")
+      example_port = free_port()
+      remote_server = start_remote_server.(kind, %{})
 
-        browser =
-          connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
-            redirect_port_for_test: dummy_server_port
-          )
+      browser =
+        connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
+          redirect_port_for_test: dummy_server_port
+        )
 
-        page = Browser.new_page!(browser)
-        Page.set_content!(page, "empty")
-        Page.goto!(page, "http://127.0.0.1:#{example_port}/foo.html")
-        assert Page.content!(page) =~ "from-dummy-server"
-        refute_received :reached_original_target
+      page = Browser.new_page!(browser)
+      Page.set_content!(page, "empty")
+      Page.goto!(page, "http://127.0.0.1:#{example_port}/foo.html")
+      assert Page.content!(page) =~ "from-dummy-server"
+      refute_received :reached_original_target
 
-        Page.set_content!(page, "empty")
-        Page.goto!(page, "http://localhost:#{example_port}/foo.html")
-        assert Page.content!(page) =~ "from-dummy-server"
-        refute_received :reached_original_target
+      Page.set_content!(page, "empty")
+      Page.goto!(page, "http://localhost:#{example_port}/foo.html")
+      assert Page.content!(page) =~ "from-dummy-server"
+      refute_received :reached_original_target
 
-        assert {:error, _} = Page.goto(page, "http://[::1]:#{example_port}/foo.html")
-        refute_received :reached_original_target
-      end
+      assert {:error, _} = Page.goto(page, "http://[::1]:#{example_port}/foo.html")
+      refute_received :reached_original_target
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: no localhost proxying"
+           )
     test "should proxy ipv6 localhost requests @smoke", %{
       start_remote_server: start_remote_server,
       server: server,
-      browser_name: browser_name,
       browser_type: browser_type,
       kind: kind
     } do
-      if not (browser_name == "webkit" and match?({:unix, :darwin}, :os.type())) do
-        ipv6_server_port = ipv6_server_port()
-        reached_route(server, "/foo.html", "<html><body></body></html>")
-        example_port = free_port()
-        remote_server = start_remote_server.(kind, %{})
+      ipv6_server_port = ipv6_server_port()
+      reached_route(server, "/foo.html", "<html><body></body></html>")
+      example_port = free_port()
+      remote_server = start_remote_server.(kind, %{})
 
-        browser =
-          connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
-            redirect_port_for_test: ipv6_server_port
-          )
+      browser =
+        connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
+          redirect_port_for_test: ipv6_server_port
+        )
 
-        page = Browser.new_page!(browser)
-        Page.set_content!(page, "empty")
-        Page.goto!(page, "http://[::1]:#{example_port}/foo.html")
-        assert Page.content!(page) =~ "from-ipv6-server"
-        refute_received :reached_original_target
+      page = Browser.new_page!(browser)
+      Page.set_content!(page, "empty")
+      Page.goto!(page, "http://[::1]:#{example_port}/foo.html")
+      assert Page.content!(page) =~ "from-ipv6-server"
+      refute_received :reached_original_target
 
-        Page.set_content!(page, "empty")
-        Page.goto!(page, "http://localhost:#{example_port}/foo.html")
-        assert Page.content!(page) =~ "from-ipv6-server"
-        refute_received :reached_original_target
+      Page.set_content!(page, "empty")
+      Page.goto!(page, "http://localhost:#{example_port}/foo.html")
+      assert Page.content!(page) =~ "from-ipv6-server"
+      refute_received :reached_original_target
 
-        assert {:error, _} = Page.goto(page, "http://127.0.0.1:#{example_port}/foo.html")
-        refute_received :reached_original_target
-      end
+      assert {:error, _} = Page.goto(page, "http://127.0.0.1:#{example_port}/foo.html")
+      refute_received :reached_original_target
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: no localhost proxying"
+           )
     test "should proxy requests from fetch api", %{
       start_remote_server: start_remote_server,
       server: server,
-      browser_name: browser_name,
       browser_type: browser_type,
       kind: kind
     } do
-      if not (browser_name == "webkit" and match?({:unix, :darwin}, :os.type())) do
-        dummy_server_port = dummy_server_port()
-        reached_route(server, "/foo.html", "<html><body></body></html>")
-        example_port = free_port()
-        remote_server = start_remote_server.(kind, %{})
+      dummy_server_port = dummy_server_port()
+      reached_route(server, "/foo.html", "<html><body></body></html>")
+      example_port = free_port()
+      remote_server = start_remote_server.(kind, %{})
 
-        browser =
-          connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
-            redirect_port_for_test: dummy_server_port
-          )
+      browser =
+        connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
+          redirect_port_for_test: dummy_server_port
+        )
 
-        page = Browser.new_page!(browser)
+      page = Browser.new_page!(browser)
 
-        response = APIRequestContext.get!(Page.request(page), "http://localhost:#{example_port}/foo.html")
-        assert APIResponse.status(response) == 200
-        assert APIResponse.text!(response) =~ "from-dummy-server"
-        refute_received :reached_original_target
+      response = APIRequestContext.get!(Page.request(page), "http://localhost:#{example_port}/foo.html")
+      assert APIResponse.status(response) == 200
+      assert APIResponse.text!(response) =~ "from-dummy-server"
+      refute_received :reached_original_target
 
-        response = APIRequestContext.get!(Page.request(page), "http://127.0.0.1:#{example_port}/foo.html")
-        assert APIResponse.status(response) == 200
-        assert APIResponse.text!(response) =~ "from-dummy-server"
-        refute_received :reached_original_target
+      response = APIRequestContext.get!(Page.request(page), "http://127.0.0.1:#{example_port}/foo.html")
+      assert APIResponse.status(response) == 200
+      assert APIResponse.text!(response) =~ "from-dummy-server"
+      refute_received :reached_original_target
 
-        assert {:error, _} = APIRequestContext.get(Page.request(page), "http://[::1]:#{example_port}/foo.html")
-        refute_received :reached_original_target
-      end
+      assert {:error, _} = APIRequestContext.get(Page.request(page), "http://[::1]:#{example_port}/foo.html")
+      refute_received :reached_original_target
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: no localhost proxying"
+           )
     test "should proxy requests from fetch api over ipv6", %{
       start_remote_server: start_remote_server,
       server: server,
-      browser_name: browser_name,
       browser_type: browser_type,
       kind: kind
     } do
-      if not (browser_name == "webkit" and match?({:unix, :darwin}, :os.type())) do
-        ipv6_server_port = ipv6_server_port()
-        reached_route(server, "/foo.html", "<html><body></body></html>")
-        example_port = free_port()
-        remote_server = start_remote_server.(kind, %{})
+      ipv6_server_port = ipv6_server_port()
+      reached_route(server, "/foo.html", "<html><body></body></html>")
+      example_port = free_port()
+      remote_server = start_remote_server.(kind, %{})
 
-        browser =
-          connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
-            redirect_port_for_test: ipv6_server_port
-          )
+      browser =
+        connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "*"],
+          redirect_port_for_test: ipv6_server_port
+        )
 
-        page = Browser.new_page!(browser)
+      page = Browser.new_page!(browser)
 
-        response = APIRequestContext.get!(Page.request(page), "http://localhost:#{example_port}/foo.html")
-        assert APIResponse.status(response) == 200
-        assert APIResponse.text!(response) =~ "from-ipv6-server"
-        refute_received :reached_original_target
+      response = APIRequestContext.get!(Page.request(page), "http://localhost:#{example_port}/foo.html")
+      assert APIResponse.status(response) == 200
+      assert APIResponse.text!(response) =~ "from-ipv6-server"
+      refute_received :reached_original_target
 
-        response = APIRequestContext.get!(Page.request(page), "http://[::1]:#{example_port}/foo.html")
-        assert APIResponse.status(response) == 200
-        assert APIResponse.text!(response) =~ "from-ipv6-server"
-        refute_received :reached_original_target
+      response = APIRequestContext.get!(Page.request(page), "http://[::1]:#{example_port}/foo.html")
+      assert APIResponse.status(response) == 200
+      assert APIResponse.text!(response) =~ "from-ipv6-server"
+      refute_received :reached_original_target
 
-        assert {:error, _} = APIRequestContext.get(Page.request(page), "http://127.0.0.1:#{example_port}/foo.html")
-        refute_received :reached_original_target
-      end
+      assert {:error, _} = APIRequestContext.get(Page.request(page), "http://127.0.0.1:#{example_port}/foo.html")
+      refute_received :reached_original_target
     end
 
     test "should proxy local.playwright requests", %{
@@ -1275,39 +1281,40 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
     end
 
+    @tag skip:
+           if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
+             do: "upstream skip: no localhost proxying"
+           )
     test "should proxy based on the pattern", %{
       browser_type: browser_type,
       start_remote_server: start_remote_server,
       server: server,
-      browser_name: browser_name,
       kind: kind
     } do
-      if not (browser_name == "webkit" and match?({:unix, :darwin}, :os.type())) do
-        dummy_server_port = dummy_server_port()
-        reached_route(server, "/foo.html", "<html><body>from-original-server</body></html>")
-        example_port = free_port()
-        remote_server = start_remote_server.(kind, %{})
+      dummy_server_port = dummy_server_port()
+      reached_route(server, "/foo.html", "<html><body>from-original-server</body></html>")
+      example_port = free_port()
+      remote_server = start_remote_server.(kind, %{})
 
-        browser =
-          connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "localhost"],
-            redirect_port_for_test: dummy_server_port
-          )
+      browser =
+        connect!(browser_type, RunServer.ws_endpoint(remote_server), [expose_network: "localhost"],
+          redirect_port_for_test: dummy_server_port
+        )
 
-        page = Browser.new_page!(browser)
+      page = Browser.new_page!(browser)
 
-        # localhost should be proxied.
-        Page.goto!(page, "http://localhost:#{example_port}/foo.html")
-        assert Page.content!(page) =~ "from-dummy-server"
-        refute_received :reached_original_target
+      # localhost should be proxied.
+      Page.goto!(page, "http://localhost:#{example_port}/foo.html")
+      assert Page.content!(page) =~ "from-dummy-server"
+      refute_received :reached_original_target
 
-        # 127.0.0.1 should be served directly.
-        Page.goto!(page, "http://127.0.0.1:#{server.port}/foo.html")
-        assert Page.content!(page) =~ "from-original-server"
-        assert_received :reached_original_target
+      # 127.0.0.1 should be served directly.
+      Page.goto!(page, "http://127.0.0.1:#{server.port}/foo.html")
+      assert Page.content!(page) =~ "from-original-server"
+      assert_received :reached_original_target
 
-        # Random domain should be served directly and fail.
-        assert {:error, _} = Page.goto(page, "http://does-not-exist-bad-domain.oh-no-should-not-work")
-      end
+      # Random domain should be served directly and fail.
+      assert {:error, _} = Page.goto(page, "http://does-not-exist-bad-domain.oh-no-should-not-work")
     end
 
     test "should check proxy pattern on the client", %{

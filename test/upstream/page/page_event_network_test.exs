@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
   @upstream "tests/page/page-event-network.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -132,32 +134,31 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert Request.redirected_to(redirected_from) == Response.request(response)
   end
 
-  test "should resolve responses after a navigation", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
+  test "should resolve responses after a navigation", %{page: page, server: server} do
     # it.fixme(browserName === 'chromium');
-    if browser_name != "chromium" do
-      test = self()
+    test = self()
 
-      TestServer.set_route(server, "/foo", fn conn ->
-        send(test, {:response_from_server, self()})
+    TestServer.set_route(server, "/foo", fn conn ->
+      send(test, {:response_from_server, self()})
 
-        receive do
-          {:end, body} -> Plug.Conn.send_resp(conn, 200, body)
-        end
-      end)
+      receive do
+        {:end, body} -> Plug.Conn.send_resp(conn, 200, body)
+      end
+    end)
 
-      Page.goto!(page, server.empty_page)
-      request_promise = Page.wait_for_request(page, fn _ -> true end)
-      # start a long running request and wait until it hits the server
-      Page.evaluate!(page, "url => void fetch(url)", server.prefix <> "/foo")
-      assert_receive {:response_from_server, response_from_server}
-      request = Promise.await!(request_promise)
-      response_promise = Task.async(fn -> Request.response(request) end)
-      # navigate, which should cancel the request
-      Page.goto!(page, server.cross_process_prefix)
-      # make sure we aren't stalling this request on the server
-      send(response_from_server, {:end, "done"})
-      # the response should resolve to null, because the page navigated.
-      assert Task.await(response_promise) == {:ok, nil}
-    end
+    Page.goto!(page, server.empty_page)
+    request_promise = Page.wait_for_request(page, fn _ -> true end)
+    # start a long running request and wait until it hits the server
+    Page.evaluate!(page, "url => void fetch(url)", server.prefix <> "/foo")
+    assert_receive {:response_from_server, response_from_server}
+    request = Promise.await!(request_promise)
+    response_promise = Task.async(fn -> Request.response(request) end)
+    # navigate, which should cancel the request
+    Page.goto!(page, server.cross_process_prefix)
+    # make sure we aren't stalling this request on the server
+    send(response_from_server, {:end, "done"})
+    # the response should resolve to null, because the page navigated.
+    assert Task.await(response_promise) == {:ok, nil}
   end
 end

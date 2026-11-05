@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   @upstream "tests/page/locator-frame.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
   alias PlaywrightEx.FrameLocator
@@ -319,36 +321,35 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   end
 
   # https://github.com/microsoft/playwright/issues/28082
-  test "should work with COEP/COOP/CORP isolated iframe", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
+  test "should work with COEP/COOP/CORP isolated iframe", %{page: page, server: server} do
     # it.fixme(browserName === 'firefox');
-    if browser_name != "firefox" do
-      headers = %{
-        "cross-origin-embedder-policy" => "require-corp",
-        "cross-origin-opener-policy" => "same-origin",
-        "cross-origin-resource-policy" => "cross-origin"
-      }
+    headers = %{
+      "cross-origin-embedder-policy" => "require-corp",
+      "cross-origin-opener-policy" => "same-origin",
+      "cross-origin-resource-policy" => "cross-origin"
+    }
 
-      Page.route!(page, "**/empty.html", fn route ->
-        Route.fulfill!(route,
-          body:
-            ~s(<iframe src="https://#{server.cross_process_prefix}/btn.html" allow="cross-origin-isolated; fullscreen" sandbox="allow-same-origin allow-scripts allow-popups" ></iframe>),
-          content_type: "text/html",
-          headers: headers
-        )
-      end)
+    Page.route!(page, "**/empty.html", fn route ->
+      Route.fulfill!(route,
+        body:
+          ~s(<iframe src="https://#{server.cross_process_prefix}/btn.html" allow="cross-origin-isolated; fullscreen" sandbox="allow-same-origin allow-scripts allow-popups" ></iframe>),
+        content_type: "text/html",
+        headers: headers
+      )
+    end)
 
-      Page.route!(page, "**/btn.html", fn route ->
-        Route.fulfill!(route,
-          body: ~s(<button onclick="window.__clicked=true">Click target</button>),
-          content_type: "text/html",
-          headers: headers
-        )
-      end)
+    Page.route!(page, "**/btn.html", fn route ->
+      Route.fulfill!(route,
+        body: ~s(<button onclick="window.__clicked=true">Click target</button>),
+        content_type: "text/html",
+        headers: headers
+      )
+    end)
 
-      Page.goto!(page, server.empty_page)
-      page |> Page.frame_locator("iframe") |> FrameLocator.get_by_role(:button) |> Locator.click!()
-      assert page |> Page.frames() |> Enum.at(1) |> Frame.evaluate!("() => window['__clicked']") == true
-    end
+    Page.goto!(page, server.empty_page)
+    page |> Page.frame_locator("iframe") |> FrameLocator.get_by_role(:button) |> Locator.click!()
+    assert page |> Page.frames() |> Enum.at(1) |> Frame.evaluate!("() => window['__clicked']") == true
   end
 
   test "locator.contentFrame should work", %{page: page, server: server} do

@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   @upstream "tests/library/browsercontext-pages.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ElementHandle
@@ -71,65 +73,62 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     BrowserContext.close!(context)
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
   test "should click the button with offset with page scale", %{
     browser: browser,
-    server: server,
-    browser_name: browser_name
+    server: server
   } do
     # it.skip(browserName === 'firefox' && !isBidi): we run Juggler Firefox.
-    if browser_name != "firefox" do
-      context = Browser.new_context!(browser, viewport: %{width: 400, height: 400}, is_mobile: true)
-      page = BrowserContext.new_page!(context)
-      Page.goto!(page, server.prefix <> "/input/button.html")
+    context = Browser.new_context!(browser, viewport: %{width: 400, height: 400}, is_mobile: true)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.prefix <> "/input/button.html")
 
-      Page.eval_on_selector!(page, "button", """
-      button => {
-        button.style.borderWidth = '8px';
-        document.body.style.margin = '0';
-      }
-      """)
+    Page.eval_on_selector!(page, "button", """
+    button => {
+      button.style.borderWidth = '8px';
+      document.body.style.margin = '0';
+    }
+    """)
 
-      Page.click!(page, "button", position: %{x: 20, y: 10})
-      assert Page.evaluate!(page, "result") == "Clicked"
+    Page.click!(page, "button", position: %{x: 20, y: 10})
+    assert Page.evaluate!(page, "result") == "Clicked"
 
-      expect_close_to = fn expected, actual ->
-        if abs(expected - actual) > 2, do: flunk("Expected: #{expected}, received: #{actual}")
-      end
-
-      # Expect 20;10 + 8px of border in each direction. Allow some delta as different
-      # browsers round up or down differently during css -> dip -> css conversion.
-      expect_close_to.(28, Page.evaluate!(page, "pageX"))
-      expect_close_to.(18, Page.evaluate!(page, "pageY"))
-      BrowserContext.close!(context)
+    expect_close_to = fn expected, actual ->
+      if abs(expected - actual) > 2, do: flunk("Expected: #{expected}, received: #{actual}")
     end
+
+    # Expect 20;10 + 8px of border in each direction. Allow some delta as different
+    # browsers round up or down differently during css -> dip -> css conversion.
+    expect_close_to.(28, Page.evaluate!(page, "pageX"))
+    expect_close_to.(18, Page.evaluate!(page, "pageY"))
+    BrowserContext.close!(context)
   end
 
-  test "should return bounding box with page scale", %{browser: browser, server: server, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
+  test "should return bounding box with page scale", %{browser: browser, server: server} do
     # it.skip(browserName === 'firefox' && !isBidi): we run Juggler Firefox.
-    if browser_name != "firefox" do
-      context = Browser.new_context!(browser, viewport: %{width: 400, height: 400}, is_mobile: true)
-      page = BrowserContext.new_page!(context)
-      Page.goto!(page, server.prefix <> "/input/button.html")
-      button = Page.query_selector!(page, "button")
+    context = Browser.new_context!(browser, viewport: %{width: 400, height: 400}, is_mobile: true)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.prefix <> "/input/button.html")
+    button = Page.query_selector!(page, "button")
 
-      JSHandle.evaluate!(button, """
-      button => {
-        document.body.style.margin = '0';
-        button.style.borderWidth = '0';
-        button.style.width = '200px';
-        button.style.height = '20px';
-        button.style.marginLeft = '17px';
-        button.style.marginTop = '23px';
-      }
-      """)
+    JSHandle.evaluate!(button, """
+    button => {
+      document.body.style.margin = '0';
+      button.style.borderWidth = '0';
+      button.style.width = '200px';
+      button.style.height = '20px';
+      button.style.marginLeft = '17px';
+      button.style.marginTop = '23px';
+    }
+    """)
 
-      box = ElementHandle.bounding_box!(button)
-      assert round(box.x * 100) == 17 * 100
-      assert round(box.y * 100) == 23 * 100
-      assert round(box.width * 100) == 200 * 100
-      assert round(box.height * 100) == 20 * 100
-      BrowserContext.close!(context)
-    end
+    box = ElementHandle.bounding_box!(button)
+    assert round(box.x * 100) == 17 * 100
+    assert round(box.y * 100) == 23 * 100
+    assert round(box.width * 100) == 200 * 100
+    assert round(box.height * 100) == 20 * 100
+    BrowserContext.close!(context)
   end
 
   @tag timeout: 360_000
@@ -144,28 +143,31 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   end
 
   @tag :page
-  test "should close page while a reload is committing", %{context: context, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "chromium",
+           do:
+             "upstream fixme: Chromium loses the close when the reload commits into a new RenderFrameHost; fix is not rolled yet"
+         )
+  test "should close page while a reload is committing", %{context: context} do
     # issue: https://github.com/microsoft/playwright/issues/42068
     # issue: https://issues.chromium.org/issues/536385539
     # it.fixme(browserName === 'chromium', 'Chromium loses the close when the reload commits into a new RenderFrameHost; fix is not rolled yet')
-    if browser_name != "chromium" do
-      # The evaluate never settles on its own, so it only rejects once the reload
-      # commits. Closing right after that races the commit. Repeat a few times,
-      # since whether the close or the commit wins is timing-dependent.
-      for _ <- 1..10 do
-        page = BrowserContext.new_page!(context)
+    # The evaluate never settles on its own, so it only rejects once the reload
+    # commits. Closing right after that races the commit. Repeat a few times,
+    # since whether the close or the commit wins is timing-dependent.
+    for _ <- 1..10 do
+      page = BrowserContext.new_page!(context)
 
-        assert {:error, error} =
-                 Page.evaluate(page, """
-                 () => {
-                   location.reload();
-                   return new Promise(() => {});
-                 }
-                 """)
+      assert {:error, error} =
+               Page.evaluate(page, """
+               () => {
+                 location.reload();
+                 return new Promise(() => {});
+               }
+               """)
 
-        assert Exception.message(error) =~ ~r/navigation/
-        Page.close!(page)
-      end
+      assert Exception.message(error) =~ ~r/navigation/
+      Page.close!(page)
     end
   end
 

@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   @upstream "tests/page/page-network-response.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
@@ -56,6 +58,10 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.all_headers!(response)["BaZ"] == nil
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
+         )
   test "should return multiple header value", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && platform === 'win32', ...)  -- not Windows WebKit
     TestServer.set_route(server, "/headers", fn conn ->
@@ -183,11 +189,12 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert response_buffer == image_buffer
   end
 
+  # issue: https://github.com/microsoft/playwright/issues/40510
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit encodes the response body")
   test "should return non-utf8 body even when content-type says utf8",
        %{page: page, server: server, browser: browser, browser_name: browser_name} do
-    # issue: https://github.com/microsoft/playwright/issues/40510
-    # it.fixme(browserName === 'webkit'), it.fixme(chromium < 151)
-    if browser_name == "firefox" or (browser_name == "chromium" and major_version(browser) >= 151) do
+    # it.fixme(browserName === 'chromium' && browserMajorVersion < 151, ...)
+    if !(browser_name == "chromium" and major_version(browser) < 151) do
       # Binary data with bytes that are invalid UTF-8.
       bytes = [0x80, 0x81, 0x82, 0xFF, 0xFE, 0x00, 0x01, 0x02]
       buffer = :binary.list_to_bin(bytes)
@@ -216,6 +223,10 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   @tag skip: "not ported: custom status text (TestServer on Plug)"
   test "should return status text"
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
+         )
   test "should report all headers", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && platform === 'win32', ...)  -- not Windows WebKit
     expected_headers = %{
@@ -241,6 +252,10 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert actual_headers == expected_headers
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
+         )
   test "should report multiple set-cookie headers", %{page: page, server: server} do
     TestServer.set_route(server, "/headers", fn conn ->
       conn = write_head(conn, 200, [{"Set-Cookie", "a=b"}, {"Set-Cookie", "c=d"}])
@@ -293,19 +308,18 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert all_headers["name-b"] == "v4"
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: Firefox does return null for file:// URLs")
   test "should provide a Response with a file URL", %{page: page, asset: asset, browser_name: browser_name} do
     # it.skip(isAndroid), it.skip(channel === 'webkit-wsl')  -- neither
-    if browser_name != "firefox" do
-      fileurl = path_to_file_url(asset.("frames/two-frames.html"))
-      response = Page.goto!(page, fileurl)
+    fileurl = path_to_file_url(asset.("frames/two-frames.html"))
+    response = Page.goto!(page, fileurl)
 
-      # isElectron || chromium || (webkit && isWindows)
-      if browser_name == "chromium" or (browser_name == "webkit" and match?({:win32, _}, :os.type())),
-        do: assert(Response.status(response) == 200),
-        else: assert(Response.status(response) == 0)
+    # isElectron || chromium || (webkit && isWindows)
+    if browser_name == "chromium" or (browser_name == "webkit" and match?({:win32, _}, :os.type())),
+      do: assert(Response.status(response) == 200),
+      else: assert(Response.status(response) == 0)
 
-      assert Response.ok(response) == true
-    end
+    assert Response.ok(response) == true
   end
 
   test "should return set-cookie header after route.fulfill", %{page: page, server: server, browser_name: browser_name} do
@@ -355,13 +369,18 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.from_service_worker(res) == true
   end
 
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream skip: No prefetch in WebKit: https://caniuse.com/link-rel-prefetch"
+         )
   test "should return body for prefetch script", %{
     page: page,
     server: server,
     browser: browser,
     browser_name: browser_name
   } do
-    if browser_name != "webkit" and not (browser_name == "chromium" and major_version(browser) < 138) do
+    # it.skip(browserName === 'chromium' && browserMajorVersion < 138, 'Requires Sec-Purpose header, shipped in Chrome 138');
+    if !(browser_name == "chromium" and major_version(browser) < 138) do
       response =
         Page.expect_response!(page, "**/prefetch.js", fn -> Page.goto!(page, server.prefix <> "/prefetch.html") end)
 
@@ -370,6 +389,10 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     end
   end
 
+  @tag skip:
+         if(match?({:unix, :darwin}, :os.type()) and @browser_name == "webkit",
+           do: "upstream fixme: WebKit on Mac evicts the body and returns empty buffer"
+         )
   test "should return body for image with evicted body", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/42002
     # it.fixme(isMac && browserName === 'webkit', ...)  -- we run chromium
@@ -545,21 +568,23 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert result["fileContent"] == "hello"
   end
 
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream skip: Firefox keeps the response body available after navigating away, so it never throws"
+         )
   test "should give a readable error when response.body() races with navigation",
-       %{page: page, server: server, browser_name: browser_name} do
+       %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/41512
-    if browser_name != "firefox" do
-      response =
-        Page.expect_response!(page, server.prefix <> "/title.html", fn ->
-          Page.goto!(page, server.prefix <> "/title.html")
-        end)
+    response =
+      Page.expect_response!(page, server.prefix <> "/title.html", fn ->
+        Page.goto!(page, server.prefix <> "/title.html")
+      end)
 
-      # Navigate away — the browser frees the network resource from the first page load.
-      # The first page must have a non-empty body, otherwise WebKit returns an empty buffer instead of throwing.
-      Page.goto!(page, server.prefix <> "/grid.html")
-      {:error, error} = Response.body(response)
-      assert is_exception(error)
-      assert Exception.message(error) =~ "navigated away"
-    end
+    # Navigate away — the browser frees the network resource from the first page load.
+    # The first page must have a non-empty body, otherwise WebKit returns an empty buffer instead of throwing.
+    Page.goto!(page, server.prefix <> "/grid.html")
+    {:error, error} = Response.body(response)
+    assert is_exception(error)
+    assert Exception.message(error) =~ "navigated away"
   end
 end

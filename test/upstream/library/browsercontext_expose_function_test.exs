@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
   @upstream "tests/library/browsercontext-expose-function.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Disposable
   alias PlaywrightEx.Frame
@@ -102,36 +104,37 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     assert_received :called
   end
 
+  @tag skip:
+         if(@browser_name == "chromium",
+           do: "upstream fixme: Chromium drops CDP events from the old document after the frame host swap"
+         )
   test "should call binding from pagehide handler when navigating away", %{
     context: context,
-    server: server,
-    browser_name: browser_name
+    server: server
   } do
     # it.fixme(browserName === 'chromium', 'Chromium drops CDP events from the old document after the frame host swap');
-    if browser_name != "chromium" do
-      page = BrowserContext.new_page!(context)
-      test = self()
+    page = BrowserContext.new_page!(context)
+    test = self()
 
-      BrowserContext.expose_binding!(context, "reportFromPage", fn _source, message ->
-        send(test, {:call, message})
-        nil
-      end)
+    BrowserContext.expose_binding!(context, "reportFromPage", fn _source, message ->
+      send(test, {:call, message})
+      nil
+    end)
 
-      html = fn body ->
-        "<!doctype html>#{body}<script>addEventListener('pagehide', () => window.reportFromPage('pagehide of ' + location.pathname));</script>"
-      end
-
-      for {path, body} <- [{"/a.html", ~s(<a id="next" href="/b.html">next</a>)}, {"/b.html", "<p>b</p>"}] do
-        TestServer.set_route(server, path, fn conn ->
-          conn |> Plug.Conn.put_resp_header("content-type", "text/html") |> Plug.Conn.send_resp(200, html.(body))
-        end)
-      end
-
-      Page.goto!(page, server.prefix <> "/a.html")
-      Page.click!(page, "#next")
-      Page.wait_for_url!(page, "**/b.html")
-      # await expect.poll(() => calls).toContain('pagehide of /a.html');
-      assert_receive {:call, "pagehide of /a.html"}, 5000
+    html = fn body ->
+      "<!doctype html>#{body}<script>addEventListener('pagehide', () => window.reportFromPage('pagehide of ' + location.pathname));</script>"
     end
+
+    for {path, body} <- [{"/a.html", ~s(<a id="next" href="/b.html">next</a>)}, {"/b.html", "<p>b</p>"}] do
+      TestServer.set_route(server, path, fn conn ->
+        conn |> Plug.Conn.put_resp_header("content-type", "text/html") |> Plug.Conn.send_resp(200, html.(body))
+      end)
+    end
+
+    Page.goto!(page, server.prefix <> "/a.html")
+    Page.click!(page, "#next")
+    Page.wait_for_url!(page, "**/b.html")
+    # await expect.poll(() => calls).toContain('pagehide of /a.html');
+    assert_receive {:call, "pagehide of /a.html"}, 5000
   end
 end

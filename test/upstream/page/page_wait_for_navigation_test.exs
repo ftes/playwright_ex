@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
   @upstream "tests/page/page-wait-for-navigation.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -166,19 +168,18 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Page.url(page) == server.prefix <> "/second.html"
   end
 
-  test "should work when subframe issues window.stop()", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: WebKit issues load event in some cases, but not always")
+  test "should work when subframe issues window.stop()", %{page: page, server: server} do
     # it.fixme(browserName === 'webkit', 'WebKit issues load event in some cases, but not always');
-    if browser_name != "webkit" do
-      test = self()
-      TestServer.set_route(server, "/frames/style.css", &hang/1)
-      Page.once(page, :frame_attached, fn frame -> send(test, {:attached, frame}) end)
-      Page.on(page, :frame_navigated, fn frame -> send(test, {:navigated, frame}) end)
-      done = Task.async(fn -> Page.goto(page, server.prefix <> "/frames/one-frame.html") end)
-      assert_receive {:attached, frame}, 5000
-      assert_receive {:navigated, ^frame}, 5000
-      Frame.evaluate!(frame, "() => window.stop()")
-      assert {:ok, _} = Task.await(done)
-    end
+    test = self()
+    TestServer.set_route(server, "/frames/style.css", &hang/1)
+    Page.once(page, :frame_attached, fn frame -> send(test, {:attached, frame}) end)
+    Page.on(page, :frame_navigated, fn frame -> send(test, {:navigated, frame}) end)
+    done = Task.async(fn -> Page.goto(page, server.prefix <> "/frames/one-frame.html") end)
+    assert_receive {:attached, frame}, 5000
+    assert_receive {:navigated, ^frame}, 5000
+    Frame.evaluate!(frame, "() => window.stop()")
+    assert {:ok, _} = Task.await(done)
   end
 
   test "should work with url match", %{page: page, server: server} do

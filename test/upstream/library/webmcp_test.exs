@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.WebmcpTest do
   @upstream "tests/library/webmcp.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
@@ -226,60 +228,61 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert Task.await(result) == text_content("released")
   end
 
-  test "should list declarative tools", %{page: page, server: server, browser_name: browser_name} do
-    if browser_name == "chromium" do
-      # test.skip(browserName !== 'chromium', 'Only Chromium implements declarative tools');
-      serve(server, "/", """
-        <form toolname="subscribe" tooldescription="Subscribes to the newsletter">
-          <input name="email" type="email">
-          <button>Subscribe</button>
-        </form>
-      """)
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium implements declarative tools")
+  test "should list declarative tools", %{page: page, server: server} do
+    # test.skip(browserName !== 'chromium', 'Only Chromium implements declarative tools');
+    serve(server, "/", """
+      <form toolname="subscribe" tooldescription="Subscribes to the newsletter">
+        <input name="email" type="email">
+        <button>Subscribe</button>
+      </form>
+    """)
 
-      Page.goto!(page, server.prefix <> "/")
+    Page.goto!(page, server.prefix <> "/")
 
-      assert [
-               %{
-                 name: "subscribe",
-                 description: "Subscribes to the newsletter",
-                 inputSchema: %{"type" => "object", "properties" => %{"email" => %{"type" => "string"}}}
-               }
-             ] = WebMCP.tools!(Page.webmcp(page))
+    assert [
+             %{
+               name: "subscribe",
+               description: "Subscribes to the newsletter",
+               inputSchema: %{"type" => "object", "properties" => %{"email" => %{"type" => "string"}}}
+             }
+           ] = WebMCP.tools!(Page.webmcp(page))
 
-      # A declarative tool waits for the user to submit the form.
-      {:error, error} = WebMCP.call_tool(Page.webmcp(page), "subscribe", %{email: "me@example.com"}, timeout: 500)
-      assert Exception.message(error) =~ "Timeout 500ms exceeded"
-    end
+    # A declarative tool waits for the user to submit the form.
+    {:error, error} = WebMCP.call_tool(Page.webmcp(page), "subscribe", %{email: "me@example.com"}, timeout: 500)
+    assert Exception.message(error) =~ "Timeout 500ms exceeded"
   end
 
-  test "should scope tools to their frame", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet"
+         )
+  test "should scope tools to their frame", %{page: page, server: server} do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
-    if browser_name != "firefox" do
-      serve(server, "/", register_script(@k_add) <> ~s(<iframe src="/frame.html"></iframe>))
+    serve(server, "/", register_script(@k_add) <> ~s(<iframe src="/frame.html"></iframe>))
 
-      serve(
-        server,
-        "/frame.html",
-        register_script("""
-          modelContext.registerTool({
-            name: 'subscribe',
-            description: 'Subscribes to the newsletter',
-            async execute() { return { content: [{ type: 'text', text: 'subscribed' }] }; },
-          });
-        """)
-      )
+    serve(
+      server,
+      "/frame.html",
+      register_script("""
+        modelContext.registerTool({
+          name: 'subscribe',
+          description: 'Subscribes to the newsletter',
+          async execute() { return { content: [{ type: 'text', text: 'subscribed' }] }; },
+        });
+      """)
+    )
 
-      Page.goto!(page, server.prefix <> "/")
+    Page.goto!(page, server.prefix <> "/")
 
-      child_frame = Enum.at(Page.frames(page), 1)
-      assert [%{name: "add"}] = WebMCP.tools!(Page.webmcp(page))
-      assert [%{name: "subscribe"}] = WebMCP.tools!(Frame.webmcp(child_frame))
-      assert WebMCP.call_tool!(Frame.webmcp(child_frame), "subscribe") == text_content("subscribed")
+    child_frame = Enum.at(Page.frames(page), 1)
+    assert [%{name: "add"}] = WebMCP.tools!(Page.webmcp(page))
+    assert [%{name: "subscribe"}] = WebMCP.tools!(Frame.webmcp(child_frame))
+    assert WebMCP.call_tool!(Frame.webmcp(child_frame), "subscribe") == text_content("subscribed")
 
-      {:error, error} = WebMCP.call_tool(Page.webmcp(page), "subscribe")
-      assert Exception.message(error) =~ ~s(No WebMCP tool named "subscribe")
-      assert Exception.message(error) =~ "Available tools: add"
-    end
+    {:error, error} = WebMCP.call_tool(Page.webmcp(page), "subscribe")
+    assert Exception.message(error) =~ ~s(No WebMCP tool named "subscribe")
+    assert Exception.message(error) =~ "Available tools: add"
   end
 
   defp register_echo(name, text) do
@@ -292,43 +295,46 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     """)
   end
 
-  test "should call same-name tools in their own frame", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet"
+         )
+  test "should call same-name tools in their own frame", %{page: page, server: server} do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
-    if browser_name != "firefox" do
-      serve(server, "/", register_echo("echo", "main") <> ~s(<iframe src="/frame.html"></iframe>))
-      serve(server, "/frame.html", register_echo("echo", "frame"))
-      Page.goto!(page, server.prefix <> "/")
-      child_frame = Enum.at(Page.frames(page), 1)
+    serve(server, "/", register_echo("echo", "main") <> ~s(<iframe src="/frame.html"></iframe>))
+    serve(server, "/frame.html", register_echo("echo", "frame"))
+    Page.goto!(page, server.prefix <> "/")
+    child_frame = Enum.at(Page.frames(page), 1)
 
-      assert WebMCP.call_tool!(Page.webmcp(page), "echo") == text_content("main")
-      assert WebMCP.call_tool!(Frame.webmcp(child_frame), "echo") == text_content("frame")
-    end
+    assert WebMCP.call_tool!(Page.webmcp(page), "echo") == text_content("main")
+    assert WebMCP.call_tool!(Frame.webmcp(child_frame), "echo") == text_content("frame")
   end
 
+  @tag skip:
+         if(@browser_name == "firefox",
+           do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet"
+         )
   test "should list and call tools in cross-origin and nested frames", %{
     page: page,
-    server: server,
-    browser_name: browser_name
+    server: server
   } do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
-    if browser_name != "firefox" do
-      serve(
-        server,
-        "/",
-        register_echo("echo-main", "main") <>
-          ~s(<iframe allow="tools" src="#{server.cross_process_prefix}/frame.html"></iframe>)
-      )
+    serve(
+      server,
+      "/",
+      register_echo("echo-main", "main") <>
+        ~s(<iframe allow="tools" src="#{server.cross_process_prefix}/frame.html"></iframe>)
+    )
 
-      serve(server, "/frame.html", register_echo("echo-frame", "frame") <> ~s(<iframe src="/nested.html"></iframe>))
-      serve(server, "/nested.html", register_echo("echo-nested", "nested"))
-      Page.goto!(page, server.prefix <> "/")
+    serve(server, "/frame.html", register_echo("echo-frame", "frame") <> ~s(<iframe src="/nested.html"></iframe>))
+    serve(server, "/nested.html", register_echo("echo-nested", "nested"))
+    Page.goto!(page, server.prefix <> "/")
 
-      [main_frame, frame, nested] = Page.frames(page)
-      assert WebMCP.tools!(Frame.webmcp(main_frame)) == [%{name: "echo-main", description: "Echoes main"}]
-      assert WebMCP.tools!(Frame.webmcp(frame)) == [%{name: "echo-frame", description: "Echoes frame"}]
-      assert WebMCP.tools!(Frame.webmcp(nested)) == [%{name: "echo-nested", description: "Echoes nested"}]
-      assert WebMCP.call_tool!(Frame.webmcp(frame), "echo-frame") == text_content("frame")
-      assert WebMCP.call_tool!(Frame.webmcp(nested), "echo-nested") == text_content("nested")
-    end
+    [main_frame, frame, nested] = Page.frames(page)
+    assert WebMCP.tools!(Frame.webmcp(main_frame)) == [%{name: "echo-main", description: "Echoes main"}]
+    assert WebMCP.tools!(Frame.webmcp(frame)) == [%{name: "echo-frame", description: "Echoes frame"}]
+    assert WebMCP.tools!(Frame.webmcp(nested)) == [%{name: "echo-nested", description: "Echoes nested"}]
+    assert WebMCP.call_tool!(Frame.webmcp(frame), "echo-frame") == text_content("frame")
+    assert WebMCP.call_tool!(Frame.webmcp(nested), "echo-nested") == text_content("nested")
   end
 end

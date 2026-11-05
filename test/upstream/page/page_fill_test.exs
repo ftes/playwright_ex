@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageFillTest do
   @upstream "tests/page/page-fill.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils, only: [rafraf: 2]
 
   alias PlaywrightEx.Expect
@@ -79,13 +81,15 @@ defmodule PlaywrightEx.Page.PageFillTest do
       else: assert(Page.eval_on_selector!(page, "input", "input => input.value") == "#abcd00")
   end
 
-  test "should throw on incorrect color value", %{page: page, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream skip: WebKit win does not support color inputs"
+         )
+  test "should throw on incorrect color value", %{page: page} do
     # it.skip(browserName === 'webkit' && isWindows, 'WebKit win does not support color inputs')
-    if !(browser_name == "webkit" and windows?()) do
-      Page.set_content!(page, ~s(<input type=color value="#e66465">))
-      {:error, error1} = Page.fill(page, "input", "badvalue")
-      assert Exception.message(error1) =~ "Malformed value"
-    end
+    Page.set_content!(page, ~s(<input type=color value="#e66465">))
+    {:error, error1} = Page.fill(page, "input", "badvalue")
+    assert Exception.message(error1) =~ "Malformed value"
   end
 
   test "should fill date input after clicking", %{page: page} do
@@ -157,13 +161,12 @@ defmodule PlaywrightEx.Page.PageFillTest do
     end
   end
 
-  test "should throw on incorrect date", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit does not support date inputs")
+  test "should throw on incorrect date", %{page: page} do
     # it.skip(browserName === 'webkit', 'WebKit does not support date inputs')
-    if browser_name != "webkit" do
-      Page.set_content!(page, "<input type=date>")
-      {:error, error} = Page.fill(page, "input", "2020-13-05")
-      assert Exception.message(error) =~ "Malformed value"
-    end
+    Page.set_content!(page, "<input type=date>")
+    {:error, error} = Page.fill(page, "input", "2020-13-05")
+    assert Exception.message(error) =~ "Malformed value"
   end
 
   test "should fill time input", %{page: page} do
@@ -178,13 +181,12 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-07"
   end
 
-  test "should throw on incorrect month", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium supports month inputs")
+  test "should throw on incorrect month", %{page: page} do
     # it.skip(browserName !== 'chromium', 'Only Chromium supports month inputs')
-    if browser_name == "chromium" do
-      Page.set_content!(page, "<input type=month>")
-      {:error, error} = Page.fill(page, "input", "2020-13")
-      assert Exception.message(error) =~ "Malformed value"
-    end
+    Page.set_content!(page, "<input type=month>")
+    {:error, error} = Page.fill(page, "input", "2020-13")
+    assert Exception.message(error) =~ "Malformed value"
   end
 
   test "should fill week input", %{page: page} do
@@ -193,22 +195,20 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-W50"
   end
 
-  test "should throw on incorrect week", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium supports week inputs")
+  test "should throw on incorrect week", %{page: page} do
     # it.skip(browserName !== 'chromium', 'Only Chromium supports week inputs')
-    if browser_name == "chromium" do
-      Page.set_content!(page, "<input type=week>")
-      {:error, error} = Page.fill(page, "input", "2020-123")
-      assert Exception.message(error) =~ "Malformed value"
-    end
+    Page.set_content!(page, "<input type=week>")
+    {:error, error} = Page.fill(page, "input", "2020-123")
+    assert Exception.message(error) =~ "Malformed value"
   end
 
-  test "should throw on incorrect time", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit does not support time inputs")
+  test "should throw on incorrect time", %{page: page} do
     # it.skip(browserName === 'webkit', 'WebKit does not support time inputs')
-    if browser_name != "webkit" do
-      Page.set_content!(page, "<input type=time>")
-      {:error, error} = Page.fill(page, "input", "25:05")
-      assert Exception.message(error) =~ "Malformed value"
-    end
+    Page.set_content!(page, "<input type=time>")
+    {:error, error} = Page.fill(page, "input", "25:05")
+    assert Exception.message(error) =~ "Malformed value"
   end
 
   test "should fill datetime-local input", %{page: page} do
@@ -217,13 +217,12 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-03-02T05:15"
   end
 
-  test "should throw on incorrect datetime-local", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium supports datetime-local inputs")
+  test "should throw on incorrect datetime-local", %{page: page} do
     # it.skip(browserName !== 'chromium', 'Only Chromium supports datetime-local inputs')
-    if browser_name == "chromium" do
-      Page.set_content!(page, "<input type=datetime-local>")
-      {:error, error} = Page.fill(page, "input", "abc")
-      assert Exception.message(error) =~ "Malformed value"
-    end
+    Page.set_content!(page, "<input type=datetime-local>")
+    {:error, error} = Page.fill(page, "input", "abc")
+    assert Exception.message(error) =~ "Malformed value"
   end
 
   test "should fill contenteditable", %{page: page, server: server} do
@@ -233,38 +232,35 @@ defmodule PlaywrightEx.Page.PageFillTest do
   end
 
   # it.fixme(browserName === 'firefox' && !isBidi): Firefox does not handle new lines in contenteditable.
-  test "should fill contenteditable with new lines", %{page: page, server: server, browser_name: browser_name} do
-    if browser_name != "firefox" do
-      Page.goto!(page, server.empty_page)
-      Page.set_content!(page, ~s(<div contenteditable="true"></div>))
-      page |> Page.locator("div[contenteditable]") |> Locator.fill!("John\nDoe")
-      assert page |> Page.locator("div[contenteditable]") |> Locator.inner_text!() == "John\nDoe"
-    end
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Firefox does not handle new lines in contenteditable")
+  test "should fill contenteditable with new lines", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s(<div contenteditable="true"></div>))
+    page |> Page.locator("div[contenteditable]") |> Locator.fill!("John\nDoe")
+    assert page |> Page.locator("div[contenteditable]") |> Locator.inner_text!() == "John\nDoe"
   end
 
   # https://github.com/microsoft/playwright/issues/36715
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox (non-BiDi)")
   test "should not double-fill in contenteditable with beforeinput handler in Firefox", %{
-    page: page,
-    browser_name: browser_name
+    page: page
   } do
     # it.fixme(browserName === 'firefox' && !isBidi)
-    if browser_name != "firefox" do
-      Page.set_content!(page, """
-      <div id="editor" contenteditable="true"></div>
-      <script>
-        const editor = document.getElementById('editor');
-        editor.addEventListener('beforeinput', (event) => {
-          event.preventDefault();
-          editor.textContent = event.data;
-        });
-      </script>
-      """)
+    Page.set_content!(page, """
+    <div id="editor" contenteditable="true"></div>
+    <script>
+      const editor = document.getElementById('editor');
+      editor.addEventListener('beforeinput', (event) => {
+        event.preventDefault();
+        editor.textContent = event.data;
+      });
+    </script>
+    """)
 
-      locator = Page.locator(page, "#editor")
-      test_value = "Playwright"
-      Locator.fill!(locator, test_value)
-      Expect.to_have_text!(locator, test_value)
-    end
+    locator = Page.locator(page, "#editor")
+    test_value = "Playwright"
+    Locator.fill!(locator, test_value)
+    Expect.to_have_text!(locator, test_value)
   end
 
   test "should fill elements with existing value and selection", %{page: page, server: server} do

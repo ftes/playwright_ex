@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   @upstream "tests/page/page-goto.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.Errors.TimeoutError
   alias PlaywrightEx.Expect
@@ -264,6 +266,10 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html", wait_until: :domcontentloaded)
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
+           do: "upstream fixme: Regressed in https://github.com/microsoft/playwright-browsers/pull/1297"
+         )
   test "should fail when server returns 204", %{page: page, server: server, browser_name: browser_name} do
     # WebKit just loads an empty page.
     TestServer.set_route(server, "/empty.html", fn conn -> Plug.Conn.send_resp(conn, 204, "") end)
@@ -741,6 +747,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
            ]
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: load/domcontentloaded events are flaky")
   test "should not resolve goto upon window.stop()", %{page: page, server: server} do
     test = self()
 

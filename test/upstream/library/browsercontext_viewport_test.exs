@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
   @upstream "tests/library/browsercontext-viewport.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils, only: [verify_viewport: 3]
 
   alias PlaywrightEx.Browser
@@ -193,21 +195,19 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
   @tag skip: "upstream skip: webkit headed on Windows only"
   test "WebKit Windows headed should have a minimal viewport"
 
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: Desktop webkit dont support orientation API")
   test "should be able to get correct orientation angle on non-mobile devices", %{
     browser: browser,
-    browser_name: browser_name,
     server: server
   } do
     # browserTest.skip(browserName === 'webkit', 'Desktop webkit dont support orientation API');
-    if browser_name != "webkit" do
-      context = Browser.new_context!(browser, viewport: %{width: 300, height: 400}, is_mobile: false)
-      page = BrowserContext.new_page!(context)
-      Page.goto!(page, server.prefix <> "/index.html")
-      assert Page.evaluate!(page, "() => window.screen.orientation.angle") == 0
-      Page.set_viewport_size!(page, %{width: 400, height: 300})
-      assert Page.evaluate!(page, "() => window.screen.orientation.angle") == 0
-      BrowserContext.close!(context)
-    end
+    context = Browser.new_context!(browser, viewport: %{width: 300, height: 400}, is_mobile: false)
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.prefix <> "/index.html")
+    assert Page.evaluate!(page, "() => window.screen.orientation.angle") == 0
+    Page.set_viewport_size!(page, %{width: 400, height: 300})
+    assert Page.evaluate!(page, "() => window.screen.orientation.angle") == 0
+    BrowserContext.close!(context)
   end
 
   test "should set window.screen.orientation.type for mobile devices", %{

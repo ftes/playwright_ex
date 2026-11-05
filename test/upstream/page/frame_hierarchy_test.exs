@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
   @upstream "tests/page/frame-hierarchy.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   import PlaywrightEx.Utils, only: [attach_frame: 3, detach_frame: 2]
 
   alias PlaywrightEx.ConsoleMessage
@@ -201,30 +203,29 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     refute frame1 == frame2
   end
 
-  test "should refuse to display x-frame-options:deny iframe", %{page: page, server: server, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
+  test "should refuse to display x-frame-options:deny iframe", %{page: page, server: server} do
     # it.skip(browserName === 'firefox');
-    if browser_name != "firefox" do
-      TestServer.set_route(server, "/x-frame-options-deny.html", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "text/html")
-        |> Plug.Conn.put_resp_header("x-frame-options", "DENY")
-        |> Plug.Conn.send_resp(
-          200,
-          ~s(<!DOCTYPE html><html><head><title>login</title></head><body style="background-color: red;"><p>dangerous login page</p></body></html>)
-        )
-      end)
+    TestServer.set_route(server, "/x-frame-options-deny.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.put_resp_header("x-frame-options", "DENY")
+      |> Plug.Conn.send_resp(
+        200,
+        ~s(<!DOCTYPE html><html><head><title>login</title></head><body style="background-color: red;"><p>dangerous login page</p></body></html>)
+      )
+    end)
 
-      Page.goto!(page, server.empty_page)
-      me = self()
+    Page.goto!(page, server.empty_page)
+    me = self()
 
-      Page.on(page, :console, fn msg ->
-        if ConsoleMessage.text(msg) =~ ~r/Refused to display/i, do: send(me, {:refusal_text, ConsoleMessage.text(msg)})
-      end)
+    Page.on(page, :console, fn msg ->
+      if ConsoleMessage.text(msg) =~ ~r/Refused to display/i, do: send(me, {:refusal_text, ConsoleMessage.text(msg)})
+    end)
 
-      Page.set_content!(page, ~s(<iframe src="#{server.cross_process_prefix}/x-frame-options-deny.html"></iframe>))
-      assert_receive {:refusal_text, refusal_text}, 10_000
-      assert refusal_text =~ ~r/Refused to display .* in a frame because it set 'X-Frame-Options' to 'deny'./i
-    end
+    Page.set_content!(page, ~s(<iframe src="#{server.cross_process_prefix}/x-frame-options-deny.html"></iframe>))
+    assert_receive {:refusal_text, refusal_text}, 10_000
+    assert refusal_text =~ ~r/Refused to display .* in a frame because it set 'X-Frame-Options' to 'deny'./i
   end
 
   test "should return frame.page()", %{page: page, server: server} do

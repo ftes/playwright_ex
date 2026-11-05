@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
   @upstream "tests/page/page-request-fulfill.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
@@ -287,20 +289,22 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert cookie |> String.split(";") |> Enum.map(&String.trim/1) |> Enum.sort() == ["a=b", "c=d"]
   end
 
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream skip: Set-Cookie with \\n in intercepted response does not pass validation in WebCore"
+         )
   test "headerValue should return set-cookie from intercepted response", %{
     page: page,
     server: server,
     browser_name: browser_name
   } do
-    if browser_name != "webkit" do
-      Page.route!(page, "**/empty.html", &Route.fulfill(&1, status: 200, headers: %{"Set-Cookie" => "a=b"}, body: ""))
-      response = Page.goto!(page, server.empty_page)
+    Page.route!(page, "**/empty.html", &Route.fulfill(&1, status: 200, headers: %{"Set-Cookie" => "a=b"}, body: ""))
+    response = Page.goto!(page, server.empty_page)
 
-      # it.fail(browserName === 'chromium', 'Set-Cookie is missing in response after interception')
-      if browser_name == "chromium",
-        do: refute(Response.header_value!(response, "Set-Cookie") == "a=b"),
-        else: assert(Response.header_value!(response, "Set-Cookie") == "a=b")
-    end
+    # it.fail(browserName === 'chromium', 'Set-Cookie is missing in response after interception')
+    if browser_name == "chromium",
+      do: refute(Response.header_value!(response, "Set-Cookie") == "a=b"),
+      else: assert(Response.header_value!(response, "Set-Cookie") == "a=b")
   end
 
   test "should fulfill with har response", %{page: page, asset: asset} do

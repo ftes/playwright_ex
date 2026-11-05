@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
   @upstream "tests/library/browsercontext-user-agent.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Locator
@@ -85,37 +87,35 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     assert header(req, "user-agent") == "MyCustomUA"
   end
 
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: This API is Chromium-only")
   test "should work for navigator.userAgentData and sec-ch-ua headers", %{
     playwright: playwright,
-    browser_name: browser_name,
     browser: browser,
     server: server
   } do
-    if browser_name == "chromium" do
-      context = Browser.new_context!(browser)
-      page = BrowserContext.new_page!(context)
-      request = TestServer.wait_for_request(server, "/empty.html")
-      Page.goto!(page, server.empty_page)
-      request = Task.await(request)
-      assert header(request, "sec-ch-ua") =~ ~s("Chromium")
-      assert header(request, "sec-ch-ua-mobile") == "?0"
-      assert header(request, "sec-ch-ua-platform")
-      assert %{"mobile" => false} = Page.evaluate!(page, "() => window.navigator.userAgentData.toJSON()")
-      BrowserContext.close!(context)
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+    request = TestServer.wait_for_request(server, "/empty.html")
+    Page.goto!(page, server.empty_page)
+    request = Task.await(request)
+    assert header(request, "sec-ch-ua") =~ ~s("Chromium")
+    assert header(request, "sec-ch-ua-mobile") == "?0"
+    assert header(request, "sec-ch-ua-platform")
+    assert %{"mobile" => false} = Page.evaluate!(page, "() => window.navigator.userAgentData.toJSON()")
+    BrowserContext.close!(context)
 
-      context = Browser.new_context!(browser, Playwright.devices(playwright)["Pixel 7"])
-      page = BrowserContext.new_page!(context)
-      request = TestServer.wait_for_request(server, "/empty.html")
-      Page.goto!(page, server.empty_page)
-      request = Task.await(request)
-      assert header(request, "sec-ch-ua") =~ ~s("Chromium")
-      assert header(request, "sec-ch-ua-mobile") == "?1"
-      assert header(request, "sec-ch-ua-platform") == ~s("Android")
+    context = Browser.new_context!(browser, Playwright.devices(playwright)["Pixel 7"])
+    page = BrowserContext.new_page!(context)
+    request = TestServer.wait_for_request(server, "/empty.html")
+    Page.goto!(page, server.empty_page)
+    request = Task.await(request)
+    assert header(request, "sec-ch-ua") =~ ~s("Chromium")
+    assert header(request, "sec-ch-ua-mobile") == "?1"
+    assert header(request, "sec-ch-ua-platform") == ~s("Android")
 
-      assert %{"mobile" => true, "platform" => "Android"} =
-               Page.evaluate!(page, "() => window.navigator.userAgentData.toJSON()")
+    assert %{"mobile" => true, "platform" => "Android"} =
+             Page.evaluate!(page, "() => window.navigator.userAgentData.toJSON()")
 
-      BrowserContext.close!(context)
-    end
+    BrowserContext.close!(context)
   end
 end

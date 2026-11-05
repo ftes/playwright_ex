@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   @upstream "tests/page/page-network-request.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
@@ -103,6 +105,10 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream fail: Curl does not show accept-encoding and accept-language"
+         )
   test "should get the same headers as the server", %{page: page, server: server, browser_name: browser_name} do
     me = self()
 
@@ -117,6 +123,10 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert headers == adjust_server_headers(server_headers(server_request), browser_name)
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream fail: Curl does not show accept-encoding and accept-language"
+         )
   test "should not return allHeaders() until they are available",
        %{page: page, server: server, browser_name: browser_name} do
     me = self()
@@ -146,6 +156,10 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert response_headers["foo"] == "bar"
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
+           do: "upstream fail: Curl does not show accept-encoding and accept-language"
+         )
   test "should get the same headers as the server CORS", %{page: page, server: server, browser_name: browser_name} do
     Page.goto!(page, server.prefix <> "/empty.html")
     me = self()
@@ -360,6 +374,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.post_data_json(Response.request(response)) == nil
   end
 
+  @tag skip: if(@browser_name == "webkit", do: "upstream fixme: File content is missing in WebKit")
   test "should return multipart/form-data", %{page: page, server: server} do
     # it.fixme(browserName === 'webkit'), it.skip(chromium < 126)  -- we run a recent chromium
     Page.goto!(page, server.empty_page)
@@ -482,35 +497,34 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.header_value!(request, "not-there") == nil
   end
 
-  test "should report raw response headers in redirects", %{page: page, server: server, browser_name: browser_name} do
-    if browser_name != "webkit" do
-      TestServer.set_extra_headers(server, "/redirect/1.html", %{"sec-test-header" => "1.html"})
-      TestServer.set_extra_headers(server, "/redirect/2.html", %{"sec-test-header" => "2.html"})
-      TestServer.set_extra_headers(server, "/empty.html", %{"sec-test-header" => "empty.html"})
-      TestServer.set_redirect(server, "/redirect/1.html", "/redirect/2.html")
-      TestServer.set_redirect(server, "/redirect/2.html", "/empty.html")
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit won't give us raw headers for redirects")
+  test "should report raw response headers in redirects", %{page: page, server: server} do
+    TestServer.set_extra_headers(server, "/redirect/1.html", %{"sec-test-header" => "1.html"})
+    TestServer.set_extra_headers(server, "/redirect/2.html", %{"sec-test-header" => "2.html"})
+    TestServer.set_extra_headers(server, "/empty.html", %{"sec-test-header" => "empty.html"})
+    TestServer.set_redirect(server, "/redirect/1.html", "/redirect/2.html")
+    TestServer.set_redirect(server, "/redirect/2.html", "/empty.html")
 
-      expected_urls = Enum.map(["/redirect/1.html", "/redirect/2.html", "/empty.html"], &(server.prefix <> &1))
-      expected_headers = ["1.html", "2.html", "empty.html"]
+    expected_urls = Enum.map(["/redirect/1.html", "/redirect/2.html", "/empty.html"], &(server.prefix <> &1))
+    expected_headers = ["1.html", "2.html", "empty.html"]
 
-      response = Page.goto!(page, server.prefix <> "/redirect/1.html")
+    response = Page.goto!(page, server.prefix <> "/redirect/1.html")
 
-      {redirect_chain, headers_chain} =
-        response
-        |> Response.request()
-        |> Stream.unfold(fn
-          nil -> nil
-          req -> {req, Request.redirected_from(req)}
-        end)
-        |> Enum.reduce({[], []}, fn req, {redirect_chain, headers_chain} ->
-          res = Request.response!(req)
-          headers = Response.all_headers!(res)
-          {[Request.url(req) | redirect_chain], [headers["sec-test-header"] | headers_chain]}
-        end)
+    {redirect_chain, headers_chain} =
+      response
+      |> Response.request()
+      |> Stream.unfold(fn
+        nil -> nil
+        req -> {req, Request.redirected_from(req)}
+      end)
+      |> Enum.reduce({[], []}, fn req, {redirect_chain, headers_chain} ->
+        res = Request.response!(req)
+        headers = Response.all_headers!(res)
+        {[Request.url(req) | redirect_chain], [headers["sec-test-header"] | headers_chain]}
+      end)
 
-      assert redirect_chain == expected_urls
-      assert headers_chain == expected_headers
-    end
+    assert redirect_chain == expected_urls
+    assert headers_chain == expected_headers
   end
 
   test "should report all cookies in one header", %{page: page, server: server} do
@@ -592,43 +606,45 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end
   end
 
-  test "should handle mixed-content blocked requests", %{page: page, asset: asset, browser_name: browser_name} do
+  @tag skip:
+         if(@browser_name != "chromium",
+           do: "upstream skip: FF and WK actually succeed with the request, and block afterwards"
+         )
+  test "should handle mixed-content blocked requests", %{page: page, asset: asset} do
     # issue: https://github.com/microsoft/playwright/issues/29833
-    if browser_name == "chromium" do
-      Page.route!(page, "**/mixedcontent.html", fn route ->
-        Route.fulfill(route,
-          status: 200,
-          content_type: "text/html",
-          body: """
-              <!doctype html>
-              <meta charset="utf-8">
-              <style>
-              @font-face {
-                font-family: 'pwtest-iconfont';
-                src: url('http://another.com/iconfont.woff2') format('woff2');
-              }
-              body {
-                font-family: 'pwtest-iconfont';
-              }
-              </style>
-              <span>+-</span>
-          """
-        )
-      end)
+    Page.route!(page, "**/mixedcontent.html", fn route ->
+      Route.fulfill(route,
+        status: 200,
+        content_type: "text/html",
+        body: """
+            <!doctype html>
+            <meta charset="utf-8">
+            <style>
+            @font-face {
+              font-family: 'pwtest-iconfont';
+              src: url('http://another.com/iconfont.woff2') format('woff2');
+            }
+            body {
+              font-family: 'pwtest-iconfont';
+            }
+            </style>
+            <span>+-</span>
+        """
+      )
+    end)
 
-      Page.route!(page, "**/iconfont.woff2", fn route ->
-        body = File.read!(asset.("webfont/iconfont2.woff"))
-        Route.fulfill!(route, body: {:binary, body})
-      end)
+    Page.route!(page, "**/iconfont.woff2", fn route ->
+      body = File.read!(asset.("webfont/iconfont2.woff"))
+      Route.fulfill!(route, body: {:binary, body})
+    end)
 
-      request =
-        Page.expect_event!(page, :request_failed, fn -> Page.goto!(page, "https://example.com/mixedcontent.html") end,
-          predicate: &(Request.url(&1) =~ "iconfont.woff2")
-        )
+    request =
+      Page.expect_event!(page, :request_failed, fn -> Page.goto!(page, "https://example.com/mixedcontent.html") end,
+        predicate: &(Request.url(&1) =~ "iconfont.woff2")
+      )
 
-      headers = Request.all_headers!(request)
-      assert headers["origin"]
-      assert Request.failure(request).errorText == "mixed-content"
-    end
+    headers = Request.all_headers!(request)
+    assert headers["origin"]
+    assert Request.failure(request).errorText == "mixed-content"
   end
 end

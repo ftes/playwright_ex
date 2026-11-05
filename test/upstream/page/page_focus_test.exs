@@ -2,20 +2,21 @@ defmodule PlaywrightEx.Page.PageFocusTest do
   @upstream "tests/page/page-focus.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
+  test "should work @smoke", %{page: page} do
     # it.skip(browserName === 'firefox' && !isBidi);  -- isBidi: we run the default protocols
-    if browser_name != "firefox" do
-      Page.set_content!(page, "<div id=d1 tabIndex=0></div>")
-      assert Page.evaluate!(page, "() => document.activeElement.nodeName") == "BODY"
-      Page.focus!(page, "#d1")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "d1"
-    end
+    Page.set_content!(page, "<div id=d1 tabIndex=0></div>")
+    assert Page.evaluate!(page, "() => document.activeElement.nodeName") == "BODY"
+    Page.focus!(page, "#d1")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "d1"
   end
 
   # `focused = true` / `blurred = true`: messages to the test process.
@@ -90,141 +91,139 @@ defmodule PlaywrightEx.Page.PageFocusTest do
     assert Page.evaluate!(page, "() => document.activeElement.value") == "1"
   end
 
-  test "should traverse only form elements", %{page: page, browser_name: browser_name} do
+  @tag skip:
+         if(not match?({:unix, :darwin}, :os.type()) or @browser_name != "webkit",
+           do:
+             "upstream skip: Chromium and WebKit both have settings for tab traversing all links, but it is only on by default in WebKit."
+         )
+  test "should traverse only form elements", %{page: page} do
     # it.skip(platform !== 'darwin' || browserName !== 'webkit',
     #     'Chromium and WebKit both have settings for tab traversing all links, but it is only on by default in WebKit.');
-    if match?({:unix, :darwin}, :os.type()) and browser_name == "webkit" do
-      Page.set_content!(page, """
-      <input id="input-1">
-      <button id="button">button</button>
-      <a href id="link">link</a>
-      <input id="input-2">
-      """)
+    Page.set_content!(page, """
+    <input id="input-1">
+    <button id="button">button</button>
+    <a href id="link">link</a>
+    <input id="input-2">
+    """)
 
-      keyboard = Page.keyboard(page)
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input-1"
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input-2"
-      Keyboard.press!(keyboard, "Shift+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input-1"
-      Keyboard.press!(keyboard, "Alt+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "button"
-      Keyboard.press!(keyboard, "Alt+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "link"
-      Keyboard.press!(keyboard, "Alt+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input-2"
-      Keyboard.press!(keyboard, "Alt+Shift+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "link"
-      Keyboard.press!(keyboard, "Alt+Shift+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "button"
-      Keyboard.press!(keyboard, "Alt+Shift+Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input-1"
-    end
+    keyboard = Page.keyboard(page)
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input-1"
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input-2"
+    Keyboard.press!(keyboard, "Shift+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input-1"
+    Keyboard.press!(keyboard, "Alt+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "button"
+    Keyboard.press!(keyboard, "Alt+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "link"
+    Keyboard.press!(keyboard, "Alt+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input-2"
+    Keyboard.press!(keyboard, "Alt+Shift+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "link"
+    Keyboard.press!(keyboard, "Alt+Shift+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "button"
+    Keyboard.press!(keyboard, "Alt+Shift+Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input-1"
   end
 
-  test "clicking checkbox should activate it", %{page: page, browser_name: browser_name} do
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: Safari does not focus on click")
+  test "clicking checkbox should activate it", %{page: page} do
     # it.skip(browserName === 'webkit', 'Safari does not focus on click');
-    if browser_name != "webkit" do
-      Page.set_content!(page, "<input type=checkbox></input>")
-      Page.click!(page, "input")
-      node_name = Page.evaluate!(page, "() => document.activeElement.nodeName")
-      assert node_name == "INPUT"
-    end
+    Page.set_content!(page, "<input type=checkbox></input>")
+    Page.click!(page, "input")
+    node_name = Page.evaluate!(page, "() => document.activeElement.nodeName")
+    assert node_name == "INPUT"
   end
 
   # https://github.com/microsoft/playwright/issues/32339
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
   test "tab should cycle between single input and browser", %{
-    page: page,
-    browser_name: browser_name
+    page: page
   } do
     # it.skip(browserName === 'chromium' && !isHeadlessShell, 'Chromium keeps input focused.');
     #   -- headless chromium is the headless shell
     # it.fixme(browserName === 'firefox');
-    if browser_name != "firefox" do
-      Page.set_content!(page, """
-      <label for="input1">input1</label>
-        <input id="input1">
-        <script>
-        {
-          window.focusEvents = [];
-          const input = document.getElementById('input1');
-          input.addEventListener('blur', () => focusEvents.push('blur'));
-          input.addEventListener('focus', () => focusEvents.push('focus'));
-        }
-        </script>
-      """)
+    Page.set_content!(page, """
+    <label for="input1">input1</label>
+      <input id="input1">
+      <script>
+      {
+        window.focusEvents = [];
+        const input = document.getElementById('input1');
+        input.addEventListener('blur', () => focusEvents.push('blur'));
+        input.addEventListener('focus', () => focusEvents.push('focus'));
+      }
+      </script>
+    """)
 
-      keyboard = Page.keyboard(page)
-      assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
-      assert Page.evaluate!(page, "() => window.focusEvents") == ["focus"]
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
-      assert Page.evaluate!(page, "() => window.focusEvents") == ["focus", "blur"]
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
-      assert Page.evaluate!(page, "() => window.focusEvents") == ["focus", "blur", "focus"]
-    end
+    keyboard = Page.keyboard(page)
+    assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
+    assert Page.evaluate!(page, "() => window.focusEvents") == ["focus"]
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
+    assert Page.evaluate!(page, "() => window.focusEvents") == ["focus", "blur"]
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
+    assert Page.evaluate!(page, "() => window.focusEvents") == ["focus", "blur", "focus"]
   end
 
   # https://github.com/microsoft/playwright/issues/32339
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
   test "tab should cycle between document elements and browser", %{
-    page: page,
-    browser_name: browser_name
+    page: page
   } do
     # it.skip(browserName === 'chromium' && !isHeadlessShell, 'Chromium keeps last input focused.');
     #   -- headless chromium is the headless shell
     # it.fixme(browserName === 'firefox');
-    if browser_name != "firefox" do
-      Page.set_content!(page, """
-      <input id="input1">
-      <input id="input2">
-      <script>
-        window.focusEvents = [];
-        {
-          const input = document.getElementById('input1');
-          input.addEventListener('blur', () => focusEvents.push('blur1'));
-          input.addEventListener('focus', () => focusEvents.push('focus1'));
-        }
-        {
-          const input = document.getElementById('input2');
-          input.addEventListener('blur', () => focusEvents.push('blur2'));
-          input.addEventListener('focus', () => focusEvents.push('focus2'));
-        }
-      </script>
-      """)
+    Page.set_content!(page, """
+    <input id="input1">
+    <input id="input2">
+    <script>
+      window.focusEvents = [];
+      {
+        const input = document.getElementById('input1');
+        input.addEventListener('blur', () => focusEvents.push('blur1'));
+        input.addEventListener('focus', () => focusEvents.push('focus1'));
+      }
+      {
+        const input = document.getElementById('input2');
+        input.addEventListener('blur', () => focusEvents.push('blur2'));
+        input.addEventListener('focus', () => focusEvents.push('focus2'));
+      }
+    </script>
+    """)
 
-      keyboard = Page.keyboard(page)
-      assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
-      assert Page.evaluate!(page, "() => window.focusEvents") == ["focus1"]
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input2"
-      assert Page.evaluate!(page, "() => window.focusEvents") == ["focus1", "blur1", "focus2"]
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
+    keyboard = Page.keyboard(page)
+    assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
+    assert Page.evaluate!(page, "() => window.focusEvents") == ["focus1"]
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input2"
+    assert Page.evaluate!(page, "() => window.focusEvents") == ["focus1", "blur1", "focus2"]
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.tagName") == "BODY"
 
-      assert Page.evaluate!(page, "() => window.focusEvents") == [
-               "focus1",
-               "blur1",
-               "focus2",
-               "blur2"
-             ]
+    assert Page.evaluate!(page, "() => window.focusEvents") == [
+             "focus1",
+             "blur1",
+             "focus2",
+             "blur2"
+           ]
 
-      Keyboard.press!(keyboard, "Tab")
-      assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
+    Keyboard.press!(keyboard, "Tab")
+    assert Page.evaluate!(page, "() => document.activeElement.id") == "input1"
 
-      assert Page.evaluate!(page, "() => window.focusEvents") == [
-               "focus1",
-               "blur1",
-               "focus2",
-               "blur2",
-               "focus1"
-             ]
-    end
+    assert Page.evaluate!(page, "() => window.focusEvents") == [
+             "focus1",
+             "blur1",
+             "focus2",
+             "blur2",
+             "focus1"
+           ]
   end
 
   # https://github.com/microsoft/playwright/issues/14254

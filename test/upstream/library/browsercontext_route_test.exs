@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
   @upstream "tests/library/browsercontext-route.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Expect
@@ -143,8 +145,12 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
            ]
   end
 
+  @tag skip:
+         if(@browser_name == "webkit" and not match?({:unix, :darwin}, :os.type()),
+           do: "upstream fixme: webkit on Linux and Windows"
+         )
   test "should ignore secure Set-Cookie header for insecure requests", %{context_factory: context_factory} do
-    # it.fixme(browserName === 'webkit' && !isMac);  -- we run chromium
+    # it.fixme(browserName === 'webkit' && !isMac);
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
 
