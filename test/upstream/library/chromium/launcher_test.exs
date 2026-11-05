@@ -19,8 +19,8 @@ defmodule PlaywrightEx.Library.Chromium.LauncherTest do
     browser = BrowserType.launch!(browser_type)
     browser_session = Browser.new_browser_cdp_session!(browser)
 
-    CDPSession.on(browser_session, "Target.targetCreated", fn %{targetInfo: target_info} ->
-      if target_info.type != "browser", do: send(test, {:target, target_info})
+    CDPSession.on(browser_session, "Target.targetCreated", fn %{"targetInfo" => target_info} ->
+      if target_info["type"] != "browser", do: send(test, {:target, target_info})
     end)
 
     CDPSession.send!(browser_session, "Target.setDiscoverTargets", %{discover: true})
