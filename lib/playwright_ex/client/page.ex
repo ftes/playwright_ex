@@ -1215,7 +1215,9 @@ defmodule PlaywrightEx.Client.Page do
         owner,
         fn _ ->
           ClientHelper.init_script_source_with_exposed_functions(script, arg, fn name, callback ->
-            promise = Promise.async(fn -> impl(owner)._expose_callback_binding(owner, name, callback) end)
+            # Awaited twice (`Promise.all` in the serializer, then below): a latch on the owner, as a
+            # local promise is awaited once.
+            promise = Promise.async(fn -> impl(owner)._expose_callback_binding(owner, name, callback) end, owner: owner)
             Process.put(callbacks, Process.get(callbacks) ++ [{name, promise}])
             promise
           end)
