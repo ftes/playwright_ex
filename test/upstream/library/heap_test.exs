@@ -38,6 +38,8 @@ defmodule PlaywrightEx.Library.HeapTest do
 
   test "should collect stale handles"
 
+  # deviation: without setMaxDispatchersForTest(100) the driver keeps its default limit, so no
+  # frame is collected; this checks 310 frameattached events with a page call each, not the GC path.
   @tag :page
   # test.slow()
   @tag timeout: @slow_timeout
