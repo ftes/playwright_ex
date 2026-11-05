@@ -28,7 +28,8 @@ defmodule PlaywrightEx.Client.Errors do
         error: %{
           message: Serializers.system_error_message(e),
           stack: Map.get(e, :stack) || "",
-          name: Map.get(e, :name) || inspect(e.__struct__),
+          # JS `e.name`: "Error" for an exception without one (`raise "x"` is `new Error('x')`).
+          name: Map.get(e, :name) || "Error",
           code: Serializers.system_error_code(e)
         }
       },

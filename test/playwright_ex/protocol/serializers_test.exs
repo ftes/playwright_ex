@@ -20,7 +20,8 @@ defmodule PlaywrightEx.Protocol.SerializersTest do
     assert Serializers.serialize_plain_value(~r/a.b/is) == %{r: %{p: "a.b", f: "is"}}
     assert round_trip(~r/a.b/i) == %PlaywrightEx.RegExp{source: "a.b", flags: "i"}
     assert %JSError{name: "TypeError", message: "boom"} = round_trip(%JSError{name: "TypeError", message: "boom"})
-    assert %{e: %{n: "ArgumentError", m: "bad"}} = Serializers.serialize_plain_value(%ArgumentError{message: "bad"})
+    # An exception without a JS name is a plain `Error`.
+    assert %{e: %{n: "Error", m: "bad"}} = Serializers.serialize_plain_value(%ArgumentError{message: "bad"})
   end
 
   test "arrays and objects get increasing ids; atom keys become strings" do

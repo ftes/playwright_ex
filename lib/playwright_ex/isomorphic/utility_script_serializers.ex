@@ -104,7 +104,8 @@ defmodule PlaywrightEx.Isomorphic.UtilityScriptSerializers do
     {name, message, stack} =
       case e do
         %{name: name, stack: stack} when is_binary(name) -> {name, Exception.message(e), stack || ""}
-        _ -> {inspect(e.__struct__), Exception.message(e), ""}
+        # An exception without a JS name: `new Error()`.
+        _ -> {"Error", Exception.message(e), ""}
       end
 
     stack =
