@@ -18,7 +18,9 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   # (24.04) passes these tests, so they run there.
   # test.beforeEach: test.skip(browserName === 'chromium' && utils.hostPlatform.startsWith('ubuntu24.04'))
   # test.beforeEach: test.skip(webkit && debian13 / webkit-wsl)  -- moot: webkit is skipped above
-  # test.beforeEach: test.slow(platform === 'linux' && browserName === 'webkit', ...)  -- moot: likewise
+  # test.beforeEach: test.slow(platform === 'linux' && browserName === 'webkit', ...)
+  if System.get_env("BROWSER", "chromium") == "webkit" and match?({:unix, :linux}, :os.type()),
+    do: @moduletag(timeout: @slow_timeout)
 
   # The `crash` fixture: page.goto('chrome://crash').catch(e => {})
   defp crash(page), do: Task.start(fn -> Page.goto(page, "chrome://crash") end)
