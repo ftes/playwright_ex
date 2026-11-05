@@ -316,11 +316,24 @@ defmodule PlaywrightEx.Client.Connection do
   def callbacks(this), do: map_keys(this, :_callbacks)
 
   defp _validator_from_wire_context(this) do
+    under_test = _is_under_test(this)
+
     %{
       tChannelImpl: fn names, arg, path, context -> _t_channel_impl_from_wire(this, names, arg, path, context) end,
-      binary: if(get(this, :_rawBuffers), do: "buffer", else: "fromBase64")
+      binary: if(get(this, :_rawBuffers), do: "buffer", else: "fromBase64"),
+      isUnderTest: fn -> under_test end
     }
   end
+
+  @doc false
+  # `isUnderTest()` of `utils/debug.ts` (`PWTEST_UNDER_TEST` of the Node.js process). Deviation:
+  # per connection, not per process: one BEAM runs clients of drivers with different envs, and
+  # upstream's client shares its env with the driver it starts. `PlaywrightEx.OutOfProcess` sets
+  # it from the driver's env; a connection made by `connect` is not under test.
+  def _is_under_test(this), do: !!get(this, :_isUnderTest)
+
+  @doc false
+  def _set_under_test(this, under_test), do: put(this, :_isUnderTest, under_test)
 
   def dispatch(this, message) do
     if !get(this, :_closedError), do: _dispatch(this, message)

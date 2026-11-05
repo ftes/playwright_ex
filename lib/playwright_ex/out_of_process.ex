@@ -34,10 +34,16 @@ defmodule PlaywrightEx.OutOfProcess do
     connection = Conn.connection(conn)
     parent = self()
 
+    env = Driver.driver_env() ++ Enum.to_list(Keyword.get(opts, :env, []))
+    # Elixir only: `isUnderTest()` of the client follows the driver's env (see Connection._is_under_test/1).
+    under_test = Enum.find_value(Enum.reverse(env), fn {k, v} -> if to_string(k) == "PWTEST_UNDER_TEST", do: v end)
+    under_test = if under_test == nil, do: System.get_env("PWTEST_UNDER_TEST"), else: under_test
+    Connection._set_under_test(connection, under_test not in [nil, false, "", "false", "0"])
+
     {:ok, transport} =
       Pipe.start_link(
         executable: executable,
-        env: Driver.driver_env() ++ Enum.to_list(Keyword.get(opts, :env, [])),
+        env: env,
         # transport.onmessage = message => connection.dispatch(JSON.parse(message));
         on_message: fn message -> send(conn, {:pw_msg, message}) end,
         # transport.onclose = () => this._closePromise.resolve();

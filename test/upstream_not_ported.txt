@@ -42,7 +42,6 @@ library/debug-controller            Internal protocol of the VS Code extension.
 # Node.js packaging and test setup.
 library/browsers-path               Tests importing the Node.js package on an unsupported platform.
 library/playwright-client           packages/playwright-client browser bundle (lib/index.mjs) is not built in the upstream cache
-library/browsertype-launch-selenium Selenium Grid jars and chromedriver (PWTEST_SELENIUM), the __testHookSeleniumRemoteURL test hook, the in-process oop.start driver
 
 # JS-only API.
 library/browsertype-launch-server   BrowserType.launchServer is JS-only (api.json langs: js); specs that only need a launched server run on the launch-server fixture.

@@ -295,9 +295,12 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   # _debugScopeState  -- not ported
 
   defp _validator_to_wire_context(this) do
+    under_test = Connection._is_under_test(get(this, :_connection))
+
     %{
       tChannelImpl: &t_channel_impl_to_wire/4,
-      binary: if(Connection.raw_buffers(get(this, :_connection)), do: "buffer", else: "toBase64")
+      binary: if(Connection.raw_buffers(get(this, :_connection)), do: "buffer", else: "toBase64"),
+      isUnderTest: fn -> under_test end
     }
   end
 

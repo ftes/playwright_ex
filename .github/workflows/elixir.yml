@@ -94,6 +94,29 @@ jobs:
       # are retried once, as upstream retries on CI (`retries: 3`); compile errors are not.
       - name: Run tests
         run: xvfb-run --auto-servernum -- mix test --warnings-as-errors || if [[ $? = 2 ]]; then xvfb-run --auto-servernum -- mix test --failed; else false; fi
+      # tests/library/browsertype-launch-selenium.spec.ts, set up as upstream's installation test
+      # (connect-to-selenium.spec.ts) does: the two Selenium Server jars (cached; downloaded on
+      # chromium only), the runner image's Google Chrome and its ChromeDriver, Java 17 (the image's
+      # default 25 is newer than Selenium 3.141.59). The step above skips the spec (no
+      # PWTEST_SELENIUM); this one runs only it: the grid tests on chromium, the non-chromium error
+      # test (no grid) on firefox and webkit.
+      - name: Restore Selenium Server jars
+        if: matrix.browser == 'chromium'
+        id: selenium_cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: selenium-server-3.141.59-4.8.3
+          path: ~/selenium
+      - name: Download Selenium Server jars
+        if: matrix.browser == 'chromium' && steps.selenium_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/selenium
+          curl -fsSL --retry 3 -o ~/selenium/selenium-server-4.8.3.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.8.0/selenium-server-4.8.3.jar
+          curl -fsSL --retry 3 -o ~/selenium/selenium-server-standalone-3.141.59.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-3.141.59/selenium-server-standalone-3.141.59.jar
+      - name: Run Selenium tests
+        run: |
+          export PATH=$JAVA_HOME_17_X64/bin:$PATH PWTEST_SELENIUM=$HOME/selenium PWTEST_CHROMEDRIVER=$CHROMEWEBDRIVER/chromedriver
+          mix test test/upstream/library/browsertype_launch_selenium_test.exs || if [[ $? = 2 ]]; then mix test --failed; else false; fi
 
   # The one check to require: green when every blocking matrix entry is.
   tests:

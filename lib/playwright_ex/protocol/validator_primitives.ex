@@ -15,7 +15,8 @@ defmodule PlaywrightEx.Protocol.ValidatorPrimitives do
   JSON keeps string keys) and returns atom keys, dropping `nil` values as upstream drops
   `undefined`. `:binary` in a `"toBase64"` context takes any binary.
 
-  The context mirrors `ValidatorContext`: `%{tChannelImpl: fun/4, binary: "toBase64" | "fromBase64" | "buffer"}`.
+  The context mirrors `ValidatorContext`: `%{tChannelImpl: fun/4, binary: "toBase64" | "fromBase64" | "buffer",
+  isUnderTest: fun/0}` (`isUnderTest` may be missing: not under test).
   """
   alias PlaywrightEx.Protocol.Validator
 
@@ -83,12 +84,22 @@ defmodule PlaywrightEx.Protocol.ValidatorPrimitives do
 
   # Not a `for` with `value = validate(...)` as a filter: a falsy match filters, so `false` would be dropped.
   def validate({:object, schemes}, arg, path, context) when is_map(arg) do
-    Enum.reduce(schemes, %{}, fn {key, scheme}, result ->
-      case validate(scheme, fetch(arg, key), if(path == "", do: "#{key}", else: "#{path}.#{key}"), context) do
-        nil -> result
-        value -> Map.put(result, key, value)
-      end
-    end)
+    result =
+      Enum.reduce(schemes, %{}, fn {key, scheme}, result ->
+        case validate(scheme, fetch(arg, key), if(path == "", do: "#{key}", else: "#{path}.#{key}"), context) do
+          nil -> result
+          value -> Map.put(result, key, value)
+        end
+      end)
+
+    if context[:isUnderTest] && context.isUnderTest.() do
+      for {key, value} <- Map.to_list(arg),
+          String.starts_with?(to_string(key), "__testHook"),
+          into: result,
+          do: {key, value}
+    else
+      result
+    end
   end
 
   def validate({:object, _schemes}, :null, path, _context), do: fail("#{path}: expected object, got null")
