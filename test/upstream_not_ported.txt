@@ -93,7 +93,6 @@ FE-028      instrumentation (_instrumentation.runBeforeCreateRequestContext)
 FE-046      toJSON (no Elixir counterpart)
 # library/global-fetch-cookie
 # library/har-websocket
-HA-112      process.env of the in-process server (the driver's env is fixed at launch)
 # library/heap
 LE-007      queryObjectCount (in-process V8 heap inspection)
 LE-008      queryObjectCount (in-process V8 heap inspection)

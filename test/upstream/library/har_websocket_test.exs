@@ -2,9 +2,12 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   @upstream "tests/library/har-websocket.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.WebSocket
   alias PlaywrightEx.WebSocketRoute
@@ -596,5 +599,35 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   end
 
   # it.skip(mode !== 'default', 'no env vars in non-default mode')
-  test "should respect PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES"
+  test "should respect PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES", %{server: server, output_path: output_path} do
+    # it.skip(mode !== 'default', 'no env vars in non-default mode');  -- we always run the default mode
+
+    # process.env.PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES = '1';
+    # deviation: upstream sets the variable in the test process, which also runs the Playwright
+    # server. Our driver reads it when it starts (as playwright-python does): start another
+    # driver with it set, and record the HAR in a browser of that driver.
+    name = Module.concat(__MODULE__, NoWebSocketFrames)
+
+    start_supervised!(
+      {PlaywrightEx.Supervisor,
+       name: name, env: [{"PWTEST_UNDER_TEST", "1"}, {"PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES", "1"}]},
+      id: name
+    )
+
+    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright(name)))
+    context_factory = &Browser.new_context!(browser, &1)
+
+    close_after_message(server)
+    %{page: page} = session = page_with_har(context_factory, output_path)
+    Page.goto!(page, server.empty_page)
+    ws_url = "ws://#{server.host}/ws"
+    Page.evaluate!(page, @send_ping_until_closed, ws_url)
+    log = get_log(session)
+    ws_entry = log["entries"] |> Enum.filter(&String.ends_with?(&1["request"]["url"], "://#{server.host}/ws")) |> hd()
+    assert ws_entry["_resourceType"] == "websocket"
+    refute Map.has_key?(ws_entry, "_webSocketMessages")
+    refute Map.has_key?(ws_entry["response"]["content"], "_file")
+    # delete process.env.PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES;  -- the driver stops after the test
+    Browser.close!(browser)
+  end
 end
