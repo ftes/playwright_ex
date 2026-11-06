@@ -996,3 +996,13 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Lead, CI fix after VF-A2: modernizr "Safari Desktop" runs on Linux WebKit with upstream's plain
   overrides; the old skip's claim ("Linux WebKit supports month") was wrong: Linux WebKit and the
   safari-26 report both say `month: false` (checked in the Linux container).
+- Backlog (Phase 2): connect's continuation after `initialize` runs in the Conn's reply hook, so
+  a close dispatched next sees the browser. A closed remote Conn stops once the processes that
+  connected and created it have exited (reads after raise TargetClosedError, as for closed
+  contexts). Local async results go through a process alias, so `Promise.free` drops late
+  results. Route `complete` latches are freed when settled (`stop` arms them in one step,
+  `Promise.await_all_atomic/2`). Interception patterns are computed when the message is written
+  (`channel_call` takes params as a function, `# deviation:`). `_actual_headers` memoizes its
+  promise (`Promise.async_once/3`). RO-033 per the user: the teardown rejection is kept and the
+  `route` listener drops it unlogged (JS-pending alternative: a never-reject latch flag, a stuck
+  listener process per in-flight callback, and `unrouteAll(wait)` after close hangs as in JS).
