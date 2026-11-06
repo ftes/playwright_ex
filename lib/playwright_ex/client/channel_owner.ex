@@ -103,6 +103,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
     # super();  -- EventEmitter state is heap fields
     # this._connection = ...; this._type = type; this._guid = guid;  -- in the handle
+    # Elixir only: a disposed object of this guid gives way (`_forget_disposed/1`).
+    _forget_disposed(this)
     # Elixir only: registered first, its fields are rows of a live object.
     map_set(connection, :_objects, guid, this)
     # this.setMaxListeners(0);  (once registered)
@@ -271,12 +273,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     end
   end
 
+  # The marker's value is the anchor, for `_forget_disposed/1`.
   defp _keep(this, reason, anchor) do
     if reason == "gc" do
       Heap.release(this.table, this.guid)
-      :ets.insert(this.table, {{this.guid, :__collected__}, true})
+      :ets.insert(this.table, {{this.guid, :__collected__}, anchor})
     else
-      :ets.insert(this.table, {{this.guid, :__retained__}, true})
+      :ets.insert(this.table, {{this.guid, :__retained__}, anchor})
     end
 
     case anchor do
@@ -284,6 +287,29 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       anchor -> :ets.insert(this.table, {{anchor, {:retained, this.guid}}, true})
     end
   end
+
+  # Elixir only, in the connection (`__create__`): the driver creates an object under the guid of
+  # one it disposed, a new dispatcher for the same server object (`newContextForReuse` after
+  # `disconnectFromReusedContext`: the context and its pages). deviation: JS has two objects, the
+  # disposed one readable while referenced; here rows are keyed by guid, so the disposed one's
+  # retention ends now (its rows, its tombstone, its anchor). Kept, its anchor freed later (its
+  # creator exiting) would free the new object's rows, and its stale fields would be the new one's.
+  defp _forget_disposed(%{table: table, guid: guid}) when is_binary(guid) do
+    case :ets.lookup(table, {guid, :__retained__}) ++ :ets.lookup(table, {guid, :__collected__}) do
+      [] ->
+        :ok
+
+      [{_, anchor} | _] ->
+        case anchor do
+          {:processes, pids} -> for pid <- pids, do: :ets.delete(table, {:connection, {:anchored, pid, guid}})
+          anchor -> :ets.delete(table, {anchor, {:retained, guid}})
+        end
+
+        Heap.release(table, guid)
+    end
+  end
+
+  defp _forget_disposed(_this), do: :ok
 
   @doc false
   # `this._wasCollected`: the driver collected it (`__dispose__` with reason "gc").

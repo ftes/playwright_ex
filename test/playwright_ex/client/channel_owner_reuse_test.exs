@@ -7,7 +7,10 @@ defmodule PlaywrightEx.Client.ChannelOwnerReuseTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.Browser, as: ClientBrowser
+  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
+  alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Selectors
 
   # tests/library/browsercontext-reuse.spec.ts `reusedContext` (launch scenario).
   defp reused_context(browser) do
@@ -35,5 +38,32 @@ defmodule PlaywrightEx.Client.ChannelOwnerReuseTest do
     refute_received :old_listener
     assert length(BrowserContext.pages(context)) == 2
     PlaywrightEx.Browser.close!(browser)
+  end
+
+  # The disposed context's anchor (the process that created it) exiting freed the rows of the
+  # new one, which shares its guid: its `_onClose` found no `_browser`, so it stayed in
+  # `selectors._contextsForSelectors` and the next `selectors.register` on this driver raised.
+  test "a reused context outlives the creator of the disposed one", %{
+    playwright: playwright,
+    browser_type: browser_type
+  } do
+    browser = BrowserType.launch!(browser_type)
+
+    context =
+      Task.async(fn ->
+        context = reused_context(browser)
+        BrowserContext.new_page!(context)
+        reused_context(browser)
+      end)
+      |> Task.await()
+
+    selectors = Playwright.selectors(playwright)
+    contexts_for_selectors = fn -> Api.call(nil, browser, fn -> Heap.get(selectors, :_contextsForSelectors) end) end
+    assert Api.call(nil, browser, fn -> Heap.get(context, :_browser) end) == browser
+    assert context in contexts_for_selectors.()
+
+    PlaywrightEx.Browser.close!(browser)
+    refute context in contexts_for_selectors.()
+    Selectors.register!(selectors, "reusedContextCSS", "({ query() {}, queryAll() { return []; } })")
   end
 end

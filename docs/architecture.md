@@ -132,11 +132,13 @@ struct and stay readable forever.
 
 The cost: a long-lived process keeps ~175 rows per context it closed until it exits. Objects the
 driver collects (`gc`) are freed at once, with a tombstone so calls raise upstream's "has been
-collected" error. A JSHandle disposed by itself (`dispose`, not with its page) is freed at once
-too, without a tombstone: calls raise `TargetClosedError` as in JS, and so do field reads (JS:
-the last preview). A remote connection's JsonPipe is freed when disposed. A closed remote
-connection's Conn stops once the processes that connected have exited. Latches shared with `shared: true` go when their creator exits; `Promise.free/1`
-drops a wait nobody needs. AbortSignal rows go when their creator exits.
+collected" error. A JSHandle disposed by itself (`dispose`, not with its page) is freed at once too,
+without a tombstone: calls raise `TargetClosedError` as in JS, and so do field reads (JS: the last
+preview). A remote connection's JsonPipe is freed when disposed. An object the driver creates under
+the guid of a disposed one (a reused context and its pages) ends the old one's retention, as rows
+are keyed by guid. A closed remote connection's Conn stops once the processes that connected have
+exited. Latches shared with `shared: true` go when their creator exits; `Promise.free/1` drops a
+wait nobody needs. AbortSignal rows go when their creator exits.
 
 Rejected: free-on-settle (breaks late awaits of `_closedPromise` and `expect_*` handles) and the
 tracing GC's 500-object graveyard.
