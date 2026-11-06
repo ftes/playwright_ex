@@ -132,8 +132,9 @@ defmodule PlaywrightEx.Driver do
     platform = opts[:platform] || platform!()
     platform in @platforms || unsupported!(platform)
     target = install_dir(Keyword.put(opts, :platform, platform))
+    force = Keyword.get(opts, :force, false)
 
-    if File.dir?(target) and not Keyword.get(opts, :force, false) do
+    if File.dir?(target) and not force do
       :ok
     else
       checksums = opts[:checksums] || @checksums
@@ -145,11 +146,12 @@ defmodule PlaywrightEx.Driver do
       try do
         build(tmp, platform, checksums)
 
-        if File.dir?(target), do: File.rm_rf!(target)
+        # Only when forced: a concurrent installer's result is equally valid, and may be running.
+        if force and File.dir?(target), do: File.rm_rf!(target)
 
         case File.rename(tmp, target) do
           :ok -> :ok
-          # Lost a race against a concurrent installer; its result is equally valid.
+          # Lost a race against a concurrent installer.
           {:error, reason} when reason in [:eexist, :enotempty] -> :ok
           {:error, reason} -> raise "could not move driver into #{target}: #{inspect(reason)}"
         end
