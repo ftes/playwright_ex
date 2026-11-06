@@ -1184,3 +1184,10 @@ drift). Blockers for release, assigned to follow-up workstreams:
   rerun" (`TRACE` gates tracing; `mix test || TRACE=1 mix test --failed`, simpler and faster, misses
   flakes that pass on the rerun), then "retain on failure" (named after the runners'
   `retain-on-failure`; formatter `MyApp.RetainOnFailure`). Both are tested in test/guides.
+- User, 2026-11-06, review decision 14: our suite shares drivers and browsers serially per worker,
+  as upstream does (`PlaywrightEx.TestWorkers`; UpstreamCase and ExampleCase, one kind each, up to
+  `max_cases` workers per kind). A module has a worker to itself while it runs; a failure discards
+  it, browsers it left open are closed, a closed browser is relaunched; `@moduletag :own_worker`
+  opts out. No spec changes. Spike: full chromium suite 4468 passed (640 s before, 651 s after);
+  firefox upstream/page 459 s -> 408 s (higher load after). Unit, runtime and guide tests keep their
+  own drivers (they test the connection or the guides' setup code).

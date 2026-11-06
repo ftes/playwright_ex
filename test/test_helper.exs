@@ -25,3 +25,5 @@ ExUnit.start(
   max_cases: max_cases,
   formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter]
 )
+
+PlaywrightEx.TestWorkers.start()

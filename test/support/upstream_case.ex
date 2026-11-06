@@ -3,11 +3,13 @@ defmodule PlaywrightEx.UpstreamCase do
   Case template for tests mirrored from upstream `tests/` (see `PORTING.md`).
 
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
-  Upstream's worker-scoped fixtures are module-scoped here (one driver per test module):
+  Upstream's worker-scoped fixtures are a worker's (`PlaywrightEx.TestWorkers`): the module has it
+  to itself while it runs, and the next module gets it after (a fresh one after a failure).
+  `@moduletag :own_worker` gives a module a driver and browser of its own instead:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
-      env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (launched once
-      per module)
+      env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
+      default launch options)
     * `server`, `https_server` (`PlaywrightEx.TestServer`, reset before each test),
       `asset` (`asset.("file-to-upload.txt")` is its path under upstream `tests/assets`)
     * `context_factory` (`context_factory.(options)`; its contexts are closed after the test)
@@ -255,13 +257,21 @@ defmodule PlaywrightEx.UpstreamCase do
     if reason, do: Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
   end
 
-  setup_all %{module: module} do
-    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...).
-    start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
-    playwright = PlaywrightEx.playwright(module)
-    artifacts_dir = artifacts_dir()
-    on_exit(fn -> File.rm_rf(artifacts_dir) end)
-    setup_playwright(playwright, artifacts_dir)
+  setup_all %{module: module} = tags do
+    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...). A worker's
+    # (`PlaywrightEx.TestWorkers`), unless the module is tagged `:own_worker`.
+    {playwright, browser} =
+      if tags[:own_worker] do
+        start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
+        playwright = PlaywrightEx.playwright(module)
+        artifacts_dir = artifacts_dir()
+        on_exit(fn -> File.rm_rf(artifacts_dir) end)
+        setup_playwright(playwright, artifacts_dir)
+        {playwright, BrowserType.launch!(TestBrowser.browser_type(playwright))}
+      else
+        %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:upstream, module)
+        {playwright, browser}
+      end
 
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)
@@ -279,7 +289,6 @@ defmodule PlaywrightEx.UpstreamCase do
 
     TestServer.enable_http_cache(https_server, cached)
 
-    browser = BrowserType.launch!(browser_type)
     launched = major_version(Browser.version(browser))
 
     if launched != browser_major_version(browser_name) do

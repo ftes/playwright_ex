@@ -34,12 +34,10 @@ defmodule PlaywrightEx.ExampleCase do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Heap
-  alias PlaywrightEx.TestBrowser
 
   @html "<!doctype html><title>Example</title>"
 
@@ -54,11 +52,7 @@ defmodule PlaywrightEx.ExampleCase do
   end
 
   setup_all context do
-    name = Module.concat(context.module, Playwright)
-    start_supervised!({PlaywrightEx.Supervisor, name: name})
-    playwright = PlaywrightEx.playwright(name)
-
-    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
+    %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:example, context.module)
     %{playwright: playwright, browser: browser}
   end
 
