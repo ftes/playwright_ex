@@ -1085,3 +1085,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
   bug) now also holds back unrelated wake-ups of its own section. Lead: its second #20 fix (anchor a
   disposed remote JsonPipe to its forwarder) is dropped for wr3-heap's (free a JsonPipe at dispose),
   already merged and simpler; the stress connect tests re-run on the merge.
+
+- WR3: `ClientStackTrace` resolves frame paths against the working directory of its first
+  capture (cached), not one `File.cwd!/0` per frame per API call (~50 us each, ms under load).
+  It delayed each call's message: page_close "continuing while page is closing" (a driver race
+  JS wins by writing both calls in one tick) and connect_to_worker's console test failed under
+  load, now 100/100 and 39/40. Revisit if a user relies on `File.cd!` changing trace paths.

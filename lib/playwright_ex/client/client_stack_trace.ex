@@ -18,8 +18,8 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
     parsed_frames =
       Enum.map(stack, fn {module, function, arity, location} ->
         frame = %{
-          # JS stack frames carry absolute paths (metadata.location.file)
-          file: if(file = location[:file], do: Path.expand(to_string(file)), else: ""),
+          # JS stack frames carry absolute paths (metadata.location.file): expanded below.
+          file: if(file = location[:file], do: to_string(file), else: ""),
           line: location[:line] || 0,
           column: 0,
           function: Exception.format_mfa(module, function, arity)
@@ -52,8 +52,20 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
       if outermost, do: Enum.drop(parsed_frames, elem(outermost, 1) + 1), else: Enum.drop(parsed_frames, 1)
 
     parsed_frames = Enum.reject(parsed_frames, &(&1.frame.file == ""))
+    cwd = if parsed_frames != [], do: cwd()
 
-    %{frames: Enum.map(parsed_frames, & &1.frame), apiName: api_name}
+    %{frames: Enum.map(parsed_frames, &%{&1.frame | file: Path.expand(&1.frame.file, cwd)}), apiName: api_name}
+  end
+
+  # Elixir only: BEAM frames carry paths relative to the project root, resolved against the
+  # working directory at the first call (`File.cwd!/0` costs ~50 us per call, on every API call
+  # before its message is sent).
+  defp cwd do
+    with nil <- :persistent_term.get({__MODULE__, :cwd}, nil) do
+      cwd = File.cwd!()
+      :persistent_term.put({__MODULE__, :cwd}, cwd)
+      cwd
+    end
   end
 
   # {PlaywrightEx.Client.Page, :"-wait_for_event/3-fun-0-", 1} -> "page.waitForEvent"
