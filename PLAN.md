@@ -513,3 +513,35 @@ are included.
    rewritten to `mix playwright_ex.install`. Text the driver renders (call logs) stays JS.
 5. Later: the facade docs' 321 upstream examples are JS (ratified for 1.64). Translate them in
    the generator (or take Python's and rewrite) after the release.
+
+## Later
+
+Not blocking the release. Ids are the `#draft-N` ids DECISIONS_TABLE.md refers to; issues to fix
+before the release are in ISSUES.md.
+
+Work items:
+- **#3 Release 1.64.0**: `mix.exs` still says 0.16.0; set 1.64.0 (versions mirror upstream
+  major.minor), turn CHANGELOG's Unreleased into the release entry, tag, publish.
+- **#4 Ruleset on `main`**: it requires `Test (port)` and `Test (websocket)`, which CI no longer
+  produces. Require the aggregate `Tests` job (all three browsers block it) and PRs on `main`.
+- **#1 JS examples in the facade docs** (item 5 above): translate after the release.
+- **#2 Four `wait_for_event` timeout docs** still describe JS: give them Elixir text in `ApiRules`.
+- **#15 Typespecs**: `Disposable.t()` is `term()` (make it the union of `DisposableObject` and
+  `DisposableStub`); type storage state's documented keys, keep the open rest round-tripping.
+- **#16 Inline aria snapshot rebaselining**: without a test runner an inline snapshot that upstream
+  would rebaseline fails with the new snapshot in the message. Porting the runner's source
+  rewriting would let `update_snapshots` write it back.
+- **#17 macOS WebKit `env:` skips** (12 tests, macOS 26; upstream's client fails them too, Linux
+  CI passes): re-run on each WebKit roll, drop the skips that pass.
+- **#11 Firefox Partitioned cookies** from a fresh Bandit server: `env:` skip, upstream's client
+  too; mechanism unknown.
+- **#5 Waiter rejection timing**: JS rejects a waiter inside `emit`, ours settles in the waiting
+  process. Documented (architecture "Ordering", concurrency guide). The fix (blocking mailbox
+  step plus per-process event buffer, ~150-250 lines) only if a user hits it, or if #18's fix
+  covers it.
+
+Upstream only (track, report, re-check on rolls):
+- **#10a Chromium worker hang**: `workers_test:237` hangs for upstream's JS client too (6/510
+  under 2-CPU load); reported as microsoft/playwright#43922; tagged flaky.
+- **#12 Driver crash on an HTTPS proxy closing mid-handshake** (unhandled TLSSocket error in the
+  Node driver): our TestProxy avoids it; reproduce against the driver and report upstream.

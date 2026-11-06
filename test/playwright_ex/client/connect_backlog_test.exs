@@ -152,7 +152,7 @@ defmodule PlaywrightEx.Client.ConnectBacklogTest do
     assert eventually(no_growth), "#{inspect(before)} -> #{inspect(counts(browser_type))}"
 
     # The forwarders free their rows as they exit, so this settles after the processes do. The
-    # leak was ~117 rows per cycle; Linux firefox CI keeps ~1.5 per cycle (open, ISSUE_DRAFTS).
+    # leak was ~117 rows per cycle; Linux firefox CI keeps ~1.5 per cycle (ISSUES.md #20).
     assert eventually(fn -> :ets.info(browser_type.table, :size) - rows < 40 end),
            "#{:ets.info(browser_type.table, :size) - rows} new rows"
   end

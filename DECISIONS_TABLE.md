@@ -1,8 +1,8 @@
 # Where DECISIONS and PLAN went
 
-For review before CLOSE (bookmark `restructure-close`) deletes DECISIONS.md, PLAN.md and test/OTP_BACKLOG.md. Destinations:
+For review before CLOSE (bookmark `restructure-close`) deletes DECISIONS.md, test/OTP_BACKLOG.md and this table (PLAN.md stays for "Later"). Destinations:
 `arch §X` = docs/architecture.md section, `PORTING §X`, `guide:concurrency` / `guide:migration`,
-`#draft-N` = ISSUE_DRAFTS.md, `code` = already stated where it applies (moduledoc, marker
+`#draft-N` = ISSUES.md (ours, before release) or PLAN.md "Later" (work items, upstream only), `code` = already stated where it applies (moduledoc, marker
 comment, ApiRules, test comment) and needs no durable doc, `dropped: <reason>`. An entry with
 several bullets lists each bullet's destination; the first destination is the main one.
 

@@ -1021,3 +1021,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   OOPIF module (chromium only) no longer launches its browser in setup_all on other browsers.
 - User, 2026-11-06: firefox blocks CI like chromium and webkit (one matrix, no `continue-on-error`);
   its Linux viewport/worker-timestamp failures no longer reproduce (green on the last tips).
+- User, 2026-11-06: open items split by owner. ISSUES.md: where we behave worse than upstream,
+  fixed before release (being investigated: OOPIF, #18, #7, #6, #10b, #19, #20, #13, #14). PLAN.md
+  "Later": work items and upstream-only problems. PLAN.md stays after CLOSE. No transport matrix:
+  the driver pipe is the only transport (upstream's `driver` test mode); remote servers are
+  `BrowserType.connect`, covered by upstream's connect specs.
