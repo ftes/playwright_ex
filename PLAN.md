@@ -543,8 +543,10 @@ so the README points to playwright.dev's Python docs as the closest read.
     `base_url`, default timeouts, `Expect` and `config :playwright_ex, :expect`, storage state for
     login, trace/screenshot on failure; polling non-page state: prefer web-first `Expect.*`, else a
     documented `eventually` helper snippet to copy (our test `to_pass`; no library function, as
-    `expect.poll`/`toPass`/`expect.soft` are test-runner features: user decision); Phoenix (`server: true`, Ecto sandbox via the user agent)
-    briefly, pointing to phoenix_test_playwright. From upstream writing-tests-python,
+    `expect.poll`/`toPass`/`expect.soft` are test-runner features: user decision). Framework-neutral:
+    the app under test is a server running somewhere (a `base_url`); no Phoenix or Ecto setup, only
+    a link to [Fluffy](https://hex.pm/packages/fluffy) for Phoenix feature tests (user decision).
+    From upstream writing-tests-python,
     browser-contexts, auth (library parts), test-assertions-csharp-java-python; Wallaby's setup list.
   - `guides/events-and-waiting.md`: promise vs callback form, `on`/`off`, dialogs, downloads,
     popups, file chooser, navigations. From upstream events, dialogs, downloads, pages, navigations.

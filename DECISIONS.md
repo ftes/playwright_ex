@@ -1116,3 +1116,5 @@ drift). Blockers for release, assigned to follow-up workstreams:
   for `setInputFiles` live next to the tests (`Path.join(__DIR__, ...)` mirrors `__dirname`).
   Printed values use `# => value` (credo bans `IO.inspect`, the formatter moves end-of-line
   comments above the line). No port bugs found.
+- User, 2026-11-06, docs Q3: "Testing with ExUnit" is framework-neutral (a server running
+  somewhere, `base_url`); no Phoenix or Ecto sandbox setup; one link to Fluffy for Phoenix tests.
