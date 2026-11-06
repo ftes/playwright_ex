@@ -59,7 +59,15 @@ defmodule PlaywrightEx.MixProject do
       links: %{"Github" => @source_url},
       # Hex's default files, plus the pinned versions `PlaywrightEx.Driver` reads when compiling.
       files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md DRIVER_VERSION NODE_VERSION),
-      exclude_patterns: ~w(priv/plts)
+      # Maintainer-only tasks and their helpers: they need the upstream sources and `test/`.
+      exclude_patterns: ~w(
+        priv/plts
+        lib/mix/playwright_ex/
+        lib/mix/tasks/playwright_ex.checksums.ex
+        lib/mix/tasks/playwright_ex.gen.
+        lib/mix/tasks/playwright_ex.parity.ex
+        lib/playwright_ex/upstream.ex
+      )
     ]
   end
 
