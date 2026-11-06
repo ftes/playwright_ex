@@ -82,6 +82,12 @@ defmodule PlaywrightEx.Runtime.PromiseConnDownTest do
     assert_clean()
   end
 
+  test "a call to a connection process killed meanwhile raises TargetClosedError", %{conn: conn} do
+    assert_raise TargetClosedError, "Playwright driver closed", fn ->
+      Conn.run(conn, fn -> Process.exit(self(), :kill) end)
+    end
+  end
+
   # Kills the connection once `latch` has a waiter (the awaiting test process).
   defp kill_when_armed(conn, connection, latch) do
     key = Heap.key(connection, {:latch, latch.ref})
