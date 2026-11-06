@@ -23,7 +23,7 @@ ExUnit.start(
   timeout: 20_000,
   assert_receive_timeout: 10_000,
   max_cases: max_cases,
-  formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter]
+  formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter, PlaywrightEx.ModuleTimesFormatter]
 )
 
 PlaywrightEx.TestWorkers.start()
