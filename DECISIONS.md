@@ -1096,3 +1096,5 @@ drift). Blockers for release, assigned to follow-up workstreams:
   concurrent `unrouteAll` had emptied it, so a second identical update overtook `unrouteAll`'s
   and the driver answered `unrouteAll` before its barrier (HAR unrouteAll flake: failed in the
   first of 60 loaded runs, now 0 of 120).
+- User, 2026-11-06, review decision 6: CI keeps one rerun of first-run failures, first failures
+  surfaced in the job summary (H-17).
