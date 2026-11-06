@@ -1176,3 +1176,11 @@ drift). Blockers for release, assigned to follow-up workstreams:
   file; others stay relative and the driver resolves them against its working directory (the
   BEAM's at launch). No cwd cache: `File.cd!` doesn't change frames, deps frames are correct.
   page_close #7 and connect_to_worker #10b: 40/40 each.
+- User, 2026-11-06, review decision 11: `_onRoute` keeps its deviation (sends the internal
+  interception update only when the handler it ran expired; `unroute`/`unrouteAll` send their own).
+- User, 2026-11-06, review decision 12: keep `Conn.wake/2` (wake-ups from a dispatch's synchronous
+  section are sent once its listeners have run, as JS's microtasks; #18).
+- User, 2026-11-06, review decision 13: the ExUnit guide's failure artifacts lead with "trace on
+  rerun" (`TRACE` gates tracing; `mix test || TRACE=1 mix test --failed`, simpler and faster, misses
+  flakes that pass on the rerun), then "retain on failure" (named after the runners'
+  `retain-on-failure`; formatter `MyApp.RetainOnFailure`). Both are tested in test/guides.

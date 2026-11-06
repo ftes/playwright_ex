@@ -116,9 +116,50 @@ and `storage_state:` takes that path. See [Authentication](https://playwright.de
 
 ## Traces and screenshots of failures
 
-ExUnit's `on_exit/1` doesn't know whether the test failed. So record a trace for every test, write
-it and a screenshot in `on_exit/1`, and delete those of passing tests in a formatter. The case
-template's `setup`, with tracing and the login state (alias `Page` and `Tracing` too):
+Playwright's test runner and pytest-playwright have options for this (`trace: 'retain-on-failure'`,
+`--tracing retain-on-failure`). ExUnit has none, so here are two recipes.
+
+### Trace on rerun
+
+The simpler and faster one: trace only when asked, and rerun the failures with tracing. The case
+template's `setup` (alias `Tracing` too):
+
+```elixir
+setup %{browser: browser} = ctx do
+  context = Browser.new_context!(browser, base_url: System.get_env("BASE_URL", "http://localhost:4000"))
+  BrowserContext.set_default_timeout(context, 5_000)
+  on_exit(fn -> BrowserContext.close(context) end)
+
+  if System.get_env("TRACE") do
+    tracing = BrowserContext.tracing(context)
+    Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
+    on_exit(fn -> Tracing.stop(tracing, path: Path.join(artifacts_dir(ctx.module, ctx.test), "trace.zip")) end)
+  end
+
+  %{context: context, page: BrowserContext.new_page!(context)}
+end
+
+def artifacts_dir(module, test) do
+  Path.join(["tmp/test-results", inspect(module), String.replace(to_string(test), ~r/\W+/, "_")])
+end
+```
+
+`on_exit/1` callbacks run in reverse order, so the trace is written before the context closes. In
+CI:
+
+```sh
+mix test || TRACE=1 mix test --failed
+```
+
+Passing runs pay nothing for tracing. A flaky test that passes on the rerun leaves no trace,
+though; for those, retain on failure.
+
+### Retain on failure
+
+Like the test runners' `retain-on-failure`: trace every test, write the trace and a screenshot in
+`on_exit/1`, and delete those of passing tests. `on_exit/1` doesn't know whether the test failed,
+but a formatter does, and ExUnit runs `on_exit/1` before it reports the test. The case template's
+`setup`, with the login state:
 
 ```elixir
 setup %{browser: browser} = ctx do
@@ -142,18 +183,14 @@ setup %{browser: browser} = ctx do
 
   %{context: context, page: page}
 end
-
-def artifacts_dir(module, test) do
-  Path.join(["tmp/test-results", inspect(module), String.replace(to_string(test), ~r/\W+/, "_")])
-end
 ```
 
-ExUnit runs `on_exit/1` before it reports the test, so the formatter sees the files:
+The formatter:
 
 ```elixir
-# test/support/keep_failed_artifacts.ex
-defmodule MyApp.KeepFailedArtifacts do
-  @moduledoc "An ExUnit formatter that deletes the artifacts of passing tests."
+# test/support/retain_on_failure.ex
+defmodule MyApp.RetainOnFailure do
+  @moduledoc "An ExUnit formatter that deletes the artifacts of passing tests (retain-on-failure)."
   use GenServer
 
   @impl true
@@ -171,11 +208,10 @@ end
 
 ```elixir
 # test/test_helper.exs
-ExUnit.start(formatters: [ExUnit.CLIFormatter, MyApp.KeepFailedArtifacts])
+ExUnit.start(formatters: [ExUnit.CLIFormatter, MyApp.RetainOnFailure])
 ```
 
-Open a trace with `mix playwright_ex.cli show-trace tmp/test-results/.../trace.zip`. Tracing
-every test costs time; gate it behind an environment variable if the suite gets slow. More in the
+Open a trace with `mix playwright_ex.cli show-trace tmp/test-results/.../trace.zip`. More in the
 [Debugging and CI](debugging-and-ci.md) guide.
 
 ## Polling and waiting

@@ -106,8 +106,8 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.KeepFailedArtifacts do
-  @moduledoc "An ExUnit formatter that deletes the artifacts of passing tests."
+defmodule PlaywrightEx.Guides.TestingWithExUnit.RetainOnFailure do
+  @moduledoc "An ExUnit formatter that deletes the artifacts of passing tests (retain-on-failure)."
   use GenServer
 
   alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
@@ -147,11 +147,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
   alias PlaywrightEx.Guides.TestingWithExUnit.Eventually
-  alias PlaywrightEx.Guides.TestingWithExUnit.KeepFailedArtifacts
+  alias PlaywrightEx.Guides.TestingWithExUnit.RetainOnFailure
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
 
-  # The setup's `on_exit` wrote each test's artifacts; the formatter deletes those of passing ones.
+  # Retain on failure: the setup's `on_exit` wrote each test's artifacts; the formatter deletes
+  # those of passing ones.
   setup_all do
     on_exit(fn ->
       dir = BrowserCase.artifacts_dir(__MODULE__, :"test signs up")
@@ -159,10 +160,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
       assert File.exists?(Path.join(dir, "failure.png"))
 
       failed = %ExUnit.Test{module: __MODULE__, name: :"test signs up", state: {:failed, []}}
-      {:noreply, _} = KeepFailedArtifacts.handle_cast({:test_finished, failed}, [])
+      {:noreply, _} = RetainOnFailure.handle_cast({:test_finished, failed}, [])
       assert File.exists?(dir)
 
-      {:noreply, _} = KeepFailedArtifacts.handle_cast({:test_finished, %{failed | state: nil}}, [])
+      {:noreply, _} = RetainOnFailure.handle_cast({:test_finished, %{failed | state: nil}}, [])
       refute File.exists?(dir)
       File.rm_rf!(Path.join("tmp/test-results", inspect(__MODULE__)))
     end)
@@ -247,5 +248,61 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     Page.on(page, :console, &send(test_pid, {:console, ConsoleMessage.text(&1)}))
     Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
     assert_receive {:console, "saved"}, 5_000
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.TraceOnRerunTest do
+  # "Trace on rerun": the guide's gated setup, with `TRACE` set as by `TRACE=1 mix test --failed`.
+  # Not async: it sets an environment variable.
+  use ExUnit.Case, async: false
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Guides.TestingWithExUnit.App
+  alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
+  alias PlaywrightEx.Locator
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.TestBrowser
+  alias PlaywrightEx.Tracing
+
+  setup_all %{module: module} do
+    start_supervised!({PlaywrightEx.Supervisor, name: module})
+    server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
+    browser = PlaywrightEx.playwright(module) |> TestBrowser.browser_type() |> BrowserType.launch!()
+    System.put_env("TRACE", "1")
+
+    on_exit(fn ->
+      System.delete_env("TRACE")
+      dir = BrowserCase.artifacts_dir(__MODULE__, :"test signs up")
+      assert File.exists?(Path.join(dir, "trace.zip"))
+      File.rm_rf!(Path.join("tmp/test-results", inspect(__MODULE__)))
+      Browser.close(browser)
+    end)
+
+    %{browser: browser, base_url: server.prefix}
+  end
+
+  setup %{browser: browser} = ctx do
+    context = Browser.new_context!(browser, base_url: ctx.base_url)
+    BrowserContext.set_default_timeout(context, 5_000)
+    on_exit(fn -> BrowserContext.close(context) end)
+
+    if System.get_env("TRACE") do
+      tracing = BrowserContext.tracing(context)
+      Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
+
+      on_exit(fn ->
+        Tracing.stop(tracing, path: Path.join(BrowserCase.artifacts_dir(ctx.module, ctx.test), "trace.zip"))
+      end)
+    end
+
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+
+  test "signs up", %{page: page} do
+    Page.goto!(page, "/sign-up")
+    Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
+    Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
   end
 end

@@ -36,7 +36,7 @@ mix playwright_ex.cli show-trace tmp/trace.zip
 
 or drop the file on [trace.playwright.dev](https://trace.playwright.dev). `Tracing.group!/3` and
 `Tracing.group_end!/1` name a group of steps. The [Testing with ExUnit](testing-with-exunit.md)
-guide keeps the traces of failing tests only.
+guide traces failing tests, on a rerun or retained on failure.
 
 ## Screenshots and videos
 
