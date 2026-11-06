@@ -1,0 +1,158 @@
+defmodule PlaywrightEx.Client.RouteHandler do
+  @upstream "packages/playwright-core/src/client/network.ts"
+  @moduledoc """
+  Port of `RouteHandler` in `#{@upstream}`: a runtime object owned by its page or context.
+
+  Deviations: the constructor takes the `LocalUtils` first, as string globs become regexes
+  through the driver (`PlaywrightEx.Isomorphic.UrlMatch`), and its `owner` (page or context) last.
+  The handler is called as a JS function (`ClientHelper.call_function/2`): `(route, request)`,
+  or `(route)` for a 1-arity one, as in the Python client.
+  """
+  import PlaywrightEx.Runtime.Heap
+
+  alias PlaywrightEx.Client.ClientHelper
+  alias PlaywrightEx.Client.Errors
+  alias PlaywrightEx.Client.Route
+  alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Runtime.Promise
+  alias PlaywrightEx.Runtime.Zones
+
+  defstruct [:guid, :conn, :table]
+
+  # Number.MAX_SAFE_INTEGER
+  @max_safe_integer 9_007_199_254_740_991
+
+  def new(local_utils, base_url, url, handler, times, owner) do
+    this = new_object(__MODULE__, owner)
+    put(this, :handledCount, 0)
+    put(this, :_ignoreException, false)
+    put(this, :_activeInvocations, [])
+    put(this, :_localUtils, local_utils)
+    put(this, :_baseURL, base_url)
+    put(this, :_times, if(times == nil, do: @max_safe_integer, else: times))
+    put(this, :url, url)
+    put(this, :handler, handler)
+    # The public API name is a zone here too (`Runtime.Api`): the handler's calls have their own.
+    put(this, :_savedZone, Map.delete(Zones.without(:apiZone), :apiName))
+    # Eagerly validate string globs so that invalid patterns throw at the call site
+    # (e.g. page.route()) rather than silently aborting requests later.
+    if is_binary(url), do: UrlMatch.resolve_glob_to_regex_pattern(local_utils, base_url, url)
+    this
+  end
+
+  def prepare_interception_patterns(handlers) do
+    {patterns, all} =
+      Enum.reduce(handlers, {[], false}, fn handler, {patterns, all} ->
+        serialized = UrlMatch.serialize_url_match(get(handler, :url))
+        if serialized, do: {patterns ++ [serialized], all}, else: {patterns, true}
+      end)
+
+    if all, do: [%{glob: "**/*"}], else: patterns
+  end
+
+  def matches(this, request_url) do
+    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+    UrlMatch.url_matches(get(this, :_localUtils), get(this, :_baseURL), request_url, get(this, :url))
+  end
+
+  def handle(this, route) do
+    Zones.run(get(this, :_savedZone), fn -> _handle_impl(this, route) end)
+  end
+
+  defp _handle_impl(this, route) do
+    # A latch: `stop` awaits it from another process.
+    handler_invocation = %{complete: Promise.new(this), route: route}
+    set_add(this, :_activeInvocations, handler_invocation)
+
+    try do
+      _handle_internal(this, route)
+    rescue
+      e ->
+        cond do
+          # If the handler was stopped (without waiting for completion), we ignore all exceptions.
+          get(this, :_ignoreException) ->
+            false
+
+          Errors.is_target_closed_error(e) ->
+            # We are failing in the handler because the target close closed.
+            # Give user a hint!
+            reraise Errors.rewrite_error_message(
+                      e,
+                      ~s("#{Exception.message(e)}" while running route callback.\n) <>
+                        "Consider awaiting `await page.unrouteAll({ behavior: 'ignoreErrors' })`\n" <>
+                        "before the end of the test to ignore remaining routes in flight."
+                    ),
+                    __STACKTRACE__
+
+          true ->
+            reraise e, __STACKTRACE__
+        end
+    after
+      # Elixir only: settled, its latch row is freed in the same step as the invocation leaves
+      # `_activeInvocations` (`stop` arms the latches it reads there in one step too).
+      atomic(this, fn ->
+        Promise.resolve(handler_invocation.complete, nil)
+        Promise.free(handler_invocation.complete)
+        set_delete(this, :_activeInvocations, handler_invocation)
+      end)
+    end
+  end
+
+  def stop(this, behavior) do
+    # When a handler is manually unrouted or its page/context is closed we either
+    # - wait for the current handler invocations to finish
+    # - or do not wait, if the user opted out of it, but swallow all exceptions
+    #   that happen after the unroute/close.
+    if behavior == "ignoreErrors" do
+      put(this, :_ignoreException, true)
+    else
+      # Elixir only: the invocations are read and their latches armed in one step (see `_handle_impl`).
+      Promise.await_all_atomic(this, fn ->
+        for activation <- get(this, :_activeInvocations), !get(activation.route, :_didThrow), do: activation.complete
+      end)
+    end
+
+    nil
+  end
+
+  defp _handle_internal(this, route) do
+    update(this, :handledCount, &(&1 + 1))
+    # Elixir only: a rejection of the handling promise is the route's teardown (`_teardown?/1`).
+    handled_promise =
+      Promise.catch_(Promise.async(fn -> Route._start_handling(route) end), fn e ->
+        Process.put({__MODULE__, :teardown}, true)
+        raise e
+      end)
+
+    # Extract handler into a variable to avoid [RouteHandler.handler] in the stack.
+    handler = get(this, :handler)
+
+    [handled, _] =
+      Promise.await(
+        Promise.all([
+          handled_promise,
+          Promise.async(fn ->
+            result = ClientHelper.call_function(handler, [route, Route.request(route)])
+            # Promise.all adopts a returned promise
+            if is_struct(result, Promise), do: Promise.await(result), else: result
+          end)
+        ])
+      )
+
+    handled
+  end
+
+  @doc false
+  # Elixir only: JS's `_startHandling` promise never settles when its route goes away with the
+  # page or context, so the route callback stays pending, silently. Here its latch is rejected
+  # (TargetClosedError): the callback rejects, and the `route` listener (`_onRoute`) drops that
+  # rejection instead of logging it as uncaught. Other errors are raised again.
+  def _reraise_unless_teardown(error, stacktrace) do
+    if !(Process.delete({__MODULE__, :teardown}) && Errors.is_target_closed_error(error)),
+      do: reraise(error, stacktrace)
+  end
+
+  def will_expire(this) do
+    get(this, :handledCount) + 1 >= get(this, :_times)
+  end
+end

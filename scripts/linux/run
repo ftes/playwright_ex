@@ -1,0 +1,99 @@
+#!/bin/bash
+# Linux test container for CI-only failures (manual tooling, see README.md).
+# usage: scripts/linux/run [-C <checkout>] <command> [args...]
+#   setup [browsers...]          build the image, (re)create the container, install driver + browsers
+#   test [mix test args...]      sync the checkout, run `xvfb-run mix test <args>`
+#   exec <shell command...>      sync the checkout, run the command in it
+#   stress <copies> [test args]  compile, then run <copies> parallel `mix test`; logs in tmp/linux/
+#   node <script.js> [args...]   sync, run a Node script with the driver's node (PW_CORE: its playwright-core)
+# -C: the checkout to sync (default: the one holding this script), e.g. another jj workspace.
+# env: PLATFORM (linux/arm64 or linux/amd64; default: the host's arch), CPUS (stress: limit the
+#      container, e.g. 2 like CI's runners), BROWSER (default chromium), DEBUG, PASS_ENV (more names)
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+src=$(cd "$here/../.." && pwd)
+if [[ ${1:-} == -C ]]; then src=$(cd "$2" && pwd); shift 2; fi
+cmd=${1:-}
+shift || true
+
+case $(uname -m) in arm64 | aarch64) host_arch=arm64 ;; *) host_arch=amd64 ;; esac
+platform=${PLATFORM:-linux/$host_arch}
+name=playwright_ex-linux-${platform#linux/}
+# Each checkout gets its own dir in the container, so its _build and deps stay there.
+app=/app/$(basename "$src")-$(printf %s "$src" | cksum | cut -d' ' -f1)
+version=$(<"$src/DRIVER_VERSION")
+
+# The host's cache (upstream sources) is mounted read-only; the test suite then skips the upstream
+# download, whose tar extraction fails under amd64 emulation (Function not implemented).
+if [[ $(uname) == Darwin ]]; then
+  host_cache=$HOME/Library/Caches/playwright_ex
+else
+  host_cache=${XDG_CACHE_HOME:-$HOME/.cache}/playwright_ex
+fi
+host_cache=${PLAYWRIGHT_EX_CACHE_DIR:-$host_cache}
+
+envs=(-e BROWSER="${BROWSER:-chromium}" -e DEBUG="${DEBUG:-}")
+for v in ${PASS_ENV:-}; do envs+=(-e "$v=${!v:-}"); done
+if [[ -d $host_cache/$version/upstream ]]; then
+  envs+=(-e PLAYWRIGHT_EX_UPSTREAM="/host-cache/$version/upstream")
+fi
+
+in_container() { docker exec "${envs[@]}" -w "$app" "$name" bash -c "$1"; }
+
+sync() {
+  docker exec "$name" mkdir -p "$app"
+  rsync -a --delete --blocking-io -e 'docker exec -i' \
+    --exclude /_build --exclude /deps --exclude .jj --exclude .git --exclude /priv/plts \
+    --exclude /tmp --exclude /cover --exclude /doc "$src/" "$name:$app/"
+  in_container "mix deps.get >/dev/null 2>&1"
+}
+
+case $cmd in
+  setup)
+    read -r _ elixir < <(grep '^elixir ' "$src/.tool-versions")
+    read -r _ otp < <(grep '^erlang ' "$src/.tool-versions")
+    erl_flags=""
+    if [[ $platform == linux/amd64 && $host_arch == arm64 ]]; then erl_flags="+JMsingle true"; fi
+    docker build --platform "$platform" --build-arg ELIXIR="${elixir%-otp-*}" --build-arg OTP="$otp" \
+      --build-arg ERL_FLAGS="$erl_flags" -t "$name" "$here"
+    docker rm -f "$name" >/dev/null 2>&1 || true
+    mounts=()
+    if [[ -d $host_cache ]]; then mounts=(-v "$host_cache:/host-cache:ro"); fi
+    docker run -d --platform "$platform" --name "$name" --shm-size=2g "${mounts[@]}" "$name" \
+      sleep infinity >/dev/null
+    sync
+    in_container "mix deps.compile && mix playwright_ex.install -- ${*:-chromium} --with-deps"
+    ;;
+  test) sync && in_container "xvfb-run --auto-servernum -- mix test $*" ;;
+  exec) sync && in_container "$*" ;;
+  stress)
+    copies=${1:?usage: stress <copies> [mix test args...]}
+    shift
+    docker update --cpus "${CPUS:-0}" "$name" >/dev/null
+    logs=$src/tmp/linux
+    mkdir -p "$logs"
+    sync
+    in_container "mix compile" >/dev/null
+    for i in $(seq 1 "$copies"); do
+      {
+        in_container "xvfb-run --auto-servernum -- mix test --no-compile $*" && rc=0 || rc=$?
+        echo "exit: $rc"
+      } >"$logs/stress-$i.log" 2>&1 &
+    done
+    wait
+    for i in $(seq 1 "$copies"); do
+      log=$logs/stress-$i.log
+      echo "$log: $(tail -1 "$log"), $(grep '^Result:' "$log" | tail -1)"
+    done
+    ;;
+  node)
+    script=${1:?usage: node <script.js> [args...]}
+    shift
+    sync
+    in_container "d=\$(echo /cache/$version/linux-*) && PW_CORE=\$d/package \$d/node $script $*"
+    ;;
+  *)
+    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1
+    ;;
+esac

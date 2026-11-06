@@ -1,0 +1,851 @@
+defmodule Mix.Tasks.PlaywrightEx.Parity do
+  @shortdoc "Compares ported modules and tests with their upstream sources"
+  @moduledoc """
+  Checks that every ported module still covers its upstream file, and every mirrored test
+  module its upstream spec.
+
+      mix playwright_ex.parity [--extra] [--north-star [--python-rules PATH]]
+
+  Sources: `PlaywrightEx.Upstream.ensure!/0` (the pinned upstream release).
+
+    * Completeness: every upstream client file (`packages/playwright-core/src/client/*.ts`) needs a
+      module with `@upstream` for it (in `lib` or `test/support`), unless listed with a reason in
+      `@unported_client_files` in this module. An exclusion for a file that is not upstream, or
+      that has a module after all, is stale. Review the list on a version roll.
+    * Test registry (`Mix.PlaywrightEx.TestRegistry`, as playwright-python's
+      `check_test_registry.py`): every test of `test/upstream_registry.md` that is at the pin is
+      ported (a mirrored test with a body), bodiless under a static `upstream ...` skip (upstream
+      does not run it in our setup), or ruled out in `test/upstream_not_ported.txt`. Fails on a
+      ported test that a rule rules out, on a rule that matches no test at the pin, and on a spec
+      with no test module whose tests are not all ruled out (or that is not in the registry).
+      Prints how many registry tests are not at the pin and which mirrored tests the registry
+      does not have (version skew: the registry comes from upstream main).
+    * Modules with `@upstream "<path>.ts"` (nested modules inherit it): each upstream class
+      maps to the module named after it (last alias segment), else to the module declaring
+      `@upstream`; top-level functions map to that module too. An upstream method is
+      covered when the module defines a function with its snake_case name, or when a line
+      in the module's file containing "not ported" or "ported as" mentions it (or its class). Generated
+      files are skipped. Ported methods must keep the upstream order: the module's functions and the
+      names on its module-level marker lines (before the marker), in file order, compared with the
+      upstream methods; names outside their longest common subsequence are out of order.
+      Functions with no upstream name are ignored.
+    * Test modules with `@upstream "tests/<path>.spec.ts"`: upstream test names (`it`,
+      `test`, `browserTest`, ... including `.skip`/`.fixme`, flattened over `describe`) must
+      equal the module's `test` names, compared as multisets, and come in the same order.
+      Names built at runtime (template literals with `${`, concatenation) are not compared.
+    * Skip reasons in `test/upstream` (`@tag`/`@describetag`/`@moduletag skip:`, including
+      `<>`, `if`/`case`/`cond` branches and module attributes): a reason that only lists API
+      names, `not ported: <name>[ (<note>)][, <name>...]` (also joined with `and`), says those
+      are missing. A `Class.member` among them (outside parentheses) whose class module
+      (`PlaywrightEx.Client.<Class>` or the facade `PlaywrightEx.<Class>`) exports the
+      snake_case function is a stale skip. Any other wording is an explanation and is not
+      checked: a reason citing a ported member that still cannot be used says what is missing
+      in words (`not ported: Page.removeAllListeners behavior option`).
+    * Rule reasons, as skip reasons (`not ported: <reason>`): a rule citing a ported member is stale.
+    * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
+      `api.json` must give the committed files. It has every member, so a client function it
+      calls that is missing is a compile warning.
+
+  Fails when anything is missing. `--extra` also lists public functions with no upstream
+  counterpart (informational: Elixir-only helpers are expected). `--north-star` compares our
+  rules with playwright-python's (`tests/upstream_not_ported.txt` on main, or `--python-rules
+  PATH`), by registry test at the pin: tests we rule out (or leave bodiless) that it runs, and
+  tests it rules out that we run (informational).
+  """
+  use Mix.Task
+
+  alias Mix.PlaywrightEx.TestRegistry
+
+  # Upstream names that have no Elixir function by convention (see PORTING.md).
+  @by_convention ~w(constructor from fromNullable)
+  # Elixir-side counterparts of the constructor and process plumbing, not reported by --extra.
+  @not_extra ~w(new start_link child_spec init handle_call handle_cast handle_info terminate)
+
+  # Upstream files with no module or test module on purpose, path => reason. Review on a version
+  # roll: new upstream files show up as missing, removed or since-ported ones as stale.
+  @unported_client_files %{
+    "packages/playwright-core/src/client/android.ts" =>
+      "not in the JS api.json at this pin (Connection maps Android* to DummyChannelOwner)",
+    "packages/playwright-core/src/client/channels.d.ts" => "type-only (protocol channel types)",
+    "packages/playwright-core/src/client/electron.ts" =>
+      "not in the JS api.json at this pin (Connection maps Electron* to DummyChannelOwner)",
+    "packages/playwright-core/src/client/types.ts" => "type-only"
+  }
+
+  @impl true
+  def run(argv) do
+    {opts, _} = OptionParser.parse!(argv, strict: [extra: :boolean, north_star: :boolean, python_rules: :string])
+    upstream = PlaywrightEx.Upstream.ensure!()
+    Mix.Task.run("compile")
+
+    lib_modules =
+      Enum.flat_map(Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), &elixir_modules/1)
+
+    test_files = Path.wildcard("test/**/*_test.exs")
+    test_modules = Enum.flat_map(test_files, &elixir_modules/1)
+    registry = registry(upstream, test_files)
+
+    problems =
+      check_files(
+        upstream_files(upstream, ["packages/playwright-core/src/client/*.ts"]),
+        claimed(lib_modules),
+        @unported_client_files,
+        "no module with `@upstream` for it (port it or list it in @unported_client_files)"
+      ) ++
+        check_modules(upstream, lib_modules, opts[:extra]) ++
+        check_tests(upstream, test_modules) ++
+        check_registry(registry) ++
+        check_conditional_annotations(upstream, registry.tests) ++
+        check_slow(upstream, registry.tests) ++
+        check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
+        check_rule_reasons(registry.rules, &ported?/2) ++
+        check_facade(upstream)
+
+    shell = Mix.shell()
+    Enum.each(registry_info(registry), &shell.info/1)
+    if opts[:north_star], do: Enum.each(north_star(registry, python_rules(opts[:python_rules])), &shell.info/1)
+
+    if problems == [] do
+      Mix.shell().info("parity: ok")
+    else
+      Enum.each(problems, fn problem -> Mix.shell().info(problem) end)
+      Mix.raise("parity: #{length(problems)} problem(s)")
+    end
+  end
+
+  # --- upstream files --------------------------------------------------------
+
+  defp upstream_files(upstream, patterns) do
+    for pattern <- patterns, path <- Path.wildcard(Path.join(upstream, pattern)), uniq: true do
+      Path.relative_to(path, upstream)
+    end
+  end
+
+  defp claimed(modules), do: for(%{upstream: path} when is_binary(path) <- modules, into: MapSet.new(), do: path)
+
+  @doc false
+  # Problems for upstream `files` that no module claims and `exclusions` (path => reason) does
+  # not list, and for exclusions that are stale: not upstream, or claimed after all.
+  def check_files(files, claimed, exclusions, missing_message) do
+    unclaimed =
+      for file <- Enum.sort(files),
+          file not in claimed,
+          not Map.has_key?(exclusions, file),
+          do: "#{file}: #{missing_message}"
+
+    stale =
+      for {file, _reason} <- Enum.sort(exclusions) do
+        cond do
+          file not in files -> "#{file}: excluded but not found upstream, drop the exclusion"
+          file in claimed -> "#{file}: excluded but has a module with `@upstream` for it, drop the exclusion"
+          true -> nil
+        end
+      end
+
+    unclaimed ++ Enum.reject(stale, &is_nil/1)
+  end
+
+  # --- facade ----------------------------------------------------------------
+
+  defp check_facade(upstream) do
+    for path <- Mix.Tasks.PlaywrightEx.Gen.Api.check(upstream),
+        do: "#{path}: out of date with api.json, run mix playwright_ex.gen.api"
+  end
+
+  # --- modules ---------------------------------------------------------------
+
+  defp check_modules(upstream, modules, extra?) do
+    modules
+    |> Enum.filter(&(&1.upstream && String.ends_with?(&1.upstream, ".ts") && !&1.generated))
+    |> Enum.group_by(& &1.upstream)
+    |> Enum.sort()
+    |> Enum.flat_map(fn {ts_path, mods} -> check_module_file(upstream, ts_path, mods, extra?) end)
+  end
+
+  defp check_module_file(upstream, ts_path, mods, extra?) do
+    source = Path.join(upstream, ts_path)
+
+    if File.regular?(source) do
+      ts = ts_members(File.read!(source))
+      if extra?, do: report_extra(ts_path, ts, mods)
+      missing(ts_path, ts, mods) ++ out_of_order(ts_path, ts, mods)
+    else
+      ["#{ts_path}: not found upstream (referenced by #{inspect(hd(mods).name)})"]
+    end
+  end
+
+  defp missing(ts_path, ts, mods) do
+    root = root_module(ts_path, mods)
+    acknowledged = mods |> Enum.map(& &1.file) |> Enum.uniq() |> Enum.flat_map(&acknowledged/1) |> MapSet.new()
+    by_module = Enum.group_by(ts, fn {class, _} -> module_for(class, mods, root) end, fn {_, m} -> m end)
+
+    {rootless, by_module} = Map.pop(by_module, nil, [])
+
+    no_root =
+      if rootless != [],
+        do: [
+          "#{ts_path}: no module for #{Enum.map_join(Enum.uniq(rootless), ", ", &underscore/1)} " <>
+            "(top-level functions and classes without a module go to the root module, named after the file)"
+        ],
+        else: []
+
+    no_root ++
+      for {mod, names} <- Enum.sort_by(by_module, &inspect(elem(&1, 0).name)),
+          classes = for({c, _} <- ts, module_for(c, mods, root) == mod, c, do: c),
+          missing = Enum.reject(Enum.uniq(names), &(&1 in @by_convention or covered?(&1, mod, acknowledged, classes))),
+          missing != [] do
+        "#{ts_path}: #{inspect(mod.name)} is missing #{Enum.map_join(missing, ", ", &underscore/1)}"
+      end
+  end
+
+  defp out_of_order(ts_path, ts, mods) do
+    root = root_module(ts_path, mods)
+
+    for mod <- mods,
+        upstream_names = for({c, m} <- ts, module_for(c, mods, root) == mod, uniq: true, do: m),
+        to_upstream = Map.new(Enum.flat_map(upstream_names, &[{underscore(&1), &1}, {&1, &1}])),
+        ported = for(name <- ported_in_order(mod), Map.has_key?(to_upstream, name), uniq: true, do: to_upstream[name]),
+        wrong = unordered(upstream_names, ported),
+        wrong != [] do
+      "#{ts_path}: #{inspect(mod.name)} is out of upstream order at #{Enum.map_join(wrong, ", ", &underscore/1)}"
+    end
+  end
+
+  # Function names and names on module-level marker lines (before the marker), in file order.
+  @doc false
+  def ported_in_order(mod) do
+    markers =
+      for {line, n} <- mod.file |> File.stream!() |> Stream.with_index(1),
+          n in mod.lines,
+          [indent, comment] <- [Regex.run(~r/^(\s*)#(.*)/, line, capture: :all_but_first) || []],
+          String.length(indent) == mod.def_indent,
+          [before, _ | _] <- [Regex.split(~r/--|not ported|ported as/i, comment)],
+          [word] <- Regex.scan(~r/[A-Za-z_$][\w$]*/, before),
+          do: {n, word}
+
+    (mod.defs ++ markers) |> Enum.sort_by(&elem(&1, 0)) |> Enum.map(&elem(&1, 1))
+  end
+
+  # Elements of `actual` that are not in its longest common subsequence with `expected`.
+  @doc false
+  def unordered(expected, actual) do
+    expected = Enum.filter(expected, &(&1 in actual))
+    actual = Enum.filter(actual, &(&1 in expected))
+    actual -- lcs(expected, actual)
+  end
+
+  # Longest common subsequence, row by row: each cell holds {length, reversed subsequence}.
+  defp lcs(a, b) do
+    first_row = List.duplicate({0, []}, length(b) + 1)
+
+    a
+    |> Enum.reduce(first_row, &lcs_row(&1, b, &2))
+    |> List.last()
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  defp lcs_row(x, b, prev) do
+    row =
+      Enum.scan(Enum.zip([b, prev, tl(prev)]), {0, []}, fn {y, {n, diag}, up}, left ->
+        if x == y, do: {n + 1, [x | diag]}, else: Enum.max_by([up, left], &elem(&1, 0))
+      end)
+
+    [{0, []} | row]
+  end
+
+  defp report_extra(ts_path, ts, mods) do
+    upstream_names = MapSet.new(ts, fn {_, m} -> underscore(m) end)
+    ignored? = &(&1 in upstream_names or &1 in @not_extra or String.starts_with?(&1, "__"))
+
+    for mod <- mods, extra = Enum.reject(mod.public, ignored?), extra != [] do
+      Mix.shell().info("#{ts_path}: #{inspect(mod.name)} has no upstream method for #{Enum.join(extra, ", ")}")
+    end
+  end
+
+  # The module of a file's top-level functions (and of its classes without a module of their own):
+  # the only module declaring `@upstream` for it, else the one named after the file
+  # (`network.ts` is `Client.Network`, not `Client.Request`), else none.
+  @doc false
+  def root_module(ts_path, mods) do
+    case Enum.filter(mods, & &1.declares_upstream) do
+      [one] -> one
+      declaring -> Enum.find(declaring, &(last_segment(&1) == ts_path |> Path.basename(".ts") |> Macro.camelize()))
+    end
+  end
+
+  defp last_segment(mod), do: mod.name |> Module.split() |> List.last()
+
+  defp module_for(nil, _mods, root), do: root
+
+  defp module_for(class, mods, root) do
+    Enum.find(mods, root, &(last_segment(&1) == class))
+  end
+
+  defp covered?(name, mod, acknowledged, classes) do
+    underscore(name) in mod.functions or name in acknowledged or underscore(name) in acknowledged or
+      Enum.any?(classes, &(&1 in acknowledged))
+  end
+
+  defp underscore(name), do: Macro.underscore(name)
+
+  # Identifiers on any line of the file that says "not ported" or "ported as".
+  defp acknowledged(file) do
+    for line <- File.stream!(file),
+        String.contains?(String.downcase(line), ["not ported", "ported as"]),
+        [word] <- Regex.scan(~r/[A-Za-z_$][\w$]*/, line),
+        do: word
+  end
+
+  @ts_class ~r/^(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+(\w+)/
+  @ts_method ~r/^  (?:(?:private|protected|public|static|async|override|readonly)\s+)*(?:(?:get|set)\s+(?=[\w$]+\s*\())?([A-Za-z_$][\w$]*)\s*(?:<[^()]*>)?\(/
+  @ts_function ~r/^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/
+
+  @doc false
+  # [{class | nil, name}] in source order, for class methods and top-level functions.
+  def ts_members(source) do
+    source
+    |> String.split("\n")
+    |> Enum.reduce({nil, []}, fn line, {class, acc} ->
+      case ts_line(line, class) do
+        {:class, name} -> {name, acc}
+        :class_end -> {nil, acc}
+        {:member, name} -> {class, [{class, name} | acc]}
+        nil -> {class, acc}
+      end
+    end)
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  defp ts_line(line, class) do
+    cond do
+      match = Regex.run(@ts_class, line) -> {:class, Enum.at(match, 1)}
+      class && String.starts_with?(line, "}") -> :class_end
+      match = Regex.run(if(class, do: @ts_method, else: @ts_function), line) -> {:member, Enum.at(match, 1)}
+      true -> nil
+    end
+  end
+
+  # --- Elixir sources --------------------------------------------------------
+
+  @doc false
+  # Modules in `file`, with their effective `@upstream`, and the functions defined directly in them.
+  def elixir_modules(file) do
+    source = File.read!(file)
+    generated = String.starts_with?(source, "# This file is generated")
+    ast = Code.string_to_quoted!(source, file: file, columns: true, token_metadata: true)
+    collect(ast, nil, nil, %{file: file, generated: generated})
+  end
+
+  defp collect({:defmodule, meta, [{:__aliases__, _, alias}, [do: body]]}, parent, inherited, info) do
+    name = if parent, do: Module.concat([parent | alias]), else: Module.concat(alias)
+    exprs = block(body)
+    own = Enum.find_value(exprs, &upstream_attr/1)
+
+    defs =
+      for {kind, meta, [head | _]} <- exprs, kind in [:def, :defp, :defmacro, :defmacrop, :defdelegate] do
+        {kind in [:def, :defmacro, :defdelegate], fun_name(head), meta[:line]}
+      end
+
+    module =
+      Map.merge(info, %{
+        name: name,
+        upstream: own || inherited,
+        declares_upstream: own != nil,
+        functions: for({_, n, _} <- defs, uniq: true, do: n),
+        public: for({true, n, _} <- defs, uniq: true, do: n),
+        defs: for({_, n, line} <- defs, do: {line, n}),
+        lines: meta[:line]..meta[:end][:line],
+        def_indent: meta[:column] + 1,
+        tests: test_names(body)
+      })
+
+    [module | Enum.flat_map(exprs, &collect(&1, name, own || inherited, info))]
+  end
+
+  defp collect({:__block__, _, exprs}, parent, inherited, info),
+    do: Enum.flat_map(exprs, &collect(&1, parent, inherited, info))
+
+  defp collect(_, _, _, _), do: []
+
+  defp block({:__block__, _, exprs}), do: exprs
+  defp block(expr), do: [expr]
+
+  defp upstream_attr({:@, _, [{:upstream, _, [path]}]}) when is_binary(path), do: path
+  defp upstream_attr(_), do: nil
+
+  defp fun_name({:when, _, [head | _]}), do: fun_name(head)
+  defp fun_name({name, _, _}) when is_atom(name), do: Atom.to_string(name)
+
+  # `test "name"` anywhere below (inside `describe`), not in nested modules.
+  defp test_names(body) do
+    body
+    |> Macro.prewalk([], fn
+      {:defmodule, _, _}, acc -> {nil, acc}
+      {:test, _, [name | _]} = node, acc when is_binary(name) -> {node, [name | acc]}
+      node, acc -> {node, acc}
+    end)
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  # --- tests -----------------------------------------------------------------
+
+  defp check_tests(upstream, modules) do
+    modules
+    |> Enum.filter(&(&1.upstream && String.ends_with?(&1.upstream, ".spec.ts")))
+    |> Enum.sort_by(& &1.upstream)
+    |> Enum.flat_map(fn mod ->
+      source = Path.join(upstream, mod.upstream)
+
+      if File.regular?(source) do
+        expected = spec_tests(File.read!(source))
+        {missing, extra} = multiset_diff(expected, mod.tests)
+
+        Enum.map(missing, &"#{mod.upstream}: missing test #{inspect(&1)}") ++
+          Enum.map(extra, &"#{mod.upstream}: test #{inspect(&1)} is not upstream") ++
+          Enum.map(unordered(expected, mod.tests), &"#{mod.upstream}: test #{inspect(&1)} is out of upstream order")
+      else
+        ["#{mod.upstream}: not found upstream (referenced by #{inspect(mod.name)})"]
+      end
+    end)
+  end
+
+  @spec_test ~r/^\s*(?:it|test|browserTest|playwrightTest|contextTest|pageTest)(?:\.(?:skip|fixme|fail|only|slow))?\(\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)"|`((?:\\.|[^`\\])*)`)\s*([,)])?/m
+
+  @doc false
+  # Statically known test names in a spec file.
+  def spec_tests(source) do
+    for match <- Regex.scan(@spec_test, source, capture: :all_but_first),
+        [single, double, template, next] = pad(match, 4),
+        next != "",
+        name = single <> double <> template,
+        not String.contains?(template, "${"),
+        do: unescape(name)
+  end
+
+  @doc false
+  # Test names built from template literals in a spec file, as patterns (`${...}` matches anything).
+  def spec_templates(source) do
+    for match <- Regex.scan(@spec_test, source, capture: :all_but_first),
+        [_single, _double, template, _next] = pad(match, 4),
+        String.contains?(template, "${"),
+        do: ~r/^#{template |> unescape() |> String.split(~r/\$\{[^}]*\}/) |> Enum.map_join(".*", &Regex.escape/1)}$/
+  end
+
+  defp pad(list, n), do: list ++ List.duplicate("", n - length(list))
+
+  defp unescape(name), do: Regex.replace(~r/\\(.)/, name, "\\1")
+
+  defp multiset_diff(expected, actual) do
+    {Enum.sort(expected -- actual), Enum.sort(actual -- expected)}
+  end
+
+  # --- test registry ---------------------------------------------------------
+
+  @doc false
+  # The registry rows at the pin, the rules and our mirrored tests, matched up.
+  def registry(
+        upstream,
+        test_files,
+        registry_path \\ TestRegistry.registry_path(),
+        rules_path \\ TestRegistry.rules_path()
+      ) do
+    {rows, _subsystems} = TestRegistry.read_registry(registry_path)
+    {rules, rule_problems} = TestRegistry.read_rules(rules_path)
+    by_file = Enum.group_by(rows, & &1.file)
+
+    tests =
+      for file <- Enum.sort(test_files),
+          {spec, tests} <- TestRegistry.test_modules(File.read!(file)),
+          String.ends_with?(spec, ".spec.ts"),
+          test <- tests do
+        rows = Map.get(by_file, TestRegistry.file_key(spec), [])
+        Map.merge(test, %{file: file, spec: spec, match: TestRegistry.match(rows, test.describe, test.name)})
+      end
+
+    matched = fn pred ->
+      for test <- tests, pred.(test), row <- matched_rows(test.match), into: MapSet.new(), do: row.id
+    end
+
+    ported = matched.(& &1.body?)
+
+    upstream_skipped =
+      matched.(&(not &1.body? and Enum.any?(&1.skips, fn s -> String.starts_with?(s, "upstream ") end)))
+
+    pin = pin_titles(upstream, Map.keys(by_file))
+    {present, absent} = Enum.split_with(rows, &(&1.id in matched.(fn _ -> true end) or at_pin?(&1, pin)))
+
+    %{
+      rows: present,
+      absent: length(absent),
+      rules: rules,
+      rule_problems: rule_problems,
+      tests: tests,
+      ported: ported,
+      upstream_skipped: upstream_skipped,
+      mirrored: MapSet.new(tests, &TestRegistry.file_key(&1.spec)),
+      specs: for(file <- Map.keys(pin), pin[file], do: file)
+    }
+  end
+
+  defp matched_rows({:ok, row}), do: [row]
+  defp matched_rows({:pattern, rows}), do: rows
+  defp matched_rows(_), do: []
+
+  # file => {static titles, title patterns} of its spec at the pin (nil without one).
+  defp pin_titles(upstream, files) do
+    specs = upstream_files(upstream, ["tests/page/**/*.spec.ts", "tests/library/**/*.spec.ts"])
+    keys = Enum.map(specs, &TestRegistry.file_key/1)
+
+    Map.new(Enum.uniq(files ++ keys), fn file ->
+      path = Path.join(upstream, "tests/#{file}.spec.ts")
+      {file, if(File.regular?(path), do: {MapSet.new(spec_tests(File.read!(path))), spec_templates(File.read!(path))})}
+    end)
+  end
+
+  defp at_pin?(row, pin) do
+    case pin[row.file] do
+      {titles, patterns} ->
+        Enum.any?(row.variants, fn {_, leaf} -> leaf in titles or Enum.any?(patterns, &Regex.match?(&1, leaf)) end)
+
+      nil ->
+        false
+    end
+  end
+
+  @doc false
+  # Problems: a test at the pin neither ported nor ruled out, ported and ruled out, a rule
+  # that matches no test at the pin, a spec with neither a test module nor registry tests.
+  def check_registry(registry) do
+    %{rows: rows, rules: rules, mirrored: mirrored} = registry
+    rules_file = Path.basename(TestRegistry.rules_path())
+    ruled = Map.new(rows, &{&1.id, TestRegistry.rule_for(&1, rules)})
+
+    {mirrored_rows, unmirrored_rows} = Enum.split_with(rows, &(&1.file in mirrored))
+
+    row_problems =
+      for row <- mirrored_rows, problem = row_problem(row, ruled[row.id], registry, rules_file), do: problem
+
+    unmirrored =
+      for {file, rows} <- Enum.group_by(unmirrored_rows, & &1.file),
+          open = Enum.reject(rows, &ruled[&1.id]),
+          open != [] do
+        "tests/#{file}.spec.ts: no test module with `@upstream` for it, and #{length(open)} of its tests " <>
+          "(#{Enum.map_join(Enum.take(open, 3), ", ", & &1.id)}#{if length(open) > 3, do: ", ..."}) are not " <>
+          "ruled out in #{rules_file}: mirror it or rule them out"
+      end
+
+    files_with_rows = MapSet.new(rows, & &1.file)
+
+    unregistered =
+      for file <- Enum.sort(registry.specs), file not in mirrored, file not in files_with_rows do
+        "tests/#{file}.spec.ts: no test module with `@upstream` for it, and not in the registry: mirror it"
+      end
+
+    unused =
+      for rule <- rules, not Enum.any?(rows, &TestRegistry.matches?(rule, &1)) do
+        "#{rules_file}:#{rule.line}: #{rule.selector} matches no registry test at the pin"
+      end
+
+    registry.rule_problems ++ Enum.sort(row_problems) ++ Enum.sort(unmirrored) ++ unregistered ++ unused
+  end
+
+  @doc false
+  # Problems: an unconditional `upstream skip:` / `upstream fixme:` / `upstream fail:` tag on a test
+  # whose upstream annotation of that kind has a condition (`it.skip(browserName !== 'webkit')`):
+  # tag it under that condition (and port the body), so it runs where upstream runs it.
+  def check_conditional_annotations(upstream, tests) do
+    for test <- tests,
+        is_binary(test.name),
+        kind <- unconditional_kinds(test.tag_skips),
+        source = Path.join(upstream, test.spec),
+        File.regular?(source),
+        bodies = upstream_test_bodies(File.read!(source), test.name),
+        bodies != [],
+        Enum.all?(bodies, &conditional_annotation?(&1, kind)),
+        uniq: true do
+      "#{test.file}:#{test.line}: #{inspect(test.name)} has an unconditional `upstream #{kind}:` tag, " <>
+        "but upstream's `#{kind}` annotation has a condition: tag it under that condition"
+    end
+  end
+
+  @doc false
+  # Problems: a ported test that upstream marks `slow()` (in its body, a `beforeEach` or
+  # `describe` around it, or at the top of the file) with no `timeout:` tag using `@slow_timeout`.
+  def check_slow(upstream, tests) do
+    tests
+    |> Enum.filter(&(&1.body? and is_binary(&1.name)))
+    |> Enum.group_by(& &1.spec)
+    |> Enum.flat_map(fn {spec, tests} ->
+      source = Path.join(upstream, spec)
+      slow = if File.regular?(source), do: slow_scopes(File.read!(source)), else: []
+
+      for test <- tests, not test.slow?, Enum.any?(slow, &in_slow_scope?(&1, test)) do
+        "#{test.file}:#{test.line}: #{inspect(test.name)} is `slow()` upstream: tag it `timeout: @slow_timeout`"
+      end
+    end)
+  end
+
+  # Conditions that never hold here: we never trace or record video by default.
+  @never_slow ~r/\b(?:trace|video)\b/
+
+  # The scope of each `slow()` in a spec: `:file`, `{:test, title}` or `{:describe, title}`.
+  @doc false
+  def slow_scopes(source) do
+    lines = String.split(source, "\n")
+
+    for {line, index} <- Enum.with_index(lines),
+        [_, condition] <- [Regex.run(~r/^\s*(?:it|test|\w+Test)\.slow\(([^,)]*)/, line)],
+        not Regex.match?(@never_slow, condition),
+        uniq: true,
+        do: slow_scope(lines, index)
+  end
+
+  # The construct around line `index`: the nearest line above it that is indented less and does
+  # not close a bracket (`}, async ({ page }) => {` belongs to the head above it).
+  defp slow_scope(lines, index) do
+    indent = indentation(Enum.at(lines, index))
+
+    head_index = Enum.find((index - 1)..0//-1, &head?(Enum.at(lines, &1), indent))
+
+    head = head_index && Enum.at(lines, head_index)
+
+    title = fn kind -> Regex.run(~r/\b#{kind}\(\s*(['"`])((?:\\.|(?!\1).)*)\1/, head || "", capture: :all_but_first) end
+
+    cond do
+      is_nil(head) -> :file
+      t = title.("(?:describe|describe\\.\\w+)") -> {:describe, unescape(List.last(t))}
+      String.match?(head, ~r/\b(?:beforeEach|beforeAll)\(/) -> slow_scope(lines, head_index)
+      t = title.("(?:it|test|\\w+Test)(?:\\.\\w+)?") -> {:test, unescape(List.last(t)), slow_scope(lines, head_index)}
+      true -> :file
+    end
+  end
+
+  defp head?(line, indent),
+    do: String.trim(line) != "" and indentation(line) < indent and not String.match?(line, ~r/^\s*[})\]]/)
+
+  defp indentation(line), do: byte_size(line) - byte_size(String.trim_leading(line))
+
+  defp in_slow_scope?(:file, _test), do: true
+  defp in_slow_scope?({:test, title, outer}, test), do: test.name == title and in_slow_scope?(outer, test)
+  defp in_slow_scope?({:describe, title}, test), do: is_binary(test.describe) and String.contains?(test.describe, title)
+
+  defp unconditional_kinds(skips) do
+    for skip <- skips, [_, kind] <- [Regex.run(~r/^upstream (skip|fixme|fail):/, skip)], uniq: true, do: kind
+  end
+
+  # The source of each upstream test named `name`, up to the next test.
+  @doc false
+  def upstream_test_bodies(source, name) do
+    starts =
+      for [{start, _} | groups] <- Regex.scan(@spec_test, source, return: :index) do
+        title = groups |> Enum.take(3) |> Enum.map_join(&group_text(source, &1))
+        {start, unescape(title)}
+      end
+
+    ends = Enum.map(tl(starts), &elem(&1, 0)) ++ [byte_size(source)]
+
+    for {{start, title}, stop} <- Enum.zip(starts, ends), title == name, do: binary_part(source, start, stop - start)
+  end
+
+  defp group_text(_source, {-1, _}), do: ""
+  defp group_text(source, {start, length}), do: binary_part(source, start, length)
+
+  # Conditions that hold in every run here: we run headless, the driver out of process (as
+  # upstream's non-default modes).
+  @always ["true", "headless", "mode !== 'default'"]
+  # What varies between our runs (browser, host OS, browser version).
+  @varying ~r/\b(?:browserName|platform|isWindows|isMac|isLinux|browserMajorVersion|macVersion|hostPlatform|isFrozenWebkit)\b/
+
+  # `it.skip(browserName === 'webkit', ...)`: an annotation whose condition (its first argument,
+  # up to the first `,` or `)`) varies between our runs (an `||` of an always-true term does not).
+  @doc false
+  def conditional_annotation?(body, kind) do
+    ~r/\b(?:it|test)\.#{kind}\(\s*([^,)]*)/
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.any?(fn [condition] ->
+      terms = condition |> String.split("||") |> Enum.map(&String.trim/1)
+      Regex.match?(@varying, condition) and not Enum.any?(terms, &(&1 in @always))
+    end)
+  end
+
+  defp row_problem(row, rule, %{ported: ported, upstream_skipped: upstream_skipped}, rules_file) do
+    cond do
+      row.id in ported and rule ->
+        "#{row.id} (#{row.file}: #{row.title}) is ported, but #{rules_file}:#{rule.line} rules it out"
+
+      row.id in ported or rule != nil or row.id in upstream_skipped ->
+        nil
+
+      true ->
+        "#{row.id} (#{row.file}: #{row.title}) is neither ported (a test with a body) nor ruled out in #{rules_file}"
+    end
+  end
+
+  @doc false
+  # Informational: registry rows not at the pin, mirrored tests not in the registry.
+  def registry_info(registry) do
+    unmatched = Enum.reject(registry.tests, &match?({kind, _} when kind in [:ok, :pattern], &1.match))
+
+    examples =
+      for test <- Enum.take(unmatched, 5) do
+        what = if match?({:ambiguous, _}, test.match), do: "ambiguous", else: "not in the registry"
+        "  #{test.file}:#{test.line}: #{inspect(test.describe)} #{inspect(test.name)} (#{what})"
+      end
+
+    [
+      "registry: #{registry.absent} tests not at the pin (ignored), #{length(unmatched)} mirrored tests not matched"
+      | examples
+    ]
+  end
+
+  # --- north star ------------------------------------------------------------
+
+  @python_rules "https://raw.githubusercontent.com/microsoft/playwright-python/main/tests/upstream_not_ported.txt"
+
+  defp python_rules(nil) do
+    path = Path.join(System.tmp_dir!(), "playwright-python-upstream_not_ported.txt")
+    PlaywrightEx.Driver.download!(@python_rules, path)
+    python_rules(path)
+  end
+
+  defp python_rules(path) do
+    {rules, _problems} = TestRegistry.read_rules(path)
+    rules
+  end
+
+  @doc false
+  # Our rules against playwright-python's, by registry test (informational).
+  def north_star(registry, python_rules) do
+    ours = Map.new(registry.rows, &{&1.id, TestRegistry.rule_for(&1, registry.rules)})
+    theirs = Map.new(registry.rows, &{&1.id, TestRegistry.rule_for(&1, python_rules)})
+
+    we_skip = for row <- registry.rows, ours[row.id] && !theirs[row.id], do: {row, ours[row.id].reason}
+
+    we_leave_bodiless =
+      for row <- registry.rows,
+          row.id in registry.upstream_skipped,
+          !theirs[row.id],
+          do: {row, "bodiless, upstream skip"}
+
+    they_skip = for row <- registry.rows, theirs[row.id] && row.id in registry.ported, do: {row, theirs[row.id].reason}
+
+    section("north star: tests we rule out that playwright-python runs", we_skip) ++
+      section(
+        "north star: tests we leave bodiless (upstream skips them) that playwright-python runs",
+        we_leave_bodiless
+      ) ++
+      section("north star: tests playwright-python rules out that we run", they_skip)
+  end
+
+  defp section(title, entries) do
+    [
+      "#{title} (#{length(entries)})"
+      | for({row, reason} <- entries, do: "  #{row.id} #{row.file}: #{row.title} -- #{reason}")
+    ]
+  end
+
+  # --- skip reasons ----------------------------------------------------------
+
+  @doc false
+  # "stale skip" problems for `not ported:` reasons citing members that `ported?.(class, member)`.
+  def check_skips(files, ported?) do
+    for file <- Enum.sort(files),
+        {line, reason} <- skip_reasons(File.read!(file)),
+        {class, member} <- cited_members(reason),
+        ported?.(class, member) do
+      "stale skip: #{file}:#{line} cites #{class}.#{member}, which is ported"
+    end
+  end
+
+  @doc false
+  # "stale rule" problems for rules whose reason (as `not ported: <reason>`) cites ported members.
+  def check_rule_reasons(rules, ported?) do
+    for rule <- rules, {class, member} <- cited_members("not ported: " <> rule.reason), ported?.(class, member) do
+      "stale rule: #{TestRegistry.rules_path()}:#{rule.line} cites #{class}.#{member}, which is ported"
+    end
+  end
+
+  @doc false
+  # [{line, reason}] for `@tag`/`@describetag`/`@moduletag skip: <expr>`. The reasons are the
+  # static strings `<expr>` can evaluate to (literals, `<>`, `if`/`unless`/`case`/`cond`
+  # branches, module attributes set to those).
+  def skip_reasons(source) do
+    ast = Code.string_to_quoted!(source)
+
+    {_, attrs} =
+      Macro.prewalk(ast, %{}, fn
+        {:@, _, [{name, _, [value]}]} = node, attrs when is_atom(name) ->
+          {node, Map.put(attrs, name, value)}
+
+        node, attrs ->
+          {node, attrs}
+      end)
+
+    {_, reasons} =
+      Macro.prewalk(ast, [], fn
+        {:@, meta, [{tag, _, [opts]}]} = node, acc when tag in [:tag, :describetag, :moduletag] and is_list(opts) ->
+          reasons = if Keyword.keyword?(opts), do: static_strings(opts[:skip], attrs), else: []
+          {node, Enum.reverse(Enum.map(reasons, &{meta[:line], &1}), acc)}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.reverse(reasons)
+  end
+
+  defp static_strings(string, _attrs) when is_binary(string), do: [string]
+
+  defp static_strings({:<>, _, [left, right]}, attrs),
+    do: for(l <- static_strings(left, attrs), r <- static_strings(right, attrs), do: l <> r)
+
+  defp static_strings({op, _, [_, branches]}, attrs) when op in [:if, :unless] and is_list(branches),
+    do: Enum.flat_map(branches, fn {_, expr} -> static_strings(expr, attrs) end)
+
+  defp static_strings({:case, _, [_, [do: clauses]]}, attrs), do: clause_strings(clauses, attrs)
+  defp static_strings({:cond, _, [[do: clauses]]}, attrs), do: clause_strings(clauses, attrs)
+  defp static_strings({:__block__, _, [expr]}, attrs), do: static_strings(expr, attrs)
+
+  defp static_strings({:@, _, [{name, _, ctx}]}, attrs) when is_atom(ctx) and is_map_key(attrs, name) do
+    {value, attrs} = Map.pop(attrs, name)
+    static_strings(value, attrs)
+  end
+
+  defp static_strings(_, _attrs), do: []
+
+  defp clause_strings(clauses, attrs),
+    do: Enum.flat_map(clauses, fn {:->, _, [_, body]} -> static_strings(body, attrs) end)
+
+  @api_name ~S"[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*(?:\s*\([^()]*\))?"
+  @api_list Regex.compile!("^not ported: #{@api_name}(?:(?:,\\s*|\\s+and\\s+)#{@api_name})*$")
+
+  @doc false
+  # The `{Class, member}`s a reason says are missing: only a reason that is a list of API names
+  # (each optionally followed by one parenthetical) cites them, and only outside parentheses.
+  def cited_members(reason) do
+    reason = String.trim(reason)
+
+    if Regex.match?(@api_list, reason) do
+      reason = Regex.replace(~r/\([^()]*\)/, reason, "")
+      for [_, class, member] <- Regex.scan(~r/\b([A-Z][\w$]*)\.([A-Za-z_$][\w$]*)/, reason), do: {class, member}
+    else
+      []
+    end
+  end
+
+  @doc false
+  # Whether the client class or its facade module exports the member's snake_case function.
+  def ported?(class, member) do
+    name = underscore(member)
+
+    Enum.any?([PlaywrightEx.Client, PlaywrightEx], fn namespace ->
+      module = Module.concat(namespace, class)
+
+      Code.ensure_loaded?(module) and
+        Enum.any?(module.__info__(:functions), fn {fun, _} -> Atom.to_string(fun) == name end)
+    end)
+  end
+end

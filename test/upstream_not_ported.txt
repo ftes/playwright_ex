@@ -1,0 +1,138 @@
+# Upstream tests that playwright_ex does not port, with the reason.
+#
+# The registry of upstream tests is test/upstream_registry.md, a copy of tests/registry.md in
+# microsoft/playwright (via playwright-python). `mix playwright_ex.parity` checks that every test
+# in it that is at our pin is ported (a mirrored test with a body), left bodiless because
+# upstream skips it in our setup, or matches a rule here. One rule per line: a selector, then
+# the reason. A selector is a test identifier (CH-017), a subsystem code (CG), or an upstream
+# file glob without ".spec.ts" (library/unit/*). The checker fails on a rule that matches no
+# test at the pin, and on a test that is ported and also matches a rule.
+# `PlaywrightEx.UpstreamCase` skips the mirrored tests a rule matches ("not ported: <reason>"),
+# so they stay bodiless, in spec order, without a skip tag.
+# Same format as playwright-python's tests/upstream_not_ported.txt and playwright-java's
+# upstream_not_ported.txt; `mix playwright_ex.parity --north-star` compares them.
+
+# Upstream internals, not the client API.
+library/unit/android-webviews       server internals (Android)
+library/unit/clock                  injected clock internals (driver side)
+library/unit/codegen                trace viewer codegen (Node-only tooling)
+library/unit/json-schema            isomorphic JSON schema validator (driver side)
+library/unit/sequence               server internals
+library/events/*                    Tests the EventEmitter class of the Node.js client.
+page/page-leaks                     Counts server objects through toImpl(), which only the Node.js tests can reach.
+library/role-utils                  Calls the injected script directly.
+library/locator-parser              Tests the locator parser of the driver.
+library/component-parser            Tests the component selector parser of the driver.
+library/css-parser                  Tests the CSS selector parser of the driver.
+library/selector-generator          Tests the selector generator of the driver.
+library/proxy-pattern               Tests parsePattern() of the Node.js utils bundle (SOCKS proxy pattern matcher), an internal with no client API.
+library/network-timeout             utils.httpRequest and Node's dns module (playwright-core server-side network utils, not the client)
+library/slowmo                      Hooks the server's DispatcherConnection._doSlowMo through toImpl to check that slowMo runs once; server internals are not reachable from the client.
+page/page-evaluate-no-stall         Uses toImpl(frame).nonStallingRawEvaluateInExistingMainContext, a server internal.
+page/page-click-during-navigation   Passes the server-side __testHookAfterStable function as a click option; only the in-process Node.js client can pass it, and the protocol has no such parameter.
+
+# Tools that run in the driver. The client only starts them.
+library/inspector/*                 Codegen and the Inspector run in the driver.
+library/trace-viewer                The trace viewer runs in the driver.
+library/snapshot-renderer           The trace viewer runs in the driver.
+library/debug-controller            Internal protocol of the VS Code extension.
+
+# Node.js packaging and test setup.
+library/browsers-path               Tests importing the Node.js package on an unsupported platform.
+library/playwright-client           Tests the @playwright/client package.
+
+# JS-only API.
+library/browsertype-launch-server   BrowserType.launchServer is JS-only (api.json langs: js); specs that only need a launched server run on the launch-server fixture.
+
+# Features of the @playwright/test runner.
+page/expect-builtins                Generic matchers of @playwright/test, such as toBe().
+page/matchers.misc                  Generic matchers of @playwright/test.
+
+# Per test, found while porting.
+# library/browser
+BR-007      __testHookBeforeSetStorageState is a JS function
+# library/browsercontext-fetch
+# library/browsercontext-fetch-happy-eyeballs
+FE-185      __testHookLookup (in-process test hook): the test checks the driver's own Happy Eyeballs connection through the unreachable addresses the hook returns; a resolving proxy (how the fetch cookie tests and playwright-python stand in for the hook) replaces that connection with the proxy agent's, so Python rules these out too
+FE-186      __testHookLookup (in-process test hook): the test checks the driver's own Happy Eyeballs connection through the unreachable addresses the hook returns; a resolving proxy (how the fetch cookie tests and playwright-python stand in for the hook) replaces that connection with the proxy agent's, so Python rules these out too
+FE-187      __testHookLookup (in-process test hook): the test checks the driver's own Happy Eyeballs connection through the unreachable addresses the hook returns; a resolving proxy (how the fetch cookie tests and playwright-python stand in for the hook) replaces that connection with the proxy agent's, so Python rules these out too
+# library/browsercontext-route
+RO-185      URLPattern
+# library/browsertype-connect
+# library/browsertype-launch
+BT-012      __testHookBeforeCreateBrowser is a JS function
+BT-013      __testHookBeforeCreateBrowser is a JS function
+BT-014      `process` is not a launch option (@ts-expect-error), the facade rejects it
+# library/channels
+CN-001      toImpl (server internals: _debugScopeState)
+CN-002      toImpl (server internals: _debugScopeState)
+CN-003      toImpl (server internals: _debugScopeState)
+CN-004      toImpl (server internals: _debugScopeState)
+CN-006      toImpl (server internals: _debugScopeState)
+# library/chromium/chromium
+CR-032      toImpl (server internals)
+# library/chromium/connect-over-cdp
+CD-005      toImpl (server internals)
+CD-030      toImpl (server internals)
+CD-032      toImpl (server internals)
+CD-036      connectOverCDP(transport) (architecture: Generated facade)
+# library/client-certificates
+# library/defaultbrowsercontext-2
+DC-030      toImpl (server-side defaultArgs)
+DC-031      __testHookBeforeCreateBrowser is a JS function
+DC-032      __testHookBeforeCreateBrowser is a JS function
+DC-036      __testHookOnConnectToBrowser is a JS function
+# library/global-fetch
+FE-028      instrumentation (_instrumentation.runBeforeCreateRequestContext)
+FE-046      toJSON (no Elixir counterpart)
+# library/global-fetch-cookie
+# library/har-websocket
+# library/heap
+LE-007      queryObjectCount (in-process V8 heap inspection)
+LE-008      queryObjectCount (in-process V8 heap inspection)
+LE-009      queryObjectCount (in-process V8 heap inspection)
+LE-010      queryObjectCount (in-process V8 heap inspection)
+LE-011      queryObjectCount (in-process V8 heap inspection)
+LE-012      coreServer.setMaxDispatchersForTest, queryObjectCount (in-process server internals)
+# library/launcher
+BT-020      __testHookGracefullyClose is a JS function
+# library/screenshot
+SS-080      __testHookBeforeScreenshot (JS-only test hook)
+SS-086      __testHookBeforeScreenshot (JS-only test hook)
+SS-087      __testHookAfterScreenshot (JS-only test hook)
+SS-089      __testHookBeforeScreenshot (JS-only test hook)
+# library/signals
+SI-007      Needs the stallOnClose launch hook: __testHookGracefullyClose is a JS function in the launch options, which the client cannot send to the driver; the double-SIGINT kill runs in the signal handlers of the Node.js process that launched the browser (the driver, which does not get the signals sent to the BEAM).
+SI-008      Needs the stallOnClose launch hook: __testHookGracefullyClose is a JS function in the launch options, which the client cannot send to the driver; the SIGINT + SIGTERM kill runs in the signal handlers of the Node.js process that launched the browser (the driver, which does not get the signals sent to the BEAM).
+SI-009      Needs the stallOnClose launch hook: __testHookGracefullyClose is a JS function in the launch options, which the client cannot send to the driver; the SIGTERM + SIGINT kill runs in the signal handlers of the Node.js process that launched the browser (the driver, which does not get the signals sent to the BEAM).
+# page/expect-boolean
+EX-069      a pending promise as receiver (Elixir calls return values)
+# page/expect-misc
+EX-222      expect(page).to_have_url(URLPattern): URLPattern is JS-only; to_have_url takes a string, regex or predicate.
+# page/frame-evaluate
+FR-003      toImpl (in-process server internals: page delegate _contextIdToContext)
+FR-004      toImpl (in-process server internals: page delegate _contextIdToContext)
+# page/page-autowaiting-basic
+AW-010      __testHookAfterPointerAction (JS-only test hook)
+# page/page-click
+CL-067      JS-only test hooks (__testHookBeforeStable)
+CL-068      JS-only test hooks (__testHookBeforeStable)
+CL-069      JS-only test hooks (__testHookBeforeStable)
+# page/page-click-timeout-1
+CL-110      __testHookBeforePointerAction (in-process test hook)
+# page/page-click-timeout-3
+CL-116      __testHookBeforeHitTarget (in-process test hook)
+# page/page-click-timeout-4
+CL-121      JS-only test hooks (__testHookBeforePointerAction)
+# page/page-evaluate
+EV-018      method shorthand source needs isFunction (page functions are JS source; architecture: Value mapping)
+# page/page-route
+RO-056      URLPattern
+# page/page-screenshot
+SS-055      __testHookBeforeScreenshot
+# page/page-set-content
+PA-036      toImpl (server-side evaluateExpression in the utility world)
+PA-037      toImpl (server-side evaluateExpression in the utility world)
+# page/page-wait-for-selector-2
+WA-072      __testHookBeforeAdoptNode
+WA-073      __testHookBeforeAdoptNode

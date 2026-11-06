@@ -5,167 +5,64 @@
 
 # PlaywrightEx
 
-Elixir client for the Playwright node.js server.
+Elixir client for [Playwright](https://playwright.dev). Automate Chromium, Firefox and WebKit:
+end-to-end tests, web scraping, agentic AI.
 
-Automate browsers like Chromium, Firefox, Safari and Edge.
-Helpful for web scraping and agentic AI.
+PlaywrightEx is a 1:1 port of the official JavaScript client. Its API is generated from
+Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
+is pinned and installed by Mix, no npm needed. This release drives Playwright 1.64.
 
-Please [get in touch](https://ftes.de) with feedback of any shape and size.
-
-Enjoy!
-
-Freddy.
-
-## Getting started
-1. Add dependency
-        # mix.exs
-        {:playwright_ex, "~> 0.12"}
-
-2. Ensure Playwright 1.64 or newer is installed (executable in `$PATH` or installed via `npm`)
-
-3. Start connection (or add to supervision tree)
-        # if installed via npm or similar add `executable: "assets/node_modules/playwright/cli.js"`
-        {:ok, _} = PlaywrightEx.Supervisor.start_link(timeout: 1000)
-
-4. Use it
-        alias PlaywrightEx.{Browser, BrowserContext, Frame}
-
-        {:ok, browser} = PlaywrightEx.launch_browser(:chromium, timeout: 1000)
-        {:ok, context} = Browser.new_context(browser.guid, timeout: 1000)
-
-        {:ok, %{main_frame: frame}} = BrowserContext.new_page(context.guid, timeout: 1000)
-        {:ok, _} = Frame.goto(frame.guid, "https://elixir-lang.org/", timeout: 1000)
-        {:ok, _} = Frame.click(frame.guid, Selector.link("Install"), timeout: 1000)
-
-## JavaScript logging
-
-Pass a module implementing `PlaywrightEx.JsLogger` as the `:js_logger` supervisor
-option to log browser console messages and uncaught JavaScript errors.
-Both `nil` (the default) and `false` disable logging without affecting event
-delivery to subscribers.
-
-## Remote server via WebSocket
-By default, PlaywrightEx launches a local playwright driver.
-This is typically installed via `npm` or `bun`.
-
-Alternatively, PlaywrightEx can connect to a remote playwright server:
-
-      # mix.exs
-      {:websockex, "~> 0.4"}
-
-  ```
-  docker run -p 3000:3000 --rm --init -it \\
-    mcr.microsoft.com/playwright:v1.64.1-noble \\
-    npx -y playwright@1.64.1 run-server --port 3000 --host 0.0.0.0
-  ```
-
-      {:ok, _} = PlaywrightEx.Supervisor.start_link(
-        timeout: 1000,
-        ws_endpoint: "ws://localhost:3000?browser=chromium"
-      )
-
-## API Layers
-Most channel functions are thin protocol wrappers.
-In ExDoc, composed helpers are grouped under `Client-Composed Functions`.
-For request mocking, see `Page.route/4`, `BrowserContext.route/4`, and `Route`
-for usage examples, supported options, and callback lifecycle.
-
-Frame URL/load-state waits return synchronously and check recorded state first.
-URL predicate errors propagate to that wait's caller without affecting other waits.
-
-## Timeouts
-
-Pass a `:timeout` for each operation: a positive number of milliseconds,
-`0` for no waiting, or `:infinity` to disable the timeout.
-
-With `0`, browser commands time out without being sent. Frame URL/load-state
-waits check the current recorded state once.
-
-## Request responses
-
-Retrieve the response for a known request without subscribing to response events:
+## Installation
 
 ```elixir
-{:ok, response} = PlaywrightEx.Request.response(request.guid, timeout: 1_000)
-```
-
-The result is a response handle (`%{guid: response_id}`), or `nil` if the request
-fails without a response. Read its metadata with
-`PlaywrightEx.Connection.initializer!(connection, response_id)`.
-Each request in a redirect chain has its own response.
-
-Use `PlaywrightEx.Frame.document_request/2` to read the request for the frame's
-current committed document. Same-document navigation preserves it; a new
-navigation replaces it with the committed request, including after redirects.
-The result is `nil` when no request was recorded.
-
-`Frame.snapshot/2` returns the recorded URL, document request, and a client-generated
-`document_ref` in one read. The reference changes on new documents, including
-reloads, and remains stable across same-document navigation.
-
-`EventWaiter` automatically enables opt-in Page and BrowserContext events while
-waiting. Predicates filter raw events; an optional `:transform` maps the accepted
-event inside the task, for example to save metadata before the channel closes.
-
-## Downloads
-
-Arm the listener, trigger the download, then await its event. Use `after` to
-release the listener if the action fails:
-
-```elixir
-alias PlaywrightEx.{Download, EventWaiter, Frame, Page}
-
-{:ok, pending} = Page.expect_download(page.guid, timeout: 1_000)
-
-try do
-  {:ok, _} = Frame.click(frame.guid, selector: "a#export", timeout: 1_000)
-  {:ok, download} = Page.await_download(pending)
-
-  download.suggested_filename # e.g. "report.csv"
-  download.url
-  :ok = Download.save_as(download, "downloads/report.csv", timeout: 5_000)
-after
-  EventWaiter.cancel(pending)
+def deps do
+  [
+    {:playwright_ex, "~> 0.17.0-rc.0"}
+  ]
 end
 ```
 
-The event means the download has **started**. `Download.save_as/3` waits for
-completion, works locally and over WebSocket, and preserves the source artifact.
-It creates parent directories and preserves an existing destination if saving fails.
-You own saved files. The browser deletes its source artifacts when the context
-closes; use `Download.delete/2` to delete a source earlier.
-
-Event capture, the triggering action, and saving each have their own timeout.
-The event timeout starts when arming begins and is not restarted by awaiting
-later or skipping events. The save timeout covers the whole transfer.
-
-Use an optional predicate when an action produces several downloads, or to
-select a filename or URL among unrelated downloads:
-
-```elixir
-{:ok, pending} = Page.expect_download(page.guid,
-  timeout: 1_000,
-  predicate: &(&1.suggested_filename == "report.csv")
-)
+```sh
+mix deps.get
+mix playwright_ex.install
 ```
 
-The predicate receives a `Download`. Keep it quick and nonblocking; exceptions
-propagate to the calling process.
+## Example
 
-## References
-- Code extracted from [phoenix_test_playwright](https://hexdocs.pm/phoenix_test_playwright).
-- Inspired by [playwright-elixir](https://hexdocs.pm/playwright).
-- Official playwright node.js [client docs](https://playwright.dev/docs/intro).
+```elixir
+alias PlaywrightEx.{Browser, BrowserType, Expect, Locator, Page, Playwright}
 
-## Comparison to playwright-elixir
-`playwright-elixir` built on the python client and tried to provide a comprehensive client from the start.
-`playwright_ex` instead is a ground-up implementation. It is not intended to be comprehensive. Rather, it is intended to be simple and easy to extend.
+{:ok, _} = PlaywrightEx.Supervisor.start_link()
+browser = BrowserType.launch!(Playwright.chromium(PlaywrightEx.playwright()))
+page = Browser.new_page!(browser)
+Page.goto!(page, "https://elixir-lang.org/")
+Page.get_by_role(page, :link, name: "Install") |> Locator.click!()
+Expect.to_have_title!(page, ~r/Install/)
+```
+
+## Reading playwright.dev
+
+The [Python docs](https://playwright.dev/python/docs/intro) are the closest read, since the
+names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_selector`.
+`page.get_by_role("button").click()` is `Page.get_by_role(page, :button) |> Locator.click!()`.
+
+## Guides
+
+- [Getting started](guides/introduction/getting-started.md): install, the driver, a first script.
+- [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
+  Elixir.
+- [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
+- [Testing with ExUnit](guides/testing-with-exunit.md): a browser case template, assertions, failures.
+- [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
+  [Debugging and CI](guides/debugging-and-ci.md).
+- [Concurrency](guides/concurrency.md): listeners, promises and processes.
+- [Migrating from 0.16](guides/migration.md).
+
+Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
 ## Contributing
 
-To run the tests locally, you'll need to:
-
-1. Check out the repo
-2. Run `mix setup`. This will take care of setting up your dependencies, installing the JavaScript dependencies (including Playwright), and compiling the assets.
-3. Run `mix test` or, for a more thorough check that matches what we test in CI, run `mix check`.
-4. Run `mix test.websocket` to run all tests against a 'remote' playwright server via websocket. Docker needs to be installed. A container is started via `testcontainers`.
+1. `mix setup` installs dependencies, the pinned Playwright driver and Chromium.
+2. `mix test`, or `mix check` for everything CI runs.
+3. Porting rules: [`PORTING.md`](https://github.com/ftes/playwright_ex/blob/main/PORTING.md); the why behind the design:
+   [`docs/architecture.md`](https://github.com/ftes/playwright_ex/blob/main/docs/architecture.md).

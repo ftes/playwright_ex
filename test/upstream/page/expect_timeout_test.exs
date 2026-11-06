@@ -1,0 +1,269 @@
+defmodule PlaywrightEx.Page.ExpectTimeoutTest do
+  @upstream "tests/page/expect-timeout.spec.ts"
+  use PlaywrightEx.UpstreamCase, async: true
+
+  alias PlaywrightEx.AbortController
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
+  alias PlaywrightEx.TimeoutError
+
+  @moduletag :page
+
+  # "Locator:" lines are Elixir syntax, call logs JS (architecture: Driver language and rendering).
+
+  test "should print element not found", %{page: page} do
+    Page.set_content!(page, "<div id=node>Text content</div>")
+    {:error, error} = Expect.to_have_text(Page.locator(page, "no-such-thing"), "hey", timeout: 1000)
+
+    assert error.message =~ """
+           expect(locator).toHaveText(expected) failed
+
+           Locator: Page.locator(page, "no-such-thing")
+           Expected: "hey"
+           Timeout: 1000ms
+           Error: element(s) not found
+
+           Call log:
+           """
+  end
+
+  test "should print timed out error message when value does not match", %{page: page} do
+    Page.set_content!(page, "<div id=node>Text content</div>")
+    {:error, error} = Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 1000)
+
+    assert error.message =~ """
+           expect(locator).toHaveText(expected) failed
+
+           Locator:  Page.locator(page, "div")
+           Expected: "hey"
+           Received: "Text content"
+           Timeout:  1000ms
+
+           Call log:
+           """
+  end
+
+  test "should print timed out error message with impossible timeout", %{page: page} do
+    Page.set_content!(page, "<div id=node>Text content</div>")
+    {:error, error} = Expect.to_have_text(Page.locator(page, "no-such-thing"), "hey", timeout: 1)
+
+    assert error.message =~ """
+           expect(locator).toHaveText(expected) failed
+
+           Locator: Page.locator(page, "no-such-thing")
+           Expected: "hey"
+           Timeout: 1ms
+           Error: element(s) not found
+
+           Call log:\
+           """
+  end
+
+  test "should print timed out error message when value does not match with impossible timeout", %{page: page} do
+    Page.set_content!(page, "<div id=node>Text content</div>")
+    {:error, error} = Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 1)
+
+    assert error.message =~ """
+           expect(locator).toHaveText(expected) failed
+
+           Locator:  Page.locator(page, "div")
+           Expected: "hey"
+           Received: "Text content"
+           Timeout:  1ms
+
+           Call log:
+           """
+  end
+
+  test "should have timeout error name", %{page: page} do
+    {:error, error} = Page.wait_for_selector(page, "#not-found", timeout: 1)
+    assert %TimeoutError{} = error
+  end
+
+  test "should not throw when navigating during one-shot check", %{page: page, server: server} do
+    Page.set_content!(page, "<div>hello</div>")
+    promise = Runtime.Promise.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, "<div>bye</div>")
+    assert Runtime.Promise.await(promise) == :ok
+  end
+
+  test "should not throw when navigating during first locator handler check", %{page: page, server: server} do
+    Page.add_locator_handler!(page, Page.locator(page, "span"), fn _locator -> :ok end)
+    Page.set_content!(page, "<div>hello</div>")
+    promise = Runtime.Promise.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, "<div>bye</div>")
+    Runtime.Promise.await(promise)
+  end
+
+  test "should timeout during first locator handler check", %{page: page} do
+    Page.add_locator_handler!(page, Page.locator(page, "div"), fn _locator -> :ok end)
+    Page.set_content!(page, "<div>hello</div><span>bye</span>")
+    {:error, error} = Expect.to_have_text(Page.locator(page, "span"), "bye", timeout: 3000)
+
+    assert error.message =~ """
+           expect(locator).toHaveText(expected) failed
+
+           Locator:  Page.locator(page, "span")
+           Expected: "bye"
+           Received: ""
+           Timeout:  3000ms
+
+           Call log:
+           """
+
+    assert error.message =~ "locator handler has finished, waiting for locator('div') to be hidden"
+    assert error.message =~ "locator resolved to visible <div>hello</div>"
+  end
+
+  test "should not miss element that appears between retries before the deadline", %{page: page} do
+    Page.set_content!(page, ~s|<div id="target" style="display:none">content</div>|)
+
+    Page.evaluate!(page, """
+    () => {
+      window.builtins.setTimeout(() => {
+        document.getElementById('target').style.display = 'block';
+      }, 1500);
+    }
+    """)
+
+    Expect.to_be_visible!(Page.locator(page, "#target"), timeout: 1800)
+  end
+
+  test "should fail like a timeout when the signal is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        Expect.to_be_visible(Page.locator(page, "span"), timeout: 5000, signal: AbortController.signal(controller))
+      end)
+
+    Page.wait_for_timeout!(page, 500)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Runtime.Promise.await(promise)
+    refute error.name == "AbortError"
+
+    expected = """
+    expect(locator).toBeVisible() failed
+
+    Locator: Page.locator(page, "span")
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('span') with timeout 5000ms
+      - waiting for locator('span')
+      - operation was aborted: stop it
+    """
+
+    assert error.message =~ String.trim_trailing(expected)
+  end
+
+  test "should fail like a timeout when toHaveText is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        Expect.to_have_text(Page.locator(page, "span"), "missing",
+          timeout: 5000,
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    Page.wait_for_timeout!(page, 300)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Runtime.Promise.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(locator).toHaveText(expected) failed"
+  end
+
+  test "should fail like a timeout when toHaveCount is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        Expect.to_have_count(Page.locator(page, "span"), 3, timeout: 5000, signal: AbortController.signal(controller))
+      end)
+
+    Page.wait_for_timeout!(page, 300)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Runtime.Promise.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(locator).toHaveCount(expected) failed"
+  end
+
+  test "should fail like a timeout when toMatchAriaSnapshot is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        Expect.to_match_aria_snapshot(Page.locator(page, "body"), "- list",
+          timeout: 5000,
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    Page.wait_for_timeout!(page, 300)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Runtime.Promise.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(locator).toMatchAriaSnapshot(expected) failed"
+  end
+
+  test "should fail like a timeout when toHaveURL is aborted mid-assertion", %{page: page} do
+    Page.set_content!(page, "<div>content</div>")
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        Expect.to_have_url(page, "https://example.com/", timeout: 5000, signal: AbortController.signal(controller))
+      end)
+
+    Page.wait_for_timeout!(page, 500)
+    AbortController.abort(controller, %RuntimeError{message: "stop it"})
+    {:error, error} = Runtime.Promise.await(promise)
+    refute error.name == "AbortError"
+    assert error.message =~ "expect(page).toHaveURL(expected) failed"
+  end
+
+  test "should fail the assertion when the signal is already aborted", %{page: page, server: server} do
+    Page.set_content!(page, "<div>content</div>")
+
+    controller = AbortController.new()
+    AbortController.abort(controller, %RuntimeError{message: "already aborted"})
+
+    {:error, error} =
+      Expect.to_be_visible(Page.locator(page, "div"), timeout: 5000, signal: AbortController.signal(controller))
+
+    refute error.name == "AbortError"
+
+    assert error.message == """
+           expect(locator).toBeVisible() failed
+
+           Locator: Page.locator(page, "div")
+           Expected: visible
+           Error: The assertion was aborted: already aborted
+           """
+
+    controller = AbortController.new()
+    AbortController.abort(controller, "stop it")
+
+    {:error, error} =
+      Expect.to_have_url(page, server.empty_page, timeout: 5000, signal: AbortController.signal(controller))
+
+    refute error.name == "AbortError"
+
+    assert error.message == """
+           expect(page).toHaveURL(expected) failed
+
+           Expected: #{JSON.encode!(server.empty_page)}
+           Error: The assertion was aborted: stop it
+           """
+  end
+end

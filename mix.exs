@@ -1,10 +1,10 @@
 defmodule PlaywrightEx.MixProject do
   use Mix.Project
 
-  @version "0.16.0"
+  @version "0.17.0-rc.0"
   @source_url "https://github.com/ftes/playwright_ex"
   @description """
-  Elixir client for the Playwright node.js driver.
+  Elixir client for Playwright: a port of the official JavaScript client.
   """
 
   def project do
@@ -13,8 +13,8 @@ defmodule PlaywrightEx.MixProject do
       version: @version,
       description: @description,
       elixir: "~> 1.18",
-      deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
+      deps: deps(),
       package: package(),
       name: "PlaywrightEx",
       source_url: @source_url,
@@ -24,7 +24,6 @@ defmodule PlaywrightEx.MixProject do
         plt_local_path: "priv/plts/project.plt",
         plt_core_path: "priv/plts/core.plt",
         plt_add_apps: [:ex_unit, :mix]
-        # flags: [:specdiffs]
       ]
     ]
   end
@@ -32,32 +31,35 @@ defmodule PlaywrightEx.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
-    ]
-  end
-
-  # Run "mix help deps" to learn about dependencies.
-  defp deps do
-    [
-      {:nimble_options, "~> 1.1"},
-      {:mime, "~> 2.0", optional: true},
-      {:websockex, ">= 0.4.0 and < 1.0.0", optional: true},
-      {:testcontainers, "~> 2.0", only: :test},
-      {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:styler, "~> 1.3", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      mod: {PlaywrightEx.Application, []},
+      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`).
+      extra_applications: [:logger, :inets, :ssl, :crypto, :public_key]
     ]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
+  # Run "mix help deps" to learn about dependencies.
+  defp deps do
+    [
+      {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # The port of upstream tests/config/testserver.
+      {:bandit, "~> 1.6", only: :test},
+      # RFC 6455 framing of TestServer.WebSocket (`cow_ws`).
+      {:cowlib, "~> 2.21", only: :test}
+    ]
+  end
+
   defp package do
     [
       licenses: ["MIT"],
       links: %{"Github" => @source_url},
-      exclude_patterns: ~w(assets/node_modules priv/static/assets priv/plts)
+      # Hex's default files, plus the pinned versions `PlaywrightEx.Driver` reads when compiling.
+      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md DRIVER_VERSION NODE_VERSION),
+      exclude_patterns: ~w(priv/plts)
     ]
   end
 
@@ -66,9 +68,7 @@ defmodule PlaywrightEx.MixProject do
       preferred_envs: [
         format: :test,
         setup: :test,
-        check: :test,
-        "assets.setup": :test,
-        "test.websocket": :test
+        check: :test
       ]
     ]
   end
@@ -77,60 +77,126 @@ defmodule PlaywrightEx.MixProject do
     [
       main: "readme",
       source_ref: "v#{@version}",
+      extra_section: "GUIDES",
       extras: [
         "README.md": [title: "Overview"],
+        "guides/introduction/getting-started.md": [title: "Getting started"],
+        "guides/introduction/api-conventions.md": [title: "From playwright.dev to Elixir"],
+        "guides/introduction/cheatsheet.cheatmd": [title: "Cheatsheet"],
+        "guides/testing-with-exunit.md": [title: "Testing with ExUnit"],
+        "guides/events-and-waiting.md": [title: "Events and waiting"],
+        "guides/network.md": [title: "Network"],
+        "guides/debugging-and-ci.md": [title: "Debugging and CI"],
+        "guides/concurrency.md": [title: "Concurrency"],
+        "guides/migration.md": [title: "Migrating from 0.16"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
+      groups_for_extras: [
+        Introduction: ["README.md", ~r"^guides/introduction/"],
+        Guides: [
+          "guides/testing-with-exunit.md",
+          "guides/events-and-waiting.md",
+          "guides/network.md",
+          "guides/debugging-and-ci.md",
+          "guides/concurrency.md"
+        ],
+        Upgrading: ["guides/migration.md", "CHANGELOG.md"]
+      ],
       nest_modules_by_prefix: [PlaywrightEx],
-      filter_modules: fn _, metadata ->
-        not String.contains?(to_string(metadata.source_path), "/processes/")
-      end,
-      default_group_for_doc: &group_for_doc/1,
+      # The changelog names functions of the API before the restructure.
+      skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
+      # Internals keep their moduledocs (read in the source; docs/architecture.md) but stay out of
+      # hexdocs: the user API is the generated facade, the errors and the runtime entry points.
+      filter_modules: fn _, metadata -> not internal_source?(to_string(metadata.source_path)) end,
+      # playwright.dev's API sidebar, roughly; internals are filtered out above.
       groups_for_modules: [
-        Channels:
-          if File.exists?("lib") do
-            for file <- File.ls!("lib/playwright_ex/channels") do
-              "PlaywrightEx.#{file |> Path.basename(".ex") |> Macro.camelize()}"
-            end
-          end,
-        Other: [
-          PlaywrightEx.Artifact,
+        Core: [
+          PlaywrightEx,
+          PlaywrightEx.Supervisor,
+          PlaywrightEx.Driver,
+          PlaywrightEx.Promise,
+          PlaywrightEx.Playwright,
+          PlaywrightEx.BrowserType,
+          PlaywrightEx.Browser,
+          PlaywrightEx.BrowserContext,
+          PlaywrightEx.Selectors,
+          PlaywrightEx.Clock,
+          PlaywrightEx.Credentials,
+          PlaywrightEx.Disposable,
+          PlaywrightEx.RegExp,
+          PlaywrightEx.AbortController,
+          PlaywrightEx.AbortSignal
+        ],
+        Pages: [
+          PlaywrightEx.Page,
+          PlaywrightEx.Frame,
+          PlaywrightEx.Locator,
+          PlaywrightEx.FrameLocator,
+          PlaywrightEx.ElementHandle,
+          PlaywrightEx.JSHandle,
+          PlaywrightEx.Keyboard,
+          PlaywrightEx.Mouse,
+          PlaywrightEx.Touchscreen,
+          PlaywrightEx.Dialog,
           PlaywrightEx.Download,
-          PlaywrightEx.EventWaiter,
-          PlaywrightEx.JsLogger,
-          PlaywrightEx.Supervisor
+          PlaywrightEx.FileChooser,
+          PlaywrightEx.ConsoleMessage,
+          PlaywrightEx.WebError,
+          PlaywrightEx.WebStorage,
+          PlaywrightEx.WebMCP,
+          PlaywrightEx.Worker
+        ],
+        Assertions: [PlaywrightEx.Expect, PlaywrightEx.ExpectError],
+        Network: [
+          PlaywrightEx.Request,
+          PlaywrightEx.Response,
+          PlaywrightEx.Route,
+          PlaywrightEx.WebSocket,
+          PlaywrightEx.WebSocketRoute,
+          PlaywrightEx.APIRequest,
+          PlaywrightEx.APIRequestContext,
+          PlaywrightEx.APIResponse
+        ],
+        "Artifacts and debugging": [
+          PlaywrightEx.Tracing,
+          PlaywrightEx.Video,
+          PlaywrightEx.Screencast,
+          PlaywrightEx.Coverage,
+          PlaywrightEx.CDPSession,
+          PlaywrightEx.Debugger
+        ],
+        Errors: [
+          PlaywrightEx.PlaywrightError,
+          PlaywrightEx.TimeoutError,
+          PlaywrightEx.TargetClosedError,
+          PlaywrightEx.AbortError
         ]
       ]
     ]
   end
 
-  defp group_for_doc(metadata) do
-    case metadata[:group] do
-      :composed ->
-        %{
-          title: "Client-Composed Functions",
-          description:
-            "Helpers composed in this client from multiple channel operations/events, primarily to keep API parity with other Playwright clients where no single server method maps directly."
-        }
-
-      group ->
-        group
-    end
+  # Internals and contributor tasks: in the source with their moduledocs, not in hexdocs.
+  defp internal_source?(path) do
+    Enum.any?(
+      [
+        ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/",
+        ~r"/lib/playwright_ex/(out_of_process|upstream)\.ex$",
+        ~r"/lib/mix/playwright_ex/",
+        ~r"/lib/mix/tasks/playwright_ex\.(checksums|gen\.api|gen\.protocol|parity)\.ex$"
+      ],
+      &(path =~ &1)
+    )
   end
 
   defp aliases do
     [
-      setup: ["deps.get", "assets.setup"],
-      "assets.setup": [
-        "cmd npm install --prefix assets",
-        "cmd npm exec --prefix assets playwright -- install chromium --with-deps --only-shell"
-      ],
-      "test.websocket": "playwright_ex.test.websocket",
+      setup: ["deps.get", "playwright_ex.install -- chromium"],
       check: [
         "format --check-formatted",
         "credo",
         "compile --warnings-as-errors",
         "dialyzer --format github --format dialyxir",
+        "playwright_ex.parity",
         "test --warnings-as-errors"
       ]
     ]

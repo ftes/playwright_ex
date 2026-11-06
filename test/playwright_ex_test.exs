@@ -1,80 +1,86 @@
 defmodule PlaywrightExTest do
-  use PlaywrightExCase, async: true
+  use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Selector
-  alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Playwright
+  alias PlaywrightEx.PlaywrightError
+  alias PlaywrightEx.Runtime.Conn
+  alias PlaywrightEx.TestBrowser
 
-  doctest PlaywrightEx
+  setup_all do
+    start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
+    %{playwright: PlaywrightEx.playwright(__MODULE__)}
+  end
 
-  @open_trace_viewer_for_manual_inspection false
-  @moduletag tmp_dir: @open_trace_viewer_for_manual_inspection
+  test "root Playwright object", %{playwright: playwright} do
+    assert BrowserType.name(Playwright.chromium(playwright)) == "chromium"
+    assert BrowserType.name(Playwright.firefox(playwright)) == "firefox"
+    assert BrowserType.name(Playwright.webkit(playwright)) == "webkit"
+    assert %{"iPhone 15" => %{user_agent: _, viewport: %{width: _}}} = Playwright.devices(playwright)
+  end
 
-  setup context do
-    if @open_trace_viewer_for_manual_inspection do
-      on_exit_open_trace(context.browser_context.tracing.guid, context.tmp_dir, @timeout)
+  test "launches and closes the browser", %{playwright: playwright} do
+    assert {:ok, browser} = BrowserType.launch(TestBrowser.browser_type(playwright))
+    assert inspect(browser) =~ ~r/^#PlaywrightEx\.Browser<browser@\w+>$/
+    assert Browser.version(browser) =~ ~r/^\d+\.\d+/
+    assert Browser.is_connected(browser)
+    assert Browser.browser_type(browser) == TestBrowser.browser_type(playwright)
+    refute Conn.in_conn?()
+
+    assert Browser.close(browser) == :ok
+    refute Browser.is_connected(browser)
+    # Closing twice is fine (TargetClosedError is swallowed, as upstream).
+    assert Browser.close!(browser, reason: "done") == :ok
+  end
+
+  test "disconnected listeners run during close", %{playwright: playwright} do
+    test = self()
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
+    listener = fn b -> send(test, {:disconnected, b}) end
+    assert Browser.on(browser, :disconnected, listener) == browser
+    Browser.close!(browser)
+    assert_received {:disconnected, ^browser}
+
+    assert_raise ArgumentError, ~r/browser\.on: unknown event :closed, expected one of :context, :disconnected/, fn ->
+      Browser.on(browser, :closed, listener)
+    end
+  end
+
+  test "protocol errors carry the API name and the call log", %{playwright: playwright} do
+    assert {:error, %PlaywrightError{} = error} =
+             BrowserType.launch(TestBrowser.browser_type(playwright), executable_path: "/nonexistent/chrome")
+
+    assert error.message =~ ~r/^browserType\.launch: .*\/nonexistent\/chrome/
+    assert is_list(error.log)
+
+    assert_raise PlaywrightError, ~r/^browserType\.launch: /, fn ->
+      BrowserType.launch!(TestBrowser.browser_type(playwright), executable_path: "/nonexistent/chrome")
+    end
+  end
+
+  test "client-side validation errors", %{playwright: playwright} do
+    chromium = Playwright.chromium(playwright)
+
+    assert_raise PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError,
+                 "browserType.launch: args: expected array, got string",
+                 fn -> BrowserType.launch!(chromium, args: "--no-sandbox") end
+  end
+
+  test "options: snake_case keys, nested objects with JS keys, unknown keys", %{playwright: playwright} do
+    browser_type = TestBrowser.browser_type(playwright)
+
+    browser =
+      BrowserType.launch!(browser_type, timeout: :infinity, proxy: %{server: "per-context"}, chromium_sandbox: false)
+
+    Browser.close!(browser)
+
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown field :proxy\.servr, expected one of :bypass/, fn ->
+      BrowserType.launch(browser_type, proxy: %{servr: "x"})
     end
 
-    :ok
-  end
-
-  test "assert and navigate a fixture page", %{frame: frame} do
-    set_html(
-      frame.guid,
-      """
-      <style>
-        #install { display: none; }
-        #install:target { display: block; }
-      </style>
-      <h1>Playwright Ex is a browser automation client</h1>
-      <a href="#install">Install</a>
-      <section id="install">
-        <a href="#macos">macOS</a>
-      </section>
-      """
-    )
-
-    assert_has(frame.guid, Selector.role("heading", "Playwright Ex is a browser automation client"))
-    refute_has(frame.guid, Selector.role("heading", "I made this up"))
-
-    {:ok, _} = Frame.click(frame.guid, selector: Selector.link("Install"), timeout: @timeout)
-    assert_has(frame.guid, Selector.link("macOS"))
-  end
-
-  test "launches with Playwright 1.63 environment and signal fields" do
-    assert {:ok, browser} =
-             PlaywrightEx.launch_browser(:chromium,
-               env: %{"PLAYWRIGHT_EX_PROTOCOL_TEST" => "1"},
-               handle_sigint: false,
-               handle_sigterm: false,
-               handle_sighup: false,
-               timeout: @timeout
-             )
-
-    assert {:ok, _} = PlaywrightEx.Browser.close(browser.guid, timeout: @timeout)
-  end
-
-  def on_exit_open_trace(tracing_id, tmp_dir, timeout) do
-    {:ok, _} =
-      Tracing.tracing_start(tracing_id,
-        screenshots: true,
-        snapshots: %{dom: true, aria: true, screen: true},
-        timeout: timeout
-      )
-
-    {:ok, _} = Tracing.tracing_start_chunk(tracing_id, timeout: timeout)
-
-    ExUnit.Callbacks.on_exit(fn ->
-      {:ok, zip_file} = Tracing.tracing_stop_chunk(tracing_id, timeout: timeout)
-      {:ok, _} = Tracing.tracing_stop(tracing_id, timeout: timeout)
-
-      trace_file = Path.join(tmp_dir, "trace.zip")
-      File.cp!(zip_file.absolute_path, trace_file)
-
-      spawn(fn ->
-        executable = :playwright_ex |> Application.fetch_env!(:executable) |> Path.expand()
-        System.cmd(executable, ["show-trace", trace_file])
-      end)
-    end)
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown option :chromiumSandbox/, fn ->
+      BrowserType.launch(browser_type, chromiumSandbox: false)
+    end
   end
 end

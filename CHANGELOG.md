@@ -5,10 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-## [Unreleased]
+## [0.17.0-rc.0] 2026-11-06
 
-### Fixed
-- Fix transport crash on large outgoing messages (e.g. `set_input_files` payloads over ~1 MB).
+Drives Playwright 1.64.
+
+### Changed
+- Rewritten as a 1:1 port of the official JavaScript client (breaking).
+  See the [migration guide](guides/migration.md).
+- Tuple forms return `{:error, e}` only for the errors upstream rejects with
+  (`PlaywrightEx.error()`); other exceptions (bugs, misuse) raise in both forms.
+- `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a
+  supervision tree.
+- `mix playwright_ex.install` fails with the CLI's exit status instead of a `MatchError`.
+- Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError` at application start.
+- Failed bang matchers raise `PlaywrightEx.ExpectError`, not `ExUnit.AssertionError` (see
+  [Testing with ExUnit](guides/testing-with-exunit.md#assertions) to wrap them).
+- A lost driver closes its objects as a lost `BrowserType.connect` connection does: pages and
+  contexts emit `close`, browsers `disconnected`, and waits on them fail with
+  `PlaywrightEx.TargetClosedError` instead of hanging, as do waits on anything else (a worker)
+  once the old connection stops. `PlaywrightEx.playwright/1` waits for the restarted driver.
+  Handles of the lost driver keep reading their last state while the processes that created
+  them live, closing them returns `:ok`, and the loss is logged as an error with the driver's
+  exit status.
+
+### Added
+- [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before
+  checking state, promise lifetimes, differences from JS.
 
 ## [0.16.0] 2026-11-04
 

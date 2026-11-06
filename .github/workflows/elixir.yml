@@ -10,23 +10,75 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  # Nightly, so firefox/webkit regressions show up without a push.
+  schedule:
+    - cron: "0 3 * * *"
+  # The inputs are for experiments; their defaults (and every other event) run the full CI.
+  workflow_dispatch:
+    inputs:
+      max_cases:
+        description: "ExUnit max_cases for the test runs (PW_MAX_CASES), default: half the schedulers"
+        required: false
+        type: string
+        default: ""
+      browsers:
+        description: 'Browsers to test: one name or a JSON list (firefox, ["firefox","webkit"]), default: all'
+        required: false
+        type: string
+        default: ""
+      partitions:
+        description: "Partitions per browser (1-8), default: 6"
+        required: false
+        type: string
+        default: ""
+      skip_lint:
+        description: "Skip the build and lint job (the tests then restore the build cache only)"
+        required: false
+        type: boolean
+        default: false
+
+# A new push to a PR cancels its running CI. Other events (main pushes, the nightly, dispatched
+# experiments) get a group of their own: in a shared group GitHub keeps one run pending and cancels
+# the older pending one, which would drop a nightly or a main push's cache save, and serialize
+# parallel experiments.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
   MIX_ENV: test
-  PW_TIMEOUT: 4000
 
 jobs:
   build:
     name: Build and lint
+    if: ${{ !inputs.skip_lint }}
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup languages
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+      # Caches built on another runner image (e.g. ubuntu24 vs ubuntu26) don't fit: PLTs are
+      # rejected as "Old PLT file", compiled NIFs and ERTS paths may differ.
+      - name: Get runner image
+        id: runner_image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      # deps and the whole _build (our app too: Mix compares content digests, so a fresh checkout
+      # recompiles only what changed, and --warnings-as-errors re-emits the manifest's warnings).
+      # Every job restores; this job saves it, on main only (a PR never writes the shared cache).
+      # The test jobs build the same MIX_ENV=test tree, without docs' _build/dev.
+      - name: Restore deps and _build
+        id: mix_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
+          path: |
+            deps
+            _build
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
       - name: Check Formatting
@@ -35,10 +87,16 @@ jobs:
         run: mix credo
       - name: Compiles without warnings
         run: mix compile --warnings-as-errors
-      # PLTs built on another runner image (e.g. ubuntu24 vs ubuntu26) are rejected as "Old PLT file".
-      - name: Get runner image
-        id: runner_image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      # As a Hex install does: from the package's files only (DRIVER_VERSION etc. are read when
+      # compiling). In the checkout, so mise's .tool-versions applies.
+      - name: Hex package compiles
+        run: |
+          mix hex.build --unpack --output tmp/hex-package
+          cd tmp/hex-package && MIX_ENV=prod mix compile --warnings-as-errors
+      - name: Docs build without warnings
+        run: mix docs --warnings-as-errors
+        env:
+          MIX_ENV: dev
       - name: Restore Dialyzer PLT cache
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -58,30 +116,166 @@ jobs:
           path: priv/plts
       - name: Run Dialyzer
         run: mix dialyzer --format github --format dialyxir
+      # Last, so only a green job saves; under the key computed before deps.get.
+      - name: Save deps and _build
+        if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: ${{ steps.mix_cache.outputs.cache-primary-key }}
+          path: |
+            deps
+            _build
 
+  # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
+  # path). Parity, Selenium and headful run once per browser, in partition 1.
   test:
-    name: Test (${{ matrix.transport }})
+    name: Test (${{ matrix.browser }}, ${{ matrix.partition }}/${{ matrix.partitions }})
     runs-on: ubuntu-latest
     needs: build
-
+    # After a green build, or none when skip_lint skipped it.
+    if: ${{ !cancelled() && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
+    # The slowest partition took ~12 min at 4 per browser (firefox, with BrowsertypeConnectTest); a
+    # hang fails here instead of at GitHub's 6 h.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        transport: [port, websocket]
-        include:
-          - transport: port
-            mix_task: test
-          - transport: websocket
-            mix_task: test.websocket
+        # Without inputs (any event but a dispatch that sets them): all browsers, 6 partitions.
+        browser: ${{ fromJSON(!inputs.browsers && '["chromium","firefox","webkit"]' || startsWith(inputs.browsers, '[') && inputs.browsers || format('["{0}"]', inputs.browsers)) }}
+        partitions: ${{ fromJSON(format('[{0}]', inputs.partitions || '6')) }}
+        partition: ${{ fromJSON('{"1":[1],"2":[1,2],"3":[1,2,3],"4":[1,2,3,4],"5":[1,2,3,4,5],"6":[1,2,3,4,5,6],"7":[1,2,3,4,5,6,7],"8":[1,2,3,4,5,6,7,8]}')[inputs.partitions || '6'] }}
+    env:
+      BROWSER: ${{ matrix.browser }}
+      # Empty (the default, and on other events) leaves test_helper.exs's default.
+      PW_MAX_CASES: ${{ inputs.max_cases }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup languages
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+      - name: Get runner image
+        id: runner_image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      # Saved by the build job (on main).
+      - name: Restore deps and _build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
+          path: |
+            deps
+            _build
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      - name: Install JS dependencies and browsers
-        if: matrix.transport == 'port'
-        run: mix setup
+      # --with-deps runs apt-get against the runner's Azure mirror, which has stalled or trickled for
+      # whole attempts (webkit pulls ~140 MB). The .debs are cached per browser and driver version, so
+      # a warm run installs offline; archive.ubuntu.com is a fallback mirror; apt times out stalled
+      # fetches; each attempt is capped, and a killed attempt's apt-get (sudo puts it out of timeout's
+      # reach) is killed before the next.
+      - name: Restore browser system packages
+        id: apt_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04
+          path: ~/apt-cache
+      - name: Install driver and browsers
+        run: |
+          printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "5";\nDPkg::Lock::Timeout "60";\nAPT::Keep-Downloaded-Packages "true";\n' | sudo tee /etc/apt/apt.conf.d/99timeouts
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then echo "http://archive.ubuntu.com/ubuntu/" | sudo tee -a /etc/apt/apt-mirrors.txt; fi
+          if compgen -G ~/apt-cache/'*.deb' > /dev/null; then sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/; fi
+          for attempt in 1 2 3; do
+            if timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps; then
+              mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
+              exit 0
+            fi
+            echo "::warning::browser install attempt $attempt failed or timed out"
+            sudo pkill -x apt-get || true
+          done
+          exit 1
+      # One job per browser saves (the partitions would race for the same key).
+      - name: Save browser system packages
+        if: matrix.partition == 1 && steps.apt_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: ${{ steps.apt_cache.outputs.cache-primary-key }}
+          path: ~/apt-cache
+      - name: Check parity with upstream
+        if: matrix.browser == 'chromium' && matrix.partition == 1
+        run: mix playwright_ex.parity
+      # Under xvfb like upstream's CI (Linux firefox WebGL needs a display). Test failures (exit 2)
+      # are retried once, as upstream retries on CI (`retries: 3`); compile errors are not. The
+      # first run's failures (PlaywrightEx.FailuresFormatter) go to the job summary and annotations,
+      # so a green rerun does not hide them. The rerun takes no --partitions: the failures manifest
+      # holds this partition's failures only, and --partitions would split those files again. The
+      # 10 slowest modules (PlaywrightEx.ModuleTimesFormatter) are the floor of a partition's time.
       - name: Run tests
-        run: mix ${{ matrix.mix_task }} --warnings-as-errors
+        env:
+          PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
+          PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
+          MIX_TEST_PARTITION: ${{ matrix.partition }}
+          PARTITIONS: ${{ matrix.partitions }}
+        run: |
+          label="$BROWSER, $MIX_TEST_PARTITION/$PARTITIONS"
+          status=0
+          xvfb-run --auto-servernum -- mix test --warnings-as-errors --partitions "$PARTITIONS" || status=$?
+          if [[ -s "$PW_MODULE_TIMES_FILE" ]]; then
+            echo "Slowest modules ($label), wall ms, setup_all included:"
+            sort -rn "$PW_MODULE_TIMES_FILE" | head -n 10
+          fi
+          if [[ -s "$PW_FAILURES_FILE" ]]; then
+            {
+              echo "### First-run failures ($label, retried once)"
+              echo
+              while IFS=$'\t' read -r location name; do echo "- \`$location\` $name"; done < "$PW_FAILURES_FILE"
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS=$'\t' read -r location name; do
+              message="First run failed ($label): $name"
+              message=${message//'%'/'%25'}
+              echo "::warning file=${location%:*},line=${location##*:}::$message"
+            done < "$PW_FAILURES_FILE"
+          fi
+          if [[ $status = 2 ]]; then
+            PW_FAILURES_FILE='' xvfb-run --auto-servernum -- mix test --failed
+          else
+            exit $status
+          fi
+      # tests/library/browsertype-launch-selenium.spec.ts, set up as upstream's installation test
+      # (connect-to-selenium.spec.ts) does: the two Selenium Server jars (cached; downloaded on
+      # chromium only), the runner image's Google Chrome and its ChromeDriver, Java 17 (the image's
+      # default 25 is newer than Selenium 3.141.59). The step above skips the spec (no
+      # PWTEST_SELENIUM); this one runs only it: the grid tests on chromium, the non-chromium error
+      # test (no grid) on firefox and webkit.
+      - name: Restore Selenium Server jars
+        if: matrix.browser == 'chromium' && matrix.partition == 1
+        id: selenium_cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: selenium-server-3.141.59-4.8.3
+          path: ~/selenium
+      - name: Download Selenium Server jars
+        if: matrix.browser == 'chromium' && matrix.partition == 1 && steps.selenium_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/selenium
+          curl -fsSL --retry 3 -o ~/selenium/selenium-server-4.8.3.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.8.0/selenium-server-4.8.3.jar
+          curl -fsSL --retry 3 -o ~/selenium/selenium-server-standalone-3.141.59.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-3.141.59/selenium-server-standalone-3.141.59.jar
+      - name: Run Selenium tests
+        if: matrix.partition == 1
+        run: |
+          export PATH=$JAVA_HOME_17_X64/bin:$PATH PWTEST_SELENIUM=$HOME/selenium PWTEST_CHROMEDRIVER=$CHROMEWEBDRIVER/chromedriver
+          mix test test/upstream/library/browsertype_launch_selenium_test.exs || if [[ $? = 2 ]]; then mix test --failed; else false; fi
+      # Upstream runs headed-only tests (headful.spec.ts, `test.skip(headless)`) in its headed runs
+      # (`--headed`); HEADED=1 is that `headless: false` (PlaywrightEx.TestBrowser). Only the tests
+      # tagged :headed, under the same xvfb and in this job (no extra setup): ~10-20 s of tests.
+      # Blocking as the job is: green on all three browsers.
+      - name: Run headful tests
+        if: matrix.partition == 1
+        run: HEADED=1 xvfb-run --auto-servernum -- mix test --only headed || if [[ $? = 2 ]]; then HEADED=1 xvfb-run --auto-servernum -- mix test --failed; else false; fi
+
+  # The one check to require: green when every browser's partitions are.
+  tests:
+    name: Tests
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.test.result }}" = success
