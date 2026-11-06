@@ -976,3 +976,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Lead, C3a-14: `JSHandle.get_properties` keeps returning a map (python returns a dict; an ordered
   list would change the public API); marked a deviation. C3a-10: page_mouse's Mac-WebKit env skip
   is unverifiable here; re-check on the next WebKit roll.
+- VF-E (tracing/download/screenshot): upstream's close-before-parse order kept; `parse_trace_raw`
+  renders titles through `browser_type` since the closed context's connection is gone. `Promise.all`
+  of awaited calls stays `Task.async` + `Task.await_many` (not X-01). Lead: tracing's screencast
+  frames tests get the same macOS 26 WebKit `env:` skip as video_test (they fail on the base too;
+  Linux CI webkit passes them).
