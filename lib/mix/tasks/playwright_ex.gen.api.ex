@@ -262,7 +262,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     """
     #{@header}
     defmodule #{inspect(facade(name))} do
-      #{String.replace(since(class), "@doc", "@moduledoc")}@moduledoc #{doc(module_doc(ctx, class, events))}
+      @moduledoc #{doc(module_doc(ctx, class, events))}
 
       #{if String.contains?(body, "Facade."), do: "alias PlaywrightEx.Runtime.Facade"}
 
@@ -297,6 +297,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp module_doc(ctx, class, events) do
     sections([
       md(class["spec"], ctx),
+      since(class),
       class["extends"] && extends_doc(ctx, class["extends"]),
       events != [] &&
         "## Events\n\n" <>
@@ -313,7 +314,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp event_doc(ctx, event, since) do
     doc = md(event["spec"], ctx)
-    doc = if newer?(event["since"], since), do: inline_join("*Since #{version(event["since"])}.*", doc), else: doc
+    doc = if newer?(event["since"], since), do: inline_join(since_text(event["since"]), doc), else: doc
     sections(["### `#{inspect(event_atom(event))}`", doc])
   end
 
@@ -336,7 +337,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     defstruct [:actual, isNot: true]
 
-    #{since(member)}@doc #{doc(member_doc(ctx, member, []))}
+    @doc #{doc(member_doc(ctx, member, []))}
     @spec not_(actual) :: t(actual) when actual: #{receiver_spec}
     def not_(%__MODULE__{}),
       do: raise(ArgumentError, "expect.not: the receiver is negated already (JS has no expect(x).not.not)")
@@ -388,14 +389,14 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     """
     #{attributes}
 
-    #{since(member)}#{deprecated(member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
+    #{deprecated(member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
     #{spec(name, m, ":ok | {:error, PlaywrightEx.error()}")}
     #{clauses(m, name)}def #{head(name, params, m.or_options)} do
       #{conversions}
       Facade.matcher(#{receiver}, fn -> #{call} end)
     end
 
-    #{since(member)}#{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met."
+    #{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met."
     #{spec(name <> "!", m, ":ok")}
     #{clauses(m, name <> "!")}def #{head(name <> "!", params, m.or_options)} do
       #{conversions}
@@ -444,7 +445,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       spec_args: ["t()" | Enum.map(args, &arg_spec(ctx, &1, name))],
       return: if(void?, do: ":ok", else: return_spec(ctx, member)),
       examples: examples,
-      docs: since(member) <> deprecated(member) <> "@doc #{doc(doc)}"
+      docs: deprecated(member) <> "@doc #{doc(doc)}"
     })
   end
 
@@ -574,7 +575,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       Facade.promise(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end)
     end
 
-    #{since(member)}#{deprecated(member)}@doc #{doc(promise_bang_doc(member, m))}
+    #{deprecated(member)}@doc #{doc(promise_bang_doc(member, m))}
     #{spec(m.name <> "!", m, m.return)}
     def #{m.name}!(#{Enum.join(m.params, ", ")}),
       do: Facade.await!(#{m.name}(#{Enum.map_join(m.params, ", ", &no_default/1)}))
@@ -599,7 +600,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       Facade.#{async}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
     end
 
-    #{since(member)}#{deprecated(member)}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
+    #{deprecated(member)}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
     #{spec(m.name <> "!", m, m.return)}
     #{clauses(m, m.name <> "!")}def #{head(m.name <> "!", m.params, m.function || m.or_options)} do
       #{m.conversions}
@@ -733,6 +734,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     sections([
       md(member["spec"], ctx),
       member["discouraged"] && note("Discouraged", "warning", text(member["discouraged"], ctx)),
+      since(member),
       positional != [] &&
         "## Arguments\n\n" <>
           Enum.map_join(positional, "\n", &bullet(ctx, "`#{var(&1["name"])}`", &1, member["since"])),
@@ -814,7 +816,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # their parent say since when, as on playwright.dev.
   defp bullet(ctx, name, prop, since) do
     doc = md(prop["spec"], %{ctx | input: true})
-    doc = if newer?(prop["since"], since), do: inline_join("*Since #{version(prop["since"])}.*", doc), else: doc
+    doc = if newer?(prop["since"], since), do: inline_join(since_text(prop["since"]), doc), else: doc
 
     item =
       cond do
@@ -841,7 +843,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp inline_join(head, ""), do: head
   defp inline_join(head, doc), do: if(block_start?(doc), do: head <> "\n\n" <> doc, else: head <> " " <> doc)
 
-  # api.json versions are "v1.8"; ours mirror upstream's (see PLAN.md).
+  # api.json versions are "v1.8".
   defp version("v" <> version), do: version
 
   defp newer?(since, parent) when is_binary(since) and is_binary(parent),
@@ -851,8 +853,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp semver(since), do: since |> version() |> Kernel.<>(".0") |> Version.parse!()
 
-  defp since(%{"since" => since}) when is_binary(since), do: "@doc since: #{inspect(version(since))}\n"
-  defp since(_member), do: ""
+  # The Playwright version that added a class or member, as text: our versions are not
+  # Playwright's yet, so no `@doc since:`.
+  defp since(%{"since" => since}) when is_binary(since), do: since_text(since)
+  defp since(_member), do: nil
+
+  defp since_text(since), do: "*Since Playwright #{version(since)}.*"
 
   # Fields of an object type, also inside arrays and unions (`viewport: null|Object`).
   defp props(%{"properties" => props}) when is_list(props), do: Enum.uniq_by(props, & &1["name"])

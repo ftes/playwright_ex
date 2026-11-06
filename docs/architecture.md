@@ -63,7 +63,8 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   `expect_*`, and get the callback form too (`expect_popup(page, action)`, C#'s order). Bang
   waits exist but await at once.
 - Docs render from the `spec` AST, not `comment` (admonitions, nested option bullets,
-  `*Since 1.x.*`, events as moduledoc headings). Non-JS doc variants replace JS-only text where
+  `*Since Playwright 1.x.*` as text, not `since:` metadata while our versions differ, events as
+  moduledoc headings). Non-JS doc variants replace JS-only text where
   the type matches. A JS example with an Elixir translation in `test/examples` (tests, so each
   compiles and runs; `PlaywrightEx.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
   rest stay JS until translated.

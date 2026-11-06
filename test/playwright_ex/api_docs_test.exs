@@ -57,6 +57,18 @@ defmodule PlaywrightEx.ApiDocsTest do
     assert calls == []
   end
 
+  # Until our versions are Playwright's: "*Since Playwright 1.8.*" in the text.
+  test "no `since:` metadata (it would read as a PlaywrightEx version)" do
+    with_since =
+      for module <- @modules,
+          {:docs_v1, _, _, _, _, module_meta, entries} = Code.fetch_docs(module),
+          {name, meta} <- [{"moduledoc", module_meta} | for({{_, n, a}, _, _, _, m} <- entries, do: {"#{n}/#{a}", m})],
+          Map.has_key?(meta, :since),
+          do: "#{inspect(module)}.#{name}"
+
+    assert with_since == []
+  end
+
   defp offending(docs, regex) do
     for {module, function, _signature, prose} <- docs,
         [match | _] <- Regex.scan(regex, prose),
