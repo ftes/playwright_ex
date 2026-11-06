@@ -1152,3 +1152,6 @@ drift). Blockers for release, assigned to follow-up workstreams:
   runs unrendered cleanup, a single `test` body runs as the example. Prose polish merged (no
   `null`/`undefined`/JS option names left; `test/playwright_ex/api_docs_test.exs` guards it). The
   options typedoc names `fun/arity`, so ExDoc links it (user).
+- User/lead, docs: option bullets carry their type after the name, as NimbleOptions renders them
+  (`* `:timeout` (`number() | :infinity`) - ...`); an object option's maps read `map()`, its fields
+  follow as nested bullets. No extra link to the options type: the `@spec` already links it.

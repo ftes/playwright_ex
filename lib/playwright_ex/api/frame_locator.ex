@@ -123,7 +123,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
           PlaywrightEx.Locator.t()
@@ -162,7 +162,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
           PlaywrightEx.Locator.t()
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
           PlaywrightEx.Locator.t()
@@ -374,35 +374,35 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:checked` - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
+  * `:checked` (`boolean()`) - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
 
     Learn more about [`aria-checked`](https://www.w3.org/TR/wai-aria-1.2/#aria-checked).
-  * `:description` - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
+  * `:description` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible description](https://w3c.github.io/accname/#dfn-accessible-description).
-  * `:disabled` - An attribute that is usually set by `aria-disabled` or `disabled`.
+  * `:disabled` (`boolean()`) - An attribute that is usually set by `aria-disabled` or `disabled`.
 
     > #### Note {: .info}
     >
     > Unlike most other attributes, `disabled` is inherited through the DOM hierarchy.
     > Learn more about [`aria-disabled`](https://www.w3.org/TR/wai-aria-1.2/#aria-disabled).
-  * `:exact` - *Since 1.28.* Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
-  * `:expanded` - An attribute that is usually set by `aria-expanded`.
+  * `:exact` (`boolean()`) - *Since 1.28.* Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
+  * `:expanded` (`boolean()`) - An attribute that is usually set by `aria-expanded`.
 
     Learn more about [`aria-expanded`](https://www.w3.org/TR/wai-aria-1.2/#aria-expanded).
-  * `:include_hidden` - Option that controls whether hidden elements are matched. By default, only non-hidden elements, as [defined by ARIA](https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion), are matched by role selector.
+  * `:include_hidden` (`boolean()`) - Option that controls whether hidden elements are matched. By default, only non-hidden elements, as [defined by ARIA](https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion), are matched by role selector.
 
     Learn more about [`aria-hidden`](https://www.w3.org/TR/wai-aria-1.2/#aria-hidden).
-  * `:level` - A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.
+  * `:level` (`integer()`) - A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.
 
     Learn more about [`aria-level`](https://www.w3.org/TR/wai-aria-1.2/#aria-level).
-  * `:name` - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
+  * `:name` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible name](https://w3c.github.io/accname/#dfn-accessible-name).
-  * `:pressed` - An attribute that is usually set by `aria-pressed`.
+  * `:pressed` (`boolean()`) - An attribute that is usually set by `aria-pressed`.
 
     Learn more about [`aria-pressed`](https://www.w3.org/TR/wai-aria-1.2/#aria-pressed).
-  * `:selected` - An attribute that is usually set by `aria-selected`.
+  * `:selected` (`boolean()`) - An attribute that is usually set by `aria-selected`.
 
     Learn more about [`aria-selected`](https://www.w3.org/TR/wai-aria-1.2/#aria-selected).
   """
@@ -585,7 +585,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
           PlaywrightEx.Locator.t()
@@ -623,7 +623,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
           PlaywrightEx.Locator.t()
@@ -677,18 +677,18 @@ defmodule PlaywrightEx.FrameLocator do
 
   ## Options
 
-  * `:has` - Narrows down the results of the method to those which contain elements matching this relative locator.
+  * `:has` (`PlaywrightEx.Locator.t()`) - Narrows down the results of the method to those which contain elements matching this relative locator.
     For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
 
     Inner locator **must be relative** to the outer locator and is queried starting with the outer locator match, not the document root. For example, you can find `content` that has `div` in `<article><content><div>Playwright</div></content></article>`. However, looking for `content` that has `article div` will fail, because the inner locator must be relative and should not use any elements outside the `content`.
 
     Note that outer and inner locators must belong to the same frame. Inner locator must not contain [`FrameLocator`](`PlaywrightEx.FrameLocator`)s.
-  * `:has_not` - *Since 1.33.* Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the outer one.
+  * `:has_not` (`PlaywrightEx.Locator.t()`) - *Since 1.33.* Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the outer one.
     For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
 
     Note that outer and inner locators must belong to the same frame. Inner locator must not contain [`FrameLocator`](`PlaywrightEx.FrameLocator`)s.
-  * `:has_not_text` - *Since 1.33.* Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
-  * `:has_text` - Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
+  * `:has_not_text` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.33.* Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
+  * `:has_text` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
     For example, `"Playwright"` matches `<article><div>Playwright</div></article>`.
   """
   @spec locator(t(), String.t() | PlaywrightEx.Locator.t(), locator_options()) :: PlaywrightEx.Locator.t()

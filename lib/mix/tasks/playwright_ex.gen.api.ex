@@ -757,7 +757,25 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     function <> or_options
   end
 
-  defp option_bullet(ctx, prop, since), do: bullet(ctx, "`#{inspect(atom(prop["name"]))}`", prop, since)
+  # The option's type after its name, as NimbleOptions renders it; an object's fields follow as
+  # nested bullets, so its maps read `map()`.
+  defp option_bullet(ctx, prop, since),
+    do: bullet(ctx, "`#{inspect(atom(prop["name"]))}` (`#{option_type(ctx, prop)}`)", prop, since)
+
+  defp option_type(ctx, prop) do
+    spec = prop_spec(ctx, prop)
+    if props(prop["type"]) == [], do: spec, else: shallow_maps(spec)
+  end
+
+  # `%{...}` (balanced) as `map()`: the fields are listed below the option.
+  defp shallow_maps(spec), do: spec |> String.graphemes() |> shallow_maps(0, "")
+  defp shallow_maps([], _depth, acc), do: acc
+  defp shallow_maps(["%", "{" | rest], 0, acc), do: shallow_maps(rest, 1, acc <> "map()")
+  defp shallow_maps(["{" | rest], depth, acc) when depth > 0, do: shallow_maps(rest, depth + 1, acc)
+  defp shallow_maps(["}" | rest], depth, acc) when depth > 0, do: shallow_maps(rest, depth - 1, acc)
+  defp shallow_maps([_ | rest], depth, acc) when depth > 0, do: shallow_maps(rest, depth, acc)
+  defp shallow_maps([c | rest], 0, acc), do: shallow_maps(rest, 0, acc <> c)
+
   defp field_bullet(ctx, prop, since), do: bullet(ctx, "`#{inspect(String.to_atom(prop["name"]))}`", prop, since)
 
   # "* name - doc", then the fields of an object type as nested bullets. Fields newer than

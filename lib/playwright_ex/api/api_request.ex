@@ -200,12 +200,12 @@ defmodule PlaywrightEx.APIRequest do
 
   ## Options
 
-  * `:base_url` - Methods like `PlaywrightEx.APIRequestContext.get/3` take the base URL into consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Examples:
+  * `:base_url` (`String.t()`) - Methods like `PlaywrightEx.APIRequestContext.get/3` take the base URL into consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Examples:
 
     * baseURL: `http://localhost:3000` and sending request to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and sending request to `./bar.html` results in `http://localhost:3000/foo/bar.html`
     * baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in `http://localhost:3000/bar.html`
-  * `:client_certificates` - *Since 1.46.* TLS Client Authentication allows the server to request a client certificate and verify it.
+  * `:client_certificates` (`[map()]`) - *Since 1.46.* TLS Client Authentication allows the server to request a client certificate and verify it.
 
     **Details**
 
@@ -225,10 +225,10 @@ defmodule PlaywrightEx.APIRequest do
     * `:pfxPath` - Path to the PFX or PKCS12 encoded private key and certificate chain.
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
-  * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-  * `:fail_on_status_code` - *Since 1.51.* Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:extra_http_headers` (`%{optional(String.t()) => String.t()}`) - An object containing additional HTTP headers to be sent with every request. Defaults to none.
+  * `:fail_on_status_code` (`boolean()`) - *Since 1.51.* Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:http_credentials` - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+  * `:http_credentials` (`map() | [map()]`) - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
     If no origin is specified, the username and password are sent to any servers upon unauthorized responses.
 
     Pass an array to use different credentials for different origins. The first entry that matches the request origin is used, and entries with no origin match any request.
@@ -237,10 +237,10 @@ defmodule PlaywrightEx.APIRequest do
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
     * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
-  * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` - *Since 1.52.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`integer()`) - *Since 1.52.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects. This can be overwritten for each request individually.
-  * `:proxy` - Network proxy settings.
+  * `:proxy` (`map()`) - Network proxy settings.
     * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
       `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP
       proxy.
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.APIRequest do
       .domain.com"`.
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
-  * `:storage_state` - Populates context with given storage state. This option can be used to initialize context with logged-in information
+  * `:storage_state` (`String.t() | map()`) - Populates context with given storage state. This option can be used to initialize context with logged-in information
     obtained via `PlaywrightEx.BrowserContext.storage_state/2` or `PlaywrightEx.APIRequestContext.storage_state/2`. Either a path to the
     file with saved storage, or the value returned by one of `PlaywrightEx.BrowserContext.storage_state/2` or
     `PlaywrightEx.APIRequestContext.storage_state/2` methods.
@@ -266,11 +266,11 @@ defmodule PlaywrightEx.APIRequest do
       * `:localStorage`
         * `:name`
         * `:value`
-  * `:timeout` - Maximum time in milliseconds to wait for the response. Defaults to
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds to wait for the response. Defaults to
     `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:user_agent` - Specific user agent to use in this context.
+  * `:user_agent` (`String.t()`) - Specific user agent to use in this context.
   """
   @spec new_context(t(), new_context_options()) :: {:ok, PlaywrightEx.APIRequestContext.t()} | {:error, Exception.t()}
   def new_context(api_request, options \\ []) do

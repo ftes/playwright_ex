@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Keyboard do
 
   ## Options
 
-  * `:delay` - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
+  * `:delay` (`number()`) - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
   """
   @spec press(t(), String.t(), press_options()) :: :ok | {:error, Exception.t()}
   def press(keyboard, key, options \\ []) do
@@ -236,7 +236,7 @@ defmodule PlaywrightEx.Keyboard do
 
   ## Options
 
-  * `:delay` - Time to wait between key presses in milliseconds. Defaults to 0.
+  * `:delay` (`number()`) - Time to wait between key presses in milliseconds. Defaults to 0.
   """
   @spec type(t(), String.t(), type_options()) :: :ok | {:error, Exception.t()}
   def type(keyboard, text, options \\ []) do

@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Clock do
 
   ## Options
 
-  * `:time` - Time to initialize with, current system time by default.
+  * `:time` (`integer() | String.t() | DateTime.t()`) - Time to initialize with, current system time by default.
   """
   @spec install(t(), install_options()) :: :ok | {:error, Exception.t()}
   def install(clock, options \\ []) do

@@ -79,13 +79,13 @@ defmodule PlaywrightEx.Screencast do
 
   ## Options
 
-  * `:fps` - *Since 1.64.* Frame rate of the video recording in frames per second. Only used together with `:path`. Defaults to `25`.
+  * `:fps` (`integer()`) - *Since 1.64.* Frame rate of the video recording in frames per second. Only used together with `:path`. Defaults to `25`.
 
     Higher frame rates make animations and scrolling smoother at the cost of more CPU spent on encoding. Combine with `:size` to record high resolution videos. The video can only contain as many distinct frames as the browser produces; Firefox and WebKit currently capture up to 25 frames per second.
-  * `:on_frame` - Callback that receives JPEG-encoded frame data along with the page viewport size at the time of capture.
-  * `:path` - Path where the video should be saved when the screencast is stopped. When provided, video recording is started.
-  * `:quality` - The quality of the image, between 0-100.
-  * `:size` - Specifies the dimensions of screencast frames. The actual frame is scaled to preserve the page's aspect ratio and may be smaller than these bounds.
+  * `:on_frame` (`(%{data: binary(), timestamp: number(), viewportWidth: integer(), viewportHeight: integer()} -> term())`) - Callback that receives JPEG-encoded frame data along with the page viewport size at the time of capture.
+  * `:path` (`String.t()`) - Path where the video should be saved when the screencast is stopped. When provided, video recording is started.
+  * `:quality` (`integer()`) - The quality of the image, between 0-100.
+  * `:size` (`map()`) - Specifies the dimensions of screencast frames. The actual frame is scaled to preserve the page's aspect ratio and may be smaller than these bounds.
     If a screencast is already active (e.g. started by tracing or video recording), the existing configuration takes precedence and the frame size may exceed these bounds or this option may be ignored.
     If not specified the size will be equal to page viewport scaled down to fit into 800×800.
     * `:width` - Max frame width in pixels.
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Screencast do
 
   ## Options
 
-  * `:duration` - Duration in milliseconds after which the overlay is automatically removed. Overlay stays until dismissed if not provided.
+  * `:duration` (`number()`) - Duration in milliseconds after which the overlay is automatically removed. Overlay stays until dismissed if not provided.
   """
   @spec show_overlay(t(), String.t(), show_overlay_options()) ::
           {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
@@ -176,8 +176,8 @@ defmodule PlaywrightEx.Screencast do
 
   ## Options
 
-  * `:description` - Optional description text displayed below the title.
-  * `:duration` - Duration in milliseconds after which the overlay is automatically removed. Defaults to `2000`.
+  * `:description` (`String.t()`) - Optional description text displayed below the title.
+  * `:duration` (`number()`) - Duration in milliseconds after which the overlay is automatically removed. Defaults to `2000`.
   """
   @spec show_chapter(t(), String.t(), show_chapter_options()) :: :ok | {:error, Exception.t()}
   def show_chapter(screencast, title, options \\ []) do
@@ -245,13 +245,13 @@ defmodule PlaywrightEx.Screencast do
 
   ## Options
 
-  * `:cursor` - *Since 1.61.* Cursor decoration shown for pointer actions. `:pointer` (the default) renders
+  * `:cursor` (`:none | :pointer`) - *Since 1.61.* Cursor decoration shown for pointer actions. `:pointer` (the default) renders
     a mouse pointer that animates from the previous action point to the next one.
     `:none` disables the cursor decoration.
-  * `:duration` - How long each annotation is displayed in milliseconds. Defaults to `500`.
-  * `:font_size` - Font size of the action title in pixels. Defaults to `24`.
-  * `:position` - Position of the action title overlay. Defaults to `:top_right`.
-  * `:style` - *Since 1.64.* Styles of the action decorations. All decorations fade out over `:duration`.
+  * `:duration` (`number()`) - How long each annotation is displayed in milliseconds. Defaults to `500`.
+  * `:font_size` (`integer()`) - Font size of the action title in pixels. Defaults to `24`.
+  * `:position` (`:top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right`) - Position of the action title overlay. Defaults to `:top_right`.
+  * `:style` (`map()`) - *Since 1.64.* Styles of the action decorations. All decorations fade out over `:duration`.
 
     **Usage**
 

@@ -62,12 +62,12 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:content` - Raw JavaScript content to be injected into frame.
-  * `:path` - Path to the JavaScript file to be injected into frame. If `:path` is a relative path, then it is resolved relative to the
+  * `:content` (`String.t()`) - Raw JavaScript content to be injected into frame.
+  * `:path` (`String.t()`) - Path to the JavaScript file to be injected into frame. If `:path` is a relative path, then it is resolved relative to the
     current working directory.
-  * `:type` - Script type. Use 'module' in order to load a JavaScript ES6 module. See
+  * `:type` (`String.t()`) - Script type. Use 'module' in order to load a JavaScript ES6 module. See
     [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) for more details.
-  * `:url` - URL of a script to be added.
+  * `:url` (`String.t()`) - URL of a script to be added.
   """
   @spec add_script_tag(t(), add_script_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
   def add_script_tag(frame, options \\ []) do
@@ -99,10 +99,10 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:content` - Raw CSS content to be injected into frame.
-  * `:path` - Path to the CSS file to be injected into frame. If `:path` is a relative path, then it is resolved relative to the
+  * `:content` (`String.t()`) - Raw CSS content to be injected into frame.
+  * `:path` (`String.t()`) - Path to the CSS file to be injected into frame. If `:path` is a relative path, then it is resolved relative to the
     current working directory.
-  * `:url` - URL of the `<link>` tag.
+  * `:url` (`String.t()`) - URL of the `<link>` tag.
   """
   @spec add_style_tag(t(), add_style_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
   def add_style_tag(frame, options \\ []) do
@@ -180,28 +180,28 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:no_wait_after` - This option has no effect.
-  * `:position` - *Since 1.11.* A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:position` (`map()`) - *Since 1.11.* A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  * `:trial` (`boolean()`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec check(t(), String.t(), check_options()) :: :ok | {:error, Exception.t()}
   def check(frame, selector, options \\ []) do
@@ -306,36 +306,36 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:button` - Defaults to `:left`.
-  * `:click_count` - defaults to 1. See [UIEvent.detail].
-  * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+  * `:button` (`:left | :right | :middle`) - Defaults to `:left`.
+  * `:click_count` (`integer()`) - defaults to 1. See [UIEvent.detail].
+  * `:delay` (`number()`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` (`[:alt | :control | :control_or_meta | :meta | :shift]`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
     modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
     and Linux and to "Meta" on macOS.
-  * `:no_wait_after` - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
+  * `:no_wait_after` (`boolean()`) - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
     opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as navigating
     to inaccessible pages. Defaults to `false`.
-  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:position` (`map()`) - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` (`boolean()`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec click(t(), String.t(), click_options()) :: :ok | {:error, Exception.t()}
   def click(frame, selector, options \\ []) do
@@ -362,7 +362,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:include_shadow` - *Since 1.64.* When true, contents of open shadow roots are included as [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
+  * `:include_shadow` (`boolean()`) - *Since 1.64.* When true, contents of open shadow roots are included as [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
     i.e. `<template shadowrootmode="open">` elements nested inside their host elements. Closed shadow roots are never included. Defaults to `false`.
   """
   @spec content(t(), content_options()) :: {:ok, String.t()} | {:error, Exception.t()}
@@ -462,33 +462,33 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:button` - Defaults to `:left`.
-  * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+  * `:button` (`:left | :right | :middle`) - Defaults to `:left`.
+  * `:delay` (`number()`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` (`[:alt | :control | :control_or_meta | :meta | :shift]`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
     modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
     and Linux and to "Meta" on macOS.
-  * `:no_wait_after` - This option has no effect.
-  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:position` (`map()`) - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` (`boolean()`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec dblclick(t(), String.t(), dblclick_options()) :: :ok | {:error, Exception.t()}
   def dblclick(frame, selector, options \\ []) do
@@ -565,13 +565,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -648,31 +648,31 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:no_wait_after` - This option has no effect.
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:source_position` - *Since 1.14.* Clicks on the source element at this point relative to the top-left corner of the element's padding box. If not specified, some visible point of the element is used.
+  * `:source_position` (`map()`) - *Since 1.14.* Clicks on the source element at this point relative to the top-left corner of the element's padding box. If not specified, some visible point of the element is used.
     * `:x`
     * `:y`
-  * `:steps` - *Since 1.57.* Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between the `mousedown` and `mouseup` of the drag. When set to 1, emits a single `mousemove` event at the destination location.
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:steps` (`integer()`) - *Since 1.57.* Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between the `mousedown` and `mouseup` of the drag. When set to 1, emits a single `mousemove` event at the destination location.
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:target_position` - *Since 1.14.* Drops on the target element at this point relative to the top-left corner of the element's padding box. If not specified, some visible point of the element is used.
+  * `:target_position` (`map()`) - *Since 1.14.* Drops on the target element at this point relative to the top-left corner of the element's padding box. If not specified, some visible point of the element is used.
     * `:x`
     * `:y`
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  * `:trial` (`boolean()`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec drag_and_drop(t(), String.t(), String.t(), drag_and_drop_options()) :: :ok | {:error, Exception.t()}
   def drag_and_drop(frame, source, target, options \\ []) do
@@ -829,7 +829,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` (`boolean()`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(frame, expression, arg \\ nil, options \\ []) do
@@ -891,7 +891,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:expose_functions` - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` (`boolean()`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
           {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
@@ -959,15 +959,15 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:no_wait_after` - This option has no effect.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:force` (`boolean()`) - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1013,13 +1013,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1129,13 +1129,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1189,7 +1189,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
           PlaywrightEx.Locator.t()
@@ -1228,7 +1228,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
           PlaywrightEx.Locator.t()
@@ -1266,7 +1266,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
           PlaywrightEx.Locator.t()
@@ -1440,35 +1440,35 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:checked` - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
+  * `:checked` (`boolean()`) - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
 
     Learn more about [`aria-checked`](https://www.w3.org/TR/wai-aria-1.2/#aria-checked).
-  * `:description` - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
+  * `:description` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible description](https://w3c.github.io/accname/#dfn-accessible-description).
-  * `:disabled` - An attribute that is usually set by `aria-disabled` or `disabled`.
+  * `:disabled` (`boolean()`) - An attribute that is usually set by `aria-disabled` or `disabled`.
 
     > #### Note {: .info}
     >
     > Unlike most other attributes, `disabled` is inherited through the DOM hierarchy.
     > Learn more about [`aria-disabled`](https://www.w3.org/TR/wai-aria-1.2/#aria-disabled).
-  * `:exact` - *Since 1.28.* Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
-  * `:expanded` - An attribute that is usually set by `aria-expanded`.
+  * `:exact` (`boolean()`) - *Since 1.28.* Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
+  * `:expanded` (`boolean()`) - An attribute that is usually set by `aria-expanded`.
 
     Learn more about [`aria-expanded`](https://www.w3.org/TR/wai-aria-1.2/#aria-expanded).
-  * `:include_hidden` - Option that controls whether hidden elements are matched. By default, only non-hidden elements, as [defined by ARIA](https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion), are matched by role selector.
+  * `:include_hidden` (`boolean()`) - Option that controls whether hidden elements are matched. By default, only non-hidden elements, as [defined by ARIA](https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion), are matched by role selector.
 
     Learn more about [`aria-hidden`](https://www.w3.org/TR/wai-aria-1.2/#aria-hidden).
-  * `:level` - A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.
+  * `:level` (`integer()`) - A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.
 
     Learn more about [`aria-level`](https://www.w3.org/TR/wai-aria-1.2/#aria-level).
-  * `:name` - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
+  * `:name` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible name](https://w3c.github.io/accname/#dfn-accessible-name).
-  * `:pressed` - An attribute that is usually set by `aria-pressed`.
+  * `:pressed` (`boolean()`) - An attribute that is usually set by `aria-pressed`.
 
     Learn more about [`aria-pressed`](https://www.w3.org/TR/wai-aria-1.2/#aria-pressed).
-  * `:selected` - An attribute that is usually set by `aria-selected`.
+  * `:selected` (`boolean()`) - An attribute that is usually set by `aria-selected`.
 
     Learn more about [`aria-selected`](https://www.w3.org/TR/wai-aria-1.2/#aria-selected).
   """
@@ -1651,7 +1651,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
           PlaywrightEx.Locator.t()
@@ -1689,7 +1689,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:exact` - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
+  * `:exact` (`boolean()`) - Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.
   """
   @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
           PlaywrightEx.Locator.t()
@@ -1762,13 +1762,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:referer` - Referer header value. If provided it will take preference over the referer header value set by
+  * `:referer` (`String.t()`) - Referer header value. If provided it will take preference over the referer header value set by
     `PlaywrightEx.Page.set_extra_http_headers/2`.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+  * `:timeout` (`number() | :infinity`) - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
     The default value can be changed by using the
     `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
@@ -1776,7 +1776,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
+  * `:wait_until` (`:load | :domcontentloaded | :networkidle | :commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
     * `:load` - consider operation to be finished when the `load` event is fired.
@@ -1869,31 +1869,31 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` (`[:alt | :control | :control_or_meta | :meta | :shift]`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
     modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
     and Linux and to "Meta" on macOS.
-  * `:no_wait_after` - *Since 1.28.* This option has no effect.
-  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:no_wait_after` (`boolean()`) - *Since 1.28.* This option has no effect.
+  * `:position` (`map()`) - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` (`boolean()`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec hover(t(), String.t(), hover_options()) :: :ok | {:error, Exception.t()}
   def hover(frame, selector, options \\ []) do
@@ -1934,13 +1934,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -1985,13 +1985,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2038,13 +2038,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2089,13 +2089,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2149,13 +2149,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2200,13 +2200,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2247,13 +2247,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2294,9 +2294,9 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:timeout` (`number() | :infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, Exception.t()}
   def is_hidden(frame, selector, options \\ []) do
@@ -2333,9 +2333,9 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:timeout` (`number() | :infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, Exception.t()}
   def is_visible(frame, selector, options \\ []) do
@@ -2389,18 +2389,18 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:has` - Narrows down the results of the method to those which contain elements matching this relative locator.
+  * `:has` (`PlaywrightEx.Locator.t()`) - Narrows down the results of the method to those which contain elements matching this relative locator.
     For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
 
     Inner locator **must be relative** to the outer locator and is queried starting with the outer locator match, not the document root. For example, you can find `content` that has `div` in `<article><content><div>Playwright</div></content></article>`. However, looking for `content` that has `article div` will fail, because the inner locator must be relative and should not use any elements outside the `content`.
 
     Note that outer and inner locators must belong to the same frame. Inner locator must not contain [`FrameLocator`](`PlaywrightEx.FrameLocator`)s.
-  * `:has_not` - *Since 1.33.* Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the outer one.
+  * `:has_not` (`PlaywrightEx.Locator.t()`) - *Since 1.33.* Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the outer one.
     For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
 
     Note that outer and inner locators must belong to the same frame. Inner locator must not contain [`FrameLocator`](`PlaywrightEx.FrameLocator`)s.
-  * `:has_not_text` - *Since 1.33.* Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
-  * `:has_text` - Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
+  * `:has_not_text` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.33.* Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
+  * `:has_text` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.
     For example, `"Playwright"` matches `<article><div>Playwright</div></article>`.
   """
   @spec locator(t(), String.t(), locator_options()) :: PlaywrightEx.Locator.t()
@@ -2500,17 +2500,17 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:delay` - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
-  * `:no_wait_after` - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
+  * `:delay` (`number()`) - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
+  * `:no_wait_after` (`boolean()`) - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
     opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as navigating
     to inaccessible pages. Defaults to `false`.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2556,7 +2556,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
   """
   @spec query_selector(t(), String.t(), query_selector_options()) ::
@@ -2675,15 +2675,15 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:no_wait_after` - This option has no effect.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:force` (`boolean()`) - *Since 1.13.* Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -2796,28 +2796,28 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:no_wait_after` - This option has no effect.
-  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:position` (`map()`) - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  * `:trial` (`boolean()`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec set_checked(t(), String.t(), boolean(), set_checked_options()) :: :ok | {:error, Exception.t()}
   def set_checked(frame, selector, checked, options \\ []) do
@@ -2877,11 +2877,11 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+  * `:timeout` (`number() | :infinity`) - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
     The default value can be changed by using the
     `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
@@ -2889,7 +2889,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
+  * `:wait_until` (`:load | :domcontentloaded | :networkidle | :commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
     * `:load` - consider operation to be finished when the `load` event is fired.
@@ -2960,14 +2960,14 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:no_wait_after` - This option has no effect.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -3081,31 +3081,31 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:modifiers` (`[:alt | :control | :control_or_meta | :meta | :shift]`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
     modifiers back. If not specified, currently pressed modifiers are used. "ControlOrMeta" resolves to "Control" on Windows
     and Linux and to "Meta" on macOS.
-  * `:no_wait_after` - This option has no effect.
-  * `:position` - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:position` (`map()`) - A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` (`boolean()`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec tap(t(), String.t(), tap_options()) :: :ok | {:error, Exception.t()}
   def tap(frame, selector, options \\ []) do
@@ -3146,13 +3146,13 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -3233,15 +3233,15 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:delay` - Time to wait between key presses in milliseconds. Defaults to 0.
-  * `:no_wait_after` - This option has no effect.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:delay` (`number()`) - Time to wait between key presses in milliseconds. Defaults to 0.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -3325,28 +3325,28 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:no_wait_after` - This option has no effect.
-  * `:position` - *Since 1.11.* A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
+  * `:force` (`boolean()`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+  * `:no_wait_after` (`boolean()`) - This option has no effect.
+  * `:position` (`map()`) - *Since 1.11.* A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of the
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
+  * `:scroll` (`:auto | :none`) - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
+  * `:trial` (`boolean()`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec uncheck(t(), String.t(), uncheck_options()) :: :ok | {:error, Exception.t()}
   def uncheck(frame, selector, options \\ []) do
@@ -3419,14 +3419,14 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:polling` - If `:polling` is `:raf`, then `expression` is constantly executed in `requestAnimationFrame`
+  * `:polling` (`number() | :raf`) - If `:polling` is `:raf`, then `expression` is constantly executed in `requestAnimationFrame`
     callback. If `:polling` is a number, then it is treated as an interval in milliseconds at which the function
     would be executed. Defaults to `:raf`.
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
+  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
     value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -3493,11 +3493,11 @@ defmodule PlaywrightEx.Frame do
 
   The options may take the place of `state`, which is then `nil`.
 
-  * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+  * `:timeout` (`number() | :infinity`) - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
     The default value can be changed by using the
     `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
@@ -3599,11 +3599,11 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+  * `:timeout` (`number() | :infinity`) - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
     The default value can be changed by using the
     `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
@@ -3611,10 +3611,10 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `:url` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean())`) - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
-  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
+  * `:wait_until` (`:load | :domcontentloaded | :networkidle | :commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
     * `:load` - consider operation to be finished when the `load` event is fired.
@@ -3737,11 +3737,11 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:state` - Defaults to `:visible`. Can be either:
+  * `:state` (`:attached | :detached | :visible | :hidden`) - Defaults to `:visible`. Can be either:
 
     * `:attached` - wait for element to be present in DOM.
     * `:detached` - wait for element to not be present in DOM.
@@ -3749,9 +3749,9 @@ defmodule PlaywrightEx.Frame do
       any content or with `display:none` has an empty bounding box and is not considered visible.
     * `:hidden` - wait for element to be either detached from DOM, or have an empty bounding box or `visibility:hidden`.
       This is opposite to the `:visible` option.
-  * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
+  * `:strict` (`boolean()`) - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
-  * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
+  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
@@ -3866,11 +3866,11 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+  * `:timeout` (`number() | :infinity`) - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
     The default value can be changed by using the
     `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
@@ -3878,7 +3878,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
+  * `:wait_until` (`:load | :domcontentloaded | :networkidle | :commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
     * `:load` - consider operation to be finished when the `load` event is fired.
@@ -3977,7 +3977,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Options
 
-  * `:timeout` - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
+  * `:timeout` (`number() | :infinity`) - Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
     The default value can be changed by using the
     `PlaywrightEx.BrowserContext.set_default_navigation_timeout/2`,
     `PlaywrightEx.BrowserContext.set_default_timeout/2`,
@@ -3985,16 +3985,16 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:url` - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `:url` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean())`) - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
-  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
+  * `:wait_until` (`:load | :domcontentloaded | :networkidle | :commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
     * `:load` - consider operation to be finished when the `load` event is fired.
     * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `:commit` - consider operation to be finished when network response is received and the document started loading.
-  * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

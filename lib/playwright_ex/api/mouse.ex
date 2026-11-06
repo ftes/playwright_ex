@@ -61,9 +61,9 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `:left`.
-  * `:click_count` - defaults to 1. See [UIEvent.detail].
-  * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+  * `:button` (`:left | :right | :middle`) - Defaults to `:left`.
+  * `:click_count` (`integer()`) - defaults to 1. See [UIEvent.detail].
+  * `:delay` (`number()`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
   @spec click(t(), number(), number(), click_options()) :: :ok | {:error, Exception.t()}
   def click(mouse, x, y, options \\ []) do
@@ -102,8 +102,8 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `:left`.
-  * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+  * `:button` (`:left | :right | :middle`) - Defaults to `:left`.
+  * `:delay` (`number()`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
   @spec dblclick(t(), number(), number(), dblclick_options()) :: :ok | {:error, Exception.t()}
   def dblclick(mouse, x, y, options \\ []) do
@@ -136,8 +136,8 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `:left`.
-  * `:click_count` - defaults to 1. See [UIEvent.detail].
+  * `:button` (`:left | :right | :middle`) - Defaults to `:left`.
+  * `:click_count` (`integer()`) - defaults to 1. See [UIEvent.detail].
   """
   @spec down(t(), down_options()) :: :ok | {:error, Exception.t()}
   def down(mouse, options \\ []) do
@@ -169,7 +169,7 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:steps` - Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
+  * `:steps` (`integer()`) - Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
   """
   @spec move(t(), number(), number(), move_options()) :: :ok | {:error, Exception.t()}
   def move(mouse, x, y, options \\ []) do
@@ -202,8 +202,8 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `:left`.
-  * `:click_count` - defaults to 1. See [UIEvent.detail].
+  * `:button` (`:left | :right | :middle`) - Defaults to `:left`.
+  * `:click_count` (`integer()`) - defaults to 1. See [UIEvent.detail].
   """
   @spec up(t(), up_options()) :: :ok | {:error, Exception.t()}
   def up(mouse, options \\ []) do
