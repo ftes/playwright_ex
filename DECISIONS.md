@@ -990,3 +990,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `void x()`/`.catch(() => {})` is `Runtime.Promise.void`; setTimeout timers stay `Task.start` +
   sleep; `Promise.all` of awaited calls stays `Task.async` + `await_many`. 160 + 15 sites converted,
   no hidden race surfaced. X-07: 19 JS-value truthiness sites use `Utils.assert_truthy/falsy`.
+- VF-X (X-01/X-07, library specs): same rules as the page specs; 51 + 17 sites converted, 31 X-07
+  sites. One hidden race made visible and fixed: debugger "should pause at pause call" now
+  subscribes before starting `page.pause()`.
+- Lead, CI fix after VF-A2: modernizr "Safari Desktop" runs on Linux WebKit with upstream's plain
+  overrides; the old skip's claim ("Linux WebKit supports month") was wrong: Linux WebKit and the
+  safari-26 report both say `month: false` (checked in the Linux container).
