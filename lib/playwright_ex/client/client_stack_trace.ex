@@ -70,25 +70,14 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
     end
   end
 
-  # Cached per module: `module_info/1` costs ~2 us, on every frame of every API call.
+  # Not cached: `module_info/1` costs ~1.5 us per frame, ~12 us per capture, noise next to the
+  # driver round trip; a cache would be global (grows with runtime-defined modules, a
+  # `:persistent_term` write can cost a global GC) or in the caller's process dictionary, and a
+  # source moved by a recompile would go stale.
   defp module_source(module) do
-    key = {__MODULE__, :source, module}
-
-    case :persistent_term.get(key, :none) do
-      :none ->
-        source =
-          try do
-            if source = module.module_info(:compile)[:source], do: List.to_string(source)
-          rescue
-            _ -> nil
-          end
-
-        :persistent_term.put(key, source)
-        source
-
-      source ->
-        source
-    end
+    if source = module.module_info(:compile)[:source], do: List.to_string(source)
+  rescue
+    _ -> nil
   end
 
   # {PlaywrightEx.Client.Page, :"-wait_for_event/3-fun-0-", 1} -> "page.waitForEvent"
