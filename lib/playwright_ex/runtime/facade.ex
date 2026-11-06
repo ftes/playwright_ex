@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Runtime.Facade do
   def expect(api_name, receiver, fun, action) do
     # The handle never leaves this function: a local promise.
     promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
-    action.()
+    run_action(action, promise)
     PlaywrightEx.Promise.await(promise)
   end
 
@@ -122,8 +122,18 @@ defmodule PlaywrightEx.Runtime.Facade do
   def expect!(api_name, receiver, fun, action) do
     # The handle never leaves this function: a local promise.
     promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
-    action.()
+    run_action(action, promise)
     PlaywrightEx.Promise.await!(promise)
+  end
+
+  # Elixir only: when the action raises, the wait's late result is dropped (unalias), else it
+  # would reach the caller's mailbox once the wait settles (Python leaves the future unawaited).
+  defp run_action(action, promise) do
+    action.()
+  catch
+    kind, reason ->
+      Promise.free(promise)
+      :erlang.raise(kind, reason, __STACKTRACE__)
   end
 
   @doc """

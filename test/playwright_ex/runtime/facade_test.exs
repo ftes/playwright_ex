@@ -113,4 +113,26 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
     assert Facade.matcher(nil, fn -> raise error end) == {:error, error}
     assert_raise PlaywrightEx.ExpectError, "Expect failed", fn -> Facade.matcher!(nil, fn -> raise error end) end
   end
+
+  test "expect: when the action raises, the wait's later result leaves no message" do
+    test = self()
+
+    wait = fn ->
+      send(test, {:waiting, self()})
+      PlaywrightEx.Runtime.Invocation.yield()
+
+      receive do
+        :go -> :value
+      end
+    end
+
+    for expect <- [&Facade.expect/4, &Facade.expect!/4] do
+      assert_raise RuntimeError, "boom", fn -> expect.(nil, nil, wait, fn -> raise "boom" end) end
+      assert_receive {:waiting, pid}
+      ref = Process.monitor(pid)
+      send(pid, :go)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}
+      refute_received {:pw, _, _}
+    end
+  end
 end
