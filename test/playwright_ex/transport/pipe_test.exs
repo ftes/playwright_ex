@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Transport.PipeTest do
       {Pipe,
        executable: {"/bin/sh", ["-c", script]},
        on_message: &send(test, {:message, &1}),
-       on_close: fn -> send(test, :closed) end},
+       on_close: &send(test, {:closed, &1})},
       restart: :temporary
     )
   end
@@ -38,12 +38,12 @@ defmodule PlaywrightEx.Transport.PipeTest do
   test "close/1 closes the pipe and calls on_close once" do
     pipe = start("exec cat")
     assert :ok = Pipe.close(pipe)
-    assert_receive :closed, 5000
-    refute_receive :closed
+    assert_receive {:closed, nil}, 5000
+    refute_receive {:closed, _}
   end
 
-  test "driver exit calls on_close" do
+  test "driver exit calls on_close with its exit status" do
     start("exit 3")
-    assert_receive :closed, 5000
+    assert_receive {:closed, 3}, 5000
   end
 end

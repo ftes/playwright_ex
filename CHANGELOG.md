@@ -24,6 +24,9 @@ Drives Playwright 1.64.
   contexts emit `close`, browsers `disconnected`, and waits on them fail with
   `PlaywrightEx.TargetClosedError` instead of hanging, as do waits on anything else (a worker)
   once the old connection stops. `PlaywrightEx.playwright/1` waits for the restarted driver.
+  Handles of the lost driver keep reading their last state while the processes that created
+  them live, closing them returns `:ok`, and the loss is logged as an error with the driver's
+  exit status.
 
 ### Added
 - [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before

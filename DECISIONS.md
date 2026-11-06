@@ -1221,3 +1221,13 @@ drift). Blockers for release, assigned to follow-up workstreams:
   (ftes/fluffy#64); the user chose close emulation over a public `connection_pid/1`.
   `PlaywrightEx.playwright/1` awaits (yields a listener) and waits for the restarted driver.
   Revisit: reads on old handles raise `TargetClosedError` once the old connection has stopped.
+- User, 2026-11-06, revisited: reads on handles of a lost local driver stay stable. Its Conn
+  hands the table to a keeper (`Conn.hand_off/2`) that exits once the processes that created or
+  anchored its objects have, or with the supervisor (monitored: a brutal kill too). Writes raise
+  `TargetClosedError` as before (the prototype's dropped writes reverted, remote connections
+  unchanged); `Page`, `BrowserContext` and `Browser` `close` return `:ok` once the connection
+  process is gone, as JS's close catches `TargetClosedError` (deviation: the writes before
+  upstream's try are inside it, or the context's check-and-set is). `OutOfProcess` logs the
+  loss (`Logger.error`: exit status, driver version, supervisor, browsers and contexts closed),
+  once, not on a normal stop; `Pipe`'s `on_close` gets the exit status. The automatic restart
+  stays: fluffy confirmed it needs restart and close returning `:ok`; no `restart: :exit` option.

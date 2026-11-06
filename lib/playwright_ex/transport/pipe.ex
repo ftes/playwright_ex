@@ -16,13 +16,15 @@ defmodule PlaywrightEx.Transport.Pipe do
       concatenation per chunk.
     * The connection process (`PlaywrightEx.Runtime.Conn`) hands over the messages of one of its
       turns together (`send_messages/2`), written with one port command.
+    * `on_close` gets the driver's exit status (`nil` after `close/1`), for the log of a lost
+      driver (`PlaywrightEx.OutOfProcess`); upstream's `onclose` takes none.
   """
   use GenServer
 
   @doc """
   Options: `:executable` (`{program, args}`, see `PlaywrightEx.Driver.executable/1`),
-  `:env`, `:on_message` (1-arity, called in this process), `:on_close` (0-arity, called
-  once when the driver exits or `close/1` is called).
+  `:env`, `:on_message` (1-arity, called in this process), `:on_close` (1-arity, called
+  once when the driver exits, with its exit status, or `close/1` is called, with `nil`).
   """
   def start_link(opts), do: GenServer.start_link(__MODULE__, Map.new(opts))
 
@@ -61,7 +63,7 @@ defmodule PlaywrightEx.Transport.Pipe do
   def handle_call(:close, _from, state) do
     state = flush(state)
     if !state.closed, do: Port.close(state.port)
-    {:stop, :normal, :ok, on_close(state)}
+    {:stop, :normal, :ok, on_close(state, nil)}
   end
 
   defp queue(state, message) do
@@ -79,12 +81,12 @@ defmodule PlaywrightEx.Transport.Pipe do
   @impl true
   def handle_info({port, {:data, data}}, %{port: port} = state), do: {:noreply, _dispatch(state, data)}
 
-  def handle_info({port, {:exit_status, _status}}, %{port: port} = state), do: {:stop, :normal, on_close(state)}
+  def handle_info({port, {:exit_status, status}}, %{port: port} = state), do: {:stop, :normal, on_close(state, status)}
 
-  defp on_close(%{closed: true} = state), do: state
+  defp on_close(%{closed: true} = state, _status), do: state
 
-  defp on_close(state) do
-    state.on_close.()
+  defp on_close(state, status) do
+    state.on_close.(status)
     %{state | closed: true}
   end
 

@@ -81,6 +81,10 @@ exited; after that, reading it raises `PlaywrightEx.TargetClosedError`. A proces
 long and closes many contexts keeps a few hundred rows per context until it exits, so in a
 long-running service, create each context in a process that ends with the session.
 
+Handles of a lost driver (see `PlaywrightEx.Supervisor`) stay readable the same way, until those
+processes have exited or the supervisor stops. Calls on them fail with
+`PlaywrightEx.TargetClosedError`, and closing them returns `:ok`.
+
 ## Where it differs from JS
 
 - A listener that awaits a Playwright call holds back later events of its own subscription until

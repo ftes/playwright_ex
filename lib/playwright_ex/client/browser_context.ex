@@ -665,12 +665,18 @@ defmodule PlaywrightEx.Client.BrowserContext do
     # The check and the writes in one step, as JS's synchronous section: a concurrent close
     # returns at once.
     closing =
-      atomic(this, fn ->
-        if !is_closed(this) do
-          put(this, :_closeReason, options[:reason])
-          put(this, :_closingStatus, "closing")
-        end
-      end)
+      try do
+        atomic(this, fn ->
+          if !is_closed(this) do
+            put(this, :_closeReason, options[:reason])
+            put(this, :_closingStatus, "closing")
+          end
+        end)
+      rescue
+        # deviation: the step raises once the connection process is gone (a lost driver), where
+        # JS's check finds the context closed: it is, so close returns.
+        TargetClosedError -> nil
+      end
 
     if !closing do
       nil

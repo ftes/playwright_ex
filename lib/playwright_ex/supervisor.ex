@@ -20,10 +20,14 @@ defmodule PlaywrightEx.Supervisor do
   new root object. As `PlaywrightEx.BrowserType.connect/3` does when its connection is lost, every
   page and context emits `close`, then every browser `disconnected` (also when the supervisor
   stops), and waits on them fail with `PlaywrightEx.TargetClosedError`: a lost driver is noticed
-  by `disconnected`. Calls on handles of the old driver fail with
-  `PlaywrightEx.TargetClosedError`, and so do reads once the old connection has stopped, right
-  after its `disconnected` listeners returned or awaited. Get the root again with
+  by `disconnected`. Handles of the old driver keep reading their last state
+  (`PlaywrightEx.Page.is_closed/1` is true, `PlaywrightEx.Page.url/1` the last URL) until the
+  processes that created or closed its browsers and contexts have exited, or the supervisor
+  stops. Calls and other writes on them fail with `PlaywrightEx.TargetClosedError`; closing a
+  page, context or browser returns `:ok`, as it does for anything closed. Get the root again with
   `PlaywrightEx.playwright/1`: it waits for the new driver (in a `disconnected` listener too).
+  The loss is logged as an error, with the driver's exit status (137: killed, often for lack of
+  memory), its version, the supervisor's name and how many browsers and contexts it closed.
 
   Browsers and contexts are not closed when the process that created them exits; only the data
   the library keeps for closed ones is freed then. So close what you open, as tests close their
@@ -98,7 +102,7 @@ defmodule PlaywrightEx.Supervisor do
     # event the second one waits for pass unseen.
     :code.ensure_modules_loaded(Application.spec(:playwright_ex, :modules) || [])
     name = Keyword.fetch!(opts, :name)
-    children = [{OutOfProcess, Keyword.merge(opts, name: out_of_process(name))}]
+    children = [{OutOfProcess, Keyword.merge(opts, name: out_of_process(name), supervisor: {name, self()})}]
 
     Supervisor.init(children, strategy: :rest_for_one)
   end

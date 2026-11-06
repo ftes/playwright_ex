@@ -940,10 +940,13 @@ defmodule PlaywrightEx.Client.Page do
   # [Symbol.asyncDispose]  -- not ported: await using
 
   def close(this, options \\ %{}) do
-    put(this, :_closeReason, options[:reason])
-    if !options[:runBeforeUnload], do: put(this, :_closeWasCalled, true)
-
     try do
+      # deviation: the writes are inside the try. They raise TargetClosedError once the
+      # connection process is gone (a lost driver), where JS's succeed and its call then raises:
+      # the page is closed already, so close returns.
+      put(this, :_closeReason, options[:reason])
+      if !options[:runBeforeUnload], do: put(this, :_closeWasCalled, true)
+
       cond do
         get(this, :_ownedContext) -> BrowserContext.close(get(this, :_ownedContext))
         options[:runBeforeUnload] -> channel_call(this, :runBeforeUnload, %{}, TimeoutSettings.k_no_timeout())

@@ -145,6 +145,14 @@ are keyed by guid. A closed remote connection's Conn stops once the processes th
 exited. Latches shared with `shared: true` go when their creator exits; `Promise.free/1` drops a
 wait nobody needs. AbortSignal rows go when their creator exits.
 
+A lost local driver's Conn hands its table to a keeper process before it stops
+(`Conn.hand_off/2`), so its handles read their last state (closed, the last URL) as JS objects
+stay readable while referenced. Calls and writes raise `TargetClosedError`, as the connection
+process is gone; `close` of a page, context or browser returns, as JS's catches that error. The
+table goes whole once every process that created or anchored one of its objects has exited, or
+with the supervisor (monitored, so a brutal kill counts too). `OutOfProcess` logs the loss
+(`Logger.error`) with the driver's exit status, once, and not on a normal stop.
+
 Rejected: free-on-settle (breaks late awaits of `_closedPromise` and `expect_*` handles) and the
 tracing GC's 500-object graveyard.
 

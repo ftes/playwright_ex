@@ -15,6 +15,12 @@ defmodule PlaywrightEx.OutOfProcess do
   `disconnected`, and waits on them reject. This process stops once that is done, as the
   objects and their listeners live in the connection's table. Upstream has no restart, and its
   waits hang on a lost driver; here a lost driver is noticed by `disconnected` and replaced.
+
+  Elixir only: a lost driver is logged (`Logger.error`, once per loss; a normal stop is not),
+  and its connection hands its table to a keeper process before it stops
+  (`PlaywrightEx.Runtime.Conn.hand_off/2`), so handles of the lost driver keep reading their last
+  state, as JS objects stay readable while referenced: until the processes that created or
+  closed its browsers and contexts have exited, or the supervisor has.
   """
   use GenServer
 
@@ -24,7 +30,10 @@ defmodule PlaywrightEx.OutOfProcess do
   alias PlaywrightEx.Driver
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.TargetClosedError
   alias PlaywrightEx.Transport.Pipe
+
+  require Logger
 
   @close_emulation_timeout 4_000
 
@@ -63,7 +72,8 @@ defmodule PlaywrightEx.OutOfProcess do
         # transport.onmessage = message => connection.dispatch(JSON.parse(message));
         on_message: fn message -> send(conn, {:pw_msg, message}) end,
         # transport.onclose = () => this._closePromise.resolve();
-        on_close: fn -> send(parent, :transport_closed) end
+        # (Elixir: with the driver's exit status, for the log of a lost driver.)
+        on_close: fn status -> send(parent, {:transport_closed, status}) end
       )
 
     # connection.onmessage = message => transport.send(JSON.stringify(message));
@@ -72,20 +82,32 @@ defmodule PlaywrightEx.OutOfProcess do
 
     playwright = Connection.initialize_playwright(connection)
     Heap.put(playwright, :driverProcess, transport)
-    {:ok, %{conn: conn, connection: connection, transport: transport, playwright: playwright}}
+    # Elixir only: the supervisor's name (for the log) and pid (a lost driver's table never
+    # outlives it).
+    {supervisor, lifeline} = Keyword.get(opts, :supervisor, {nil, self()})
+
+    {:ok,
+     %{
+       conn: conn,
+       connection: connection,
+       transport: transport,
+       playwright: playwright,
+       supervisor: supervisor,
+       lifeline: lifeline
+     }}
   end
 
   @impl true
   def handle_call(:playwright, _from, state), do: {:reply, state.playwright, state}
 
   @impl true
-  def handle_info(:transport_closed, state) do
-    close_connection(state)
+  def handle_info({:transport_closed, status}, state) do
+    driver_lost(state, status)
     {:stop, {:shutdown, :driver_closed}, state}
   end
 
   def handle_info({:EXIT, transport, reason}, %{transport: transport} = state) do
-    close_connection(state)
+    driver_lost(state, {:exit, reason})
     {:stop, {:shutdown, {:transport_exit, reason}}, state}
   end
 
@@ -103,6 +125,38 @@ defmodule PlaywrightEx.OutOfProcess do
   catch
     :exit, _ -> close_connection(state)
   end
+
+  # Elixir only: logs the loss, closes the connection and hands its table off (see the moduledoc).
+  # Not on a normal stop: terminate/2 closes the pipe, whose close message is not handled then.
+  defp driver_lost(state, cause) do
+    {browsers, contexts} = affected(state.connection)
+
+    Logger.error(
+      "Playwright driver lost (#{describe(cause)}): driver #{Driver.version()}, " <>
+        "supervisor #{inspect(state.supervisor)}, #{count(browsers, "browser")} and " <>
+        "#{count(contexts, "context")} closed; starting a new driver"
+    )
+
+    close_connection(state)
+    Conn.hand_off(state.conn, state.lifeline)
+  end
+
+  defp affected(connection) do
+    browsers = connected_browsers(connection)
+    {length(browsers), browsers |> Enum.map(&length(Browser.contexts(&1))) |> Enum.sum()}
+  rescue
+    TargetClosedError -> {0, 0}
+  end
+
+  # A program killed by a signal exits with 128 + the signal's number.
+  defp describe(nil), do: "its pipe was closed"
+  defp describe({:exit, reason}), do: "its pipe process exited: #{inspect(reason)}"
+  defp describe(137), do: "exit status 137: SIGKILL, often out of memory"
+  defp describe(status) when status > 128, do: "exit status #{status}: signal #{status - 128}"
+  defp describe(status), do: "exit status #{status}"
+
+  defp count(1, noun), do: "1 #{noun}"
+  defp count(n, noun), do: "#{n} #{noun}s"
 
   # Returns once the close emulation (see init/1) is done, or the connection was closed before.
   defp close_connection(state) do
@@ -124,7 +178,7 @@ defmodule PlaywrightEx.OutOfProcess do
     end
   rescue
     # The connection process is gone already.
-    PlaywrightEx.TargetClosedError -> :ok
+    TargetClosedError -> :ok
   end
 
   # Elixir only: the connection's browsers not closed yet (launched, persistent and over CDP), in

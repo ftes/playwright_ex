@@ -177,11 +177,14 @@ defmodule PlaywrightEx.Client.Browser do
   # [Symbol.asyncDispose]  -- not ported: await using
 
   def close(this, options \\ %{}) do
-    put(this, :_closeReason, options[:reason])
-    # Elixir only: the closing process anchors the closed browser (it reads it next).
-    ChannelOwner._set_creator(this)
-
     try do
+      # deviation: the writes are inside the try. They raise TargetClosedError once the
+      # connection process is gone (a lost driver), where JS's succeed and its call then raises:
+      # the browser is closed already, so close returns.
+      put(this, :_closeReason, options[:reason])
+      # Elixir only: the closing process anchors the closed browser (it reads it next).
+      ChannelOwner._set_creator(this)
+
       # Elixir only: `Connection.close` in one step (its check-then-set races the transport's close).
       if get(this, :_shouldCloseConnectionOnClose),
         do: atomic(this, fn -> PlaywrightEx.Client.Connection.close(get(this, :_connection)) end),

@@ -76,6 +76,18 @@ defmodule PlaywrightEx.Runtime.Conn do
   def stop_when_down(conn, pids), do: GenServer.cast(conn, {:stop_when_down, pids})
 
   @doc false
+  # Stops the connection process, handing its table to a keeper process first (a lost local
+  # driver, see `PlaywrightEx.OutOfProcess`): handles of the connection keep reading their last
+  # values (calls and writes raise TargetClosedError, as the connection process is gone) until
+  # every process that created or anchored an object has exited, or `lifeline` (the supervisor)
+  # has, whichever comes first.
+  def hand_off(conn, lifeline) do
+    GenServer.call(conn, {:hand_off, lifeline}, :infinity)
+  catch
+    :exit, _ -> :ok
+  end
+
+  @doc false
   # Waits until no listener invocation of `emitter` for `type` (`nil`: any) is running.
   # An `await` (of the pending handlers): the caller continues first.
   def wait_pending(%{conn: conn, guid: guid}, type) do
@@ -224,6 +236,17 @@ defmodule PlaywrightEx.Runtime.Conn do
     {:noreply, state |> drain() |> flush_out()}
   end
 
+  def handle_call({:hand_off, lifeline}, _from, %{table: table} = state) do
+    # The processes that created a browser or context, or anchor a closed one's rows.
+    creators = :ets.select(table, [{{{:_, :_creators}, :"$1"}, [], [:"$1"]}])
+    anchors = :ets.select(table, [{{{:connection, {:anchored, :"$1", :_}}, :_}, [], [:"$1"]}])
+    pids = Enum.uniq(List.flatten(creators) ++ anchors)
+    conn = self()
+    keeper = spawn(fn -> keep(conn, lifeline, pids) end)
+    :ets.give_away(table, keeper, nil)
+    {:stop, :normal, :ok, state}
+  end
+
   def handle_call({:wait_pending, guid, type}, from, state) do
     state = %{state | pending_waiters: [{from, guid, type} | state.pending_waiters]}
     {:noreply, notify_pending(state)}
@@ -306,6 +329,33 @@ defmodule PlaywrightEx.Runtime.Conn do
   def terminate(_reason, state) do
     for {pid, _} <- state.busy, do: send(pid, :pw_stop)
     :ok
+  end
+
+  # The owner of a handed-off table (`hand_off/2`): the table goes when this process exits. It
+  # exits without the table if the connection is killed before handing it over, and it never
+  # outlives `lifeline` (monitored, so a brutal kill of the supervisor counts too).
+  defp keep(conn, lifeline, pids) do
+    conn_ref = Process.monitor(conn)
+
+    receive do
+      {:"ETS-TRANSFER", _table, _from, _} ->
+        Process.demonitor(conn_ref, [:flush])
+        lifeline = Process.monitor(lifeline)
+        mons = for pid <- pids, Process.alive?(pid), into: MapSet.new(), do: Process.monitor(pid)
+        keep_loop(mons, lifeline)
+
+      {:DOWN, ^conn_ref, :process, _, _} ->
+        :ok
+    end
+  end
+
+  defp keep_loop(mons, lifeline) do
+    if MapSet.size(mons) > 0 do
+      receive do
+        {:DOWN, ^lifeline, :process, _, _} -> :ok
+        {:DOWN, mref, :process, _, _} -> keep_loop(MapSet.delete(mons, mref), lifeline)
+      end
+    end
   end
 
   defp catch_run(fun) do
