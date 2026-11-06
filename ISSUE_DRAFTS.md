@@ -237,3 +237,16 @@ perf_test), so a long-lived page grows without bound. Free them on an explicit `
 only a tombstone, as for collected objects.
 
 Source: test/OTP_BACKLOG.md; Phase 2 perf run.
+
+---
+
+## #draft-20 Rows left after remote connect/close on Linux firefox
+
+Labels: bug, runtime
+
+connect_backlog_test "a closed remote connection stops its processes": after 20 connect/close
+cycles, Linux firefox CI keeps ~30 rows on the local connection (chromium and webkit under 20,
+macOS firefox too); processes and tables do not grow. Find which rows stay (dump the keys before
+and after) and free them with the remote Conn.
+
+Source: CI run 42144826747 (firefox).
