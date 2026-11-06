@@ -245,8 +245,14 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       end
     end
 
-    anchor = _anchor(this)
+    case _anchor(this) do
+      # Its rows went with an anchor freed while its children were disposed: nothing to keep.
+      :freed -> Heap.release(this.table, this.guid)
+      anchor -> _keep(this, reason, anchor)
+    end
+  end
 
+  defp _keep(this, reason, anchor) do
     if reason == "gc" do
       Heap.release(this.table, this.guid)
       :ets.insert(this.table, {{this.guid, :__collected__}, true})
@@ -274,6 +280,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     if get(this, :_type) in ["BrowserContext", "Browser"],
       do: _creator(this),
       else: _anchor(get(this, :_parent), ["BrowserContext", "Browser"])
+  rescue
+    TargetClosedError -> :freed
   end
 
   defp _anchor(nil, _types), do: :connection
