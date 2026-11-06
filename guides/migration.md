@@ -1,7 +1,7 @@
-# Migrating from 0.x
+# Migrating from 0.16
 
-PlaywrightEx 1.64 is a 1:1 port of the official JavaScript client, and its public API is
-generated from Playwright's own docs. Versions follow Playwright (1.64.x drives Playwright 1.64).
+PlaywrightEx 0.17 is a 1:1 port of the official JavaScript client, and its public API is
+generated from Playwright's own docs. It drives Playwright 1.64.
 The [playwright.dev](https://playwright.dev/docs/api/class-playwright) docs apply: `page.getByRole(...)`
 is `PlaywrightEx.Page.get_by_role/3`, `locator.click()` is `PlaywrightEx.Locator.click/2`,
 `expect(locator).toBeVisible()` is `PlaywrightEx.Expect.to_be_visible/2`.

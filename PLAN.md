@@ -128,8 +128,9 @@ Conventions and the roll procedure: `PORTING.md`.
 
 Decisions from autonomous porting are logged in `DECISIONS.md` for review first.
 
-- Versions mirror upstream major.minor from the breaking release on (`1.64.x` drives
-  Playwright 1.64), the patch is ours, as in playwright-python. So upstream `since` is ours.
+- Versions will mirror upstream major.minor once the port is stable (`1.64.x` drives
+  Playwright 1.64), the patch is ours, as in playwright-python; upstream `since` is then ours.
+  First come 0.17 release candidates (user, 2026-11-06; "Later" #3).
 - URL globs via the driver's `LocalUtils.globToRegex`, as the non-JS clients do (regex cached
   per {glob, baseURL, ws}, under the baton). Locator rendering is ported (`locatorGenerators`, `selectorParser`; see Then, 4).
 - `sdkLanguage: "javascript"` as upstream, so driver messages match upstream tests, docs and
@@ -639,8 +640,11 @@ Not blocking the release. Ids are the `#draft-N` ids DECISIONS_TABLE.md refers t
 before the release are in ISSUES.md.
 
 Work items:
-- **#3 Release 1.64.0**: `mix.exs` still says 0.16.0; set 1.64.0 (versions mirror upstream
-  major.minor), turn CHANGELOG's Unreleased into the release entry, tag, publish.
+- **#3 Versions matching Playwright**: 0.17.0-rc.N first (user, 2026-11-06). Once stable, switch to
+  Playwright's major.minor (1.64.x drives Playwright 1.64): `@version`, the README/getting-started
+  install snippets and "This release drives" lines, migration.md's intro, docs/architecture.md,
+  and `.github/prompts/upstream-update.md` step 4 (sets `@version` to Playwright's again). Until
+  then the docs' `@doc since:` / *Since 1.x* tags are Playwright versions, not ours.
 - **#4 Ruleset on `main`**: it requires `Test (port)` and `Test (websocket)`, which CI no longer
   produces. Require the aggregate `Tests` job (all three browsers block it) and PRs on `main`.
 - **#1, #2**: moved to "Docs" (examples, `wait_for_event` timeout docs).

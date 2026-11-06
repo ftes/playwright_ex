@@ -7,7 +7,7 @@ Add the dependency to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:playwright_ex, "~> 1.64"}
+    {:playwright_ex, "~> 0.17.0-rc.0"}
   ]
 end
 ```
@@ -130,7 +130,7 @@ Logger.put_application_level(:playwright_ex, :info)
 
 ## Upgrading
 
-Versions follow Playwright: 1.64.x drives Playwright 1.64. To upgrade, bump the dependency and
+This release drives Playwright 1.64. To upgrade, bump the dependency and
 run `mix playwright_ex.install` again for the new driver and browsers.
 Read the [changelog](../../CHANGELOG.md) and Playwright's
 [release notes](https://playwright.dev/docs/release-notes).

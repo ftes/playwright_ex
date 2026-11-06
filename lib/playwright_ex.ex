@@ -14,7 +14,7 @@ defmodule PlaywrightEx do
   [Getting started](getting-started.md) and
   [From playwright.dev to Elixir](api-conventions.md) guides show how. The examples in the
   function docs alias the modules they use (`alias PlaywrightEx.{Locator, Page}`). Coming
-  from 0.x: see the [migration guide](migration.md).
+  from 0.16: see the [migration guide](migration.md).
   """
 
   @doc "The root `PlaywrightEx.Playwright` object of the driver started as `name`."

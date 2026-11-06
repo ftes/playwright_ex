@@ -28,8 +28,9 @@ client is the source because it is the reference implementation: the other langu
 lag it and differ among themselves. Modules carry `@upstream "<path>"`, keep upstream's method
 order (parity checks it) and mark only deviations.
 
-Versions mirror upstream major.minor from the breaking release on (`1.64.x` drives Playwright
-1.64; the patch is ours), as playwright-python does. So upstream's `since` is ours.
+Versions will mirror upstream major.minor once the port is stable (`1.64.x` drives Playwright
+1.64; the patch is ours), as playwright-python does; upstream's `since` is then ours. Until then
+releases are 0.17 release candidates (PLAN "Later").
 
 The driver is pinned too: `PlaywrightEx.Driver` downloads `playwright-core@<pin>` from npm
 (sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; musl from

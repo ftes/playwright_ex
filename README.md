@@ -10,15 +10,14 @@ end-to-end tests, web scraping, agentic AI.
 
 PlaywrightEx is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
-is pinned and installed by Mix, no npm needed. Versions follow Playwright: 1.64.x drives
-Playwright 1.64.
+is pinned and installed by Mix, no npm needed. This release drives Playwright 1.64.
 
 ## Installation
 
 ```elixir
 def deps do
   [
-    {:playwright_ex, "~> 1.64"}
+    {:playwright_ex, "~> 0.17.0-rc.0"}
   ]
 end
 ```
@@ -57,7 +56,7 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.
-- [Migrating from 0.x](guides/migration.md).
+- [Migrating from 0.16](guides/migration.md).
 
 Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 

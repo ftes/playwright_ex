@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.MixProject do
   use Mix.Project
 
-  @version "0.16.0"
+  @version "0.17.0-rc.0"
   @source_url "https://github.com/ftes/playwright_ex"
   @description """
   Elixir client for Playwright: a port of the official JavaScript client.
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.MixProject do
         "guides/network.md": [title: "Network"],
         "guides/debugging-and-ci.md": [title: "Debugging and CI"],
         "guides/concurrency.md": [title: "Concurrency"],
-        "guides/migration.md": [title: "Migrating from 0.x"],
+        "guides/migration.md": [title: "Migrating from 0.16"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
       groups_for_extras: [

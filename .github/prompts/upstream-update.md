@@ -36,9 +36,10 @@ the existing ported code next to whatever you port.
    5. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
       guides) and update `guides/` where it adds a pattern or caveat they should mention; list
       anything you left out in the PR body.
-4. Set `@version` in `mix.exs` to VERSION. Add a `## [VERSION] YYYY-MM-DD` section (today) to
-   `CHANGELOG.md` right below `## [Unreleased]`, in the style of the existing ones: "Drive
-   Playwright TO" with the RELEASE link, then the API added or changed by the port.
+4. Leave `@version` in `mix.exs` alone (releases are 0.17 candidates until versions mirror
+   Playwright; PLAN "Later" #3). Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the
+   existing entries: "Drive Playwright TO" with the RELEASE link, then the API added or changed by
+   the port.
 5. Verify; all must pass:
    ```
    mix format

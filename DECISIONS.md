@@ -1191,3 +1191,6 @@ drift). Blockers for release, assigned to follow-up workstreams:
   opts out. No spec changes. Spike: full chromium suite 4468 passed (640 s before, 651 s after);
   firefox upstream/page 459 s -> 408 s (higher load after). Unit, runtime and guide tests keep their
   own drivers (they test the connection or the guides' setup code).
+- User, 2026-11-06, release: start with 0.17.0-rc.0 (breaking minor bump before 1.0), not 1.64.0;
+  versions switch to Playwright's major.minor later (PLAN "Later" #3, which lists every place to
+  change). The daily bump prompt leaves `@version` alone until then.
