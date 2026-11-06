@@ -253,10 +253,15 @@ defmodule PlaywrightEx.Client.BrowserContext do
             {:cont, false}
 
           true ->
-            if RouteHandler.will_expire(route_handler), do: update(this, :_routes, &List.delete(&1, route_handler))
+            expired = RouteHandler.will_expire(route_handler)
+            if expired, do: update(this, :_routes, &List.delete(&1, route_handler))
             handled = RouteHandler.handle(route_handler, route)
 
-            if get(this, :_routes) == [],
+            # deviation: only when this handler expired. JS reads `_routes` right after the handler
+            # settles, before the next message; here later, after a concurrent `unrouteAll` may have
+            # emptied it and sent its own update, which a second identical one could overtake: the
+            # driver answers that one at once, and the `unrouteAll` returns before its barrier.
+            if expired and get(this, :_routes) == [],
               do: Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
 
             if handled, do: {:halt, true}, else: {:cont, false}

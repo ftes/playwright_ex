@@ -13,11 +13,6 @@ strays, remote connection leak, `_actual_headers` and disposed JSHandle rows ite
   `browsertype_connect_test`'s "rejected before disconnected" stays adapted.
 - **Route handler at teardown** (RO-033, kept): a route callback still pending at close rejects
   with TargetClosedError and the `route` listener drops it unlogged; JS leaves it pending.
-- **HAR `unrouteAll` flake** (browsercontext_har_test "context/page.unrouteAll should stop
-  routeFromHAR"): ~1 in 30 under load for us, never for the JS client with the same CDP command
-  order; `Page.url` is still about:blank after `unroute_all` returns. No ordering difference found
-  in the dispose path; next step is a CDP trace of a failing run (scripts in the round-2 notes).
-
 
 Possibly load-flaky, to watch: `locator_query_test.exs:324` (webkit), `conn_test.exs:360`
 (120 s timeout once in a loaded full run), `page_screenshot_test.exs:482`,

@@ -1091,3 +1091,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   It delayed each call's message: page_close "continuing while page is closing" (a driver race
   JS wins by writing both calls in one tick) and connect_to_worker's console test failed under
   load, now 100/100 and 39/40. Revisit if a user relies on `File.cd!` changing trace paths.
+- WR3: `_onRoute` (Page, BrowserContext) sends its internal interception update only when the
+  handler it ran expired (`# deviation:`). JS reads `_routes` before the next message; here a
+  concurrent `unrouteAll` had emptied it, so a second identical update overtook `unrouteAll`'s
+  and the driver answered `unrouteAll` before its barrier (HAR unrouteAll flake: failed in the
+  first of 60 loaded runs, now 0 of 120).
