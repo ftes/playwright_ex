@@ -1210,3 +1210,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Correction, 2026-11-06: the Selectors guard's note above ("stays in the set, as in JS") was the
   guid-reuse bug (`_forget_disposed`, ISSUES.md); the guard is removed. JS removes the context in
   `_onClose` on every path.
+- User, 2026-11-06, code review findings 1/2: a latch settled inside an open dispatch that loses a
+  race had its held wake-up (decision 12) arrive after the caller's `flush`; disarming now drops
+  it in the connection (`Conn.unwake/2`). The review's literal `wait_for_event` scenario did not
+  reproduce (facade latches settle outside dispatch). Older leak fixed too: `expect/4` frees the
+  wait when the action raises.
