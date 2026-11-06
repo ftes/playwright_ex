@@ -12,6 +12,7 @@ defmodule PlaywrightEx.DriverLostTest do
   alias PlaywrightEx.TargetClosedError
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.Transport.Pipe
+  alias PlaywrightEx.Worker
 
   @moduletag :tmp_dir
 
@@ -78,11 +79,21 @@ defmodule PlaywrightEx.DriverLostTest do
       send(test, {:relaunched, new != playwright, result})
     end)
 
-    # In-flight waits (no timeout, a timeout, a context's).
+    # A worker is not closed by the emulation: its wait rejects when the connection process exits.
+    worker =
+      Page.expect_event!(page, :worker, fn ->
+        Page.evaluate!(
+          page,
+          "() => new Worker(URL.createObjectURL(new Blob(['1'], { type: 'application/javascript' })))"
+        )
+      end)
+
+    # In-flight waits (no timeout, a timeout, a context's, a worker's).
     waits = [
       Page.wait_for_event(page, :popup, timeout: 0),
       Page.wait_for_event(persistent_page, :popup),
-      BrowserContext.wait_for_event(context, :page, timeout: 0)
+      BrowserContext.wait_for_event(context, :page, timeout: 0),
+      Worker.wait_for_event(worker, :console, timeout: 0)
     ]
 
     lose.(Heap.get(playwright, :driverProcess))

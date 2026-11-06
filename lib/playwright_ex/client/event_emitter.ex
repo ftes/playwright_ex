@@ -299,7 +299,9 @@ defmodule PlaywrightEx.Client.EventEmitter do
       Promise.flush(ref)
     end
 
-    {entry, Promise.from_messages(ref, handler, cancel)}
+    # Events come from the connection: its exit rejects the wait (a process-local emitter: none).
+    watch = if Map.get(this, :table), do: this.conn
+    {entry, Promise.from_messages(ref, handler, cancel, watch)}
   end
 
   # prependOnceListener  -- not ported: unused by the client

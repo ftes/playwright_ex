@@ -31,6 +31,11 @@ defmodule PlaywrightEx.Runtime.Promise do
   `PlaywrightEx.Runtime.ProcessOwner` until that process exits. A pending latch is rejected when
   its owner is disposed; awaiting one whose owner is gone raises
   `PlaywrightEx.TargetClosedError`. `free/1` deletes a latch's row before then.
+
+  A wait watches the connection process of what it awaits (a latch's, a call's, a subscription's,
+  `from_messages/4`): if that process exits, the wait rejects with `PlaywrightEx.TargetClosedError`
+  ("Playwright driver closed"), as a call to it does, instead of hanging. One monitor per armed
+  leaf, dropped (with its `:DOWN`) when the wait ends.
   """
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
@@ -41,7 +46,7 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   require Logger
 
-  defstruct [:kind, :ref, :pid, :owner, :result, :monitor, :cancel, :promises, handlers: []]
+  defstruct [:kind, :ref, :pid, :owner, :result, :monitor, :watch, :cancel, :promises, handlers: []]
 
   @type t :: %__MODULE__{}
 
@@ -78,9 +83,10 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   @doc false
   # A local promise settled by messages `{:pw, ref, payload}` that `handler` maps to a result, or
-  # to `:continue` (keep waiting); `cancel` undoes the source once settled.
-  def from_messages(ref, handler, cancel),
-    do: %__MODULE__{kind: :local, ref: ref, pid: self(), handlers: [handler], cancel: cancel}
+  # to `:continue` (keep waiting); `cancel` undoes the source once settled. While awaited, the
+  # exit of `watch` (the connection process sending the messages) rejects it.
+  def from_messages(ref, handler, cancel, watch \\ nil),
+    do: %__MODULE__{kind: :local, ref: ref, pid: self(), handlers: [handler], cancel: cancel, watch: watch}
 
   @doc "`Promise.resolve(value)`"
   def resolved(value), do: %__MODULE__{kind: :settled, result: {:ok, value}}
@@ -328,13 +334,16 @@ defmodule PlaywrightEx.Runtime.Promise do
     result
   end
 
-  # Armed nodes: {:done, result, leaves_to_finish} | {:leaf, ref, promise, mon} | {:race | :all, [node], handlers}
+  # Armed nodes: {:done, result, leaves_to_finish} | {:leaf, ref, promise, mon} | {:race | :all, [node], handlers}.
+  # `mon` watches the process that settles the leaf (a latch's connection, a call's): its exit
+  # rejects the leaf with `TargetClosedError`. A call's is its own; the others are armed here
+  # and demonitored when the leaf is finished, won or lost.
   defp arm(%__MODULE__{kind: :settled, result: result, handlers: handlers}),
     do: done(apply_handlers(handlers, result), [])
 
   defp arm(%__MODULE__{kind: :local, pid: pid} = promise) do
     if pid != self(), do: raise("a local promise of #{inspect(pid)} is awaited by #{inspect(self())}")
-    {:leaf, promise.ref, promise, promise.monitor}
+    {:leaf, promise.ref, promise, promise.monitor || (promise.watch && Process.monitor(promise.watch))}
   end
 
   defp arm(%__MODULE__{kind: :latch, owner: owner} = promise) do
@@ -374,7 +383,8 @@ defmodule PlaywrightEx.Runtime.Promise do
   end
 
   defp armed_leaf(promise, _wref, {:settled, result}), do: done(apply_handlers(promise.handlers, result), [])
-  defp armed_leaf(promise, wref, :armed), do: {:leaf, wref, promise, nil}
+  # Monitored after arming: a connection gone by then is `:noproc`, which rejects too.
+  defp armed_leaf(promise, wref, :armed), do: {:leaf, wref, promise, Process.monitor(promise.owner.conn)}
 
   @doc """
   Elixir only: `await Promise.all(fun())` where `fun` runs in `obj`'s connection, in one atomic
@@ -453,7 +463,8 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   defp feed(node, _ref, _payload), do: node
 
-  defp payload(_promise, {:down, _reason}), do: {:error, TargetClosedError.new()}
+  # As a call to a connection process that is gone (`Conn.run/2`).
+  defp payload(_promise, {:down, _reason}), do: {:error, TargetClosedError.new("Playwright driver closed")}
   defp payload(_promise, payload), do: payload
 
   # A race settles with its first settled child, an all with its first error or all values.
@@ -490,7 +501,7 @@ defmodule PlaywrightEx.Runtime.Promise do
   defp leaves({_kind, children, _}), do: Enum.flat_map(children, &leaves/1)
 
   # Winners: cancel their source (unsubscribe, timer). Losers: a local stays pending (its
-  # message may still come), a latch is disarmed.
+  # message may still come), a latch is disarmed. Both drop the monitor armed for the wait.
   defp finish({:done, _result, leaves}), do: Enum.each(leaves, &finish_leaf/1)
 
   defp finish_leaf({:won, {:leaf, _ref, promise, mon}}) do
@@ -498,12 +509,17 @@ defmodule PlaywrightEx.Runtime.Promise do
     if promise.cancel, do: promise.cancel.()
   end
 
-  defp finish_leaf({:lost, {:leaf, ref, %{kind: :latch, owner: owner, ref: latch}, _}}) do
+  defp finish_leaf({:lost, {:leaf, ref, %{kind: :latch, owner: owner, ref: latch}, mon}}) do
     disarm_latch(owner, latch, ref)
+    Process.demonitor(mon, [:flush])
     flush(ref)
   end
 
-  defp finish_leaf({:lost, _leaf}), do: :ok
+  # A call's own monitor stays: its reply may still come.
+  defp finish_leaf({:lost, {:leaf, _ref, promise, mon}}) do
+    if mon && mon != promise.monitor, do: Process.demonitor(mon, [:flush])
+    :ok
+  end
 
   # Also drops a wake-up held by the connection (`Conn.unwake/2`): settled inside a dispatch's
   # synchronous section, it would come after `flush/1`.

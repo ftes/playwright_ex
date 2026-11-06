@@ -22,8 +22,8 @@ Drives Playwright 1.64.
   [Testing with ExUnit](guides/testing-with-exunit.md#assertions) to wrap them).
 - A lost driver closes its objects as a lost `BrowserType.connect` connection does: pages and
   contexts emit `close`, browsers `disconnected`, and waits on them fail with
-  `PlaywrightEx.TargetClosedError` instead of hanging. `PlaywrightEx.playwright/1` waits for
-  the restarted driver.
+  `PlaywrightEx.TargetClosedError` instead of hanging, as do waits on anything else (a worker)
+  once the old connection stops. `PlaywrightEx.playwright/1` waits for the restarted driver.
 
 ### Added
 - [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before

@@ -86,6 +86,7 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   timeouts and document identity are done by callers with the official API. A lost driver is
   noticed by Browser `disconnected`: a lost local driver emits it too (pages and contexts emit
   `close` first), as `connect` does for its connection (rejected: a public `connection_pid/1`).
+  Waits on anything else (a worker) reject once the old connection process stops.
 
 ## Runtime
 
@@ -103,7 +104,9 @@ creator's process dictionary.
 
 Promises (`PlaywrightEx.Runtime.Promise`) are messages, in two kinds. A local promise is a ref
 whose result is sent to its creator, which awaits it once. A latch is a row on an owner, awaitable
-any number of times from any process, rejected when its owner is disposed. `async/2` runs a
+any number of times from any process, rejected when its owner is disposed. A wait also monitors
+the connection process of what it awaits (a latch, a call, an event): if that exits, the wait
+rejects with `TargetClosedError` instead of hanging. `async/2` runs a
 function in a process of its own and settles a local promise, or a latch (`owner:` an object,
 `shared: true` the calling process). `void/1` fires and forgets. `then_`/`catch_` are lazy and
 run in the awaiter; `race`/`all` are selective receives. Rule: a promise awaited more than once,
