@@ -54,20 +54,13 @@ defmodule PlaywrightEx.Client.Response do
   end
 
   def _actual_headers(this) do
-    if !get(this, :_actualHeadersPromise) do
-      put(
-        this,
-        :_actualHeadersPromise,
-        Promise.async(
-          fn ->
-            RawHeaders.new(channel_call(this, :rawResponseHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
-          end,
-          owner: this
-        )
-      )
-    end
-
-    Promise.await(get(this, :_actualHeadersPromise))
+    # `if (!this._actualHeadersPromise) this._actualHeadersPromise = ...` in one atomic step:
+    # concurrent callers share one call.
+    Promise.await(
+      Promise.async_once(this, :_actualHeadersPromise, fn ->
+        RawHeaders.new(channel_call(this, :rawResponseHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
+      end)
+    )
   end
 
   def all_headers(this) do

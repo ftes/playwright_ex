@@ -101,26 +101,19 @@ defmodule PlaywrightEx.Client.Request do
     if get(this, :_fallbackOverrides)[:headers] do
       RawHeaders._from_headers_object_lossy(get(this, :_fallbackOverrides).headers)
     else
-      if !get(this, :_actualHeadersPromise) do
-        put(
-          this,
-          :_actualHeadersPromise,
-          Promise.async(
-            fn ->
-              _wrap_api_call(
-                this,
-                fn _ ->
-                  RawHeaders.new(channel_call(this, :rawRequestHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
-                end,
-                %{internal: true}
-              )
+      # `if (!this._actualHeadersPromise) this._actualHeadersPromise = ...` in one atomic step:
+      # concurrent callers share one call.
+      Promise.await(
+        Promise.async_once(this, :_actualHeadersPromise, fn ->
+          _wrap_api_call(
+            this,
+            fn _ ->
+              RawHeaders.new(channel_call(this, :rawRequestHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
             end,
-            owner: this
+            %{internal: true}
           )
-        )
-      end
-
-      Promise.await(get(this, :_actualHeadersPromise))
+        end)
+      )
     end
   end
 

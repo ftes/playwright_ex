@@ -181,15 +181,58 @@ defmodule PlaywrightEx.Runtime.Promise do
       cond do
         owner = opts[:owner] -> new(owner)
         Keyword.get(opts, :shared, false) -> new(ProcessOwner.owner(self()))
-        true -> new()
+        true -> local_alias()
       end
 
     start(fn ->
       result = run_async(fun)
-      settle(promise, result)
+      settle_async(promise, result)
       Invocation.yield()
     end)
 
+    promise
+  end
+
+  # A local promise settled through an alias of its creator: `free/1` (unalias) drops a result
+  # that comes later, so a promise nobody awaits any more leaves no message behind.
+  defp local_alias do
+    ref = :erlang.alias()
+
+    %__MODULE__{
+      kind: :local,
+      ref: ref,
+      pid: self(),
+      cancel: fn ->
+        :erlang.unalias(ref)
+        flush(ref)
+      end
+    }
+  end
+
+  defp settle_async(%__MODULE__{kind: :local, ref: ref}, result), do: send(ref, {:pw, ref, result})
+  defp settle_async(promise, result), do: settle(promise, result)
+
+  @doc """
+  `if (!obj.field) obj.field = (async () => fun())(); return obj.field;` with the check and the
+  store in one atomic step, so concurrent callers share one run of `fun`: returns the latch (on
+  `obj`) kept in `field`.
+  """
+  def async_once(obj, field, fun) when is_function(fun, 0) do
+    latch = new(obj)
+
+    {promise, started} =
+      Heap.atomic(obj, fn ->
+        case Heap.get(obj, field) do
+          nil ->
+            Heap.put(obj, field, latch)
+            {latch, true}
+
+          promise ->
+            {promise, false}
+        end
+      end)
+
+    if started, do: void(fn -> settle(latch, run_async(fun)) end)
     promise
   end
 
@@ -283,41 +326,75 @@ defmodule PlaywrightEx.Runtime.Promise do
     {:leaf, promise.ref, promise, promise.monitor}
   end
 
-  defp arm(%__MODULE__{kind: :latch, owner: owner, ref: ref} = promise) do
+  defp arm(%__MODULE__{kind: :latch, owner: owner} = promise) do
     wref = make_ref()
     me = self()
 
     result =
       try do
-        Heap.atomic(owner, fn ->
-          key = Heap.key(owner, {:latch, ref})
-
-          case :ets.lookup(owner.table, key) do
-            [{_, {:settled, result}}] ->
-              {:settled, result}
-
-            found ->
-              if Heap.alive?(owner) do
-                waiters = with [{_, {:pending, waiters}}] <- found, do: waiters
-                :ets.insert(owner.table, {key, {:pending, [{me, wref} | waiters || []]}})
-                :armed
-              else
-                {:settled, {:error, TargetClosedError.new()}}
-              end
-          end
-        end)
+        Heap.atomic(owner, fn -> arm_latch(promise, me, wref) end)
       rescue
         e in TargetClosedError -> {:settled, {:error, e}}
       end
 
-    case result do
-      {:settled, result} -> done(apply_handlers(promise.handlers, result), [])
-      :armed -> {:leaf, wref, promise, nil}
-    end
+    armed_leaf(promise, wref, result)
   end
 
   defp arm(%__MODULE__{kind: kind, promises: promises, handlers: handlers}) when kind in [:race, :all],
     do: settle_node({kind, Enum.map(promises, &arm/1), handlers})
+
+  # In the latch's connection: registers `me` as a waiter, or returns the result.
+  defp arm_latch(%__MODULE__{owner: owner, ref: ref}, me, wref) do
+    key = Heap.key(owner, {:latch, ref})
+
+    case :ets.lookup(owner.table, key) do
+      [{_, {:settled, result}}] ->
+        {:settled, result}
+
+      found ->
+        if Heap.alive?(owner) do
+          waiters = with [{_, {:pending, waiters}}] <- found, do: waiters
+          :ets.insert(owner.table, {key, {:pending, [{me, wref} | waiters || []]}})
+          :armed
+        else
+          {:settled, {:error, TargetClosedError.new()}}
+        end
+    end
+  end
+
+  defp armed_leaf(promise, _wref, {:settled, result}), do: done(apply_handlers(promise.handlers, result), [])
+  defp armed_leaf(promise, wref, :armed), do: {:leaf, wref, promise, nil}
+
+  @doc """
+  Elixir only: `await Promise.all(fun())` where `fun` runs in `obj`'s connection, in one atomic
+  step with arming the latches it returns (latches of that connection): a latch it reads cannot
+  settle and be freed (`free/1`) before it is armed. `fun` must not await.
+  """
+  def await_all_atomic(obj, fun) when is_function(fun, 0) do
+    if Conn.in_conn?(), do: raise("await inside the connection process (dispatch must not block)")
+    Invocation.yield()
+    me = self()
+
+    armed =
+      Heap.atomic(obj, fn ->
+        for promise <- fun.() do
+          wref = make_ref()
+          {promise, wref, arm_latch(promise, me, wref)}
+        end
+      end)
+
+    armed =
+      settle_node({:all, Enum.map(armed, fn {promise, wref, result} -> armed_leaf(promise, wref, result) end), []})
+
+    {result, armed} = receive_loop(armed)
+    finish(armed)
+
+    case result do
+      {:ok, value} -> value
+      {:error, %{__exception__: true} = error} -> raise error
+      {:error, other} -> raise "Promise rejected with #{inspect(other)}"
+    end
+  end
 
   defp done(:continue, _), do: raise("a settled promise cannot continue")
   defp done(result, leaves), do: {:done, result, leaves}

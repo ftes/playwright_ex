@@ -152,7 +152,17 @@ defmodule PlaywrightEx.Client.JSHandle do
             name
           end)
 
-        Promise.await(Promise.all(Process.delete(expose_promises)))
+        expose_promises = Process.delete(expose_promises)
+
+        try do
+          Promise.await(Promise.all(expose_promises))
+        rescue
+          # Elixir only: the calls still running settle no message here once the caller moved on.
+          e ->
+            Enum.each(expose_promises, &Promise.free/1)
+            reraise e, __STACKTRACE__
+        end
+
         serialized
       end,
       %{internal: true}
