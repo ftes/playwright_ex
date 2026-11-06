@@ -392,8 +392,10 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     end)
   end
 
-  # The driver's JS client fails this on macOS Chromium too (1-3 in 10, same context options):
-  # the click right after the OOPIF's goto races its hit-test data; ours loses it every time.
+  # macOS headless Chromium drops the click right after the OOPIF's goto 2-5 times in 10, for the
+  # driver's JS client too: both send the same CDP sequence with the same ~57 ms goto-to-click gap,
+  # and a 50 ms sleep after the goto makes ours pass 20 in 20. In a full module run (random order,
+  # warm browser) it fails more often than alone.
   @tag skip: if(match?({:unix, :darwin}, :os.type()), do: "env: macOS Chromium OOPIF click races the frame's goto")
   @tag :page
   test "should click", %{page: page, browser: browser, server: server} do
