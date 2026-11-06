@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`PlaywrightEx.error()`); other exceptions (bugs, misuse) raise in both forms.
 - `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a
   supervision tree.
+- `mix playwright_ex.install` fails with the CLI's exit status instead of a `MatchError`.
 
 ## [0.17.0-rc.0] 2026-11-06
 
