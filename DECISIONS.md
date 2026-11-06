@@ -1100,3 +1100,5 @@ drift). Blockers for release, assigned to follow-up workstreams:
   surfaced in the job summary (H-17).
 - User, 2026-11-06, review decision 7: context close with 1000 live handles stays +21% (+1.9 ms) vs
   baton; accepted, no close-walk optimization.
+- User, 2026-11-06, docs Q1: good guides block 1.64.0; how many examples translate before the
+  release is decided on the Locator spike's numbers (wr5-examples).
