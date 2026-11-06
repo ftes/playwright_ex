@@ -30,7 +30,7 @@ order (parity checks it) and mark only deviations.
 
 Versions will mirror upstream major.minor once the port is stable (`1.64.x` drives Playwright
 1.64; the patch is ours), as playwright-python does; upstream's `since` is then ours. Until then
-releases are 0.17 release candidates (PLAN "Later").
+releases are 0.17 release candidates (GH #126).
 
 The driver is pinned too: `PlaywrightEx.Driver` downloads `playwright-core@<pin>` from npm
 (sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; musl from
@@ -64,6 +64,11 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   arrive as `PlaywrightError`, so callers couldn't rely on it, and each of upstream's ~75
   `throw new Error` would need classifying. Our own Elixir-side checks (unknown option or event,
   RegExp translation) raise `ArgumentError`.
+- Bang matchers raise `PlaywrightEx.ExpectError`, as JS's expect throws its own error (ExUnit
+  reports it as a failure with the same text). Rejected: `ExUnit.AssertionError` when ExUnit is
+  loaded: it is loaded in nearly every mix/iex run, so detection gains nothing and makes behaviour
+  depend on the environment. Callers who want ExUnit's error wrap the call (testing-with-exunit
+  guide).
 - Names that are no Elixir function names take Python's (`$eval` is `eval_on_selector`,
   `and`/`or` are `and_`/`or_`, `not` is `not_to_*` and `Expect.not_/1`): the closest official
   precedent. JS readonly fields are arity-1 functions.
@@ -75,7 +80,9 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   moduledoc headings). Non-JS doc variants replace JS-only text where
   the type matches. A JS example with an Elixir translation in `test/examples` (tests, so each
   compiles and runs; `PlaywrightEx.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
-  rest stay JS until translated.
+  rest stay JS until translated. Rejected: `iex>` doctests (scripts with no printable results or
+  fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
+  the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
   serialization, the inspector, the test runner (`toPass`, `expect.poll`, soft asserts, file aria
   snapshots, jest matchers). `to_have_screenshot(target, path:)` stays, with an explicit path in
@@ -121,7 +128,9 @@ This supersedes the baton event loop: one token per driver, client code only in 
 an ETS heap freed by a tracing GC. That reproduced JS ordering exactly but cost ~30 µs of token
 time per call, 100-350 ms GC pauses at 20-60k rows and a cap of 1000 handles per process. On the
 OTP runtime the full chromium suite went from 1257 s (61 failures) to 192 s (6) before the
-concurrency audit. Counted ownership (keep the heap, count holders) was the rejected
+concurrency audit. Closing a context with 1000 live handles is ~21% (+1.9 ms) slower than on the
+baton (linear, ~7 µs per child; 7x faster than the baton at 5000 handles); accepted, with no
+close-walk optimization. Counted ownership (keep the heap, count holders) was the rejected
 alternative: smaller, but a missed holder becomes a new failure mode.
 
 ## Object lifetimes
@@ -247,6 +256,8 @@ verbatim. The north star is to run what the non-JS clients run: specs of JS-only
 in-process server or of the test runner stay bodiless, ruled out in
 `test/upstream_not_ported.txt` against `test/upstream_registry.md` (playwright-python and -java's
 mechanism, so their rule sets can be compared with `mix playwright_ex.parity --north-star`).
+Specs run in upstream's `driver` mode only: the driver pipe is the only transport, and remote
+browsers (`BrowserType.connect`) are covered by upstream's connect specs, so there is no mode matrix.
 Parity fails on unported registry tests, stale rules and stale skips (a reason naming a member
 that now exists), so a version roll surfaces new work.
 

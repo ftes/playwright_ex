@@ -169,6 +169,8 @@ defmodule PlaywrightEx.JSHandle do
   JSHandle.dispose!(handle)
   ```
 
+  In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order.
+
   *Since Playwright 1.8.*
   """
   @spec get_properties(t()) :: {:ok, term()} | {:error, PlaywrightEx.error()}

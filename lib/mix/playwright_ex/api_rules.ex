@@ -49,6 +49,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `credentials.create(known.rpId, known)`) are marked `"result"`: the facade also takes such a
       result (a map with the JS keys) as the options, ignoring its fields that are no options
       (`rpId`, which the positional argument overrides in the client too).
+    * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
+      does not keep the property order).
     * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
       with arguments, upstream slips such as `filePaths`), and inline code they must leave alone
       (`@prose_keep`: `getByRole`'s `disabled`, also the HTML attribute).
@@ -188,6 +190,13 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Locator.inputValue" => [{"Throws elements that are not", "Throws for elements that are not"}]
   }
 
+  # "Class.member" => an Elixir note appended to its docs.
+  @notes %{
+    # The client returns `Map<string, JSHandle>` as a map (`# deviation:` in its `get_properties`).
+    "JSHandle.getProperties" =>
+      "In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order."
+  }
+
   # Member name => inline code the prose rules leave alone: `getByRole`'s `disabled` is also the
   # HTML attribute.
   @prose_keep %{"getByRole" => ~w(disabled)}
@@ -222,6 +231,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
+              |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
               |> or_options(class_names)
@@ -664,6 +674,13 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "`Browser.new_context(browser, devices[\"iPhone 6\"])`."
 
         Map.merge(member, %{"options" => options, "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}]})
+    end
+  end
+
+  defp notes(member, key) do
+    case @notes[key] do
+      nil -> member
+      text -> Map.update!(member, "spec", &(&1 ++ [%{"type" => "text", "text" => text}]))
     end
   end
 

@@ -39,7 +39,7 @@ the existing ported code next to whatever you port.
    6. Re-check the `env:`/`flaky:` skips and PORTING's "Upstream issues to re-check" as PORTING
       step 6 says; drop skips that pass and list them in the PR body.
 4. Leave `@version` in `mix.exs` alone (releases are 0.17 candidates until versions mirror
-   Playwright; PLAN "Later" #3). Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the
+   Playwright; GH #126). Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the
    existing entries: "Drive Playwright TO" with the RELEASE link, then the API added or changed by
    the port.
 5. Verify; all must pass:
