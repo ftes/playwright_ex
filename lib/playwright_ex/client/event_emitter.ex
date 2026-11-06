@@ -349,7 +349,15 @@ defmodule PlaywrightEx.Client.EventEmitter do
         me = self()
         ref = make_ref()
         put(this, :_rejectionHandler, fn error -> send(me, {ref, error}) end)
-        _wait_for(this, type)
+
+        try do
+          _wait_for(this, type)
+        after
+          # Elixir only: later errors are dropped (JS pushes them to the array nobody reads any
+          # more), not sent to this process.
+          put(this, :_rejectionHandler, fn _ -> nil end)
+        end
+
         errors = _collect(ref)
         if errors != [], do: raise(hd(errors))
         nil

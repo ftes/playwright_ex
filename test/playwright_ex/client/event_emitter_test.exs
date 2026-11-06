@@ -23,4 +23,13 @@ defmodule PlaywrightEx.Client.EventEmitterTest do
       EventEmitter.set_max_listeners(emitter, -1)
     end
   end
+
+  test "remove_all_listeners with behavior wait: errors of later listeners send no message" do
+    emitter = EventEmitter.new()
+    assert EventEmitter.remove_all_listeners(emitter, "foo", %{behavior: "wait"}) == nil
+
+    EventEmitter.on(emitter, "foo", fn _ -> raise "after" end)
+    EventEmitter.emit(emitter, "foo")
+    refute_received _
+  end
 end
