@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Debugger do
 
   Note that `PlaywrightEx.Page.pause/1` is equivalent to a "debugger" statement — it pauses execution at the call site immediately. On the contrary, `PlaywrightEx.Debugger.request_pause/1` is equivalent to "pause on next statement" — it configures the debugger to pause before the next action is executed.
   """
-  @spec request_pause(t()) :: :ok | {:error, Exception.t()}
+  @spec request_pause(t()) :: :ok | {:error, PlaywrightEx.error()}
   def request_pause(debugger) do
     Facade.async_void("debugger.requestPause", debugger, fn -> PlaywrightEx.Client.Debugger.request_pause(debugger) end)
   end
@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Debugger do
   @doc ~S"""
   Resumes script execution. Throws if the debugger is not paused.
   """
-  @spec resume(t()) :: :ok | {:error, Exception.t()}
+  @spec resume(t()) :: :ok | {:error, PlaywrightEx.error()}
   def resume(debugger) do
     Facade.async_void("debugger.resume", debugger, fn -> PlaywrightEx.Client.Debugger.resume(debugger) end)
   end
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Debugger do
   @doc ~S"""
   Resumes script execution and pauses again before the next action. Throws if the debugger is not paused.
   """
-  @spec next(t()) :: :ok | {:error, Exception.t()}
+  @spec next(t()) :: :ok | {:error, PlaywrightEx.error()}
   def next(debugger) do
     Facade.async_void("debugger.next", debugger, fn -> PlaywrightEx.Client.Debugger.next(debugger) end)
   end
@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Debugger do
     * `:column`
   """
   @spec run_to(t(), %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def run_to(debugger, location) do
     location = Facade.arg!(location, @run_to_location, "debugger.runTo")
     Facade.async_void("debugger.runTo", debugger, fn -> PlaywrightEx.Client.Debugger.run_to(debugger, location) end)

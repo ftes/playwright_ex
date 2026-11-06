@@ -101,7 +101,7 @@ defmodule PlaywrightEx.FileChooser do
           | %{name: String.t(), mimeType: String.t(), buffer: binary()}
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_files_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def set_files(file_chooser, files, options \\ []) do
     files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles")
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")

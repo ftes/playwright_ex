@@ -98,7 +98,7 @@ defmodule PlaywrightEx.WebSocketRoute do
   * `:code` (`t:integer/0`) - Optional [close code](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#code).
   * `:reason` (`t:String.t/0`) - Optional [close reason](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#reason).
   """
-  @spec close(t(), close_options()) :: :ok | {:error, Exception.t()}
+  @spec close(t(), close_options()) :: :ok | {:error, PlaywrightEx.error()}
   def close(web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 

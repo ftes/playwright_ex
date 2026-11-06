@@ -5,6 +5,8 @@ defmodule PlaywrightEx.ExpectError do
   `expected`, `actual`, `log`, `timeout`, `ariaSnapshot` (keys whose JS value is `undefined` are
   left out).
   """
+  @type t :: %__MODULE__{message: String.t(), name: String.t(), matcherResult: map() | nil, stack: String.t()}
+
   defexception message: "", name: "Error", matcherResult: nil, stack: ""
 
   def new(matcher_result, custom_message, _stack_frames) do

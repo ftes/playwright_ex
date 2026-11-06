@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Route do
     * `'timedout'` - An operation timed out.
     * `'failed'` - A generic failure occurred.
   """
-  @spec abort(t(), String.t() | nil) :: :ok | {:error, Exception.t()}
+  @spec abort(t(), String.t() | nil) :: :ok | {:error, PlaywrightEx.error()}
   def abort(route, error_code \\ nil) do
     Facade.async_void("route.abort", route, fn -> PlaywrightEx.Client.Route.abort(route, error_code) end)
   end
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Route do
   * `:post_data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - If set changes the post data of request.
   * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one.
   """
-  @spec continue(t(), continue_options()) :: :ok | {:error, Exception.t()}
+  @spec continue(t(), continue_options()) :: :ok | {:error, PlaywrightEx.error()}
   def continue(route, options \\ []) do
     options = Facade.options!(options, @continue_options, "route.continue")
     Facade.async_void("route.continue", route, fn -> PlaywrightEx.Client.Route.continue(route, options) end)
@@ -229,7 +229,7 @@ defmodule PlaywrightEx.Route do
   * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one. Changing the URL won't
     affect the route matching, all the routes are matched using the original request URL.
   """
-  @spec fallback(t(), fallback_options()) :: :ok | {:error, Exception.t()}
+  @spec fallback(t(), fallback_options()) :: :ok | {:error, PlaywrightEx.error()}
   def fallback(route, options \\ []) do
     options = Facade.options!(options, @fallback_options, "route.fallback")
     Facade.async_void("route.fallback", route, fn -> PlaywrightEx.Client.Route.fallback(route, options) end)
@@ -317,7 +317,7 @@ defmodule PlaywrightEx.Route do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one.
   """
-  @spec fetch(t(), fetch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec fetch(t(), fetch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def fetch(route, options \\ []) do
     options = Facade.options!(options, @fetch_options, "route.fetch")
     Facade.async("route.fetch", route, fn -> PlaywrightEx.Client.Route.fetch(route, options) end)
@@ -394,7 +394,7 @@ defmodule PlaywrightEx.Route do
   * `:response` (`t:PlaywrightEx.APIResponse.t/0`) - *Since 1.15.* [`APIResponse`](`PlaywrightEx.APIResponse`) to fulfill route's request with. Individual fields of the response (such as headers) can be overridden using fulfill options.
   * `:status` (`t:integer/0`) - Response status code, defaults to `200`.
   """
-  @spec fulfill(t(), fulfill_options()) :: :ok | {:error, Exception.t()}
+  @spec fulfill(t(), fulfill_options()) :: :ok | {:error, PlaywrightEx.error()}
   def fulfill(route, options \\ []) do
     options = Facade.options!(options, @fulfill_options, "route.fulfill")
     Facade.async_void("route.fulfill", route, fn -> PlaywrightEx.Client.Route.fulfill(route, options) end)

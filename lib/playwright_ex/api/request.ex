@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   An object with all the request HTTP headers associated with this request. The header names are lower-cased.
   """
-  @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Exception.t()}
+  @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, PlaywrightEx.error()}
   def all_headers(request) do
     Facade.async("request.allHeaders", request, fn -> PlaywrightEx.Client.Request.all_headers(request) end)
   end
@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Request do
   An array with all the request HTTP headers associated with this request. Unlike `PlaywrightEx.Request.all_headers/1`, header names are NOT lower-cased.
   Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
   """
-  @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Exception.t()}
+  @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, PlaywrightEx.error()}
   def headers_array(request) do
     Facade.async("request.headersArray", request, fn -> PlaywrightEx.Client.Request.headers_array(request) end)
   end
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Request do
 
   * `name` - Name of the header.
   """
-  @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def header_value(request, name) do
     Facade.async("request.headerValue", request, fn -> PlaywrightEx.Client.Request.header_value(request, name) end)
   end
@@ -268,7 +268,7 @@ defmodule PlaywrightEx.Request do
   @doc ~S"""
   Returns the matching [`Response`](`PlaywrightEx.Response`) object, or `nil` if the response was not received due to error.
   """
-  @spec response(t()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec response(t()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, PlaywrightEx.error()}
   def response(request) do
     Facade.async("request.response", request, fn -> PlaywrightEx.Client.Request.response(request) end)
   end
@@ -320,7 +320,7 @@ defmodule PlaywrightEx.Request do
              responseBodySize: integer(),
              responseHeadersSize: integer()
            }}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def sizes(request) do
     Facade.async("request.sizes", request, fn -> PlaywrightEx.Client.Request.sizes(request) end)
   end

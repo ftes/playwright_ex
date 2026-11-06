@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Tuple forms return `{:error, e}` only for the errors upstream rejects with
+  (`PlaywrightEx.error()`); other exceptions (bugs, misuse) raise in both forms.
+
 ## [0.17.0-rc.0] 2026-11-06
 
 Drives Playwright 1.64.

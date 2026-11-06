@@ -71,7 +71,8 @@ defmodule PlaywrightEx.Frame do
     [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) for more details.
   * `:url` (`t:String.t/0`) - URL of a script to be added.
   """
-  @spec add_script_tag(t(), add_script_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  @spec add_script_tag(t(), add_script_tag_options()) ::
+          {:ok, PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
   def add_script_tag(frame, options \\ []) do
     options = Facade.options!(options, @add_script_tag_options, "frame.addScriptTag")
     Facade.async("frame.addScriptTag", frame, fn -> PlaywrightEx.Client.Frame.add_script_tag(frame, options) end)
@@ -106,7 +107,8 @@ defmodule PlaywrightEx.Frame do
     current working directory.
   * `:url` (`t:String.t/0`) - URL of the `<link>` tag.
   """
-  @spec add_style_tag(t(), add_style_tag_options()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  @spec add_style_tag(t(), add_style_tag_options()) ::
+          {:ok, PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
   def add_style_tag(frame, options \\ []) do
     options = Facade.options!(options, @add_style_tag_options, "frame.addStyleTag")
     Facade.async("frame.addStyleTag", frame, fn -> PlaywrightEx.Client.Frame.add_style_tag(frame, options) end)
@@ -205,7 +207,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
-  @spec check(t(), String.t(), check_options()) :: :ok | {:error, Exception.t()}
+  @spec check(t(), String.t(), check_options()) :: :ok | {:error, PlaywrightEx.error()}
   def check(frame, selector, options \\ []) do
     options = Facade.options!(options, @check_options, "frame.check")
     Facade.async_void("frame.check", frame, fn -> PlaywrightEx.Client.Frame.check(frame, selector, options) end)
@@ -339,7 +341,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
-  @spec click(t(), String.t(), click_options()) :: :ok | {:error, Exception.t()}
+  @spec click(t(), String.t(), click_options()) :: :ok | {:error, PlaywrightEx.error()}
   def click(frame, selector, options \\ []) do
     options = Facade.options!(options, @click_options, "frame.click")
     Facade.async_void("frame.click", frame, fn -> PlaywrightEx.Client.Frame.click(frame, selector, options) end)
@@ -367,7 +369,7 @@ defmodule PlaywrightEx.Frame do
   * `:include_shadow` (`t:boolean/0`) - *Since 1.64.* When true, contents of open shadow roots are included as [declarative shadow DOM](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM#declaratively_with_html),
     i.e. `<template shadowrootmode="open">` elements nested inside their host elements. Closed shadow roots are never included. Defaults to `false`.
   """
-  @spec content(t(), content_options()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec content(t(), content_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def content(frame, options \\ []) do
     options = Facade.options!(options, @content_options, "frame.content")
     Facade.async("frame.content", frame, fn -> PlaywrightEx.Client.Frame.content(frame, options) end)
@@ -492,7 +494,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
-  @spec dblclick(t(), String.t(), dblclick_options()) :: :ok | {:error, Exception.t()}
+  @spec dblclick(t(), String.t(), dblclick_options()) :: :ok | {:error, PlaywrightEx.error()}
   def dblclick(frame, selector, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "frame.dblclick")
     Facade.async_void("frame.dblclick", frame, fn -> PlaywrightEx.Client.Frame.dblclick(frame, selector, options) end)
@@ -580,7 +582,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec dispatch_event(t(), String.t(), String.t(), term() | nil, dispatch_event_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def dispatch_event(frame, selector, type, event_init \\ nil, options \\ []) do
     options = Facade.options!(options, @dispatch_event_options, "frame.dispatchEvent")
 
@@ -676,7 +678,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
-  @spec drag_and_drop(t(), String.t(), String.t(), drag_and_drop_options()) :: :ok | {:error, Exception.t()}
+  @spec drag_and_drop(t(), String.t(), String.t(), drag_and_drop_options()) :: :ok | {:error, PlaywrightEx.error()}
   def drag_and_drop(frame, source, target, options \\ []) do
     options = Facade.options!(options, @drag_and_drop_options, "frame.dragAndDrop")
 
@@ -726,7 +728,7 @@ defmodule PlaywrightEx.Frame do
   * `expression` - Function to be evaluated in the page context.
   * `arg` - Optional argument to pass to `expression`.
   """
-  @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
+  @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def eval_on_selector(frame, selector, expression, arg \\ nil) do
     Facade.async("frame.$eval", frame, fn ->
       PlaywrightEx.Client.Frame.eval_on_selector(frame, selector, expression, arg)
@@ -769,7 +771,8 @@ defmodule PlaywrightEx.Frame do
   * `expression` - Function to be evaluated in the page context.
   * `arg` - Optional argument to pass to `expression`.
   """
-  @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
+  @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) ::
+          {:ok, term()} | {:error, PlaywrightEx.error()}
   def eval_on_selector_all(frame, selector, expression, arg \\ nil) do
     Facade.async("frame.$$eval", frame, fn ->
       PlaywrightEx.Client.Frame.eval_on_selector_all(frame, selector, expression, arg)
@@ -833,7 +836,7 @@ defmodule PlaywrightEx.Frame do
 
   * `:expose_functions` (`t:boolean/0`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
-  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def evaluate(frame, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "frame.evaluate")
     Facade.async("frame.evaluate", frame, fn -> PlaywrightEx.Client.Frame.evaluate(frame, expression, arg, options) end)
@@ -896,7 +899,7 @@ defmodule PlaywrightEx.Frame do
   * `:expose_functions` (`t:boolean/0`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
-          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
   def evaluate_handle(frame, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "frame.evaluateHandle")
 
@@ -975,7 +978,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec fill(t(), String.t(), String.t(), fill_options()) :: :ok | {:error, Exception.t()}
+  @spec fill(t(), String.t(), String.t(), fill_options()) :: :ok | {:error, PlaywrightEx.error()}
   def fill(frame, selector, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "frame.fill")
     Facade.async_void("frame.fill", frame, fn -> PlaywrightEx.Client.Frame.fill(frame, selector, value, options) end)
@@ -1027,7 +1030,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec focus(t(), String.t(), focus_options()) :: :ok | {:error, Exception.t()}
+  @spec focus(t(), String.t(), focus_options()) :: :ok | {:error, PlaywrightEx.error()}
   def focus(frame, selector, options \\ []) do
     options = Facade.options!(options, @focus_options, "frame.focus")
     Facade.async_void("frame.focus", frame, fn -> PlaywrightEx.Client.Frame.focus(frame, selector, options) end)
@@ -1059,7 +1062,7 @@ defmodule PlaywrightEx.Frame do
   IO.puts(frame == content_frame)
   ```
   """
-  @spec frame_element(t()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+  @spec frame_element(t()) :: {:ok, PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
   def frame_element(frame) do
     Facade.async("frame.frameElement", frame, fn -> PlaywrightEx.Client.Frame.frame_element(frame) end)
   end
@@ -1144,7 +1147,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec get_attribute(t(), String.t(), String.t(), get_attribute_options()) ::
-          {:ok, nil | String.t()} | {:error, Exception.t()}
+          {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def get_attribute(frame, selector, name, options \\ []) do
     options = Facade.options!(options, @get_attribute_options, "frame.getAttribute")
 
@@ -1785,7 +1788,7 @@ defmodule PlaywrightEx.Frame do
     * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec goto(t(), String.t(), goto_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+  @spec goto(t(), String.t(), goto_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, PlaywrightEx.error()}
   def goto(frame, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "frame.goto")
     Facade.async("frame.goto", frame, fn -> PlaywrightEx.Client.Frame.goto(frame, url, options) end)
@@ -1897,7 +1900,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
-  @spec hover(t(), String.t(), hover_options()) :: :ok | {:error, Exception.t()}
+  @spec hover(t(), String.t(), hover_options()) :: :ok | {:error, PlaywrightEx.error()}
   def hover(frame, selector, options \\ []) do
     options = Facade.options!(options, @hover_options, "frame.hover")
     Facade.async_void("frame.hover", frame, fn -> PlaywrightEx.Client.Frame.hover(frame, selector, options) end)
@@ -1948,7 +1951,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec inner_html(t(), String.t(), inner_html_options()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec inner_html(t(), String.t(), inner_html_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def inner_html(frame, selector, options \\ []) do
     options = Facade.options!(options, @inner_html_options, "frame.innerHTML")
     Facade.async("frame.innerHTML", frame, fn -> PlaywrightEx.Client.Frame.inner_html(frame, selector, options) end)
@@ -1999,7 +2002,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec inner_text(t(), String.t(), inner_text_options()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec inner_text(t(), String.t(), inner_text_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def inner_text(frame, selector, options \\ []) do
     options = Facade.options!(options, @inner_text_options, "frame.innerText")
     Facade.async("frame.innerText", frame, fn -> PlaywrightEx.Client.Frame.inner_text(frame, selector, options) end)
@@ -2052,7 +2055,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec input_value(t(), String.t(), input_value_options()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec input_value(t(), String.t(), input_value_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def input_value(frame, selector, options \\ []) do
     options = Facade.options!(options, @input_value_options, "frame.inputValue")
     Facade.async("frame.inputValue", frame, fn -> PlaywrightEx.Client.Frame.input_value(frame, selector, options) end)
@@ -2103,7 +2106,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec is_checked(t(), String.t(), is_checked_options()) :: {:ok, boolean()} | {:error, Exception.t()}
+  @spec is_checked(t(), String.t(), is_checked_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_checked(frame, selector, options \\ []) do
     options = Facade.options!(options, @is_checked_options, "frame.isChecked")
     Facade.async("frame.isChecked", frame, fn -> PlaywrightEx.Client.Frame.is_checked(frame, selector, options) end)
@@ -2163,7 +2166,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec is_disabled(t(), String.t(), is_disabled_options()) :: {:ok, boolean()} | {:error, Exception.t()}
+  @spec is_disabled(t(), String.t(), is_disabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_disabled(frame, selector, options \\ []) do
     options = Facade.options!(options, @is_disabled_options, "frame.isDisabled")
     Facade.async("frame.isDisabled", frame, fn -> PlaywrightEx.Client.Frame.is_disabled(frame, selector, options) end)
@@ -2214,7 +2217,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec is_editable(t(), String.t(), is_editable_options()) :: {:ok, boolean()} | {:error, Exception.t()}
+  @spec is_editable(t(), String.t(), is_editable_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_editable(frame, selector, options \\ []) do
     options = Facade.options!(options, @is_editable_options, "frame.isEditable")
     Facade.async("frame.isEditable", frame, fn -> PlaywrightEx.Client.Frame.is_editable(frame, selector, options) end)
@@ -2261,7 +2264,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec is_enabled(t(), String.t(), is_enabled_options()) :: {:ok, boolean()} | {:error, Exception.t()}
+  @spec is_enabled(t(), String.t(), is_enabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_enabled(frame, selector, options \\ []) do
     options = Facade.options!(options, @is_enabled_options, "frame.isEnabled")
     Facade.async("frame.isEnabled", frame, fn -> PlaywrightEx.Client.Frame.is_enabled(frame, selector, options) end)
@@ -2300,7 +2303,7 @@ defmodule PlaywrightEx.Frame do
     than one element, the call throws an exception.
   * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, Exception.t()}
+  @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_hidden(frame, selector, options \\ []) do
     options = Facade.options!(options, @is_hidden_options, "frame.isHidden")
     Facade.async("frame.isHidden", frame, fn -> PlaywrightEx.Client.Frame.is_hidden(frame, selector, options) end)
@@ -2339,7 +2342,7 @@ defmodule PlaywrightEx.Frame do
     than one element, the call throws an exception.
   * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, Exception.t()}
+  @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_visible(frame, selector, options \\ []) do
     options = Facade.options!(options, @is_visible_options, "frame.isVisible")
     Facade.async("frame.isVisible", frame, fn -> PlaywrightEx.Client.Frame.is_visible(frame, selector, options) end)
@@ -2518,7 +2521,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec press(t(), String.t(), String.t(), press_options()) :: :ok | {:error, Exception.t()}
+  @spec press(t(), String.t(), String.t(), press_options()) :: :ok | {:error, PlaywrightEx.error()}
   def press(frame, selector, key, options \\ []) do
     options = Facade.options!(options, @press_options, "frame.press")
     Facade.async_void("frame.press", frame, fn -> PlaywrightEx.Client.Frame.press(frame, selector, key, options) end)
@@ -2562,7 +2565,7 @@ defmodule PlaywrightEx.Frame do
     than one element, the call throws an exception.
   """
   @spec query_selector(t(), String.t(), query_selector_options()) ::
-          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
   def query_selector(frame, selector, options \\ []) do
     options = Facade.options!(options, @query_selector_options, "frame.$")
     Facade.async("frame.$", frame, fn -> PlaywrightEx.Client.Frame.query_selector(frame, selector, options) end)
@@ -2595,7 +2598,7 @@ defmodule PlaywrightEx.Frame do
 
   * `selector` - A selector to query for.
   """
-  @spec query_selector_all(t(), String.t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, Exception.t()}
+  @spec query_selector_all(t(), String.t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, PlaywrightEx.error()}
   def query_selector_all(frame, selector) do
     Facade.async("frame.$$", frame, fn -> PlaywrightEx.Client.Frame.query_selector_all(frame, selector) end)
   end
@@ -2702,7 +2705,7 @@ defmodule PlaywrightEx.Frame do
           | [PlaywrightEx.ElementHandle.t()]
           | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
           select_option_options()
-        ) :: {:ok, [String.t()]} | {:error, Exception.t()}
+        ) :: {:ok, [String.t()]} | {:error, PlaywrightEx.error()}
   def select_option(frame, selector, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "frame.selectOption")
     options = Facade.options!(options, @select_option_options, "frame.selectOption")
@@ -2821,7 +2824,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
-  @spec set_checked(t(), String.t(), boolean(), set_checked_options()) :: :ok | {:error, Exception.t()}
+  @spec set_checked(t(), String.t(), boolean(), set_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
   def set_checked(frame, selector, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "frame.setChecked")
 
@@ -2898,7 +2901,7 @@ defmodule PlaywrightEx.Frame do
     * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
     * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
-  @spec set_content(t(), String.t(), set_content_options()) :: :ok | {:error, Exception.t()}
+  @spec set_content(t(), String.t(), set_content_options()) :: :ok | {:error, PlaywrightEx.error()}
   def set_content(frame, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "frame.setContent")
     Facade.async_void("frame.setContent", frame, fn -> PlaywrightEx.Client.Frame.set_content(frame, html, options) end)
@@ -2983,7 +2986,7 @@ defmodule PlaywrightEx.Frame do
           | %{name: String.t(), mimeType: String.t(), buffer: binary()}
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_input_files_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def set_input_files(frame, selector, files, options \\ []) do
     files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles")
     options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
@@ -3109,7 +3112,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
-  @spec tap(t(), String.t(), tap_options()) :: :ok | {:error, Exception.t()}
+  @spec tap(t(), String.t(), tap_options()) :: :ok | {:error, PlaywrightEx.error()}
   def tap(frame, selector, options \\ []) do
     options = Facade.options!(options, @tap_options, "frame.tap")
     Facade.async_void("frame.tap", frame, fn -> PlaywrightEx.Client.Frame.tap(frame, selector, options) end)
@@ -3160,7 +3163,8 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec text_content(t(), String.t(), text_content_options()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  @spec text_content(t(), String.t(), text_content_options()) ::
+          {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def text_content(frame, selector, options \\ []) do
     options = Facade.options!(options, @text_content_options, "frame.textContent")
     Facade.async("frame.textContent", frame, fn -> PlaywrightEx.Client.Frame.text_content(frame, selector, options) end)
@@ -3179,7 +3183,7 @@ defmodule PlaywrightEx.Frame do
   @doc ~S"""
   Returns the page title.
   """
-  @spec title(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec title(t()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def title(frame) do
     Facade.async("frame.title", frame, fn -> PlaywrightEx.Client.Frame.title(frame) end)
   end
@@ -3249,7 +3253,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec type(t(), String.t(), String.t(), type_options()) :: :ok | {:error, Exception.t()}
+  @spec type(t(), String.t(), String.t(), type_options()) :: :ok | {:error, PlaywrightEx.error()}
   def type(frame, selector, text, options \\ []) do
     options = Facade.options!(options, @type_options, "frame.type")
     Facade.async_void("frame.type", frame, fn -> PlaywrightEx.Client.Frame.type(frame, selector, text, options) end)
@@ -3350,7 +3354,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:trial` (`t:boolean/0`) - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
-  @spec uncheck(t(), String.t(), uncheck_options()) :: :ok | {:error, Exception.t()}
+  @spec uncheck(t(), String.t(), uncheck_options()) :: :ok | {:error, PlaywrightEx.error()}
   def uncheck(frame, selector, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "frame.uncheck")
     Facade.async_void("frame.uncheck", frame, fn -> PlaywrightEx.Client.Frame.uncheck(frame, selector, options) end)
@@ -3434,7 +3438,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec wait_for_function(t(), String.t(), term() | nil, wait_for_function_options()) ::
-          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
   def wait_for_function(frame, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @wait_for_function_options, "frame.waitForFunction")
 
@@ -3509,9 +3513,9 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def wait_for_load_state(frame, state \\ nil, options \\ [])
 
   def wait_for_load_state(frame, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
@@ -3760,7 +3764,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec wait_for_selector(t(), String.t(), wait_for_selector_options()) ::
-          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, Exception.t()}
+          {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
   def wait_for_selector(frame, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "frame.waitForSelector")
 
@@ -3800,7 +3804,7 @@ defmodule PlaywrightEx.Frame do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec wait_for_timeout(t(), number() | :infinity) :: :ok | {:error, Exception.t()}
+  @spec wait_for_timeout(t(), number() | :infinity) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for_timeout(frame, timeout) do
     timeout = Facade.arg!(timeout, @wait_for_timeout_timeout, "frame.waitForTimeout")
 
@@ -3891,7 +3895,7 @@ defmodule PlaywrightEx.Frame do
           t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           wait_for_url_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for_url(frame, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "frame.waitForURL")
     Facade.async_void("frame.waitForURL", frame, fn -> PlaywrightEx.Client.Frame.wait_for_url(frame, url, options) end)
@@ -4004,7 +4008,7 @@ defmodule PlaywrightEx.Frame do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
   @spec expect_navigation(t(), (-> term()), expect_navigation_options()) ::
-          {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
+          {:ok, nil | PlaywrightEx.Response.t()} | {:error, PlaywrightEx.error()}
   def expect_navigation(frame, action, options \\ []) do
     options = Facade.options!(options, @expect_navigation_options, "frame.waitForNavigation")
 

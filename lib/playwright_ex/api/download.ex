@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Download do
   Cancels a download. Will not fail if the download is already finished or canceled.
   Upon successful cancellations, `PlaywrightEx.Download.failure/1` returns `'canceled'`.
   """
-  @spec cancel(t()) :: :ok | {:error, Exception.t()}
+  @spec cancel(t()) :: :ok | {:error, PlaywrightEx.error()}
   def cancel(download) do
     Facade.async_void("download.cancel", download, fn -> PlaywrightEx.Client.Download.cancel(download) end)
   end
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Download do
   >
   > If you don't need a readable stream, it's usually simpler to read the file from disk after the download completed. See `PlaywrightEx.Download.path/1`.
   """
-  @spec create_read_stream(t()) :: {:ok, Enumerable.t(binary())} | {:error, Exception.t()}
+  @spec create_read_stream(t()) :: {:ok, Enumerable.t(binary())} | {:error, PlaywrightEx.error()}
   def create_read_stream(download) do
     Facade.async("download.createReadStream", download, fn ->
       PlaywrightEx.Client.Download.create_read_stream(download)
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Download do
   @doc ~S"""
   Deletes the downloaded file. Will wait for the download to finish if necessary.
   """
-  @spec delete(t()) :: :ok | {:error, Exception.t()}
+  @spec delete(t()) :: :ok | {:error, PlaywrightEx.error()}
   def delete(download) do
     Facade.async_void("download.delete", download, fn -> PlaywrightEx.Client.Download.delete(download) end)
   end
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Download do
   @doc ~S"""
   Returns download error if any. Will wait for the download to finish if necessary.
   """
-  @spec failure(t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  @spec failure(t()) :: {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def failure(download) do
     Facade.async("download.failure", download, fn -> PlaywrightEx.Client.Download.failure(download) end)
   end
@@ -122,7 +122,7 @@ defmodule PlaywrightEx.Download do
   Note that the download's file name is a random GUID, use `PlaywrightEx.Download.suggested_filename/1`
   to get suggested file name.
   """
-  @spec path(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec path(t()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def path(download) do
     Facade.async("download.path", download, fn -> PlaywrightEx.Client.Download.path(download) end)
   end
@@ -149,7 +149,7 @@ defmodule PlaywrightEx.Download do
 
   * `path` - Path where the download should be copied.
   """
-  @spec save_as(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec save_as(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def save_as(download, path) do
     Facade.async_void("download.saveAs", download, fn -> PlaywrightEx.Client.Download.save_as(download, path) end)
   end

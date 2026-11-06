@@ -44,7 +44,7 @@ defmodule PlaywrightEx.JSHandle do
   @doc ~S"""
   The `PlaywrightEx.JSHandle.dispose/1` method stops referencing the element handle.
   """
-  @spec dispose(t()) :: :ok | {:error, Exception.t()}
+  @spec dispose(t()) :: :ok | {:error, PlaywrightEx.error()}
   def dispose(js_handle) do
     Facade.async_void("jsHandle.dispose", js_handle, fn -> PlaywrightEx.Client.JSHandle.dispose(js_handle) end)
   end
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.JSHandle do
 
   * `:expose_functions` (`t:boolean/0`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
-  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def evaluate(js_handle, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "jsHandle.evaluate")
 
@@ -134,7 +134,7 @@ defmodule PlaywrightEx.JSHandle do
   * `:expose_functions` (`t:boolean/0`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
-          {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
   def evaluate_handle(js_handle, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "jsHandle.evaluateHandle")
 
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.JSHandle do
   JSHandle.dispose!(handle)
   ```
   """
-  @spec get_properties(t()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec get_properties(t()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def get_properties(js_handle) do
     Facade.async("jsHandle.getProperties", js_handle, fn -> PlaywrightEx.Client.JSHandle.get_properties(js_handle) end)
   end
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.JSHandle do
 
   * `property_name` - property to get
   """
-  @spec get_property(t(), String.t()) :: {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  @spec get_property(t(), String.t()) :: {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
   def get_property(js_handle, property_name) do
     Facade.async("jsHandle.getProperty", js_handle, fn ->
       PlaywrightEx.Client.JSHandle.get_property(js_handle, property_name)
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.JSHandle do
   > The method will return an empty JSON object if the referenced object is not stringifiable. It will throw an error if the
   > object has circular references.
   """
-  @spec json_value(t()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec json_value(t()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def json_value(js_handle) do
     Facade.async("jsHandle.jsonValue", js_handle, fn -> PlaywrightEx.Client.JSHandle.json_value(js_handle) end)
   end

@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Screencast do
     * `:width` - Max frame width in pixels.
     * `:height` - Max frame height in pixels.
   """
-  @spec start(t(), start_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  @spec start(t(), start_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def start(screencast, options \\ []) do
     options = Facade.options!(options, @start_options, "screencast.start")
     Facade.async("screencast.start", screencast, fn -> PlaywrightEx.Client.Screencast.start(screencast, options) end)
@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Screencast do
   @doc ~S"""
   Stops the screencast and video recording if active. If a video was being recorded, saves it to the path specified in `PlaywrightEx.Screencast.start/2`.
   """
-  @spec stop(t()) :: :ok | {:error, Exception.t()}
+  @spec stop(t()) :: :ok | {:error, PlaywrightEx.error()}
   def stop(screencast) do
     Facade.async_void("screencast.stop", screencast, fn -> PlaywrightEx.Client.Screencast.stop(screencast) end)
   end
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Screencast do
   * `:duration` (`t:number/0`) - Duration in milliseconds after which the overlay is automatically removed. Overlay stays until dismissed if not provided.
   """
   @spec show_overlay(t(), String.t(), show_overlay_options()) ::
-          {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def show_overlay(screencast, html, options \\ []) do
     options = Facade.options!(options, @show_overlay_options, "screencast.showOverlay")
 
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Screencast do
   * `:description` (`t:String.t/0`) - Optional description text displayed below the title.
   * `:duration` (`t:number/0`) - Duration in milliseconds after which the overlay is automatically removed. Defaults to `2000`.
   """
-  @spec show_chapter(t(), String.t(), show_chapter_options()) :: :ok | {:error, Exception.t()}
+  @spec show_chapter(t(), String.t(), show_chapter_options()) :: :ok | {:error, PlaywrightEx.error()}
   def show_chapter(screencast, title, options \\ []) do
     options = Facade.options!(options, @show_chapter_options, "screencast.showChapter")
 
@@ -272,7 +272,7 @@ defmodule PlaywrightEx.Screencast do
     * `:highlight` - CSS declarations for the box that covers the target element. The box is positioned and sized to the element bounds. Not shown when omitted.
     * `:title` - CSS declarations for the action title, for example `'font-size: 32px; background: #333'`. The title is placed according to `:position`.
   """
-  @spec show_actions(t(), show_actions_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  @spec show_actions(t(), show_actions_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def show_actions(screencast, options \\ []) do
     options = Facade.options!(options, @show_actions_options, "screencast.showActions")
 
@@ -296,7 +296,7 @@ defmodule PlaywrightEx.Screencast do
   @doc ~S"""
   Shows overlays.
   """
-  @spec show_overlays(t()) :: :ok | {:error, Exception.t()}
+  @spec show_overlays(t()) :: :ok | {:error, PlaywrightEx.error()}
   def show_overlays(screencast) do
     Facade.async_void("screencast.showOverlays", screencast, fn ->
       PlaywrightEx.Client.Screencast.show_overlays(screencast)
@@ -316,7 +316,7 @@ defmodule PlaywrightEx.Screencast do
   @doc ~S"""
   Removes action decorations.
   """
-  @spec hide_actions(t()) :: :ok | {:error, Exception.t()}
+  @spec hide_actions(t()) :: :ok | {:error, PlaywrightEx.error()}
   def hide_actions(screencast) do
     Facade.async_void("screencast.hideActions", screencast, fn ->
       PlaywrightEx.Client.Screencast.hide_actions(screencast)
@@ -336,7 +336,7 @@ defmodule PlaywrightEx.Screencast do
   @doc ~S"""
   Hides overlays without removing them.
   """
-  @spec hide_overlays(t()) :: :ok | {:error, Exception.t()}
+  @spec hide_overlays(t()) :: :ok | {:error, PlaywrightEx.error()}
   def hide_overlays(screencast) do
     Facade.async_void("screencast.hideOverlays", screencast, fn ->
       PlaywrightEx.Client.Screencast.hide_overlays(screencast)

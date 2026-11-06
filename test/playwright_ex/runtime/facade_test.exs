@@ -90,4 +90,21 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
     assert Facade.event!("pageerror", events, "page.on") == "pageerror"
     assert_raise ArgumentError, ~r/unknown event :pageerror/, fn -> Facade.event!(:pageerror, events, "page.on") end
   end
+
+  test "tuple forms return the errors upstream rejects with, and raise anything else" do
+    for error <- [
+          %PlaywrightEx.TimeoutError{message: "x"},
+          %PlaywrightEx.TargetClosedError{},
+          %RuntimeError{message: "Route is already handled!"},
+          %File.Error{reason: :enoent, path: "x", action: "read file"}
+        ] do
+      assert Facade.async(nil, nil, fn -> raise error end) == {:error, error}
+      assert Facade.async_void(nil, nil, fn -> raise error end) == {:error, error}
+    end
+
+    # Bugs: values the type checker doesn't see at compile time.
+    {map, number} = Process.get(:not_set, {%{}, 1})
+    assert_raise KeyError, fn -> Facade.async(nil, nil, fn -> Map.fetch!(map, :x) end) end
+    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
+  end
 end

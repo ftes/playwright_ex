@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Selectors do
           String.t(),
           String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
           register_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def register(selectors, name, script, options \\ []) do
     script = Facade.arg!(script, @register_script, "selectors.register")
     options = Facade.options!(options, @register_options, "selectors.register")

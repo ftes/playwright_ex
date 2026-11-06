@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Credentials do
   `PlaywrightEx.Credentials.create/3` without installing populates the authenticator, but the
   page will never see those credentials.
   """
-  @spec install(t()) :: :ok | {:error, Exception.t()}
+  @spec install(t()) :: :ok | {:error, PlaywrightEx.error()}
   def install(credentials) do
     Facade.async_void("credentials.install", credentials, fn -> PlaywrightEx.Client.Credentials.install(credentials) end)
   end
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Credentials do
              publicKey: String.t(),
              signCount: integer()
            }}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def create(credentials, rp_id, options \\ []) do
     options = Facade.result_options!(options, @create_options, [:rpId], "credentials.create")
 
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Credentials do
 
   * `id` - Base64url-encoded credential id.
   """
-  @spec delete(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec delete(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def delete(credentials, id) do
     Facade.async_void("credentials.delete", credentials, fn ->
       PlaywrightEx.Client.Credentials.delete(credentials, id)
@@ -270,7 +270,7 @@ defmodule PlaywrightEx.Credentials do
                signCount: integer()
              }
            ]}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def get(credentials, options \\ []) do
     options = Facade.options!(options, @get_options, "credentials.get")
     Facade.async("credentials.get", credentials, fn -> PlaywrightEx.Client.Credentials.get(credentials, options) end)

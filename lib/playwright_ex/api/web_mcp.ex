@@ -66,7 +66,7 @@ defmodule PlaywrightEx.WebMCP do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec call_tool(t(), String.t(), term() | nil, call_tool_options()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec call_tool(t(), String.t(), term() | nil, call_tool_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def call_tool(web_mcp, name, input \\ nil, options \\ []) do
     options = Facade.options!(options, @call_tool_options, "webMCP.callTool")
 
@@ -119,7 +119,7 @@ defmodule PlaywrightEx.WebMCP do
                }
              }
            ]}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def tools(web_mcp, options \\ []) do
     options = Facade.options!(options, @tools_options, "webMCP.tools")
     Facade.async("webMCP.tools", web_mcp, fn -> PlaywrightEx.Client.WebMCP.tools(web_mcp, options) end)

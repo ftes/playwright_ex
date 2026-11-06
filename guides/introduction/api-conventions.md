@@ -28,7 +28,9 @@ snake_case. Where a JS name is no Elixir name, Python's is used: `$eval` is
 
 Each call that JS awaits has two forms. `name/n` returns `{:ok, value}` or
 `{:error, exception}` (`:ok` when JS returns nothing), `name!/n` returns the value or raises.
-Calls JS doesn't await (`page.url()`, `page.locator()`, `locator.filter()`) return plain values.
+`exception` is one of the errors a JS promise rejects with (`t:PlaywrightEx.error/0`, see
+[Errors](#errors)); a bug or a misuse, such as an unknown option, raises in both forms. Calls JS
+doesn't await (`page.url()`, `page.locator()`, `locator.filter()`) return plain values.
 
 ```elixir
 title = Page.title!(page)
@@ -163,8 +165,9 @@ return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}`; the bang forms raise
 
 Errors are exceptions named after the JS classes: `PlaywrightEx.PlaywrightError` (JS `Error`),
 `PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError`, `PlaywrightEx.AbortError` and
-`PlaywrightEx.ExpectError`. The message is JS's, starting with the API name, and `log` holds the
-call log:
+`PlaywrightEx.ExpectError`. Where the JS client throws a plain `new Error(message)` itself, it is
+a `RuntimeError`; local file errors are `File.Error`. `t:PlaywrightEx.error/0` lists them all.
+The message is JS's, starting with the API name, and `log` holds the call log:
 
 ```elixir
 {:error, %TimeoutError{message: "locator.click: Timeout 100ms exceeded" <> _, log: log}} =

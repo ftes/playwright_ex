@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Worker do
   * `expression` - Function to be evaluated in the worker context.
   * `arg` - Optional argument to pass to `expression`.
   """
-  @spec evaluate(t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
+  @spec evaluate(t(), String.t(), term() | nil) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def evaluate(worker, expression, arg \\ nil) do
     Facade.async("worker.evaluate", worker, fn -> PlaywrightEx.Client.Worker.evaluate(worker, expression, arg) end)
   end
@@ -87,7 +87,8 @@ defmodule PlaywrightEx.Worker do
   * `expression` - Function to be evaluated in the worker context.
   * `arg` - Optional argument to pass to `expression`.
   """
-  @spec evaluate_handle(t(), String.t(), term() | nil) :: {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
+  @spec evaluate_handle(t(), String.t(), term() | nil) ::
+          {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
   def evaluate_handle(worker, expression, arg \\ nil) do
     Facade.async("worker.evaluateHandle", worker, fn ->
       PlaywrightEx.Client.Worker.evaluate_handle(worker, expression, arg)
@@ -255,7 +256,7 @@ defmodule PlaywrightEx.Worker do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
   @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) ::
-          {:ok, term()} | {:error, Exception.t()}
+          {:ok, term()} | {:error, PlaywrightEx.error()}
   def expect_event(worker, event, action, options \\ [])
 
   def expect_event(worker, event, action, predicate) when is_function(predicate),

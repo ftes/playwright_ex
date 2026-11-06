@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   An object with all the response HTTP headers associated with this response.
   """
-  @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Exception.t()}
+  @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, PlaywrightEx.error()}
   def all_headers(response) do
     Facade.async("response.allHeaders", response, fn -> PlaywrightEx.Client.Response.all_headers(response) end)
   end
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns the buffer with response body.
   """
-  @spec body(t()) :: {:ok, binary()} | {:error, Exception.t()}
+  @spec body(t()) :: {:ok, binary()} | {:error, PlaywrightEx.error()}
   def body(response) do
     Facade.async("response.body", response, fn -> PlaywrightEx.Client.Response.body(response) end)
   end
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Waits for this response to finish, returns always `nil`.
   """
-  @spec finished(t()) :: {:ok, nil | Exception.t()} | {:error, Exception.t()}
+  @spec finished(t()) :: {:ok, nil | Exception.t()} | {:error, PlaywrightEx.error()}
   def finished(response) do
     Facade.async("response.finished", response, fn -> PlaywrightEx.Client.Response.finished(response) end)
   end
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Response do
   Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
   Some browser network stacks combine multiple field values before reporting them, so separate entries are not always available.
   """
-  @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Exception.t()}
+  @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, PlaywrightEx.error()}
   def headers_array(response) do
     Facade.async("response.headersArray", response, fn -> PlaywrightEx.Client.Response.headers_array(response) end)
   end
@@ -122,7 +122,7 @@ defmodule PlaywrightEx.Response do
 
   * `name` - Name of the header.
   """
-  @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def header_value(response, name) do
     Facade.async("response.headerValue", response, fn -> PlaywrightEx.Client.Response.header_value(response, name) end)
   end
@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Response do
 
   * `name` - Name of the header.
   """
-  @spec header_values(t(), String.t()) :: {:ok, [String.t()]} | {:error, Exception.t()}
+  @spec header_values(t(), String.t()) :: {:ok, [String.t()]} | {:error, PlaywrightEx.error()}
   def header_values(response, name) do
     Facade.async("response.headerValues", response, fn -> PlaywrightEx.Client.Response.header_values(response, name) end)
   end
@@ -160,7 +160,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns the http version used by the response.
   """
-  @spec http_version(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec http_version(t()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def http_version(response) do
     Facade.async("response.httpVersion", response, fn -> PlaywrightEx.Client.Response.http_version(response) end)
   end
@@ -178,7 +178,7 @@ defmodule PlaywrightEx.Response do
 
   This method will throw if the response body is not parsable via `JSON.parse`.
   """
-  @spec json(t()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec json(t()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def json(response) do
     Facade.async("response.json", response, fn -> PlaywrightEx.Client.Response.json(response) end)
   end
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Response do
                optional(:validFrom) => number(),
                optional(:validTo) => number()
              }}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def security_details(response) do
     Facade.async("response.securityDetails", response, fn -> PlaywrightEx.Client.Response.security_details(response) end)
   end
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns the IP address and port of the server.
   """
-  @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Exception.t()}
+  @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, PlaywrightEx.error()}
   def server_addr(response) do
     Facade.async("response.serverAddr", response, fn -> PlaywrightEx.Client.Response.server_addr(response) end)
   end
@@ -282,7 +282,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns the text representation of response body.
   """
-  @spec text(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec text(t()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def text(response) do
     Facade.async("response.text", response, fn -> PlaywrightEx.Client.Response.text(response) end)
   end

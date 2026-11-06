@@ -74,7 +74,7 @@ defmodule PlaywrightEx.APIRequestContext do
             optional(:partitionKey) => String.t(),
             optional(atom()) => term()
           }
-        ]) :: :ok | {:error, Exception.t()}
+        ]) :: :ok | {:error, PlaywrightEx.error()}
   def add_cookies(api_request_context, cookies) do
     Facade.async_void("apiRequestContext.addCookies", api_request_context, fn ->
       PlaywrightEx.Client.APIRequestContext.add_cookies(api_request_context, cookies)
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:name` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - Only removes cookies with the given name.
   * `:path` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - Only removes cookies with the given path.
   """
-  @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, Exception.t()}
+  @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, PlaywrightEx.error()}
   def clear_cookies(api_request_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "apiRequestContext.clearCookies")
 
@@ -186,7 +186,7 @@ defmodule PlaywrightEx.APIRequestContext do
                optional(:partitionKey) => String.t()
              }
            ]}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def cookies(api_request_context, urls \\ nil) do
     Facade.async("apiRequestContext.cookies", api_request_context, fn ->
       PlaywrightEx.Client.APIRequestContext.cookies(api_request_context, urls)
@@ -317,7 +317,8 @@ defmodule PlaywrightEx.APIRequestContext do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec delete(t(), String.t(), delete_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec delete(t(), String.t(), delete_options()) ::
+          {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def delete(api_request_context, url, options \\ []) do
     options = Facade.options!(options, @delete_options, "apiRequestContext.delete")
 
@@ -350,7 +351,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   * `:reason` (`t:String.t/0`) - *Since 1.45.* The reason to be reported to the operations interrupted by the context disposal.
   """
-  @spec dispose(t(), dispose_options()) :: :ok | {:error, Exception.t()}
+  @spec dispose(t(), dispose_options()) :: :ok | {:error, PlaywrightEx.error()}
   def dispose(api_request_context, options \\ []) do
     options = Facade.options!(options, @dispose_options, "apiRequestContext.dispose")
 
@@ -503,7 +504,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec fetch(t(), String.t() | PlaywrightEx.Request.t(), fetch_options()) ::
-          {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def fetch(api_request_context, url_or_request, options \\ []) do
     options = Facade.options!(options, @fetch_options, "apiRequestContext.fetch")
 
@@ -643,7 +644,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec get(t(), String.t(), get_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec get(t(), String.t(), get_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def get(api_request_context, url, options \\ []) do
     options = Facade.options!(options, @get_options, "apiRequestContext.get")
 
@@ -766,7 +767,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec head(t(), String.t(), head_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec head(t(), String.t(), head_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def head(api_request_context, url, options \\ []) do
     options = Facade.options!(options, @head_options, "apiRequestContext.head")
 
@@ -889,7 +890,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec patch(t(), String.t(), patch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec patch(t(), String.t(), patch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def patch(api_request_context, url, options \\ []) do
     options = Facade.options!(options, @patch_options, "apiRequestContext.patch")
 
@@ -1044,7 +1045,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec post(t(), String.t(), post_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec post(t(), String.t(), post_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def post(api_request_context, url, options \\ []) do
     options = Facade.options!(options, @post_options, "apiRequestContext.post")
 
@@ -1167,7 +1168,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec put(t(), String.t(), put_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
+  @spec put(t(), String.t(), put_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def put(api_request_context, url, options \\ []) do
     options = Facade.options!(options, @put_options, "apiRequestContext.put")
 
@@ -1233,7 +1234,7 @@ defmodule PlaywrightEx.APIRequestContext do
              ],
              optional(atom()) => term()
            }}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def storage_state(api_request_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "apiRequestContext.storageState")
 

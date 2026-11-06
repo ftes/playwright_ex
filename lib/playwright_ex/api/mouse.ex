@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Mouse do
   * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
   * `:delay` (`t:number/0`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
-  @spec click(t(), number(), number(), click_options()) :: :ok | {:error, Exception.t()}
+  @spec click(t(), number(), number(), click_options()) :: :ok | {:error, PlaywrightEx.error()}
   def click(mouse, x, y, options \\ []) do
     options = Facade.options!(options, @click_options, "mouse.click")
     Facade.async_void("mouse.click", mouse, fn -> PlaywrightEx.Client.Mouse.click(mouse, x, y, options) end)
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Mouse do
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
   * `:delay` (`t:number/0`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
-  @spec dblclick(t(), number(), number(), dblclick_options()) :: :ok | {:error, Exception.t()}
+  @spec dblclick(t(), number(), number(), dblclick_options()) :: :ok | {:error, PlaywrightEx.error()}
   def dblclick(mouse, x, y, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "mouse.dblclick")
     Facade.async_void("mouse.dblclick", mouse, fn -> PlaywrightEx.Client.Mouse.dblclick(mouse, x, y, options) end)
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Mouse do
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
   * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
   """
-  @spec down(t(), down_options()) :: :ok | {:error, Exception.t()}
+  @spec down(t(), down_options()) :: :ok | {:error, PlaywrightEx.error()}
   def down(mouse, options \\ []) do
     options = Facade.options!(options, @down_options, "mouse.down")
     Facade.async_void("mouse.down", mouse, fn -> PlaywrightEx.Client.Mouse.down(mouse, options) end)
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Mouse do
 
   * `:steps` (`t:integer/0`) - Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.
   """
-  @spec move(t(), number(), number(), move_options()) :: :ok | {:error, Exception.t()}
+  @spec move(t(), number(), number(), move_options()) :: :ok | {:error, PlaywrightEx.error()}
   def move(mouse, x, y, options \\ []) do
     options = Facade.options!(options, @move_options, "mouse.move")
     Facade.async_void("mouse.move", mouse, fn -> PlaywrightEx.Client.Mouse.move(mouse, x, y, options) end)
@@ -207,7 +207,7 @@ defmodule PlaywrightEx.Mouse do
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
   * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
   """
-  @spec up(t(), up_options()) :: :ok | {:error, Exception.t()}
+  @spec up(t(), up_options()) :: :ok | {:error, PlaywrightEx.error()}
   def up(mouse, options \\ []) do
     options = Facade.options!(options, @up_options, "mouse.up")
     Facade.async_void("mouse.up", mouse, fn -> PlaywrightEx.Client.Mouse.up(mouse, options) end)
@@ -235,7 +235,7 @@ defmodule PlaywrightEx.Mouse do
   * `delta_x` - Pixels to scroll horizontally.
   * `delta_y` - Pixels to scroll vertically.
   """
-  @spec wheel(t(), number(), number()) :: :ok | {:error, Exception.t()}
+  @spec wheel(t(), number(), number()) :: :ok | {:error, PlaywrightEx.error()}
   def wheel(mouse, delta_x, delta_y) do
     Facade.async_void("mouse.wheel", mouse, fn -> PlaywrightEx.Client.Mouse.wheel(mouse, delta_x, delta_y) end)
   end

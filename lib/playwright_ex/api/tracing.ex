@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Tracing do
   * `:sources` (`t:boolean/0`) - *Since 1.17.* Whether to include source files for trace actions.
   * `:title` (`t:String.t/0`) - *Since 1.17.* Trace name to be shown in the Trace Viewer.
   """
-  @spec start(t(), start_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  @spec start(t(), start_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def start(tracing, options \\ []) do
     options = Facade.options!(options, @start_options, "tracing.start")
     Facade.async("tracing.start", tracing, fn -> PlaywrightEx.Client.Tracing.start(tracing, options) end)
@@ -143,7 +143,7 @@ defmodule PlaywrightEx.Tracing do
     `PlaywrightEx.Tracing.stop_chunk/2` instead.
   * `:title` (`t:String.t/0`) - *Since 1.17.* Trace name to be shown in the Trace Viewer.
   """
-  @spec start_chunk(t(), start_chunk_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  @spec start_chunk(t(), start_chunk_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def start_chunk(tracing, options \\ []) do
     options = Facade.options!(options, @start_chunk_options, "tracing.startChunk")
     Facade.async("tracing.startChunk", tracing, fn -> PlaywrightEx.Client.Tracing.start_chunk(tracing, options) end)
@@ -207,7 +207,8 @@ defmodule PlaywrightEx.Tracing do
     the HAR file. Not compatible with a `.zip` HAR file.
   * `:url_filter` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - A glob or regex pattern to filter requests that are stored in the HAR. Defaults to none.
   """
-  @spec start_har(t(), String.t(), start_har_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  @spec start_har(t(), String.t(), start_har_options()) ::
+          {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def start_har(tracing, path, options \\ []) do
     options = Facade.options!(options, @start_har_options, "tracing.startHar")
     Facade.async("tracing.startHar", tracing, fn -> PlaywrightEx.Client.Tracing.start_har(tracing, path, options) end)
@@ -264,7 +265,7 @@ defmodule PlaywrightEx.Tracing do
     * `:line`
     * `:column`
   """
-  @spec group(t(), String.t(), group_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
+  @spec group(t(), String.t(), group_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
   def group(tracing, name, options \\ []) do
     options = Facade.options!(options, @group_options, "tracing.group")
     Facade.async("tracing.group", tracing, fn -> PlaywrightEx.Client.Tracing.group(tracing, name, options) end)
@@ -282,7 +283,7 @@ defmodule PlaywrightEx.Tracing do
   @doc ~S"""
   Closes the last group created by `PlaywrightEx.Tracing.group/3`.
   """
-  @spec group_end(t()) :: :ok | {:error, Exception.t()}
+  @spec group_end(t()) :: :ok | {:error, PlaywrightEx.error()}
   def group_end(tracing) do
     Facade.async_void("tracing.groupEnd", tracing, fn -> PlaywrightEx.Client.Tracing.group_end(tracing) end)
   end
@@ -307,7 +308,7 @@ defmodule PlaywrightEx.Tracing do
 
   * `:path` (`t:String.t/0`) - Export trace into the file with the given path.
   """
-  @spec stop(t(), stop_options()) :: :ok | {:error, Exception.t()}
+  @spec stop(t(), stop_options()) :: :ok | {:error, PlaywrightEx.error()}
   def stop(tracing, options \\ []) do
     options = Facade.options!(options, @stop_options, "tracing.stop")
     Facade.async_void("tracing.stop", tracing, fn -> PlaywrightEx.Client.Tracing.stop(tracing, options) end)
@@ -334,7 +335,7 @@ defmodule PlaywrightEx.Tracing do
 
   * `:path` (`t:String.t/0`) - Export trace collected since the last `PlaywrightEx.Tracing.start_chunk/2` call into the file with the given path.
   """
-  @spec stop_chunk(t(), stop_chunk_options()) :: :ok | {:error, Exception.t()}
+  @spec stop_chunk(t(), stop_chunk_options()) :: :ok | {:error, PlaywrightEx.error()}
   def stop_chunk(tracing, options \\ []) do
     options = Facade.options!(options, @stop_chunk_options, "tracing.stopChunk")
     Facade.async_void("tracing.stopChunk", tracing, fn -> PlaywrightEx.Client.Tracing.stop_chunk(tracing, options) end)
@@ -352,7 +353,7 @@ defmodule PlaywrightEx.Tracing do
   @doc ~S"""
   Stop HAR recording and save the HAR file to the path given to `PlaywrightEx.Tracing.start_har/3`.
   """
-  @spec stop_har(t()) :: :ok | {:error, Exception.t()}
+  @spec stop_har(t()) :: :ok | {:error, PlaywrightEx.error()}
   def stop_har(tracing) do
     Facade.async_void("tracing.stopHar", tracing, fn -> PlaywrightEx.Client.Tracing.stop_har(tracing) end)
   end

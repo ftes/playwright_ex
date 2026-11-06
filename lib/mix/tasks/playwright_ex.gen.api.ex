@@ -389,7 +389,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{attributes}
 
     #{since(member)}#{deprecated(member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
-    #{spec(name, m, ":ok | {:error, Exception.t()}")}
+    #{spec(name, m, ":ok | {:error, PlaywrightEx.error()}")}
     #{clauses(m, name)}def #{head(name, params, m.or_options)} do
       #{conversions}
       Facade.matcher(#{receiver}, fn -> #{call} end)
@@ -593,7 +593,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{m.attributes}
 
     #{m.docs}
-    #{spec(m.name, m, "#{if m.void?, do: ":ok", else: "{:ok, #{m.return}}"} | {:error, Exception.t()}")}
+    #{spec(m.name, m, "#{if m.void?, do: ":ok", else: "{:ok, #{m.return}}"} | {:error, PlaywrightEx.error()}")}
     #{clauses(m, m.name)}def #{m.head} do
       #{m.conversions}
       Facade.#{async}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})

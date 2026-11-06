@@ -25,11 +25,36 @@ defmodule PlaywrightEx.Runtime.Facade do
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Promise
 
-  @doc "Runs an async call: `{:ok, value}`, or `{:error, exception}` for anything it raises."
+  # The errors a call fails with (`t:PlaywrightEx.error/0`), as upstream rejects with them.
+  @errors [
+    PlaywrightEx.PlaywrightError,
+    PlaywrightEx.TimeoutError,
+    PlaywrightEx.TargetClosedError,
+    PlaywrightEx.AbortError,
+    PlaywrightEx.ExpectError,
+    # JS `new Error(message)` and the protocol's `ValidationError`, thrown by the client.
+    RuntimeError,
+    PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError,
+    # `JSON.parse` and `fs` errors.
+    JSON.DecodeError,
+    File.Error
+  ]
+
+  @doc """
+  Whether `e` is an error a call fails with (`t:PlaywrightEx.error/0`). Anything else is a bug
+  or a misuse and raises from the tuple forms too.
+  """
+  def error?(%module{}) when module in @errors, do: true
+  def error?(_e), do: false
+
+  @doc """
+  Runs an async call: `{:ok, value}`, or `{:error, exception}` for an error it fails with
+  (`error?/1`); anything else is raised.
+  """
   def async(api_name, receiver, fun) do
     {:ok, Api.call(api_name, receiver, fun)}
   rescue
-    e -> {:error, e}
+    e -> if error?(e), do: {:error, e}, else: reraise(e, __STACKTRACE__)
   end
 
   @doc "Runs an async call and returns its value, raising on error."
@@ -103,7 +128,7 @@ defmodule PlaywrightEx.Runtime.Facade do
   end
 
   @doc """
-  Runs a matcher (`PlaywrightEx.Expect`): `:ok`, or `{:error, exception}` for anything it raises
+  Runs a matcher (`PlaywrightEx.Expect`): `:ok`, or `{:error, exception}` as `async/3` returns it
   (`PlaywrightEx.ExpectError` when the expectation is not met). The API name
   comes from the matcher's title (`Expect "toHaveText"`), as upstream's does.
   """

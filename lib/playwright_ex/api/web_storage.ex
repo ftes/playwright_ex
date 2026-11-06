@@ -34,7 +34,7 @@ defmodule PlaywrightEx.WebStorage do
   @doc ~S"""
   Returns all items in the storage as name/value pairs.
   """
-  @spec items(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Exception.t()}
+  @spec items(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, PlaywrightEx.error()}
   def items(web_storage) do
     Facade.async("webStorage.items", web_storage, fn -> PlaywrightEx.Client.WebStorage.items(web_storage) end)
   end
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.WebStorage do
 
   * `name` - Name of the item to retrieve.
   """
-  @spec get_item(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Exception.t()}
+  @spec get_item(t(), String.t()) :: {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def get_item(web_storage, name) do
     Facade.async("webStorage.getItem", web_storage, fn -> PlaywrightEx.Client.WebStorage.get_item(web_storage, name) end)
   end
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.WebStorage do
   * `name` - Name of the item to set.
   * `value` - New value for the item.
   """
-  @spec set_item(t(), String.t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec set_item(t(), String.t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def set_item(web_storage, name, value) do
     Facade.async_void("webStorage.setItem", web_storage, fn ->
       PlaywrightEx.Client.WebStorage.set_item(web_storage, name, value)
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.WebStorage do
 
   * `name` - Name of the item to remove.
   """
-  @spec remove_item(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec remove_item(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def remove_item(web_storage, name) do
     Facade.async_void("webStorage.removeItem", web_storage, fn ->
       PlaywrightEx.Client.WebStorage.remove_item(web_storage, name)
@@ -121,7 +121,7 @@ defmodule PlaywrightEx.WebStorage do
   @doc ~S"""
   Removes all items from the storage.
   """
-  @spec clear(t()) :: :ok | {:error, Exception.t()}
+  @spec clear(t()) :: :ok | {:error, PlaywrightEx.error()}
   def clear(web_storage) do
     Facade.async_void("webStorage.clear", web_storage, fn -> PlaywrightEx.Client.WebStorage.clear(web_storage) end)
   end

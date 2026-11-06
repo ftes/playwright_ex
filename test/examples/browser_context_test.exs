@@ -37,8 +37,8 @@ defmodule PlaywrightEx.Examples.BrowserContextTest do
     });
     await page.evaluate(() => console.log('hello', 5, { foo: 'bar' }));
     """,
-    # The listener's `json_value!` calls outlive the body: wait for them before the context closes.
-    given: [_: on_exit(fn -> BrowserContext.remove_all_listeners(context, :console, behavior: :wait) end)] do
+    # The listener's `json_value!` calls outlive the body: wait for them while the output is captured.
+    after: BrowserContext.remove_all_listeners!(context, :console, behavior: :wait) do
     BrowserContext.on(context, :console, fn msg ->
       values = for arg <- ConsoleMessage.args(msg), do: JSHandle.json_value!(arg)
       IO.puts(inspect(values))

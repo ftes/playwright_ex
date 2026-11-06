@@ -183,7 +183,7 @@ defmodule PlaywrightEx.WebSocket do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   """
   @spec expect_event(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) ::
-          {:ok, term()} | {:error, Exception.t()}
+          {:ok, term()} | {:error, PlaywrightEx.error()}
   def expect_event(web_socket, event, action, options \\ [])
 
   def expect_event(web_socket, event, action, predicate) when is_function(predicate),

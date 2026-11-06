@@ -17,6 +17,27 @@ defmodule PlaywrightEx do
   from 0.16: see the [migration guide](migration.md).
   """
 
+  @typedoc """
+  An error a call fails with: the tuple forms return `{:error, error}`, the bang forms raise it.
+  These are what a JS call rejects with: Playwright's errors (`PlaywrightEx.PlaywrightError` for
+  JS `Error`, `PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError`,
+  `PlaywrightEx.AbortError`, the matchers' `PlaywrightEx.ExpectError`), and what the client
+  throws itself: `RuntimeError` for a JS `new Error(message)` ("Route is already handled!"), the
+  protocol's `ValidationError` for an argument of the wrong type, `JSON.DecodeError` where JS's
+  `JSON.parse` fails and `File.Error` for local files. Anything else (`ArgumentError` for an
+  unknown option, a `FunctionClauseError`) is a bug or a misuse and raises in both forms.
+  """
+  @type error ::
+          PlaywrightEx.PlaywrightError.t()
+          | PlaywrightEx.TimeoutError.t()
+          | PlaywrightEx.TargetClosedError.t()
+          | PlaywrightEx.AbortError.t()
+          | PlaywrightEx.ExpectError.t()
+          | %RuntimeError{}
+          | %PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError{}
+          | %JSON.DecodeError{}
+          | %File.Error{}
+
   @doc "The root `PlaywrightEx.Playwright` object of the driver started as `name`."
   @spec playwright(atom()) :: PlaywrightEx.Playwright.t()
   def playwright(name \\ __MODULE__),

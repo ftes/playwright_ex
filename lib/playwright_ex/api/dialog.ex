@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Dialog do
 
   * `prompt_text` - A text to enter in prompt. Does not cause any effects if the dialog's `type` is not prompt. Optional.
   """
-  @spec accept(t(), String.t() | nil) :: :ok | {:error, Exception.t()}
+  @spec accept(t(), String.t() | nil) :: :ok | {:error, PlaywrightEx.error()}
   def accept(dialog, prompt_text \\ nil) do
     Facade.async_void("dialog.accept", dialog, fn -> PlaywrightEx.Client.Dialog.accept(dialog, prompt_text) end)
   end
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Dialog do
   @doc ~S"""
   Returns when the dialog has been dismissed.
   """
-  @spec dismiss(t()) :: :ok | {:error, Exception.t()}
+  @spec dismiss(t()) :: :ok | {:error, PlaywrightEx.error()}
   def dismiss(dialog) do
     Facade.async_void("dialog.dismiss", dialog, fn -> PlaywrightEx.Client.Dialog.dismiss(dialog) end)
   end

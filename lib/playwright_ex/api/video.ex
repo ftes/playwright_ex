@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Video do
   @doc ~S"""
   Deletes the video file. Will wait for the video to finish if necessary.
   """
-  @spec delete(t()) :: :ok | {:error, Exception.t()}
+  @spec delete(t()) :: :ok | {:error, PlaywrightEx.error()}
   def delete(video) do
     Facade.async_void("video.delete", video, fn -> PlaywrightEx.Client.Video.delete(video) end)
   end
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Video do
   Returns the file system path this video will be recorded to. The video is guaranteed to be written to the filesystem
   upon closing the browser context. This method throws when connected remotely.
   """
-  @spec path(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec path(t()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def path(video) do
     Facade.async("video.path", video, fn -> PlaywrightEx.Client.Video.path(video) end)
   end
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Video do
 
   * `path` - Path where the video should be saved.
   """
-  @spec save_as(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec save_as(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def save_as(video, path) do
     Facade.async_void("video.saveAs", video, fn -> PlaywrightEx.Client.Video.save_as(video, path) end)
   end

@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Disposable do
   Removes the associated resource. For example, removes the init script installed via
   `PlaywrightEx.Page.add_init_script/4` or `PlaywrightEx.BrowserContext.add_init_script/4`.
   """
-  @spec dispose(t()) :: :ok | {:error, Exception.t()}
+  @spec dispose(t()) :: :ok | {:error, PlaywrightEx.error()}
   def dispose(disposable) do
     Facade.async_void("disposable.dispose", disposable, fn -> PlaywrightEx.Client.Disposable.dispose(disposable) end)
   end

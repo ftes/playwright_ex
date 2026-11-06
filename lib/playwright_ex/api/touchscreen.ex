@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Touchscreen do
   * `x` - X coordinate relative to the main frame's viewport in CSS pixels.
   * `y` - Y coordinate relative to the main frame's viewport in CSS pixels.
   """
-  @spec tap(t(), number(), number()) :: :ok | {:error, Exception.t()}
+  @spec tap(t(), number(), number()) :: :ok | {:error, PlaywrightEx.error()}
   def tap(touchscreen, x, y) do
     Facade.async_void("touchscreen.tap", touchscreen, fn -> PlaywrightEx.Client.Touchscreen.tap(touchscreen, x, y) end)
   end

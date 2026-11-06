@@ -65,7 +65,7 @@ defmodule PlaywrightEx.CDPSession do
   Detaches the CDPSession from the target. Once detached, the CDPSession object won't emit any events and can't be used to
   send messages.
   """
-  @spec detach(t()) :: :ok | {:error, Exception.t()}
+  @spec detach(t()) :: :ok | {:error, PlaywrightEx.error()}
   def detach(cdp_session) do
     Facade.async_void("cdpSession.detach", cdp_session, fn -> PlaywrightEx.Client.CDPSession.detach(cdp_session) end)
   end
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.CDPSession do
   * `method` - Protocol method name.
   * `params` - Optional method parameters.
   """
-  @spec send(t(), String.t(), map() | nil) :: {:ok, map()} | {:error, Exception.t()}
+  @spec send(t(), String.t(), map() | nil) :: {:ok, map()} | {:error, PlaywrightEx.error()}
   def send(cdp_session, method, params \\ nil) do
     Facade.async("cdpSession.send", cdp_session, fn ->
       PlaywrightEx.Client.CDPSession.send(cdp_session, method, params)

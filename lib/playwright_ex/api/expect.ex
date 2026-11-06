@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_attached(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_attached_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_attached(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeAttached")
     options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached")
@@ -162,7 +162,8 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_attached(PlaywrightEx.Locator.t(), not_to_be_attached_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_attached(PlaywrightEx.Locator.t(), not_to_be_attached_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_attached(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeAttached")
     options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached")
@@ -245,7 +246,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_checked(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_checked_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_checked(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeChecked")
     options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked")
@@ -320,7 +321,7 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_checked(PlaywrightEx.Locator.t(), not_to_be_checked_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_checked(PlaywrightEx.Locator.t(), not_to_be_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_checked(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeChecked")
     options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked")
@@ -387,7 +388,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_disabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_disabled_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_disabled(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeDisabled")
     options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled")
@@ -442,7 +443,8 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_disabled(PlaywrightEx.Locator.t(), not_to_be_disabled_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_disabled(PlaywrightEx.Locator.t(), not_to_be_disabled_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_disabled(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeDisabled")
     options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled")
@@ -510,7 +512,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_editable(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_editable_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_editable(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeEditable")
     options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable")
@@ -570,7 +572,8 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_editable(PlaywrightEx.Locator.t(), not_to_be_editable_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_editable(PlaywrightEx.Locator.t(), not_to_be_editable_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_editable(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEditable")
     options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable")
@@ -633,7 +636,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_empty(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_empty_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_empty(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeEmpty")
     options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty")
@@ -688,7 +691,7 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_empty(PlaywrightEx.Locator.t(), not_to_be_empty_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_empty(PlaywrightEx.Locator.t(), not_to_be_empty_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_empty(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEmpty")
     options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty")
@@ -756,7 +759,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_enabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_enabled_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_enabled(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeEnabled")
     options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled")
@@ -816,7 +819,7 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_enabled(PlaywrightEx.Locator.t(), not_to_be_enabled_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_enabled(PlaywrightEx.Locator.t(), not_to_be_enabled_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_enabled(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEnabled")
     options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled")
@@ -879,7 +882,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_focused(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_focused_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_focused(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeFocused")
     options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused")
@@ -934,7 +937,7 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_focused(PlaywrightEx.Locator.t(), not_to_be_focused_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_focused(PlaywrightEx.Locator.t(), not_to_be_focused_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_focused(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeFocused")
     options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused")
@@ -997,7 +1000,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_hidden(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_hidden_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_hidden(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeHidden")
     options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden")
@@ -1052,7 +1055,7 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec not_to_be_hidden(PlaywrightEx.Locator.t(), not_to_be_hidden_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_hidden(PlaywrightEx.Locator.t(), not_to_be_hidden_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_hidden(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeHidden")
     options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden")
@@ -1126,7 +1129,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_be_in_viewport(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_in_viewport_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_in_viewport(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeInViewport")
     options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport")
@@ -1188,7 +1191,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec not_to_be_in_viewport(PlaywrightEx.Locator.t(), not_to_be_in_viewport_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_in_viewport(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeInViewport")
     options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport")
@@ -1267,7 +1270,7 @@ defmodule PlaywrightEx.Expect do
   * `:visible` (`t:boolean/0`) - *Since 1.26.*
   """
   @spec to_be_visible(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_visible_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_be_visible(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeVisible")
     options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible")
@@ -1327,7 +1330,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:visible` (`t:boolean/0`) - *Since 1.26.*
   """
-  @spec not_to_be_visible(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_visible(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_visible(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeVisible")
     options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible")
@@ -1418,7 +1421,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | [String.t()],
           to_contain_class_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_contain_class(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toContainClass")
     options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass")
@@ -1482,7 +1485,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec not_to_contain_class(PlaywrightEx.Locator.t(), String.t() | [String.t()], not_to_contain_class_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_contain_class(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToContainClass")
     options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass")
@@ -1611,7 +1614,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_contain_text_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_contain_text(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toContainText")
     options = Facade.options!(options, @to_contain_text_options, "expect.toContainText")
@@ -1696,7 +1699,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_contain_text_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_contain_text(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToContainText")
     options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText")
@@ -1780,7 +1783,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_description_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_accessible_description(locator, description, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleDescription")
     options = Facade.options!(options, @to_have_accessible_description_options, "expect.toHaveAccessibleDescription")
@@ -1857,7 +1860,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_description_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_accessible_description(locator, description, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleDescription")
 
@@ -1945,7 +1948,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_error_message_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_accessible_error_message(locator, error_message, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleErrorMessage")
     options = Facade.options!(options, @to_have_accessible_error_message_options, "expect.toHaveAccessibleErrorMessage")
@@ -2022,7 +2025,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_error_message_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_accessible_error_message(locator, error_message, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleErrorMessage")
 
@@ -2106,7 +2109,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_accessible_name_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_accessible_name(locator, name, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleName")
     options = Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName")
@@ -2183,7 +2186,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_name_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_accessible_name(locator, name, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleName")
     options = Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName")
@@ -2274,12 +2277,12 @@ defmodule PlaywrightEx.Expect do
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           to_have_attribute_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   @spec to_have_attribute(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | to_have_attribute_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_attribute(locator, name, value \\ nil, options \\ [])
 
   def to_have_attribute(locator, name, options, [])
@@ -2374,12 +2377,12 @@ defmodule PlaywrightEx.Expect do
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           not_to_have_attribute_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   @spec not_to_have_attribute(
           PlaywrightEx.Locator.t(),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | not_to_have_attribute_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_attribute(locator, name, value \\ nil, options \\ [])
 
   def not_to_have_attribute(locator, name, options, [])
@@ -2483,7 +2486,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_class_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_class(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveClass")
     options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass")
@@ -2550,7 +2553,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_class_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_class(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveClass")
     options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass")
@@ -2621,7 +2624,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec to_have_count(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), integer(), to_have_count_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def to_have_count(locator, count, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveCount")
     options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount")
@@ -2682,7 +2685,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec not_to_have_count(PlaywrightEx.Locator.t(), integer(), not_to_have_count_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_have_count(locator, count, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCount")
     options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount")
@@ -2764,7 +2767,7 @@ defmodule PlaywrightEx.Expect do
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_css_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_css(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveCSS")
     options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS")
@@ -2844,7 +2847,7 @@ defmodule PlaywrightEx.Expect do
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_css_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_css(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCSS")
     options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
@@ -2919,7 +2922,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_id_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_id(locator, id, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveId")
     options = Facade.options!(options, @to_have_id_options, "expect.toHaveId")
@@ -2986,7 +2989,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_id_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_id(locator, id, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveId")
     options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
@@ -3063,7 +3066,7 @@ defmodule PlaywrightEx.Expect do
           String.t(),
           term(),
           to_have_js_property_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_js_property(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveJSProperty")
     options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty")
@@ -3129,7 +3132,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec not_to_have_js_property(PlaywrightEx.Locator.t(), String.t(), term(), not_to_have_js_property_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_have_js_property(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveJSProperty")
     options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty")
@@ -3367,7 +3370,7 @@ defmodule PlaywrightEx.Expect do
           | :treegrid
           | :treeitem,
           to_have_role_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_role(locator, role, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveRole")
     role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole")
@@ -3683,7 +3686,7 @@ defmodule PlaywrightEx.Expect do
           | :treegrid
           | :treeitem,
           not_to_have_role_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_role(locator, role, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveRole")
     role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole")
@@ -3914,7 +3917,7 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_screenshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           to_have_screenshot_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_screenshot(locator_or_page, options \\ []) do
     {locator_or_page, is_not} = Facade.negated(locator_or_page, false, "expect.toHaveScreenshot")
     options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
@@ -4052,7 +4055,7 @@ defmodule PlaywrightEx.Expect do
     `false`.
   """
   @spec not_to_have_screenshot(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_have_screenshot(locator_or_page, options \\ []) do
     {locator_or_page, is_not} = Facade.negated(locator_or_page, true, "expect.notToHaveScreenshot")
     options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
@@ -4179,7 +4182,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_text_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_text(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveText")
     options = Facade.options!(options, @to_have_text_options, "expect.toHaveText")
@@ -4264,7 +4267,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_text_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_text(locator, expected, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveText")
     options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText")
@@ -4338,7 +4341,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_value_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_value(locator, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveValue")
     options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue")
@@ -4405,7 +4408,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_value_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_value(locator, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValue")
     options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
@@ -4490,7 +4493,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           to_have_values_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_values(locator, values, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toHaveValues")
     options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues")
@@ -4557,7 +4560,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t(),
           [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_values_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_values(locator, values, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValues")
     options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
@@ -4606,7 +4609,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t(),
           to_match_aria_snapshot_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_match_aria_snapshot(locator_or_page, expected, options \\ []) do
     {locator_or_page, is_not} = Facade.negated(locator_or_page, false, "expect.toMatchAriaSnapshot")
     options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot")
@@ -4669,7 +4672,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
           String.t(),
           not_to_match_aria_snapshot_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_match_aria_snapshot(locator_or_page, expected, options \\ []) do
     {locator_or_page, is_not} = Facade.negated(locator_or_page, true, "expect.notToMatchAriaSnapshot")
     options = Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot")
@@ -4715,7 +4718,7 @@ defmodule PlaywrightEx.Expect do
   Expect.to_be_ok!(response)
   ```
   """
-  @spec to_be_ok(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok | {:error, Exception.t()}
+  @spec to_be_ok(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok | {:error, PlaywrightEx.error()}
   def to_be_ok(api_response) do
     {api_response, is_not} = Facade.negated(api_response, false, "expect.toBeOK")
 
@@ -4749,7 +4752,7 @@ defmodule PlaywrightEx.Expect do
   @doc ~S"""
   The opposite of `to_be_ok/1`: `expect(x).not.toBeOK(...)` in JS.
   """
-  @spec not_to_be_ok(PlaywrightEx.APIResponse.t()) :: :ok | {:error, Exception.t()}
+  @spec not_to_be_ok(PlaywrightEx.APIResponse.t()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_ok(api_response) do
     {api_response, is_not} = Facade.negated(api_response, true, "expect.notToBeOK")
 
@@ -4816,7 +4819,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           to_have_title_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_title(page, title_or_reg_exp, options \\ []) do
     {page, is_not} = Facade.negated(page, false, "expect.toHaveTitle")
     options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle")
@@ -4883,7 +4886,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Page.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_title_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_title(page, title_or_reg_exp, options \\ []) do
     {page, is_not} = Facade.negated(page, true, "expect.notToHaveTitle")
     options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
@@ -4976,7 +4979,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           to_have_url_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_url(page, url, options \\ []) do
     {page, is_not} = Facade.negated(page, false, "expect.toHaveURL")
     options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL")
@@ -5050,7 +5053,7 @@ defmodule PlaywrightEx.Expect do
           PlaywrightEx.Page.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           not_to_have_url_options()
-        ) :: :ok | {:error, Exception.t()}
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_url(page, url, options \\ []) do
     {page, is_not} = Facade.negated(page, true, "expect.notToHaveURL")
     options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL")

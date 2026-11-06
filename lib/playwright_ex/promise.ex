@@ -25,12 +25,15 @@ defmodule PlaywrightEx.Promise do
   @typedoc "A promise handle."
   @type t :: %PlaywrightEx.Runtime.Promise{}
 
-  @doc "Waits for the promise: `{:ok, value}`, or `{:error, exception}` if it is rejected."
-  @spec await(t()) :: {:ok, term()} | {:error, Exception.t()}
+  @doc """
+  Waits for the promise: `{:ok, value}`, or `{:error, exception}` if it is rejected with a
+  `t:PlaywrightEx.error/0`. Other exceptions (bugs) are raised.
+  """
+  @spec await(t()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def await(%PlaywrightEx.Runtime.Promise{} = promise) do
     {:ok, PlaywrightEx.Runtime.Promise.await(promise)}
   rescue
-    e -> {:error, e}
+    e -> if PlaywrightEx.Runtime.Facade.error?(e), do: {:error, e}, else: reraise(e, __STACKTRACE__)
   end
 
   @doc "Like `await/1`, but returns the value and raises if the promise is rejected."

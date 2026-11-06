@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Clock do
 
   * `ticks` - Time may be the number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
   """
-  @spec fast_forward(t(), integer() | String.t()) :: :ok | {:error, Exception.t()}
+  @spec fast_forward(t(), integer() | String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def fast_forward(clock, ticks) do
     Facade.async_void("clock.fastForward", clock, fn -> PlaywrightEx.Client.Clock.fast_forward(clock, ticks) end)
   end
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Clock do
 
   * `:time` (`t:integer/0` | `t:String.t/0` | `t:DateTime.t/0`) - Time to initialize with, current system time by default.
   """
-  @spec install(t(), install_options()) :: :ok | {:error, Exception.t()}
+  @spec install(t(), install_options()) :: :ok | {:error, PlaywrightEx.error()}
   def install(clock, options \\ []) do
     options = Facade.options!(options, @install_options, "clock.install")
     Facade.async_void("clock.install", clock, fn -> PlaywrightEx.Client.Clock.install(clock, options) end)
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Clock do
 
   * `ticks` - Time may be the number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
   """
-  @spec run_for(t(), integer() | String.t()) :: :ok | {:error, Exception.t()}
+  @spec run_for(t(), integer() | String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def run_for(clock, ticks) do
     Facade.async_void("clock.runFor", clock, fn -> PlaywrightEx.Client.Clock.run_for(clock, ticks) end)
   end
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Clock do
 
   * `time` - Time to pause at.
   """
-  @spec pause_at(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Exception.t()}
+  @spec pause_at(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, PlaywrightEx.error()}
   def pause_at(clock, time) do
     Facade.async_void("clock.pauseAt", clock, fn -> PlaywrightEx.Client.Clock.pause_at(clock, time) end)
   end
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.Clock do
   @doc ~S"""
   Resumes timers. Once this method is called, time resumes flowing, timers are fired as usual.
   """
-  @spec resume(t()) :: :ok | {:error, Exception.t()}
+  @spec resume(t()) :: :ok | {:error, PlaywrightEx.error()}
   def resume(clock) do
     Facade.async_void("clock.resume", clock, fn -> PlaywrightEx.Client.Clock.resume(clock) end)
   end
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Clock do
 
   * `time` - Time to be set in milliseconds.
   """
-  @spec set_fixed_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Exception.t()}
+  @spec set_fixed_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, PlaywrightEx.error()}
   def set_fixed_time(clock, time) do
     Facade.async_void("clock.setFixedTime", clock, fn -> PlaywrightEx.Client.Clock.set_fixed_time(clock, time) end)
   end
@@ -223,7 +223,7 @@ defmodule PlaywrightEx.Clock do
 
   * `time` - Time to be set in milliseconds.
   """
-  @spec set_system_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Exception.t()}
+  @spec set_system_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, PlaywrightEx.error()}
   def set_system_time(clock, time) do
     Facade.async_void("clock.setSystemTime", clock, fn -> PlaywrightEx.Client.Clock.set_system_time(clock, time) end)
   end

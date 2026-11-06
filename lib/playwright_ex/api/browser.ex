@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Browser do
 
   * `:reason` (`t:String.t/0`) - *Since 1.40.* The reason to be reported to the operations interrupted by the browser closure.
   """
-  @spec close(t(), close_options()) :: :ok | {:error, Exception.t()}
+  @spec close(t(), close_options()) :: :ok | {:error, PlaywrightEx.error()}
   def close(browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
     Facade.async_void("browser.close", browser, fn -> PlaywrightEx.Client.Browser.close(browser, options) end)
@@ -127,7 +127,7 @@ defmodule PlaywrightEx.Browser do
 
   Returns the newly created browser session.
   """
-  @spec new_browser_cdp_session(t()) :: {:ok, PlaywrightEx.CDPSession.t()} | {:error, Exception.t()}
+  @spec new_browser_cdp_session(t()) :: {:ok, PlaywrightEx.CDPSession.t()} | {:error, PlaywrightEx.error()}
   def new_browser_cdp_session(browser) do
     Facade.async("browser.newBrowserCDPSession", browser, fn ->
       PlaywrightEx.Client.Browser.new_browser_cdp_session(browser)
@@ -620,7 +620,8 @@ defmodule PlaywrightEx.Browser do
     * `:height` - page height in pixels.
   * `:default_browser_type` (`t:String.t/0`) - Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options.
   """
-  @spec new_context(t(), new_context_options()) :: {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
+  @spec new_context(t(), new_context_options()) ::
+          {:ok, PlaywrightEx.BrowserContext.t()} | {:error, PlaywrightEx.error()}
   def new_context(browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
     Facade.async("browser.newContext", browser, fn -> PlaywrightEx.Client.Browser.new_context(browser, options) end)
@@ -1093,7 +1094,7 @@ defmodule PlaywrightEx.Browser do
     * `:height` - page height in pixels.
   * `:default_browser_type` (`t:String.t/0`) - Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options.
   """
-  @spec new_page(t(), new_page_options()) :: {:ok, PlaywrightEx.Page.t()} | {:error, Exception.t()}
+  @spec new_page(t(), new_page_options()) :: {:ok, PlaywrightEx.Page.t()} | {:error, PlaywrightEx.error()}
   def new_page(browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
     Facade.async("browser.newPage", browser, fn -> PlaywrightEx.Client.Browser.new_page(browser, options) end)
@@ -1140,7 +1141,7 @@ defmodule PlaywrightEx.Browser do
   * `:port` (`t:integer/0`) - Port to bind the web socket server to. When specified, a web socket server is created instead of a named pipe. Use `0` to let the OS pick an available port.
   * `:workspace_dir` (`t:String.t/0`) - Working directory associated with this browser server.
   """
-  @spec bind(t(), String.t(), bind_options()) :: {:ok, %{endpoint: String.t()}} | {:error, Exception.t()}
+  @spec bind(t(), String.t(), bind_options()) :: {:ok, %{endpoint: String.t()}} | {:error, PlaywrightEx.error()}
   def bind(browser, title, options \\ []) do
     options = Facade.options!(options, @bind_options, "browser.bind")
     Facade.async("browser.bind", browser, fn -> PlaywrightEx.Client.Browser.bind(browser, title, options) end)
@@ -1181,9 +1182,9 @@ defmodule PlaywrightEx.Browser do
     * `:ignore_errors` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   @spec remove_all_listeners(t(), event() | String.t() | nil | remove_all_listeners_options()) ::
-          :ok | {:error, Exception.t()}
+          :ok | {:error, PlaywrightEx.error()}
   def remove_all_listeners(browser, event \\ nil, options \\ [])
 
   def remove_all_listeners(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
@@ -1253,8 +1254,9 @@ defmodule PlaywrightEx.Browser do
   * `:path` (`t:String.t/0`) - A path to write the trace file to.
   * `:screenshots` (`t:boolean/0`) - captures screenshots in the trace.
   """
-  @spec start_tracing(t(), PlaywrightEx.Page.t() | nil, start_tracing_options()) :: :ok | {:error, Exception.t()}
-  @spec start_tracing(t(), PlaywrightEx.Page.t() | nil | start_tracing_options()) :: :ok | {:error, Exception.t()}
+  @spec start_tracing(t(), PlaywrightEx.Page.t() | nil, start_tracing_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec start_tracing(t(), PlaywrightEx.Page.t() | nil | start_tracing_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def start_tracing(browser, page \\ nil, options \\ [])
 
   def start_tracing(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
@@ -1293,7 +1295,7 @@ defmodule PlaywrightEx.Browser do
 
   Returns the buffer with trace data.
   """
-  @spec stop_tracing(t()) :: {:ok, binary()} | {:error, Exception.t()}
+  @spec stop_tracing(t()) :: {:ok, binary()} | {:error, PlaywrightEx.error()}
   def stop_tracing(browser) do
     Facade.async("browser.stopTracing", browser, fn -> PlaywrightEx.Client.Browser.stop_tracing(browser) end)
   end
@@ -1309,7 +1311,7 @@ defmodule PlaywrightEx.Browser do
   @doc ~S"""
   Unbinds the browser server previously bound with `PlaywrightEx.Browser.bind/3`.
   """
-  @spec unbind(t()) :: :ok | {:error, Exception.t()}
+  @spec unbind(t()) :: :ok | {:error, PlaywrightEx.error()}
   def unbind(browser) do
     Facade.async_void("browser.unbind", browser, fn -> PlaywrightEx.Client.Browser.unbind(browser) end)
   end

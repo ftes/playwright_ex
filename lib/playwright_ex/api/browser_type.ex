@@ -86,7 +86,7 @@ defmodule PlaywrightEx.BrowserType do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec connect(t(), String.t(), connect_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
+  @spec connect(t(), String.t(), connect_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, PlaywrightEx.error()}
   def connect(browser_type, endpoint, options \\ []) do
     options = Facade.options!(options, @connect_options, "browserType.connect")
 
@@ -190,7 +190,7 @@ defmodule PlaywrightEx.BrowserType do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec connect_over_cdp(t(), String.t(), connect_over_cdp_options()) ::
-          {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.Browser.t()} | {:error, PlaywrightEx.error()}
   def connect_over_cdp(browser_type, endpoint_url, options \\ []) do
     options = Facade.options!(options, @connect_over_cdp_options, "browserType.connectOverCDP")
 
@@ -381,7 +381,7 @@ defmodule PlaywrightEx.BrowserType do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:traces_dir` (`t:String.t/0`) - If specified, traces are saved into this directory.
   """
-  @spec launch(t(), launch_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
+  @spec launch(t(), launch_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, PlaywrightEx.error()}
   def launch(browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
 
@@ -893,7 +893,7 @@ defmodule PlaywrightEx.BrowserType do
     * `:height` - page height in pixels.
   """
   @spec launch_persistent_context(t(), String.t(), launch_persistent_context_options()) ::
-          {:ok, PlaywrightEx.BrowserContext.t()} | {:error, Exception.t()}
+          {:ok, PlaywrightEx.BrowserContext.t()} | {:error, PlaywrightEx.error()}
   def launch_persistent_context(browser_type, user_data_dir, options \\ []) do
     options = Facade.options!(options, @launch_persistent_context_options, "browserType.launchPersistentContext")
 

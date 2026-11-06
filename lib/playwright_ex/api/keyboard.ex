@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Keyboard do
 
   * `key` - Name of the key to press or a character to generate, such as `ArrowLeft` or `a`.
   """
-  @spec down(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec down(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def down(keyboard, key) do
     Facade.async_void("keyboard.down", keyboard, fn -> PlaywrightEx.Client.Keyboard.down(keyboard, key) end)
   end
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Keyboard do
 
   * `text` - Sets input to the specified text value.
   """
-  @spec insert_text(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec insert_text(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def insert_text(keyboard, text) do
     Facade.async_void("keyboard.insertText", keyboard, fn ->
       PlaywrightEx.Client.Keyboard.insert_text(keyboard, text)
@@ -186,7 +186,7 @@ defmodule PlaywrightEx.Keyboard do
 
   * `:delay` (`t:number/0`) - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
   """
-  @spec press(t(), String.t(), press_options()) :: :ok | {:error, Exception.t()}
+  @spec press(t(), String.t(), press_options()) :: :ok | {:error, PlaywrightEx.error()}
   def press(keyboard, key, options \\ []) do
     options = Facade.options!(options, @press_options, "keyboard.press")
     Facade.async_void("keyboard.press", keyboard, fn -> PlaywrightEx.Client.Keyboard.press(keyboard, key, options) end)
@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Keyboard do
 
   * `:delay` (`t:number/0`) - Time to wait between key presses in milliseconds. Defaults to 0.
   """
-  @spec type(t(), String.t(), type_options()) :: :ok | {:error, Exception.t()}
+  @spec type(t(), String.t(), type_options()) :: :ok | {:error, PlaywrightEx.error()}
   def type(keyboard, text, options \\ []) do
     options = Facade.options!(options, @type_options, "keyboard.type")
     Facade.async_void("keyboard.type", keyboard, fn -> PlaywrightEx.Client.Keyboard.type(keyboard, text, options) end)
@@ -262,7 +262,7 @@ defmodule PlaywrightEx.Keyboard do
 
   * `key` - Name of the key to press or a character to generate, such as `ArrowLeft` or `a`.
   """
-  @spec up(t(), String.t()) :: :ok | {:error, Exception.t()}
+  @spec up(t(), String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def up(keyboard, key) do
     Facade.async_void("keyboard.up", keyboard, fn -> PlaywrightEx.Client.Keyboard.up(keyboard, key) end)
   end

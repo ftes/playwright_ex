@@ -274,7 +274,8 @@ defmodule PlaywrightEx.APIRequest do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:user_agent` (`t:String.t/0`) - Specific user agent to use in this context.
   """
-  @spec new_context(t(), new_context_options()) :: {:ok, PlaywrightEx.APIRequestContext.t()} | {:error, Exception.t()}
+  @spec new_context(t(), new_context_options()) ::
+          {:ok, PlaywrightEx.APIRequestContext.t()} | {:error, PlaywrightEx.error()}
   def new_context(api_request, options \\ []) do
     options = Facade.options!(options, @new_context_options, "apiRequest.newContext")
 

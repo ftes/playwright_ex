@@ -22,7 +22,7 @@ defmodule PlaywrightEx.APIResponse do
   @doc ~S"""
   Returns the buffer with response body.
   """
-  @spec body(t()) :: {:ok, binary()} | {:error, Exception.t()}
+  @spec body(t()) :: {:ok, binary()} | {:error, PlaywrightEx.error()}
   def body(api_response) do
     Facade.async("apiResponse.body", api_response, fn -> PlaywrightEx.Client.APIResponse.body(api_response) end)
   end
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.APIResponse do
   @doc ~S"""
   Disposes the body of this response. If not called then the body will stay in memory until the context closes.
   """
-  @spec dispose(t()) :: :ok | {:error, Exception.t()}
+  @spec dispose(t()) :: :ok | {:error, PlaywrightEx.error()}
   def dispose(api_response) do
     Facade.async_void("apiResponse.dispose", api_response, fn ->
       PlaywrightEx.Client.APIResponse.dispose(api_response)
@@ -79,7 +79,7 @@ defmodule PlaywrightEx.APIResponse do
 
   This method will throw if the response body is not parsable via `JSON.parse`.
   """
-  @spec json(t()) :: {:ok, term()} | {:error, Exception.t()}
+  @spec json(t()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def json(api_response) do
     Facade.async("apiResponse.json", api_response, fn -> PlaywrightEx.Client.APIResponse.json(api_response) end)
   end
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.APIResponse do
                optional(:validFrom) => number(),
                optional(:validTo) => number()
              }}
-          | {:error, Exception.t()}
+          | {:error, PlaywrightEx.error()}
   def security_details(api_response) do
     Facade.async("apiResponse.securityDetails", api_response, fn ->
       PlaywrightEx.Client.APIResponse.security_details(api_response)
@@ -142,7 +142,7 @@ defmodule PlaywrightEx.APIResponse do
   @doc ~S"""
   Returns the IP address and port of the server. Returns `nil` if the server address is not available. For redirected requests, returns the information for the last request in the redirect chain.
   """
-  @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Exception.t()}
+  @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, PlaywrightEx.error()}
   def server_addr(api_response) do
     Facade.async("apiResponse.serverAddr", api_response, fn ->
       PlaywrightEx.Client.APIResponse.server_addr(api_response)
@@ -180,7 +180,7 @@ defmodule PlaywrightEx.APIResponse do
   @doc ~S"""
   Returns the text representation of response body.
   """
-  @spec text(t()) :: {:ok, String.t()} | {:error, Exception.t()}
+  @spec text(t()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def text(api_response) do
     Facade.async("apiResponse.text", api_response, fn -> PlaywrightEx.Client.APIResponse.text(api_response) end)
   end
