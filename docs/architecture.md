@@ -264,7 +264,8 @@ One matrix runs chromium, firefox and webkit under `xvfb-run`, each split into 6
 `mix test --partitions` (test files round-robin); the aggregate `Tests` job is the check to
 require, and every job blocks it. Test failures (exit 2) are rerun once with `--failed`; compile
 errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flakes stay visible.
-`max_cases` is half the schedulers on CI, like Playwright's default workers. Headed tests run
-under xvfb with `HEADED=1 --only headed`, in each browser's first partition. deps and `_build` are cached, written
+`max_cases` is half the schedulers on CI, like Playwright's default workers (`PW_MAX_CASES`, or the
+workflow_dispatch input `max_cases`, overrides it). Headed tests run under xvfb with
+`HEADED=1 --only headed`, in each browser's first partition. deps and `_build` are cached, written
 on main only. A daily workflow checks npm for a new release and opens a
 draft PR that ports it per PORTING.

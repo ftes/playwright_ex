@@ -14,6 +14,12 @@ on:
   schedule:
     - cron: "0 3 * * *"
   workflow_dispatch:
+    inputs:
+      max_cases:
+        description: "ExUnit max_cases for the test runs (PW_MAX_CASES), default: half the schedulers"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -112,6 +118,8 @@ jobs:
         partition: [1, 2, 3, 4, 5, 6]
     env:
       BROWSER: ${{ matrix.browser }}
+      # Empty (the default, and on other events) leaves test_helper.exs's default.
+      PW_MAX_CASES: ${{ inputs.max_cases }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
