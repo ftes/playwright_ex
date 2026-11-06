@@ -1076,3 +1076,5 @@ drift). Blockers for release, assigned to follow-up workstreams:
   mapping onto upstream test ports. Prototype with 5 examples committed; Later #1/#2 moved there.
 - User, 2026-11-06, review decision 4: a closed remote connection's Conn stops once its creators
   exit; later reads raise TargetClosedError, as for closed contexts and disposed handles (R2).
+- User, 2026-11-06, review decision 5: our suite keeps `assert_receive_timeout: 10_000` (H-16); it is
+  ours only (test_helper), users are unaffected, no app env and no guide note.
