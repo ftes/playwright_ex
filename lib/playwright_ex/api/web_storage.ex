@@ -16,6 +16,8 @@ defmodule PlaywrightEx.WebStorage do
   Page.local_storage(page) |> WebStorage.remove_item!("token")
   Page.local_storage(page) |> WebStorage.clear!()
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

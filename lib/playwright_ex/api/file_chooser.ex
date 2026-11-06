@@ -12,6 +12,8 @@ defmodule PlaywrightEx.FileChooser do
   file_chooser = Promise.await!(file_chooser_promise)
   FileChooser.set_files!(file_chooser, Path.join(__DIR__, "myfile.pdf"))
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

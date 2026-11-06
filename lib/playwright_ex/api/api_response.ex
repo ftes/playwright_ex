@@ -4,6 +4,8 @@ defmodule PlaywrightEx.APIResponse do
   @moduledoc since: "1.16"
   @moduledoc ~S"""
   [`APIResponse`](`PlaywrightEx.APIResponse`) class represents responses returned by `PlaywrightEx.APIRequestContext.get/3` and similar methods.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

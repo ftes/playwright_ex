@@ -14,6 +14,8 @@ defmodule PlaywrightEx.BrowserType do
   # other actions...
   Browser.close!(browser)
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

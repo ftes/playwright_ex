@@ -26,6 +26,8 @@ defmodule PlaywrightEx.Worker do
   ### `:console`
 
   *Since 1.57.* Emitted when JavaScript within the worker calls one of console API methods, e.g. `console.log` or `console.dir`.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

@@ -5,6 +5,8 @@ defmodule PlaywrightEx.Disposable do
   @moduledoc ~S"""
   [`Disposable`](`PlaywrightEx.Disposable`) is returned from various methods to allow undoing the corresponding action. For example,
   `PlaywrightEx.Page.add_init_script/4` returns a [`Disposable`](`PlaywrightEx.Disposable`) that can be used to remove the init script.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

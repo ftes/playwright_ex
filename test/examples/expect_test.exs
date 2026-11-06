@@ -290,6 +290,20 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     Expect.to_have_attribute!(locator, "type", "text")
   end
 
+  example "LocatorAssertions.toHaveAttribute (existence)",
+    js: ~S"""
+    const locator = page.locator('input');
+    // Assert attribute existence.
+    await expect(locator).toHaveAttribute('disabled');
+    await expect(locator).not.toHaveAttribute('open');
+    """,
+    html: ~s(<input disabled>) do
+    locator = Page.locator(page, "input")
+    # Assert attribute existence.
+    Expect.to_have_attribute!(locator, "disabled")
+    Expect.not_to_have_attribute!(locator, "open")
+  end
+
   example "LocatorAssertions.toHaveClass",
     js: ~S"""
     const locator = page.locator('#component');

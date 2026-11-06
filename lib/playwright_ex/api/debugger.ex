@@ -11,6 +11,8 @@ defmodule PlaywrightEx.Debugger do
   ### `:paused_state_changed`
 
   Emitted when the debugger pauses or resumes.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

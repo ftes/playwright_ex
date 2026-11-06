@@ -25,6 +25,8 @@ defmodule PlaywrightEx.Coverage do
 
   Browser.close!(browser)
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

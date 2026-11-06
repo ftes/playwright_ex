@@ -25,6 +25,8 @@ defmodule PlaywrightEx.Browser do
 
   * Browser application is closed or crashed.
   * The `PlaywrightEx.Browser.close/2` method was called.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

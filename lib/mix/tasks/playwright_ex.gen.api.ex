@@ -300,7 +300,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       class["extends"] && extends_doc(ctx, class["extends"]),
       events != [] &&
         "## Events\n\n" <>
-          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"]))
+          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"])),
+      "The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`)."
     ])
   end
 

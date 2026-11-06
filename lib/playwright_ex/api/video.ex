@@ -8,6 +8,8 @@ defmodule PlaywrightEx.Video do
   ```elixir
   IO.puts(Page.video(page) |> Video.path!())
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

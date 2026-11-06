@@ -42,6 +42,8 @@ defmodule PlaywrightEx.CDPSession do
     IO.puts("CDP event: #{event.method} #{inspect(event[:params])}")
   end)
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

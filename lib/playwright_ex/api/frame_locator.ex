@@ -60,6 +60,8 @@ defmodule PlaywrightEx.FrameLocator do
   **Converting FrameLocator to Locator**
 
   If you have a [`FrameLocator`](`PlaywrightEx.FrameLocator`) object it can be converted to [`Locator`](`PlaywrightEx.Locator`) pointing to the same `iframe` using `PlaywrightEx.FrameLocator.owner/1`.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

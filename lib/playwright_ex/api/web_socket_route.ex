@@ -69,6 +69,8 @@ defmodule PlaywrightEx.WebSocketRoute do
     end)
   end)
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

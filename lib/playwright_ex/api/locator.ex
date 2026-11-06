@@ -7,6 +7,8 @@ defmodule PlaywrightEx.Locator do
   a way to find element(s) on the page at any moment. A locator can be created with the `PlaywrightEx.Page.locator/3` method.
 
   [Learn more about locators](https://playwright.dev/docs/locators).
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

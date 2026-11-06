@@ -16,6 +16,8 @@ defmodule PlaywrightEx.Tracing do
   assert Page.url(page) == "https://playwright.dev/"
   BrowserContext.tracing(context) |> Tracing.stop!(path: "trace.zip")
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

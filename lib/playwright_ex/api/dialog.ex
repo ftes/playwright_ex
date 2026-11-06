@@ -25,6 +25,8 @@ defmodule PlaywrightEx.Dialog do
   >
   > Dialogs are dismissed automatically, unless there is a [`Page.on(:dialog)`](PlaywrightEx.Page.html#module-dialog) listener.
   > When listener is present, it **must** either `PlaywrightEx.Dialog.accept/2` or `PlaywrightEx.Dialog.dismiss/1` the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

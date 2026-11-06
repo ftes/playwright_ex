@@ -17,6 +17,8 @@ defmodule PlaywrightEx.JSHandle do
 
   JSHandle instances can be used as an argument in `PlaywrightEx.Page.eval_on_selector/4`, `PlaywrightEx.Page.evaluate/4` and
   `PlaywrightEx.Page.evaluate_handle/4` methods.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

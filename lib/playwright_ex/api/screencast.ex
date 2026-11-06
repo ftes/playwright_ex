@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Screencast do
   @moduledoc since: "1.59"
   @moduledoc ~S"""
   Interface for capturing screencast frames from a page.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

@@ -327,7 +327,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       for class <- Enum.sort_by(assertions, &(&1["name"] != "LocatorAssertions")),
           member <- class["members"],
           member["kind"] == "method" and member["overloadIndex"] == 0,
-          do: matcher(class, member)
+          do: class |> matcher(member) |> overload_examples(class)
 
     members =
       matchers
@@ -375,6 +375,23 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "args" => args,
       "matcher" => %{"name" => member["alias"], "isNot" => false, "receivers" => [receiver]}
     })
+  end
+
+  # A member an overload makes an argument optional of shows that overload's examples too
+  # (`toHaveAttribute(name)`: "Assert attribute existence").
+  defp overload_examples(member, class) do
+    if Enum.any?(member["args"], &("#{class["name"]}.#{member["alias"]}.#{&1["name"]}" in @optional_args)) do
+      examples =
+        for overload <- class["members"],
+            overload["alias"] == member["alias"] and overload["overloadIndex"] != 0,
+            node <- overload["spec"] || [],
+            node["type"] == "code",
+            do: node
+
+      Map.update!(member, "spec", &(&1 ++ examples))
+    else
+      member
+    end
   end
 
   # Matcher options: the test runner's `TestConfig.expect` is `config :playwright_ex, :expect`.

@@ -162,6 +162,8 @@ defmodule PlaywrightEx.BrowserContext do
   > Service workers are only supported on Chromium-based browsers.
 
   Emitted when new service worker is created in the context.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

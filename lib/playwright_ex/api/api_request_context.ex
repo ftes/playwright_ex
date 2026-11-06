@@ -21,6 +21,8 @@ defmodule PlaywrightEx.APIRequestContext do
   If you want API requests that do **not** share cookies with the browser, create an
   isolated context via `PlaywrightEx.APIRequest.new_context/2`. Such [`APIRequestContext`](`PlaywrightEx.APIRequestContext`)
   object will have its own isolated cookie storage.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

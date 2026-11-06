@@ -73,6 +73,8 @@ defmodule PlaywrightEx.Credentials do
   See [authentication guide](https://playwright.dev/docs/auth) for examples of using saving and restoring the storage state.
 
   **Defaults**
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

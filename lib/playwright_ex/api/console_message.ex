@@ -28,6 +28,8 @@ defmodule PlaywrightEx.ConsoleMessage do
   ConsoleMessage.args(msg) |> Enum.at(1) |> JSHandle.json_value!()
   # => 42
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   @typedoc "A `ConsoleMessage` handle. Compare handles with `==`, their fields are internal."

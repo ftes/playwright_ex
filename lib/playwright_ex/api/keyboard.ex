@@ -37,6 +37,8 @@ defmodule PlaywrightEx.Keyboard do
   ```elixir
   Page.keyboard(page) |> Keyboard.press!("ControlOrMeta+A")
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

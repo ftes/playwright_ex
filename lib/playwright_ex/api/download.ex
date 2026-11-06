@@ -19,6 +19,8 @@ defmodule PlaywrightEx.Download do
   # Wait for the download process to complete and save the downloaded file somewhere.
   Download.save_as!(download, "/path/to/save/at/" <> Download.suggested_filename(download))
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

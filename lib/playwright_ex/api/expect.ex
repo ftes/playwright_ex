@@ -33,6 +33,8 @@ defmodule PlaywrightEx.Expect do
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
 
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -2238,6 +2240,13 @@ defmodule PlaywrightEx.Expect do
   ```elixir
   locator = Page.locator(page, "input")
   Expect.to_have_attribute!(locator, "type", "text")
+  ```
+
+  ```elixir
+  locator = Page.locator(page, "input")
+  # Assert attribute existence.
+  Expect.to_have_attribute!(locator, "disabled")
+  Expect.not_to_have_attribute!(locator, "open")
   ```
 
   ## Arguments

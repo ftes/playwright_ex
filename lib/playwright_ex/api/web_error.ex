@@ -14,6 +14,8 @@ defmodule PlaywrightEx.WebError do
   # Navigate to a page with an exception.
   Page.goto!(page, ~s{data:text/html,<script>throw new Error("Test")</script>})
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   @typedoc "A `WebError` handle. Compare handles with `==`, their fields are internal."

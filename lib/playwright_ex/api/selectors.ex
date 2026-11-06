@@ -5,6 +5,8 @@ defmodule PlaywrightEx.Selectors do
   @moduledoc ~S"""
   Selectors can be used to install custom selector engines. See [extensibility](https://playwright.dev/docs/extensibility) for more
   information.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Response do
   @moduledoc since: "1.8"
   @moduledoc ~S"""
   [`Response`](`PlaywrightEx.Response`) class represents responses which are received by page.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

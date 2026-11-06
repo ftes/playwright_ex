@@ -7,6 +7,8 @@ defmodule PlaywrightEx.Touchscreen do
   touchscreen can only be used in browser contexts that have been initialized with `:has_touch` set to true.
 
   This class is limited to emulating tap gestures. For examples of other gestures simulated by manually dispatching touch events, see the [emulating legacy touch events](https://playwright.dev/docs/touch-events) page.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

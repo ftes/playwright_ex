@@ -22,6 +22,8 @@ defmodule PlaywrightEx.Mouse do
   Mouse.move!(mouse, 0, 0)
   Mouse.up!(mouse)
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

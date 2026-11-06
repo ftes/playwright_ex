@@ -29,6 +29,8 @@ defmodule PlaywrightEx.Frame do
   dump_frame_tree.(dump_frame_tree, Page.main_frame(page), "")
   Browser.close!(browser)
   ```
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

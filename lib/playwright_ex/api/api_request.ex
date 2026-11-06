@@ -7,6 +7,8 @@ defmodule PlaywrightEx.APIRequest do
   [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) instance which in turn can be used for sending web requests. An instance
   of this class can be obtained via `PlaywrightEx.Playwright.request/1`. For more information
   see [`APIRequestContext`](`PlaywrightEx.APIRequestContext`).
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

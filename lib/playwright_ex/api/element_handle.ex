@@ -42,6 +42,8 @@ defmodule PlaywrightEx.ElementHandle do
   ```
 
   Extends `PlaywrightEx.JSHandle`: its functions take this handle too.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

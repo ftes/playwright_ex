@@ -7,6 +7,8 @@ defmodule PlaywrightEx.Clock do
 
   Note that clock is installed for the entire [`BrowserContext`](`PlaywrightEx.BrowserContext`), so the time
   in all the pages and iframes is controlled by the same clock.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade

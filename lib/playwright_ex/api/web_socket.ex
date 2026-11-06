@@ -24,6 +24,8 @@ defmodule PlaywrightEx.WebSocket do
   ### `:socket_error`
 
   *Since 1.9.* Fired when the websocket has an error.
+
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
