@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Tuple forms return `{:error, e}` only for the errors upstream rejects with
   (`PlaywrightEx.error()`); other exceptions (bugs, misuse) raise in both forms.
+- `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a
+  supervision tree.
 
 ## [0.17.0-rc.0] 2026-11-06
 

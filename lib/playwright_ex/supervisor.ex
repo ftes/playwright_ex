@@ -11,7 +11,18 @@ defmodule PlaywrightEx.Supervisor do
     * `:executable`, `:node`, `:cache_dir` - see `PlaywrightEx.Driver`.
     * `:env` - extra environment variables for the driver process.
 
-  Child: the driver connection (the driver's pipe and the connection process).
+  Child: the driver connection (the driver's pipe and the connection process). The child id is
+  the `:name`, so drivers of different names can share a supervision tree.
+
+  ## Lifetimes
+
+  When the driver exits, its connection is closed and the supervisor starts a new driver, with a
+  new root object: calls on handles of the old one fail with `PlaywrightEx.TargetClosedError`, so
+  get the root again with `PlaywrightEx.playwright/1`. Browsers and contexts are not closed when
+  the process that created them exits; only the data the library keeps for closed ones is freed
+  then. So close what you open, as tests close their contexts in `on_exit`. Starting installs the
+  driver first if it is missing (`PlaywrightEx.Driver.ensure_installed/1`): a download that
+  blocks `start_link/1`.
   """
   use Supervisor
 
@@ -34,6 +45,10 @@ defmodule PlaywrightEx.Supervisor do
     opts = Keyword.validate!(opts, [:executable, :node, :cache_dir, name: PlaywrightEx, env: []])
     Supervisor.start_link(__MODULE__, opts, name: opts[:name])
   end
+
+  @doc "A child spec whose id is the `:name` (`PlaywrightEx` by default)."
+  @spec child_spec([option()]) :: Supervisor.child_spec()
+  def child_spec(opts), do: opts |> super() |> Map.put(:id, Keyword.get(opts, :name, PlaywrightEx))
 
   @doc false
   def out_of_process(name), do: Module.concat(name, OutOfProcess)
