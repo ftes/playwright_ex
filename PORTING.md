@@ -210,3 +210,6 @@ single thread. Use each only where the JS code needs it, with its marker.
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
    update `@unported_client_files` / `test/upstream_not_ported.txt`. Refresh
    `test/upstream_registry.md` from playwright-python (or upstream's `tests/registry.md`).
+5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
+   or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
+   their snippets are tests in `test/guides`.

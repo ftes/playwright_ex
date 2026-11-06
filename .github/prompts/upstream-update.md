@@ -33,6 +33,9 @@ the existing ported code next to whatever you port.
       hand. Use subagents for independent files when the diff is large.
    4. `mix playwright_ex.parity` until it prints `parity: ok`, handling new, removed and renamed
       upstream files as PORTING says, and refresh `test/upstream_registry.md`.
+   5. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
+      guides) and update `guides/` where it adds a pattern or caveat they should mention; list
+      anything you left out in the PR body.
 4. Set `@version` in `mix.exs` to VERSION. Add a `## [VERSION] YYYY-MM-DD` section (today) to
    `CHANGELOG.md` right below `## [Unreleased]`, in the style of the existing ones: "Drive
    Playwright TO" with the RELEASE link, then the API added or changed by the port.

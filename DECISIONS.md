@@ -1162,3 +1162,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   (`Fluffy.BrowserRuntime`, one lazily launched browser) and upstream (a browser per worker). The
   old "browser per module so modules can be async" was wrong: `async: true` runs modules
   concurrently, a module's tests run serially; a browser per module only adds launches.
+- User, 2026-11-06, guides vs upstream: the ExUnit guide keeps `:persistent_term` and points to a
+  supervised owner (Fluffy's `BrowserRuntime`) for lazy launch and restart. No parity check covers
+  the guides' prose; the bump checklist (PORTING, `upstream-update.md`) gains a step to read
+  upstream's `docs/src/*.md` diff (outside `api/`) for patterns the guides should mention.

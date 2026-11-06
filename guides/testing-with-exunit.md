@@ -21,7 +21,9 @@ ExUnit.start()
 ```
 
 `test_helper.exs` runs in the process that runs the suite, so the browser lives as long as the
-run and closes with it. A case template gives each test a fresh context and page of that browser:
+run and closes with it. For a lazy launch and a restart after a crash, keep it in a supervised
+process instead; [Fluffy](https://hex.pm/packages/fluffy)'s `BrowserRuntime` is one. A case
+template gives each test a fresh context and page of that browser:
 
 ```elixir
 # test/support/browser_case.ex
