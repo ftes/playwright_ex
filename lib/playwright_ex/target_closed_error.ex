@@ -1,5 +1,10 @@
 defmodule PlaywrightEx.TargetClosedError do
-  @moduledoc "JS `TargetClosedError` (`packages/playwright-core/src/client/errors.ts`)."
+  @moduledoc """
+  JS `TargetClosedError` (`packages/playwright-core/src/client/errors.ts`): the page, context or
+  browser of a call has been closed, or the driver has exited. The fields are those of
+  `PlaywrightEx.PlaywrightError`; `name` is `"Error"`, as in JS.
+  """
+  @typedoc "See the module docs for the fields."
   @type t :: %__MODULE__{
           message: String.t(),
           name: String.t(),

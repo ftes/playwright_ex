@@ -1,10 +1,15 @@
 defmodule PlaywrightEx.ExpectError do
   @moduledoc """
   JS `ExpectError` (`packages/playwright/src/matchers/matcherHint.ts`): a failed matcher
-  (`PlaywrightEx.Expect`). `matcherResult` mirrors JS: a map with `name`, `message`, `pass`,
-  `expected`, `actual`, `log`, `timeout`, `ariaSnapshot` (keys whose JS value is `undefined` are
-  left out).
+  (`PlaywrightEx.Expect`). Its fields keep their JS names:
+
+    * `message` - the matcher's message, as in JS (`matcherResult.message`).
+    * `name` - `"Error"`, as in JS.
+    * `matcherResult` - the result as in JS: a map with `name`, `message`, `pass`, `expected`,
+      `actual`, `log`, `timeout`, `ariaSnapshot` (keys whose JS value is `undefined` are left out).
+    * `stack` - `""`: Elixir has the stack trace of the raise.
   """
+  @typedoc "See the module docs for the fields."
   @type t :: %__MODULE__{message: String.t(), name: String.t(), matcherResult: map() | nil, stack: String.t()}
 
   defexception message: "", name: "Error", matcherResult: nil, stack: ""
