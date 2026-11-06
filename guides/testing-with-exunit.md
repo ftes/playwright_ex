@@ -6,26 +6,32 @@ somewhere and is reached through a base URL, whatever it is written in. For Phoe
 
 ## Setup
 
-Start the driver once, in `test/test_helper.exs`:
+Start the driver and launch one browser for the whole run, in `test/test_helper.exs`:
 
 ```elixir
 {:ok, _} = PlaywrightEx.Supervisor.start_link()
+
+browser =
+  PlaywrightEx.playwright()
+  |> PlaywrightEx.Playwright.chromium()
+  |> PlaywrightEx.BrowserType.launch!()
+
+:persistent_term.put(MyApp.BrowserCase, browser)
 ExUnit.start()
 ```
 
-A case template launches a browser per test module and gives each test a fresh context and page:
+`test_helper.exs` runs in the process that runs the suite, so the browser lives as long as the
+run and closes with it. A case template gives each test a fresh context and page of that browser:
 
 ```elixir
 # test/support/browser_case.ex
 defmodule MyApp.BrowserCase do
   use ExUnit.CaseTemplate
 
-  alias PlaywrightEx.{Browser, BrowserContext, BrowserType, Playwright}
+  alias PlaywrightEx.{Browser, BrowserContext}
 
   setup_all do
-    browser = PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!()
-    on_exit(fn -> Browser.close(browser) end)
-    %{browser: browser}
+    %{browser: :persistent_term.get(__MODULE__)}
   end
 
   setup %{browser: browser} do
@@ -37,8 +43,10 @@ defmodule MyApp.BrowserCase do
 end
 ```
 
-A context is a fresh browser profile: its own cookies, storage and cache. Contexts are cheap
-and don't share state, so test modules can run with `async: true`:
+A context is a fresh browser profile: its own cookies, storage and cache. Contexts are cheap and
+don't share state, so tests share the one browser safely, also across modules with `async: true`
+(ExUnit runs those concurrently with each other; a module's own tests run one after another). A
+browser per module would only add a browser launch per module. A test:
 
 ```elixir
 defmodule MyApp.SignUpTest do

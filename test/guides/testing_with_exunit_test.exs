@@ -1,6 +1,7 @@
 # The snippets of `guides/testing-with-exunit.md`, run against an app on `PlaywrightEx.TestServer`.
-# Deviations from the guide: each module starts its own driver and app (the guide starts one
-# driver in `test_helper.exs` and reads `BASE_URL`), and the browser is `BROWSER`'s.
+# Deviations from the guide: each module starts its own driver, browser and app (the guide starts
+# one driver and browser for the run in `test_helper.exs` and reads `BASE_URL`; this suite's
+# test_helper is shared), and the browser is `BROWSER`'s.
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.App do
   @moduledoc false

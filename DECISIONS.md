@@ -1157,3 +1157,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   follow as nested bullets. No extra link to the options type: the `@spec` already links it. Each
   alternative is its own code span so ExDoc links it (`t:String.t/0`, `t:boolean/0` to Elixir's
   typespecs page, `t:PlaywrightEx.AbortSignal.t/0`); lists read "list of", literals stay code.
+- User, 2026-11-06, ExUnit guide: one browser for the run (launched in `test_helper.exs`, kept in
+  `:persistent_term`; the case template's `setup_all` reads it), a context per test, as Fluffy
+  (`Fluffy.BrowserRuntime`, one lazily launched browser) and upstream (a browser per worker). The
+  old "browser per module so modules can be async" was wrong: `async: true` runs modules
+  concurrently, a module's tests run serially; a browser per module only adds launches.
