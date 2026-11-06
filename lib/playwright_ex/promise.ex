@@ -8,8 +8,15 @@ defmodule PlaywrightEx.Promise do
       {:ok, popup} = PlaywrightEx.Promise.await(popup)
 
   The wait is set up before the function returns, so events of the actions that follow are
-  seen. Any process can await a promise, any number of times, while the process that started it
-  lives: its result is kept until then (awaiting after that process exited raises).
+  seen.
+
+  A promise is owned by the process that started it. Unlike a plain Elixir `Task`, any process
+  can await it, any number of times, and gets the same result, which is kept while the owner
+  lives. Once the owner has exited, awaiting raises `PlaywrightEx.TargetClosedError`. A promise
+  started inside an event listener is owned by the object it waits on (`page` in
+  `wait_for_event(page, ...)`) instead, since the listener's process may exit first; it lives
+  until that object is freed after close.
+  `free/1` drops a promise you no longer need before its owner exits.
 
   The same waits have a callback form, as in the other official clients
   (`PlaywrightEx.Page.expect_popup(page, fn -> ... end)`).
@@ -32,8 +39,9 @@ defmodule PlaywrightEx.Promise do
 
   @doc """
   Elixir only: drops a promise nobody will await, such as a wait started before checking state
-  that turned out to be ready (see the migration guide, "Subscribe before you check"). Its
-  result is no longer kept, and no late message reaches the caller.
+  that turned out to be ready (see the "Concurrency" guide). Its result is no longer kept, no
+  late message reaches the caller; don't await it afterwards. Without `free/1` the result is
+  kept until the owner exits.
   """
   @spec free(t()) :: :ok
   def free(%PlaywrightEx.Runtime.Promise{} = promise), do: PlaywrightEx.Runtime.Promise.free(promise)

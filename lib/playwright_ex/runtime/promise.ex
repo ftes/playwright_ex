@@ -23,6 +23,14 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   `await/1` first yields (`PlaywrightEx.Runtime.Invocation.yield/0`), as JS `await` returns
   to the caller. Inside the connection process it raises: dispatch must not block.
+
+  Lifetimes: a local promise is its creator's (awaiting it from another process raises); its
+  result is a message, which `free/1` flushes (with an alias for `async/2`, so a later result is
+  dropped too). A latch lives as long as its owner's rows: for a protocol object until its
+  retention anchor is freed (`_dispose` in `PlaywrightEx.Client.ChannelOwner`), for a
+  `PlaywrightEx.Runtime.ProcessOwner` until that process exits. A pending latch is rejected when
+  its owner is disposed; awaiting one whose owner is gone raises
+  `PlaywrightEx.TargetClosedError`. `free/1` deletes a latch's row before then.
   """
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
