@@ -248,7 +248,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
     end
 
     # JS resolves the promise inside `emit` and runs the awaiter's continuation after the whole
-    # synchronous emit: the later listeners have run first (ISSUE_DRAFTS #18).
+    # synchronous emit: the later listeners have run first (ISSUES.md #18).
     test "a latch settled by a listener wakes its awaiter after the emit's later listeners", %{page: page} do
       test = self()
       latch = RuntimePromise.new(page)

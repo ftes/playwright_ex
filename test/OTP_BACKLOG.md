@@ -18,4 +18,4 @@ Possibly load-flaky, to watch: `locator_query_test.exs:324` (webkit), `conn_test
 (120 s timeout once in a loaded full run), `page_screenshot_test.exs:482`,
 `page_add_locator_handler_test.exs` "should work" (hover with 2 concurrent pages).
 `page_close_test.exs` "should not throw when continuing while page is closing": fixed by caching
-the working directory of stack frames (ISSUE_DRAFTS #7); the driver race behind it remains.
+the working directory of stack frames (ISSUES.md #7); the driver race behind it remains.
