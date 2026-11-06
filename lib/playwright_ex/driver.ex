@@ -104,7 +104,10 @@ defmodule PlaywrightEx.Driver do
 
   @doc "Whether the pinned driver is installed in `install_dir/1`."
   @spec installed?([option()]) :: boolean()
-  def installed?(opts \\ []), do: File.dir?(install_dir(opts))
+  def installed?(opts \\ []) do
+    platform = opts[:platform] || platform!()
+    complete?(install_dir(Keyword.put(opts, :platform, platform)), platform)
+  end
 
   @doc "Where the pinned driver is (or will be) installed: `<cache_dir>/<version>/<platform>`."
   @spec install_dir([option()]) :: String.t()
@@ -134,7 +137,8 @@ defmodule PlaywrightEx.Driver do
     target = install_dir(Keyword.put(opts, :platform, platform))
     force = Keyword.get(opts, :force, false)
 
-    if File.dir?(target) and not force do
+    # A directory with a file missing (an interrupted copy, a cleaned cache) is repaired.
+    if complete?(target, platform) and not force do
       :ok
     else
       checksums = opts[:checksums] || @checksums
@@ -146,8 +150,8 @@ defmodule PlaywrightEx.Driver do
       try do
         build(tmp, platform, checksums)
 
-        # Only when forced: a concurrent installer's result is equally valid, and may be running.
-        if force and File.dir?(target), do: File.rm_rf!(target)
+        # A concurrent installer's complete result stays: it is equally valid, and may be running.
+        if File.dir?(target) and (force or not complete?(target, platform)), do: File.rm_rf!(target)
 
         case File.rename(tmp, target) do
           :ok -> :ok
@@ -160,6 +164,9 @@ defmodule PlaywrightEx.Driver do
       end
     end
   end
+
+  defp complete?(dir, platform),
+    do: File.regular?(Path.join([dir, "package", "cli.js"])) and File.regular?(Path.join(dir, node_file(platform)))
 
   defp build(tmp, platform, checksums) do
     downloads = Path.join(tmp, ".downloads")
@@ -287,11 +294,11 @@ defmodule PlaywrightEx.Driver do
 
   defp node_path(opts) do
     dir = install_dir(opts)
-
-    if String.starts_with?(Path.basename(dir), "win-"),
-      do: Path.join(dir, "node.exe"),
-      else: Path.join(dir, "node")
+    Path.join(dir, node_file(Path.basename(dir)))
   end
+
+  defp node_file("win-" <> _), do: "node.exe"
+  defp node_file(_platform), do: "node"
 
   defp cli_path(opts), do: Path.join([install_dir(opts), "package", "cli.js"])
 

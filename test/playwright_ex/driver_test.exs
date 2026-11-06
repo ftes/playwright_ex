@@ -24,6 +24,16 @@ defmodule PlaywrightEx.DriverTest do
     refute Driver.installed?(cache_dir: cache)
   end
 
+  test "a broken install (cli.js missing) is not installed, and is reinstalled", %{tmp_dir: cache} do
+    File.mkdir_p!(Path.join(Driver.install_dir(cache_dir: cache), "package"))
+    File.write!(Path.join(Driver.install_dir(cache_dir: cache), "node"), "")
+    refute Driver.installed?(cache_dir: cache)
+
+    # The reinstall is attempted: it fails at the (tampered) checksum here.
+    bad = put_in(Driver.checksums().playwright_core, "sha512-" <> Base.encode64(:binary.copy(<<0>>, 64)))
+    assert_raise Driver.ChecksumError, fn -> Driver.ensure_installed(cache_dir: cache, checksums: bad) end
+  end
+
   test "verify!/2 checks sha256 hex digests", %{tmp_dir: tmp} do
     file = Path.join(tmp, "node.tar.gz")
     File.write!(file, "not really node")
