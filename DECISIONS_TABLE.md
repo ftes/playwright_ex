@@ -79,7 +79,7 @@ one.
 | 59.1 | Phase 2 stress/perf | manual only: arch §Test infrastructure, code (perf_test/stress_test headers); figures: dropped: history (context close: 59.20); mid-emit latch gap: dropped: resolved (Conn.wake/unwake, 59.37, 59.44); disposed-handle rows: dropped: resolved (59.33) |
 | 59.2 | Lead, webkit CI: backlog leak tests settle, OOPIF setup_all | code (network_backlog_test, oopif_test) |
 | 59.3 | User: firefox blocks CI | arch §CI ("every job blocks it"); Linux failures: dropped: resolved |
-| 59.4 | User: open items split by owner; no transport matrix | split: dropped: superseded (PLAN/ISSUES deleted; GH #126–#130, PORTING re-checks); transport matrix: arch §Mirroring upstream specs |
+| 59.4 | User: open items split by owner; no transport matrix | split: dropped: superseded (PLAN/ISSUES deleted; GH #126–#130, PORTING re-checks); transport matrix: dropped: premise wrong (upstream has no transport matrix; in-process mode noted in arch §Mirroring upstream specs) |
 | 59.5 | OOPIF "should click" is a browser race | PORTING §Upstream issues to re-check; code (skip comment) |
 | 59.6 | #13/#14 fixed | dropped: done; code (ClientHelper `number_to_string`, screencast_test comments) |
 | 59.7 | WR3 heap #19: disposed handle frees its rows | arch §Object lifetimes (final form 59.33) |
@@ -160,7 +160,7 @@ Counted by script over the cells above (`arch §`, `PORTING`, `guide:*`, `GH #N`
 
 - DECISIONS: 107 rows (entries 0-59 plus 59.0-59.46). First-named: arch 52, dropped 21, code 17,
   PORTING 7, guide 9 (testing-with-exunit 4, migration 3, concurrency 1, debugging-and-ci 1),
-  CHANGELOG 1. References: arch 116, dropped 106, code 65, PORTING 44, guide 37 (migration 11,
+  CHANGELOG 1. References: arch 116, dropped 107, code 65, PORTING 44, guide 37 (migration 11,
   api-conventions 10, testing-with-exunit 9, concurrency 5, network 1, debugging-and-ci 1), GH 9,
   CHANGELOG 7, decided 1.
 - PLAN: 15 rows (14 sections plus the intro). First-named: arch 7, dropped 6, PORTING 1, GH 1.

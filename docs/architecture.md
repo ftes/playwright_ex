@@ -253,11 +253,10 @@ issues. So driver-rendered text (call logs, errors) stays JS. Text the client re
 
 Upstream's specs are the test suite: one module per spec file, same names and order, assertions
 verbatim. The north star is to run what the non-JS clients run: specs of JS-only API, of the
-in-process server or of the test runner stay bodiless, ruled out in
+in-process server (upstream's `default` mode, client and server in one Node process; we always run
+as its `driver` mode does) or of the test runner stay bodiless, ruled out in
 `test/upstream_not_ported.txt` against `test/upstream_registry.md` (playwright-python and -java's
 mechanism, so their rule sets can be compared with `mix playwright_ex.parity --north-star`).
-Specs run in upstream's `driver` mode only: the driver pipe is the only transport, and remote
-browsers (`BrowserType.connect`) are covered by upstream's connect specs, so there is no mode matrix.
 Parity fails on unported registry tests, stale rules and stale skips (a reason naming a member
 that now exists), so a version roll surfaces new work.
 
