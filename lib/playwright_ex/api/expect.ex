@@ -16,11 +16,12 @@ defmodule PlaywrightEx.Expect do
 
   ## Configuration
 
-  The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs:
+  The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs (so an
+  `Application.put_env/3` in `test_helper.exs` applies too):
 
       config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
 
-  The keys (other keys raise `ArgumentError`):
+  The keys (other keys raise `ArgumentError`, at application start for the config files):
 
     * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.

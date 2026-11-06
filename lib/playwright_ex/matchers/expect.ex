@@ -1,11 +1,12 @@
 defmodule PlaywrightEx.Matchers.Expect do
   @upstream "packages/playwright/src/matchers/expect.ts"
   @config_doc """
-  The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs:
+  The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs (so an
+  `Application.put_env/3` in `test_helper.exs` applies too):
 
       config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
 
-  The keys (other keys raise `ArgumentError`):
+  The keys (other keys raise `ArgumentError`, at application start for the config files):
 
     * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
@@ -62,8 +63,24 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   @doc false
   def expect_config do
-    :persistent_term.get({__MODULE__, :expect_config}, nil) ||
-      app_env_expect_config(Application.get_env(:playwright_ex, :expect, []))
+    :persistent_term.get({__MODULE__, :expect_config}, nil) || app_env_expect_config()
+  end
+
+  @doc false
+  # Elixir only: the app env's `ExpectConfig`, built when the env changes (at application start,
+  # which so validates it, or after an `Application.put_env/3` in a test helper).
+  def app_env_expect_config do
+    env = Application.get_env(:playwright_ex, :expect, [])
+
+    case :persistent_term.get({__MODULE__, :app_env_expect_config}, nil) do
+      {^env, config} ->
+        config
+
+      _ ->
+        config = app_env_expect_config(env)
+        :persistent_term.put({__MODULE__, :app_env_expect_config}, {env, config})
+        config
+    end
   end
 
   @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot]

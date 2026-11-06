@@ -17,8 +17,8 @@ Drives Playwright 1.64.
 - `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a
   supervision tree.
 - `mix playwright_ex.install` fails with the CLI's exit status instead of a `MatchError`.
-- Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError`. Without ExUnit,
-  failed bang matchers raise `PlaywrightEx.ExpectError`.
+- Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError` at application start.
+  Without ExUnit, failed bang matchers raise `PlaywrightEx.ExpectError`.
 
 ### Added
 - [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before

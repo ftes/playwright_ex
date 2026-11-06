@@ -7,6 +7,8 @@ defmodule PlaywrightEx.Application do
 
   @impl Application
   def start(_type, _args) do
+    # A bad `config :playwright_ex, :expect` fails here, not at the first matcher.
+    PlaywrightEx.Matchers.Expect.app_env_expect_config()
     children = [PlaywrightEx.AbortSignal, PlaywrightEx.Runtime.ProcessOwner]
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
   end
