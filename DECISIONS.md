@@ -1041,3 +1041,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
   in JS for an unknown guid, so 1000 disposes leave the row count flat. Deviation: field reads and
   `to_string/1` raise too (JS: the last preview); revisit if users read a disposed handle's
   preview. Dispose speed unchanged (perf handles_5k p50 0.55 ms).
+- WR3 heap (#draft-20): a JsonPipe is freed when disposed. On Linux firefox its `__dispose__`
+  reached the local connection after the remote Conn had stopped, so the Conn's
+  `release_disposed` missed it and its 6 rows stayed until the local connection closed (~4 pipes
+  in 20 cycles). Only its transport uses it, whose calls after close raise and are dropped as in
+  JS. `Heap.release_disposed/1` is gone; connect_backlog_test's bound is back to 20 (Linux
+  firefox: 0 new rows, 3/3 runs).

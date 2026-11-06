@@ -251,20 +251,6 @@ defmodule PlaywrightEx.Runtime.Heap do
   end
 
   @doc false
-  # Frees a disposed protocol object anchored to the connection now (its rows would stay until the
-  # connection closes): for an internal object nothing reads after dispose.
-  def release_disposed(%{table: table, guid: guid} = obj) when is_binary(guid) do
-    in_conn(obj, fn ->
-      if :ets.member(table, {:connection, {:retained, guid}}) do
-        :ets.delete(table, {:connection, {:retained, guid}})
-        release(table, guid)
-      end
-    end)
-
-    :ok
-  end
-
-  @doc false
   def free_rows(%{table: table}, guid) when is_binary(guid),
     do: :ets.select_delete(table, [{{{guid, :_}, :_}, [], [true]}])
 

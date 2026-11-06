@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   # Its listeners go (they never fire again; user listener processes stop) and pending latches
   # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (deviation: JS
   # still reads its fields); a tombstone (`_wasCollected`) stays until its anchor is freed. A
-  # handle disposed by itself is freed at once, without one (`_free_at_dispose?/2`).
+  # handle disposed by itself and a JsonPipe are freed at once, without one (`_free_at_dispose?/2`).
   # deviation: reads after those processes exit raise TargetClosedError (JS: GC while
   # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
   defp _retire(this, reason) do
@@ -260,9 +260,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   #     a long-lived page would grow with the handles it disposed. Calls raise TargetClosedError, as
   #     in JS (the driver no longer knows the guid). deviation: so do field reads, and `to_string/1`
   #     (JS: the last preview).
+  #   * a JsonPipe (a remote connection's, on the local LocalUtils): only its transport uses it,
+  #     whose calls after close raise and are dropped, as in JS. Its dispose may arrive after the
+  #     remote connection stopped, so the connection cannot free it (anchored to the local one).
   defp _free_at_dispose?(this, reason) do
     case get(this, :_type) do
       type when type in ["JSHandle", "ElementHandle"] -> reason != "gc" and Heap.alive?(get(this, :_parent))
+      "JsonPipe" -> true
       _ -> false
     end
   end

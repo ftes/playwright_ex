@@ -2,7 +2,7 @@
 
 Places where playwright_ex behaves worse than upstream's JS client. Ids are the `#draft-N` ids
 DECISIONS_TABLE.md refers to. Work items and upstream-only problems are in PLAN.md "Later".
-Being worked on (2026-11-06): #18, #7, #6, #10b; #20.
+Being worked on (2026-11-06): #18, #7, #6, #10b.
 
 ## Runtime ordering
 
@@ -17,11 +17,6 @@ Being worked on (2026-11-06): #18, #7, #6, #10b; #20.
   client with the same CDP command order.
 - **#10b connect_to_worker console test** (skipped): our evaluate lands ~0.5 ms later than JS's
   after the driver resumes node; fails 5-10%.
-
-## Memory
-
-- **#20 Rows after remote connect/close on Linux firefox**: ~1.5 rows per cycle stay on the local
-  connection (connect_backlog_test bound raised to 40 as a stopgap).
 
 ## Watch
 

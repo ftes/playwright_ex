@@ -197,12 +197,10 @@ defmodule PlaywrightEx.Client.Connect do
         _forward_loop(transport, mon, on_transport_closed, close_error)
 
       {:DOWN, ^mon, :process, _, _} ->
-        # Elixir only: the transport's rows (on the local LocalUtils) and its disposed pipe go with the
-        # connection.
+        # Elixir only: the transport's rows (on the local LocalUtils) go with the connection (its
+        # pipe's go when the driver disposes it, see `ChannelOwner._retire/2`).
         try do
-          pipe = get(transport, :_pipe)
           PlaywrightEx.Runtime.Heap.free(transport)
-          if pipe, do: PlaywrightEx.Runtime.Heap.release_disposed(pipe)
         rescue
           _ -> :ok
         end
