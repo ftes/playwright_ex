@@ -98,7 +98,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   @get_by_alt_text_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_alt_text`, see its docs."
+  @typedoc "Options of `get_by_alt_text/3`, see its docs."
   @type get_by_alt_text_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -134,7 +134,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   @get_by_label_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_label`, see its docs."
+  @typedoc "Options of `get_by_label/3`, see its docs."
   @type get_by_label_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   @get_by_placeholder_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_placeholder`, see its docs."
+  @typedoc "Options of `get_by_placeholder/3`, see its docs."
   @type get_by_placeholder_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -308,7 +308,7 @@ defmodule PlaywrightEx.FrameLocator do
                           selected: {:selected, nil}
                         }}
 
-  @typedoc "Options of `get_by_role`, see its docs."
+  @typedoc "Options of `get_by_role/3`, see its docs."
   @type get_by_role_options ::
           [
             checked: boolean(),
@@ -377,7 +377,7 @@ defmodule PlaywrightEx.FrameLocator do
   * `:checked` - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
 
     Learn more about [`aria-checked`](https://www.w3.org/TR/wai-aria-1.2/#aria-checked).
-  * `:description` - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `exact` to control this behavior.
+  * `:description` - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible description](https://w3c.github.io/accname/#dfn-accessible-description).
   * `:disabled` - An attribute that is usually set by `aria-disabled` or `disabled`.
@@ -386,7 +386,7 @@ defmodule PlaywrightEx.FrameLocator do
     >
     > Unlike most other attributes, `disabled` is inherited through the DOM hierarchy.
     > Learn more about [`aria-disabled`](https://www.w3.org/TR/wai-aria-1.2/#aria-disabled).
-  * `:exact` - *Since 1.28.* Whether `name` and `description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
+  * `:exact` - *Since 1.28.* Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
   * `:expanded` - An attribute that is usually set by `aria-expanded`.
 
     Learn more about [`aria-expanded`](https://www.w3.org/TR/wai-aria-1.2/#aria-expanded).
@@ -396,7 +396,7 @@ defmodule PlaywrightEx.FrameLocator do
   * `:level` - A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.
 
     Learn more about [`aria-level`](https://www.w3.org/TR/wai-aria-1.2/#aria-level).
-  * `:name` - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `exact` to control this behavior.
+  * `:name` - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible name](https://w3c.github.io/accname/#dfn-accessible-name).
   * `:pressed` - An attribute that is usually set by `aria-pressed`.
@@ -536,7 +536,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   @get_by_text_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_text`, see its docs."
+  @typedoc "Options of `get_by_text/3`, see its docs."
   @type get_by_text_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -596,7 +596,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   @get_by_title_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_title`, see its docs."
+  @typedoc "Options of `get_by_title/3`, see its docs."
   @type get_by_title_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -650,7 +650,7 @@ defmodule PlaywrightEx.FrameLocator do
                       has_text: {:hasText, nil}
                     }}
 
-  @typedoc "Options of `locator`, see its docs."
+  @typedoc "Options of `locator/3`, see its docs."
   @type locator_options ::
           [
             has: PlaywrightEx.Locator.t(),

@@ -95,7 +95,7 @@ defmodule PlaywrightEx.Playwright do
   `PlaywrightEx.Locator.wait_for/2` might fail if the selector doesn't match any nodes during the given timeframe.
 
   For certain types of errors Playwright uses specific error classes. These classes are available via
-  [`playwright.errors`](https://playwright.dev/docs/api/class-playwright#playwright-errors).
+  `PlaywrightEx.Playwright.errors/1`.
 
   An example of handling a timeout error:
 

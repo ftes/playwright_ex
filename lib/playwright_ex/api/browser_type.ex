@@ -34,7 +34,7 @@ defmodule PlaywrightEx.BrowserType do
                       timeout: {:timeout, nil}
                     }}
 
-  @typedoc "Options of `connect`, see its docs."
+  @typedoc "Options of `connect/3`, see its docs."
   @type connect_options ::
           [
             expose_network: String.t(),
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.BrowserType do
                                timeout: {:timeout, nil}
                              }}
 
-  @typedoc "Options of `connect_over_cdp`, see its docs."
+  @typedoc "Options of `connect_over_cdp/3`, see its docs."
   @type connect_over_cdp_options ::
           [
             artifacts_dir: String.t(),
@@ -174,9 +174,9 @@ defmodule PlaywrightEx.BrowserType do
   * `:is_local` - *Since 1.58.* Tells Playwright that it runs on the same host as the CDP server. It will enable certain optimizations that rely upon
     the file system being the same between Playwright and the Browser.
   * `:no_defaults` - *Since 1.60.* When true, Playwright will not apply its default overrides to the existing default browser context.
-    Specifically, `acceptDownloads` is left at the browser's setting, focus
-    emulation is not enabled, and media emulation options (such as `colorScheme`,
-    `reducedMotion`, `forcedColors`, and
+    Specifically, `:accept_downloads` is left at the browser's setting, focus
+    emulation is not enabled, and media emulation options (such as `:color_scheme`,
+    `:reduced_motion`, `:forced_colors`, and
     `contrast`) are not applied. Useful when attaching to a user's daily-driver
     browser where these overrides would interfere with existing browser state. New contexts created via
     `PlaywrightEx.Browser.new_context/2` are not affected. Defaults to `false`.
@@ -239,7 +239,7 @@ defmodule PlaywrightEx.BrowserType do
                      traces_dir: {:tracesDir, nil}
                    }}
 
-  @typedoc "Options of `launch`, see its docs."
+  @typedoc "Options of `launch/2`, see its docs."
   @type launch_options ::
           [
             args: [String.t()],
@@ -306,7 +306,7 @@ defmodule PlaywrightEx.BrowserType do
 
   **Usage**
 
-  You can use `ignoreDefaultArgs` to filter out `--mute-audio` from default arguments:
+  You can use `:ignore_default_args` to filter out `--mute-audio` from default arguments:
 
   ```elixir
   # Or Playwright.firefox/1 or Playwright.webkit/1.
@@ -314,7 +314,7 @@ defmodule PlaywrightEx.BrowserType do
   ```
 
   > **Chromium-only** Playwright can also be used to control the Google Chrome or Microsoft Edge browsers, but it works best with the version of
-  Chromium it is bundled with. There is no guarantee it will work with any other version. Use `executablePath`
+  Chromium it is bundled with. There is no guarantee it will work with any other version. Use `:executable_path`
   option with extreme caution.
   >
   > If Google Chrome (rather than Chromium) is preferred, a
@@ -346,7 +346,7 @@ defmodule PlaywrightEx.BrowserType do
     deleted when browser is closed. In either case, the downloads are deleted when the browser context they were created in
     is closed.
   * `:env`
-  * `:executable_path` - Path to a browser executable to run instead of the bundled one. If `executablePath` is a relative path, then
+  * `:executable_path` - Path to a browser executable to run instead of the bundled one. If `:executable_path` is a relative path, then
     it is resolved relative to the current working directory. Note that Playwright only works with the bundled Chromium,
     Firefox or WebKit, use at your own risk.
   * `:firefox_user_prefs` - Firefox user preferences. Learn more about the Firefox user preferences at
@@ -359,7 +359,7 @@ defmodule PlaywrightEx.BrowserType do
   * `:headless` - Whether to run browser in headless mode. More details for
     [Chromium](https://developers.google.com/web/updates/2017/04/headless-chrome) and
     [Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
-  * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `args`. If an
+  * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `:args`. If an
     array is given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
   * `:logger` - Logger sink for Playwright logging.
     * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
@@ -492,7 +492,7 @@ defmodule PlaywrightEx.BrowserType do
                                         viewport: {:viewport, {:fields, %{width: nil, height: nil}}}
                                       }}
 
-  @typedoc "Options of `launch_persistent_context`, see its docs."
+  @typedoc "Options of `launch_persistent_context/3`, see its docs."
   @type launch_persistent_context_options ::
           [
             accept_downloads: boolean(),
@@ -711,7 +711,7 @@ defmodule PlaywrightEx.BrowserType do
   @doc ~S"""
   Returns the persistent browser context instance.
 
-  Launches browser that uses persistent storage located at `userDataDir` and returns the only context. Closing
+  Launches browser that uses persistent storage located at `user_data_dir` and returns the only context. Closing
   this context will automatically close the browser.
 
   ## Arguments
@@ -726,7 +726,7 @@ defmodule PlaywrightEx.BrowserType do
 
     > #### Warning {: .warning}
     >
-    > Chromium/Chrome: Due to recent Chrome policy changes, automating the default Chrome user profile is not supported. Pointing `userDataDir` to Chrome's main "User Data" directory (the profile used for your regular browsing) may result in pages not loading or the browser exiting. Create and use a separate directory (for example, an empty folder) as your automation profile instead. See https://developer.chrome.com/blog/remote-debugging-port for details.
+    > Chromium/Chrome: Due to recent Chrome policy changes, automating the default Chrome user profile is not supported. Pointing `user_data_dir` to Chrome's main "User Data" directory (the profile used for your regular browsing) may result in pages not loading or the browser exiting. Create and use a separate directory (for example, an empty folder) as your automation profile instead. See https://developer.chrome.com/blog/remote-debugging-port for details.
 
   ## Options
 
@@ -772,15 +772,15 @@ defmodule PlaywrightEx.BrowserType do
     * `:pfxPath` - Path to the PFX or PKCS12 encoded private key and certificate chain.
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
-  * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. See
-    `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'light'`.
-  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:color_scheme` - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `:light` and `:dark`. See
+    `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:light`.
+  * `:contrast` - Emulates `'prefers-contrast'` media feature, supported values are `:no_preference`, `:more`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.
   * `:device_scale_factor` - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
   * `:downloads_path` - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
     deleted when browser is closed. In either case, the downloads are deleted when the browser context they were created in
     is closed.
   * `:env`
-  * `:executable_path` - Path to a browser executable to run instead of the bundled one. If `executablePath` is a relative path, then
+  * `:executable_path` - Path to a browser executable to run instead of the bundled one. If `:executable_path` is a relative path, then
     it is resolved relative to the current working directory. Note that Playwright only works with the bundled Chromium,
     Firefox or WebKit, use at your own risk.
   * `:extra_http_headers` - An object containing additional HTTP headers to be sent with every request. Defaults to none.
@@ -788,7 +788,7 @@ defmodule PlaywrightEx.BrowserType do
     [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
     You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
-  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `'active'`, `'none'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'none'`.
+  * `:forced_colors` - Emulates `'forced-colors'` media feature, supported values are `:active`, `:none`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:none`.
   * `:geolocation`
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
@@ -809,7 +809,7 @@ defmodule PlaywrightEx.BrowserType do
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
     * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
-  * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `args`. If an
+  * `:ignore_default_args` - If `true`, Playwright does not pass its own configurations args and only uses the ones from `:args`. If an
     array is given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
   * `:ignore_https_errors` - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
   * `:is_mobile` - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
@@ -830,19 +830,19 @@ defmodule PlaywrightEx.BrowserType do
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
   * `:record_har` - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
-    specified, the HAR is not recorded. Make sure to await `PlaywrightEx.BrowserContext.close/2` for the HAR to be
+    specified, the HAR is not recorded. Make sure to call `PlaywrightEx.BrowserContext.close/2` for the HAR to be
     saved.
     * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
       `false`. Deprecated, use `content` policy instead.
     * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `attach` for `.zip` output files and to `embed` for all other file extensions.
     * `:path` - Path on the filesystem to write the HAR file to. If the file name ends with `.zip`, `content: 'attach'` is used by default.
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
-    * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
+    * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `:base_url` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
   * `:record_video` - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
-    sure to await `PlaywrightEx.BrowserContext.close/2` for videos to be saved.
-    * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `artifactsDir` (see `PlaywrightEx.BrowserType.launch/2` options).
-    * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `viewport`
-      scaled down to fit into 800x800. If `viewport` is not configured explicitly the video size defaults to 800x450.
+    sure to call `PlaywrightEx.BrowserContext.close/2` for videos to be saved.
+    * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `:artifacts_dir` (see `PlaywrightEx.BrowserType.launch/2` options).
+    * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `:viewport`
+      scaled down to fit into 800x800. If `:viewport` is not configured explicitly the video size defaults to 800x450.
       Actual picture of each page will be scaled down if necessary to fit the specified size.
       * `:width` - Video frame width.
       * `:height` - Video frame height.
@@ -856,15 +856,15 @@ defmodule PlaywrightEx.BrowserType do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `null` resets emulation to system defaults. Defaults to `'no-preference'`.
+  * `:reduced_motion` - Emulates `'prefers-reduced-motion'` media feature, supported values are `:reduce`, `:no_preference`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.
   * `:screen` - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
-    `viewport` is set.
+    `:viewport` is set.
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
-  * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `'allow'`.
+  * `:service_workers` - Whether to allow sites to register Service workers. Defaults to `:allow`.
 
-    * `'allow'`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be registered.
-    * `'block'`: Playwright will block all registration of Service Workers.
+    * `:allow`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be registered.
+    * `:block`: Playwright will block all registration of Service Workers.
   * `:slow_mo` - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
   * `:strict_selectors` - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
     on selectors that imply single target DOM element will throw when more than one element matches the selector.
@@ -879,11 +879,11 @@ defmodule PlaywrightEx.BrowserType do
   * `:traces_dir` - If specified, traces are saved into this directory.
   * `:user_agent` - Specific user agent to use in this context.
   * `:viewport` - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
-    Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
+    Use `:null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
 
     > #### Note {: .info}
     >
-    > The `null` value opts out from the default presets, makes viewport depend on the
+    > The `:null` value opts out from the default presets, makes viewport depend on the
     > host window size defined by the operating system. It makes the execution of the
     > tests non-deterministic.
 

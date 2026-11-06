@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Keyboard do
 
   > #### Note {: .info}
   >
-  > Modifier keys DO influence `keyboard.down`. Holding down `Shift` will type the text in upper case.
+  > Modifier keys DO influence `PlaywrightEx.Keyboard.down/2`. Holding down `Shift` will type the text in upper case.
 
   ## Arguments
 
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Keyboard do
 
   > #### Note {: .info}
   >
-  > Modifier keys DO NOT effect `keyboard.insertText`. Holding down `Shift` will not type the text in upper case.
+  > Modifier keys DO NOT effect `PlaywrightEx.Keyboard.insert_text/2`. Holding down `Shift` will not type the text in upper case.
 
   ## Arguments
 
@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Keyboard do
 
   @press_options {:object, %{delay: {:delay, nil}}}
 
-  @typedoc "Options of `press`, see its docs."
+  @typedoc "Options of `press/3`, see its docs."
   @type press_options :: [delay: number()] | %{optional(:delay) => number()}
 
   @doc since: "1.8"
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Keyboard do
 
   @type_options {:object, %{delay: {:delay, nil}}}
 
-  @typedoc "Options of `type`, see its docs."
+  @typedoc "Options of `type/3`, see its docs."
   @type type_options :: [delay: number()] | %{optional(:delay) => number()}
 
   @doc since: "1.8"
@@ -224,7 +224,7 @@ defmodule PlaywrightEx.Keyboard do
 
   > #### Note {: .info}
   >
-  > Modifier keys DO NOT effect `keyboard.type`. Holding down `Shift` will not type the text in upper case.
+  > Modifier keys DO NOT effect `PlaywrightEx.Keyboard.type/3`. Holding down `Shift` will not type the text in upper case.
 
   > #### Note {: .info}
   >

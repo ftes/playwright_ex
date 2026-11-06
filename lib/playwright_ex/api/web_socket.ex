@@ -60,7 +60,7 @@ defmodule PlaywrightEx.WebSocket do
 
   @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `wait_for_event`, see its docs."
+  @typedoc "Options of `wait_for_event/3`, see its docs."
   @type wait_for_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -76,15 +76,15 @@ defmodule PlaywrightEx.WebSocket do
 
   ## Arguments
 
-  * `event` - Event name, same one would pass into `webSocket.on(event)`.
+  * `event` - Event name, same one would pass into `PlaywrightEx.WebSocket.on/3`.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+    The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.WebSocket do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.WebSocket.wait_for_event(web_socket, event)
@@ -127,7 +127,7 @@ defmodule PlaywrightEx.WebSocket do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_event/3` and await it after the action, or use the callback form `expect_event!/4`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_event/3` before the action and await it after, or use the callback form `expect_event!/4`:
   >
   > ```elixir
   > promise = PlaywrightEx.WebSocket.wait_for_event(web_socket, event)
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.WebSocket do
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_event`, see its docs."
+  @typedoc "Options of `expect_event/4`, see its docs."
   @type expect_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -161,16 +161,16 @@ defmodule PlaywrightEx.WebSocket do
 
   ## Arguments
 
-  * `event` - Event name, same one would pass into `webSocket.on(event)`.
+  * `event` - Event name, same one would pass into `PlaywrightEx.WebSocket.on/3`.
   * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+    The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.

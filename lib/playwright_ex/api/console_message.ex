@@ -96,7 +96,7 @@ defmodule PlaywrightEx.ConsoleMessage do
 
   @doc since: "1.57"
   @doc ~S"""
-  The web worker or service worker that produced this console message, if any. Note that console messages from web workers also have non-null `PlaywrightEx.ConsoleMessage.page/1`.
+  The web worker or service worker that produced this console message, if any. Note that console messages from web workers also have non-nil `PlaywrightEx.ConsoleMessage.page/1`.
   """
   @spec worker(t()) :: nil | PlaywrightEx.Worker.t()
   def worker(console_message) do

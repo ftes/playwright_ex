@@ -38,7 +38,7 @@ defmodule PlaywrightEx.WebMCP do
 
   @call_tool_options {:object, %{timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `call_tool`, see its docs."
+  @typedoc "Options of `call_tool/4`, see its docs."
   @type call_tool_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
 
   @doc since: "1.64"
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.WebMCP do
 
   @tools_options {:object, %{timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `tools`, see its docs."
+  @typedoc "Options of `tools/2`, see its docs."
   @type tools_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
 
   @doc since: "1.64"

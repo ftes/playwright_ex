@@ -53,7 +53,7 @@ defmodule PlaywrightEx.APIRequest do
                           user_agent: {:userAgent, nil}
                         }}
 
-  @typedoc "Options of `new_context`, see its docs."
+  @typedoc "Options of `new_context/2`, see its docs."
   @type new_context_options ::
           [
             base_url: String.t(),

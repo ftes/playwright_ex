@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Mouse do
                     delay: {:delay, nil}
                   }}
 
-  @typedoc "Options of `click`, see its docs."
+  @typedoc "Options of `click/4`, see its docs."
   @type click_options ::
           [button: :left | :right | :middle, click_count: integer(), delay: number()]
           | %{
@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `left`.
+  * `:button` - Defaults to `:left`.
   * `:click_count` - defaults to 1. See [UIEvent.detail].
   * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Mouse do
                        delay: {:delay, nil}
                      }}
 
-  @typedoc "Options of `dblclick`, see its docs."
+  @typedoc "Options of `dblclick/4`, see its docs."
   @type dblclick_options ::
           [button: :left | :right | :middle, delay: number()]
           | %{optional(:button) => :left | :right | :middle, optional(:delay) => number()}
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `left`.
+  * `:button` - Defaults to `:left`.
   * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
   @spec dblclick(t(), number(), number(), dblclick_options()) :: :ok | {:error, Exception.t()}
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Mouse do
                    click_count: {:clickCount, nil}
                  }}
 
-  @typedoc "Options of `down`, see its docs."
+  @typedoc "Options of `down/2`, see its docs."
   @type down_options ::
           [button: :left | :right | :middle, click_count: integer()]
           | %{optional(:button) => :left | :right | :middle, optional(:click_count) => integer()}
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `left`.
+  * `:button` - Defaults to `:left`.
   * `:click_count` - defaults to 1. See [UIEvent.detail].
   """
   @spec down(t(), down_options()) :: :ok | {:error, Exception.t()}
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Mouse do
 
   @move_options {:object, %{steps: {:steps, nil}}}
 
-  @typedoc "Options of `move`, see its docs."
+  @typedoc "Options of `move/4`, see its docs."
   @type move_options :: [steps: integer()] | %{optional(:steps) => integer()}
 
   @doc since: "1.8"
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Mouse do
                  click_count: {:clickCount, nil}
                }}
 
-  @typedoc "Options of `up`, see its docs."
+  @typedoc "Options of `up/2`, see its docs."
   @type up_options ::
           [button: :left | :right | :middle, click_count: integer()]
           | %{optional(:button) => :left | :right | :middle, optional(:click_count) => integer()}
@@ -202,7 +202,7 @@ defmodule PlaywrightEx.Mouse do
 
   ## Options
 
-  * `:button` - Defaults to `left`.
+  * `:button` - Defaults to `:left`.
   * `:click_count` - defaults to 1. See [UIEvent.detail].
   """
   @spec up(t(), up_options()) :: :ok | {:error, Exception.t()}

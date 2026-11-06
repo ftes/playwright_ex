@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Selectors do
   @register_script {:fields, %{path: nil, content: nil}}
   @register_options {:object, %{content_script: {:contentScript, nil}}}
 
-  @typedoc "Options of `register`, see its docs."
+  @typedoc "Options of `register/4`, see its docs."
   @type register_options :: [content_script: boolean()] | %{optional(:content_script) => boolean()}
 
   @doc since: "1.8"

@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Response do
 
   @doc since: "1.8"
   @doc ~S"""
-  Waits for this response to finish, returns always `null`.
+  Waits for this response to finish, returns always `nil`.
   """
   @spec finished(t()) :: {:ok, nil | Exception.t()} | {:error, Exception.t()}
   def finished(response) do
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Response do
   @doc since: "1.15"
   @doc ~S"""
   Returns the value of the header matching the name. The name is case-insensitive. If multiple headers have
-  the same name (except `set-cookie`), they are returned as a list separated by `, `. For `set-cookie`, the `\n` separator is used. If no headers are found, `null` is returned.
+  the same name (except `set-cookie`), they are returned as a list separated by `, `. For `set-cookie`, the `\n` separator is used. If no headers are found, `nil` is returned.
 
   ## Arguments
 

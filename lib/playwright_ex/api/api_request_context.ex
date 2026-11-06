@@ -9,7 +9,7 @@ defmodule PlaywrightEx.APIRequestContext do
   Each Playwright browser context has an associated [`APIRequestContext`](`PlaywrightEx.APIRequestContext`), accessible via
   `PlaywrightEx.BrowserContext.request/1` or `PlaywrightEx.Page.request/1` (these return the
 
-  **same instance** — `page.request` is a shortcut for `page.context().request`).
+  **same instance** — `PlaywrightEx.Page.request/1` is a shortcut for `PlaywrightEx.BrowserContext.request/1` of `PlaywrightEx.Page.context/1`).
   You can also create a standalone, isolated instance with `PlaywrightEx.APIRequest.new_context/2`.
 
   **Cookie management**
@@ -104,7 +104,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   @clear_cookies_options {:object, %{domain: {:domain, nil}, name: {:name, nil}, path: {:path, nil}}}
 
-  @typedoc "Options of `clear_cookies`, see its docs."
+  @typedoc "Options of `clear_cookies/2`, see its docs."
   @type clear_cookies_options ::
           [
             domain: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -227,7 +227,7 @@ defmodule PlaywrightEx.APIRequestContext do
                      timeout: {:timeout, nil}
                    }}
 
-  @typedoc "Options of `delete`, see its docs."
+  @typedoc "Options of `delete/3`, see its docs."
   @type delete_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -337,7 +337,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   @dispose_options {:object, %{reason: {:reason, nil}}}
 
-  @typedoc "Options of `dispose`, see its docs."
+  @typedoc "Options of `dispose/2`, see its docs."
   @type dispose_options :: [reason: String.t()] | %{optional(:reason) => String.t()}
 
   @doc since: "1.16"
@@ -384,7 +384,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     timeout: {:timeout, nil}
                   }}
 
-  @typedoc "Options of `fetch`, see its docs."
+  @typedoc "Options of `fetch/3`, see its docs."
   @type fetch_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -449,7 +449,7 @@ defmodule PlaywrightEx.APIRequestContext do
   )
   ```
 
-  The common way to send file(s) in the body of a request is to upload them as form fields with `multipart/form-data` encoding, by specifiying the `multipart` parameter:
+  The common way to send file(s) in the body of a request is to upload them as form fields with `multipart/form-data` encoding, by specifiying the `:multipart` parameter:
 
   ```elixir
   form = [
@@ -536,7 +536,7 @@ defmodule PlaywrightEx.APIRequestContext do
                   timeout: {:timeout, nil}
                 }}
 
-  @typedoc "Options of `get`, see its docs."
+  @typedoc "Options of `get/3`, see its docs."
   @type get_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -591,7 +591,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   **Usage**
 
-  Request parameters can be configured with `params` option, they will be serialized into the URL search parameters:
+  Request parameters can be configured with `:params` option, they will be serialized into the URL search parameters:
 
   ```elixir
   # Passing params as map
@@ -676,7 +676,7 @@ defmodule PlaywrightEx.APIRequestContext do
                    timeout: {:timeout, nil}
                  }}
 
-  @typedoc "Options of `head`, see its docs."
+  @typedoc "Options of `head/3`, see its docs."
   @type head_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -799,7 +799,7 @@ defmodule PlaywrightEx.APIRequestContext do
                     timeout: {:timeout, nil}
                   }}
 
-  @typedoc "Options of `patch`, see its docs."
+  @typedoc "Options of `patch/3`, see its docs."
   @type patch_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -922,7 +922,7 @@ defmodule PlaywrightEx.APIRequestContext do
                    timeout: {:timeout, nil}
                  }}
 
-  @typedoc "Options of `post`, see its docs."
+  @typedoc "Options of `post/3`, see its docs."
   @type post_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -985,7 +985,7 @@ defmodule PlaywrightEx.APIRequestContext do
   )
   ```
 
-  To send form data to the server use `form` option. Its value will be encoded into the request body with `application/x-www-form-urlencoded` encoding (see below how to use `multipart/form-data` form encoding to send files):
+  To send form data to the server use `:form` option. Its value will be encoded into the request body with `application/x-www-form-urlencoded` encoding (see below how to use `multipart/form-data` form encoding to send files):
 
   ```elixir
   APIRequestContext.post!(request, "https://example.com/api/findBook",
@@ -993,7 +993,7 @@ defmodule PlaywrightEx.APIRequestContext do
   )
   ```
 
-  The common way to send file(s) in the body of a request is to upload them as form fields with `multipart/form-data` encoding. Use `FormData` to construct request body and pass it to the request as `multipart` parameter:
+  The common way to send file(s) in the body of a request is to upload them as form fields with `multipart/form-data` encoding. Use `FormData` to construct request body and pass it to the request as `:multipart` parameter:
 
   ```elixir
   form = [
@@ -1077,7 +1077,7 @@ defmodule PlaywrightEx.APIRequestContext do
                   timeout: {:timeout, nil}
                 }}
 
-  @typedoc "Options of `put`, see its docs."
+  @typedoc "Options of `put/3`, see its docs."
   @type put_options ::
           [
             data: String.t() | {:binary, binary()} | term(),
@@ -1187,7 +1187,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   @storage_state_options {:object, %{indexed_db: {:indexedDB, nil}, opfs: {:opfs, nil}, path: {:path, nil}}}
 
-  @typedoc "Options of `storage_state`, see its docs."
+  @typedoc "Options of `storage_state/2`, see its docs."
   @type storage_state_options ::
           [indexed_db: boolean(), opfs: boolean(), path: String.t()]
           | %{optional(:indexed_db) => boolean(), optional(:opfs) => boolean(), optional(:path) => String.t()}
@@ -1200,7 +1200,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   * `:indexed_db` - *Since 1.51.* Set to `true` to include IndexedDB in the storage state snapshot.
   * `:opfs` - *Since 1.63.* Set to `true` to include the origin private file system in the storage state snapshot.
-  * `:path` - The file path to save the storage state to. If `path` is a relative path, then it is resolved relative to
+  * `:path` - The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to
     current working directory. If no path is provided, storage
     state is still returned, but won't be saved to the disk.
   """

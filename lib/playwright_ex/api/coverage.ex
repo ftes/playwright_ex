@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Coverage do
 
   @start_css_coverage_options {:object, %{reset_on_navigation: {:resetOnNavigation, nil}}}
 
-  @typedoc "Options of `start_css_coverage`, see its docs."
+  @typedoc "Options of `start_css_coverage/2`, see its docs."
   @type start_css_coverage_options :: [reset_on_navigation: boolean()] | %{optional(:reset_on_navigation) => boolean()}
 
   @doc since: "1.11"
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Coverage do
                                 reset_on_navigation: {:resetOnNavigation, nil}
                               }}
 
-  @typedoc "Options of `start_js_coverage`, see its docs."
+  @typedoc "Options of `start_js_coverage/2`, see its docs."
   @type start_js_coverage_options ::
           [report_anonymous_scripts: boolean(), reset_on_navigation: boolean()]
           | %{optional(:report_anonymous_scripts) => boolean(), optional(:reset_on_navigation) => boolean()}
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Coverage do
   > #### Note {: .info}
   >
   > Anonymous scripts are ones that don't have an associated url. These are scripts that are dynamically created
-  > on the page using `eval` or `new Function`. If `reportAnonymousScripts` is set to `true`, anonymous scripts
+  > on the page using `eval` or `new Function`. If `:report_anonymous_scripts` is set to `true`, anonymous scripts
   > will have an empty string as their URL.
 
   ## Options

@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Request do
 
   @doc since: "1.8"
   @doc ~S"""
-  The method returns `null` unless this request has failed, as reported by `requestfailed` event.
+  The method returns `nil` unless this request has failed, as reported by `requestfailed` event.
 
   **Usage**
 
@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Request do
 
   Note that in some cases the frame is not available, and this method will throw.
 
-  * When request originates in the Service Worker. You can use `request.serviceWorker()` to check that.
+  * When request originates in the Service Worker. You can use `PlaywrightEx.Request.service_worker/1` to check that.
   * When navigation request is issued before the corresponding frame is created. You can use `PlaywrightEx.Request.is_navigation_request/1` to check that.
 
   Here is an example that handles all the cases:
@@ -264,7 +264,7 @@ defmodule PlaywrightEx.Request do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the matching [`Response`](`PlaywrightEx.Response`) object, or `null` if the response was not received due to error.
+  Returns the matching [`Response`](`PlaywrightEx.Response`) object, or `nil` if the response was not received due to error.
   """
   @spec response(t()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def response(request) do
@@ -280,10 +280,10 @@ defmodule PlaywrightEx.Request do
 
   @doc since: "1.59"
   @doc ~S"""
-  Returns the [`Response`](`PlaywrightEx.Response`) object if the response has already been received, `null` otherwise.
+  Returns the [`Response`](`PlaywrightEx.Response`) object if the response has already been received, `nil` otherwise.
 
   Unlike `PlaywrightEx.Request.response/1`, this method does not wait for the response to arrive. It returns
-  immediately with the response object if the response has been received, or `null` if the response
+  immediately with the response object if the response has been received, or `nil` if the response
   has not been received yet.
   """
   @spec existing_response(t()) :: nil | PlaywrightEx.Response.t()
@@ -297,7 +297,7 @@ defmodule PlaywrightEx.Request do
 
   **Details**
 
-  This method is Chromium only. It's safe to call when using other browsers, but it will always be `null`.
+  This method is Chromium only. It's safe to call when using other browsers, but it will always be `nil`.
 
   Requests originated in a Service Worker do not have a `PlaywrightEx.Request.frame/1` available.
   """

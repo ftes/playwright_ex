@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Page do
 
   The Page class emits various events (described below) which can be handled using any of Node's native
   [`EventEmitter`](https://nodejs.org/api/events.html#events_class_eventemitter) methods, such as `on`, `once` or
-  `removeListener`.
+  `remove_listener/3`.
 
   This example logs a message for a single page `load` event:
 
@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Page do
   Page.once(page, :load, fn _page -> IO.puts("Page loaded!") end)
   ```
 
-  To unsubscribe from events use the `removeListener` method:
+  To unsubscribe from events use the `remove_listener/3` method:
 
   ```elixir
   log_request = fn intercepted_request ->
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Page do
   @add_init_script_script {:fields, %{path: nil, content: nil}}
   @add_init_script_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
 
-  @typedoc "Options of `add_init_script`, see its docs."
+  @typedoc "Options of `add_init_script/4`, see its docs."
   @type add_init_script_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
@@ -367,7 +367,7 @@ defmodule PlaywrightEx.Page do
   @add_script_tag_options {:object,
                            %{content: {:content, nil}, path: {:path, nil}, type: {:type, nil}, url: {:url, nil}}}
 
-  @typedoc "Options of `add_script_tag`, see its docs."
+  @typedoc "Options of `add_script_tag/2`, see its docs."
   @type add_script_tag_options ::
           [content: String.t(), path: String.t(), type: String.t(), url: String.t()]
           | %{
@@ -385,7 +385,7 @@ defmodule PlaywrightEx.Page do
   ## Options
 
   * `:content` - Raw JavaScript content to be injected into frame.
-  * `:path` - Path to the JavaScript file to be injected into frame. If `path` is a relative path, then it is resolved relative to the
+  * `:path` - Path to the JavaScript file to be injected into frame. If `:path` is a relative path, then it is resolved relative to the
     current working directory.
   * `:type` - Script type. Use 'module' in order to load a JavaScript ES6 module. See
     [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) for more details.
@@ -407,7 +407,7 @@ defmodule PlaywrightEx.Page do
 
   @add_style_tag_options {:object, %{content: {:content, nil}, path: {:path, nil}, url: {:url, nil}}}
 
-  @typedoc "Options of `add_style_tag`, see its docs."
+  @typedoc "Options of `add_style_tag/2`, see its docs."
   @type add_style_tag_options ::
           [content: String.t(), path: String.t(), url: String.t()]
           | %{optional(:content) => String.t(), optional(:path) => String.t(), optional(:url) => String.t()}
@@ -420,7 +420,7 @@ defmodule PlaywrightEx.Page do
   ## Options
 
   * `:content` - Raw CSS content to be injected into frame.
-  * `:path` - Path to the CSS file to be injected into frame. If `path` is a relative path, then it is resolved relative to the
+  * `:path` - Path to the CSS file to be injected into frame. If `:path` is a relative path, then it is resolved relative to the
     current working directory.
   * `:url` - URL of the `<link>` tag.
   """
@@ -483,7 +483,7 @@ defmodule PlaywrightEx.Page do
                     trial: {:trial, nil}
                   }}
 
-  @typedoc "Options of `check`, see its docs."
+  @typedoc "Options of `check/3`, see its docs."
   @type check_options ::
           [
             force: boolean(),
@@ -514,13 +514,13 @@ defmodule PlaywrightEx.Page do
      the DOM.
   1. Ensure that matched element is a checkbox or a radio input. If not, this method throws. If the element is already
      checked, this method returns immediately.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked. If not, this method throws.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Discouraged {: .warning}
@@ -539,9 +539,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -596,7 +596,7 @@ defmodule PlaywrightEx.Page do
                     trial: {:trial, nil}
                   }}
 
-  @typedoc "Options of `click`, see its docs."
+  @typedoc "Options of `click/3`, see its docs."
   @type click_options ::
           [
             button: :left | :right | :middle,
@@ -633,13 +633,13 @@ defmodule PlaywrightEx.Page do
 
   1. Find an element matching `selector`. If there is none, wait until a matching element is attached to
      the DOM.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `position`.
-  1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
+  1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `:position`.
+  1. Wait for initiated navigations to either succeed or fail, unless `:no_wait_after` option is set.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Discouraged {: .warning}
@@ -652,7 +652,7 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:button` - Defaults to `left`.
+  * `:button` - Defaults to `:left`.
   * `:click_count` - defaults to 1. See [UIEvent.detail].
   * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
@@ -666,9 +666,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -681,7 +681,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `modifiers` will be pressed regardless of `trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec click(t(), String.t(), click_options()) :: :ok | {:error, Exception.t()}
   def click(page, selector, options \\ []) do
@@ -699,21 +699,21 @@ defmodule PlaywrightEx.Page do
 
   @close_options {:object, %{reason: {:reason, nil}, run_before_unload: {:runBeforeUnload, nil}}}
 
-  @typedoc "Options of `close`, see its docs."
+  @typedoc "Options of `close/2`, see its docs."
   @type close_options ::
           [reason: String.t(), run_before_unload: boolean()]
           | %{optional(:reason) => String.t(), optional(:run_before_unload) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
-  If `runBeforeUnload` is `false`, does not run any unload handlers and waits for the page to be closed. If
-  `runBeforeUnload` is `true` the method will run unload handlers, but will **not** wait for the page to close.
+  If `:run_before_unload` is `false`, does not run any unload handlers and waits for the page to be closed. If
+  `:run_before_unload` is `true` the method will run unload handlers, but will **not** wait for the page to close.
 
-  By default, `page.close()` **does not** run `beforeunload` handlers.
+  By default, `PlaywrightEx.Page.close/2` **does not** run `beforeunload` handlers.
 
   > #### Note {: .info}
   >
-  > if `runBeforeUnload` is passed as true, a `beforeunload` dialog might be summoned and should be handled
+  > if `:run_before_unload` is passed as true, a `beforeunload` dialog might be summoned and should be handled
   > manually via [`Page.on(:dialog)`](PlaywrightEx.Page.html#module-dialog) event.
 
   ## Options
@@ -738,7 +738,7 @@ defmodule PlaywrightEx.Page do
 
   @content_options {:object, %{include_shadow: {:includeShadow, nil}}}
 
-  @typedoc "Options of `content`, see its docs."
+  @typedoc "Options of `content/2`, see its docs."
   @type content_options :: [include_shadow: boolean()] | %{optional(:include_shadow) => boolean()}
 
   @doc since: "1.8"
@@ -811,7 +811,7 @@ defmodule PlaywrightEx.Page do
                        trial: {:trial, nil}
                      }}
 
-  @typedoc "Options of `dblclick`, see its docs."
+  @typedoc "Options of `dblclick/3`, see its docs."
   @type dblclick_options ::
           [
             button: :left | :right | :middle,
@@ -846,17 +846,17 @@ defmodule PlaywrightEx.Page do
 
   1. Find an element matching `selector`. If there is none, wait until a matching element is attached to
      the DOM.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `:position`.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Note {: .info}
   >
-  > `page.dblclick()` dispatches two `click` events and a single `dblclick` event.
+  > `PlaywrightEx.Page.dblclick/3` dispatches two `click` events and a single `dblclick` event.
 
   > #### Discouraged {: .warning}
   >
@@ -868,7 +868,7 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:button` - Defaults to `left`.
+  * `:button` - Defaults to `:left`.
   * `:delay` - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:modifiers` - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
@@ -879,9 +879,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -894,7 +894,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `modifiers` will be pressed regardless of `trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec dblclick(t(), String.t(), dblclick_options()) :: :ok | {:error, Exception.t()}
   def dblclick(page, selector, options \\ []) do
@@ -912,7 +912,7 @@ defmodule PlaywrightEx.Page do
 
   @dispatch_event_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `dispatch_event`, see its docs."
+  @typedoc "Options of `dispatch_event/5`, see its docs."
   @type dispatch_event_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -934,10 +934,10 @@ defmodule PlaywrightEx.Page do
   ```
 
   Under the hood, it creates an instance of an event based on the given `type`, initializes it with
-  `eventInit` properties and dispatches it on the element. Events are `composed`, `cancelable` and bubble by
+  `event_init` properties and dispatches it on the element. Events are `composed`, `cancelable` and bubble by
   default.
 
-  Since `eventInit` is event-specific, please refer to the events documentation for the lists of initial
+  Since `event_init` is event-specific, please refer to the events documentation for the lists of initial
   properties:
 
   * [DeviceMotionEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/DeviceMotionEvent)
@@ -1018,7 +1018,7 @@ defmodule PlaywrightEx.Page do
                             trial: {:trial, nil}
                           }}
 
-  @typedoc "Options of `drag_and_drop`, see its docs."
+  @typedoc "Options of `drag_and_drop/4`, see its docs."
   @type drag_and_drop_options ::
           [
             force: boolean(),
@@ -1071,9 +1071,9 @@ defmodule PlaywrightEx.Page do
 
   * `:force` - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:no_wait_after` - This option has no effect.
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -1126,7 +1126,7 @@ defmodule PlaywrightEx.Page do
                               {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}}
                           }}
 
-  @typedoc "Options of `emulate_media`, see its docs."
+  @typedoc "Options of `emulate_media/2`, see its docs."
   @type emulate_media_options ::
           [
             color_scheme: :null | :light | :dark | :no_preference,
@@ -1145,7 +1145,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  This method changes the `CSS media type` through the `media` argument, and/or the `'prefers-colors-scheme'` media feature, using the `colorScheme` argument.
+  This method changes the `CSS media type` through the `:media` option, and/or the `'prefers-colors-scheme'` media feature, using the `:color_scheme` option.
 
   **Usage**
 
@@ -1179,13 +1179,13 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:color_scheme` - *Since 1.9.* Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `'light'` and `'dark'`. Passing
-    `null` disables color scheme emulation. `'no-preference'` is deprecated.
-  * `:contrast` - *Since 1.51.* Emulates `'prefers-contrast'` media feature, supported values are `'no-preference'`, `'more'`. Passing `null` disables contrast emulation.
-  * `:forced_colors` - *Since 1.15.* Emulates `'forced-colors'` media feature, supported values are `'active'` and `'none'`. Passing `null` disables forced colors emulation.
-  * `:media` - *Since 1.9.* Changes the CSS media type of the page. The only allowed values are `'screen'`, `'print'` and `null`.
-    Passing `null` disables CSS media emulation.
-  * `:reduced_motion` - *Since 1.12.* Emulates `'prefers-reduced-motion'` media feature, supported values are `'reduce'`, `'no-preference'`. Passing `null` disables reduced motion emulation.
+  * `:color_scheme` - *Since 1.9.* Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `:light` and `:dark`. Passing
+    `:null` disables color scheme emulation. `:no_preference` is deprecated.
+  * `:contrast` - *Since 1.51.* Emulates `'prefers-contrast'` media feature, supported values are `:no_preference`, `:more`. Passing `:null` disables contrast emulation.
+  * `:forced_colors` - *Since 1.15.* Emulates `'forced-colors'` media feature, supported values are `:active` and `:none`. Passing `:null` disables forced colors emulation.
+  * `:media` - *Since 1.9.* Changes the CSS media type of the page. The only allowed values are `:screen`, `:print` and `:null`.
+    Passing `:null` disables CSS media emulation.
+  * `:reduced_motion` - *Since 1.12.* Emulates `'prefers-reduced-motion'` media feature, supported values are `:reduce`, `:no_preference`. Passing `:null` disables reduced motion emulation.
   """
   @spec emulate_media(t(), emulate_media_options()) :: :ok | {:error, Exception.t()}
   def emulate_media(page, options \\ []) do
@@ -1204,10 +1204,10 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   The method finds an element matching the specified selector within the page and passes it as a first argument to
-  `pageFunction`. If no elements match the selector, the method throws an error. Returns the value of
-  `pageFunction`.
+  `expression`. If no elements match the selector, the method throws an error. Returns the value of
+  `expression`.
 
-  If `pageFunction` returns a `Promise`, then [`Page.evalOnSelector`](https://playwright.dev/docs/api/class-page#page-eval-on-selector) would wait for the promise to resolve and
+  If `expression` returns a `Promise`, then `PlaywrightEx.Page.eval_on_selector/4` would wait for the promise to resolve and
   return its value.
 
   **Usage**
@@ -1228,7 +1228,7 @@ defmodule PlaywrightEx.Page do
 
   * `selector` - A selector to query for.
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
   """
   @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
   def eval_on_selector(page, selector, expression, arg \\ nil) do
@@ -1249,9 +1249,9 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   The method finds all elements matching the specified selector within the page and passes an array of matched elements as
-  a first argument to `pageFunction`. Returns the result of `pageFunction` invocation.
+  a first argument to `expression`. Returns the result of `expression` invocation.
 
-  If `pageFunction` returns a `Promise`, then [`Page.evalOnSelectorAll`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all) would wait for the promise to resolve and
+  If `expression` returns a `Promise`, then `PlaywrightEx.Page.eval_on_selector_all/4` would wait for the promise to resolve and
   return its value.
 
   **Usage**
@@ -1269,7 +1269,7 @@ defmodule PlaywrightEx.Page do
 
   * `selector` - A selector to query for.
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
   """
   @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
   def eval_on_selector_all(page, selector, expression, arg \\ nil) do
@@ -1289,23 +1289,23 @@ defmodule PlaywrightEx.Page do
 
   @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
 
-  @typedoc "Options of `evaluate`, see its docs."
+  @typedoc "Options of `evaluate/4`, see its docs."
   @type evaluate_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the value of the `pageFunction` invocation.
+  Returns the value of the `expression` invocation.
 
   If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a `Promise`, then `PlaywrightEx.Page.evaluate/4` would wait
   for the promise to resolve and return its value.
 
   If the function passed to the `PlaywrightEx.Page.evaluate/4` returns a non-`Serializable` value, then
-  `PlaywrightEx.Page.evaluate/4` resolves to `undefined`. Playwright also supports transferring some
+  `PlaywrightEx.Page.evaluate/4` returns `nil`. Playwright also supports transferring some
   additional values that are not serializable by `JSON`: `-0`, `NaN`, `Infinity`, `-Infinity`.
 
   **Usage**
 
-  Passing argument to `pageFunction`:
+  Passing argument to `expression`:
 
   ```elixir
   result = Page.evaluate!(page, "([x, y]) => Promise.resolve(x * y)", [7, 8])
@@ -1334,7 +1334,7 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
 
   ## Options
 
@@ -1356,12 +1356,12 @@ defmodule PlaywrightEx.Page do
 
   @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
 
-  @typedoc "Options of `evaluate_handle`, see its docs."
+  @typedoc "Options of `evaluate_handle/4`, see its docs."
   @type evaluate_handle_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the value of the `pageFunction` invocation as a [`JSHandle`](`PlaywrightEx.JSHandle`).
+  Returns the value of the `expression` invocation as a [`JSHandle`](`PlaywrightEx.JSHandle`).
 
   The only difference between `PlaywrightEx.Page.evaluate/4` and `PlaywrightEx.Page.evaluate_handle/4` is that `PlaywrightEx.Page.evaluate_handle/4` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
 
@@ -1394,7 +1394,7 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
 
   ## Options
 
@@ -1422,7 +1422,7 @@ defmodule PlaywrightEx.Page do
   end
 
   @doc since: "1.8"
-  @doc "The method adds a function called `name` on the `window` object of every frame in this page. When called, the\nfunction executes `callback` and returns a `Promise` which resolves to the return value of `callback`.\nIf the `callback` returns a `Promise`, it will be awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `PlaywrightEx.BrowserContext.expose_binding/3` for the context-wide version.\n\n> #### Note {: .info}\n>\n> Functions installed via `PlaywrightEx.Page.expose_binding/3` survive navigations.\n\n**Usage**\n\nAn example of exposing page URL to all frames in a page:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = Playwright.webkit(playwright) |> BrowserType.launch!(headless: false)\ncontext = Browser.new_context!(browser)\npage = BrowserContext.new_page!(context)\nPage.expose_binding!(page, \"pageURL\", fn %{page: page} -> Page.url(page) end)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.click!(page, \"button\")\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
+  @doc "The method adds a function called `name` on the `window` object of every frame in this page. When called, the\nfunction executes `callback` and returns a `Promise` which resolves to the return value of `callback`.\nIf `callback` returns a `PlaywrightEx.Promise`, it is awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `PlaywrightEx.BrowserContext.expose_binding/3` for the context-wide version.\n\n> #### Note {: .info}\n>\n> Functions installed via `PlaywrightEx.Page.expose_binding/3` survive navigations.\n\n**Usage**\n\nAn example of exposing page URL to all frames in a page:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = Playwright.webkit(playwright) |> BrowserType.launch!(headless: false)\ncontext = Browser.new_context!(browser)\npage = BrowserContext.new_page!(context)\nPage.expose_binding!(page, \"pageURL\", fn %{page: page} -> Page.url(page) end)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.click!(page, \"button\")\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_binding(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def expose_binding(page, name, callback) do
     Facade.async("page.exposeBinding", page, fn -> PlaywrightEx.Client.Page.expose_binding(page, name, callback) end)
@@ -1436,7 +1436,7 @@ defmodule PlaywrightEx.Page do
   end
 
   @doc since: "1.8"
-  @doc "The method adds a function called `name` on the `window` object of every frame in the page. When called, the\nfunction executes `callback` and returns a `Promise` which resolves to the return value of `callback`.\n\nIf the `callback` returns a `Promise`, it will be awaited.\n\nSee `PlaywrightEx.BrowserContext.expose_function/3` for context-wide exposed function.\n\n> #### Note {: .info}\n>\n> Functions installed via `PlaywrightEx.Page.expose_function/3` survive navigations.\n\n**Usage**\n\nAn example of adding a `sha256` function to the page:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = Playwright.webkit(playwright) |> BrowserType.launch!(headless: false)\npage = Browser.new_page!(browser)\n\nPage.expose_function!(page, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.click!(page, \"button\")\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object\n* `callback` - Callback function which will be called in Playwright's context."
+  @doc "The method adds a function called `name` on the `window` object of every frame in the page. When called, the\nfunction executes `callback` and returns a `Promise` which resolves to the return value of `callback`.\n\nIf `callback` returns a `PlaywrightEx.Promise`, it is awaited.\n\nSee `PlaywrightEx.BrowserContext.expose_function/3` for context-wide exposed function.\n\n> #### Note {: .info}\n>\n> Functions installed via `PlaywrightEx.Page.expose_function/3` survive navigations.\n\n**Usage**\n\nAn example of adding a `sha256` function to the page:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = Playwright.webkit(playwright) |> BrowserType.launch!(headless: false)\npage = Browser.new_page!(browser)\n\nPage.expose_function!(page, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.click!(page, \"button\")\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object\n* `callback` - Callback function which will be called in Playwright's context."
   @spec expose_function(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def expose_function(page, name, callback) do
     Facade.async("page.exposeFunction", page, fn -> PlaywrightEx.Client.Page.expose_function(page, name, callback) end)
@@ -1458,7 +1458,7 @@ defmodule PlaywrightEx.Page do
                    timeout: {:timeout, nil}
                  }}
 
-  @typedoc "Options of `fill`, see its docs."
+  @typedoc "Options of `fill/4`, see its docs."
   @type fill_options ::
           [
             force: boolean(),
@@ -1524,7 +1524,7 @@ defmodule PlaywrightEx.Page do
 
   @focus_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `focus`, see its docs."
+  @typedoc "Options of `focus/3`, see its docs."
   @type focus_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -1656,7 +1656,7 @@ defmodule PlaywrightEx.Page do
 
   @get_attribute_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `get_attribute`, see its docs."
+  @typedoc "Options of `get_attribute/4`, see its docs."
   @type get_attribute_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -1715,7 +1715,7 @@ defmodule PlaywrightEx.Page do
 
   @get_by_alt_text_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_alt_text`, see its docs."
+  @typedoc "Options of `get_by_alt_text/3`, see its docs."
   @type get_by_alt_text_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -1751,7 +1751,7 @@ defmodule PlaywrightEx.Page do
 
   @get_by_label_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_label`, see its docs."
+  @typedoc "Options of `get_by_label/3`, see its docs."
   @type get_by_label_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -1790,7 +1790,7 @@ defmodule PlaywrightEx.Page do
 
   @get_by_placeholder_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_placeholder`, see its docs."
+  @typedoc "Options of `get_by_placeholder/3`, see its docs."
   @type get_by_placeholder_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -1953,7 +1953,7 @@ defmodule PlaywrightEx.Page do
                           selected: {:selected, nil}
                         }}
 
-  @typedoc "Options of `get_by_role`, see its docs."
+  @typedoc "Options of `get_by_role/3`, see its docs."
   @type get_by_role_options ::
           [
             checked: boolean(),
@@ -2022,7 +2022,7 @@ defmodule PlaywrightEx.Page do
   * `:checked` - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
 
     Learn more about [`aria-checked`](https://www.w3.org/TR/wai-aria-1.2/#aria-checked).
-  * `:description` - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `exact` to control this behavior.
+  * `:description` - *Since 1.60.* Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible description](https://w3c.github.io/accname/#dfn-accessible-description).
   * `:disabled` - An attribute that is usually set by `aria-disabled` or `disabled`.
@@ -2031,7 +2031,7 @@ defmodule PlaywrightEx.Page do
     >
     > Unlike most other attributes, `disabled` is inherited through the DOM hierarchy.
     > Learn more about [`aria-disabled`](https://www.w3.org/TR/wai-aria-1.2/#aria-disabled).
-  * `:exact` - *Since 1.28.* Whether `name` and `description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
+  * `:exact` - *Since 1.28.* Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.
   * `:expanded` - An attribute that is usually set by `aria-expanded`.
 
     Learn more about [`aria-expanded`](https://www.w3.org/TR/wai-aria-1.2/#aria-expanded).
@@ -2041,7 +2041,7 @@ defmodule PlaywrightEx.Page do
   * `:level` - A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.
 
     Learn more about [`aria-level`](https://www.w3.org/TR/wai-aria-1.2/#aria-level).
-  * `:name` - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `exact` to control this behavior.
+  * `:name` - Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.
 
     Learn more about [accessible name](https://w3c.github.io/accname/#dfn-accessible-name).
   * `:pressed` - An attribute that is usually set by `aria-pressed`.
@@ -2181,7 +2181,7 @@ defmodule PlaywrightEx.Page do
 
   @get_by_text_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_text`, see its docs."
+  @typedoc "Options of `get_by_text/3`, see its docs."
   @type get_by_text_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -2241,7 +2241,7 @@ defmodule PlaywrightEx.Page do
 
   @get_by_title_options {:object, %{exact: {:exact, nil}}}
 
-  @typedoc "Options of `get_by_title`, see its docs."
+  @typedoc "Options of `get_by_title/3`, see its docs."
   @type get_by_title_options :: [exact: boolean()] | %{optional(:exact) => boolean()}
 
   @doc since: "1.27"
@@ -2292,7 +2292,7 @@ defmodule PlaywrightEx.Page do
                           }}}
                     }}
 
-  @typedoc "Options of `go_back`, see its docs."
+  @typedoc "Options of `go_back/2`, see its docs."
   @type go_back_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -2307,15 +2307,15 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
-  last redirect. If cannot go back, returns `null`.
+  Returns the main resource response. In case of multiple redirects, the navigation returns the response of the
+  last redirect. If cannot go back, returns `nil`.
 
   Navigate to the previous page in history.
 
   > #### Warning {: .warning}
   >
   > **Testing Back/Forward Cache (BFCache) is not supported.**
-  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized [`Page`](`PlaywrightEx.Page`) state.
+  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `PlaywrightEx.Page.go_back/2` or `PlaywrightEx.Page.go_forward/2` to trigger a BFCache restore will result in timeouts and a desynchronized [`Page`](`PlaywrightEx.Page`) state.
 
   ## Options
 
@@ -2331,12 +2331,12 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec go_back(t(), go_back_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def go_back(page, options \\ []) do
@@ -2367,7 +2367,7 @@ defmodule PlaywrightEx.Page do
                              }}}
                        }}
 
-  @typedoc "Options of `go_forward`, see its docs."
+  @typedoc "Options of `go_forward/2`, see its docs."
   @type go_forward_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -2382,15 +2382,15 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
-  last redirect. If cannot go forward, returns `null`.
+  Returns the main resource response. In case of multiple redirects, the navigation returns the response of the
+  last redirect. If cannot go forward, returns `nil`.
 
   Navigate to the next page in history.
 
   > #### Warning {: .warning}
   >
   > **Testing Back/Forward Cache (BFCache) is not supported.**
-  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized [`Page`](`PlaywrightEx.Page`) state.
+  > By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `PlaywrightEx.Page.go_back/2` or `PlaywrightEx.Page.go_forward/2` to trigger a BFCache restore will result in timeouts and a desynchronized [`Page`](`PlaywrightEx.Page`) state.
 
   ## Options
 
@@ -2406,12 +2406,12 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec go_forward(t(), go_forward_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def go_forward(page, options \\ []) do
@@ -2470,7 +2470,7 @@ defmodule PlaywrightEx.Page do
                        }}}
                  }}
 
-  @typedoc "Options of `goto`, see its docs."
+  @typedoc "Options of `goto/3`, see its docs."
   @type goto_options ::
           [
             referer: String.t(),
@@ -2487,14 +2487,14 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the first
+  Returns the main resource response. In case of multiple redirects, the navigation returns the first
   non-redirect response.
 
   The method will throw an error if:
 
   * there's an SSL error (e.g. in case of self-signed certificates).
   * target URL is invalid.
-  * the `timeout` is exceeded during navigation.
+  * the `:timeout` is exceeded during navigation.
   * the remote server does not respond or is unreachable.
   * the main resource failed to load.
 
@@ -2505,7 +2505,7 @@ defmodule PlaywrightEx.Page do
   > #### Note {: .info}
   >
   > The method either throws an error or returns a main resource response. The only exceptions are navigation to
-  > `about:blank` or navigation to the same URL with a different hash, which would succeed and return `null`.
+  > `about:blank` or navigation to the same URL with a different hash, which would succeed and return `nil`.
 
   > #### Note {: .info}
   >
@@ -2515,7 +2515,7 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `url` - URL to navigate page to. The url should include scheme, e.g. `https://`.
-    When a `baseURL` via the context options was provided and the passed URL is a path,
+    When a `:base_url` via the context options was provided and the passed URL is a path,
     it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
 
   ## Options
@@ -2534,12 +2534,12 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec goto(t(), String.t(), goto_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def goto(page, url, options \\ []) do
@@ -2594,7 +2594,7 @@ defmodule PlaywrightEx.Page do
                     trial: {:trial, nil}
                   }}
 
-  @typedoc "Options of `hover`, see its docs."
+  @typedoc "Options of `hover/3`, see its docs."
   @type hover_options ::
           [
             force: boolean(),
@@ -2625,12 +2625,12 @@ defmodule PlaywrightEx.Page do
 
   1. Find an element matching `selector`. If there is none, wait until a matching element is attached to
      the DOM.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `:position`.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Discouraged {: .warning}
@@ -2652,9 +2652,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -2667,7 +2667,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `modifiers` will be pressed regardless of `trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec hover(t(), String.t(), hover_options()) :: :ok | {:error, Exception.t()}
   def hover(page, selector, options \\ []) do
@@ -2685,7 +2685,7 @@ defmodule PlaywrightEx.Page do
 
   @inner_html_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `inner_html`, see its docs."
+  @typedoc "Options of `inner_html/3`, see its docs."
   @type inner_html_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -2736,7 +2736,7 @@ defmodule PlaywrightEx.Page do
 
   @inner_text_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `inner_text`, see its docs."
+  @typedoc "Options of `inner_text/3`, see its docs."
   @type inner_text_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -2787,7 +2787,7 @@ defmodule PlaywrightEx.Page do
 
   @input_value_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `input_value`, see its docs."
+  @typedoc "Options of `input_value/3`, see its docs."
   @type input_value_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -2840,7 +2840,7 @@ defmodule PlaywrightEx.Page do
 
   @is_checked_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `is_checked`, see its docs."
+  @typedoc "Options of `is_checked/3`, see its docs."
   @type is_checked_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -2900,7 +2900,7 @@ defmodule PlaywrightEx.Page do
 
   @is_disabled_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `is_disabled`, see its docs."
+  @typedoc "Options of `is_disabled/3`, see its docs."
   @type is_disabled_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -2951,7 +2951,7 @@ defmodule PlaywrightEx.Page do
 
   @is_editable_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `is_editable`, see its docs."
+  @typedoc "Options of `is_editable/3`, see its docs."
   @type is_editable_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -3002,7 +3002,7 @@ defmodule PlaywrightEx.Page do
 
   @is_enabled_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `is_enabled`, see its docs."
+  @typedoc "Options of `is_enabled/3`, see its docs."
   @type is_enabled_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -3053,7 +3053,7 @@ defmodule PlaywrightEx.Page do
 
   @is_hidden_options {:object, %{strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `is_hidden`, see its docs."
+  @typedoc "Options of `is_hidden/3`, see its docs."
   @type is_hidden_options ::
           [strict: boolean(), timeout: number() | :infinity]
           | %{optional(:strict) => boolean(), optional(:timeout) => number() | :infinity}
@@ -3092,7 +3092,7 @@ defmodule PlaywrightEx.Page do
 
   @is_visible_options {:object, %{strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `is_visible`, see its docs."
+  @typedoc "Options of `is_visible/3`, see its docs."
   @type is_visible_options ::
           [strict: boolean(), timeout: number() | :infinity]
           | %{optional(:strict) => boolean(), optional(:timeout) => number() | :infinity}
@@ -3201,7 +3201,7 @@ defmodule PlaywrightEx.Page do
   @console_messages_options {:object,
                              %{filter: {:filter, {:enum, %{all: "all", since_navigation: "since-navigation"}}}}}
 
-  @typedoc "Options of `console_messages`, see its docs."
+  @typedoc "Options of `console_messages/2`, see its docs."
   @type console_messages_options ::
           [filter: :all | :since_navigation] | %{optional(:filter) => :all | :since_navigation}
 
@@ -3230,7 +3230,7 @@ defmodule PlaywrightEx.Page do
 
   @page_errors_options {:object, %{filter: {:filter, {:enum, %{all: "all", since_navigation: "since-navigation"}}}}}
 
-  @typedoc "Options of `page_errors`, see its docs."
+  @typedoc "Options of `page_errors/2`, see its docs."
   @type page_errors_options :: [filter: :all | :since_navigation] | %{optional(:filter) => :all | :since_navigation}
 
   @doc since: "1.56"
@@ -3263,7 +3263,7 @@ defmodule PlaywrightEx.Page do
                       has_text: {:hasText, nil}
                     }}
 
-  @typedoc "Options of `locator`, see its docs."
+  @typedoc "Options of `locator/3`, see its docs."
   @type locator_options ::
           [
             has: PlaywrightEx.Locator.t(),
@@ -3329,7 +3329,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the opener for popup pages and `null` for others. If the opener has been closed already the returns `null`.
+  Returns the opener for popup pages and `nil` for others. If the opener has been closed already the returns `nil`.
   """
   @spec opener(t()) :: {:ok, nil | PlaywrightEx.Page.t()} | {:error, Exception.t()}
   def opener(page) do
@@ -3386,7 +3386,7 @@ defmodule PlaywrightEx.Page do
                   width: {:width, nil}
                 }}
 
-  @typedoc "Options of `pdf`, see its docs."
+  @typedoc "Options of `pdf/2`, see its docs."
   @type pdf_options ::
           [
             display_header_footer: boolean(),
@@ -3437,12 +3437,12 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns the PDF buffer.
 
-  `page.pdf()` generates a pdf of the page with `print` css media. To generate a pdf with `screen` media, call
-  `PlaywrightEx.Page.emulate_media/2` before calling `page.pdf()`:
+  `PlaywrightEx.Page.pdf/2` generates a pdf of the page with `print` css media. To generate a pdf with `screen` media, call
+  `PlaywrightEx.Page.emulate_media/2` before calling `PlaywrightEx.Page.pdf/2`:
 
   > #### Note {: .info}
   >
-  > By default, `page.pdf()` generates a pdf with modified colors for printing. Use the
+  > By default, `PlaywrightEx.Page.pdf/2` generates a pdf with modified colors for printing. Use the
   > [`-webkit-print-color-adjust`](https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-print-color-adjust) property to
   > force rendering of exact colors.
 
@@ -3454,14 +3454,14 @@ defmodule PlaywrightEx.Page do
   Page.pdf!(page, path: "page.pdf")
   ```
 
-  The `width`, `height`, and `margin` options accept values labeled with units. Unlabeled
+  The `:width`, `:height`, and `:margin` options accept values labeled with units. Unlabeled
   values are treated as pixels.
 
   A few examples:
 
-  * `page.pdf({width: 100})` - prints with width set to 100 pixels
-  * `page.pdf({width: '100px'})` - prints with width set to 100 pixels
-  * `page.pdf({width: '10cm'})` - prints with width set to 10 centimeters.
+  * `Page.pdf(page, width: 100)` - prints with width set to 100 pixels
+  * `Page.pdf(page, width: "100px")` - prints with width set to 100 pixels
+  * `Page.pdf(page, width: "10cm")` - prints with width set to 10 centimeters.
 
   All possible units are:
 
@@ -3470,7 +3470,7 @@ defmodule PlaywrightEx.Page do
   * `cm` - centimeter
   * `mm` - millimeter
 
-  The `format` options are:
+  The `:format` options are:
 
   * `Letter`: 8.5in x 11in
   * `Legal`: 8.5in x 14in
@@ -3486,14 +3486,14 @@ defmodule PlaywrightEx.Page do
 
   > #### Note {: .info}
   >
-  > `headerTemplate` and `footerTemplate` markup have the following limitations: > 1. Script tags inside
+  > `:header_template` and `:footer_template` markup have the following limitations: > 1. Script tags inside
   > templates are not evaluated. > 2. Page styles are not visible inside templates.
 
   ## Options
 
   * `:display_header_footer` - Display header and footer. Defaults to `false`.
-  * `:footer_template` - HTML template for the print footer. Should use the same format as the `headerTemplate`.
-  * `:format` - Paper format. If set, takes priority over `width` or `height` options. Defaults to 'Letter'.
+  * `:footer_template` - HTML template for the print footer. Should use the same format as the `:header_template`.
+  * `:format` - Paper format. If set, takes priority over `:width` or `:height` options. Defaults to 'Letter'.
   * `:header_template` - HTML template for the print header. Should be valid HTML markup with following classes used to inject printing values
     into them:
 
@@ -3511,10 +3511,10 @@ defmodule PlaywrightEx.Page do
     * `:left` - Left margin, accepts values labeled with units. Defaults to `0`.
   * `:outline` - *Since 1.42.* Whether or not to embed the document outline into the PDF. Defaults to `false`.
   * `:page_ranges` - Paper ranges to print, e.g., '1-5, 8, 11-13'. Defaults to the empty string, which means print all pages.
-  * `:path` - The file path to save the PDF to. If `path` is a relative path, then it is resolved relative to the current
+  * `:path` - The file path to save the PDF to. If `:path` is a relative path, then it is resolved relative to the current
     working directory. If no path is provided, the PDF won't be saved to the disk.
-  * `:prefer_css_page_size` - Give any CSS `@page` size declared in the page priority over what is declared in `width` and
-    `height` or `format` options. Defaults to `false`, which will scale the content to fit the paper
+  * `:prefer_css_page_size` - Give any CSS `@page` size declared in the page priority over what is declared in `:width` and
+    `:height` or `:format` options. Defaults to `false`, which will scale the content to fit the paper
     size.
   * `:print_background` - Print background graphics. Defaults to `false`.
   * `:scale` - Scale of the webpage rendering. Defaults to `1`. Scale amount must be between 0.1 and 2.
@@ -3568,7 +3568,7 @@ defmodule PlaywrightEx.Page do
                     timeout: {:timeout, nil}
                   }}
 
-  @typedoc "Options of `press`, see its docs."
+  @typedoc "Options of `press/4`, see its docs."
   @type press_options ::
           [
             delay: number(),
@@ -3665,13 +3665,13 @@ defmodule PlaywrightEx.Page do
 
   @query_selector_options {:object, %{strict: {:strict, nil}}}
 
-  @typedoc "Options of `query_selector`, see its docs."
+  @typedoc "Options of `query_selector/3`, see its docs."
   @type query_selector_options :: [strict: boolean()] | %{optional(:strict) => boolean()}
 
   @doc since: "1.9"
   @doc ~S"""
   The method finds an element matching the specified selector within the page. If no elements match the selector, the
-  return value resolves to `null`. To wait for an element on the page, use `PlaywrightEx.Locator.wait_for/2`.
+  return value is `nil`. To wait for an element on the page, use `PlaywrightEx.Locator.wait_for/2`.
 
   > #### Discouraged {: .warning}
   >
@@ -3704,7 +3704,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   The method finds all elements matching the specified selector within the page. If no elements match the selector, the
-  return value resolves to `[]`.
+  return value is `[]`.
 
   > #### Discouraged {: .warning}
   >
@@ -3748,7 +3748,7 @@ defmodule PlaywrightEx.Page do
 
   @add_locator_handler_options {:object, %{no_wait_after: {:noWaitAfter, nil}, times: {:times, nil}}}
 
-  @typedoc "Options of `add_locator_handler`, see its docs."
+  @typedoc "Options of `add_locator_handler/4`, see its docs."
   @type add_locator_handler_options ::
           [no_wait_after: boolean(), times: integer()]
           | %{optional(:no_wait_after) => boolean(), optional(:times) => integer()}
@@ -3763,7 +3763,7 @@ defmodule PlaywrightEx.Page do
 
   * When an overlay is shown predictably, we recommend explicitly waiting for it in your test and dismissing it as a part of your normal test flow, instead of using `PlaywrightEx.Page.add_locator_handler/4`.
   * Playwright checks for the overlay every time before executing or retrying an action that requires an [actionability check](https://playwright.dev/docs/actionability), or before performing an auto-waiting assertion check. When overlay is visible, Playwright calls the handler first, and then proceeds with the action/assertion. Note that the handler is only called when you perform an action/assertion - if the overlay becomes visible but you don't perform any actions, the handler will not be triggered.
-  * After executing the handler, Playwright will ensure that overlay that triggered the handler is not visible anymore. You can opt-out of this behavior with `noWaitAfter`.
+  * After executing the handler, Playwright will ensure that overlay that triggered the handler is not visible anymore. You can opt-out of this behavior with `:no_wait_after`.
   * The execution time of the handler counts towards the timeout of the action/assertion that executed the handler. If your handler takes too long, it might cause timeouts.
   * You can register multiple handlers. However, only a single handler will be running at a time. Make sure the actions within a handler don't depend on another handler.
 
@@ -3803,7 +3803,7 @@ defmodule PlaywrightEx.Page do
   Page.get_by_role(page, :button, name: "Start here") |> Locator.click!()
   ```
 
-  An example with a custom callback on every actionability check. It uses a `<body>` locator that is always visible, so the handler is called before every actionability check. It is important to specify `noWaitAfter`, because the handler does not hide the `<body>` element.
+  An example with a custom callback on every actionability check. It uses a `<body>` locator that is always visible, so the handler is called before every actionability check. It is important to specify `:no_wait_after`, because the handler does not hide the `<body>` element.
 
   ```elixir
   # Setup the handler.
@@ -3819,7 +3819,7 @@ defmodule PlaywrightEx.Page do
   Page.get_by_role(page, :button, name: "Start here") |> Locator.click!()
   ```
 
-  Handler takes the original locator as an argument. You can also automatically remove the handler after a number of invocations by setting `times`:
+  Handler takes the original locator as an argument. You can also automatically remove the handler after a number of invocations by setting `:times`:
 
   ```elixir
   Page.add_locator_handler!(page, Page.get_by_label(page, "Close"), &Locator.click!/1, times: 1)
@@ -3872,14 +3872,14 @@ defmodule PlaywrightEx.Page do
                                       {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
                                  }}
 
-  @typedoc "Options of `remove_all_listeners`, see its docs."
+  @typedoc "Options of `remove_all_listeners/3`, see its docs."
   @type remove_all_listeners_options ::
           [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
 
   @doc since: "1.47"
   @doc ~S"""
   Removes all the listeners of the given type (or all registered listeners if no type given).
-  Allows to wait for async listeners to complete or to ignore subsequent errors from these listeners.
+  Allows to wait for running listeners to complete or to ignore subsequent errors from these listeners.
 
   **Usage**
 
@@ -3901,9 +3901,9 @@ defmodule PlaywrightEx.Page do
 
   * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
 
-    * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
-    * `'wait'` - wait for current listener calls (if any) to finish
-    * `'ignoreErrors'` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
+    * `:default` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
+    * `:wait` - wait for current listener calls (if any) to finish
+    * `:ignore_errors` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
           :ok | {:error, Exception.t()}
@@ -3980,7 +3980,7 @@ defmodule PlaywrightEx.Page do
                          }}}
                    }}
 
-  @typedoc "Options of `reload`, see its docs."
+  @typedoc "Options of `reload/2`, see its docs."
   @type reload_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -3996,7 +3996,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.8"
   @doc ~S"""
   This method reloads the current page, in the same way as if the user had triggered a browser refresh.
-  Returns the main resource response. In case of multiple redirects, the navigation will resolve with the response of the
+  Returns the main resource response. In case of multiple redirects, the navigation returns the response of the
   last redirect.
 
   ## Options
@@ -4013,12 +4013,12 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec reload(t(), reload_options()) :: {:ok, nil | PlaywrightEx.Response.t()} | {:error, Exception.t()}
   def reload(page, options \\ []) do
@@ -4046,7 +4046,7 @@ defmodule PlaywrightEx.Page do
 
   @route_options {:object, %{times: {:times, nil}}}
 
-  @typedoc "Options of `route`, see its docs."
+  @typedoc "Options of `route/4`, see its docs."
   @type route_options :: [times: integer()] | %{optional(:times) => integer()}
 
   @doc since: "1.8"
@@ -4061,7 +4061,7 @@ defmodule PlaywrightEx.Page do
 
   > #### Note {: .info}
   >
-  > `PlaywrightEx.Page.route/4` will not intercept requests intercepted by Service Worker. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+  > `PlaywrightEx.Page.route/4` will not intercept requests intercepted by Service Worker. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `:service_workers` to `:block`.
 
   > #### Note {: .info}
   >
@@ -4112,7 +4112,7 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `baseURL` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `:base_url` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
   * `handler` - handler function to route the request.
 
   ## Options
@@ -4152,7 +4152,7 @@ defmodule PlaywrightEx.Page do
                              url: {:url, nil}
                            }}
 
-  @typedoc "Options of `route_from_har`, see its docs."
+  @typedoc "Options of `route_from_har/3`, see its docs."
   @type route_from_har_options ::
           [
             not_found: :abort | :fallback,
@@ -4173,7 +4173,7 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   If specified the network requests that are made in the page will be served from the HAR file. Read more about [Replaying from HAR](https://playwright.dev/docs/mock#replaying-from-har).
 
-  Playwright will not serve requests intercepted by Service Worker from the HAR file. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+  Playwright will not serve requests intercepted by Service Worker from the HAR file. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `:service_workers` to `:block`.
 
   ## Arguments
 
@@ -4189,7 +4189,7 @@ defmodule PlaywrightEx.Page do
     Defaults to abort.
   * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.
   * `:update_content` - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
-  * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
+  * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:minimal`.
   * `:url` - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
   """
   @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Exception.t()}
@@ -4226,7 +4226,7 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-  * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `baseURL` context option.
+  * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `:base_url` context option.
   * `handler` - Handler function to route the WebSocket.
   """
   @spec route_web_socket(
@@ -4294,7 +4294,7 @@ defmodule PlaywrightEx.Page do
                          type: {:type, {:enum, %{png: "png", jpeg: "jpeg", webp: "webp"}}}
                        }}
 
-  @typedoc "Options of `screenshot`, see its docs."
+  @typedoc "Options of `screenshot/2`, see its docs."
   @type screenshot_options ::
           [
             animations: :disabled | :allow,
@@ -4335,13 +4335,13 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+  * `:animations` - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
     * infinite animations are canceled to initial state, and then played over after the screenshot.
 
-    Defaults to `"allow"` that leaves animations untouched.
-  * `:caret` - When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, text caret behavior will not be changed.  Defaults to `"hide"`.
+    Defaults to `:allow` that leaves animations untouched.
+  * `:caret` - When set to `:hide`, screenshot will hide text caret. When set to `:initial`, text caret behavior will not be changed.  Defaults to `:hide`.
   * `:clip` - An object which specifies clipping of the resulting image.
     * `:x` - x-coordinate of top-left corner of clip area
     * `:y` - y-coordinate of top-left corner of clip area
@@ -4350,19 +4350,19 @@ defmodule PlaywrightEx.Page do
   * `:full_page` - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
     `false`.
   * `:mask` - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
-    a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
+    a pink box `#FF00FF` (customized by `:mask_color`) that completely covers its bounding box.
     The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
   * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
   * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
     Defaults to `false`.
-  * `:path` - The file path to save the image to. The screenshot type will be inferred from file extension. If `path` is a
+  * `:path` - The file path to save the image to. The screenshot type will be inferred from file extension. If `:path` is a
     relative path, then it is resolved relative to the current working directory. If no path is provided, the image won't be
     saved to the disk.
   * `:quality` - The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`.
     For `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
-  * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+  * `:scale` - When set to `:css`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `:device` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
 
-    Defaults to `"device"`.
+    Defaults to `:device`.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -4375,7 +4375,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:type` - Specify screenshot type, defaults to `png`.
+  * `:type` - Specify screenshot type, defaults to `:png`.
   """
   @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, Exception.t()}
   def screenshot(page, options \\ []) do
@@ -4405,7 +4405,7 @@ defmodule PlaywrightEx.Page do
                             timeout: {:timeout, nil}
                           }}
 
-  @typedoc "Options of `select_option`, see its docs."
+  @typedoc "Options of `select_option/4`, see its docs."
   @type select_option_options ::
           [
             force: boolean(),
@@ -4531,7 +4531,7 @@ defmodule PlaywrightEx.Page do
                           trial: {:trial, nil}
                         }}
 
-  @typedoc "Options of `set_checked`, see its docs."
+  @typedoc "Options of `set_checked/4`, see its docs."
   @type set_checked_options ::
           [
             force: boolean(),
@@ -4562,13 +4562,13 @@ defmodule PlaywrightEx.Page do
      the DOM.
   1. Ensure that matched element is a checkbox or a radio input. If not, this method throws.
   1. If the element already has the right checked state, this method returns immediately.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now checked or unchecked. If not, this method throws.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Discouraged {: .warning}
@@ -4588,9 +4588,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -4640,7 +4640,7 @@ defmodule PlaywrightEx.Page do
                               }}}
                         }}
 
-  @typedoc "Options of `set_content`, see its docs."
+  @typedoc "Options of `set_content/3`, see its docs."
   @type set_content_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -4675,12 +4675,12 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec set_content(t(), String.t(), set_content_options()) :: :ok | {:error, Exception.t()}
   def set_content(page, html, options \\ []) do
@@ -4792,7 +4792,7 @@ defmodule PlaywrightEx.Page do
                               timeout: {:timeout, nil}
                             }}
 
-  @typedoc "Options of `set_input_files`, see its docs."
+  @typedoc "Options of `set_input_files/4`, see its docs."
   @type set_input_files_options ::
           [
             no_wait_after: boolean(),
@@ -4809,7 +4809,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then they
+  Sets the value of the file input to these file paths or files. If some of the `files` are relative paths, then they
   are resolved relative to the current working directory. For empty array, clears the selected files.
   For inputs with a `[webkitdirectory]` attribute, only a single directory path is supported.
 
@@ -4934,7 +4934,7 @@ defmodule PlaywrightEx.Page do
                             timeout: {:timeout, nil}
                           }}
 
-  @typedoc "Options of `aria_snapshot`, see its docs."
+  @typedoc "Options of `aria_snapshot/2`, see its docs."
   @type aria_snapshot_options ::
           [
             boxes: boolean(),
@@ -4961,7 +4961,7 @@ defmodule PlaywrightEx.Page do
     relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
     Defaults to `false`.
   * `:depth` - When specified, limits the depth of the snapshot.
-  * `:mode` - When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `"default"`.
+  * `:mode` - When set to `:ai`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `:default`.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -4995,7 +4995,7 @@ defmodule PlaywrightEx.Page do
                                  timeout: {:timeout, nil}
                                }}
 
-  @typedoc "Options of `aria_snapshot_json`, see its docs."
+  @typedoc "Options of `aria_snapshot_json/2`, see its docs."
   @type aria_snapshot_json_options ::
           [
             boxes: boolean(),
@@ -5024,7 +5024,7 @@ defmodule PlaywrightEx.Page do
     relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
     Defaults to `false`.
   * `:depth` - When specified, limits the depth of the snapshot.
-  * `:mode` - When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `"default"`.
+  * `:mode` - When set to `:ai`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `:default`.
   * `:signal` - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -5066,7 +5066,7 @@ defmodule PlaywrightEx.Page do
                   trial: {:trial, nil}
                 }}
 
-  @typedoc "Options of `tap`, see its docs."
+  @typedoc "Options of `tap/3`, see its docs."
   @type tap_options ::
           [
             force: boolean(),
@@ -5097,17 +5097,17 @@ defmodule PlaywrightEx.Page do
 
   1. Find an element matching `selector`. If there is none, wait until a matching element is attached to
      the DOM.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
-  1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `position`.
+  1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `:position`.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Note {: .info}
   >
-  > `PlaywrightEx.Page.tap/3` will throw if the `hasTouch` option of the browser context is false.
+  > `PlaywrightEx.Page.tap/3` will throw if the `:has_touch` option of the browser context is false.
 
   > #### Discouraged {: .warning}
   >
@@ -5128,9 +5128,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -5143,7 +5143,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `modifiers` will be pressed regardless of `trial` to allow testing elements which are only visible when those keys are pressed.
+  * `:trial` - *Since 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec tap(t(), String.t(), tap_options()) :: :ok | {:error, Exception.t()}
   def tap(page, selector, options \\ []) do
@@ -5161,7 +5161,7 @@ defmodule PlaywrightEx.Page do
 
   @text_content_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `text_content`, see its docs."
+  @typedoc "Options of `text_content/3`, see its docs."
   @type text_content_options ::
           [signal: PlaywrightEx.AbortSignal.t(), strict: boolean(), timeout: number() | :infinity]
           | %{
@@ -5242,7 +5242,7 @@ defmodule PlaywrightEx.Page do
                    timeout: {:timeout, nil}
                  }}
 
-  @typedoc "Options of `type`, see its docs."
+  @typedoc "Options of `type/4`, see its docs."
   @type type_options ::
           [
             delay: number(),
@@ -5263,7 +5263,7 @@ defmodule PlaywrightEx.Page do
   @doc deprecated:
          "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
   @doc ~S"""
-  Sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text. `page.type` can be used to send
+  Sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text. `PlaywrightEx.Page.type/4` can be used to send
   fine-grained keyboard events. To fill values in form fields, use `PlaywrightEx.Page.fill/4`.
 
   To press a special key, like `Control` or `ArrowDown`, use `PlaywrightEx.Keyboard.press/3`.
@@ -5319,7 +5319,7 @@ defmodule PlaywrightEx.Page do
                       trial: {:trial, nil}
                     }}
 
-  @typedoc "Options of `uncheck`, see its docs."
+  @typedoc "Options of `uncheck/3`, see its docs."
   @type uncheck_options ::
           [
             force: boolean(),
@@ -5350,13 +5350,13 @@ defmodule PlaywrightEx.Page do
      the DOM.
   1. Ensure that matched element is a checkbox or a radio input. If not, this method throws. If the element is already
      unchecked, this method returns immediately.
-  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `force` option is
+  1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
   1. Ensure that the element is now unchecked. If not, this method throws.
 
-  When all steps combined have not finished during the specified `timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method throws a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Discouraged {: .warning}
@@ -5375,9 +5375,9 @@ defmodule PlaywrightEx.Page do
     element.
     * `:x`
     * `:y`
-  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `"auto"`,
+  * `:scroll` - *Since 1.62.* Controls whether Playwright scrolls the element into view before performing the action. Defaults to `:auto`,
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
-    `"none"`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
+    `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
@@ -5412,7 +5412,7 @@ defmodule PlaywrightEx.Page do
                             {:behavior, {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
                         }}
 
-  @typedoc "Options of `unroute_all`, see its docs."
+  @typedoc "Options of `unroute_all/2`, see its docs."
   @type unroute_all_options ::
           [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
 
@@ -5424,9 +5424,9 @@ defmodule PlaywrightEx.Page do
 
   * `:behavior` - Specifies whether to wait for already running handlers and what to do if they throw errors:
 
-    * `'default'` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
-    * `'wait'` - wait for current handler calls (if any) to finish
-    * `'ignoreErrors'` - do not wait for current handler calls (if any) to finish, all errors thrown by the handlers after unrouting are silently caught
+    * `:default` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
+    * `:wait` - wait for current handler calls (if any) to finish
+    * `:ignore_errors` - do not wait for current handler calls (if any) to finish, all errors thrown by the handlers after unrouting are silently caught
   """
   @spec unroute_all(t(), unroute_all_options()) :: :ok | {:error, Exception.t()}
   def unroute_all(page, options \\ []) do
@@ -5481,7 +5481,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Video object associated with this page. Can be used to access the video file when using the `recordVideo` context option.
+  Video object associated with this page. Can be used to access the video file when using the `:record_video` context option.
   """
   @spec video(t()) :: nil | PlaywrightEx.Video.t()
   def video(page) do
@@ -5497,7 +5497,7 @@ defmodule PlaywrightEx.Page do
 
   @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `wait_for_event`, see its docs."
+  @typedoc "Options of `wait_for_event/3`, see its docs."
   @type wait_for_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -5522,15 +5522,15 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-  * `event` - Event name, same one typically passed into `*.on(event)`.
+  * `event` - Event name, same one typically passed into `PlaywrightEx.Page.on/3`.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+    The default value can be changed with `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
@@ -5538,7 +5538,7 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.Page.wait_for_event(page, event)
@@ -5570,7 +5570,7 @@ defmodule PlaywrightEx.Page do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_event/3` and await it after the action, or use the callback form `expect_event!/4`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_event/3` before the action and await it after, or use the callback form `expect_event!/4`:
   >
   > ```elixir
   > promise = PlaywrightEx.Page.wait_for_event(page, event)
@@ -5593,7 +5593,7 @@ defmodule PlaywrightEx.Page do
                                 timeout: {:timeout, nil}
                               }}
 
-  @typedoc "Options of `wait_for_function`, see its docs."
+  @typedoc "Options of `wait_for_function/4`, see its docs."
   @type wait_for_function_options ::
           [polling: number() | :raf, signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{
@@ -5604,7 +5604,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns when the `pageFunction` returns a truthy value. It resolves to a JSHandle of the truthy value.
+  Returns when the `expression` returns a truthy value. It returns a JSHandle of the truthy value.
 
   **Usage**
 
@@ -5630,13 +5630,13 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
 
   ## Options
 
-  * `:polling` - If `polling` is `'raf'`, then `pageFunction` is constantly executed in `requestAnimationFrame`
-    callback. If `polling` is a number, then it is treated as an interval in milliseconds at which the function
-    would be executed. Defaults to `raf`.
+  * `:polling` - If `:polling` is `:raf`, then `expression` is constantly executed in `requestAnimationFrame`
+    callback. If `:polling` is a number, then it is treated as an interval in milliseconds at which the function
+    would be executed. Defaults to `:raf`.
   * `:signal` - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -5670,7 +5670,7 @@ defmodule PlaywrightEx.Page do
   @wait_for_load_state_state {:enum, %{load: "load", domcontentloaded: "domcontentloaded", networkidle: "networkidle"}}
   @wait_for_load_state_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `wait_for_load_state`, see its docs."
+  @typedoc "Options of `wait_for_load_state/3`, see its docs."
   @type wait_for_load_state_options ::
           [signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
@@ -5708,12 +5708,12 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-  * `state` - Optional load state to wait for, defaults to `load`. If the state has been already reached while loading current document, the
+  * `state` - Optional load state to wait for, defaults to `:load`. If the state has been already reached while loading current document, the
     method resolves immediately. Can be one of:
 
-    * `'load'` - wait for the `load` event to be fired.
-    * `'domcontentloaded'` - wait for the `DOMContentLoaded` event to be fired.
-    * `'networkidle'` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:load` - wait for the `load` event to be fired.
+    * `:domcontentloaded` - wait for the `DOMContentLoaded` event to be fired.
+    * `:networkidle` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
 
   ## Options
 
@@ -5784,7 +5784,7 @@ defmodule PlaywrightEx.Page do
                                       }}}
                                 }}
 
-  @typedoc "Options of `wait_for_navigation`, see its docs."
+  @typedoc "Options of `wait_for_navigation/2`, see its docs."
   @type wait_for_navigation_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -5803,8 +5803,8 @@ defmodule PlaywrightEx.Page do
   @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
   @doc ~S"""
   Waits for the main frame navigation and returns the main resource response. In case of multiple redirects, the navigation
-  will resolve with the response of the last redirect. In case of navigation to a different anchor or navigation due to
-  History API usage, the navigation will resolve with `null`.
+  returns the response of the last redirect. In case of navigation to a different anchor or navigation due to
+  History API usage, the navigation returns `nil`.
 
   **Usage**
 
@@ -5841,14 +5841,14 @@ defmodule PlaywrightEx.Page do
   * `:url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.Page.wait_for_navigation(page)
@@ -5876,7 +5876,7 @@ defmodule PlaywrightEx.Page do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_navigation/2` and await it after the action, or use the callback form `expect_navigation!/3`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_navigation/2` before the action and await it after, or use the callback form `expect_navigation!/3`:
   >
   > ```elixir
   > promise = PlaywrightEx.Page.wait_for_navigation(page)
@@ -5894,7 +5894,7 @@ defmodule PlaywrightEx.Page do
 
   @wait_for_request_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `wait_for_request`, see its docs."
+  @typedoc "Options of `wait_for_request/3`, see its docs."
   @type wait_for_request_options ::
           [signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
@@ -5936,7 +5936,7 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.Page.wait_for_request(page, url_or_predicate)
@@ -5969,7 +5969,7 @@ defmodule PlaywrightEx.Page do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_request/3` and await it after the action, or use the callback form `expect_request!/4`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_request/3` before the action and await it after, or use the callback form `expect_request!/4`:
   >
   > ```elixir
   > promise = PlaywrightEx.Page.wait_for_request(page, url_or_predicate)
@@ -5991,7 +5991,7 @@ defmodule PlaywrightEx.Page do
 
   @wait_for_response_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `wait_for_response`, see its docs."
+  @typedoc "Options of `wait_for_response/3`, see its docs."
   @type wait_for_response_options ::
           [signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
@@ -6022,7 +6022,7 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `url_or_predicate` - Request URL string, regex or predicate receiving [`Response`](`PlaywrightEx.Response`) object.
-    When a `baseURL` via the context options was provided and the passed URL is a path,
+    When a `:base_url` via the context options was provided and the passed URL is a path,
     it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
 
   ## Options
@@ -6036,7 +6036,7 @@ defmodule PlaywrightEx.Page do
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.Page.wait_for_response(page, url_or_predicate)
@@ -6069,7 +6069,7 @@ defmodule PlaywrightEx.Page do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_response/3` and await it after the action, or use the callback form `expect_response!/4`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_response/3` before the action and await it after, or use the callback form `expect_response!/4`:
   >
   > ```elixir
   > promise = PlaywrightEx.Page.wait_for_response(page, url_or_predicate)
@@ -6100,7 +6100,7 @@ defmodule PlaywrightEx.Page do
                                 timeout: {:timeout, nil}
                               }}
 
-  @typedoc "Options of `wait_for_selector`, see its docs."
+  @typedoc "Options of `wait_for_selector/3`, see its docs."
   @type wait_for_selector_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -6117,7 +6117,7 @@ defmodule PlaywrightEx.Page do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
+  Returns when element specified by selector satisfies `:state` option. Returns `nil` if waiting for `hidden` or
   `detached`.
 
   > #### Note {: .info}
@@ -6125,9 +6125,9 @@ defmodule PlaywrightEx.Page do
   > Playwright automatically waits for element to be ready before performing an action. Using
   > [`Locator`](`PlaywrightEx.Locator`) objects and web-first assertions makes the code wait-for-selector-free.
 
-  Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become
+  Wait for the `selector` to satisfy `:state` option (either appear/disappear from dom, or become
   visible/hidden). If at the moment of calling the method `selector` already satisfies the condition, the method
-  will return immediately. If the selector doesn't satisfy the condition for the `timeout` milliseconds, the
+  will return immediately. If the selector doesn't satisfy the condition for the `:timeout` milliseconds, the
   function will throw.
 
   **Usage**
@@ -6163,14 +6163,14 @@ defmodule PlaywrightEx.Page do
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:state` - Defaults to `'visible'`. Can be either:
+  * `:state` - Defaults to `:visible`. Can be either:
 
-    * `'attached'` - wait for element to be present in DOM.
-    * `'detached'` - wait for element to not be present in DOM.
-    * `'visible'` - wait for element to have non-empty bounding box and no `visibility:hidden`. Note that element without
+    * `:attached` - wait for element to be present in DOM.
+    * `:detached` - wait for element to not be present in DOM.
+    * `:visible` - wait for element to have non-empty bounding box and no `visibility:hidden`. Note that element without
       any content or with `display:none` has an empty bounding box and is not considered visible.
-    * `'hidden'` - wait for element to be either detached from DOM, or have an empty bounding box or `visibility:hidden`.
-      This is opposite to the `'visible'` option.
+    * `:hidden` - wait for element to be either detached from DOM, or have an empty bounding box or `visibility:hidden`.
+      This is opposite to the `:visible` option.
   * `:strict` - *Since 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call throws an exception.
   * `:timeout` - Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
@@ -6206,7 +6206,7 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Waits for the given `timeout` in milliseconds.
 
-  Note that `page.waitForTimeout()` should only be used for debugging. Tests using the timer in production are going to be
+  Note that `PlaywrightEx.Page.wait_for_timeout/2` should only be used for debugging. Tests using the timer in production are going to be
   flaky. Use signals such as network events, selectors becoming visible and others instead.
 
   **Usage**
@@ -6256,7 +6256,7 @@ defmodule PlaywrightEx.Page do
                                }}}
                          }}
 
-  @typedoc "Options of `wait_for_url`, see its docs."
+  @typedoc "Options of `wait_for_url/3`, see its docs."
   @type wait_for_url_options ::
           [
             signal: PlaywrightEx.AbortSignal.t(),
@@ -6301,12 +6301,12 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   """
   @spec wait_for_url(
           t(),
@@ -6363,7 +6363,7 @@ defmodule PlaywrightEx.Page do
   @expect_console_message_options {:object,
                                    %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_console_message`, see its docs."
+  @typedoc "Options of `expect_console_message/3`, see its docs."
   @type expect_console_message_options ::
           [
             predicate: (PlaywrightEx.ConsoleMessage.t() -> boolean()),
@@ -6379,7 +6379,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) to be logged by in the page. If predicate is provided, it passes
-  [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) value into the `predicate` function and waits for `predicate(message)` to return a truthy value.
+  [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) value into the `:predicate` function and waits for `predicate(message)` to return a truthy value.
   Will throw an error if the page is closed before the [`Page.on(:console)`](PlaywrightEx.Page.html#module-console) event is fired.
 
   ## Arguments
@@ -6388,9 +6388,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -6442,7 +6442,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_download_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_download`, see its docs."
+  @typedoc "Options of `expect_download/3`, see its docs."
   @type expect_download_options ::
           [
             predicate: (PlaywrightEx.Download.t() -> boolean()),
@@ -6458,7 +6458,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a new [`Download`](`PlaywrightEx.Download`). If predicate is provided, it passes
-  [`Download`](`PlaywrightEx.Download`) value into the `predicate` function and waits for `predicate(download)` to return a truthy value.
+  [`Download`](`PlaywrightEx.Download`) value into the `:predicate` function and waits for `predicate(download)` to return a truthy value.
   Will throw an error if the page is closed before the download event is fired.
 
   ## Arguments
@@ -6467,9 +6467,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`Download`](`PlaywrightEx.Download`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`Download`](`PlaywrightEx.Download`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -6520,7 +6520,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_event`, see its docs."
+  @typedoc "Options of `expect_event/4`, see its docs."
   @type expect_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -6545,16 +6545,16 @@ defmodule PlaywrightEx.Page do
 
   ## Arguments
 
-  * `event` - Event name, same one typically passed into `*.on(event)`.
+  * `event` - Event name, same one typically passed into `PlaywrightEx.Page.on/3`.
   * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+    The default value can be changed with `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
@@ -6606,7 +6606,7 @@ defmodule PlaywrightEx.Page do
   @expect_file_chooser_options {:object,
                                 %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_file_chooser`, see its docs."
+  @typedoc "Options of `expect_file_chooser/3`, see its docs."
   @type expect_file_chooser_options ::
           [
             predicate: (PlaywrightEx.FileChooser.t() -> boolean()),
@@ -6622,7 +6622,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a new [`FileChooser`](`PlaywrightEx.FileChooser`) to be created. If predicate is provided, it passes
-  [`FileChooser`](`PlaywrightEx.FileChooser`) value into the `predicate` function and waits for `predicate(fileChooser)` to return a truthy value.
+  [`FileChooser`](`PlaywrightEx.FileChooser`) value into the `:predicate` function and waits for `predicate(fileChooser)` to return a truthy value.
   Will throw an error if the page is closed before the file chooser is opened.
 
   ## Arguments
@@ -6631,9 +6631,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`FileChooser`](`PlaywrightEx.FileChooser`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`FileChooser`](`PlaywrightEx.FileChooser`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -6698,7 +6698,7 @@ defmodule PlaywrightEx.Page do
                                 signal: {:signal, nil}
                               }}
 
-  @typedoc "Options of `expect_navigation`, see its docs."
+  @typedoc "Options of `expect_navigation/3`, see its docs."
   @type expect_navigation_options ::
           [
             timeout: number() | :infinity,
@@ -6717,8 +6717,8 @@ defmodule PlaywrightEx.Page do
   @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
   @doc ~S"""
   Waits for the main frame navigation and returns the main resource response. In case of multiple redirects, the navigation
-  will resolve with the response of the last redirect. In case of navigation to a different anchor or navigation due to
-  History API usage, the navigation will resolve with `null`.
+  returns the response of the last redirect. In case of navigation to a different anchor or navigation due to
+  History API usage, the navigation returns `nil`.
 
   **Usage**
 
@@ -6755,12 +6755,12 @@ defmodule PlaywrightEx.Page do
   * `:url` - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
-  * `:wait_until` - When to consider operation succeeded, defaults to `load`. Events can be either:
+  * `:wait_until` - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
-    * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
-    * `'load'` - consider operation to be finished when the `load` event is fired.
-    * `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
-    * `'commit'` - consider operation to be finished when network response is received and the document started loading.
+    * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
+    * `:load` - consider operation to be finished when the `load` event is fired.
+    * `:networkidle` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
+    * `:commit` - consider operation to be finished when network response is received and the document started loading.
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -6798,7 +6798,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_popup_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_popup`, see its docs."
+  @typedoc "Options of `expect_popup/3`, see its docs."
   @type expect_popup_options ::
           [
             predicate: (PlaywrightEx.Page.t() -> boolean()),
@@ -6814,7 +6814,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a popup [`Page`](`PlaywrightEx.Page`). If predicate is provided, it passes
-  `Popup` value into the `predicate` function and waits for `predicate(page)` to return a truthy value.
+  `Popup` value into the `:predicate` function and waits for `predicate(page)` to return a truthy value.
   Will throw an error if the page is closed before the popup event is fired.
 
   ## Arguments
@@ -6823,9 +6823,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`Page`](`PlaywrightEx.Page`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`Page`](`PlaywrightEx.Page`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -6876,7 +6876,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_request_options {:object, %{timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_request`, see its docs."
+  @typedoc "Options of `expect_request/4`, see its docs."
   @type expect_request_options ::
           [timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{optional(:timeout) => number() | :infinity, optional(:signal) => PlaywrightEx.AbortSignal.t()}
@@ -6906,7 +6906,7 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `url_or_predicate` - Request URL string, regex or predicate receiving [`Request`](`PlaywrightEx.Request`) object.
-    When a `baseURL` via the context options was provided and the passed URL is a path,
+    When a `:base_url` via the context options was provided and the passed URL is a path,
     it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
   * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
 
@@ -6962,7 +6962,7 @@ defmodule PlaywrightEx.Page do
   @expect_request_finished_options {:object,
                                     %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_request_finished`, see its docs."
+  @typedoc "Options of `expect_request_finished/3`, see its docs."
   @type expect_request_finished_options ::
           [
             predicate: (PlaywrightEx.Request.t() -> boolean()),
@@ -6978,7 +6978,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.12"
   @doc ~S"""
   Performs action and waits for a [`Request`](`PlaywrightEx.Request`) to finish loading. If predicate is provided, it passes
-  [`Request`](`PlaywrightEx.Request`) value into the `predicate` function and waits for `predicate(request)` to return a truthy value.
+  [`Request`](`PlaywrightEx.Request`) value into the `:predicate` function and waits for `predicate(request)` to return a truthy value.
   Will throw an error if the page is closed before the [`Page.on(:request_finished)`](PlaywrightEx.Page.html#module-request_finished) event is fired.
 
   ## Arguments
@@ -6987,9 +6987,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`Request`](`PlaywrightEx.Request`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`Request`](`PlaywrightEx.Request`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -7041,7 +7041,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_response_options {:object, %{timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_response`, see its docs."
+  @typedoc "Options of `expect_response/4`, see its docs."
   @type expect_response_options ::
           [timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{optional(:timeout) => number() | :infinity, optional(:signal) => PlaywrightEx.AbortSignal.t()}
@@ -7072,7 +7072,7 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `url_or_predicate` - Request URL string, regex or predicate receiving [`Response`](`PlaywrightEx.Response`) object.
-    When a `baseURL` via the context options was provided and the passed URL is a path,
+    When a `:base_url` via the context options was provided and the passed URL is a path,
     it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
   * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
 
@@ -7127,7 +7127,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_websocket_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_websocket`, see its docs."
+  @typedoc "Options of `expect_websocket/3`, see its docs."
   @type expect_websocket_options ::
           [
             predicate: (PlaywrightEx.WebSocket.t() -> boolean()),
@@ -7143,7 +7143,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a new [`WebSocket`](`PlaywrightEx.WebSocket`). If predicate is provided, it passes
-  [`WebSocket`](`PlaywrightEx.WebSocket`) value into the `predicate` function and waits for `predicate(webSocket)` to return a truthy value.
+  [`WebSocket`](`PlaywrightEx.WebSocket`) value into the `:predicate` function and waits for `predicate(webSocket)` to return a truthy value.
   Will throw an error if the page is closed before the WebSocket event is fired.
 
   ## Arguments
@@ -7152,9 +7152,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`WebSocket`](`PlaywrightEx.WebSocket`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`WebSocket`](`PlaywrightEx.WebSocket`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -7205,7 +7205,7 @@ defmodule PlaywrightEx.Page do
 
   @expect_worker_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_worker`, see its docs."
+  @typedoc "Options of `expect_worker/3`, see its docs."
   @type expect_worker_options ::
           [
             predicate: (PlaywrightEx.Worker.t() -> boolean()),
@@ -7221,7 +7221,7 @@ defmodule PlaywrightEx.Page do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a new [`Worker`](`PlaywrightEx.Worker`). If predicate is provided, it passes
-  [`Worker`](`PlaywrightEx.Worker`) value into the `predicate` function and waits for `predicate(worker)` to return a truthy value.
+  [`Worker`](`PlaywrightEx.Worker`) value into the `:predicate` function and waits for `predicate(worker)` to return a truthy value.
   Will throw an error if the page is closed before the worker event is fired.
 
   ## Arguments
@@ -7230,9 +7230,9 @@ defmodule PlaywrightEx.Page do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`Worker`](`PlaywrightEx.Worker`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`Worker`](`PlaywrightEx.Worker`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 

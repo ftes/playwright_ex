@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Route do
   @continue_options {:object,
                      %{headers: {:headers, nil}, method: {:method, nil}, post_data: {:postData, nil}, url: {:url, nil}}}
 
-  @typedoc "Options of `continue`, see its docs."
+  @typedoc "Options of `continue/2`, see its docs."
   @type continue_options ::
           [
             headers: %{optional(String.t()) => String.t()},
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Route do
 
   **Details**
 
-  The `headers` option applies to both the routed request and any redirects it initiates. However, `url`, `method`, and `postData` only apply to the original request and are not carried over to redirected requests.
+  The `:headers` option applies to both the routed request and any redirects it initiates. However, `:url`, `:method`, and `:post_data` only apply to the original request and are not carried over to redirected requests.
 
   `PlaywrightEx.Route.continue/2` will immediately send the request to the network, other matching handlers won't be invoked. Use `PlaywrightEx.Route.fallback/2` If you want next matching handler in the chain to be invoked.
 
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Route do
   @fallback_options {:object,
                      %{headers: {:headers, nil}, method: {:method, nil}, post_data: {:postData, nil}, url: {:url, nil}}}
 
-  @typedoc "Options of `fallback`, see its docs."
+  @typedoc "Options of `fallback/2`, see its docs."
   @type fallback_options ::
           [
             headers: %{optional(String.t()) => String.t()},
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Route do
                     url: {:url, nil}
                   }}
 
-  @typedoc "Options of `fetch`, see its docs."
+  @typedoc "Options of `fetch/2`, see its docs."
   @type fetch_options ::
           [
             headers: %{optional(String.t()) => String.t()},
@@ -294,7 +294,7 @@ defmodule PlaywrightEx.Route do
 
   **Details**
 
-  Note that `headers` option will apply to the fetched request as well as any redirects initiated by it. If you want to only apply `headers` to the original request, but not to redirects, look into `PlaywrightEx.Route.continue/2` instead.
+  Note that `:headers` option will apply to the fetched request as well as any redirects initiated by it. If you want to only apply `:headers` to the original request, but not to redirects, look into `PlaywrightEx.Route.continue/2` instead.
 
   ## Options
 
@@ -340,7 +340,7 @@ defmodule PlaywrightEx.Route do
                       status: {:status, nil}
                     }}
 
-  @typedoc "Options of `fulfill`, see its docs."
+  @typedoc "Options of `fulfill/2`, see its docs."
   @type fulfill_options ::
           [
             body: String.t() | {:binary, binary()},
@@ -387,7 +387,7 @@ defmodule PlaywrightEx.Route do
   * `:content_type` - If set, equals to setting `Content-Type` response header.
   * `:headers` - Response headers. Header values will be converted to a string.
   * `:json` - *Since 1.29.* JSON response. This method will set the content type to `application/json` if not set.
-  * `:path` - File path to respond with. The content type will be inferred from file extension. If `path` is a relative path, then it
+  * `:path` - File path to respond with. The content type will be inferred from file extension. If `:path` is a relative path, then it
     is resolved relative to the current working directory.
   * `:response` - *Since 1.15.* [`APIResponse`](`PlaywrightEx.APIResponse`) to fulfill route's request with. Individual fields of the response (such as headers) can be overridden using fulfill options.
   * `:status` - Response status code, defaults to `200`.

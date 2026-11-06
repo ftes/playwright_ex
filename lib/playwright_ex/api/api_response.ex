@@ -100,7 +100,7 @@ defmodule PlaywrightEx.APIResponse do
 
   @doc since: "1.61"
   @doc ~S"""
-  Returns SSL and other security information. Resolves to `null` for non-HTTPS responses. For redirected requests, returns the information for the last request in the redirect chain.
+  Returns SSL and other security information. Returns `nil` for non-HTTPS responses. For redirected requests, returns the information for the last request in the redirect chain.
   """
   @spec security_details(t()) ::
           {:ok,
@@ -138,7 +138,7 @@ defmodule PlaywrightEx.APIResponse do
 
   @doc since: "1.61"
   @doc ~S"""
-  Returns the IP address and port of the server. Resolves to `null` if the server address is not available. For redirected requests, returns the information for the last request in the redirect chain.
+  Returns the IP address and port of the server. Returns `nil` if the server address is not available. For redirected requests, returns the information for the last request in the redirect chain.
   """
   @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Exception.t()}
   def server_addr(api_response) do

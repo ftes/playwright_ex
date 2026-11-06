@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Tracing do
                     title: {:title, nil}
                   }}
 
-  @typedoc "Options of `start`, see its docs."
+  @typedoc "Options of `start/2`, see its docs."
   @type start_options ::
           [
             live: boolean(),
@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Tracing do
     instead of caching changes and archiving them into a zip file at the end. This is useful for live trace
     viewing during test execution.
   * `:name` - If specified, intermediate trace files are going to be saved into the files with the
-    given name prefix inside the `tracesDir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
+    given name prefix inside the `:traces_dir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
     To specify the final trace zip file name, you need to pass `path` option to
     `PlaywrightEx.Tracing.stop/2` instead.
   * `:screenshots` - Whether to capture screenshots during tracing. Screenshots are used to build
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Tracing do
 
   @start_chunk_options {:object, %{name: {:name, nil}, title: {:title, nil}}}
 
-  @typedoc "Options of `start_chunk`, see its docs."
+  @typedoc "Options of `start_chunk/2`, see its docs."
   @type start_chunk_options ::
           [name: String.t(), title: String.t()] | %{optional(:name) => String.t(), optional(:title) => String.t()}
 
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Tracing do
   ## Options
 
   * `:name` - *Since 1.32.* If specified, intermediate trace files are going to be saved into the files with the
-    given name prefix inside the `tracesDir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
+    given name prefix inside the `:traces_dir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
     To specify the final trace zip file name, you need to pass `path` option to
     `PlaywrightEx.Tracing.stop_chunk/2` instead.
   * `:title` - *Since 1.17.* Trace name to be shown in the Trace Viewer.
@@ -163,7 +163,7 @@ defmodule PlaywrightEx.Tracing do
                         url_filter: {:urlFilter, nil}
                       }}
 
-  @typedoc "Options of `start_har`, see its docs."
+  @typedoc "Options of `start_har/3`, see its docs."
   @type start_har_options ::
           [
             content: :omit | :embed | :attach,
@@ -199,8 +199,8 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `attach` for `.zip` output files and to `embed` for all other file extensions.
-  * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
+  * `:content` - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `:attach` for `.zip` output files and to `embed` for all other file extensions.
+  * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:full`.
   * `:resources_dir` - Only used together with `content: 'attach'`. When set, response bodies are placed in this directory instead of next to
     the HAR file. Not compatible with a `.zip` HAR file.
   * `:url_filter` - A glob or regex pattern to filter requests that are stored in the HAR. Defaults to none.
@@ -221,7 +221,7 @@ defmodule PlaywrightEx.Tracing do
 
   @group_options {:object, %{location: {:location, {:fields, %{file: nil, line: nil, column: nil}}}}}
 
-  @typedoc "Options of `group`, see its docs."
+  @typedoc "Options of `group/3`, see its docs."
   @type group_options ::
           [location: %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}]
           | %{
@@ -294,7 +294,7 @@ defmodule PlaywrightEx.Tracing do
 
   @stop_options {:object, %{path: {:path, nil}}}
 
-  @typedoc "Options of `stop`, see its docs."
+  @typedoc "Options of `stop/2`, see its docs."
   @type stop_options :: [path: String.t()] | %{optional(:path) => String.t()}
 
   @doc since: "1.12"
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Tracing do
 
   @stop_chunk_options {:object, %{path: {:path, nil}}}
 
-  @typedoc "Options of `stop_chunk`, see its docs."
+  @typedoc "Options of `stop_chunk/2`, see its docs."
   @type stop_chunk_options :: [path: String.t()] | %{optional(:path) => String.t()}
 
   @doc since: "1.15"

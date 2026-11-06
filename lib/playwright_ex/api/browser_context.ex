@@ -315,7 +315,7 @@ defmodule PlaywrightEx.BrowserContext do
   @add_init_script_script {:fields, %{path: nil, content: nil}}
   @add_init_script_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
 
-  @typedoc "Options of `add_init_script`, see its docs."
+  @typedoc "Options of `add_init_script/4`, see its docs."
   @type add_init_script_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
@@ -404,7 +404,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc ~S"""
-  Gets the browser instance that owns the context. Returns `null` if the context is created outside of normal browser, e.g. Android or Electron.
+  Gets the browser instance that owns the context. Returns `nil` if the context is created outside of normal browser, e.g. Android or Electron.
   """
   @spec browser(t()) :: nil | PlaywrightEx.Browser.t()
   def browser(browser_context) do
@@ -413,7 +413,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @clear_cookies_options {:object, %{domain: {:domain, nil}, name: {:name, nil}, path: {:path, nil}}}
 
-  @typedoc "Options of `clear_cookies`, see its docs."
+  @typedoc "Options of `clear_cookies/2`, see its docs."
   @type clear_cookies_options ::
           [
             domain: String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -498,7 +498,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @close_options {:object, %{reason: {:reason, nil}}}
 
-  @typedoc "Options of `close`, see its docs."
+  @typedoc "Options of `close/2`, see its docs."
   @type close_options :: [reason: String.t()] | %{optional(:reason) => String.t()}
 
   @doc since: "1.8"
@@ -586,7 +586,7 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc since: "1.8"
-  @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`. If the `callback` returns a `Promise`, it will be awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `PlaywrightEx.Page.expose_binding/3` for page-only version.\n\n**Usage**\n\nAn example of exposing page URL to all frames in all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\nBrowserContext.expose_binding!(context, \"pageURL\", fn %{page: page} -> Page.url(page) end)\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
+  @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`. If `callback` returns a `PlaywrightEx.Promise`, it is awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `PlaywrightEx.Page.expose_binding/3` for page-only version.\n\n**Usage**\n\nAn example of exposing page URL to all frames in all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\nBrowserContext.expose_binding!(context, \"pageURL\", fn %{page: page} -> Page.url(page) end)\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_binding(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def expose_binding(browser_context, name, callback) do
     Facade.async("browserContext.exposeBinding", browser_context, fn ->
@@ -604,7 +604,7 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc since: "1.8"
-  @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`.\n\nIf the `callback` returns a `Promise`, it will be awaited.\n\nSee `PlaywrightEx.Page.expose_function/3` for page-only version.\n\n**Usage**\n\nAn example of adding a `sha256` function to all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\n\nBrowserContext.expose_function!(context, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
+  @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`.\n\nIf `callback` returns a `PlaywrightEx.Promise`, it is awaited.\n\nSee `PlaywrightEx.Page.expose_function/3` for page-only version.\n\n**Usage**\n\nAn example of adding a `sha256` function to all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\n\nBrowserContext.expose_function!(context, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_function(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def expose_function(browser_context, name, callback) do
     Facade.async("browserContext.exposeFunction", browser_context, fn ->
@@ -623,7 +623,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @grant_permissions_options {:object, %{origin: {:origin, nil}}}
 
-  @typedoc "Options of `grant_permissions`, see its docs."
+  @typedoc "Options of `grant_permissions/3`, see its docs."
   @type grant_permissions_options :: [origin: String.t()] | %{optional(:origin) => String.t()}
 
   @doc since: "1.8"
@@ -759,14 +759,14 @@ defmodule PlaywrightEx.BrowserContext do
                                       {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
                                  }}
 
-  @typedoc "Options of `remove_all_listeners`, see its docs."
+  @typedoc "Options of `remove_all_listeners/3`, see its docs."
   @type remove_all_listeners_options ::
           [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
 
   @doc since: "1.47"
   @doc ~S"""
   Removes all the listeners of the given type (or all registered listeners if no type given).
-  Allows to wait for async listeners to complete or to ignore subsequent errors from these listeners.
+  Allows to wait for running listeners to complete or to ignore subsequent errors from these listeners.
 
   ## Options
 
@@ -774,9 +774,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `:behavior` - Specifies whether to wait for already running listeners and what to do if they throw errors:
 
-    * `'default'` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
-    * `'wait'` - wait for current listener calls (if any) to finish
-    * `'ignoreErrors'` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
+    * `:default` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
+    * `:wait` - wait for current listener calls (if any) to finish
+    * `:ignore_errors` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
           :ok | {:error, Exception.t()}
@@ -827,7 +827,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @route_options {:object, %{times: {:times, nil}}}
 
-  @typedoc "Options of `route`, see its docs."
+  @typedoc "Options of `route/4`, see its docs."
   @type route_options :: [times: integer()] | %{optional(:times) => integer()}
 
   @doc since: "1.8"
@@ -837,7 +837,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   > #### Note {: .info}
   >
-  > `PlaywrightEx.BrowserContext.route/4` will not intercept requests intercepted by Service Worker. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+  > `PlaywrightEx.BrowserContext.route/4` will not intercept requests intercepted by Service Worker. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `:service_workers` to `:block`.
 
   **Usage**
 
@@ -884,7 +884,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `baseURL` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `:base_url` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
   * `handler` - handler function to route the request.
 
   ## Options
@@ -930,7 +930,7 @@ defmodule PlaywrightEx.BrowserContext do
                              url: {:url, nil}
                            }}
 
-  @typedoc "Options of `route_from_har`, see its docs."
+  @typedoc "Options of `route_from_har/3`, see its docs."
   @type route_from_har_options ::
           [
             not_found: :abort | :fallback,
@@ -951,7 +951,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc ~S"""
   If specified the network requests that are made in the context will be served from the HAR file. Read more about [Replaying from HAR](https://playwright.dev/docs/mock#replaying-from-har).
 
-  Playwright will not serve requests intercepted by Service Worker from the HAR file. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `serviceWorkers` to `'block'`.
+  Playwright will not serve requests intercepted by Service Worker from the HAR file. See [this](https://github.com/microsoft/playwright/issues/1090) issue. We recommend disabling Service Workers when using request interception by setting `:service_workers` to `:block`.
 
   ## Arguments
 
@@ -967,7 +967,7 @@ defmodule PlaywrightEx.BrowserContext do
     Defaults to abort.
   * `:update` - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.
   * `:update_content` - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
-  * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
+  * `:update_mode` - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:minimal`.
   * `:url` - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
   """
   @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Exception.t()}
@@ -1013,7 +1013,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-  * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `baseURL` context option.
+  * `url` - Only WebSockets with the url matching this pattern will be routed. A string pattern can be relative to the `:base_url` context option.
   * `handler` - Handler function to route the WebSocket.
   """
   @spec route_web_socket(
@@ -1144,7 +1144,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @doc since: "1.8"
   @doc ~S"""
-  Sets the context's geolocation. Passing `null` or `undefined` emulates position unavailable.
+  Sets the context's geolocation. Passing `:null` emulates position unavailable.
 
   **Usage**
 
@@ -1277,7 +1277,7 @@ defmodule PlaywrightEx.BrowserContext do
                             path: {:path, nil}
                           }}
 
-  @typedoc "Options of `storage_state`, see its docs."
+  @typedoc "Options of `storage_state/2`, see its docs."
   @type storage_state_options ::
           [credentials: boolean(), indexed_db: boolean(), opfs: boolean(), path: String.t()]
           | %{
@@ -1295,7 +1295,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `:credentials` - *Since 1.61.* Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage
     state snapshot. The captured credentials carry their private keys and signature counters, so they can be re-seeded into a later context via the
-    `storageState` option or `PlaywrightEx.BrowserContext.set_storage_state/2`.
+    `:storage_state` option or `PlaywrightEx.BrowserContext.set_storage_state/2`.
     Note that restoring the storage state that contains credentials will automatically install the virtual WebAuthn authenticator (see `PlaywrightEx.Credentials.install/1`), and prevent all real authenticators from working in this context.
   * `:indexed_db` - *Since 1.51.* Set to `true` to include [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) in the storage state snapshot.
     If your application uses IndexedDB to store authentication tokens, like Firebase Authentication, enable this.
@@ -1305,7 +1305,7 @@ defmodule PlaywrightEx.BrowserContext do
     > #### Note {: .info}
     >
     > OPFS is currently not supported in ephemeral WebKit contexts.
-  * `:path` - The file path to save the storage state to. If `path` is a relative path, then it is resolved relative to
+  * `:path` - The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to
     current working directory. If no path is provided, storage
     state is still returned, but won't be saved to the disk.
   """
@@ -1499,7 +1499,7 @@ defmodule PlaywrightEx.BrowserContext do
                             {:behavior, {:enum, %{wait: "wait", ignore_errors: "ignoreErrors", default: "default"}}}
                         }}
 
-  @typedoc "Options of `unroute_all`, see its docs."
+  @typedoc "Options of `unroute_all/2`, see its docs."
   @type unroute_all_options ::
           [behavior: :wait | :ignore_errors | :default] | %{optional(:behavior) => :wait | :ignore_errors | :default}
 
@@ -1511,9 +1511,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   * `:behavior` - Specifies whether to wait for already running handlers and what to do if they throw errors:
 
-    * `'default'` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
-    * `'wait'` - wait for current handler calls (if any) to finish
-    * `'ignoreErrors'` - do not wait for current handler calls (if any) to finish, all errors thrown by the handlers after unrouting are silently caught
+    * `:default` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
+    * `:wait` - wait for current handler calls (if any) to finish
+    * `:ignore_errors` - do not wait for current handler calls (if any) to finish, all errors thrown by the handlers after unrouting are silently caught
   """
   @spec unroute_all(t(), unroute_all_options()) :: :ok | {:error, Exception.t()}
   def unroute_all(browser_context, options \\ []) do
@@ -1572,7 +1572,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `wait_for_event`, see its docs."
+  @typedoc "Options of `wait_for_event/3`, see its docs."
   @type wait_for_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -1596,13 +1596,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-  * `event` - Event name, same one would pass into `browserContext.on(event)`.
+  * `event` - Event name, same one would pass into `PlaywrightEx.BrowserContext.on/3`.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -1612,7 +1612,7 @@ defmodule PlaywrightEx.BrowserContext do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.BrowserContext.wait_for_event(browser_context, event)
@@ -1647,7 +1647,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_event/3` and await it after the action, or use the callback form `expect_event!/4`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_event/3` before the action and await it after, or use the callback form `expect_event!/4`:
   >
   > ```elixir
   > promise = PlaywrightEx.BrowserContext.wait_for_event(browser_context, event)
@@ -1666,7 +1666,7 @@ defmodule PlaywrightEx.BrowserContext do
   @expect_console_message_options {:object,
                                    %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_console_message`, see its docs."
+  @typedoc "Options of `expect_console_message/3`, see its docs."
   @type expect_console_message_options ::
           [
             predicate: (PlaywrightEx.ConsoleMessage.t() -> boolean()),
@@ -1682,7 +1682,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc since: "1.34"
   @doc ~S"""
   Performs action and waits for a [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) to be logged by in the pages in the context. If predicate is provided, it passes
-  [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) value into the `predicate` function and waits for `predicate(message)` to return a truthy value.
+  [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) value into the `:predicate` function and waits for `predicate(message)` to return a truthy value.
   Will throw an error if the page is closed before the [`BrowserContext.on(:console)`](PlaywrightEx.BrowserContext.html#module-console) event is fired.
 
   ## Arguments
@@ -1691,9 +1691,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -1745,7 +1745,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_event`, see its docs."
+  @typedoc "Options of `expect_event/4`, see its docs."
   @type expect_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -1769,14 +1769,14 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-  * `event` - Event name, same one would pass into `browserContext.on(event)`.
+  * `event` - Event name, same one would pass into `PlaywrightEx.BrowserContext.on/3`.
   * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
@@ -1829,7 +1829,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   @expect_page_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_page`, see its docs."
+  @typedoc "Options of `expect_page/3`, see its docs."
   @type expect_page_options ::
           [
             predicate: (PlaywrightEx.Page.t() -> boolean()),
@@ -1845,7 +1845,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc since: "1.9"
   @doc ~S"""
   Performs action and waits for a new [`Page`](`PlaywrightEx.Page`) to be created in the context. If predicate is provided, it passes
-  [`Page`](`PlaywrightEx.Page`) value into the `predicate` function and waits for `predicate(event)` to return a truthy value.
+  [`Page`](`PlaywrightEx.Page`) value into the `:predicate` function and waits for `predicate(event)` to return a truthy value.
   Will throw an error if the context closes before new [`Page`](`PlaywrightEx.Page`) is created.
 
   ## Arguments
@@ -1854,9 +1854,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the [`Page`](`PlaywrightEx.Page`) object and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the [`Page`](`PlaywrightEx.Page`) object and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 

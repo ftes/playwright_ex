@@ -58,7 +58,7 @@ defmodule PlaywrightEx.FileChooser do
                     ]}
   @set_files_options {:object, %{no_wait_after: {:noWaitAfter, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
-  @typedoc "Options of `set_files`, see its docs."
+  @typedoc "Options of `set_files/3`, see its docs."
   @type set_files_options ::
           [no_wait_after: boolean(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.FileChooser do
 
   @doc since: "1.8"
   @doc ~S"""
-  Sets the value of the file input this chooser is associated with. If some of the `filePaths` are relative paths, then
+  Sets the value of the file input this chooser is associated with. If some of the `files` are relative paths, then
   they are resolved relative to the current working directory. For empty array, clears the selected files.
 
   ## Arguments

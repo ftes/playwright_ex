@@ -1146,3 +1146,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
   linked from README and getting started; the guide's GitHub Actions snippet uses
   `upload-artifact@v7` (latest; it said v4). Open for the user: the failure-artifacts recipe in
   "Testing with ExUnit" (trace every test, write on exit, a formatter deletes passing tests' files).
+- Lead, docs: the five example groups are merged (all of the facade's runnable JS examples are
+  Elixir; 262/255/253 examples pass on chromium/firefox/webkit). ExampleCase routes contexts an
+  example creates itself to its `html:` (per test; the duplicate `setup_all` hook dropped), `:after`
+  runs unrendered cleanup, a single `test` body runs as the example. Prose polish merged (no
+  `null`/`undefined`/JS option names left; `test/playwright_ex/api_docs_test.exs` guards it). The
+  options typedoc names `fun/arity`, so ExDoc links it (user).

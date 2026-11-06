@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Debugger do
 
   @doc since: "1.59"
   @doc ~S"""
-  Returns details about the currently paused call. Returns `null` if the debugger is not paused.
+  Returns details about the currently paused call. Returns `nil` if the debugger is not paused.
   """
   @spec paused_details(t()) ::
           nil

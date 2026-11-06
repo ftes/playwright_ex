@@ -15,7 +15,7 @@ defmodule PlaywrightEx.JSHandle do
   `PlaywrightEx.JSHandle.dispose/1`. JSHandles are auto-disposed when their origin frame gets navigated or the parent context
   gets destroyed.
 
-  JSHandle instances can be used as an argument in [`Page.evalOnSelector`](https://playwright.dev/docs/api/class-page#page-eval-on-selector), `PlaywrightEx.Page.evaluate/4` and
+  JSHandle instances can be used as an argument in `PlaywrightEx.Page.eval_on_selector/4`, `PlaywrightEx.Page.evaluate/4` and
   `PlaywrightEx.Page.evaluate_handle/4` methods.
   """
 
@@ -31,7 +31,7 @@ defmodule PlaywrightEx.JSHandle do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns either `null` or the object handle itself, if the object handle is an instance of [`ElementHandle`](`PlaywrightEx.ElementHandle`).
+  Returns either `nil` or the object handle itself, if the object handle is an instance of [`ElementHandle`](`PlaywrightEx.ElementHandle`).
   """
   @spec as_element(t()) :: nil | PlaywrightEx.ElementHandle.t()
   def as_element(js_handle) do
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.JSHandle do
 
   @doc since: "1.8"
   @doc ~S"""
-  The `jsHandle.dispose` method stops referencing the element handle.
+  The `PlaywrightEx.JSHandle.dispose/1` method stops referencing the element handle.
   """
   @spec dispose(t()) :: :ok | {:error, Exception.t()}
   def dispose(js_handle) do
@@ -56,16 +56,16 @@ defmodule PlaywrightEx.JSHandle do
 
   @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
 
-  @typedoc "Options of `evaluate`, see its docs."
+  @typedoc "Options of `evaluate/4`, see its docs."
   @type evaluate_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the return value of `pageFunction`.
+  Returns the return value of `expression`.
 
-  This method passes this handle as the first argument to `pageFunction`.
+  This method passes this handle as the first argument to `expression`.
 
-  If `pageFunction` returns a `Promise`, then `handle.evaluate` would wait for the promise to resolve and return
+  If `expression` returns a `Promise`, then `PlaywrightEx.JSHandle.evaluate/4` would wait for the promise to resolve and return
   its value.
 
   **Usage**
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.JSHandle do
   ## Arguments
 
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
 
   ## Options
 
@@ -106,18 +106,18 @@ defmodule PlaywrightEx.JSHandle do
 
   @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
 
-  @typedoc "Options of `evaluate_handle`, see its docs."
+  @typedoc "Options of `evaluate_handle/4`, see its docs."
   @type evaluate_handle_options :: [expose_functions: boolean()] | %{optional(:expose_functions) => boolean()}
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the return value of `pageFunction` as a [`JSHandle`](`PlaywrightEx.JSHandle`).
+  Returns the return value of `expression` as a [`JSHandle`](`PlaywrightEx.JSHandle`).
 
-  This method passes this handle as the first argument to `pageFunction`.
+  This method passes this handle as the first argument to `expression`.
 
-  The only difference between `jsHandle.evaluate` and `jsHandle.evaluateHandle` is that `jsHandle.evaluateHandle` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
+  The only difference between `PlaywrightEx.JSHandle.evaluate/4` and `PlaywrightEx.JSHandle.evaluate_handle/4` is that `PlaywrightEx.JSHandle.evaluate_handle/4` returns [`JSHandle`](`PlaywrightEx.JSHandle`).
 
-  If the function passed to the `jsHandle.evaluateHandle` returns a `Promise`, then `jsHandle.evaluateHandle` would wait
+  If the function passed to the `PlaywrightEx.JSHandle.evaluate_handle/4` returns a `Promise`, then `PlaywrightEx.JSHandle.evaluate_handle/4` would wait
   for the promise to resolve and return its value.
 
   See `PlaywrightEx.Page.evaluate_handle/4` for more details.
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.JSHandle do
   ## Arguments
 
   * `expression` - Function to be evaluated in the page context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
 
   ## Options
 

@@ -3,7 +3,7 @@
 defmodule PlaywrightEx.Video do
   @moduledoc since: "1.8"
   @moduledoc ~S"""
-  When browser context is created with the `recordVideo` option, each page has a video object associated with it.
+  When browser context is created with the `:record_video` option, each page has a video object associated with it.
 
   ```elixir
   IO.puts(Page.video(page) |> Video.path!())

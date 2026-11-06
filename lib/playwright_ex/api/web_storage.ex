@@ -3,7 +3,7 @@
 defmodule PlaywrightEx.WebStorage do
   @moduledoc since: "1.61"
   @moduledoc ~S"""
-  WebStorage exposes the page's `localStorage` or `sessionStorage` for the current origin via an async,
+  WebStorage exposes the page's `localStorage` or `sessionStorage` for the current origin via a
   [browser-consistent](https://developer.mozilla.org/en-US/docs/Web/API/Storage) API.
 
   Instances are accessed through `PlaywrightEx.Page.local_storage/1` and `PlaywrightEx.Page.session_storage/1`.

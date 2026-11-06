@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Download do
   @doc since: "1.13"
   @doc ~S"""
   Cancels a download. Will not fail if the download is already finished or canceled.
-  Upon successful cancellations, `download.failure()` would resolve to `'canceled'`.
+  Upon successful cancellations, `PlaywrightEx.Download.failure/1` returns `'canceled'`.
   """
   @spec cancel(t()) :: :ok | {:error, Exception.t()}
   def cancel(download) do

@@ -44,18 +44,18 @@ defmodule PlaywrightEx.Worker do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the return value of `pageFunction`.
+  Returns the return value of `expression`.
 
   If the function passed to the `PlaywrightEx.Worker.evaluate/3` returns a `Promise`, then `PlaywrightEx.Worker.evaluate/3` would wait for the promise
   to resolve and return its value.
 
-  If the function passed to the `PlaywrightEx.Worker.evaluate/3` returns a non-`Serializable` value, then `PlaywrightEx.Worker.evaluate/3` returns `undefined`. Playwright also supports transferring some
+  If the function passed to the `PlaywrightEx.Worker.evaluate/3` returns a non-`Serializable` value, then `PlaywrightEx.Worker.evaluate/3` returns `nil`. Playwright also supports transferring some
   additional values that are not serializable by `JSON`: `-0`, `NaN`, `Infinity`, `-Infinity`.
 
   ## Arguments
 
   * `expression` - Function to be evaluated in the worker context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
   """
   @spec evaluate(t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Exception.t()}
   def evaluate(worker, expression, arg \\ nil) do
@@ -71,7 +71,7 @@ defmodule PlaywrightEx.Worker do
 
   @doc since: "1.8"
   @doc ~S"""
-  Returns the return value of `pageFunction` as a [`JSHandle`](`PlaywrightEx.JSHandle`).
+  Returns the return value of `expression` as a [`JSHandle`](`PlaywrightEx.JSHandle`).
 
   The only difference between `PlaywrightEx.Worker.evaluate/3` and
   `PlaywrightEx.Worker.evaluate_handle/3` is that `PlaywrightEx.Worker.evaluate_handle/3`
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Worker do
   ## Arguments
 
   * `expression` - Function to be evaluated in the worker context.
-  * `arg` - Optional argument to pass to `pageFunction`.
+  * `arg` - Optional argument to pass to `expression`.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil) :: {:ok, PlaywrightEx.JSHandle.t()} | {:error, Exception.t()}
   def evaluate_handle(worker, expression, arg \\ nil) do
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Worker do
 
   @wait_for_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `wait_for_event`, see its docs."
+  @typedoc "Options of `wait_for_event/3`, see its docs."
   @type wait_for_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -137,15 +137,15 @@ defmodule PlaywrightEx.Worker do
 
   ## Arguments
 
-  * `event` - Event name, same one typically passed into `*.on(event)`.
+  * `event` - Event name, same one typically passed into `PlaywrightEx.Worker.on/3`.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+    The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Worker do
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
 
-  Returns a `PlaywrightEx.Promise` at once: the wait is set up before it returns, as JS starts it without `await`. Start it before the action that triggers it, await it after with `PlaywrightEx.Promise.await/1`:
+  Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
   ```elixir
   promise = PlaywrightEx.Worker.wait_for_event(worker, event)
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.Worker do
 
   > #### Start waiting before the action {: .warning}
   >
-  > This waits from the time it is called, so it misses what the code before it triggered. JS starts the wait without `await` before the action: start it with `wait_for_event/3` and await it after the action, or use the callback form `expect_event!/4`:
+  > This waits from the time it is called, so it misses what the code before it triggered. Start the wait with `wait_for_event/3` before the action and await it after, or use the callback form `expect_event!/4`:
   >
   > ```elixir
   > promise = PlaywrightEx.Worker.wait_for_event(worker, event)
@@ -206,7 +206,7 @@ defmodule PlaywrightEx.Worker do
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 
-  @typedoc "Options of `expect_event`, see its docs."
+  @typedoc "Options of `expect_event/4`, see its docs."
   @type expect_event_options ::
           [predicate: fun(), timeout: number() | :infinity, signal: PlaywrightEx.AbortSignal.t()]
           | %{
@@ -233,16 +233,16 @@ defmodule PlaywrightEx.Worker do
 
   ## Arguments
 
-  * `event` - Event name, same one typically passed into `*.on(event)`.
+  * `event` - Event name, same one typically passed into `PlaywrightEx.Worker.on/3`.
   * `action` - A function that performs the action triggering the wait. It runs once the wait is set up; its result is ignored and what it raises propagates.
 
   ## Options
 
-  A function in place of the options is `:predicate` (JS `optionsOrPredicate`).
+  A function in place of the options is the `:predicate` option.
 
-  * `:predicate` - Receives the event data and resolves to truthy value when the waiting should resolve.
+  * `:predicate` - Receives the event data and returns a truthy value when the waiting should resolve.
   * `:timeout` - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
-    The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
+    The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:signal` - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.

@@ -119,7 +119,7 @@ defmodule PlaywrightEx.Credentials do
                      user_handle: {:userHandle, nil}
                    }}
 
-  @typedoc "Options of `create`, see its docs."
+  @typedoc "Options of `create/3`, see its docs."
   @type create_options ::
           [
             id: String.t(),
@@ -148,12 +148,12 @@ defmodule PlaywrightEx.Credentials do
   @doc ~S"""
   Seeds a virtual WebAuthn credential and returns it.
 
-  With only `rpId`, generates a fresh **ECDSA P-256** keypair, credential id and user handle. The
+  With only `rp_id`, generates a fresh **ECDSA P-256** keypair, credential id and user handle. The
   seeded credential is discoverable (resident), so the page can resolve it from both
   username-then-passkey and usernameless passkey flows. The returned object carries the private and public keys, so it can be persisted to disk and re-seeded in a later test.
 
-  To **import a known credential**, supply all four of `id`, `userHandle`, `privateKey` and
-  `publicKey` together. Pass `signCount` as well to continue from the
+  To **import a known credential**, supply all four of `:id`, `:user_handle`, `:private_key` and
+  `:public_key` together. Pass `:sign_count` as well to continue from the
   signature counter the relying party has already seen.
 
   Call `PlaywrightEx.Credentials.install/1` before navigating to a page that uses WebAuthn.
@@ -238,14 +238,14 @@ defmodule PlaywrightEx.Credentials do
 
   @get_options {:object, %{id: {:id, nil}, rp_id: {:rpId, nil}}}
 
-  @typedoc "Options of `get`, see its docs."
+  @typedoc "Options of `get/2`, see its docs."
   @type get_options ::
           [id: String.t(), rp_id: String.t()] | %{optional(:id) => String.t(), optional(:rp_id) => String.t()}
 
   @doc since: "1.61"
   @doc ~S"""
-  Returns every credential currently held by the authenticator, optionally filtered by `rpId` or
-  `id`. This includes both credentials seeded with `PlaywrightEx.Credentials.create/3` and credentials
+  Returns every credential currently held by the authenticator, optionally filtered by `:rp_id` or
+  `:id`. This includes both credentials seeded with `PlaywrightEx.Credentials.create/3` and credentials
   the page registered itself by calling `navigator.credentials.create()`.
 
   Each returned credential includes its private and public keys and the current signature counter, so a passkey the app just

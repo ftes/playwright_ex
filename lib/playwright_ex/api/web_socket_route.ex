@@ -83,7 +83,7 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   @close_options {:object, %{code: {:code, nil}, reason: {:reason, nil}}}
 
-  @typedoc "Options of `close`, see its docs."
+  @typedoc "Options of `close/2`, see its docs."
   @type close_options ::
           [code: integer(), reason: String.t()] | %{optional(:code) => integer(), optional(:reason) => String.t()}
 

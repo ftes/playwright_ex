@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Clock do
 
   @install_options {:object, %{time: {:time, nil}}}
 
-  @typedoc "Options of `install`, see its docs."
+  @typedoc "Options of `install/2`, see its docs."
   @type install_options ::
           [time: integer() | String.t() | DateTime.t()] | %{optional(:time) => integer() | String.t() | DateTime.t()}
 

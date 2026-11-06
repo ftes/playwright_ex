@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Touchscreen do
   @moduledoc since: "1.8"
   @moduledoc ~S"""
   The Touchscreen class operates in main-frame CSS pixels relative to the top-left corner of the viewport. Methods on the
-  touchscreen can only be used in browser contexts that have been initialized with `hasTouch` set to true.
+  touchscreen can only be used in browser contexts that have been initialized with `:has_touch` set to true.
 
   This class is limited to emulating tap gestures. For examples of other gestures simulated by manually dispatching touch events, see the [emulating legacy touch events](https://playwright.dev/docs/touch-events) page.
   """
@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Touchscreen do
 
   > #### Note {: .info}
   >
-  > `PlaywrightEx.Touchscreen.tap/3` will throw if the `hasTouch` option of the browser context is false.
+  > `PlaywrightEx.Touchscreen.tap/3` will throw if the `:has_touch` option of the browser context is false.
 
   ## Arguments
 

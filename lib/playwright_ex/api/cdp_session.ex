@@ -5,8 +5,8 @@ defmodule PlaywrightEx.CDPSession do
   @moduledoc ~S"""
   The [`CDPSession`](`PlaywrightEx.CDPSession`) instances are used to talk raw Chrome Devtools Protocol:
 
-  * protocol methods can be called with `session.send` method.
-  * protocol events can be subscribed to with `session.on` method.
+  * protocol methods can be called with `PlaywrightEx.CDPSession.send/3` method.
+  * protocol events can be subscribed to with `PlaywrightEx.CDPSession.on/3` method.
 
   Useful links:
 
@@ -28,7 +28,7 @@ defmodule PlaywrightEx.CDPSession do
 
   ### `:close`
 
-  *Since 1.59.* Emitted when the session is closed, either because the target was closed or `session.detach()` was called.
+  *Since 1.59.* Emitted when the session is closed, either because the target was closed or `PlaywrightEx.CDPSession.detach/1` was called.
 
   ### `:event`
 

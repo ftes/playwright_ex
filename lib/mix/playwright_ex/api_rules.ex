@@ -49,6 +49,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `credentials.create(known.rpId, known)`) are marked `"result"`: the facade also takes such a
       result (a map with the JS keys) as the options, ignoring its fields that are no options
       (`rpId`, which the positional argument overrides in the client too).
+    * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
+      with arguments, upstream slips such as `filePaths`), and inline code they must leave alone
+      (`@prose_keep`: `getByRole`'s `disabled`, also the HTML attribute).
     * Callback forms: every Python `expect_*` member (`expect_popup`) is added as a member with
       a `"callback"`: the JS member it starts (`waitForEvent`), and the event for those that have
       none in JS (`@callback_events`).
@@ -125,8 +128,67 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # Assertion classes and the class of their receiver (`expect(receiver)`).
   @assertions %{"LocatorAssertions" => "Locator", "PageAssertions" => "Page", "APIResponseAssertions" => "APIResponse"}
 
+  # Prose the generic rules of `mix playwright_ex.gen.api` (JS names in prose, as Elixir has them)
+  # get wrong or cannot reach: "Class.member" (or "Class" for the class docs) => [{upstream text,
+  # Elixir text}]. Each upstream text must still be there, so a version bump that changes it fails.
+  @timeout_doc_from "The default value can be changed by using the [`method: BrowserContext.setDefaultTimeout`]."
+  @page_timeout_doc "[`method: Page.setDefaultTimeout`] or [`method: BrowserContext.setDefaultTimeout`]."
+  @set_input_files [{"`filePaths`", "`files`"}]
+  @prose_overrides %{
+    # JS calls with arguments: the generic rule links only `receiver.member()`.
+    "APIRequestContext" => [
+      {"`page.request` is a shortcut for `page.context().request`",
+       "[`method: Page.request`] is a shortcut for [`method: BrowserContext.request`] of [`method: Page.context`]"}
+    ],
+    "Page.pdf" => [
+      {"`page.pdf({width: 100})`", "`Page.pdf(page, width: 100)`"},
+      {"`page.pdf({width: '100px'})`", "`Page.pdf(page, width: \"100px\")`"},
+      {"`page.pdf({width: '10cm'})`", "`Page.pdf(page, width: \"10cm\")`"}
+    ],
+    "Locator.within" => [
+      {"`page.getByRole('cell').nth(2)`", "`Page.get_by_role(page, :cell) |> Locator.nth(2)`"}
+    ],
+    "Playwright.errors" => [{"[`playwright.errors`](#playwright-errors)", "[`property: Playwright.errors`]"}],
+    # `element.tap()` means the locator's.
+    "Locator.tap" => [{"`element.tap()`", "[`method: Locator.tap`]"}],
+    "Locator.dblclick" => [{"`element.dblclick()`", "[`method: Locator.dblclick`]"}],
+    # The argument is `files`.
+    "ElementHandle.setInputFiles" => @set_input_files,
+    "FileChooser.setFiles" => @set_input_files,
+    "Frame.setInputFiles" => @set_input_files,
+    "Locator.setInputFiles" => @set_input_files,
+    "Page.setInputFiles" => @set_input_files,
+    # `colorScheme` and `media` are options.
+    "Page.emulateMedia" => [
+      {"through the `media` argument", "through the `media` option"},
+      {"using the `colorScheme` argument", "using the `colorScheme` option"}
+    ],
+    # The timeout of a page's waits also follows `Page.setDefaultTimeout` (`TimeoutSettings`); also
+    # their callback forms (`expect_event`).
+    "Page.waitForEvent" => [
+      {@timeout_doc_from, "The default value can be changed with " <> @page_timeout_doc},
+      {"`*.on(event)`", "[`method: Page.on`]"}
+    ],
+    "Worker.waitForEvent" => [
+      {@timeout_doc_from, "The default value can be changed with its page's " <> @page_timeout_doc},
+      {"`*.on(event)`", "[`method: Worker.on`]"}
+    ],
+    "WebSocket.waitForEvent" => [
+      {@timeout_doc_from, "The default value can be changed with its page's " <> @page_timeout_doc}
+    ],
+    # Calls return their values, `{:ok, value}`.
+    "WebStorage" => [{"for the current origin via an async,", "for the current origin via a"}]
+  }
+
+  # Member name => inline code the prose rules leave alone: `getByRole`'s `disabled` is also the
+  # HTML attribute.
+  @prose_keep %{"getByRole" => ~w(disabled)}
+
   # "Class.member.arg" that an overload without it makes optional.
   @optional_args ~w(LocatorAssertions.toHaveAttribute.value)
+
+  @doc "The assertion classes, which are `Expect` (`[method: LocatorAssertions.toHaveText]` is `Expect.to_have_text/3`)."
+  def assertion_classes, do: Map.keys(@assertions)
 
   @doc """
   Applies the rules to the decoded `api.json` classes (the JS view), with the Python view
@@ -155,16 +217,69 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
               |> or_options(class_names)
+              |> prose("#{class["name"]}.#{member["name"]}")
 
       callbacks =
-        for expect <- expects, do: expect |> callback(class, members) |> member(false) |> or_options(class_names)
+        for expect <- expects,
+            do:
+              expect
+              |> callback(class, members)
+              |> member(false)
+              |> or_options(class_names)
+              |> prose("#{class["name"]}.#{expect["name"]}")
 
       Map.merge(class, %{
-        "spec" => runner_notes(class["spec"]),
+        "spec" => class["spec"] |> runner_notes() |> prose_overrides(class["name"]),
         "members" => members ++ callbacks,
         "openEvents" => class["name"] in @open_events
       })
     end
+  end
+
+  defp prose(member, key) do
+    member = Map.merge(member, prose_overrides(Map.take(member, ["spec", "args"]), key))
+
+    case @prose_keep[member["name"]] do
+      nil -> member
+      keep -> Map.put(member, "proseKeep", keep)
+    end
+  end
+
+  # The overrides of `key` in the text nodes of `term` (never in code blocks).
+  defp prose_overrides(term, key) do
+    Enum.reduce(Map.get(@prose_overrides, key, []), term, fn {from, to}, term ->
+      if not text_contains?(term, from),
+        do: raise("ApiRules: prose override for #{key} no longer matches upstream: #{inspect(from)}")
+
+      replace_text(term, from, to)
+    end)
+  end
+
+  defp text_contains?(%{"type" => "code"}, _from), do: false
+
+  defp text_contains?(%{"text" => text} = node, from) when is_binary(text),
+    do: String.contains?(String.replace(text, "↵", " "), from) or text_contains?(Map.delete(node, "text"), from)
+
+  defp text_contains?(map, from) when is_map(map), do: Enum.any?(Map.values(map), &text_contains?(&1, from))
+  defp text_contains?(list, from) when is_list(list), do: Enum.any?(list, &text_contains?(&1, from))
+  defp text_contains?(_term, _from), do: false
+
+  # Upstream breaks lines with `↵`: matched as spaces.
+  defp replace_text(%{"type" => "code"} = node, _from, _to), do: node
+
+  defp replace_text(map, from, to) when is_map(map) do
+    Map.new(map, fn
+      {"text", text} when is_binary(text) -> {"text", replace_soft(text, from, to)}
+      {k, v} -> {k, replace_text(v, from, to)}
+    end)
+  end
+
+  defp replace_text(list, from, to) when is_list(list), do: Enum.map(list, &replace_text(&1, from, to))
+  defp replace_text(term, _from, _to), do: term
+
+  defp replace_soft(text, from, to) do
+    pattern = from |> String.split(" ") |> Enum.map_join("[ ↵]", &Regex.escape/1)
+    String.replace(text, Regex.compile!(pattern), to)
   end
 
   # Notes that point to the test runner's options instead (`Tracing`: "enable tracing in your

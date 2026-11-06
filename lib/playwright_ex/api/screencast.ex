@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Screencast do
                     size: {:size, {:fields, %{width: nil, height: nil}}}
                   }}
 
-  @typedoc "Options of `start`, see its docs."
+  @typedoc "Options of `start/2`, see its docs."
   @type start_options ::
           [
             fps: integer(),
@@ -51,8 +51,8 @@ defmodule PlaywrightEx.Screencast do
 
   @doc since: "1.59"
   @doc ~S"""
-  Starts the screencast. When `path` is provided, it saves video recording to the specified file.
-  When `onFrame` is provided, delivers JPEG-encoded frames to the callback. Both can be used together.
+  Starts the screencast. When `:path` is provided, it saves video recording to the specified file.
+  When `:on_frame` is provided, delivers JPEG-encoded frames to the callback. Both can be used together.
 
   **Usage**
 
@@ -79,9 +79,9 @@ defmodule PlaywrightEx.Screencast do
 
   ## Options
 
-  * `:fps` - *Since 1.64.* Frame rate of the video recording in frames per second. Only used together with `path`. Defaults to `25`.
+  * `:fps` - *Since 1.64.* Frame rate of the video recording in frames per second. Only used together with `:path`. Defaults to `25`.
 
-    Higher frame rates make animations and scrolling smoother at the cost of more CPU spent on encoding. Combine with `size` to record high resolution videos. The video can only contain as many distinct frames as the browser produces; Firefox and WebKit currently capture up to 25 frames per second.
+    Higher frame rates make animations and scrolling smoother at the cost of more CPU spent on encoding. Combine with `:size` to record high resolution videos. The video can only contain as many distinct frames as the browser produces; Firefox and WebKit currently capture up to 25 frames per second.
   * `:on_frame` - Callback that receives JPEG-encoded frame data along with the page viewport size at the time of capture.
   * `:path` - Path where the video should be saved when the screencast is stopped. When provided, video recording is started.
   * `:quality` - The quality of the image, between 0-100.
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Screencast do
 
   @show_overlay_options {:object, %{duration: {:duration, nil}}}
 
-  @typedoc "Options of `show_overlay`, see its docs."
+  @typedoc "Options of `show_overlay/3`, see its docs."
   @type show_overlay_options :: [duration: number()] | %{optional(:duration) => number()}
 
   @doc since: "1.59"
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Screencast do
 
   @show_chapter_options {:object, %{description: {:description, nil}, duration: {:duration, nil}}}
 
-  @typedoc "Options of `show_chapter`, see its docs."
+  @typedoc "Options of `show_chapter/3`, see its docs."
   @type show_chapter_options ::
           [description: String.t(), duration: number()]
           | %{optional(:description) => String.t(), optional(:duration) => number()}
@@ -218,7 +218,7 @@ defmodule PlaywrightEx.Screencast do
                            style: {:style, {:fields, %{point: nil, highlight: nil, title: nil}}}
                          }}
 
-  @typedoc "Options of `show_actions`, see its docs."
+  @typedoc "Options of `show_actions/2`, see its docs."
   @type show_actions_options ::
           [
             cursor: :none | :pointer,
@@ -245,13 +245,13 @@ defmodule PlaywrightEx.Screencast do
 
   ## Options
 
-  * `:cursor` - *Since 1.61.* Cursor decoration shown for pointer actions. `"pointer"` (the default) renders
+  * `:cursor` - *Since 1.61.* Cursor decoration shown for pointer actions. `:pointer` (the default) renders
     a mouse pointer that animates from the previous action point to the next one.
-    `"none"` disables the cursor decoration.
+    `:none` disables the cursor decoration.
   * `:duration` - How long each annotation is displayed in milliseconds. Defaults to `500`.
   * `:font_size` - Font size of the action title in pixels. Defaults to `24`.
-  * `:position` - Position of the action title overlay. Defaults to `"top-right"`.
-  * `:style` - *Since 1.64.* Styles of the action decorations. All decorations fade out over `duration`.
+  * `:position` - Position of the action title overlay. Defaults to `:top_right`.
+  * `:style` - *Since 1.64.* Styles of the action decorations. All decorations fade out over `:duration`.
 
     **Usage**
 
@@ -268,7 +268,7 @@ defmodule PlaywrightEx.Screencast do
 
     * `:point` - CSS declarations for the marker at the action point. The marker is positioned at the action point, has zero size and is centered on the point, so its size and look come from this style. Not shown when omitted.
     * `:highlight` - CSS declarations for the box that covers the target element. The box is positioned and sized to the element bounds. Not shown when omitted.
-    * `:title` - CSS declarations for the action title, for example `'font-size: 32px; background: #333'`. The title is placed according to `position`.
+    * `:title` - CSS declarations for the action title, for example `'font-size: 32px; background: #333'`. The title is placed according to `:position`.
   """
   @spec show_actions(t(), show_actions_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def show_actions(screencast, options \\ []) do
