@@ -238,7 +238,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           :ets.delete(this.table, {this.guid, local})
 
         {{:latch, _}, {:pending, waiters}} ->
-          for {pid, ref} <- waiters, do: send(pid, {:pw, ref, {:error, error}})
+          for {pid, ref} <- waiters, do: Conn.wake(pid, {:pw, ref, {:error, error}})
           :ets.insert(this.table, {{this.guid, local}, {:settled, {:error, error}}})
 
         _ ->

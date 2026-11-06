@@ -18,6 +18,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Promise, as: RuntimePromise
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -244,6 +245,27 @@ defmodule PlaywrightEx.RuntimeConnTest do
       error = assert_raise PlaywrightEx.AbortError, fn -> Promise.await!(promise) end
       assert error.cause == "stop"
       assert error.message =~ "page.waitForEvent: The operation was aborted"
+    end
+
+    # JS resolves the promise inside `emit` and runs the awaiter's continuation after the whole
+    # synchronous emit: the later listeners have run first (ISSUE_DRAFTS #18).
+    test "a latch settled by a listener wakes its awaiter after the emit's later listeners", %{page: page} do
+      test = self()
+      latch = RuntimePromise.new(page)
+      EventEmitter.once(page, "x", fn _ -> RuntimePromise.resolve(latch, nil) end)
+
+      EventEmitter.on(page, "x", fn _ ->
+        Process.sleep(50)
+        send(test, :later_listener)
+      end)
+
+      awaiter = Task.async(fn -> send(test, {:woken, RuntimePromise.await(latch)}) end)
+      key = PlaywrightEx.Runtime.Heap.key(page, {:latch, latch.ref})
+      wait_until(fn -> match?([{_, {:pending, [_]}}], :ets.lookup(page.table, key)) end)
+      EventEmitter.emit(page, "x")
+      Task.await(awaiter)
+      assert {:messages, [:later_listener, {:woken, nil}]} = Process.info(self(), :messages)
+      flush()
     end
 
     test "wait_for_event rejects on page close", %{page: page} do

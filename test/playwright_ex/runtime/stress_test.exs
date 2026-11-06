@@ -259,7 +259,6 @@ defmodule PlaywrightEx.RuntimeStressTest do
 
     for i <- 1..@iterations do
       Task.await(Task.async(fn -> cycle.(i) end), 30_000)
-      # Not when close returns (see the skipped test below).
       assert_receive {:disconnected, ^i}
       Process.sleep(10)
       events = [{:disconnected, i} | take()]
@@ -278,9 +277,8 @@ defmodule PlaywrightEx.RuntimeStressTest do
 
   # Minimized from scenario 6. JS: `browser.close()` awaits `_closedPromise`, resolved by a `once`
   # listener in the same synchronous `emit` that runs the user's listeners, so they have run when
-  # close returns. Here the latch wakes the awaiting process at its step, before the later steps.
-  # A launched browser passes (close's reply comes after the `close` event).
-  @tag skip: "OTP backlog: a latch settled in a listener step wakes its awaiters before the emit's later listeners ran"
+  # close returns. Here the latch's wake-up is held until the emit's steps have run
+  # (`Runtime.Conn.wake/2`); waking the awaiter at the latch's step failed every run.
   test "connect: the disconnected listener has run when close returns", %{
     browser_type: browser_type,
     start_remote_server: start_remote_server

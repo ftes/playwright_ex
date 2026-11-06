@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Client.ConnectBacklogTest do
     # The forwarders free their rows as they exit, so this settles after the processes do. The
     # leak was ~117 rows per cycle; then a JsonPipe disposed after its connection stopped kept 6
     # (Linux firefox: ~30 rows after 20 cycles).
-    assert eventually(fn -> :ets.info(browser_type.table, :size) - rows < 20 end),
+    assert eventually(fn -> :ets.info(browser_type.table, :size) - rows < 10 end),
            "#{:ets.info(browser_type.table, :size) - rows} new rows"
   end
 end

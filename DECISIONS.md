@@ -1078,3 +1078,10 @@ drift). Blockers for release, assigned to follow-up workstreams:
   exit; later reads raise TargetClosedError, as for closed contexts and disposed handles (R2).
 - User, 2026-11-06, review decision 5: our suite keeps `assert_receive_timeout: 10_000` (H-16); it is
   ours only (test_helper), users are unaffected, no app env and no guide note.
+- WR3 (runtime ordering): promises settled in a dispatch's synchronous section (the dispatch, its
+  steps, calls from the listener the barrier waits for) wake their awaiters once the frame stack
+  is empty (`Conn.wake/2`), as JS resolves inside `emit` and continues after it; settles from
+  other processes still wake at once. Revisit if a listener that blocks without awaiting (user
+  bug) now also holds back unrelated wake-ups of its own section. Lead: its second #20 fix (anchor a
+  disposed remote JsonPipe to its forwarder) is dropped for wr3-heap's (free a JsonPipe at dispose),
+  already merged and simpler; the stress connect tests re-run on the merge.

@@ -21,6 +21,11 @@ defmodule PlaywrightEx.Runtime.Conn do
   JS's order for nested emits. An emit from any other process waits for the current dispatch,
   as a JS task waits for the running one.
 
+  Promises settled in the synchronous section of a dispatch (the dispatch, its steps, and calls
+  from the processes the barrier waits for) wake their awaiters once the frame stack is empty
+  (`wake/2`): JS resolves a promise inside `emit` and runs the continuation after the whole
+  synchronous emit, so the emit's later listeners have run when the awaiter continues.
+
   Outgoing messages (`post/1`) are buffered and handed to the transport (a fun, called here with
   the list) at the end of each turn of this process.
   """
@@ -103,6 +108,16 @@ defmodule PlaywrightEx.Runtime.Conn do
   def post(message), do: Process.put(:pw_out, [message | Process.get(:pw_out, [])])
 
   @doc false
+  # A promise settled here (`{:pw, ref, result}` to its awaiter): inside the synchronous section
+  # of a dispatch, sent once the frame stack is empty (JS: a microtask, after the whole emit).
+  def wake(pid, message) do
+    case Process.get(:pw_wakes) do
+      nil -> send(pid, message)
+      wakes -> Process.put(:pw_wakes, [{pid, message} | wakes])
+    end
+  end
+
+  @doc false
   # A dispatch step (listener invocation), run after the step that produced it (depth first).
   def push_step(step) do
     if !in_conn?(), do: raise("Conn.push_step/1 outside the connection process")
@@ -122,7 +137,7 @@ defmodule PlaywrightEx.Runtime.Conn do
     table = :ets.new(:playwright_ex_conn, [:ordered_set, :protected, read_concurrency: true])
     handle = struct(Connection, guid: :connection, conn: self(), table: table)
 
-    {connection, _steps} =
+    {connection, _steps, wakes} =
       collect(fn -> Connection.new(handle, opts[:local_utils], opts[:instrumentation], Map.get(opts, :headers, [])) end)
 
     {:ok,
@@ -133,6 +148,8 @@ defmodule PlaywrightEx.Runtime.Conn do
        on_dispatch_error: opts[:on_dispatch_error],
        queue: :queue.new(),
        frames: [],
+       # wake-ups held back until the frame stack is empty (`wake/2`), newest first
+       wakes: [],
        # monitor ref => inv of a listener or async process the barrier may wait for
        procs: %{},
        # subscription pid => invocations sent and not done (oldest first)
@@ -142,7 +159,8 @@ defmodule PlaywrightEx.Runtime.Conn do
        pending_waiters: [],
        # monitor ref => pid: the processes whose exit stops this one (`stop_when_down/2`)
        stop_when_down: nil
-     }}
+     }
+     |> send_wakes(wakes)}
   end
 
   @impl true
@@ -163,19 +181,22 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   def handle_call({:run, fun, token}, from, state) do
-    {result, steps} = collect(fn -> catch_run(fun) end)
+    {result, steps, wakes} = collect(fn -> catch_run(fun) end)
+    frame = %{steps: steps, blocked: nil, from: from, result: result, wakes: wakes}
+    nested = nested?(state, token)
 
     state =
       cond do
         steps == [] ->
           GenServer.reply(from, result)
-          state
+          # Part of the running dispatch (a listener the barrier waits for): held back.
+          if nested, do: hold_wakes(state, wakes), else: send_wakes(state, wakes)
 
-        nested?(state, token) or state.frames == [] ->
-          push_frame(state, %{steps: steps, blocked: nil, from: from, result: result})
+        nested or state.frames == [] ->
+          push_frame(state, frame)
 
         true ->
-          %{state | queue: :queue.in({:frame, %{steps: steps, blocked: nil, from: from, result: result}}, state.queue)}
+          %{state | queue: :queue.in({:frame, frame}, state.queue)}
       end
 
     {:noreply, state |> drain() |> flush_out()}
@@ -193,16 +214,16 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   def handle_cast({:run, fun}, state) do
-    {result, steps} = collect(fn -> catch_run(fun) end)
+    {result, steps, wakes} = collect(fn -> catch_run(fun) end)
 
     with {:raise, kind, reason, stacktrace} <- result,
          do: Logger.error("Uncaught in connection: " <> Exception.format(kind, reason, stacktrace))
 
-    frame = %{steps: steps, blocked: nil, from: nil, result: nil}
+    frame = %{steps: steps, blocked: nil, from: nil, result: nil, wakes: wakes}
 
     state =
       cond do
-        steps == [] -> state
+        steps == [] -> send_wakes(state, wakes)
         state.frames == [] -> push_frame(state, frame)
         true -> %{state | queue: :queue.in({:frame, frame}, state.queue)}
       end
@@ -271,21 +292,37 @@ defmodule PlaywrightEx.Runtime.Conn do
     kind, reason -> {:raise, kind, reason, __STACKTRACE__}
   end
 
-  # Runs `fun` collecting the steps it produces.
+  # Runs `fun` collecting the steps it produces and the wake-ups it holds back (`wake/2`).
   defp collect(fun) do
     previous = Process.put(:pw_steps, [])
+    previous_wakes = Process.put(:pw_wakes, [])
     result = fun.()
     steps = Process.get(:pw_steps)
+    wakes = Process.get(:pw_wakes)
     Process.put(:pw_steps, previous)
-    {result, Enum.reverse(steps)}
+    Process.put(:pw_wakes, previous_wakes)
+    {result, Enum.reverse(steps), wakes}
   end
 
   defp nested?(%{frames: [%{blocked: inv} | _]}, inv) when inv != nil, do: true
   defp nested?(_state, _token), do: false
 
-  defp push_frame(state, frame), do: %{state | frames: [frame | state.frames]}
+  # A frame's wake-ups are held until the stack is empty.
+  defp push_frame(state, frame),
+    do: hold_wakes(%{state | frames: [Map.delete(frame, :wakes) | state.frames]}, frame.wakes)
+
+  defp hold_wakes(state, wakes), do: %{state | wakes: wakes ++ state.wakes}
+
+  defp send_wakes(state, wakes) do
+    for {pid, message} <- Enum.reverse(wakes), do: send(pid, message)
+    state
+  end
 
   ## Dispatch with the barrier
+
+  # The frame stack is empty: the synchronous section is over, its wake-ups go out (JS: the
+  # microtasks run), then the next message or queued frame.
+  defp drain(%{frames: [], wakes: [_ | _] = wakes} = state), do: drain(send_wakes(%{state | wakes: []}, wakes))
 
   defp drain(%{frames: []} = state) do
     case :queue.out(state.queue) do
@@ -293,13 +330,9 @@ defmodule PlaywrightEx.Runtime.Conn do
         state
 
       {{:value, {:msg, message}}, queue} ->
-        {_, steps} = collect(fn -> dispatch(message, state) end)
+        {_, steps, wakes} = collect(fn -> dispatch(message, state) end)
         state = %{state | queue: queue}
-
-        state =
-          if steps != [], do: push_frame(state, %{steps: steps, blocked: nil, from: nil, result: nil}), else: state
-
-        drain(state)
+        drain(push_frame(state, %{steps: steps, blocked: nil, from: nil, result: nil, wakes: wakes}))
 
       {{:value, {:frame, frame}}, queue} ->
         drain(push_frame(%{state | queue: queue}, frame))
@@ -310,9 +343,9 @@ defmodule PlaywrightEx.Runtime.Conn do
 
   defp drain(%{frames: [%{steps: [step | rest]} = frame | below]} = state) do
     state = %{state | frames: [%{frame | steps: rest} | below]}
-    {state, steps} = collect(fn -> run_step(step, state) end)
+    {state, steps, wakes} = collect(fn -> run_step(step, state) end)
     [top | below] = state.frames
-    drain(%{state | frames: [%{top | steps: steps ++ top.steps} | below]})
+    drain(hold_wakes(%{state | frames: [%{top | steps: steps ++ top.steps} | below]}, wakes))
   end
 
   defp drain(%{frames: [%{steps: []} = frame | below]} = state) do

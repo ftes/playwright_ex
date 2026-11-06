@@ -139,6 +139,9 @@ listener returns or first awaits Playwright, as JS runs listeners synchronously 
 first `await`. Calls from listeners are served meanwhile, so re-entrant callbacks (routes,
 bindings, locator handlers) don't deadlock. The barrier keeps a frame stack, so a nested `emit`
 returns after its own listeners, in JS order. A listener process that dies releases the barrier.
+A promise settled in that synchronous section (by the dispatch, a step, or a listener the barrier
+waits for) wakes its awaiters once the frame stack is empty, as JS runs the continuation as a
+microtask after the whole `emit`: `Browser.close` returns after the `disconnected` listeners.
 
 Listener kinds (`PlaywrightEx.Client.EventEmitter`): user listeners (added through the facade)
 get one process per subscription, FIFO; internal listeners a process per event; `on_sync/3`

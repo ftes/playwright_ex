@@ -109,8 +109,9 @@ defmodule PlaywrightEx.Runtime.Promise do
   def resolve(promise, value), do: settle(promise, {:ok, value})
   def reject(promise, error), do: settle(promise, {:error, error})
 
+  # Settled in the connection: the awaiter wakes after the dispatch's synchronous section (`Conn.wake/2`).
   defp settle(%__MODULE__{kind: :local, pid: pid, ref: ref}, result) do
-    send(pid, {:pw, ref, result})
+    Conn.wake(pid, {:pw, ref, result})
     nil
   end
 
@@ -130,7 +131,9 @@ defmodule PlaywrightEx.Runtime.Promise do
         :ok
 
       found ->
-        with [{_, {:pending, waiters}}] <- found, do: for({pid, wref} <- waiters, do: send(pid, {:pw, wref, result}))
+        with [{_, {:pending, waiters}}] <- found,
+             do: for({pid, wref} <- waiters, do: Conn.wake(pid, {:pw, wref, result}))
+
         if Heap.readable?(owner), do: :ets.insert(owner.table, {key, {:settled, result}})
     end
   end
