@@ -267,5 +267,6 @@ errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flake
 `max_cases` is half the schedulers on CI, like Playwright's default workers (`PW_MAX_CASES`, or the
 workflow_dispatch input `max_cases`, overrides it). Headed tests run under xvfb with
 `HEADED=1 --only headed`, in each browser's first partition. deps and `_build` are cached, written
-on main only. A daily workflow checks npm for a new release and opens a
+on main only. A new push to a PR cancels its running CI; other runs (main, nightly, dispatched
+experiments) are never cancelled or queued. A daily workflow checks npm for a new release and opens a
 draft PR that ports it per PORTING.

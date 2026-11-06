@@ -37,6 +37,14 @@ on:
         type: boolean
         default: false
 
+# A new push to a PR cancels its running CI. Other events (main pushes, the nightly, dispatched
+# experiments) get a group of their own: in a shared group GitHub keeps one run pending and cancels
+# the older pending one, which would drop a nightly or a main push's cache save, and serialize
+# parallel experiments.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
