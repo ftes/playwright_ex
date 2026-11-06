@@ -7,14 +7,12 @@ defmodule PlaywrightEx.Expect do
 
   The [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions) class provides assertion methods that can be used to make assertions about the [`Locator`](`PlaywrightEx.Locator`) state in the tests.
 
-  ```js
-  import { test, expect } from '@playwright/test';
-
-  test('status becomes submitted', async ({ page }) => {
-    // ...
-    await page.getByRole('button').click();
-    await expect(page.locator('.status')).toHaveText('Submitted');
-  });
+  ```elixir
+  test "status becomes submitted", %{page: page} do
+    # ...
+    Page.get_by_role(page, :button) |> Locator.click!()
+    Page.locator(page, ".status") |> Expect.to_have_text!("Submitted")
+  end
   ```
 
   ## Configuration
@@ -54,8 +52,8 @@ defmodule PlaywrightEx.Expect do
 
   For example, this code tests that the Locator doesn't contain text `"error"`:
 
-  ```js
-  await expect(locator).not.toContainText('error');
+  ```elixir
+  locator |> Expect.not_() |> Expect.to_contain_text!("error")
   ```
 
   In Elixir, `not_/1` wraps the receiver, which every matcher takes too: `locator |> Expect.not_() |> Expect.to_contain_text("error")` is `Expect.not_to_contain_text(locator, "error")`. As JS has no `expect(x).not.not`, a negated receiver is not negated again: `not_/1` and the `not_to_*` matchers raise `ArgumentError` for one.
@@ -84,8 +82,8 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  await expect(page.getByText('Hidden text')).toBeAttached();
+  ```elixir
+  Page.get_by_text(page, "Hidden text") |> Expect.to_be_attached!()
   ```
 
   ## Options
@@ -223,9 +221,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByLabel('Subscribe to newsletter');
-  await expect(locator).toBeChecked();
+  ```elixir
+  locator = Page.get_by_label(page, "Subscribe to newsletter")
+  Expect.to_be_checked!(locator)
   ```
 
   ## Options
@@ -369,9 +367,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('button.submit');
-  await expect(locator).toBeDisabled();
+  ```elixir
+  locator = Page.locator(page, "button.submit")
+  Expect.to_be_disabled!(locator)
   ```
 
   ## Options
@@ -491,9 +489,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByRole('textbox');
-  await expect(locator).toBeEditable();
+  ```elixir
+  locator = Page.get_by_role(page, :textbox)
+  Expect.to_be_editable!(locator)
   ```
 
   ## Options
@@ -615,9 +613,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('div.warning');
-  await expect(locator).toBeEmpty();
+  ```elixir
+  locator = Page.locator(page, "div.warning")
+  Expect.to_be_empty!(locator)
   ```
 
   ## Options
@@ -737,9 +735,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('button.submit');
-  await expect(locator).toBeEnabled();
+  ```elixir
+  locator = Page.locator(page, "button.submit")
+  Expect.to_be_enabled!(locator)
   ```
 
   ## Options
@@ -861,9 +859,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByRole('textbox');
-  await expect(locator).toBeFocused();
+  ```elixir
+  locator = Page.get_by_role(page, :textbox)
+  Expect.to_be_focused!(locator)
   ```
 
   ## Options
@@ -979,9 +977,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('.my-element');
-  await expect(locator).toBeHidden();
+  ```elixir
+  locator = Page.locator(page, ".my-element")
+  Expect.to_be_hidden!(locator)
   ```
 
   ## Options
@@ -1101,14 +1099,14 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByRole('button');
-  // Make sure at least some part of element intersects viewport.
-  await expect(locator).toBeInViewport();
-  // Make sure element is fully outside of viewport.
-  await expect(locator).not.toBeInViewport();
-  // Make sure that at least half of the element intersects viewport.
-  await expect(locator).toBeInViewport({ ratio: 0.5 });
+  ```elixir
+  locator = Page.get_by_role(page, :button)
+  # Make sure at least some part of element intersects viewport.
+  Expect.to_be_in_viewport!(locator)
+  # Make sure element is fully outside of viewport.
+  Expect.not_to_be_in_viewport!(locator)
+  # Make sure that at least half of the element intersects viewport.
+  Expect.to_be_in_viewport!(locator, ratio: 0.5)
   ```
 
   ## Options
@@ -1239,19 +1237,18 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  // A specific element is visible.
-  await expect(page.getByText('Welcome')).toBeVisible();
+  ```elixir
+  # A specific element is visible.
+  Page.get_by_text(page, "Welcome") |> Expect.to_be_visible!()
 
-  // At least one item in the list is visible.
-  await expect(page.getByTestId('todo-item').first()).toBeVisible();
+  # At least one item in the list is visible.
+  Page.get_by_test_id(page, "todo-item") |> Locator.first() |> Expect.to_be_visible!()
 
-  // At least one of the two elements is visible, possibly both.
-  await expect(
-      page.getByRole('button', { name: 'Sign in' })
-          .or(page.getByRole('button', { name: 'Sign up' }))
-          .first()
-  ).toBeVisible();
+  # At least one of the two elements is visible, possibly both.
+  Page.get_by_role(page, :button, name: "Sign in")
+  |> Locator.or_(Page.get_by_role(page, :button, name: "Sign up"))
+  |> Locator.first()
+  |> Expect.to_be_visible!()
   ```
 
   ## Options
@@ -1377,11 +1374,11 @@ defmodule PlaywrightEx.Expect do
   <div class='middle selected row' id='component'></div>
   ```
 
-  ```js
-  const locator = page.locator('#component');
-  await expect(locator).toContainClass('middle selected row');
-  await expect(locator).toContainClass('selected');
-  await expect(locator).toContainClass('row middle');
+  ```elixir
+  locator = Page.locator(page, "#component")
+  Expect.to_contain_class!(locator, "middle selected row")
+  Expect.to_contain_class!(locator, "selected")
+  Expect.to_contain_class!(locator, "row middle")
   ```
 
   When an array is passed, the method asserts that the list of elements located matches the corresponding list of expected class lists. Each element's class attribute is matched against the corresponding class in the array:
@@ -1394,9 +1391,9 @@ defmodule PlaywrightEx.Expect do
   </div>
   ```
 
-  ```js
-  const locator = page.locator('.list > .component');
-  await expect(locator).toContainClass(['inactive', 'active', 'inactive']);
+  ```elixir
+  locator = Page.locator(page, ".list > .component")
+  Expect.to_contain_class!(locator, ["inactive", "active", "inactive"])
   ```
 
   ## Arguments
@@ -1550,10 +1547,10 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('.title');
-  await expect(locator).toContainText('substring');
-  await expect(locator).toContainText(/\d messages/);
+  ```elixir
+  locator = Page.locator(page, ".title")
+  Expect.to_contain_text!(locator, "substring")
+  Expect.to_contain_text!(locator, ~r/\d messages/)
   ```
 
   If you pass an array as an expected value, the expectations are:
@@ -1575,18 +1572,19 @@ defmodule PlaywrightEx.Expect do
 
   Let's see how we can use the assertion:
 
-  ```js
-  // ✓ Contains the right items in the right order
-  await expect(page.locator('ul > li')).toContainText(['Text 1', 'Text 3']);
+  ```elixir
+  # ✓ Contains the right items in the right order
+  Page.locator(page, "ul > li") |> Expect.to_contain_text!(["Text 1", "Text 3"])
 
-  // ✖ Wrong order
-  await expect(page.locator('ul > li')).toContainText(['Text 3', 'Text 2']);
+  # ✖ Wrong order
+  {:error, _} = Page.locator(page, "ul > li") |> Expect.to_contain_text(["Text 3", "Text 2"])
 
-  // ✖ No item contains this text
-  await expect(page.locator('ul > li')).toContainText(['Some 33']);
+  # ✖ No item contains this text
+  {:error, _} = Page.locator(page, "ul > li") |> Expect.to_contain_text(["Some 33"])
 
-  // ✖ Locator points to the outer list element, not to the list items
-  await expect(page.locator('ul')).toContainText(['Text 3']);
+  # ✖ Locator points to the outer list element, not to the list items
+  # (in fact it passes: the list's text contains "Text 3")
+  :ok = Page.locator(page, "ul") |> Expect.to_contain_text(["Text 3"])
   ```
 
   ## Arguments
@@ -1754,9 +1752,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByTestId('save-button');
-  await expect(locator).toHaveAccessibleDescription('Save results to disk');
+  ```elixir
+  locator = Page.get_by_test_id(page, "save-button")
+  Expect.to_have_accessible_description!(locator, "Save results to disk")
   ```
 
   ## Arguments
@@ -1919,9 +1917,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByTestId('username-input');
-  await expect(locator).toHaveAccessibleErrorMessage('Username is required.');
+  ```elixir
+  locator = Page.get_by_test_id(page, "username-input")
+  Expect.to_have_accessible_error_message!(locator, "Username is required.")
   ```
 
   ## Arguments
@@ -2080,9 +2078,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByTestId('save-button');
-  await expect(locator).toHaveAccessibleName('Save to disk');
+  ```elixir
+  locator = Page.get_by_test_id(page, "save-button")
+  Expect.to_have_accessible_name!(locator, "Save to disk")
   ```
 
   ## Arguments
@@ -2237,9 +2235,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('input');
-  await expect(locator).toHaveAttribute('type', 'text');
+  ```elixir
+  locator = Page.locator(page, "input")
+  Expect.to_have_attribute!(locator, "type", "text")
   ```
 
   ## Arguments
@@ -2443,17 +2441,17 @@ defmodule PlaywrightEx.Expect do
   <div class='middle selected row' id='component'></div>
   ```
 
-  ```js
-  const locator = page.locator('#component');
-  await expect(locator).toHaveClass('middle selected row');
-  await expect(locator).toHaveClass(/(^|\s)selected(\s|$)/);
+  ```elixir
+  locator = Page.locator(page, "#component")
+  Expect.to_have_class!(locator, "middle selected row")
+  Expect.to_have_class!(locator, ~r/(^|\s)selected(\s|$)/)
   ```
 
   When an array is passed, the method asserts that the list of elements located matches the corresponding list of expected class values. Each element's class attribute is matched against the corresponding string or regular expression in the array:
 
-  ```js
-  const locator = page.locator('.list > .component');
-  await expect(locator).toHaveClass(['component', 'component selected', 'component']);
+  ```elixir
+  locator = Page.locator(page, ".list > .component")
+  Expect.to_have_class!(locator, ["component", "component selected", "component"])
   ```
 
   ## Arguments
@@ -2592,9 +2590,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const list = page.locator('list > .component');
-  await expect(list).toHaveCount(3);
+  ```elixir
+  list = Page.locator(page, "list > .component")
+  Expect.to_have_count!(list, 3)
   ```
 
   ## Arguments
@@ -2729,9 +2727,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByRole('button');
-  await expect(locator).toHaveCSS('display', 'flex');
+  ```elixir
+  locator = Page.get_by_role(page, :button)
+  Expect.to_have_css!(locator, "display", "flex")
   ```
 
   ## Arguments
@@ -2887,9 +2885,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByRole('textbox');
-  await expect(locator).toHaveId('lastname');
+  ```elixir
+  locator = Page.get_by_role(page, :textbox)
+  Expect.to_have_id!(locator, "lastname")
   ```
 
   ## Arguments
@@ -3029,9 +3027,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('.component');
-  await expect(locator).toHaveJSProperty('loaded', true);
+  ```elixir
+  locator = Page.locator(page, ".component")
+  Expect.to_have_js_property!(locator, "loaded", true)
   ```
 
   ## Arguments
@@ -3254,9 +3252,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.getByTestId('save-button');
-  await expect(locator).toHaveRole('button');
+  ```elixir
+  locator = Page.get_by_test_id(page, "save-button")
+  Expect.to_have_role!(locator, :button)
   ```
 
   ## Arguments
@@ -4112,10 +4110,10 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('.title');
-  await expect(locator).toHaveText(/Welcome, Test User/);
-  await expect(locator).toHaveText(/Welcome, .*/);
+  ```elixir
+  locator = Page.locator(page, ".title")
+  Expect.to_have_text!(locator, ~r/Welcome, Test User/)
+  Expect.to_have_text!(locator, ~r/Welcome, .*/)
   ```
 
   If you pass an array as an expected value, the expectations are:
@@ -4136,18 +4134,18 @@ defmodule PlaywrightEx.Expect do
 
   Let's see how we can use the assertion:
 
-  ```js
-  // ✓ Has the right items in the right order
-  await expect(page.locator('ul > li')).toHaveText(['Text 1', 'Text 2', 'Text 3']);
+  ```elixir
+  # ✓ Has the right items in the right order
+  Page.locator(page, "ul > li") |> Expect.to_have_text!(["Text 1", "Text 2", "Text 3"])
 
-  // ✖ Wrong order
-  await expect(page.locator('ul > li')).toHaveText(['Text 3', 'Text 2', 'Text 1']);
+  # ✖ Wrong order
+  {:error, _} = Page.locator(page, "ul > li") |> Expect.to_have_text(["Text 3", "Text 2", "Text 1"])
 
-  // ✖ Last item does not match
-  await expect(page.locator('ul > li')).toHaveText(['Text 1', 'Text 2', 'Text']);
+  # ✖ Last item does not match
+  {:error, _} = Page.locator(page, "ul > li") |> Expect.to_have_text(["Text 1", "Text 2", "Text"])
 
-  // ✖ Locator points to the outer list element, not to the list items
-  await expect(page.locator('ul')).toHaveText(['Text 1', 'Text 2', 'Text 3']);
+  # ✖ Locator points to the outer list element, not to the list items
+  {:error, _} = Page.locator(page, "ul") |> Expect.to_have_text(["Text 1", "Text 2", "Text 3"])
   ```
 
   ## Arguments
@@ -4306,9 +4304,9 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('input[type=number]');
-  await expect(locator).toHaveValue(/[0-9]/);
+  ```elixir
+  locator = Page.locator(page, "input[type=number]")
+  Expect.to_have_value!(locator, ~r/[0-9]/)
   ```
 
   ## Arguments
@@ -4457,10 +4455,10 @@ defmodule PlaywrightEx.Expect do
   </select>
   ```
 
-  ```js
-  const locator = page.locator('id=favorite-colors');
-  await locator.selectOption(['R', 'G']);
-  await expect(locator).toHaveValues([/R/, /G/]);
+  ```elixir
+  locator = Page.locator(page, "id=favorite-colors")
+  Locator.select_option!(locator, ["R", "G"])
+  Expect.to_have_values!(locator, [~r/R/, ~r/G/])
   ```
 
   ## Arguments
@@ -4594,31 +4592,7 @@ defmodule PlaywrightEx.Expect do
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc since: "1.49"
-  @doc ~S"""
-  Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).
-
-  **Usage**
-
-  ```js
-  await page.goto('https://demo.playwright.dev/todomvc/');
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
-    - heading "todos"
-    - textbox "What needs to be done?"
-  `);
-  ```
-
-  ## Options
-
-  * `:signal` - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
-    can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
-    is aborted while the assertion is retrying, or is already aborted before the assertion starts,
-    the assertion fails without retrying further.
-
-    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
-
-    In Elixir, `:infinity` is accepted too (the same as `0`).
-  """
+  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n## Options\n\n* `:signal` - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is accepted too (the same as `0`)."
   @spec to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t(),
@@ -4728,8 +4702,8 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  await expect(response).toBeOK();
+  ```elixir
+  Expect.to_be_ok!(response)
   ```
   """
   @spec to_be_ok(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok | {:error, Exception.t()}
@@ -4809,8 +4783,8 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  await expect(page).toHaveTitle(/.*checkout/);
+  ```elixir
+  Expect.to_have_title!(page, ~r/.*checkout/)
   ```
 
   ## Arguments
@@ -4953,22 +4927,22 @@ defmodule PlaywrightEx.Expect do
 
   **Usage**
 
-  ```js
-  // Check for the page URL to be 'https://playwright.dev/docs/intro' (including query string)
-  await expect(page).toHaveURL('https://playwright.dev/docs/intro');
+  ```elixir
+  # Check for the page URL to be 'https://playwright.dev/docs/intro' (including query string)
+  Expect.to_have_url!(page, "https://playwright.dev/docs/intro")
 
-  // Check for the page URL to contain 'doc', followed by an optional 's', followed by '/'
-  await expect(page).toHaveURL(/docs?\//);
+  # Check for the page URL to contain 'doc', followed by an optional 's', followed by '/'
+  Expect.to_have_url!(page, ~r/docs?\//)
 
-  // Check for the page URL to match the URL pattern
-  await expect(page).toHaveURL(new URLPattern({ pathname: '/docs/*' }));
+  # Check for the page URL to match the URL pattern (Elixir has no URLPattern: a predicate)
+  Expect.to_have_url!(page, &String.starts_with?(URI.parse(&1).path, "/docs/"))
 
-  // Check for the predicate to be satisfied
-  // For example: verify query strings
-  await expect(page).toHaveURL(url => {
-    const params = url.searchParams;
-    return params.has('search') && params.has('options') && params.get('id') === '5';
-  });
+  # Check for the predicate to be satisfied
+  # For example: verify query strings
+  Expect.to_have_url!(page, fn url ->
+    params = URI.decode_query(URI.parse(url).query || "")
+    Map.has_key?(params, "search") and Map.has_key?(params, "options") and params["id"] == "5"
+  end)
   ```
 
   ## Arguments

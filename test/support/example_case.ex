@@ -24,7 +24,8 @@ defmodule PlaywrightEx.ExampleCase do
     * `:writes` - files the example writes to the working directory (`path: "link.png"`),
       removed after it.
 
-  Output (`IO.puts`) is captured.
+  A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
+  runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
   """
   use ExUnit.CaseTemplate
 
@@ -70,6 +71,26 @@ defmodule PlaywrightEx.ExampleCase do
   defmacro example(member, opts, do: body) do
     js = Keyword.fetch!(opts, :js)
     bindings = for {var, expr} <- Keyword.get(opts, :given, []), do: {:=, [], [Macro.var(var, nil), expr]}
+
+    # A body that is one ExUnit test (upstream's `test('...', async ({ page }) => ...)`) runs its
+    # block, its context pattern matched against the example's context.
+    body =
+      case body do
+        {:test, _, [name, pattern, [do: block]]} when is_binary(name) ->
+          quote do
+            unquote(pattern) = %{
+              playwright: var!(playwright),
+              browser: var!(browser),
+              context: var!(context),
+              page: var!(page)
+            }
+
+            unquote(block)
+          end
+
+        body ->
+          body
+      end
 
     quote do
       @tag html: unquote(opts[:html])
