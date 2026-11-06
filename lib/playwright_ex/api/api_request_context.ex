@@ -293,16 +293,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - *Since Playwright 1.17.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - *Since Playwright 1.17.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:multipart` (`t:term/0` | `t:map/0`) - *Since Playwright 1.17.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
@@ -311,7 +311,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -345,7 +345,7 @@ defmodule PlaywrightEx.APIRequestContext do
   @type dispose_options :: [reason: String.t()] | %{optional(:reason) => String.t()}
 
   @doc ~S"""
-  All responses returned by `PlaywrightEx.APIRequestContext.get/3` and similar methods are stored in the memory, so that you can later call `PlaywrightEx.APIResponse.body/1`.This method discards all its resources, calling any method on disposed [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) will throw an exception.
+  All responses returned by `PlaywrightEx.APIRequestContext.get/3` and similar methods are stored in the memory, so that you can later call `PlaywrightEx.APIResponse.body/1`.This method discards all its resources, calling any method on disposed [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) will fail.
 
   *Since Playwright 1.16.*
 
@@ -477,16 +477,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:method` (`t:String.t/0`) - If set changes the fetch method (e.g. [PUT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT) or
     [POST](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST)). If not specified, GET method is used.
   * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
@@ -497,7 +497,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -620,16 +620,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - *Since Playwright 1.26.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - *Since Playwright 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:multipart` (`t:term/0` | `t:map/0`) - *Since Playwright 1.26.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
@@ -638,7 +638,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -743,16 +743,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - *Since Playwright 1.26.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - *Since Playwright 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:multipart` (`t:term/0` | `t:map/0`) - *Since Playwright 1.26.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
@@ -761,7 +761,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -866,16 +866,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
@@ -884,7 +884,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1021,16 +1021,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
@@ -1039,7 +1039,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1144,16 +1144,16 @@ defmodule PlaywrightEx.APIRequestContext do
   * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.26.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
@@ -1162,7 +1162,7 @@ defmodule PlaywrightEx.APIRequestContext do
     * `:mimeType` - File type
     * `:buffer` - File content
   * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

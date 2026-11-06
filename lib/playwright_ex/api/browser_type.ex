@@ -872,7 +872,7 @@ defmodule PlaywrightEx.BrowserType do
     * `:block`: Playwright will block all registration of Service Workers.
   * `:slow_mo` (`t:number/0`) - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
   * `:strict_selectors` (`t:boolean/0`) - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
-    on selectors that imply single target DOM element will throw when more than one element matches the selector.
+    on selectors that imply single target DOM element will fail when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
     See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to

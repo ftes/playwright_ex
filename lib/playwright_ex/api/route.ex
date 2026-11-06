@@ -303,14 +303,14 @@ defmodule PlaywrightEx.Route do
   ## Options
 
   * `:headers` (`%{optional(String.t()) => String.t()}`) - If set changes the request HTTP headers. Header values will be converted to a string.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.31.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.31.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:max_retries` (`t:integer/0`) - *Since Playwright 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.
   * `:method` (`t:String.t/0`) - If set changes the request method (e.g. GET or POST).
   * `:post_data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

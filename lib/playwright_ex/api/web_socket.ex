@@ -76,7 +76,7 @@ defmodule PlaywrightEx.WebSocket do
 
   @doc ~S"""
   Waits for event to fire and passes its value into the predicate function. Returns when the predicate returns truthy
-  value. Will throw an error if the webSocket is closed before the event is fired. Returns the event data value.
+  value. Will fail if the webSocket is closed before the event is fired. Returns the event data value.
 
   *Since Playwright 1.8.*
 
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.WebSocket do
     The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.WebSocket do
 
   @doc ~S"""
   Waits for event to fire and passes its value into the predicate function. Returns when the predicate returns truthy
-  value. Will throw an error if the webSocket is closed before the event is fired. Returns the event data value.
+  value. Will fail if the webSocket is closed before the event is fired. Returns the event data value.
 
   *Since Playwright 1.8.*
 
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.WebSocket do
     The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

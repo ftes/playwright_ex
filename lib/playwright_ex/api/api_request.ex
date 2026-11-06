@@ -230,7 +230,7 @@ defmodule PlaywrightEx.APIRequest do
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
   * `:extra_http_headers` (`%{optional(String.t()) => String.t()}`) - An object containing additional HTTP headers to be sent with every request. Defaults to none.
-  * `:fail_on_status_code` (`t:boolean/0`) - *Since Playwright 1.51.* Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - *Since Playwright 1.51.* Whether to fail on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
   * `:http_credentials` (`t:map/0` | list of `t:map/0`) - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
     If no origin is specified, the username and password are sent to any servers upon unauthorized responses.
@@ -242,7 +242,7 @@ defmodule PlaywrightEx.APIRequest do
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
     * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
   * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.52.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since Playwright 1.52.* Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects. This can be overwritten for each request individually.
   * `:proxy` (`t:map/0`) - Network proxy settings.
     * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example

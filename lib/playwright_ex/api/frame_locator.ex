@@ -11,7 +11,7 @@ defmodule PlaywrightEx.FrameLocator do
 
   **Strictness**
 
-  Frame locators are strict. This means that all operations on frame locators will throw if more than one element matches a given selector.
+  Frame locators are strict. This means that all operations on frame locators will fail if more than one element matches a given selector.
 
   ```elixir
   # Throws if there are several frames in DOM:
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.FrameLocator do
   ```
 
   Only the start of the search is affected - the rest of the locator is resolved inside a single frame, just like any
-  other locator. Following the strictness rules above, an error is thrown when elements are matched in multiple frames.
+  other locator. Following the strictness rules above, the call fails when elements are matched in multiple frames.
 
   Such a frame locator does not point to a particular `iframe`, so `PlaywrightEx.FrameLocator.owner/1`,
   `PlaywrightEx.FrameLocator.first/1`, `PlaywrightEx.FrameLocator.last/1` and `PlaywrightEx.FrameLocator.nth/2` are not supported on it.

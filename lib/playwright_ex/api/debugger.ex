@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Debugger do
   @doc ~S"""
   Configures the debugger to pause before the next action is executed.
 
-  Throws if the debugger is already paused. Use `PlaywrightEx.Debugger.next/1` or `PlaywrightEx.Debugger.run_to/2` to step while paused.
+  Fails if the debugger is already paused. Use `PlaywrightEx.Debugger.next/1` or `PlaywrightEx.Debugger.run_to/2` to step while paused.
 
   Note that `PlaywrightEx.Page.pause/1` is equivalent to a "debugger" statement — it pauses execution at the call site immediately. On the contrary, `PlaywrightEx.Debugger.request_pause/1` is equivalent to "pause on next statement" — it configures the debugger to pause before the next action is executed.
 
@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Debugger do
   end
 
   @doc ~S"""
-  Resumes script execution. Throws if the debugger is not paused.
+  Resumes script execution. Fails if the debugger is not paused.
 
   *Since Playwright 1.59.*
   """
@@ -82,7 +82,7 @@ defmodule PlaywrightEx.Debugger do
   end
 
   @doc ~S"""
-  Resumes script execution and pauses again before the next action. Throws if the debugger is not paused.
+  Resumes script execution and pauses again before the next action. Fails if the debugger is not paused.
 
   *Since Playwright 1.59.*
   """
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Debugger do
   @run_to_location {:fields, %{file: nil, line: nil, column: nil}}
 
   @doc ~S"""
-  Resumes script execution and pauses when an action originates from the given source location. Throws if the debugger is not paused.
+  Resumes script execution and pauses when an action originates from the given source location. Fails if the debugger is not paused.
 
   *Since Playwright 1.59.*
 

@@ -74,6 +74,17 @@ defmodule PlaywrightEx.ApiDocsTest do
     assert offending(docs, ~r/\[[A-Za-z][\w.]*\](?![(:\[])/) == []
   end
 
+  # JS throws; a call fails here (`{:error, e}`, or the bang form raises). Page-side JS still throws.
+  @page_side_throws ~r/`expression` throws|`execute` function throws|errors thrown after|exception thrown in the page|error that was thrown/
+
+  test "no JS `throw`: a call fails, a listener raises", %{docs: docs} do
+    docs =
+      for {module, function, signature, prose} <- docs,
+          do: {module, function, signature, String.replace(prose, @page_side_throws, "")}
+
+    assert offending(docs, ~r/\b[Tt]hr(?:ow|ows|own|owing)\b/) == []
+  end
+
   # Until our versions are Playwright's: "*Since Playwright 1.8.*" in the text.
   test "no `since:` metadata (it would read as a PlaywrightEx version)" do
     with_since =

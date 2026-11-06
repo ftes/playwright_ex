@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Download do
   end
 
   @doc ~S"""
-  Returns a readable stream for a successful download, or throws for a failed/canceled download.
+  Returns a readable stream for a successful download, or fails for a failed/canceled download.
 
   > #### Note {: .info}
   >
@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Download do
   end
 
   @doc ~S"""
-  Returns path to the downloaded file for a successful download, or throws for a failed/canceled download. The method will wait for the download to finish if necessary. The method throws when connected remotely.
+  Returns path to the downloaded file for a successful download, or fails for a failed/canceled download. The method will wait for the download to finish if necessary. The method fails when connected remotely.
 
   Note that the download's file name is a random GUID, use `PlaywrightEx.Download.suggested_filename/1`
   to get suggested file name.

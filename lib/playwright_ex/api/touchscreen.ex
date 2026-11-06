@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Touchscreen do
 
   > #### Note {: .info}
   >
-  > `PlaywrightEx.Touchscreen.tap/3` will throw if the `:has_touch` option of the browser context is false.
+  > `PlaywrightEx.Touchscreen.tap/3` will fail if the `:has_touch` option of the browser context is false.
 
   *Since Playwright 1.8.*
 

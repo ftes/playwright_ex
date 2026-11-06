@@ -87,7 +87,7 @@ defmodule PlaywrightEx.JSHandle do
 
   ## Options
 
-  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one fails.
   """
   @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def evaluate(js_handle, expression, arg \\ nil, options \\ []) do
@@ -134,7 +134,7 @@ defmodule PlaywrightEx.JSHandle do
 
   ## Options
 
-  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
+  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one fails.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
           {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
@@ -211,7 +211,7 @@ defmodule PlaywrightEx.JSHandle do
 
   > #### Note {: .info}
   >
-  > The method will return an empty JSON object if the referenced object is not stringifiable. It will throw an error if the
+  > The method will return an empty JSON object if the referenced object is not stringifiable. It will fail if the
   > object has circular references.
 
   *Since Playwright 1.8.*

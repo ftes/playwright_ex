@@ -606,7 +606,7 @@ defmodule PlaywrightEx.Browser do
         * `:name`
         * `:value`
   * `:strict_selectors` (`t:boolean/0`) - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
-    on selectors that imply single target DOM element will throw when more than one element matches the selector.
+    on selectors that imply single target DOM element will fail when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
     See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.
   * `:timezone_id` (`t:String.t/0`) - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
@@ -1080,7 +1080,7 @@ defmodule PlaywrightEx.Browser do
         * `:name`
         * `:value`
   * `:strict_selectors` (`t:boolean/0`) - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
-    on selectors that imply single target DOM element will throw when more than one element matches the selector.
+    on selectors that imply single target DOM element will fail when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
     See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.
   * `:timezone_id` (`t:String.t/0`) - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
@@ -1180,11 +1180,11 @@ defmodule PlaywrightEx.Browser do
 
   The options may take the place of `event`, which is then `nil`.
 
-  * `:behavior` (`:wait` | `:ignore_errors` | `:default`) - Specifies whether to wait for already running listeners and what to do if they throw errors:
+  * `:behavior` (`:wait` | `:ignore_errors` | `:default`) - Specifies whether to wait for already running listeners and what to do if they raise:
 
-    * `:default` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
+    * `:default` - do not wait for current listener calls (if any) to finish, if the listener raises, it may result in unhandled error
     * `:wait` - wait for current listener calls (if any) to finish
-    * `:ignore_errors` - do not wait for current listener calls (if any) to finish, all errors thrown by the listeners after removal are silently caught
+    * `:ignore_errors` - do not wait for current listener calls (if any) to finish, all errors raised by the listeners after removal are silently caught
   """
   @spec remove_all_listeners(t(), event() | String.t() | nil, remove_all_listeners_options()) ::
           :ok | {:error, PlaywrightEx.error()}

@@ -45,7 +45,7 @@ defmodule PlaywrightEx.WebMCP do
   @type call_tool_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
 
   @doc ~S"""
-  Calls a tool registered by the frame and returns its result. The result is whatever the tool's `execute` function resolved to, typically an object with a `content` array. A result with `isError: true` is returned as is. The method throws when the tool is not registered or its `execute` function throws.
+  Calls a tool registered by the frame and returns its result. The result is whatever the tool's `execute` function resolved to, typically an object with a `content` array. A result with `isError: true` is returned as is. The method fails when the tool is not registered or its `execute` function throws.
 
   ```elixir
   result = Page.webmcp(page) |> WebMCP.call_tool!("add", %{a: 2, b: 40})
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.WebMCP do
   @type tools_options :: [timeout: number() | :infinity] | %{optional(:timeout) => number() | :infinity}
 
   @doc ~S"""
-  Returns the tools currently registered by the frame. Throws if the browser was launched without WebMCP support, see the note above for the launch options that enable it.
+  Returns the tools currently registered by the frame. Fails if the browser was launched without WebMCP support, see the note above for the launch options that enable it.
 
   `PlaywrightEx.Page.webmcp/1` covers the main frame only, child frames list their tools through their own `PlaywrightEx.Frame.webmcp/1`.
 

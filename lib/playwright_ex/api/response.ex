@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Response do
   @doc ~S"""
   Returns the JSON representation of response body.
 
-  This method will throw if the response body is not parsable via `JSON.parse`.
+  This method will fail if the response body is not parsable via `JSON.parse`.
 
   *Since Playwright 1.8.*
   """

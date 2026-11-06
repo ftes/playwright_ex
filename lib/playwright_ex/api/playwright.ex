@@ -95,7 +95,7 @@ defmodule PlaywrightEx.Playwright do
   end
 
   @doc ~S"""
-  Playwright methods might throw errors if they are unable to fulfill a request. For example,
+  Playwright methods might fail if they are unable to fulfill a request. For example,
   `PlaywrightEx.Locator.wait_for/2` might fail if the selector doesn't match any nodes during the given timeframe.
 
   For certain types of errors Playwright uses specific error classes. These classes are available via

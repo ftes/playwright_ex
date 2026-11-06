@@ -42,6 +42,8 @@ end
 ```
 
 Use the bang forms in scripts and tests, the tuple forms where a failure is an expected outcome.
+Where JS docs say a call throws, the function docs say it *fails* (with a `TimeoutError`, say):
+the tuple form returns the error, the bang form raises it.
 
 ## Options
 

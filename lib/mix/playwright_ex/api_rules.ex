@@ -177,7 +177,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
       {@timeout_doc_from, "The default value can be changed with its page's " <> @page_timeout_doc}
     ],
     # Calls return their values, `{:ok, value}`.
-    "WebStorage" => [{"for the current origin via an async,", "for the current origin via a"}]
+    "WebStorage" => [{"for the current origin via an async,", "for the current origin via a"}],
+    # Listeners are added with the facade's `on/3` & co., not Node's EventEmitter.
+    "Page" => [
+      {"which can be handled using any of Node's native [`EventEmitter`](https://nodejs.org/api/events.html#events_class_eventemitter) " <>
+         "methods, such as `on`, `once` or `removeListener`.",
+       "which can be handled with [`method: Page.on`], [`method: Page.once`] or [`method: Page.off`]."}
+    ],
+    # An upstream slip ("Throws for elements").
+    "Locator.inputValue" => [{"Throws elements that are not", "Throws for elements that are not"}]
   }
 
   # Member name => inline code the prose rules leave alone: `getByRole`'s `disabled` is also the
@@ -279,7 +287,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   defp replace_soft(text, from, to) do
     pattern = from |> String.split(" ") |> Enum.map_join("[ ↵]", &Regex.escape/1)
-    String.replace(text, Regex.compile!(pattern), to)
+    # Unicode: `↵` is one character in the class.
+    String.replace(text, Regex.compile!(pattern, "u"), to)
   end
 
   # Notes that point to the test runner's options instead (`Tracing`: "enable tracing in your

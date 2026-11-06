@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Video do
 
   @doc ~S"""
   Returns the file system path this video will be recorded to. The video is guaranteed to be written to the filesystem
-  upon closing the browser context. This method throws when connected remotely.
+  upon closing the browser context. This method fails when connected remotely.
 
   *Since Playwright 1.8.*
   """

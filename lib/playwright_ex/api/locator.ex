@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Locator do
   An AI-optimized snapshot, controlled by `:mode`, is different from a default snapshot:
 
   1. Includes element references `[ref=e2]`.
-     2. Does not wait for an element matching the locator, and throws when no elements match.
+     2. Does not wait for an element matching the locator, and fails when no elements match.
      3. Includes snapshots of `<iframe>`s inside the target.
 
   *Since Playwright 1.49.*
@@ -207,7 +207,7 @@ defmodule PlaywrightEx.Locator do
     Defaults to `false`.
   * `:depth` (`t:integer/0`) - *Since Playwright 1.59.* When specified, limits the depth of the snapshot.
   * `:mode` (`:ai` | `:default`) - *Since Playwright 1.59.* When set to `:ai`, returns a snapshot optimized for AI consumption. Defaults to `:default`. See details for more information.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -289,7 +289,7 @@ defmodule PlaywrightEx.Locator do
     Defaults to `false`.
   * `:depth` (`t:integer/0`) - When specified, limits the depth of the snapshot.
   * `:mode` (`:ai` | `:default`) - When set to `:ai`, returns a snapshot optimized for AI consumption. Defaults to `:default`. See details in `PlaywrightEx.Locator.aria_snapshot/2`.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -332,7 +332,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -389,7 +389,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -453,16 +453,16 @@ defmodule PlaywrightEx.Locator do
 
   Performs the following steps:
 
-  1. Ensure that element is a checkbox or a radio input. If not, this method throws. If the element is already
+  1. Ensure that element is a checkbox or a radio input. If not, this method fails. If the element is already
      checked, this method returns immediately.
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `:force` option is set.
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
-  1. Ensure that the element is now checked. If not, this method throws.
+  1. Ensure that the element is now checked. If not, this method fails.
 
-  If the element is detached from the DOM at any moment during the action, this method throws.
+  If the element is detached from the DOM at any moment during the action, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   **Usage**
@@ -485,7 +485,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -539,7 +539,7 @@ defmodule PlaywrightEx.Locator do
 
   This method waits for [actionability](https://playwright.dev/docs/actionability) checks, focuses the element, clears it and triggers an `input` event after clearing.
 
-  If the target element is not an `<input>`, `<textarea>` or `[contenteditable]` element, this method throws an error. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be cleared instead.
+  If the target element is not an `<input>`, `<textarea>` or `[contenteditable]` element, this method fails. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be cleared instead.
 
   **Usage**
 
@@ -553,7 +553,7 @@ defmodule PlaywrightEx.Locator do
 
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:no_wait_after` (`t:boolean/0`) - This option has no effect.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -645,9 +645,9 @@ defmodule PlaywrightEx.Locator do
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element, or the specified `:position`.
   1. Wait for initiated navigations to either succeed or fail, unless `:no_wait_after` option is set.
 
-  If the element is detached from the DOM at any moment during the action, this method throws.
+  If the element is detached from the DOM at any moment during the action, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   **Usage**
@@ -687,7 +687,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -803,9 +803,9 @@ defmodule PlaywrightEx.Locator do
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to double click in the center of the element, or the specified `:position`.
 
-  If the element is detached from the DOM at any moment during the action, this method throws.
+  If the element is detached from the DOM at any moment during the action, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Note {: .info}
@@ -831,7 +831,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -956,7 +956,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1057,7 +1057,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1125,7 +1125,7 @@ defmodule PlaywrightEx.Locator do
 
   If the target element's `dragover` listener does not call `preventDefault()`, the target
   is considered to have rejected the drop: Playwright dispatches `dragleave` and this
-  method throws.
+  method fails.
 
   **Usage**
 
@@ -1162,7 +1162,7 @@ defmodule PlaywrightEx.Locator do
     element.
     * `:x`
     * `:y`
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1217,7 +1217,7 @@ defmodule PlaywrightEx.Locator do
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc ~S"""
-  Resolves given locator to the first matching DOM element. If there are no matching elements, waits for one. If multiple elements match the locator, throws.
+  Resolves given locator to the first matching DOM element. If there are no matching elements, waits for one. If multiple elements match the locator, fails.
 
   > #### Discouraged {: .warning}
   >
@@ -1227,7 +1227,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1315,7 +1315,7 @@ defmodule PlaywrightEx.Locator do
 
   If `expression` returns a `Promise`, this method will wait for the promise to resolve and return its value.
 
-  If `expression` throws or rejects, this method throws.
+  If `expression` throws or rejects, this method fails.
 
   **Usage**
 
@@ -1339,8 +1339,8 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one fails.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1376,7 +1376,7 @@ defmodule PlaywrightEx.Locator do
 
   If `expression` returns a `Promise`, this method will wait for the promise to resolve and return its value.
 
-  If `expression` throws or rejects, this method throws.
+  If `expression` throws or rejects, this method fails.
 
   **Usage**
 
@@ -1430,7 +1430,7 @@ defmodule PlaywrightEx.Locator do
 
   If `expression` returns a `Promise`, this method will wait for the promise to resolve and return its value.
 
-  If `expression` throws or rejects, this method throws.
+  If `expression` throws or rejects, this method fails.
 
   See `PlaywrightEx.Page.evaluate_handle/4` for more details.
 
@@ -1443,8 +1443,8 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one throws an error.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:expose_functions` (`t:boolean/0`) - *Since Playwright 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one fails.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1508,7 +1508,7 @@ defmodule PlaywrightEx.Locator do
 
   This method waits for [actionability](https://playwright.dev/docs/actionability) checks, focuses the element, fills it and triggers an `input` event after filling. Note that you can pass an empty string to clear the input field.
 
-  If the target element is not an `<input>`, `<textarea>` or `[contenteditable]` element, this method throws an error. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be filled instead.
+  If the target element is not an `<input>`, `<textarea>` or `[contenteditable]` element, this method fails. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be filled instead.
 
   To send fine-grained keyboard events, use `PlaywrightEx.Locator.press_sequentially/3`.
 
@@ -1522,7 +1522,7 @@ defmodule PlaywrightEx.Locator do
 
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:no_wait_after` (`t:boolean/0`) - This option has no effect.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1635,7 +1635,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1702,7 +1702,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2382,9 +2382,9 @@ defmodule PlaywrightEx.Locator do
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to hover over the center of the element, or the specified `:position`.
 
-  If the element is detached from the DOM at any moment during the action, this method throws.
+  If the element is detached from the DOM at any moment during the action, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   *Since Playwright 1.14.*
@@ -2404,7 +2404,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2442,7 +2442,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2483,7 +2483,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2528,13 +2528,13 @@ defmodule PlaywrightEx.Locator do
 
   **Details**
 
-  Throws elements that are not an input, textarea or a select. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), returns the value of the control.
+  Fails for elements that are not an input, textarea or a select. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), returns the value of the control.
 
   *Since Playwright 1.14.*
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2565,7 +2565,7 @@ defmodule PlaywrightEx.Locator do
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc ~S"""
-  Returns whether the element is checked. Throws if the element is not a checkbox or radio input.
+  Returns whether the element is checked. Fails if the element is not a checkbox or radio input.
 
   > #### Asserting checked state {: .warning}
   >
@@ -2581,7 +2581,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2628,7 +2628,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2659,7 +2659,7 @@ defmodule PlaywrightEx.Locator do
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc ~S"""
-  Returns whether the element is [editable](https://playwright.dev/docs/actionability#editable). If the target element is not an `<input>`, `<textarea>`, `<select>`, `[contenteditable]` and does not have a role allowing `[aria-readonly]`, this method throws an error.
+  Returns whether the element is [editable](https://playwright.dev/docs/actionability#editable). If the target element is not an `<input>`, `<textarea>`, `<select>`, `[contenteditable]` and does not have a role allowing `[aria-readonly]`, this method fails.
 
   > #### Asserting editable state {: .warning}
   >
@@ -2675,7 +2675,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2722,7 +2722,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -2956,7 +2956,7 @@ defmodule PlaywrightEx.Locator do
   > #### Note {: .info}
   >
   > If both "New email" button and security dialog appear on screen, the "or" locator will match both of them,
-  > possibly throwing the ["strict mode violation" error](https://playwright.dev/docs/locators#strictness). In this case, you can use `PlaywrightEx.Locator.first/1` to only match one of them.
+  > possibly failing with the ["strict mode violation" error](https://playwright.dev/docs/locators#strictness). In this case, you can use `PlaywrightEx.Locator.first/1` to only match one of them.
 
   ```elixir
   new_email = Page.get_by_role(page, :button, name: "New")
@@ -3058,7 +3058,7 @@ defmodule PlaywrightEx.Locator do
   * `:no_wait_after` (`t:boolean/0`) - Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You can
     opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as navigating
     to inaccessible pages. Defaults to `false`.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3140,7 +3140,7 @@ defmodule PlaywrightEx.Locator do
 
   * `:delay` (`t:number/0`) - Time to wait between key presses in milliseconds. Defaults to 0.
   * `:no_wait_after` (`t:boolean/0`) - This option has no effect.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3236,7 +3236,7 @@ defmodule PlaywrightEx.Locator do
   This method captures a screenshot of the page, clipped to the size and position of a particular element matching the locator. If the element is covered by other elements, it will not be actually visible on the screenshot. If the element is a scrollable container, only the currently scrolled content will be visible on the screenshot.
 
   This method waits for the [actionability](https://playwright.dev/docs/actionability) checks, then scrolls element into view before taking a
-  screenshot. If the element is detached from DOM, the method throws an error.
+  screenshot. If the element is detached from DOM, the method fails.
 
   Returns the buffer with the captured screenshot.
 
@@ -3265,7 +3265,7 @@ defmodule PlaywrightEx.Locator do
   * `:scale` (`:css` | `:device`) - When set to `:css`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `:device` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
 
     Defaults to `:device`.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3310,7 +3310,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3374,7 +3374,7 @@ defmodule PlaywrightEx.Locator do
 
   This method waits for [actionability](https://playwright.dev/docs/actionability) checks, waits until all specified options are present in the `<select>` element and selects these options.
 
-  If the target element is not a `<select>` element, this method throws an error. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be used instead.
+  If the target element is not a `<select>` element, this method fails. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), the control will be used instead.
 
   Returns the array of option values that have been successfully selected.
 
@@ -3416,7 +3416,7 @@ defmodule PlaywrightEx.Locator do
 
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:no_wait_after` (`t:boolean/0`) - This option has no effect.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3489,7 +3489,7 @@ defmodule PlaywrightEx.Locator do
   ## Options
 
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3557,15 +3557,15 @@ defmodule PlaywrightEx.Locator do
 
   This method checks or unchecks an element by performing the following steps:
 
-  1. Ensure that matched element is a checkbox or a radio input. If not, this method throws.
+  1. Ensure that matched element is a checkbox or a radio input. If not, this method fails.
   1. If the element already has the right checked state, this method returns immediately.
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the matched element, unless `:force` option is
      set. If the element is detached during the checks, the whole action is retried.
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
-  1. Ensure that the element is now checked or unchecked. If not, this method throws.
+  1. Ensure that the element is now checked or unchecked. If not, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   *Since Playwright 1.15.*
@@ -3586,7 +3586,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3678,7 +3678,7 @@ defmodule PlaywrightEx.Locator do
   ## Options
 
   * `:no_wait_after` (`t:boolean/0`) - This option has no effect.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3773,9 +3773,9 @@ defmodule PlaywrightEx.Locator do
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.touchscreen/1` to tap the center of the element, or the specified `:position`.
 
-  If the element is detached from the DOM at any moment during the action, this method throws.
+  If the element is detached from the DOM at any moment during the action, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   > #### Note {: .info}
@@ -3799,7 +3799,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3841,7 +3841,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3916,7 +3916,7 @@ defmodule PlaywrightEx.Locator do
 
   * `:delay` (`t:number/0`) - Time to wait between key presses in milliseconds. Defaults to 0.
   * `:no_wait_after` (`t:boolean/0`) - This option has no effect.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -3986,16 +3986,16 @@ defmodule PlaywrightEx.Locator do
 
   This method unchecks the element by performing the following steps:
 
-  1. Ensure that element is a checkbox or a radio input. If not, this method throws. If the element is already
+  1. Ensure that element is a checkbox or a radio input. If not, this method fails. If the element is already
      unchecked, this method returns immediately.
   1. Wait for [actionability](https://playwright.dev/docs/actionability) checks on the element, unless `:force` option is set.
   1. Scroll the element into view if needed.
   1. Use `PlaywrightEx.Page.mouse/1` to click in the center of the element.
-  1. Ensure that the element is now unchecked. If not, this method throws.
+  1. Ensure that the element is now unchecked. If not, this method fails.
 
-  If the element is detached from the DOM at any moment during the action, this method throws.
+  If the element is detached from the DOM at any moment during the action, this method fails.
 
-  When all steps combined have not finished during the specified `:timeout`, this method throws a
+  When all steps combined have not finished during the specified `:timeout`, this method fails with a
   [`TimeoutError`](`PlaywrightEx.TimeoutError`). Passing zero timeout disables this.
 
   *Since Playwright 1.14.*
@@ -4012,7 +4012,7 @@ defmodule PlaywrightEx.Locator do
     which scrolls the element into view when necessary, including scrolling nested scrollable containers. When set to
     `:none`, Playwright does not scroll the element and the action fails if the element is not already in the viewport.
     This is useful to assert that an element is reachable by the user without additional scrolling.
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -4104,7 +4104,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -4149,7 +4149,7 @@ defmodule PlaywrightEx.Locator do
 
   If `expression` returns a `Promise`, this method will wait for the promise to resolve before checking its value.
 
-  If `expression` throws or rejects, this method throws.
+  If `expression` throws or rejects, this method fails.
 
   **Usage**
 
@@ -4177,7 +4177,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

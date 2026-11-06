@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Request do
 
   **Details**
 
-  Note that in some cases the frame is not available, and this method will throw.
+  Note that in some cases the frame is not available, and this method will fail.
 
   * When request originates in the Service Worker. You can use `PlaywrightEx.Request.service_worker/1` to check that.
   * When navigation request is issued before the corresponding frame is created. You can use `PlaywrightEx.Request.is_navigation_request/1` to check that.

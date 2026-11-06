@@ -1379,7 +1379,25 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     {~r/\breturn\s+value\s+resolves\s+to\b/, "return value is"},
     {~r/\b(R|r)esolves\s+to\s+`nil`/, "\\1eturns `nil`"},
     {~r/\bIt\s+resolves\s+to\b/, "It returns"},
-    {~r/\b(?:would|will)\s+resolve\s+(?:to|with)\b/, "returns"}
+    {~r/\b(?:would|will)\s+resolve\s+(?:to|with)\b/, "returns"},
+    # JS throws, Elixir fails: the tuple form returns `{:error, e}`, the bang form raises. Listeners
+    # and handlers are Elixir functions, they raise; page-side JS (`expression` throws) stays.
+    {~r/\b(they|listener|handler)(\s+)throw(s?)\b(?:(\s+)errors\b)?/, "\\1\\2raise\\3"},
+    {~r/\berrors(\s+)thrown(\s+)by(\s+)the(\s+)(listeners|handlers)\b/, "errors\\1raised\\2by\\3the\\4\\5"},
+    {~r/\b(W|w)ill(\s+)not(\s+)throw(?:\s+an?\s+(?:error|exception))?\b/, "\\1ill\\2not\\3fail"},
+    {~r/\b(W|w)ill(\s+)throw(?:\s+an?\s+(?:error|exception))?\b/, "\\1ill\\2fail"},
+    {~r/\bmight(\s+)throw(\s+)errors\b/, "might\\1fail"},
+    {~r/\bAn\s+error\s+(?:will\s+be|is)\s+thrown\b/, "The call fails"},
+    {~r/\ban\s+error\s+(?:will\s+be|is)\s+thrown\b/, "the call fails"},
+    {~r/\bthrows(\s+)an?(\s+)(?:error|exception)\b/, "fails"},
+    {~r/\bthrow(\s+)an?(\s+)(?:error|exception)\b/, "fail"},
+    {~r/\bthrows(\s+)(an?\s+\[)/, "fails with\\1\\2"},
+    {~r/\bthrowing(\s+)the\b/, "failing with\\1the"},
+    {~r/\b(does|do)(\s+)not(\s+)throw\b/, "\\1\\2not\\3fail"},
+    {~r/\bto(\s+)throw\b/, "to\\1fail"},
+    {~r/\bThrows\b/, "Fails"},
+    # Not page-side JS: `expression` throws, its `execute` function throws.
+    {~r/(?<!`\s)(?<!function\s)\bthrows\b/, "fails"}
   ]
 
   defp prose(text), do: Enum.reduce(@prose, text, fn {re, to}, text -> Regex.replace(re, text, to) end)
