@@ -45,7 +45,8 @@ defmodule PlaywrightEx.Client.NetworkBacklogTest do
 
     Page.evaluate!(page, "async () => { for (let i = 0; i < 100; i++) await fetch('/fulfill'); }")
 
-    assert page_rows(page) == rows
+    # Back to the baseline or below (a browser may free rows of its own meanwhile).
+    assert page_rows(page) <= rows
   end
 
   test "concurrent routes send the patterns of all of them", %{page: page} do

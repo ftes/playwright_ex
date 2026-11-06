@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   # it.use({ launchOptions: { ...launchOptions, args: ['--site-per-process'] } }): this module's
   # `browser` is launched with `--site-per-process`; contextTest's `context`/`page` use it.
   setup_all %{browser_type: browser_type} do
-    %{browser: BrowserType.launch!(browser_type, args: ["--site-per-process"])}
+    if @chromium_only, do: :ok, else: %{browser: BrowserType.launch!(browser_type, args: ["--site-per-process"])}
   end
 
   @tag :page

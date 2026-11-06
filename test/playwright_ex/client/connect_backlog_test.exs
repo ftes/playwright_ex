@@ -151,6 +151,8 @@ defmodule PlaywrightEx.Client.ConnectBacklogTest do
     no_growth = fn -> Enum.all?(counts(browser_type), fn {key, count} -> count <= before[key] end) end
     assert eventually(no_growth), "#{inspect(before)} -> #{inspect(counts(browser_type))}"
 
-    assert :ets.info(browser_type.table, :size) - rows < 20
+    # The forwarders free their rows as they exit, so this settles after the processes do.
+    assert eventually(fn -> :ets.info(browser_type.table, :size) - rows < 20 end),
+           "#{:ets.info(browser_type.table, :size) - rows} new rows"
   end
 end
