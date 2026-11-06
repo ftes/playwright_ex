@@ -200,7 +200,8 @@ Their requests were reviewed against the official clients; only additive ones we
 - Rejected, done by callers with the official API: per-call client timeouts (`Task.yield`);
   fluffy's document identity (an `add_init_script` stamp read with `location.href` in one
   `evaluate`) and document status (`on(:response)` for navigation requests); `on/3` refs;
-  a monitorable pid (monitor the named Supervisor or listen for Browser `:disconnected`).
+  a monitorable pid (`connection_pid/1`): a lost driver is noticed by Browser `:disconnected`,
+  emitted on a lost local driver too (pages and contexts `:close` first), as `connect` does.
 - `JsLogger` is dropped; the migration guide shows the `on(:console)` / `:weberror` recipe
   and recommends listeners that only `send/2` to the owning process.
 - `Page.locator(page, string)` passes raw selectors through (custom engines, `internal:`).

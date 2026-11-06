@@ -83,7 +83,9 @@ storage state and cookies, `@result_options` for `Credentials.create`).
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
   `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright_ex.cli`). Per-call client
-  timeouts, document identity and a monitorable pid are done by callers with the official API.
+  timeouts and document identity are done by callers with the official API. A lost driver is
+  noticed by Browser `disconnected`: a lost local driver emits it too (pages and contexts emit
+  `close` first), as `connect` does for its connection (rejected: a public `connection_pid/1`).
 
 ## Runtime
 

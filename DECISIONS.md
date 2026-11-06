@@ -1215,3 +1215,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
   it in the connection (`Conn.unwake/2`). The review's literal `wait_for_event` scenario did not
   reproduce (facade latches settle outside dispatch). Older leak fixed too: `expect/4` frees the
   wait when the action raises.
+- User, 2026-11-06: a lost local driver emulates the close of every page, context and browser,
+  as connect.ts does on a lost connection (shared `Client.Connect.emulate_close/2`, run by
+  `OutOfProcess` in the connection's `close` before it stops). Requested by fluffy
+  (ftes/fluffy#64); the user chose close emulation over a public `connection_pid/1`.
+  `PlaywrightEx.playwright/1` awaits (yields a listener) and waits for the restarted driver.
+  Revisit: reads on old handles raise `TargetClosedError` once the old connection has stopped.

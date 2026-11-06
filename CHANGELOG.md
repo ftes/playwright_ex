@@ -20,6 +20,10 @@ Drives Playwright 1.64.
 - Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError` at application start.
 - Failed bang matchers raise `PlaywrightEx.ExpectError`, not `ExUnit.AssertionError` (see
   [Testing with ExUnit](guides/testing-with-exunit.md#assertions) to wrap them).
+- A lost driver closes its objects as a lost `BrowserType.connect` connection does: pages and
+  contexts emit `close`, browsers `disconnected`, and waits on them fail with
+  `PlaywrightEx.TargetClosedError` instead of hanging. `PlaywrightEx.playwright/1` waits for
+  the restarted driver.
 
 ### Added
 - [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before
