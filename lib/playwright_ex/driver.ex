@@ -38,12 +38,31 @@ defmodule PlaywrightEx.Driver do
 
   @platforms ~w(darwin-arm64 darwin-x64 linux-x64 linux-arm64 win-x64 win-arm64)
 
+  @typedoc """
+  An option, overriding its environment variable (see the module docs). `:platform` (nodejs.org
+  naming, `"linux-x64"`) installs or locates the driver of another platform than the host's.
+  """
+  @type option ::
+          {:executable, Path.t()} | {:node, Path.t()} | {:cache_dir, Path.t()} | {:platform, String.t()}
+
+  @doc "The pinned Playwright version (`playwright-core` on npm), which the driver runs."
+  @spec version() :: String.t()
   def version, do: @driver_version
+
+  @doc "The pinned Node.js version the driver runs on (unless `:node` or `:executable` is set)."
+  @spec node_version() :: String.t()
   def node_version, do: @node_version
+
+  @doc false
   def platforms, do: @platforms
+  @doc false
   def checksums, do: @checksums
 
-  @doc "Returns `{program, args_prefix}` to which `run-driver`, `install ...` etc. are appended."
+  @doc """
+  The driver command: `{program, args_prefix}`, to which `run-driver`, `install ...` etc. are
+  appended. Doesn't install, see `ensure_installed/1`.
+  """
+  @spec executable([option()]) :: {String.t(), [String.t()]}
   def executable(opts \\ []) do
     cond do
       exe = opts[:executable] || env("PLAYWRIGHT_EX_EXECUTABLE") ->
@@ -57,7 +76,11 @@ defmodule PlaywrightEx.Driver do
     end
   end
 
-  @doc "Installs lazily (no-op when installed or an override is set), then returns `executable/1`."
+  @doc """
+  Installs the driver unless it is installed or an override is set (`install/1`), then returns
+  `executable/1`. `PlaywrightEx.Supervisor` calls it when it starts.
+  """
+  @spec ensure_installed([option()]) :: {String.t(), [String.t()]}
   def ensure_installed(opts \\ []) do
     cond do
       opts[:executable] || env("PLAYWRIGHT_EX_EXECUTABLE") ->
@@ -74,10 +97,19 @@ defmodule PlaywrightEx.Driver do
     executable(opts)
   end
 
+  @doc "Whether the pinned driver is installed in `install_dir/1`."
+  @spec installed?([option()]) :: boolean()
   def installed?(opts \\ []), do: File.dir?(install_dir(opts))
 
+  @doc "Where the pinned driver is (or will be) installed: `<cache_dir>/<version>/<platform>`."
+  @spec install_dir([option()]) :: String.t()
   def install_dir(opts \\ []), do: Path.join([cache_dir(opts), @driver_version, opts[:platform] || platform!()])
 
+  @doc """
+  The cache directory: the `:cache_dir` option, else `PLAYWRIGHT_EX_CACHE_DIR`, else the user cache
+  directory (`:filename.basedir(:user_cache, "playwright_ex")`).
+  """
+  @spec cache_dir([option()]) :: String.t()
   def cache_dir(opts \\ []) do
     opts[:cache_dir] || env("PLAYWRIGHT_EX_CACHE_DIR") ||
       List.to_string(:filename.basedir(:user_cache, ~c"playwright_ex"))
@@ -87,8 +119,10 @@ defmodule PlaywrightEx.Driver do
   Downloads, verifies and extracts the driver. Idempotent; atomic (everything happens in a
   temp dir next to the target, which is renamed into place only after all checks passed).
 
-  Options: `:cache_dir`, `:platform`, `:force`, `:checksums` (testing).
+  Options: `:cache_dir`, `:platform`, `force: true` to reinstall. Raises if a download or a
+  checksum fails.
   """
+  @spec install([option() | {:force, boolean()}]) :: :ok
   def install(opts \\ []) do
     platform = opts[:platform] || platform!()
     platform in @platforms || unsupported!(platform)
@@ -179,8 +213,10 @@ defmodule PlaywrightEx.Driver do
   Installs browsers with the driver's own Node, like `python -m playwright install ...`
   (which forwards its argv to `node cli.js`). No args installs its default browsers, as
   `npx playwright install`. Browsers land in Playwright's usual
-  location (`PLAYWRIGHT_BROWSERS_PATH`, default `~/Library/Caches/ms-playwright` etc).
+  location (`PLAYWRIGHT_BROWSERS_PATH`, default `~/Library/Caches/ms-playwright` etc). The
+  output goes to stdout; a failed install returns the CLI's exit status.
   """
+  @spec install_browsers([String.t()], [option()]) :: :ok | {:error, {:exit_status, non_neg_integer()}}
   def install_browsers(args \\ [], opts \\ []) do
     {program, prefix} = ensure_installed(opts)
 
@@ -197,14 +233,14 @@ defmodule PlaywrightEx.Driver do
   # PW_LANG_NAME: not "node" (the driver then replaces lone surrogates, `toWellFormed`); not in
   # the driver's embedder list either, so APIRequestContext's default User-Agent ends in
   # "unknown/unknown" (upstream JS: "node/<version>").
+  @doc false
   def driver_env, do: [{"PW_LANG_NAME", "elixir"}, {"PW_CLI_DISPLAY_VERSION", @driver_version}]
 
   # --- verification -------------------------------------------------------
 
-  @doc """
-  Verifies `path` against `expected`: an npm SRI string (`sha512-<base64>`) or
-  `sha256-hex:<hex>` (nodejs.org SHASUMS256). Raises with a clear message on mismatch.
-  """
+  @doc false
+  # Verifies `path` against `expected`: an npm SRI string (`sha512-<base64>`) or
+  # `sha256-hex:<hex>` (nodejs.org SHASUMS256). Raises with a clear message on mismatch.
   def verify!(path, expected) do
     {algo, want} =
       case expected do
@@ -233,10 +269,13 @@ defmodule PlaywrightEx.Driver do
 
   # --- urls / platform ----------------------------------------------------
 
+  @doc false
   def npm_url, do: "https://registry.npmjs.org/playwright-core/-/playwright-core-#{@driver_version}.tgz"
 
+  @doc false
   def node_archive("win-" <> _ = p), do: "node-v#{@node_version}-#{p}.zip"
   def node_archive(p), do: "node-v#{@node_version}-#{p}.tar.gz"
+  @doc false
   def node_url(p), do: "https://nodejs.org/dist/v#{@node_version}/#{node_archive(p)}"
 
   defp node_path(opts) do
@@ -249,7 +288,8 @@ defmodule PlaywrightEx.Driver do
 
   defp cli_path(opts), do: Path.join([install_dir(opts), "package", "cli.js"])
 
-  @doc "Host platform in nodejs.org naming, or raises for unsupported hosts."
+  @doc false
+  # Host platform in nodejs.org naming, or raises for unsupported hosts.
   def platform! do
     case platform() do
       {:ok, p} -> p
@@ -267,6 +307,7 @@ defmodule PlaywrightEx.Driver do
     """
   end
 
+  @doc false
   def platform do
     arch = :system_architecture |> :erlang.system_info() |> List.to_string()
 

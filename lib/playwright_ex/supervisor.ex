@@ -17,6 +17,19 @@ defmodule PlaywrightEx.Supervisor do
 
   alias PlaywrightEx.OutOfProcess
 
+  @typedoc "An option of `start_link/1`, see the module docs."
+  @type option ::
+          {:name, atom()}
+          | {:executable, Path.t()}
+          | {:node, Path.t()}
+          | {:cache_dir, Path.t()}
+          | {:env, Enumerable.t({String.t(), String.t()})}
+
+  @doc """
+  Starts the driver and its connection under a supervisor registered as `:name`. Returns once
+  the root object is ready (`PlaywrightEx.playwright/1`), after installing the driver if needed.
+  """
+  @spec start_link([option()]) :: Supervisor.on_start()
   def start_link(opts \\ []) do
     opts = Keyword.validate!(opts, [:executable, :node, :cache_dir, name: PlaywrightEx, env: []])
     Supervisor.start_link(__MODULE__, opts, name: opts[:name])

@@ -23,6 +23,10 @@ defmodule PlaywrightEx.AbortSignal do
 
   require Logger
 
+  # A process of the application, not for users.
+  @doc false
+  def child_spec(arg), do: super(arg)
+
   defstruct [:id]
 
   @typedoc "An abort signal (`PlaywrightEx.AbortController.signal/1`)."

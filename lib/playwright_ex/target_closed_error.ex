@@ -18,5 +18,7 @@ defmodule PlaywrightEx.TargetClosedError do
                code: nil,
                cause: nil
 
+  @doc false
+  # `new TargetClosedError(cause)`, for the client.
   def new(cause \\ nil), do: %__MODULE__{message: cause || "Target page, context or browser has been closed"}
 end
