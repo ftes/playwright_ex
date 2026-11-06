@@ -120,7 +120,9 @@ struct and stay readable forever.
 
 The cost: a long-lived process keeps ~175 rows per context it closed until it exits. Objects the
 driver collects (`gc`) are freed at once, with a tombstone so calls raise upstream's "has been
-collected" error. A closed remote connection's Conn stops once the processes that connected
+collected" error. A JSHandle disposed by itself (`dispose`, not with its page) is freed at once
+too, without a tombstone: calls raise `TargetClosedError` as in JS, and so do field reads (JS:
+the last preview). A closed remote connection's Conn stops once the processes that connected
 have exited. Latches shared with `shared: true` go when their creator exits; `Promise.free/1`
 drops a wait nobody needs. AbortSignal rows go when their creator exits.
 

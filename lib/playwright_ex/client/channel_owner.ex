@@ -224,7 +224,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   #   * anything else: the nearest BrowserContext (else Browser) ancestor, freed with it.
   # Its listeners go (they never fire again; user listener processes stop) and pending latches
   # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (deviation: JS
-  # still reads its fields); a tombstone (`_wasCollected`) stays until its anchor is freed.
+  # still reads its fields); a tombstone (`_wasCollected`) stays until its anchor is freed. A
+  # handle disposed by itself is freed at once, without one (`_free_at_dispose?/2`).
   # deviation: reads after those processes exit raise TargetClosedError (JS: GC while
   # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
   defp _retire(this, reason) do
@@ -245,10 +246,24 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       end
     end
 
-    case _anchor(this) do
-      # Its rows went with an anchor freed while its children were disposed: nothing to keep.
+    case if(_free_at_dispose?(this, reason), do: :freed, else: _anchor(this)) do
+      # Its rows went with an anchor freed while its children were disposed, or nothing reads them
+      # (below): nothing to keep.
       :freed -> Heap.release(this.table, this.guid)
       anchor -> _keep(this, reason, anchor)
+    end
+  end
+
+  # Objects freed at once instead of kept until their anchor is freed:
+  #   * a JSHandle or ElementHandle the driver disposed by itself (`JSHandle.dispose`; a parent's
+  #     dispose removes the parent from the connection first). JS frees it once unreferenced; kept,
+  #     a long-lived page would grow with the handles it disposed. Calls raise TargetClosedError, as
+  #     in JS (the driver no longer knows the guid). deviation: so do field reads, and `to_string/1`
+  #     (JS: the last preview).
+  defp _free_at_dispose?(this, reason) do
+    case get(this, :_type) do
+      type when type in ["JSHandle", "ElementHandle"] -> reason != "gc" and Heap.alive?(get(this, :_parent))
+      _ -> false
     end
   end
 

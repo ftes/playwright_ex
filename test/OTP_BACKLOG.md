@@ -1,7 +1,7 @@
 # OTP runtime backlog (Phase 2)
 
 Phase 2 fixed the route latches, interception patterns, connect-after-initialize, `Promise.all`
-strays, remote connection leak and `_actual_headers` items. What's left:
+strays, remote connection leak, `_actual_headers` and disposed JSHandle rows items. What's left:
 
 - **Waiter rejection**: JS rejects a waiter synchronously inside `emit`; here it settles in the
   waiter's process, so "rejected before the next emit" isn't guaranteed. The mailbox step only
@@ -22,9 +22,6 @@ strays, remote connection leak and `_actual_headers` items. What's left:
   returns", skipped): `_did_close` settles `_closedPromise` in a listener step, which wakes its
   awaiter before the emit's later listeners run; JS resolves it inside the synchronous `emit`.
   Fix idea: `Runtime.Conn` holds back wake-ups for latches settled while a frame's steps run.
-- **Disposed JSHandle rows**: each disposed handle keeps ~7 rows until its context is freed
-  (35k rows after 5k disposes), so a long-lived page grows. Fix idea: free them on an explicit
-  `dispose`, keeping a tombstone.
 
 Possibly load-flaky, to watch: `locator_query_test.exs:324` (webkit), `conn_test.exs:360`
 (120 s timeout once in a loaded full run), `page_screenshot_test.exs:482`,

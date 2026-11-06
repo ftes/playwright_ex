@@ -1034,3 +1034,10 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **#13/#14 fixed** (wr3-small): `number_to_string` ports JS Number#toString (exponent at >=1e21 / <=1e-7,
   ints >2^53 rounded to double); screencast awaits a promise returned by onFrame before acking (upstream
   backpressure spec adjusted to return a promise, as upstream's async callback does).
+
+- WR3 heap (#draft-19): a JSHandle/ElementHandle whose own `__dispose__` arrives (`dispose`;
+  its parent still alive, so not a page/context close) frees all its rows at once, with no
+  tombstone row: the missing rows already make calls raise TargetClosedError, as the driver does
+  in JS for an unknown guid, so 1000 disposes leave the row count flat. Deviation: field reads and
+  `to_string/1` raise too (JS: the last preview); revisit if users read a disposed handle's
+  preview. Dispose speed unchanged (perf handles_5k p50 0.55 ms).
