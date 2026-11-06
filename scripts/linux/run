@@ -21,7 +21,7 @@ platform=${PLATFORM:-linux/$host_arch}
 name=playwright_ex-linux-${platform#linux/}
 # Each checkout gets its own dir in the container, so its _build and deps stay there.
 app=/app/$(basename "$src")-$(printf %s "$src" | cksum | cut -d' ' -f1)
-version=$(sed -n 's/^ *@driver_version "\(.*\)"/\1/p' "$src/lib/playwright_ex/driver.ex")
+version=$(<"$src/DRIVER_VERSION")
 
 # The host's cache (upstream sources) is mounted read-only; the test suite then skips the upstream
 # download, whose tar extraction fails under amd64 emulation (Function not implemented).

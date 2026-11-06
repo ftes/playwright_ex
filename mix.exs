@@ -57,6 +57,8 @@ defmodule PlaywrightEx.MixProject do
     [
       licenses: ["MIT"],
       links: %{"Github" => @source_url},
+      # Hex's default files, plus the pinned versions `PlaywrightEx.Driver` reads when compiling.
+      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md DRIVER_VERSION NODE_VERSION),
       exclude_patterns: ~w(priv/plts)
     ]
   end

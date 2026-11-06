@@ -38,6 +38,12 @@ jobs:
         run: mix credo
       - name: Compiles without warnings
         run: mix compile --warnings-as-errors
+      # As a Hex install does: from the package's files only (DRIVER_VERSION etc. are read when
+      # compiling). In the checkout, so mise's .tool-versions applies.
+      - name: Hex package compiles
+        run: |
+          mix hex.build --unpack --output tmp/hex-package
+          cd tmp/hex-package && MIX_ENV=prod mix compile --warnings-as-errors
       - name: Docs build without warnings
         run: mix docs --warnings-as-errors
         env:
@@ -93,7 +99,7 @@ jobs:
       - name: Restore browser system packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          key: apt-${{ matrix.browser }}-${{ hashFiles('lib/playwright_ex/driver.ex') }}-ubuntu-26.04
+          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04
           path: ~/apt-cache
       - name: Install driver and browsers
         run: |

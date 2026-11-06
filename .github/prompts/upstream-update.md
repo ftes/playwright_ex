@@ -20,9 +20,9 @@ the existing ported code next to whatever you port.
    ```
    Read the RELEASE notes too (`gh release view vTO --repo microsoft/playwright`).
 3. Follow PORTING.md "Bumping the pinned version", step by step:
-   1. Bump `@driver_version` in `lib/playwright_ex/driver.ex` to TO. Bump `@node_version` only
-      if playwright-python's `NODE_VERSION` changed for TO (look it up in microsoft/playwright-python
-      with `gh` or `curl`). Run `mix playwright_ex.checksums`, then
+   1. Run `mix playwright_ex.checksums TO NODE`: it writes `DRIVER_VERSION`, `NODE_VERSION` and
+      the checksums. NODE is the current `NODE_VERSION`, or playwright-python's `NODE_VERSION`
+      for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
       `mix playwright_ex.install -- chromium` (driver and browser for TO).
    2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`; commit the generated diff
       on its own.

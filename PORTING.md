@@ -205,8 +205,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 `.github/workflows/upstream-update.yml` checks npm daily and opens a draft PR doing these steps
 (`.github/prompts/upstream-update.md`); finish its checklist by hand.
 
-1. Bump `@driver_version` (and Node if Python did) in `PlaywrightEx.Driver`, run
-   `mix playwright_ex.checksums`.
+1. `mix playwright_ex.checksums <driver> <node>` (Node bumped only if Python's `NODE_VERSION`
+   was): writes the repo-root `DRIVER_VERSION` and `NODE_VERSION` and the checksums.
 2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`, commit the generated diff.
 3. `git diff vA vB -- packages/playwright-core/src/client tests/page tests/library` in upstream; port the hunks.
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files

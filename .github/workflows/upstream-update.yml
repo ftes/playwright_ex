@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: read # read driver.ex and mix.exs
+      contents: read # read DRIVER_VERSION and mix.exs
       pull-requests: read # gh pr list (dedup)
     outputs:
       update: ${{ steps.check.outputs.update }}
@@ -47,7 +47,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/scripts
-            lib/playwright_ex/driver.ex
+            DRIVER_VERSION
             mix.exs
           sparse-checkout-cone-mode: false
       - name: Find a newer upstream release

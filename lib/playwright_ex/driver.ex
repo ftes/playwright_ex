@@ -28,9 +28,14 @@ defmodule PlaywrightEx.Driver do
   @external_resource @checksums_file
   @checksums @checksums_file |> File.read!() |> Code.eval_string() |> elem(0)
 
-  @driver_version "1.64.1"
-  # Same as playwright-python's NODE_VERSION.
-  @node_version "24.22.1"
+  # One line each at the repo root, as playwright-python's DRIVER_VERSION and NODE_VERSION (whose
+  # Node version we follow). CI keys caches on them; upstream-check.sh reads DRIVER_VERSION.
+  @driver_version_file Path.join([__DIR__, "..", "..", "DRIVER_VERSION"])
+  @node_version_file Path.join([__DIR__, "..", "..", "NODE_VERSION"])
+  @external_resource @driver_version_file
+  @external_resource @node_version_file
+  @driver_version @driver_version_file |> File.read!() |> String.trim()
+  @node_version @node_version_file |> File.read!() |> String.trim()
 
   if @checksums.driver_version != @driver_version or @checksums.node_version != @node_version do
     raise "priv/driver_checksums.exs is stale; run `mix playwright_ex.checksums`"

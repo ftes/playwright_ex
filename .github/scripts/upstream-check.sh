@@ -48,9 +48,9 @@ stop() {
   exit 0
 }
 
-from=$(sed -nE 's/^ *@driver_version "([^"]+)".*/\1/p' "$root/lib/playwright_ex/driver.ex")
+from=$(<"$root/DRIVER_VERSION")
 ours=$(sed -nE 's/^ *@version "([^"]+)".*/\1/p' "$root/mix.exs")
-[[ $from =~ $stable && $ours =~ $stable ]] || { echo "cannot read @driver_version/@version" >&2; exit 1; }
+[[ $from =~ $stable && $ours =~ $stable ]] || { echo "cannot read DRIVER_VERSION/@version" >&2; exit 1; }
 out from "$from"
 
 # The driver is the playwright-core npm package (PlaywrightEx.Driver.npm_url/0), so the npm
