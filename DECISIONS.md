@@ -1006,3 +1006,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   promise (`Promise.async_once/3`). RO-033 per the user: the teardown rejection is kept and the
   `route` listener drops it unlogged (JS-pending alternative: a never-reject latch flag, a stuck
   listener process per in-flight callback, and `unrouteAll(wait)` after close hangs as in JS).
+- Lead, after the backlog merge: `ChannelOwner._retire` releases an object whose rows already went
+  with a freed anchor (its children's disposal freed it) instead of raising in the connection
+  ("Dispatch failed" logs, ~10 per full run, gone). OOPIF "should click" gets a macOS `env:` skip:
+  the driver's JS client loses the same click-after-goto race 1-3 in 10 there; ours every time;
+  Linux CI passes.
