@@ -34,6 +34,16 @@ defmodule PlaywrightEx.SupervisorTest do
     assert BrowserType.name(Playwright.chromium(restarted)) == "chromium"
   end
 
+  @tag :tmp_dir
+  test "a driver that exits before it answers initialize fails the start", %{tmp_dir: tmp_dir} do
+    executable = Path.join(tmp_dir, "playwright")
+    File.write!(executable, "#!/bin/sh\nexit 3\n")
+    File.chmod!(executable, 0o755)
+
+    assert {:error, {{:shutdown, {:failed_to_start_child, _, {:shutdown, {:driver_closed, 3}}}}, _}} =
+             start_supervised({PlaywrightEx.Supervisor, name: __MODULE__.Exits, executable: executable})
+  end
+
   # The root of the restarted driver (`playwright/1` exits while there is none).
   defp restarted(name, old, attempts \\ 100) do
     new =

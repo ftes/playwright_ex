@@ -80,21 +80,59 @@ defmodule PlaywrightEx.OutOfProcess do
     # (Elixir: the connection process writes each turn's messages together.)
     Conn.set_transport(conn, fn messages -> Pipe.send_messages(transport, messages) end)
 
-    playwright = Connection.initialize_playwright(connection)
-    Heap.put(playwright, :driverProcess, transport)
-    # Elixir only: the supervisor's name (for the log) and pid (a lost driver's table never
-    # outlives it).
-    {supervisor, lifeline} = Keyword.get(opts, :supervisor, {nil, self()})
+    case initialize(conn, connection, transport) do
+      {:ok, playwright} ->
+        Heap.put(playwright, :driverProcess, transport)
+        # Elixir only: the supervisor's name (for the log) and pid (a lost driver's table never
+        # outlives it).
+        {supervisor, lifeline} = Keyword.get(opts, :supervisor, {nil, self()})
 
-    {:ok,
-     %{
-       conn: conn,
-       connection: connection,
-       transport: transport,
-       playwright: playwright,
-       supervisor: supervisor,
-       lifeline: lifeline
-     }}
+        {:ok,
+         %{
+           conn: conn,
+           connection: connection,
+           transport: transport,
+           playwright: playwright,
+           supervisor: supervisor,
+           lifeline: lifeline
+         }}
+
+      {:error, reason} ->
+        {:stop, reason}
+    end
+  end
+
+  # Elixir only: a driver that exits before it answers `initialize` fails the start. This process
+  # handles the pipe's close only once started, so a watcher closes the connection meanwhile,
+  # which rejects the call (JS: it would hang).
+  defp initialize(conn, connection, transport) do
+    watcher = spawn(fn -> close_when_down(transport, conn, connection) end)
+
+    try do
+      {:ok, Connection.initialize_playwright(connection)}
+    rescue
+      TargetClosedError ->
+        # The pipe sends its close before it exits.
+        receive do
+          {:transport_closed, status} -> {:error, {:shutdown, {:driver_closed, status}}}
+          {:EXIT, ^transport, reason} -> {:error, {:shutdown, {:transport_exit, reason}}}
+        after
+          @close_emulation_timeout -> {:error, {:shutdown, :driver_closed}}
+        end
+    after
+      Process.exit(watcher, :kill)
+    end
+  end
+
+  defp close_when_down(transport, conn, connection) do
+    ref = Process.monitor(transport)
+
+    receive do
+      {:DOWN, ^ref, :process, _, _} ->
+        Conn.run(conn, fn -> Connection.close(connection, "Playwright driver closed") end)
+    end
+  rescue
+    TargetClosedError -> :ok
   end
 
   @impl true
