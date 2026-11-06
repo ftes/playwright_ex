@@ -319,6 +319,35 @@ defmodule PlaywrightEx.RuntimeConnTest do
       error = assert_raise PlaywrightEx.TargetClosedError, fn -> Promise.await!(promise) end
       assert error.message =~ "page.waitForEvent: Target page, context or browser has been closed"
     end
+
+    # The navigation's response is the last wait of `wait_for_url`: a failure that wins it (the
+    # abort, settled before) must not leave the response's late result in the caller's mailbox.
+    test "a navigation wait that fails while waiting for the response leaves no message", %{
+      page: page,
+      server: server
+    } do
+      Page.goto!(page, server.empty_page)
+      frame = Page.main_frame(page)
+      controller = AbortController.new()
+      navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/grid.html") end)
+
+      # Runs when the navigation commits: aborts once `load` fired, so the load state is not
+      # waited for and the abort wins the response wait.
+      url = fn url ->
+        if url =~ "grid.html" do
+          wait_until(fn -> PlaywrightEx.Runtime.Heap.set_has(frame, :_loadStates, "load") end)
+          AbortController.abort(controller)
+          true
+        end
+      end
+
+      assert {:error, %PlaywrightEx.AbortError{}} =
+               Page.wait_for_url(page, url, signal: AbortController.signal(controller))
+
+      Task.await(navigation)
+      Process.sleep(200)
+      assert {:messages, []} = Process.info(self(), :messages)
+    end
   end
 
   # JS runs the statements after `await channel.x()` before it dispatches the next message, so an
