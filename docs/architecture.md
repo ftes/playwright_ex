@@ -128,9 +128,7 @@ This supersedes the baton event loop: one token per driver, client code only in 
 an ETS heap freed by a tracing GC. That reproduced JS ordering exactly but cost ~30 µs of token
 time per call, 100-350 ms GC pauses at 20-60k rows and a cap of 1000 handles per process. On the
 OTP runtime the full chromium suite went from 1257 s (61 failures) to 192 s (6) before the
-concurrency audit. Closing a context with 1000 live handles is ~21% (+1.9 ms) slower than on the
-baton (linear, ~7 µs per child; 7x faster than the baton at 5000 handles); accepted, with no
-close-walk optimization. Counted ownership (keep the heap, count holders) was the rejected
+concurrency audit. Counted ownership (keep the heap, count holders) was the rejected
 alternative: smaller, but a missed holder becomes a new failure mode.
 
 ## Object lifetimes
@@ -144,9 +142,10 @@ else is anchored to its nearest context (else browser). After that, fields raise
 `TargetClosedError` and writes are dropped. Initializer data, type and guid live on the handle
 struct and stay readable forever.
 
-The cost: a long-lived process keeps ~175 rows per context it closed until it exits. Objects the
-driver collects (`gc`) are freed at once, with a tombstone so calls raise upstream's "has been
-collected" error. A JSHandle disposed by itself (`dispose`, not with its page) is freed at once too,
+The cost: a long-lived process keeps ~175 rows per context it closed until it exits. Closing a
+context frees its children one by one (linear, ~7 µs each); accepted, with no close-walk
+optimization. Objects the driver collects (`gc`) are freed at once, with a tombstone so calls
+raise upstream's "has been collected" error. A JSHandle disposed by itself (`dispose`, not with its page) is freed at once too,
 without a tombstone: calls raise `TargetClosedError` as in JS, and so do field reads (JS: the last
 preview). A remote connection's JsonPipe is freed when disposed. An object the driver creates under
 the guid of a disposed one (a reused context and its pages) ends the old one's retention, as rows

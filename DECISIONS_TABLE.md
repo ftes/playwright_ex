@@ -95,7 +95,7 @@ one.
 | 59.17 | WR3 ClientStackTrace cwd cache | dropped: superseded (59.35, then no cache: ClientStackTrace comment) |
 | 59.18 | WR3 `_onRoute` sends update only when expired | code (`# deviation:` in Page and BrowserContext `_on_route`) |
 | 59.19 | User RD6: one CI rerun, first failures in summary | arch §CI, code (elixir.yml comment) |
-| 59.20 | User RD7: context close +21% with 1000 handles accepted | arch §Runtime |
+| 59.20 | User RD7: context close +21% with 1000 handles accepted | arch §Object lifetimes; baton comparison: dropped: baton abandoned |
 | 59.21 | User docs Q1: guides block 1.64.0, example count on spike | dropped: superseded (release is 0.17.0-rc.0; all examples and guides done) |
 | 59.22 | User docs Q2: `filter_modules`, `:expect` config doc single source | code (mix.exs comment, ApiRules / `Matchers.Expect.__config_doc__/0`) |
 | 59.23 | WR5 examples spike | code (ExampleCase moduledoc, test/examples); counts: dropped: history |
@@ -160,7 +160,7 @@ Counted by script over the cells above (`arch §`, `PORTING`, `guide:*`, `GH #N`
 
 - DECISIONS: 107 rows (entries 0-59 plus 59.0-59.46). First-named: arch 52, dropped 21, code 17,
   PORTING 7, guide 9 (testing-with-exunit 4, migration 3, concurrency 1, debugging-and-ci 1),
-  CHANGELOG 1. References: arch 116, dropped 107, code 65, PORTING 44, guide 37 (migration 11,
+  CHANGELOG 1. References: arch 116, dropped 108, code 65, PORTING 44, guide 37 (migration 11,
   api-conventions 10, testing-with-exunit 9, concurrency 5, network 1, debugging-and-ci 1), GH 9,
   CHANGELOG 7, decided 1.
 - PLAN: 15 rows (14 sections plus the intro). First-named: arch 7, dropped 6, PORTING 1, GH 1.
