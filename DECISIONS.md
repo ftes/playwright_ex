@@ -1074,3 +1074,5 @@ drift). Blockers for release, assigned to follow-up workstreams:
   gen.api, so each one compiles and runs (about 93% can run, the rest compile only); Python's
   block is translator input, not the key. Rejected `iex>` doctests, a compile-only checker and
   mapping onto upstream test ports. Prototype with 5 examples committed; Later #1/#2 moved there.
+- User, 2026-11-06, review decision 4: a closed remote connection's Conn stops once its creators
+  exit; later reads raise TargetClosedError, as for closed contexts and disposed handles (R2).

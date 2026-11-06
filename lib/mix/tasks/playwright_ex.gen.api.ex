@@ -20,7 +20,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   `PlaywrightEx.Client.<Class>` with the JS arity (receiver plus JS arguments), so a client
   function that is missing is a compile warning (`--warnings-as-errors` in CI). Docs render from
   the `spec` markdown AST; options get a `@type <member>_options`. A JS example with a translation
-  in `test/examples` (`Mix.PlaywrightEx.Examples`) is rendered in Elixir; a translation whose JS
+  in `test/examples` (Mix.PlaywrightEx.Examples) is rendered in Elixir; a translation whose JS
   upstream no longer has fails the run.
 
     * `async: true` members: `name/n` returns `{:ok, value} | {:error, exception}` (`:ok` for
