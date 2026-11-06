@@ -1122,3 +1122,15 @@ drift). Blockers for release, assigned to follow-up workstreams:
   class (PLAN Docs work list 1), and polish the facade prose into Elixir in the generator (item 2).
   Lead: `Object<string, T>` dictionaries (headers, `highlight` `style:`) keep string keys: their
   keys are data, not option names (as `extraHTTPHeaders`; CSS names have dashes).
+- WR6 (guides): the four guides of PLAN Docs item 5, snippets run in `test/guides/*_test.exs`
+  against `TestServer` (real HTTP, so `APIRequestContext` and HAR recording work; routes would
+  not), on all three browsers. "Trace and screenshot on failure": ExUnit's `on_exit` doesn't
+  know the result, so the guide traces every test, writes trace and screenshot in `on_exit`, and a
+  small formatter (runs after `on_exit`) deletes those of passing tests. Revisit if that is too
+  much code for a guide, or if tracing every test is too slow (the guide suggests an env gate).
+  Call logs read in JS notation (`getByRole('button', { name: 'Save' })`, the driver's text),
+  shown verbatim. The remote-browser snippet is tested against a local `run-server`, not the
+  Docker image. Untested: `show-trace`, headed launch and `pause!` (they open windows), the GitHub
+  Actions YAML, the Dockerfile and `docker run`; `DEBUG=pw:api` is tested only as a driver that
+  starts. Not in `mix.exs` extras yet (another agent owns it); `mix docs --warnings-as-errors`
+  passed with them added locally.

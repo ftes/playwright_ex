@@ -627,7 +627,9 @@ Upstream) and contributor mix tasks are left out by `filter_modules` (done; modu
 3. `mix.exs` docs config: extras, `groups_for_extras`, the module groups; a moduledoc note on the
    examples' aliases.
 4. README; getting started; API conventions (out of migration.md); cheatsheet.
-5. Testing with ExUnit; events and waiting; network; debugging and CI. Each with its test.
+5. Testing with ExUnit; events and waiting; network; debugging and CI. Each with its test. Done (wr6-guides):
+   `guides/{testing-with-exunit,events-and-waiting,network,debugging-and-ci}.md`, tests in
+   `test/guides/`; not yet in `mix.exs` extras (item 3).
 
 ## Later
 
