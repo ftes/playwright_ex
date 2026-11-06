@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Examples.TracingTest do
 
   alias PlaywrightEx.Tracing
 
+  @chromium_only if(PlaywrightEx.TestBrowser.name() != "chromium", do: "launches chromium, not the browser under test")
+
   example "Tracing",
     js: ~S"""
     const browser = await chromium.launch();
@@ -14,7 +16,8 @@ defmodule PlaywrightEx.Examples.TracingTest do
     expect(page.url()).toBe('https://playwright.dev');
     await context.tracing.stop({ path: 'trace.zip' });
     """,
-    writes: ["trace.zip"] do
+    writes: ["trace.zip"],
+    skip: @chromium_only do
     browser = Playwright.chromium(playwright) |> BrowserType.launch!()
     context = Browser.new_context!(browser)
     BrowserContext.tracing(context) |> Tracing.start!(screenshots: true, snapshots: true)

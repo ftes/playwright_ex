@@ -41,6 +41,7 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
 
     TestServer.set_route(server, "/report.csv", fn conn ->
       conn
+      |> Plug.Conn.put_resp_header("content-type", "application/octet-stream")
       |> Plug.Conn.put_resp_header("content-disposition", ~s(attachment; filename="report.csv"))
       |> Plug.Conn.send_resp(200, "a,b")
     end)

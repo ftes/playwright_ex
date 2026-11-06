@@ -5,6 +5,8 @@ defmodule PlaywrightEx.Examples.WebMCPTest do
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.WebMCP
 
+  @chromium_only if(TestBrowser.name() != "chromium", do: "launches chromium, not the browser under test")
+
   @add_tool ~S"""
   <script>
     (document.modelContext || navigator.modelContext).registerTool({
@@ -27,7 +29,8 @@ defmodule PlaywrightEx.Examples.WebMCPTest do
 
     const result = await page.webmcp.callTool('add', { a: 2, b: 40 });
     """,
-    html: @add_tool do
+    html: @add_tool,
+    skip: @chromium_only do
     browser = Playwright.chromium(playwright) |> BrowserType.launch!(args: ["--enable-features=WebMCP"])
     page = Browser.new_page!(browser)
     Page.goto!(page, "https://example.com")
