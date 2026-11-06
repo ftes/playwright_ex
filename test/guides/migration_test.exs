@@ -56,8 +56,15 @@ defmodule PlaywrightEx.Guides.MigrationTest do
     {:ok, _} =
       BrowserContext.route(context, "http://app.test/**", fn route, request ->
         case URI.parse(Request.url(request)).path do
-          "/report.csv" -> Route.fulfill(route, body: "a,b", headers: %{"content-disposition" => "attachment"})
-          _ -> Route.fulfill(route, body: @html, content_type: "text/html")
+          "/report.csv" ->
+            Route.fulfill(route,
+              body: "a,b",
+              content_type: "application/octet-stream",
+              headers: %{"content-disposition" => "attachment"}
+            )
+
+          _ ->
+            Route.fulfill(route, body: @html, content_type: "text/html")
         end
       end)
 
