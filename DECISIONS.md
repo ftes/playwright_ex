@@ -1030,3 +1030,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - **OOPIF "should click" is a browser race, not ours** (wr3-oopif): CDP sequence and frame-goto→mousePressed
   gap match the JS client (55-63 ms vs 56-60 ms); looped, JS fails as often or more; a 50 ms sleep fixes both.
   Keep the macOS skip with a corrected comment; moved from ISSUES.md to PLAN Later (upstream only).
+
+- **#13/#14 fixed** (wr3-small): `number_to_string` ports JS Number#toString (exponent at >=1e21 / <=1e-7,
+  ints >2^53 rounded to double); screencast awaits a promise returned by onFrame before acking (upstream
+  backpressure spec adjusted to return a promise, as upstream's async callback does).

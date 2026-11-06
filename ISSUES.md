@@ -2,7 +2,7 @@
 
 Places where playwright_ex behaves worse than upstream's JS client. Ids are the `#draft-N` ids
 DECISIONS_TABLE.md refers to. Work items and upstream-only problems are in PLAN.md "Later".
-Being worked on (2026-11-06): #18, #7, #6, #10b; #19, #20; #13, #14.
+Being worked on (2026-11-06): #18, #7, #6, #10b; #19, #20.
 
 ## Runtime ordering
 
@@ -25,12 +25,6 @@ Being worked on (2026-11-06): #18, #7, #6, #10b; #19, #20; #13, #14.
   keeping a tombstone.
 - **#20 Rows after remote connect/close on Linux firefox**: ~1.5 rows per cycle stay on the local
   connection (connect_backlog_test bound raised to 40 as a stopgap).
-
-## Missing port details
-
-- **#14 Screencast `onFrame` backpressure**: upstream awaits a returned promise before acking the
-  frame; we don't.
-- **#13 `ClientHelper.number_to_string/1`**: no JS exponent form (`1e+21`, `1e-7`).
 
 ## Watch
 
