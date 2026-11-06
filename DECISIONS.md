@@ -1062,3 +1062,6 @@ drift). Blockers for release, assigned to follow-up workstreams:
   playwright-python does the same: `os.stat`/`open` raise `FileNotFoundError`, paths use
   `os.path.abspath`, its specs assert `errno`/`[Errno 2]` instead of Node's text (it does wrap the
   storage-state error in `Error` to keep the prefix).
+- User, 2026-11-06, review decision 3: `JSHandle.get_properties` stays a map (C3a-14); iteration
+  order is a documented deviation. Polling/soft asserts and runner setup stay out of the library; a
+  "Testing with ExUnit" guide covers setup and an `eventually` helper snippet (docs plan).
