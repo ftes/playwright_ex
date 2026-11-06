@@ -62,9 +62,13 @@ defmodule PlaywrightEx.Client.Connection do
       ChannelOwner.new(__MODULE__, connection, "Root", "", %{})
     end
 
-    def initialize(this) do
+    # Elixir only: `on_reply` (a 1-arity fun of the Playwright) runs in the connection when the reply
+    # is dispatched (`ChannelOwner.channel_call/5`), for a caller's statements after the await.
+    def initialize(this, on_reply \\ nil) do
+      on_reply = if on_reply, do: fn result -> on_reply.(Playwright.from(result.playwright)) end
+
       Playwright.from(
-        channel_call(this, :initialize, %{sdkLanguage: "javascript"}, TimeoutSettings.k_no_timeout()).playwright
+        channel_call(this, :initialize, %{sdkLanguage: "javascript"}, TimeoutSettings.k_no_timeout(), on_reply).playwright
       )
     end
   end
@@ -162,8 +166,9 @@ defmodule PlaywrightEx.Client.Connection do
     get(this, :_localUtils)
   end
 
-  def initialize_playwright(this) do
-    Root.initialize(get(this, :_rootObject))
+  # Elixir only: `on_reply`, see `Root.initialize/2`.
+  def initialize_playwright(this, on_reply \\ nil) do
+    Root.initialize(get(this, :_rootObject), on_reply)
   end
 
   def get_object_with_known_name(this, guid) do
@@ -249,6 +254,8 @@ defmodule PlaywrightEx.Client.Connection do
                 })
 
                 onmessage = get(this, :onmessage)
+                # Params computed now (`ChannelOwner.channel_call/5`).
+                message = if is_function(params, 0), do: %{message | params: params.()}, else: message
                 onmessage.(Map.put(message, :metadata, metadata))
                 nil
               end

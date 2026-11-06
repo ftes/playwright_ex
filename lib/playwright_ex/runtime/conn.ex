@@ -66,6 +66,11 @@ defmodule PlaywrightEx.Runtime.Conn do
   def cast(conn, fun), do: GenServer.cast(conn, {:run, fun})
 
   @doc false
+  # Stops the connection process once all `pids` have exited (now, if none is alive): a closed
+  # remote connection, whose objects stay readable for the processes that made them until then.
+  def stop_when_down(conn, pids), do: GenServer.cast(conn, {:stop_when_down, pids})
+
+  @doc false
   # Waits until no listener invocation of `emitter` for `type` (`nil`: any) is running.
   # An `await` (of the pending handlers): the caller continues first.
   def wait_pending(%{conn: conn, guid: guid}, type) do
@@ -134,7 +139,9 @@ defmodule PlaywrightEx.Runtime.Conn do
        busy: %{},
        # inv => {emitter guid, type}: listener invocations still running (`_pendingHandlers`)
        pending: %{},
-       pending_waiters: []
+       pending_waiters: [],
+       # monitor ref => pid: the processes whose exit stops this one (`stop_when_down/2`)
+       stop_when_down: nil
      }}
   end
 
@@ -180,6 +187,11 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   @impl true
+  def handle_cast({:stop_when_down, pids}, state) do
+    mons = for pid <- pids, Process.alive?(pid), into: %{}, do: {Process.monitor(pid), pid}
+    if mons == %{}, do: {:stop, :normal, state}, else: {:noreply, %{state | stop_when_down: mons}}
+  end
+
   def handle_cast({:run, fun}, state) do
     {result, steps} = collect(fn -> catch_run(fun) end)
 
@@ -207,6 +219,12 @@ defmodule PlaywrightEx.Runtime.Conn do
   def handle_info({:pw_done, inv, pid}, state) do
     busy = if state.busy[pid], do: Map.update!(state.busy, pid, &List.delete(&1, inv)), else: state.busy
     {:noreply, %{state | busy: busy} |> done(inv) |> drain() |> flush_out()}
+  end
+
+  def handle_info({:DOWN, mref, :process, _pid, _reason}, %{stop_when_down: mons} = state)
+      when is_map_key(mons, mref) do
+    mons = Map.delete(mons, mref)
+    if mons == %{}, do: {:stop, :normal, state}, else: {:noreply, %{state | stop_when_down: mons}}
   end
 
   def handle_info({:DOWN, mref, :process, pid, _reason}, %{table: table} = state) do

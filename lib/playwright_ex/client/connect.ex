@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Client.Connect do
   alias PlaywrightEx.Isomorphic.TimeoutRunner
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Promise
+  alias PlaywrightEx.TargetClosedError
 
   # Elixir only: a `let` assigned later and read by closures.
   defmodule Cell do
@@ -48,6 +49,8 @@ defmodule PlaywrightEx.Client.Connect do
 
     # let browser: Browser;
     browser_cell = new_object(Cell, connection)
+    # Elixir only: the connecting process, see the "close" listener.
+    caller = self()
 
     Connection.on(connection, "close", fn _ ->
       browser = get(browser_cell, :browser)
@@ -61,6 +64,10 @@ defmodule PlaywrightEx.Client.Connect do
       Promise.void(fn ->
         Promise.await(Promise.timer(0))
         browser && Browser._did_close(browser)
+        # Elixir only: the connection process (and its table) stops once the processes that
+        # connected and created the browser have exited; without a browser, now.
+        pids = if browser, do: [caller | get(browser, :_creators) || []], else: []
+        Conn.stop_when_down(connection.conn, pids)
       end)
     end)
 
@@ -70,23 +77,25 @@ defmodule PlaywrightEx.Client.Connect do
           # For tests.
           if params[:__testHookBeforeCreateBrowser], do: params.__testHookBeforeCreateBrowser.()
 
-          playwright = Connection.initialize_playwright(connection)
+          # The statements up to `return browser` run on reply, before the next message, as in JS
+          # (`initialize_playwright/2`): a close dispatched next reads `browser`.
+          Connection.initialize_playwright(connection, fn playwright ->
+            if !get(playwright, :_initializer)[:preLaunchedBrowser] do
+              Connection.close(connection)
+              raise "Malformed endpoint. Did you use BrowserType.launchServer method?"
+            end
 
-          if !get(playwright, :_initializer)[:preLaunchedBrowser] do
-            Connection.close(connection)
-            raise "Malformed endpoint. Did you use BrowserType.launchServer method?"
-          end
-
-          put(playwright, :selectors, get(playwright, :selectors))
-          browser = Browser.from(get(playwright, :_initializer).preLaunchedBrowser)
-          put(browser_cell, :browser, browser)
-          put(browser, :_shouldCloseConnectionOnClose, true)
-          # Elixir only: `Connection.close` in one step (its check-then-set races the transport's close).
-          Browser.on(browser, Events.Browser.disconnected(), fn _ ->
-            atomic(connection, fn -> Connection.close(connection) end)
+            put(playwright, :selectors, get(playwright, :selectors))
+            browser = Browser.from(get(playwright, :_initializer).preLaunchedBrowser)
+            put(browser_cell, :browser, browser)
+            put(browser, :_shouldCloseConnectionOnClose, true)
+            # Elixir only: `Connection.close` in one step (its check-then-set races the transport's close).
+            Browser.on(browser, Events.Browser.disconnected(), fn _ ->
+              atomic(connection, fn -> Connection.close(connection) end)
+            end)
           end)
 
-          browser
+          get(browser_cell, :browser)
         end,
         deadline
       )
@@ -133,9 +142,14 @@ defmodule PlaywrightEx.Client.Connect do
     close_error = new_object(Cell, connection)
     # `reason || closeError`, JS truthiness: the pipe reports an empty reason.
     on_transport_closed = fn reason ->
-      atomic(connection, fn ->
-        Connection.close(connection, Enum.find([reason, get(close_error, :value)], &(&1 not in [nil, ""])))
-      end)
+      try do
+        atomic(connection, fn ->
+          Connection.close(connection, Enum.find([reason, get(close_error, :value)], &(&1 not in [nil, ""])))
+        end)
+      rescue
+        # Elixir only: the connection was closed and its process stopped already (a no-op in JS).
+        TargetClosedError -> nil
+      end
     end
 
     __MODULE__.JsonPipeTransport.on_close(transport, fn reason -> on_transport_closed.(reason) end)
@@ -183,7 +197,15 @@ defmodule PlaywrightEx.Client.Connect do
         _forward_loop(transport, mon, on_transport_closed, close_error)
 
       {:DOWN, ^mon, :process, _, _} ->
-        :ok
+        # Elixir only: the transport's rows (on the local LocalUtils) and its disposed pipe go with the
+        # connection.
+        try do
+          pipe = get(transport, :_pipe)
+          PlaywrightEx.Runtime.Heap.free(transport)
+          if pipe, do: PlaywrightEx.Runtime.Heap.release_disposed(pipe)
+        rescue
+          _ -> :ok
+        end
     end
   end
 
