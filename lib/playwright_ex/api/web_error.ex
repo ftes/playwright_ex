@@ -5,14 +5,14 @@ defmodule PlaywrightEx.WebError do
   @moduledoc ~S"""
   [`WebError`](`PlaywrightEx.WebError`) class represents an unhandled exception thrown in the page. It is dispatched via the [`BrowserContext.on(:web_error)`](PlaywrightEx.BrowserContext.html#module-web_error) event.
 
-  ```js
-  // Log all uncaught errors to the terminal
-  context.on('weberror', webError => {
-    console.log(`Uncaught exception: "${webError.error()}"`);
-  });
+  ```elixir
+  # Log all uncaught errors to the terminal
+  BrowserContext.on(context, :web_error, fn web_error ->
+    IO.puts(~s(Uncaught exception: "#{Exception.message(WebError.error(web_error))}"))
+  end)
 
-  // Navigate to a page with an exception.
-  await page.goto('data:text/html,<script>throw new Error("Test")</script>');
+  # Navigate to a page with an exception.
+  Page.goto!(page, ~s{data:text/html,<script>throw new Error("Test")</script>})
   ```
   """
 

@@ -7,19 +7,18 @@ defmodule PlaywrightEx.Dialog do
 
   An example of using [`Dialog`](`PlaywrightEx.Dialog`) class:
 
-  ```js
-  const { chromium } = require('playwright');  // Or 'firefox' or 'webkit'.
+  ```elixir
+  # Or Playwright.firefox/1 or Playwright.webkit/1.
+  browser = Playwright.chromium(playwright) |> BrowserType.launch!()
+  page = Browser.new_page!(browser)
 
-  (async () => {
-    const browser = await chromium.launch();
-    const page = await browser.newPage();
-    page.on('dialog', async dialog => {
-      console.log(dialog.message());
-      await dialog.dismiss();
-    });
-    await page.evaluate(() => alert('1'));
-    await browser.close();
-  })();
+  Page.on(page, :dialog, fn dialog ->
+    IO.puts(Dialog.message(dialog))
+    Dialog.dismiss!(dialog)
+  end)
+
+  Page.evaluate!(page, "() => alert('1')")
+  Browser.close!(browser)
   ```
 
   > #### Note {: .info}

@@ -5,21 +5,28 @@ defmodule PlaywrightEx.FrameLocator do
   @moduledoc ~S"""
   FrameLocator represents a view to the `iframe` on the page. It captures the logic sufficient to retrieve the `iframe` and locate elements in that iframe. FrameLocator can be created with either `PlaywrightEx.Locator.content_frame/1`, `PlaywrightEx.Page.frame_locator/2` or `PlaywrightEx.Locator.frame_locator/2` method.
 
-  ```js
-  const locator = page.locator('#my-frame').contentFrame().getByText('Submit');
-  await locator.click();
+  ```elixir
+  locator = Page.locator(page, "#my-frame") |> Locator.content_frame() |> FrameLocator.get_by_text("Submit")
+  Locator.click!(locator)
   ```
 
   **Strictness**
 
   Frame locators are strict. This means that all operations on frame locators will throw if more than one element matches a given selector.
 
-  ```js
-  // Throws if there are several frames in DOM:
-  await page.locator('.result-frame').contentFrame().getByRole('button').click();
+  ```elixir
+  # Throws if there are several frames in DOM:
+  Page.locator(page, ".result-frame")
+  |> Locator.content_frame()
+  |> FrameLocator.get_by_role(:button)
+  |> Locator.click!()
 
-  // Works because we explicitly tell locator to pick the first frame:
-  await page.locator('.result-frame').contentFrame().first().getByRole('button').click();
+  # Works because we explicitly tell locator to pick the first frame:
+  Page.locator(page, ".result-frame")
+  |> Locator.content_frame()
+  |> FrameLocator.first()
+  |> FrameLocator.get_by_role(:button)
+  |> Locator.click!()
   ```
 
   **Any frame**
@@ -28,12 +35,16 @@ defmodule PlaywrightEx.FrameLocator do
   starts the search in any frame of the subtree - so that you don't
   need to locate the iframe first.
 
-  ```js
-  // Finds the button in any frame on the page:
-  await page.frameLocator().getByRole('button').click();
+  ```elixir
+  # Finds the button in any frame on the page:
+  Page.frame_locator(page) |> FrameLocator.get_by_role(:button) |> Locator.click!()
 
-  // Finds the iframe with id "my-frame" anywhere on the page, and clicks the button inside it:
-  await page.frameLocator().locator('#my-frame').contentFrame().getByRole('button').click();
+  # Finds the iframe with id "my-frame" anywhere on the page, and clicks the button inside it:
+  Page.frame_locator(page)
+  |> FrameLocator.locator("#my-frame")
+  |> Locator.content_frame()
+  |> FrameLocator.get_by_role(:button)
+  |> Locator.click!()
   ```
 
   Only the start of the search is affected - the rest of the locator is resolved inside a single frame, just like any
@@ -706,11 +717,11 @@ defmodule PlaywrightEx.FrameLocator do
 
   **Usage**
 
-  ```js
-  const frameLocator = page.locator('iframe[name="embedded"]').contentFrame();
-  // ...
-  const locator = frameLocator.owner();
-  await expect(locator).toBeVisible();
+  ```elixir
+  frame_locator = Page.locator(page, ~s(iframe[name="embedded"])) |> Locator.content_frame()
+  # ...
+  locator = FrameLocator.owner(frame_locator)
+  Expect.to_be_visible!(locator)
   ```
   """
   @spec owner(t()) :: PlaywrightEx.Locator.t()

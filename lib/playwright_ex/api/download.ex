@@ -10,14 +10,14 @@ defmodule PlaywrightEx.Download do
 
   Download event is emitted once the download starts. Download path becomes available once download completes.
 
-  ```js
-  // Start waiting for download before clicking. Note no await.
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByText('Download file').click();
-  const download = await downloadPromise;
+  ```elixir
+  # Start waiting for download before clicking. Note no await.
+  download_promise = Page.wait_for_event(page, :download)
+  Page.get_by_text(page, "Download file") |> Locator.click!()
+  download = Promise.await!(download_promise)
 
-  // Wait for the download process to complete and save the downloaded file somewhere.
-  await download.saveAs('/path/to/save/at/' + download.suggestedFilename());
+  # Wait for the download process to complete and save the downloaded file somewhere.
+  Download.save_as!(download, "/path/to/save/at/" <> Download.suggested_filename(download))
   ```
   """
 
@@ -139,8 +139,8 @@ defmodule PlaywrightEx.Download do
 
   **Usage**
 
-  ```js
-  await download.saveAs('/path/to/save/at/' + download.suggestedFilename());
+  ```elixir
+  Download.save_as!(download, "/path/to/save/at/" <> Download.suggested_filename(download))
   ```
 
   ## Arguments

@@ -11,15 +11,16 @@ defmodule PlaywrightEx.Mouse do
 
   Every `page` object has its own Mouse, accessible with `PlaywrightEx.Page.mouse/1`.
 
-  ```js
-  // Using ‘page.mouse’ to trace a 100x100 square.
-  await page.mouse.move(0, 0);
-  await page.mouse.down();
-  await page.mouse.move(0, 100);
-  await page.mouse.move(100, 100);
-  await page.mouse.move(100, 0);
-  await page.mouse.move(0, 0);
-  await page.mouse.up();
+  ```elixir
+  # Using Page.mouse/1 to trace a 100x100 square.
+  mouse = Page.mouse(page)
+  Mouse.move!(mouse, 0, 0)
+  Mouse.down!(mouse)
+  Mouse.move!(mouse, 0, 100)
+  Mouse.move!(mouse, 100, 100)
+  Mouse.move!(mouse, 100, 0)
+  Mouse.move!(mouse, 0, 0)
+  Mouse.up!(mouse)
   ```
   """
 

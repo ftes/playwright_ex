@@ -5,12 +5,12 @@ defmodule PlaywrightEx.FileChooser do
   @moduledoc ~S"""
   [`FileChooser`](`PlaywrightEx.FileChooser`) objects are dispatched by the page in the [`Page.on(:file_chooser)`](PlaywrightEx.Page.html#module-file_chooser) event.
 
-  ```js
-  // Start waiting for file chooser before clicking. Note no await.
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.getByText('Upload file').click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(path.join(__dirname, 'myfile.pdf'));
+  ```elixir
+  # Start waiting for file chooser before clicking. Note no await.
+  file_chooser_promise = Page.wait_for_event(page, :file_chooser)
+  Page.get_by_text(page, "Upload file") |> Locator.click!()
+  file_chooser = Promise.await!(file_chooser_promise)
+  FileChooser.set_files!(file_chooser, Path.join(__DIR__, "myfile.pdf"))
   ```
   """
 

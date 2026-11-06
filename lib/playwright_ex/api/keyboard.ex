@@ -11,31 +11,31 @@ defmodule PlaywrightEx.Keyboard do
 
   An example of holding down `Shift` in order to select and delete some text:
 
-  ```js
-  await page.keyboard.type('Hello World!');
-  await page.keyboard.press('ArrowLeft');
+  ```elixir
+  keyboard = Page.keyboard(page)
+  Keyboard.type!(keyboard, "Hello World!")
+  Keyboard.press!(keyboard, "ArrowLeft")
 
-  await page.keyboard.down('Shift');
-  for (let i = 0; i < ' World'.length; i++)
-    await page.keyboard.press('ArrowLeft');
-  await page.keyboard.up('Shift');
+  Keyboard.down!(keyboard, "Shift")
+  for _ <- 1..String.length(" World"), do: Keyboard.press!(keyboard, "ArrowLeft")
+  Keyboard.up!(keyboard, "Shift")
 
-  await page.keyboard.press('Backspace');
-  // Result text will end up saying 'Hello!'
+  Keyboard.press!(keyboard, "Backspace")
+  # Result text will end up saying 'Hello!'
   ```
 
   An example of pressing uppercase `A`
 
-  ```js
-  await page.keyboard.press('Shift+KeyA');
-  // or
-  await page.keyboard.press('Shift+A');
+  ```elixir
+  Page.keyboard(page) |> Keyboard.press!("Shift+KeyA")
+  # or
+  Page.keyboard(page) |> Keyboard.press!("Shift+A")
   ```
 
   An example to trigger select-all with the keyboard
 
-  ```js
-  await page.keyboard.press('ControlOrMeta+A');
+  ```elixir
+  Page.keyboard(page) |> Keyboard.press!("ControlOrMeta+A")
   ```
   """
 
@@ -102,8 +102,8 @@ defmodule PlaywrightEx.Keyboard do
 
   **Usage**
 
-  ```js
-  await page.keyboard.insertText('嗨');
+  ```elixir
+  Page.keyboard(page) |> Keyboard.insert_text!("嗨")
   ```
 
   > #### Note {: .info}
@@ -162,16 +162,16 @@ defmodule PlaywrightEx.Keyboard do
 
   **Usage**
 
-  ```js
-  const page = await browser.newPage();
-  await page.goto('https://keycode.info');
-  await page.keyboard.press('A');
-  await page.screenshot({ path: 'A.png' });
-  await page.keyboard.press('ArrowLeft');
-  await page.screenshot({ path: 'ArrowLeft.png' });
-  await page.keyboard.press('Shift+O');
-  await page.screenshot({ path: 'O.png' });
-  await browser.close();
+  ```elixir
+  page = Browser.new_page!(browser)
+  Page.goto!(page, "https://keycode.info")
+  Page.keyboard(page) |> Keyboard.press!("A")
+  Page.screenshot!(page, path: "A.png")
+  Page.keyboard(page) |> Keyboard.press!("ArrowLeft")
+  Page.screenshot!(page, path: "ArrowLeft.png")
+  Page.keyboard(page) |> Keyboard.press!("Shift+O")
+  Page.screenshot!(page, path: "O.png")
+  Browser.close!(browser)
   ```
 
   Shortcut for `PlaywrightEx.Keyboard.down/2` and `PlaywrightEx.Keyboard.up/2`.
@@ -215,9 +215,11 @@ defmodule PlaywrightEx.Keyboard do
 
   **Usage**
 
-  ```js
-  await page.keyboard.type('Hello'); // Types instantly
-  await page.keyboard.type('World', { delay: 100 }); // Types slower, like a user
+  ```elixir
+  # Types instantly
+  Page.keyboard(page) |> Keyboard.type!("Hello")
+  # Types slower, like a user
+  Page.keyboard(page) |> Keyboard.type!("World", delay: 100)
   ```
 
   > #### Note {: .info}

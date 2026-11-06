@@ -11,9 +11,9 @@ defmodule PlaywrightEx.ElementHandle do
   >
   > The use of ElementHandle is discouraged, use [`Locator`](`PlaywrightEx.Locator`) objects and web-first assertions instead.
 
-  ```js
-  const hrefElement = await page.$('a');
-  await hrefElement.click();
+  ```elixir
+  href_element = Page.query_selector!(page, "a")
+  ElementHandle.click!(href_element)
   ```
 
   ElementHandle prevents DOM element from garbage collection unless the handle is disposed with
@@ -25,20 +25,20 @@ defmodule PlaywrightEx.ElementHandle do
 
   In the example below, handle points to a particular DOM element on page. If that element changes text or is used by React to render an entirely different component, handle is still pointing to that very DOM element. This can lead to unexpected behaviors.
 
-  ```js
-  const handle = await page.$('text=Submit');
-  // ...
-  await handle.hover();
-  await handle.click();
+  ```elixir
+  handle = Page.query_selector!(page, "text=Submit")
+  # ...
+  ElementHandle.hover!(handle)
+  ElementHandle.click!(handle)
   ```
 
   With the locator, every time the `element` is used, up-to-date DOM element is located in the page using the selector. So in the snippet below, underlying DOM element is going to be located twice.
 
-  ```js
-  const locator = page.getByText('Submit');
-  // ...
-  await locator.hover();
-  await locator.click();
+  ```elixir
+  locator = Page.get_by_text(page, "Submit")
+  # ...
+  Locator.hover!(locator)
+  Locator.click!(locator)
   ```
 
   Extends `PlaywrightEx.JSHandle`: its functions take this handle too.
@@ -71,9 +71,9 @@ defmodule PlaywrightEx.ElementHandle do
 
   **Usage**
 
-  ```js
-  const box = await elementHandle.boundingBox();
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  ```elixir
+  box = ElementHandle.bounding_box!(element_handle)
+  Mouse.click!(Page.mouse(page), box.x + box.width / 2, box.y + box.height / 2)
   ```
   """
   @spec bounding_box(t()) ::
@@ -467,8 +467,8 @@ defmodule PlaywrightEx.ElementHandle do
 
   **Usage**
 
-  ```js
-  await elementHandle.dispatchEvent('click');
+  ```elixir
+  ElementHandle.dispatch_event!(element_handle, "click")
   ```
 
   Under the hood, it creates an instance of an event based on the given `type`, initializes it with
@@ -491,10 +491,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   You can also specify [`JSHandle`](`PlaywrightEx.JSHandle`) as the property value if you want live objects to be passed into the event:
 
-  ```js
-  // Note you can only create DataTransfer in Chromium and Firefox
-  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-  await elementHandle.dispatchEvent('dragstart', { dataTransfer });
+  ```elixir
+  # Note you can only create DataTransfer in Chromium and Firefox
+  data_transfer = Page.evaluate_handle!(page, "() => new DataTransfer()")
+  ElementHandle.dispatch_event!(element_handle, "dragstart", %{dataTransfer: data_transfer})
   ```
 
   > #### Discouraged {: .warning}
@@ -534,10 +534,10 @@ defmodule PlaywrightEx.ElementHandle do
 
   **Usage**
 
-  ```js
-  const tweetHandle = await page.$('.tweet');
-  expect(await tweetHandle.$eval('.like', node => node.innerText)).toBe('100');
-  expect(await tweetHandle.$eval('.retweets', node => node.innerText)).toBe('10');
+  ```elixir
+  tweet_handle = Page.query_selector!(page, ".tweet")
+  assert ElementHandle.eval_on_selector!(tweet_handle, ".like", "node => node.innerText") == "100"
+  assert ElementHandle.eval_on_selector!(tweet_handle, ".retweets", "node => node.innerText") == "10"
   ```
 
   > #### Discouraged {: .warning}
@@ -587,11 +587,11 @@ defmodule PlaywrightEx.ElementHandle do
   </div>
   ```
 
-  ```js
-  const feedHandle = await page.$('.feed');
-  expect(await feedHandle.$$eval('.tweet', nodes =>
-    nodes.map(n => n.innerText))).toEqual(['Hello!', 'Hi!'],
-  );
+  ```elixir
+  feed_handle = Page.query_selector!(page, ".feed")
+
+  assert ElementHandle.eval_on_selector_all!(feed_handle, ".tweet", "nodes => nodes.map(n => n.innerText)") ==
+           ["Hello!", "Hi!"]
   ```
 
   > #### Discouraged {: .warning}
@@ -1450,15 +1450,15 @@ defmodule PlaywrightEx.ElementHandle do
 
   **Usage**
 
-  ```js
-  // Single selection matching the value or label
-  handle.selectOption('blue');
+  ```elixir
+  # Single selection matching the value or label
+  ElementHandle.select_option!(handle, "blue")
 
-  // single selection matching the label
-  handle.selectOption({ label: 'Blue' });
+  # single selection matching the label
+  ElementHandle.select_option!(handle, %{label: "Blue"})
 
-  // multiple selection
-  handle.selectOption(['red', 'green', 'blue']);
+  # multiple selection
+  ElementHandle.select_option!(handle, ["red", "green", "blue"])
   ```
 
   > #### Discouraged {: .warning}
@@ -2185,11 +2185,11 @@ defmodule PlaywrightEx.ElementHandle do
 
   **Usage**
 
-  ```js
-  await page.setContent(`<div><span></span></div>`);
-  const div = await page.$('div');
-  // Waiting for the 'span' selector relative to the div.
-  const span = await div.waitForSelector('span', { state: 'attached' });
+  ```elixir
+  Page.set_content!(page, "<div><span></span></div>")
+  div = Page.query_selector!(page, "div")
+  # Waiting for the 'span' selector relative to the div.
+  span = ElementHandle.wait_for_selector!(div, "span", state: :attached)
   ```
 
   > #### Note {: .info}

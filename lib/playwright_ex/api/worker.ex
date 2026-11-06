@@ -7,15 +7,14 @@ defmodule PlaywrightEx.Worker do
   event is emitted on the page object to signal a worker creation. `close` event is emitted on the worker object when the
   worker is gone.
 
-  ```js
-  page.on('worker', worker => {
-    console.log('Worker created: ' + worker.url());
-    worker.on('close', worker => console.log('Worker destroyed: ' + worker.url()));
-  });
+  ```elixir
+  Page.on(page, :worker, fn worker ->
+    IO.puts("Worker created: " <> Worker.url(worker))
+    Worker.on(worker, :close, &IO.puts("Worker destroyed: " <> Worker.url(&1)))
+  end)
 
-  console.log('Current workers:');
-  for (const worker of page.workers())
-    console.log('  ' + worker.url());
+  IO.puts("Current workers:")
+  for worker <- Page.workers(page), do: IO.puts("  " <> Worker.url(worker))
   ```
 
   ## Events
@@ -129,11 +128,11 @@ defmodule PlaywrightEx.Worker do
 
   **Usage**
 
-  ```js
-  // Start waiting for download before clicking. Note no await.
-  const consolePromise = worker.waitForEvent('console');
-  await worker.evaluate('console.log(42)');
-  const consoleMessage = await consolePromise;
+  ```elixir
+  # Start waiting for download before clicking. Note no await.
+  console_promise = Worker.wait_for_event(worker, :console)
+  Worker.evaluate!(worker, "console.log(42)")
+  console_message = Promise.await!(console_promise)
   ```
 
   ## Arguments
@@ -225,11 +224,11 @@ defmodule PlaywrightEx.Worker do
 
   **Usage**
 
-  ```js
-  // Start waiting for download before clicking. Note no await.
-  const consolePromise = worker.waitForEvent('console');
-  await worker.evaluate('console.log(42)');
-  const consoleMessage = await consolePromise;
+  ```elixir
+  # Start waiting for download before clicking. Note no await.
+  console_promise = Worker.wait_for_event(worker, :console)
+  Worker.evaluate!(worker, "console.log(42)")
+  console_message = Promise.await!(console_promise)
   ```
 
   ## Arguments

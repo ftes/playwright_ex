@@ -6,9 +6,9 @@ defmodule PlaywrightEx.JSHandle do
   JSHandle represents an in-page JavaScript object. JSHandles can be created with the `PlaywrightEx.Page.evaluate_handle/4`
   method.
 
-  ```js
-  const windowHandle = await page.evaluateHandle(() => window);
-  // ...
+  ```elixir
+  window_handle = Page.evaluate_handle!(page, "() => window")
+  # ...
   ```
 
   JSHandle prevents the referenced JavaScript object being garbage collected unless the handle is exposed with
@@ -70,9 +70,9 @@ defmodule PlaywrightEx.JSHandle do
 
   **Usage**
 
-  ```js
-  const tweetHandle = await page.$('.tweet .retweets');
-  expect(await tweetHandle.evaluate(node => node.innerText)).toBe('10 retweets');
+  ```elixir
+  tweet_handle = Page.query_selector!(page, ".tweet .retweets")
+  assert JSHandle.evaluate!(tweet_handle, "node => node.innerText") == "10 retweets"
   ```
 
   ## Arguments
@@ -158,12 +158,12 @@ defmodule PlaywrightEx.JSHandle do
 
   **Usage**
 
-  ```js
-  const handle = await page.evaluateHandle(() => ({ window, document }));
-  const properties = await handle.getProperties();
-  const windowHandle = properties.get('window');
-  const documentHandle = properties.get('document');
-  await handle.dispose();
+  ```elixir
+  handle = Page.evaluate_handle!(page, "() => ({ window, document })")
+  properties = JSHandle.get_properties!(handle)
+  window_handle = properties["window"]
+  document_handle = properties["document"]
+  JSHandle.dispose!(handle)
   ```
   """
   @spec get_properties(t()) :: {:ok, term()} | {:error, Exception.t()}

@@ -8,13 +8,13 @@ defmodule PlaywrightEx.WebStorage do
 
   Instances are accessed through `PlaywrightEx.Page.local_storage/1` and `PlaywrightEx.Page.session_storage/1`.
 
-  ```js
-  await page.goto('https://example.com');
-  await page.localStorage.setItem('token', 'abc');
-  const token = await page.localStorage.getItem('token');
-  const all = await page.localStorage.items();
-  await page.localStorage.removeItem('token');
-  await page.localStorage.clear();
+  ```elixir
+  Page.goto!(page, "https://example.com")
+  Page.local_storage(page) |> WebStorage.set_item!("token", "abc")
+  token = Page.local_storage(page) |> WebStorage.get_item!("token")
+  all = Page.local_storage(page) |> WebStorage.items!()
+  Page.local_storage(page) |> WebStorage.remove_item!("token")
+  Page.local_storage(page) |> WebStorage.clear!()
   ```
   """
 
