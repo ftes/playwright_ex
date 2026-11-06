@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Client.Selectors do
     this
   end
 
-  # `script` is JS source (a string), or `%{path: ...}` / `%{content: ...}` (PLAN: no function serialization).
+  # `script` is JS source (a string), or `%{path: ...}` / `%{content: ...}` (no function serialization).
   def register(this, name, script, options \\ %{}) do
     if Enum.any?(get(this, :_selectorEngines), &(&1.name == name)),
       do: raise(~s(selectors.register: "#{name}" selector engine has been already registered))

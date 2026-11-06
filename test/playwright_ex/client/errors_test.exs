@@ -3,7 +3,8 @@ defmodule PlaywrightEx.Client.ErrorsTest do
 
   alias PlaywrightEx.Client.Errors
 
-  # Elixir only: the driver's install hints name `mix playwright_ex.install` (PLAN).
+  # Elixir only: the driver's install hints name `mix playwright_ex.install`
+  # (architecture: Driver language and rendering).
   describe "rewrite_driver_hints/1" do
     test "rewrites the install command inside the ASCII box, keeping it aligned" do
       box = """

@@ -4,12 +4,12 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
   Port of `#{@upstream}`: `toHaveScreenshot`. `this` is the matcher state
   (`PlaywrightEx.Matchers.Expect`), options are maps with the JS keys.
 
-  Deviations (PLAN, Decisions): there is no test runner, so the snapshot is the explicit `path`
-  option instead of a `name` that `testInfo` resolves, and the `-actual`, `-diff`, `-previous`
-  and `-expected` output files are written next to it. `updateSnapshots` comes from
-  the expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
-  (`"default"`) is returned, not recorded, so the matcher passes after writing it.
-  Stabilization and comparison stay on the server (`Page._expectScreenshot`).
+  Deviations (architecture: Generated facade): there is no test runner, so the snapshot is the
+  explicit `path` option instead of a `name` that `testInfo` resolves, and the `-actual`, `-diff`,
+  `-previous` and `-expected` output files are written next to it. `updateSnapshots` comes from the
+  expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
+  (`"default"`) is returned, not recorded, so the matcher passes after writing it. Stabilization
+  and comparison stay on the server (`Page._expectScreenshot`).
   """
 
   alias PlaywrightEx.Client.Locator
@@ -231,7 +231,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
     defp indent(lines, tab), do: PlaywrightEx.Matchers.ToMatchSnapshot.indent(lines, tab)
   end
 
-  # toMatchSnapshot  -- not ported: jest generic assertions (PLAN, Decisions)
+  # toMatchSnapshot  -- not ported: jest generic assertions (architecture: Generated facade)
   # toHaveScreenshotStepTitle  -- not ported: test steps
 
   def to_have_screenshot(this, page_or_locator, options \\ %{}) do

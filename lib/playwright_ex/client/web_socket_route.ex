@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   @moduledoc """
   Port of `WebSocketRoute` in `#{@upstream}`.
 
-  A message is a string, or `{:binary, bytes}` for a JS `Buffer` (PLAN, Decisions).
+  A message is a string, or `{:binary, bytes}` for a JS `Buffer` (architecture: Value mapping).
 
   Deviation: `this._server` (an object literal implementing the same interface) is a handle
   of this module whose guid is the route's prefixed with `"server:"`; the public members

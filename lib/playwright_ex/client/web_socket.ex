@@ -3,7 +3,8 @@ defmodule PlaywrightEx.Client.WebSocket do
   @moduledoc """
   Port of `WebSocket` in `#{@upstream}`.
 
-  A frame payload is a string, or `{:binary, bytes}` for a JS `Buffer` (PLAN, Decisions).
+  A frame payload is a string, or `{:binary, bytes}` for a JS `Buffer`
+  (architecture: Value mapping).
   """
   use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.WebSocket
 

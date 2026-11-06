@@ -482,7 +482,7 @@ defmodule PlaywrightEx.Client.Locator do
         selector: this._selector,
         strict: true,
         expression: page_function,
-        # isFunction: typeof pageFunction === 'function',  -- not ported: page functions are JS source (PLAN)
+        # isFunction: typeof pageFunction === 'function',  -- not ported: page functions are JS source
         arg: JSHandle.serialize_argument(arg)
       },
       Frame._timeout(this._frame, options)
@@ -500,7 +500,8 @@ defmodule PlaywrightEx.Client.Locator do
     __MODULE__.to_string(this)
   end
 
-  # Deviation: Elixir syntax (`Page.get_by_role(page, :button)`), not 'javascript' (PLAN).
+  # Deviation: Elixir syntax (`Page.get_by_role(page, :button)`), not 'javascript'
+  # (architecture: Driver language and rendering).
   def to_string(this) do
     LocatorGenerators.as_locator_description("elixir", this._selector)
   end

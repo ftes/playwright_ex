@@ -5,7 +5,7 @@ defmodule PlaywrightEx.Client.Fetch do
   (`PlaywrightEx.Client.APIRequest`, `PlaywrightEx.Client.APIRequestContext`,
   `PlaywrightEx.Client.APIResponse`), in this file.
 
-  Bytes vs strings (PLAN Decisions): `data` is a JS string when a binary, a `Buffer` as
+  Bytes vs strings (architecture: Value mapping): `data` is a JS string when a binary, a `Buffer` as
   `{:binary, bytes}`. A `fs.ReadStream` is a `File.Stream`, a `FilePayload` a map with
   `name`, `mimeType` and `buffer` (a binary: its type is only `Buffer`).
   """

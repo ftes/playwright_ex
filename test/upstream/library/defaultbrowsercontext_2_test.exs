@@ -223,7 +223,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   end
 
   test "should respect selectors", %{playwright: playwright, launch_persistent: launch_persistent} do
-    # Selector engines are JS source (PLAN: no function serialization).
+    # Selector engines are JS source (architecture: Value mapping).
     default_context_css = """
     (() => ({
       query(root, selector) {

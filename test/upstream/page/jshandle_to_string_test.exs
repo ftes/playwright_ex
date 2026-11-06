@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
   end
 
   test "should work with different subtypes @smoke", %{page: page, browser_name: browser_name} do
-    # Page functions are JS source without `isFunction` (PLAN): the driver calls a function
+    # Page functions are JS source without `isFunction`: the driver calls a function
     # expression, so return the function from one.
     assert to_string(Page.evaluate_handle!(page, "() => (function(){})")) =~ "function"
     assert to_string(Page.evaluate_handle!(page, "12")) == "12"

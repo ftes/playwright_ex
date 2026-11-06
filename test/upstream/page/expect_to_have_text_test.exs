@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
 
   @moduletag :page
 
-  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+  # "Locator:" lines are Elixir syntax, call logs JS (architecture: Driver language and rendering).
 
   describe "toHaveText with regex" do
     test "pass", %{page: page} do

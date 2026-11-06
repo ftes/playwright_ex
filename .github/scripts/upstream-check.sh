@@ -9,7 +9,8 @@
 set -euo pipefail
 
 # Our version for an upstream release: a new upstream major.minor X.Y gives X.Y.0, an upstream
-# patch of the minor we already mirror gives our next patch (the patch is ours, see PLAN.md).
+# patch of the minor we already mirror gives our next patch (the patch is ours,
+# docs/architecture.md "Port and versions").
 # A pre-release of ours (0.17.0-rc.0: versions don't mirror upstream yet, docs/architecture.md
 # "Port and versions") stays as it is; the next candidate is picked by hand.
 next_version() {

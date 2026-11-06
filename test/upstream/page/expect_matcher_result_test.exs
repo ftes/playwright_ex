@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
 
   @moduletag :page
 
-  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+  # "Locator:" lines are Elixir syntax, call logs JS (architecture: Driver language and rendering).
 
   # JS `Error.prototype.toString()`
   defp to_string_js(e), do: "Error: " <> e.message

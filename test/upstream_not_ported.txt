@@ -75,7 +75,7 @@ CR-032      toImpl (server internals)
 CD-005      toImpl (server internals)
 CD-030      toImpl (server internals)
 CD-032      toImpl (server internals)
-CD-036      connectOverCDP(transport) (PLAN: out of scope)
+CD-036      connectOverCDP(transport) (architecture: Generated facade)
 # library/client-certificates
 # library/defaultbrowsercontext-2
 DC-030      toImpl (server-side defaultArgs)
@@ -125,7 +125,7 @@ CL-116      __testHookBeforeHitTarget (in-process test hook)
 # page/page-click-timeout-4
 CL-121      JS-only test hooks (__testHookBeforePointerAction)
 # page/page-evaluate
-EV-018      method shorthand source needs isFunction (page functions are JS source, PLAN)
+EV-018      method shorthand source needs isFunction (page functions are JS source; architecture: Value mapping)
 # page/page-route
 RO-056      URLPattern
 # page/page-screenshot

@@ -1,5 +1,5 @@
 defmodule PlaywrightEx.RuntimePerfTest do
-  # Performance of the runtime against the baton baseline (PLAN Phase 2): the public facade only,
+  # Performance of the runtime against the baton baseline: the public facade only,
   # so the same file runs on the baton revision. Manual only (`mix test --only perf`; excluded by
   # default). Each scenario runs in a process that exits before the "after" numbers, as a test
   # process would. Results: one JSON line per scenario, appended to `PERF_OUT` (default

@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Client.Route do
   @moduledoc """
   Port of `Route` in `#{@upstream}`.
 
-  A `body` is a string, or `{:binary, bytes}` for a JS `Buffer` (PLAN, Decisions).
+  A `body` is a string, or `{:binary, bytes}` for a JS `Buffer` (architecture: Value mapping).
   """
   use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Route
 

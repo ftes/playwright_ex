@@ -3,8 +3,8 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
   @moduledoc """
   Port of `#{@upstream}`: matching URLs against globs, regexes and functions.
 
-  Deviations: globs become regexes through the driver (`LocalUtils.globToRegex`, PLAN
-  Decisions), so the functions that resolve globs take the `LocalUtils` as first argument.
+  Deviations: globs become regexes through the driver (`LocalUtils.globToRegex`), so the functions
+  that resolve globs take the `LocalUtils` as first argument (architecture: URL globs).
   `RegExp` is a `Regex` or a `PlaywrightEx.RegExp` (compiled to a `Regex` to match here); a function matcher gets the URL string (Elixir has no `URL` class, as
   in the Python, Java and .NET clients). `URLPattern` has no Elixir counterpart.
   """
@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
   alias PlaywrightEx.RegExp
 
   # isHttpUrl  -- not ported: unused
-  # globToRegexPattern  -- not ported: LocalUtils.globToRegex (PLAN)
+  # globToRegexPattern  -- not ported: LocalUtils.globToRegex (architecture: URL globs)
   # isRegExp  -- ported as PlaywrightEx.RegExp.reg_exp?/1
   # isURLPattern, serializeURLPattern  -- not ported: URLPattern
 
@@ -82,11 +82,11 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
 
   def resolve_glob_to_regex_pattern(local_utils, base_url, glob, web_socket_url \\ nil) do
     # if (webSocketUrl) baseURL = toWebSocketBaseUrl(baseURL); glob = resolveGlobBase(baseURL, glob);
-    # return globToRegexPattern(glob);  -- ported as LocalUtils.globToRegex (PLAN)
+    # return globToRegexPattern(glob);  -- ported as LocalUtils.globToRegex (architecture: URL globs)
     LocalUtils.glob_to_regex(local_utils, %{glob: glob, baseURL: base_url, webSocketUrl: web_socket_url})
   end
 
-  # toWebSocketBaseUrl, resolveGlobBase  -- not ported: LocalUtils.globToRegex (PLAN)
+  # toWebSocketBaseUrl, resolveGlobBase  -- not ported: LocalUtils.globToRegex (architecture: URL globs)
 
   # `new URL(url)`, but the matcher gets the string (see the moduledoc). An absolute URL has a
   # scheme; `URI.new/1` is stricter than WHATWG URLs (`data:text/html,<div>`), so only the scheme is checked.
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
 
   # `new URL(url, base)`: raises unless the result is absolute.
   # Deviation: `URI` is RFC 3986, not WHATWG: no percent-encoding (a space raises, so the given
-  # URL is returned as is) and, without a base, no dot-segment removal (DECISIONS, workstream LL).
+  # URL is returned as is) and, without a base, no dot-segment removal (architecture: URL globs).
   defp new_url(url, nil), do: absolute!(URI.new!(url))
   defp new_url(url, base), do: absolute!(URI.merge(absolute!(URI.new!(base)), url))
 

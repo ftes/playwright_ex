@@ -715,7 +715,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         mycss2 = "mycss2-" <> kind
         mycss3 = "mycss3-" <> kind
 
-        # Selector engines are JS source (PLAN: no function serialization).
+        # Selector engines are JS source (architecture: Value mapping).
         mycss = """
         (() => ({
           query(root, selector) {

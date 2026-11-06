@@ -1,5 +1,5 @@
 defmodule PlaywrightEx.Client.ConnectBacklogTest do
-  # OTP_BACKLOG: `connect` stores the browser before the next message (a close right after the
+  # `connect` stores the browser before the next message (a close right after the
   # `initialize` reply still disconnects it), and a closed remote connection stops its processes.
   @upstream nil
   use PlaywrightEx.UpstreamCase, async: false

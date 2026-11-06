@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Client.Worker do
 
   def evaluate(this, page_function, arg \\ nil) do
     # assertMaxArguments(arguments.length, 2);  -- not ported: Elixir arities are fixed
-    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source
     result =
       channel_call(
         this,
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Client.Worker do
 
   def evaluate_handle(this, page_function, arg \\ nil) do
     # assertMaxArguments(arguments.length, 2);  -- not ported: Elixir arities are fixed
-    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source
     result =
       channel_call(
         this,

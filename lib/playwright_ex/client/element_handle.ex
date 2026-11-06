@@ -235,7 +235,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
 
   # $eval  -- ported as eval_on_selector/4
   def eval_on_selector(this, selector, page_function, arg \\ nil) do
-    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source
     result =
       channel_call(
         this,
@@ -249,7 +249,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
 
   # $$eval  -- ported as eval_on_selector_all/4
   def eval_on_selector_all(this, selector, page_function, arg \\ nil) do
-    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source (PLAN)
+    # isFunction: typeof pageFunction === 'function'  -- not ported: page functions are JS source
     result =
       channel_call(
         this,

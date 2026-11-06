@@ -6,8 +6,9 @@ defmodule PlaywrightEx.RemoteServer do
 
   `RemoteServer` runs upstream's own `tests/config/remote-server-impl.js` with the driver's
   Node.js; `require('playwright-core')` there resolves to the driver package (`NODE_PATH`).
-  `LaunchServer` stands in for `browserType.launchServer(options)` (not in the API, PLAN): the
-  driver's hidden `launch-server` command, as Python's `launch_server` fixture.
+  `LaunchServer` stands in for `browserType.launchServer(options)` (not in the API,
+  architecture: Generated facade): the driver's hidden `launch-server` command, as Python's
+  `launch_server` fixture.
 
   Deviations: the child process is not detached (no process group: an Erlang port cannot do
   that), so signals go to the child only. Its exit code is the port's exit status: a signal
@@ -135,9 +136,10 @@ defmodule PlaywrightEx.RemoteServer do
 
   defmodule LaunchServer do
     @moduledoc """
-    `browserType.launchServer(options)` for the tests (`BrowserServer` is not in the API, PLAN):
-    the driver's hidden `launch-server --browser <name> --config <options.json>` command, which
-    prints the `wsEndpoint`. As Python's `RemoteServer` test helper (its `conftest.py`).
+    `browserType.launchServer(options)` for the tests (`BrowserServer` is not in the API,
+    architecture: Generated facade): the driver's hidden `launch-server --browser <name> --config
+    <options.json>` command, which prints the `wsEndpoint`. As Python's `RemoteServer` test helper
+    (its `conftest.py`).
 
     `start/2` returns `{:error, message}` (the output) when the launch fails, as
     `launchServer(options).catch(e => e)`. `close/1` sends SIGINT (the server closes the browser,

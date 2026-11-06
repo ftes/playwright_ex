@@ -1,5 +1,5 @@
 defmodule PlaywrightEx.Client.NetworkBacklogTest do
-  # Not mirrored from upstream (OTP_BACKLOG): route `complete` latches are freed, interception
+  # Not mirrored from upstream: route `complete` latches are freed, interception
   # patterns are computed when they are sent, and concurrent `allHeaders` share one call.
   @upstream nil
   # The send hook (`{Conn, :on_send}`) is global.

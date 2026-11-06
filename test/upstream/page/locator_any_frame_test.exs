@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     wait_for_all_frames(page, 3, "span")
     {:error, error} = Expect.to_have_count(page |> any_frame() |> FrameLocator.locator("span"), 2, timeout: 3000)
     assert error.message =~ "frameLocator() matched elements in multiple frames"
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("span")'
   end
 
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     wait_for_all_frames(page, 3, "div")
     {:error, error} = Expect.to_have_text(page |> any_frame() |> FrameLocator.locator("div"), "one", timeout: 3000)
     assert error.message =~ "frameLocator() matched elements in multiple frames"
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("div")'
   end
 
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     wait_for_all_frames(page, 2, "div")
     {:error, error} = Expect.to_have_text(page |> any_frame() |> FrameLocator.locator("div"), "one", timeout: 3000)
     assert error.message =~ "strict mode violation"
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("div")'
   end
 
@@ -527,7 +527,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
   end
 
   test "should render frameLocator() in the locator description", %{page: page} do
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert page
            |> any_frame()
            |> FrameLocator.frame_locator("#x")

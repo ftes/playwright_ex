@@ -1,5 +1,5 @@
 defmodule PlaywrightEx.Runtime.PromiseBacklogTest do
-  # Not mirrored from upstream (OTP_BACKLOG): after `Promise.all` over local asyncs rejects, the
+  # Not mirrored from upstream: after `Promise.all` over local asyncs rejects, the
   # caller frees the others (`serialize_argument_with_callbacks`): their late results leave no
   # message in its mailbox.
   use ExUnit.Case, async: true

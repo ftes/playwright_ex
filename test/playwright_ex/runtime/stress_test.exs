@@ -1,5 +1,5 @@
 defmodule PlaywrightEx.RuntimeStressTest do
-  # Stress tests of the OTP runtime (PLAN Phase 2): each scenario loops 100 times and checks the
+  # Stress tests of the OTP runtime: each scenario loops 100 times and checks the
   # exact order (JS's), an empty mailbox (no stray `{:pw, _, _}`) and no orphan processes. Manual
   # only (`mix test --only stress`; excluded by default, not run by CI).
   @upstream nil

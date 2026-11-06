@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   @moduletag :page
 
-  # "Locator:" lines are Elixir syntax (the client renders them, PLAN); call logs stay JS (the driver).
+  # "Locator:" lines are Elixir syntax, call logs JS (architecture: Driver language and rendering).
 
   test "should print element not found", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")

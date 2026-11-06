@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     assert href3 == server.prefix <> "/frames/frame.html"
 
     resolved = Locator.normalize!(Page.get_by_ref(page, "e1"))
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert Locator.to_string(resolved) == ~s'Page.locator(page, "body")'
 
     resolved = Locator.normalize!(Page.get_by_ref(page, "f4e2"))
@@ -803,7 +803,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
 
     Expect.to_have_text!(Page.get_by_ref(page, "f1e1"), "Hi, I'm frame")
     resolved = Locator.normalize!(Page.get_by_ref(page, "f1e1"))
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert Locator.to_string(resolved) ==
              ~s'Page.locator(page, "frame") |> Locator.first() |> Locator.content_frame() |> FrameLocator.locator("body")'
   end
@@ -832,7 +832,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
 
     resolved = Locator.normalize!(Page.get_by_ref(page, "f2e2"))
 
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert Locator.to_string(resolved) ==
              ~s'Page.locator(page, "frame") |> Locator.content_frame() |> FrameLocator.locator("iframe") |> Locator.content_frame() |> FrameLocator.get_by_role(:button, name: "In iframe")'
   end

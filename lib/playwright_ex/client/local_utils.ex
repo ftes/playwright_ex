@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Client.LocalUtils do
   end
 
   # Elixir only: the JS client converts URL globs itself (isomorphic/urlMatch.ts). Here the driver
-  # does, as in the non-JS clients (PLAN, Decisions); the regex source is cached per glob.
+  # does, as in the non-JS clients (architecture: URL globs); the regex source is cached per glob.
   def glob_to_regex(this, params) do
     key = {params[:glob], params[:baseURL], params[:webSocketUrl]}
 

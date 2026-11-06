@@ -72,7 +72,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
   """
 
-  # BrowserServer: `launchServer` is out of scope (PLAN), browsers run in the driver or remote.
+  # BrowserServer: `launchServer` is out of scope (architecture: Generated facade), browsers run
+  # in the driver or remote.
   # Logger: an interface, see `@callback_objects`.
   # GenericAssertions, SnapshotAssertions: jest's `expect(value)`, `toMatchSnapshot` (test runner).
   # PlaywrightAssertions: `expect(locator)` itself; the matchers are functions of the receiver (`Expect`).
@@ -84,7 +85,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
   @callback_objects ~w(Logger)
 
   # "Class.member"
-  # BrowserType.launchServer: out of scope (PLAN); also dropped with BrowserServer, its result.
+  # BrowserType.launchServer: out of scope (architecture: Generated facade); also dropped with
+  # BrowserServer, its result.
   @dropped_members ~w(BrowserType.launchServer)
 
   # Exceptions (`PlaywrightEx.TimeoutError`), JS classes in api.json.

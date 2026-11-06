@@ -84,7 +84,8 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     end
   end
 
-  # Deviation: the driver converts globs (`LocalUtils.globToRegex`, PLAN), as in the non-JS clients.
+  # Deviation: the driver converts globs (`LocalUtils.globToRegex`), as in the non-JS clients
+  # (architecture: URL globs).
   defp local_utils(playwright),
     do: PlaywrightEx.Client.Connection.local_utils(PlaywrightEx.Runtime.Heap.get(playwright, :_connection))
 

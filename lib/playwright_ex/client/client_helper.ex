@@ -3,9 +3,9 @@ defmodule PlaywrightEx.Client.ClientHelper do
   @moduledoc """
   Port of `#{@upstream}`.
 
-  Scripts are JS source strings (PLAN: evaluate). A JS function script is a string with an
-  `arg` (`"(arg) => ..."`), or any string when functions are exposed; `JSON.stringify(arg)` is
-  `json_stringify/1`, `JSON.parse(text)` `json_parse/1`.
+  Scripts are JS source strings (architecture: Value mapping). A JS function script is a string
+  with an `arg` (`"(arg) => ..."`), or any string when functions are exposed;
+  `JSON.stringify(arg)` is `json_stringify/1`, `JSON.parse(text)` `json_parse/1`.
   """
   alias PlaywrightEx.Isomorphic.UtilityScriptSerializers
   alias PlaywrightEx.Protocol.Validator

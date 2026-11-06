@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Client.BrowserType do
     end)
   end
 
-  # launchServer  -- not ported: BrowserServer (PLAN: out of scope)
+  # launchServer  -- not ported: BrowserServer (architecture: Generated facade)
 
   def launch_persistent_context(this, user_data_dir, options \\ %{}) do
     if options[:port], do: raise("Cannot specify a port without launching as a server.")
@@ -150,7 +150,7 @@ defmodule PlaywrightEx.Client.BrowserType do
       if is_binary(overloaded) do
         {overloaded, options}
       else
-        # else if (isConnectionTransport(overloaded)) { ... }  -- not ported: connectOverCDP(transport) (PLAN: out of scope)
+        # else if (isConnectionTransport(overloaded)) { ... }  -- not ported: connectOverCDP(transport) (out of scope)
         endpoint_url =
           if Map.has_key?(overloaded, :endpointURL), do: overloaded.endpointURL, else: overloaded[:wsEndpoint]
 
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Client.BrowserType do
     Worker.from(result.worker)
   end
 
-  # isConnectionTransport  -- not ported: connectOverCDP(transport) (PLAN: out of scope)
+  # isConnectionTransport  -- not ported: connectOverCDP(transport) (architecture: Generated facade)
 
   # clientHelper.ts envObjectToArray
   defp env_object_to_array(env) do

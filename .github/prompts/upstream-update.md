@@ -5,7 +5,7 @@ above gives FROM (the pinned upstream version), TO (the new upstream release), V
 it), BRANCH and the RELEASE link. Elixir deps, the FROM driver and chromium are installed.
 
 playwright_ex is a 1:1 port of the Playwright JS client. Read `PORTING.md` (all of it: the rules
-decide how every hunk is ported) and `PLAN.md` "Decisions" before changing anything, and study
+decide how every hunk is ported) and `docs/architecture.md` before changing anything, and study
 the existing ported code next to whatever you port.
 
 ## Steps
@@ -74,7 +74,7 @@ checklist. A draft PR with a green partial port beats no PR.
 
 - Never merge, never push to `main` or any branch but BRANCH, never force-push, never edit
   `.github/`.
-- Don't edit `PLAN.md` or `DECISIONS.md`; list non-obvious decisions in the PR checklist.
+- List non-obvious decisions in the PR checklist.
 - No attribution anywhere: no `Co-Authored-By` trailers, no "Generated with Claude Code" lines,
   in commits, the PR or comments. The repo owner forbids it.
 - Upstream sources come from the release at the pin (`PlaywrightEx.Upstream`, re-downloaded for

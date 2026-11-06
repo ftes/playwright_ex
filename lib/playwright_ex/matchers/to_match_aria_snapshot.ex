@@ -2,7 +2,8 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   @upstream "packages/playwright/src/matchers/toMatchAriaSnapshot.ts"
   @moduledoc """
   Port of `#{@upstream}`: inline aria snapshots (`expected` is a string). File snapshots
-  (`{ name, path }`, resolved by the test runner's `testInfo`) are not ported (PLAN, Decisions).
+  (`{ name, path }`, resolved by the test runner's `testInfo`) are not ported
+  (architecture: Generated facade).
   A returned `suggestedRebaseline` fails the matcher with it (`PlaywrightEx.Matchers.Expect`).
   """
 

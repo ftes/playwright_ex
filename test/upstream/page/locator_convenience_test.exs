@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     text = Locator.evaluate_handle!(inner, "e => e.firstChild")
     # Give them a chance to calculate the preview.
     Page.evaluate!(page, "() => 1")
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert to_string(outer) == ~s'Page.locator(page, "#outer")'
     assert to_string(inner) == ~s'Page.locator(page, "#outer") |> Locator.locator("#inner")'
     assert to_string(text) == "JSHandle@#text=Text,↵more text"
@@ -223,7 +223,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
 
   test "toString() returns formatted locator", %{page: page} do
     locator = Page.get_by_role(page, "button", name: "Submit")
-    # Elixir syntax: the client renders locators (PLAN).
+    # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert Locator.to_string(locator) == ~s'Page.get_by_role(page, :button, name: "Submit")'
     assert Locator.description(locator) == nil
   end

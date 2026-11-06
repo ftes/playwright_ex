@@ -14,7 +14,7 @@ defmodule PlaywrightEx.Client.ArtifactTest do
     %{playwright: PlaywrightEx.playwright(__MODULE__)}
   end
 
-  # PLAN spike 6: `saveAs` over a remote connection pipes `saveAsStream` into the file.
+  # `saveAs` over a remote connection pipes `saveAsStream` into the file.
   # `BrowserType.connect` is not ported: the local connection is marked remote instead.
   @tag :tmp_dir
   test "saveAs streams the artifact when connected remotely", %{playwright: playwright, tmp_dir: tmp_dir} do

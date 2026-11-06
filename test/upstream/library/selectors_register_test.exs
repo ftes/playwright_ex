@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Selectors
 
-  # Selector engines are JS source: `(${createTagSelector.toString()})()` (PLAN: no function serialization).
+  # Selector engines are JS source: `(${createTagSelector.toString()})()` (no function serialization).
   @create_tag_selector """
   () => ({
     query(root, selector) {
