@@ -57,6 +57,7 @@ defmodule PlaywrightEx.ExampleCase do
     name = Module.concat(context.module, Playwright)
     start_supervised!({PlaywrightEx.Supervisor, name: name})
     playwright = PlaywrightEx.playwright(name)
+
     browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
     %{playwright: playwright, browser: browser}
   end

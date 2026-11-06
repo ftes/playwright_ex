@@ -6,16 +6,13 @@ defmodule PlaywrightEx.BrowserType do
   BrowserType provides methods to launch a specific browser instance or connect to an existing one. The following is a
   typical example of using Playwright to drive automation:
 
-  ```js
-  const { chromium } = require('playwright');  // Or 'firefox' or 'webkit'.
-
-  (async () => {
-    const browser = await chromium.launch();
-    const page = await browser.newPage();
-    await page.goto('https://example.com');
-    // other actions...
-    await browser.close();
-  })();
+  ```elixir
+  # Or Playwright.firefox/1 or Playwright.webkit/1.
+  browser = BrowserType.launch!(Playwright.chromium(playwright))
+  page = Browser.new_page!(browser)
+  Page.goto!(page, "https://example.com")
+  # other actions...
+  Browser.close!(browser)
   ```
   """
 
@@ -159,10 +156,10 @@ defmodule PlaywrightEx.BrowserType do
 
   **Usage**
 
-  ```js
-  const browser = await playwright.chromium.connectOverCDP('http://localhost:9222');
-  const defaultContext = browser.contexts()[0];
-  const page = defaultContext.pages()[0];
+  ```elixir
+  browser = Playwright.chromium(playwright) |> BrowserType.connect_over_cdp!("http://localhost:9222")
+  default_context = Browser.contexts(browser) |> Enum.at(0)
+  page = BrowserContext.pages(default_context) |> Enum.at(0)
   ```
 
   ## Arguments
@@ -311,10 +308,9 @@ defmodule PlaywrightEx.BrowserType do
 
   You can use `ignoreDefaultArgs` to filter out `--mute-audio` from default arguments:
 
-  ```js
-  const browser = await chromium.launch({  // Or 'firefox' or 'webkit'.
-    ignoreDefaultArgs: ['--mute-audio']
-  });
+  ```elixir
+  # Or Playwright.firefox/1 or Playwright.webkit/1.
+  browser = BrowserType.launch!(Playwright.chromium(playwright), ignore_default_args: ["--mute-audio"])
   ```
 
   > **Chromium-only** Playwright can also be used to control the Google Chrome or Microsoft Edge browsers, but it works best with the version of

@@ -6,16 +6,13 @@ defmodule PlaywrightEx.Playwright do
   Playwright module provides a method to launch a browser instance. The following is a typical example of using Playwright
   to drive automation:
 
-  ```js
-  const { chromium, firefox, webkit } = require('playwright');
-
-  (async () => {
-    const browser = await chromium.launch();  // Or 'firefox' or 'webkit'.
-    const page = await browser.newPage();
-    await page.goto('http://example.com');
-    // other actions...
-    await browser.close();
-  })();
+  ```elixir
+  # Or Playwright.firefox/1 or Playwright.webkit/1.
+  browser = BrowserType.launch!(Playwright.chromium(playwright))
+  page = Browser.new_page!(browser)
+  Page.goto!(page, "http://example.com")
+  # other actions...
+  Browser.close!(browser)
   ```
   """
 
@@ -42,20 +39,15 @@ defmodule PlaywrightEx.Playwright do
   @doc ~S"""
   Returns a dictionary of devices to be used with `PlaywrightEx.Browser.new_context/2` or `PlaywrightEx.Browser.new_page/2`.
 
-  ```js
-  const { webkit, devices } = require('playwright');
-  const iPhone = devices['iPhone 6'];
+  ```elixir
+  iphone = Playwright.devices(playwright)["iPhone 6"]
 
-  (async () => {
-    const browser = await webkit.launch();
-    const context = await browser.newContext({
-      ...iPhone
-    });
-    const page = await context.newPage();
-    await page.goto('http://example.com');
-    // other actions...
-    await browser.close();
-  })();
+  browser = BrowserType.launch!(Playwright.webkit(playwright))
+  context = Browser.new_context!(browser, iphone)
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "http://example.com")
+  # other actions...
+  Browser.close!(browser)
   ```
 
   In Elixir, a descriptor has the snake_case keys of the options (`user_agent:`), as in the Python client: `Browser.new_context(browser, devices["iPhone 6"])`.
@@ -107,14 +99,14 @@ defmodule PlaywrightEx.Playwright do
 
   An example of handling a timeout error:
 
-  ```js
-  try {
-    await page.locator('.foo').waitFor();
-  } catch (e) {
-    if (e instanceof playwright.errors.TimeoutError) {
-      // Do something if this is a timeout.
-    }
-  }
+  ```elixir
+  try do
+    Page.locator(page, ".foo") |> Locator.wait_for!()
+  rescue
+    _ in PlaywrightEx.TimeoutError ->
+      # Do something if this is a timeout.
+      nil
+  end
   ```
   """
   @spec errors(t()) :: %{TimeoutError: PlaywrightEx.TimeoutError}

@@ -9,27 +9,25 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   By default, the routed WebSocket will not connect to the server. This way, you can mock entire communication over the WebSocket. Here is an example that responds to a `"request"` with a `"response"`.
 
-  ```js
-  await page.routeWebSocket('wss://example.com/ws', ws => {
-    ws.onMessage(message => {
-      if (message === 'request')
-        ws.send('response');
-    });
-  });
+  ```elixir
+  Page.route_web_socket!(page, "wss://example.com/ws", fn ws ->
+    WebSocketRoute.on_message(ws, fn message ->
+      if message == "request", do: WebSocketRoute.send(ws, "response")
+    end)
+  end)
   ```
 
   Since we do not call `PlaywrightEx.WebSocketRoute.connect_to_server/1` inside the WebSocket route handler, Playwright assumes that WebSocket will be mocked, and opens the WebSocket inside the page automatically.
 
   Here is another example that handles JSON messages:
 
-  ```js
-  await page.routeWebSocket('wss://example.com/ws', ws => {
-    ws.onMessage(message => {
-      const json = JSON.parse(message);
-      if (json.request === 'question')
-        ws.send(JSON.stringify({ response: 'answer' }));
-    });
-  });
+  ```elixir
+  Page.route_web_socket!(page, "wss://example.com/ws", fn ws ->
+    WebSocketRoute.on_message(ws, fn message ->
+      json = JSON.decode!(message)
+      if json["request"] == "question", do: WebSocketRoute.send(ws, JSON.encode!(%{response: "answer"}))
+    end)
+  end)
   ```
 
   **Intercepting**
@@ -38,16 +36,16 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   Below is an example that modifies some messages sent by the page to the server. Messages sent from the server to the page are left intact, relying on the default forwarding.
 
-  ```js
-  await page.routeWebSocket('/ws', ws => {
-    const server = ws.connectToServer();
-    ws.onMessage(message => {
-      if (message === 'request')
-        server.send('request2');
-      else
-        server.send(message);
-    });
-  });
+  ```elixir
+  Page.route_web_socket!(page, "/ws", fn ws ->
+    server = WebSocketRoute.connect_to_server(ws)
+
+    WebSocketRoute.on_message(ws, fn message ->
+      if message == "request",
+        do: WebSocketRoute.send(server, "request2"),
+        else: WebSocketRoute.send(server, message)
+    end)
+  end)
   ```
 
   After connecting to the server, all **messages are forwarded** between the page and the server by default.
@@ -58,18 +56,18 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   The following example blocks some messages in both directions. Since it calls `PlaywrightEx.WebSocketRoute.on_message/2` in both directions, there is no automatic forwarding at all.
 
-  ```js
-  await page.routeWebSocket('/ws', ws => {
-    const server = ws.connectToServer();
-    ws.onMessage(message => {
-      if (message !== 'blocked-from-the-page')
-        server.send(message);
-    });
-    server.onMessage(message => {
-      if (message !== 'blocked-from-the-server')
-        ws.send(message);
-    });
-  });
+  ```elixir
+  Page.route_web_socket!(page, "/ws", fn ws ->
+    server = WebSocketRoute.connect_to_server(ws)
+
+    WebSocketRoute.on_message(ws, fn message ->
+      if message != "blocked-from-the-page", do: WebSocketRoute.send(server, message)
+    end)
+
+    WebSocketRoute.on_message(server, fn message ->
+      if message != "blocked-from-the-server", do: WebSocketRoute.send(ws, message)
+    end)
+  end)
   ```
   """
 
@@ -192,13 +190,14 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   **Usage**
 
-  ```js
-  await page.routeWebSocket('wss://example.com/ws', ws => {
-    if (ws.protocols().includes('chat.v2'))
-      ws.onMessage(message => ws.send(JSON.stringify({ version: 2, echo: message })));
+  ```elixir
+  Page.route_web_socket!(page, "wss://example.com/ws", fn ws ->
+    if "chat.v2" in WebSocketRoute.protocols(ws) do
+      WebSocketRoute.on_message(ws, &WebSocketRoute.send(ws, JSON.encode!(%{version: 2, echo: &1})))
     else
-      ws.close({ code: 1002, reason: 'Unsupported protocol' });
-  });
+      WebSocketRoute.close(ws, code: 1002, reason: "Unsupported protocol")
+    end
+  end)
   ```
   """
   @spec protocols(t()) :: [String.t()]

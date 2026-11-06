@@ -72,8 +72,8 @@ defmodule PlaywrightEx.Request do
 
   **Usage**
 
-  ```js
-  const frameUrl = request.frame().url();
+  ```elixir
+  frame_url = Request.frame(request) |> Frame.url()
   ```
 
   **Details**
@@ -85,13 +85,17 @@ defmodule PlaywrightEx.Request do
 
   Here is an example that handles all the cases:
 
-  ```js
-  if (request.serviceWorker())
-    console.log(`request ${request.url()} from a service worker`);
-  else if (request.isNavigationRequest())
-    console.log(`request ${request.url()} is a navigation request`);
-  else
-    console.log(`request ${request.url()} from a frame ${request.frame().url()}`);
+  ```elixir
+  cond do
+    Request.service_worker(request) ->
+      IO.puts("request #{Request.url(request)} from a service worker")
+
+    Request.is_navigation_request(request) ->
+      IO.puts("request #{Request.url(request)} is a navigation request")
+
+    true ->
+      IO.puts("request #{Request.url(request)} from a frame #{Request.frame(request) |> Frame.url()}")
+  end
   ```
   """
   @spec frame(t()) :: PlaywrightEx.Frame.t()
@@ -210,16 +214,18 @@ defmodule PlaywrightEx.Request do
 
   For example, if the website `http://example.com` redirects to `https://example.com`:
 
-  ```js
-  const response = await page.goto('http://example.com');
-  console.log(response.request().redirectedFrom().url()); // 'http://example.com'
+  ```elixir
+  response = Page.goto!(page, "http://example.com")
+  Response.request(response) |> Request.redirected_from() |> Request.url()
+  # => "http://example.com/"
   ```
 
   If the website `https://google.com` has no redirects:
 
-  ```js
-  const response = await page.goto('https://google.com');
-  console.log(response.request().redirectedFrom()); // null
+  ```elixir
+  response = Page.goto!(page, "https://google.com")
+  Response.request(response) |> Request.redirected_from()
+  # => nil
   ```
   """
   @spec redirected_from(t()) :: nil | PlaywrightEx.Request.t()
@@ -235,8 +241,9 @@ defmodule PlaywrightEx.Request do
 
   This method is the opposite of `PlaywrightEx.Request.redirected_from/1`:
 
-  ```js
-  console.log(request.redirectedFrom().redirectedTo() === request); // true
+  ```elixir
+  # prints true
+  IO.puts(Request.redirected_to(Request.redirected_from(request)) == request)
   ```
   """
   @spec redirected_to(t()) :: nil | PlaywrightEx.Request.t()
@@ -336,11 +343,12 @@ defmodule PlaywrightEx.Request do
 
   **Usage**
 
-  ```js
-  const requestFinishedPromise = page.waitForEvent('requestfinished');
-  await page.goto('http://example.com');
-  const request = await requestFinishedPromise;
-  console.log(request.timing());
+  ```elixir
+  request_finished_promise = Page.wait_for_event(page, :request_finished)
+  Page.goto!(page, "http://example.com")
+  request = PlaywrightEx.Promise.await!(request_finished_promise)
+  Request.timing(request)
+  # => %{startTime: 1730000000000.0, domainLookupStart: -1, ...}
   ```
   """
   @spec timing(t()) :: %{

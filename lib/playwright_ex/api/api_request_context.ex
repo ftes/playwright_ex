@@ -40,8 +40,8 @@ defmodule PlaywrightEx.APIRequestContext do
 
   **Usage**
 
-  ```js
-  await request.addCookies([cookieObject1, cookieObject2]);
+  ```elixir
+  APIRequestContext.add_cookies!(request, [cookie_object1, cookie_object2])
   ```
 
   ## Arguments
@@ -124,13 +124,13 @@ defmodule PlaywrightEx.APIRequestContext do
 
   **Usage**
 
-  ```js
-  await request.clearCookies();
-  await request.clearCookies({ name: 'session-id' });
-  await request.clearCookies({ domain: 'my-origin.com' });
-  await request.clearCookies({ domain: /.*my-origin\.com/ });
-  await request.clearCookies({ path: '/api/v1' });
-  await request.clearCookies({ name: 'session-id', domain: 'my-origin.com' });
+  ```elixir
+  APIRequestContext.clear_cookies!(request)
+  APIRequestContext.clear_cookies!(request, name: "session-id")
+  APIRequestContext.clear_cookies!(request, domain: "my-origin.com")
+  APIRequestContext.clear_cookies!(request, domain: ~r/.*my-origin\.com/)
+  APIRequestContext.clear_cookies!(request, path: "/api/v1")
+  APIRequestContext.clear_cookies!(request, name: "session-id", domain: "my-origin.com")
   ```
 
   ## Options
@@ -442,28 +442,25 @@ defmodule PlaywrightEx.APIRequestContext do
 
   JSON objects can be passed directly to the request:
 
-  ```js
-  await request.fetch('https://example.com/api/createBook', {
-    method: 'post',
-    data: {
-      title: 'Book Title',
-      author: 'John Doe',
-    }
-  });
+  ```elixir
+  APIRequestContext.fetch!(request, "https://example.com/api/createBook",
+    method: "post",
+    data: %{title: "Book Title", author: "John Doe"}
+  )
   ```
 
   The common way to send file(s) in the body of a request is to upload them as form fields with `multipart/form-data` encoding, by specifiying the `multipart` parameter:
 
-  ```js
-  const form = new FormData();
-  form.set('name', 'John');
-  form.append('name', 'Doe');
-  // Send two file fields with the same name.
-  form.append('file', new File(['console.log(2024);'], 'f1.js', { type: 'text/javascript' }));
-  form.append('file', new File(['hello'], 'f2.txt', { type: 'text/plain' }));
-  await request.fetch('https://example.com/api/uploadForm', {
-    multipart: form
-  });
+  ```elixir
+  form = [
+    name: "John",
+    name: "Doe",
+    # Send two file fields with the same name.
+    file: %{name: "f1.js", mimeType: "text/javascript", buffer: "console.log(2024);"},
+    file: %{name: "f2.txt", mimeType: "text/plain", buffer: "hello"}
+  ]
+
+  APIRequestContext.fetch!(request, "https://example.com/api/uploadForm", multipart: form)
   ```
 
   ## Arguments
@@ -596,25 +593,17 @@ defmodule PlaywrightEx.APIRequestContext do
 
   Request parameters can be configured with `params` option, they will be serialized into the URL search parameters:
 
-  ```js
-  // Passing params as object
-  await request.get('https://example.com/api/getText', {
-    params: {
-      'isbn': '1234',
-      'page': 23,
-    }
-  });
+  ```elixir
+  # Passing params as map
+  APIRequestContext.get!(request, "https://example.com/api/getText", params: %{"isbn" => "1234", "page" => 23})
 
-  // Passing params as URLSearchParams
-  const searchParams = new URLSearchParams();
-  searchParams.set('isbn', '1234');
-  searchParams.append('page', 23);
-  searchParams.append('page', 24);
-  await request.get('https://example.com/api/getText', { params: searchParams });
+  # Passing params as keyword list (URLSearchParams, names may repeat)
+  search_params = [isbn: "1234", page: 23, page: 24]
+  APIRequestContext.get!(request, "https://example.com/api/getText", params: search_params)
 
-  // Passing params as string
-  const queryString = 'isbn=1234&page=23&page=24';
-  await request.get('https://example.com/api/getText', { params: queryString });
+  # Passing params as string
+  query_string = "isbn=1234&page=23&page=24"
+  APIRequestContext.get!(request, "https://example.com/api/getText", params: query_string)
   ```
 
   ## Arguments
@@ -990,38 +979,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   JSON objects can be passed directly to the request:
 
-  ```js
-  await request.post('https://example.com/api/createBook', {
-    data: {
-      title: 'Book Title',
-      author: 'John Doe',
-    }
-  });
+  ```elixir
+  APIRequestContext.post!(request, "https://example.com/api/createBook",
+    data: %{title: "Book Title", author: "John Doe"}
+  )
   ```
 
   To send form data to the server use `form` option. Its value will be encoded into the request body with `application/x-www-form-urlencoded` encoding (see below how to use `multipart/form-data` form encoding to send files):
 
-  ```js
-  await request.post('https://example.com/api/findBook', {
-    form: {
-      title: 'Book Title',
-      author: 'John Doe',
-    }
-  });
+  ```elixir
+  APIRequestContext.post!(request, "https://example.com/api/findBook",
+    form: %{title: "Book Title", author: "John Doe"}
+  )
   ```
 
   The common way to send file(s) in the body of a request is to upload them as form fields with `multipart/form-data` encoding. Use `FormData` to construct request body and pass it to the request as `multipart` parameter:
 
-  ```js
-  const form = new FormData();
-  form.set('name', 'John');
-  form.append('name', 'Doe');
-  // Send two file fields with the same name.
-  form.append('file', new File(['console.log(2024);'], 'f1.js', { type: 'text/javascript' }));
-  form.append('file', new File(['hello'], 'f2.txt', { type: 'text/plain' }));
-  await request.post('https://example.com/api/uploadForm', {
-    multipart: form
-  });
+  ```elixir
+  form = [
+    name: "John",
+    name: "Doe",
+    # Send two file fields with the same name.
+    file: %{name: "f1.js", mimeType: "text/javascript", buffer: "console.log(2024);"},
+    file: %{name: "f2.txt", mimeType: "text/plain", buffer: "hello"}
+  ]
+
+  APIRequestContext.post!(request, "https://example.com/api/uploadForm", multipart: form)
   ```
 
   ## Arguments

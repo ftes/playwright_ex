@@ -24,63 +24,7 @@ defmodule PlaywrightEx.Selectors do
   @type register_options :: [content_script: boolean()] | %{optional(:content_script) => boolean()}
 
   @doc since: "1.8"
-  @doc ~S"""
-  Selectors must be registered before creating the page.
-
-  **Usage**
-
-  An example of registering selector engine that queries elements based on a tag name:
-
-  ```js
-  const { selectors, firefox } = require('@playwright/test');  // Or 'chromium' or 'webkit'.
-
-  (async () => {
-    // Must be a function that evaluates to a selector engine instance.
-    const createTagNameEngine = () => ({
-      // Returns the first element matching given selector in the root's subtree.
-      query(root, selector) {
-        return root.querySelector(selector);
-      },
-
-      // Returns all elements matching given selector in the root's subtree.
-      queryAll(root, selector) {
-        return Array.from(root.querySelectorAll(selector));
-      }
-    });
-
-    // Register the engine. Selectors will be prefixed with "tag=".
-    await selectors.register('tag', createTagNameEngine);
-
-    const browser = await firefox.launch();
-    const page = await browser.newPage();
-    await page.setContent(`<div><button>Click me</button></div>`);
-
-    // Use the selector prefixed with its name.
-    const button = page.locator('tag=button');
-    // We can combine it with built-in locators.
-    await page.locator('tag=div').getByText('Click me').click();
-    // Can use it in any methods supporting selectors.
-    const buttonCount = await page.locator('tag=button').count();
-
-    await browser.close();
-  })();
-  ```
-
-  ## Arguments
-
-  * `name` - Name that is used in selectors as a prefix, e.g. `{name: 'foo'}` enables `foo=myselectorbody` selectors. May only
-    contain `[a-zA-Z0-9_]` characters.
-  * `script` - Script that evaluates to a selector engine instance. The script is evaluated in the page context.
-    * `:path` - Path to the JavaScript file. If `path` is a relative path, then it is resolved relative to the
-      current working directory. Optional.
-    * `:content` - Raw script content. Optional.
-
-  ## Options
-
-  * `:content_script` - Whether to run this selector engine in isolated JavaScript environment. This environment has access to the same DOM, but
-    not any JavaScript objects from the frame's scripts. Defaults to `false`. Note that running as a content script is not
-    guaranteed when this engine is used together with other registered engines.
-  """
+  @doc "Selectors must be registered before creating the page.\n\n**Usage**\n\nAn example of registering selector engine that queries elements based on a tag name:\n\n```elixir\n# Must be a script that evaluates to a selector engine instance.\ntag_name_engine = \"\"\"\n{\n  // Returns the first element matching given selector in the root's subtree.\n  query(root, selector) {\n    return root.querySelector(selector);\n  },\n\n  // Returns all elements matching given selector in the root's subtree.\n  queryAll(root, selector) {\n    return Array.from(root.querySelectorAll(selector));\n  }\n}\n\"\"\"\n\n# Register the engine. Selectors will be prefixed with \"tag=\".\nPlaywright.selectors(playwright) |> Selectors.register!(\"tag\", tag_name_engine)\n\n# Or Playwright.chromium/1 or Playwright.webkit/1.\nbrowser = BrowserType.launch!(Playwright.firefox(playwright))\npage = Browser.new_page!(browser)\nPage.set_content!(page, \"<div><button>Click me</button></div>\")\n\n# Use the selector prefixed with its name.\nbutton = Page.locator(page, \"tag=button\")\n# We can combine it with built-in locators.\nPage.locator(page, \"tag=div\") |> Locator.get_by_text(\"Click me\") |> Locator.click!()\n# Can use it in any methods supporting selectors.\nbutton_count = Page.locator(page, \"tag=button\") |> Locator.count!()\n\nBrowser.close!(browser)\n```\n\n## Arguments\n\n* `name` - Name that is used in selectors as a prefix, e.g. `{name: 'foo'}` enables `foo=myselectorbody` selectors. May only\n  contain `[a-zA-Z0-9_]` characters.\n* `script` - Script that evaluates to a selector engine instance. The script is evaluated in the page context.\n  * `:path` - Path to the JavaScript file. If `path` is a relative path, then it is resolved relative to the\n    current working directory. Optional.\n  * `:content` - Raw script content. Optional.\n\n## Options\n\n* `:content_script` - Whether to run this selector engine in isolated JavaScript environment. This environment has access to the same DOM, but\n  not any JavaScript objects from the frame's scripts. Defaults to `false`. Note that running as a content script is not\n  guaranteed when this engine is used together with other registered engines."
   @spec register(
           t(),
           String.t(),

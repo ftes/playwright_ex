@@ -5,15 +5,12 @@ defmodule PlaywrightEx.Browser do
   @moduledoc ~S"""
   A Browser is created via `PlaywrightEx.BrowserType.launch/2`. An example of using a [`Browser`](`PlaywrightEx.Browser`) to create a [`Page`](`PlaywrightEx.Page`):
 
-  ```js
-  const { firefox } = require('playwright');  // Or 'chromium' or 'webkit'.
-
-  (async () => {
-    const browser = await firefox.launch();
-    const page = await browser.newPage();
-    await page.goto('https://example.com');
-    await browser.close();
-  })();
+  ```elixir
+  # Or Playwright.chromium/1 or Playwright.webkit/1.
+  browser = BrowserType.launch!(Playwright.firefox(playwright))
+  page = Browser.new_page!(browser)
+  Page.goto!(page, "https://example.com")
+  Browser.close!(browser)
   ```
 
   ## Events
@@ -96,12 +93,14 @@ defmodule PlaywrightEx.Browser do
 
   **Usage**
 
-  ```js
-  const browser = await pw.webkit.launch();
-  console.log(browser.contexts().length); // prints `0`
+  ```elixir
+  browser = BrowserType.launch!(Playwright.webkit(playwright))
+  # prints 0
+  IO.puts(length(Browser.contexts(browser)))
 
-  const context = await browser.newContext();
-  console.log(browser.contexts().length); // prints `1`
+  context = Browser.new_context!(browser)
+  # prints 1
+  IO.puts(length(Browser.contexts(browser)))
   ```
   """
   @spec contexts(t()) :: [PlaywrightEx.BrowserContext.t()]
@@ -466,19 +465,18 @@ defmodule PlaywrightEx.Browser do
 
   **Usage**
 
-  ```js
-  (async () => {
-    const browser = await playwright.firefox.launch();  // Or 'chromium' or 'webkit'.
-    // Create a new incognito browser context.
-    const context = await browser.newContext();
-    // Create a new page in a pristine context.
-    const page = await context.newPage();
-    await page.goto('https://example.com');
+  ```elixir
+  # Or Playwright.chromium/1 or Playwright.webkit/1.
+  browser = BrowserType.launch!(Playwright.firefox(playwright))
+  # Create a new incognito browser context.
+  context = Browser.new_context!(browser)
+  # Create a new page in a pristine context.
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com")
 
-    // Gracefully close up everything
-    await context.close();
-    await browser.close();
-  })();
+  # Gracefully close up everything
+  BrowserContext.close!(context)
+  Browser.close!(browser)
   ```
 
   ## Options
@@ -1235,10 +1233,10 @@ defmodule PlaywrightEx.Browser do
 
   **Usage**
 
-  ```js
-  await browser.startTracing(page, { path: 'trace.json' });
-  await page.goto('https://www.google.com');
-  await browser.stopTracing();
+  ```elixir
+  Browser.start_tracing!(browser, page, path: "trace.json")
+  Page.goto!(page, "https://www.google.com")
+  Browser.stop_tracing!(browser)
   ```
 
   ## Arguments

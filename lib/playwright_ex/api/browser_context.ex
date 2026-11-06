@@ -11,14 +11,14 @@ defmodule PlaywrightEx.BrowserContext do
   Playwright allows creating isolated non-persistent browser contexts with `PlaywrightEx.Browser.new_context/2` method. Non-persistent browser
   contexts don't write any browsing data to disk.
 
-  ```js
-  // Create a new incognito browser context
-  const context = await browser.newContext();
-  // Create a new page inside context.
-  const page = await context.newPage();
-  await page.goto('https://example.com');
-  // Dispose context once it's no longer needed.
-  await context.close();
+  ```elixir
+  # Create a new incognito browser context
+  context = Browser.new_context!(browser)
+  # Create a new page inside context.
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com")
+  # Dispose context once it's no longer needed.
+  BrowserContext.close!(context)
   ```
 
   ## Events
@@ -43,14 +43,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  context.on('console', async msg => {
-    const values = [];
-    for (const arg of msg.args())
-      values.push(await arg.jsonValue());
-    console.log(...values);
-  });
-  await page.evaluate(() => console.log('hello', 5, { foo: 'bar' }));
+  ```elixir
+  BrowserContext.on(context, :console, fn msg ->
+    values = for arg <- ConsoleMessage.args(msg), do: JSHandle.json_value!(arg)
+    IO.puts(inspect(values))
+  end)
+
+  Page.evaluate!(page, "() => console.log('hello', 5, { foo: 'bar' })")
   ```
 
   ### `:dialog`
@@ -59,10 +58,10 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  context.on('dialog', dialog => {
-    dialog.accept();
-  });
+  ```elixir
+  BrowserContext.on(context, :dialog, fn dialog ->
+    Dialog.accept(dialog)
+  end)
   ```
 
   > #### Note {: .info}
@@ -98,11 +97,11 @@ defmodule PlaywrightEx.BrowserContext do
   popup with `window.open('http://example.com')`, this event will fire when the network request to "http://example.com" is
   done and its response has started loading in the popup. If you would like to route/listen to this network request, use `PlaywrightEx.BrowserContext.route/4` and [`BrowserContext.on(:request)`](PlaywrightEx.BrowserContext.html#module-request) respectively instead of similar methods on the [`Page`](`PlaywrightEx.Page`).
 
-  ```js
-  const newPagePromise = context.waitForEvent('page');
-  await page.getByText('open new page').click();
-  const newPage = await newPagePromise;
-  console.log(await newPage.evaluate('location.href'));
+  ```elixir
+  new_page_promise = BrowserContext.wait_for_event(context, :page)
+  Page.get_by_text(page, "open new page") |> Locator.click!()
+  new_page = Promise.await!(new_page_promise)
+  IO.puts(Page.evaluate!(new_page, "location.href"))
   ```
 
   > #### Note {: .info}
@@ -251,8 +250,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  await browserContext.addCookies([cookieObject1, cookieObject2]);
+  ```elixir
+  BrowserContext.add_cookies!(browser_context, [cookie_object1, cookie_object2])
   ```
 
   ## Arguments
@@ -339,11 +338,9 @@ defmodule PlaywrightEx.BrowserContext do
   Math.random = () => 42;
   ```
 
-  ```js
-  // In your playwright script, assuming the preload.js file is in same directory.
-  await browserContext.addInitScript({
-    path: 'preload.js'
-  });
+  ```elixir
+  # In your playwright script, assuming the preload.js file is in same directory.
+  BrowserContext.add_init_script!(browser_context, %{path: "preload.js"})
   ```
 
   > #### Note {: .info}
@@ -435,13 +432,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  await context.clearCookies();
-  await context.clearCookies({ name: 'session-id' });
-  await context.clearCookies({ domain: 'my-origin.com' });
-  await context.clearCookies({ domain: /.*my-origin\.com/ });
-  await context.clearCookies({ path: '/api/v1' });
-  await context.clearCookies({ name: 'session-id', domain: 'my-origin.com' });
+  ```elixir
+  BrowserContext.clear_cookies!(context)
+  BrowserContext.clear_cookies!(context, name: "session-id")
+  BrowserContext.clear_cookies!(context, domain: "my-origin.com")
+  BrowserContext.clear_cookies!(context, domain: ~r/.*my-origin\.com/)
+  BrowserContext.clear_cookies!(context, path: "/api/v1")
+  BrowserContext.clear_cookies!(context, name: "session-id", domain: "my-origin.com")
   ```
 
   ## Options
@@ -476,11 +473,11 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  const context = await browser.newContext();
-  await context.grantPermissions(['clipboard-read']);
-  // do stuff ..
-  context.clearPermissions();
+  ```elixir
+  context = Browser.new_context!(browser)
+  BrowserContext.grant_permissions!(context, ["clipboard-read"])
+  # do stuff ..
+  BrowserContext.clear_permissions(context)
   ```
   """
   @spec clear_permissions(t()) :: :ok | {:error, Exception.t()}
@@ -589,46 +586,7 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc since: "1.8"
-  @doc ~S"""
-  The method adds a function called `name` on the `window` object of every frame in every page in the context.
-  When called, the function executes `callback` and returns a `Promise` which resolves to the return value of
-  `callback`. If the `callback` returns a `Promise`, it will be awaited.
-
-  The first argument of the `callback` function contains information about the caller: `{ browserContext:
-  BrowserContext, page: Page, frame: Frame }`.
-
-  See `PlaywrightEx.Page.expose_binding/3` for page-only version.
-
-  **Usage**
-
-  An example of exposing page URL to all frames in all pages in the context:
-
-  ```js
-  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
-
-  (async () => {
-    const browser = await webkit.launch({ headless: false });
-    const context = await browser.newContext();
-    await context.exposeBinding('pageURL', ({ page }) => page.url());
-    const page = await context.newPage();
-    await page.setContent(`
-      <script>
-        async function onClick() {
-          document.querySelector('div').textContent = await window.pageURL();
-        }
-      </script>
-      <button onclick="onClick()">Click me</button>
-      <div></div>
-    `);
-    await page.getByRole('button').click();
-  })();
-  ```
-
-  ## Arguments
-
-  * `name` - Name of the function on the window object.
-  * `callback` - Callback function that will be called in the Playwright's context.
-  """
+  @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`. If the `callback` returns a `Promise`, it will be awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `PlaywrightEx.Page.expose_binding/3` for page-only version.\n\n**Usage**\n\nAn example of exposing page URL to all frames in all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\nBrowserContext.expose_binding!(context, \"pageURL\", fn %{page: page} -> Page.url(page) end)\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_binding(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def expose_binding(browser_context, name, callback) do
     Facade.async("browserContext.exposeBinding", browser_context, fn ->
@@ -646,48 +604,7 @@ defmodule PlaywrightEx.BrowserContext do
   end
 
   @doc since: "1.8"
-  @doc ~S"""
-  The method adds a function called `name` on the `window` object of every frame in every page in the context.
-  When called, the function executes `callback` and returns a `Promise` which resolves to the return value of
-  `callback`.
-
-  If the `callback` returns a `Promise`, it will be awaited.
-
-  See `PlaywrightEx.Page.expose_function/3` for page-only version.
-
-  **Usage**
-
-  An example of adding a `sha256` function to all pages in the context:
-
-  ```js
-  const { webkit } = require('playwright');  // Or 'chromium' or 'firefox'.
-  const crypto = require('crypto');
-
-  (async () => {
-    const browser = await webkit.launch({ headless: false });
-    const context = await browser.newContext();
-    await context.exposeFunction('sha256', text =>
-      crypto.createHash('sha256').update(text).digest('hex'),
-    );
-    const page = await context.newPage();
-    await page.setContent(`
-      <script>
-        async function onClick() {
-          document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');
-        }
-      </script>
-      <button onclick="onClick()">Click me</button>
-      <div></div>
-    `);
-    await page.getByRole('button').click();
-  })();
-  ```
-
-  ## Arguments
-
-  * `name` - Name of the function on the window object.
-  * `callback` - Callback function that will be called in the Playwright's context.
-  """
+  @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`.\n\nIf the `callback` returns a `Promise`, it will be awaited.\n\nSee `PlaywrightEx.Page.expose_function/3` for page-only version.\n\n**Usage**\n\nAn example of adding a `sha256` function to all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\n\nBrowserContext.expose_function!(context, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_function(t(), String.t(), fun()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def expose_function(browser_context, name, callback) do
     Facade.async("browserContext.exposeFunction", browser_context, fn ->
@@ -926,33 +843,34 @@ defmodule PlaywrightEx.BrowserContext do
 
   An example of a naive handler that aborts all image requests:
 
-  ```js
-  const context = await browser.newContext();
-  await context.route('**/*.{png,jpg,jpeg}', route => route.abort());
-  const page = await context.newPage();
-  await page.goto('https://example.com');
-  await browser.close();
+  ```elixir
+  context = Browser.new_context!(browser)
+  BrowserContext.route!(context, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com")
+  Browser.close!(browser)
   ```
 
   or the same snippet using a regex pattern instead:
 
-  ```js
-  const context = await browser.newContext();
-  await context.route(/(\.png$)|(\.jpg$)/, route => route.abort());
-  const page = await context.newPage();
-  await page.goto('https://example.com');
-  await browser.close();
+  ```elixir
+  context = Browser.new_context!(browser)
+  BrowserContext.route!(context, ~r/(\.png$)|(\.jpg$)/, &Route.abort/1)
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com")
+  Browser.close!(browser)
   ```
 
   It is possible to examine the request to decide the route action. For example, mocking all requests that contain some post data, and leaving all other requests as is:
 
-  ```js
-  await context.route('/api/**', async route => {
-    if (route.request().postData().includes('my-string'))
-      await route.fulfill({ body: 'mocked-data' });
+  ```elixir
+  BrowserContext.route!(context, "/api/**", fn route ->
+    if Route.request(route) |> Request.post_data() |> String.contains?("my-string") do
+      Route.fulfill!(route, body: "mocked-data")
     else
-      await route.continue();
-  });
+      Route.continue!(route)
+    end
+  end)
   ```
 
   Page routes (set up with `PlaywrightEx.Page.route/4`) take precedence over browser context routes when request matches both
@@ -1083,15 +1001,14 @@ defmodule PlaywrightEx.BrowserContext do
   Below is an example of a simple handler that blocks some websocket messages.
   See [`WebSocketRoute`](`PlaywrightEx.WebSocketRoute`) for more details and examples.
 
-  ```js
-  await context.routeWebSocket('/ws', async ws => {
-    ws.routeSend(message => {
-      if (message === 'to-be-blocked')
-        return;
-      ws.send(message);
-    });
-    await ws.connect();
-  });
+  ```elixir
+  BrowserContext.route_web_socket!(context, "/ws", fn ws ->
+    server = WebSocketRoute.connect_to_server(ws)
+
+    WebSocketRoute.on_message(ws, fn message ->
+      if message != "to-be-blocked", do: WebSocketRoute.send(server, message)
+    end)
+  end)
   ```
 
   ## Arguments
@@ -1231,8 +1148,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  await browserContext.setGeolocation({ latitude: 59.95, longitude: 30.31667 });
+  ```elixir
+  BrowserContext.set_geolocation!(browser_context, %{latitude: 59.95, longitude: 30.31667})
   ```
 
   > #### Note {: .info}
@@ -1471,9 +1388,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  // Load storage state from a file and apply it to the context.
-  await context.setStorageState('state.json');
+  ```elixir
+  # Load storage state from a file and apply it to the context.
+  BrowserContext.set_storage_state!(context, "state.json")
   ```
 
   ## Arguments
@@ -1671,10 +1588,10 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  const pagePromise = context.waitForEvent('page');
-  await page.getByRole('button').click();
-  const page = await pagePromise;
+  ```elixir
+  page_promise = BrowserContext.wait_for_event(context, :page)
+  Page.get_by_role(page, :button) |> Locator.click!()
+  page = Promise.await!(page_promise)
   ```
 
   ## Arguments
@@ -1844,10 +1761,10 @@ defmodule PlaywrightEx.BrowserContext do
 
   **Usage**
 
-  ```js
-  const pagePromise = context.waitForEvent('page');
-  await page.getByRole('button').click();
-  const page = await pagePromise;
+  ```elixir
+  page_promise = BrowserContext.wait_for_event(context, :page)
+  Page.get_by_role(page, :button) |> Locator.click!()
+  page = Promise.await!(page_promise)
   ```
 
   ## Arguments

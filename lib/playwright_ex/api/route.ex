@@ -80,16 +80,18 @@ defmodule PlaywrightEx.Route do
 
   **Usage**
 
-  ```js
-  await page.route('**/*', async (route, request) => {
-    // Override headers
-    const headers = {
-      ...request.headers(),
-      foo: 'foo-value', // set "foo" header
-      bar: undefined, // remove "bar" header
-    };
-    await route.continue({ headers });
-  });
+  ```elixir
+  Page.route!(page, "**/*", fn route, request ->
+    # Override headers
+    headers =
+      Request.headers(request)
+      # set "foo" header
+      |> Map.put("foo", "foo-value")
+      # remove "bar" header
+      |> Map.delete("bar")
+
+    Route.continue!(route, headers: headers)
+  end)
   ```
 
   **Details**
@@ -155,60 +157,64 @@ defmodule PlaywrightEx.Route do
   request will be handled by the bottom-most handler first, then it'll fall back to the previous one and
   in the end will be aborted by the first registered route.
 
-  ```js
-  await page.route('**/*', async route => {
-    // Runs last.
-    await route.abort();
-  });
-  await page.route('**/*', async route => {
-    // Runs second.
-    await route.fallback();
-  });
-  await page.route('**/*', async route => {
-    // Runs first.
-    await route.fallback();
-  });
+  ```elixir
+  Page.route!(page, "**/*", fn route ->
+    # Runs last.
+    Route.abort!(route)
+  end)
+
+  Page.route!(page, "**/*", fn route ->
+    # Runs second.
+    Route.fallback!(route)
+  end)
+
+  Page.route!(page, "**/*", fn route ->
+    # Runs first.
+    Route.fallback!(route)
+  end)
   ```
 
   Registering multiple routes is useful when you want separate handlers to
   handle different kinds of requests, for example API calls vs page resources or
   GET requests vs POST requests as in the example below.
 
-  ```js
-  // Handle GET requests.
-  await page.route('**/*', async route => {
-    if (route.request().method() !== 'GET') {
-      await route.fallback();
-      return;
-    }
-    // Handling GET only.
-    // ...
-  });
+  ```elixir
+  # Handle GET requests.
+  Page.route!(page, "**/*", fn route ->
+    if Request.method(Route.request(route)) != "GET" do
+      Route.fallback!(route)
+    else
+      # Handling GET only.
+      # ...
+    end
+  end)
 
-  // Handle POST requests.
-  await page.route('**/*', async route => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback();
-      return;
-    }
-    // Handling POST only.
-    // ...
-  });
+  # Handle POST requests.
+  Page.route!(page, "**/*", fn route ->
+    if Request.method(Route.request(route)) != "POST" do
+      Route.fallback!(route)
+    else
+      # Handling POST only.
+      # ...
+    end
+  end)
   ```
 
   One can also modify request while falling back to the subsequent handler, that way intermediate
   route handler can modify url, method, headers and postData of the request.
 
-  ```js
-  await page.route('**/*', async (route, request) => {
-    // Override headers
-    const headers = {
-      ...request.headers(),
-      foo: 'foo-value', // set "foo" header
-      bar: undefined, // remove "bar" header
-    };
-    await route.fallback({ headers });
-  });
+  ```elixir
+  Page.route!(page, "**/*", fn route, request ->
+    # Override headers
+    headers =
+      Request.headers(request)
+      # set "foo" header
+      |> Map.put("foo", "foo-value")
+      # remove "bar" header
+      |> Map.delete("bar")
+
+    Route.fallback!(route, headers: headers)
+  end)
   ```
 
   Use `PlaywrightEx.Route.continue/2` to immediately send the request to the network, other matching handlers won't be invoked in that case.
@@ -277,13 +283,13 @@ defmodule PlaywrightEx.Route do
 
   **Usage**
 
-  ```js
-  await page.route('https://dog.ceo/api/breeds/list/all', async route => {
-    const response = await route.fetch();
-    const json = await response.json();
-    json.message['big_red_dog'] = [];
-    await route.fulfill({ response, json });
-  });
+  ```elixir
+  Page.route!(page, "https://dog.ceo/api/breeds/list/all", fn route ->
+    response = Route.fetch!(route)
+    json = APIResponse.json!(response)
+    json = put_in(json["message"]["big_red_dog"], [])
+    Route.fulfill!(route, response: response, json: json)
+  end)
   ```
 
   **Details**
@@ -363,20 +369,16 @@ defmodule PlaywrightEx.Route do
 
   An example of fulfilling all requests with 404 responses:
 
-  ```js
-  await page.route('**/*', async route => {
-    await route.fulfill({
-      status: 404,
-      contentType: 'text/plain',
-      body: 'Not Found!'
-    });
-  });
+  ```elixir
+  Page.route!(page, "**/*", fn route ->
+    Route.fulfill!(route, status: 404, content_type: "text/plain", body: "Not Found!")
+  end)
   ```
 
   An example of serving static file:
 
-  ```js
-  await page.route('**/xhr_endpoint', route => route.fulfill({ path: 'mock_data.json' }));
+  ```elixir
+  Page.route!(page, "**/xhr_endpoint", &Route.fulfill!(&1, path: "mock_data.json"))
   ```
 
   ## Options
