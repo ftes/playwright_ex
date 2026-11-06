@@ -55,15 +55,7 @@ defmodule PlaywrightEx.Client.Connect do
     Connection.on(connection, "close", fn _ ->
       browser = get(browser_cell, :browser)
       # Emulate all pages, contexts and the browser closing upon disconnect.
-      for context <- (browser && Browser.contexts(browser)) || [] do
-        for page <- BrowserContext.pages(context), do: Page._on_close(page)
-        BrowserContext._on_close(context)
-      end
-
-      # setTimeout(() => browser?._didClose(), 0)
-      Promise.void(fn ->
-        Promise.await(Promise.timer(0))
-        browser && Browser._did_close(browser)
+      emulate_close(List.wrap(browser), fn ->
         # Elixir only: the connection process (and its table) stops once the processes that
         # connected and created the browser have exited; without a browser, now.
         pids = if browser, do: [caller | get(browser, :_creators) || []], else: []
@@ -106,6 +98,28 @@ defmodule PlaywrightEx.Client.Connect do
       Connection.close(connection)
       raise "Timeout #{params.timeout}ms exceeded"
     end
+  end
+
+  @doc false
+  # Elixir only: the body of the "close" listener above, shared with the local connection, whose
+  # lost driver is emulated the same way (`PlaywrightEx.OutOfProcess`): every page and context of
+  # `browsers` closes, then (a timer later) each browser. `after_close` runs after the browsers.
+  def emulate_close(browsers, after_close) do
+    for browser <- browsers, context <- Browser.contexts(browser) do
+      for page <- BrowserContext.pages(context), do: Page._on_close(page)
+      BrowserContext._on_close(context)
+    end
+
+    # setTimeout(() => browser?._didClose(), 0)
+    Promise.void(fn ->
+      Promise.await(Promise.timer(0))
+
+      try do
+        for browser <- browsers, do: Browser._did_close(browser)
+      after
+        after_close.()
+      end
+    end)
   end
 
   def connect_to_endpoint(parent_connection, params, timeout) do

@@ -38,8 +38,17 @@ defmodule PlaywrightEx do
           | %JSON.DecodeError{}
           | %File.Error{}
 
-  @doc "The root `PlaywrightEx.Playwright` object of the driver started as `name`."
+  @doc """
+  The root `PlaywrightEx.Playwright` object of the driver started as `name`.
+
+  While a lost driver is being replaced (see `PlaywrightEx.Supervisor`), this waits for the new
+  driver and returns its root, also when called from a `disconnected` listener. It exits if the
+  supervisor is not running, or not restarting the driver.
+  """
   @spec playwright(atom()) :: PlaywrightEx.Playwright.t()
-  def playwright(name \\ __MODULE__),
-    do: PlaywrightEx.OutOfProcess.playwright(PlaywrightEx.Supervisor.out_of_process(name))
+  def playwright(name \\ __MODULE__) do
+    # An await: in a listener, the connection goes on (a lost driver's close emulation finishes).
+    PlaywrightEx.Runtime.Invocation.yield()
+    PlaywrightEx.Supervisor.playwright(name)
+  end
 end

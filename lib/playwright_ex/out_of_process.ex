@@ -7,17 +7,26 @@ defmodule PlaywrightEx.OutOfProcess do
   (`PlaywrightEx.Runtime.Conn`, which holds the `PlaywrightEx.Client.Connection`) and initializes
   the root `Playwright` object, so it is ready once the supervisor has started.
 
-  Deviation: when the driver exits unexpectedly the connection is closed (pending and later
+  Deviations: when the driver exits unexpectedly the connection is closed (pending and later
   calls fail with `TargetClosedError`, as in the Python client) and this process stops, so
-  the supervisor can restart it. Upstream only resolves its close promise.
+  the supervisor can restart it. Upstream only resolves its close promise. Closing the
+  connection emulates the close of every page, context and browser, as `connectToBrowser`
+  (connect.ts) does for a remote connection: pages and contexts emit `close`, then browsers
+  `disconnected`, and waits on them reject. This process stops once that is done, as the
+  objects and their listeners live in the connection's table. Upstream has no restart, and its
+  waits hang on a lost driver; here a lost driver is noticed by `disconnected` and replaced.
   """
   use GenServer
 
+  alias PlaywrightEx.Client.Browser
+  alias PlaywrightEx.Client.Connect
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Driver
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Transport.Pipe
+
+  @close_emulation_timeout 4_000
 
   # start  -- ported as start_link/1 and init/1
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, Keyword.take(opts, [:name]))
@@ -33,6 +42,13 @@ defmodule PlaywrightEx.OutOfProcess do
     {:ok, conn} = Conn.start_link()
     connection = Conn.connection(conn)
     parent = self()
+
+    # deviation: the close of every browser, context and page is emulated on a lost driver, as
+    # connect.ts does upon disconnect (see the moduledoc). OTP restarts the driver, and callers
+    # notice by `disconnected`; JS has no restart and its pending waits hang.
+    Connection.on(connection, "close", fn _ ->
+      Connect.emulate_close(connected_browsers(connection), fn -> send(parent, :close_emulated) end)
+    end)
 
     env = Driver.driver_env() ++ Enum.to_list(Keyword.get(opts, :env, []))
     # Elixir only: `isUnderTest()` of the client follows the driver's env (see Connection._is_under_test/1).
@@ -88,10 +104,34 @@ defmodule PlaywrightEx.OutOfProcess do
     :exit, _ -> close_connection(state)
   end
 
+  # Returns once the close emulation (see init/1) is done, or the connection was closed before.
   defp close_connection(state) do
-    Conn.run(state.conn, fn -> Connection.close(state.connection, "Playwright driver closed") end)
+    closing =
+      Conn.run(state.conn, fn ->
+        closing = !Heap.get(state.connection, :_closedError)
+        Connection.close(state.connection, "Playwright driver closed")
+        closing
+      end)
+
+    # Bounded: a listener that never returns or awaits would stall the restart (or a bug in the
+    # emulation); within the supervisor's default shutdown time.
+    if closing do
+      receive do
+        :close_emulated -> :ok
+      after
+        @close_emulation_timeout -> :ok
+      end
+    end
   rescue
     # The connection process is gone already.
     PlaywrightEx.TargetClosedError -> :ok
+  end
+
+  # Elixir only: the connection's browsers not closed yet (launched, persistent and over CDP), in
+  # creation order.
+  defp connected_browsers(connection) do
+    for %PlaywrightEx.Browser{} = browser <- Heap.map_values(connection, :_objects),
+        Browser.is_connected(browser),
+        do: browser
   end
 end

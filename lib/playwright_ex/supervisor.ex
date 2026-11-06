@@ -17,12 +17,18 @@ defmodule PlaywrightEx.Supervisor do
   ## Lifetimes
 
   When the driver exits, its connection is closed and the supervisor starts a new driver, with a
-  new root object: calls on handles of the old one fail with `PlaywrightEx.TargetClosedError`, so
-  get the root again with `PlaywrightEx.playwright/1`. Browsers and contexts are not closed when
-  the process that created them exits; only the data the library keeps for closed ones is freed
-  then. So close what you open, as tests close their contexts in `on_exit`. Starting installs the
-  driver first if it is missing (`PlaywrightEx.Driver.ensure_installed/1`): a download that
-  blocks `start_link/1`.
+  new root object. As `PlaywrightEx.BrowserType.connect/3` does when its connection is lost, every
+  page and context emits `close`, then every browser `disconnected` (also when the supervisor
+  stops), and waits on them fail with `PlaywrightEx.TargetClosedError`: a lost driver is noticed
+  by `disconnected`. Calls on handles of the old driver fail with
+  `PlaywrightEx.TargetClosedError`, and so do reads once the old connection has stopped, right
+  after its `disconnected` listeners returned or awaited. Get the root again with
+  `PlaywrightEx.playwright/1`: it waits for the new driver (in a `disconnected` listener too).
+
+  Browsers and contexts are not closed when the process that created them exits; only the data
+  the library keeps for closed ones is freed then. So close what you open, as tests close their
+  contexts in `on_exit`. Starting installs the driver first if it is missing
+  (`PlaywrightEx.Driver.ensure_installed/1`): a download that blocks `start_link/1`.
   """
   use Supervisor
 
@@ -52,6 +58,37 @@ defmodule PlaywrightEx.Supervisor do
 
   @doc false
   def out_of_process(name), do: Module.concat(name, OutOfProcess)
+
+  @doc false
+  # The root of `name`'s driver. A driver being replaced never answers (it stops once its close
+  # emulation is done): wait for the supervisor to restart it, then ask the new one.
+  def playwright(name) do
+    OutOfProcess.playwright(out_of_process(name))
+  catch
+    :exit, {_reason, {GenServer, :call, _}} = reason ->
+      await_restart(name, reason)
+      playwright(name)
+  end
+
+  # Returns once the driver child runs again. `which_children/1` returns after a restart in
+  # progress; the supervisor may not have seen the exit yet, then it is asked again. Exits with
+  # `reason` if the child is not restarted (terminated, or the supervisor gave up).
+  defp await_restart(name, reason) do
+    case List.keyfind(Supervisor.which_children(name), OutOfProcess, 0) do
+      {_, pid, _, _} when is_pid(pid) ->
+        if !Process.alive?(pid) do
+          Process.sleep(1)
+          await_restart(name, reason)
+        end
+
+      {_, :restarting, _, _} ->
+        Process.sleep(1)
+        await_restart(name, reason)
+
+      _ ->
+        exit(reason)
+    end
+  end
 
   @impl true
   def init(opts) do
