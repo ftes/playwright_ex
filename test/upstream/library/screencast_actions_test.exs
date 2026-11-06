@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Screencast
   alias PlaywrightEx.Utils
 
@@ -19,7 +20,8 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
   }
 
   # page.click(...).catch(() => {}): not awaited.
-  defp click_later(page, selector, options \\ []), do: Task.start(fn -> Page.click(page, selector, options) end)
+  defp click_later(page, selector, options \\ []),
+    do: Runtime.Promise.void(fn -> Page.click(page, selector, options) end)
 
   defp new_page(browser) do
     context = Browser.new_context!(browser)
@@ -153,7 +155,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
 
     Screencast.show_actions!(Page.screencast(page), duration: 5000)
-    Task.start(fn -> Page.fill(page, "textarea", "hello") end)
+    Runtime.Promise.void(fn -> Page.fill(page, "textarea", "hello") end)
 
     title = Page.locator(page, "x-pw-title")
     Expect.to_be_visible!(title)

@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.RemoteServer.LaunchServer
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Screencast
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
@@ -181,9 +182,9 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   test "should unpause clock", %{page_a: page_a, page_b: page_b} do
     Clock.install!(Page.clock(page_a), time: 1000)
     Clock.pause_at!(Page.clock(page_a), 2000)
-    promise = Task.async(fn -> Page.evaluate!(page_b, "() => new Promise(f => setTimeout(f, 1000))") end)
+    promise = Runtime.Promise.async(fn -> Page.evaluate!(page_b, "() => new Promise(f => setTimeout(f, 1000))") end)
     disconnect(page_a)
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   @tag :two_pages
@@ -243,11 +244,11 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     Expect.to_have_text!(Page.locator(page_b, "div"), "intercepted2-qux")
 
     Agent.update(stall, fn _ -> true end)
-    goto = Task.async(fn -> Page.goto!(page_b, server.prefix <> "/foo") end)
+    goto = Runtime.Promise.async(fn -> Page.goto!(page_b, server.prefix <> "/foo") end)
     assert_receive :stalled
     page_a |> Page.context() |> BrowserContext.browser() |> Browser.close!()
 
-    Task.await(goto, :infinity)
+    Runtime.Promise.await(goto)
     Expect.to_have_text!(Page.locator(page_b, "div"), "intercepted2-foo")
 
     Page.goto!(page_b, server.prefix <> "/bar")
@@ -384,7 +385,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     Page.on(page_b, :console, fn _ -> Agent.update(counter, &(&1 + 1)) end)
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.wait_for_function(
           page_a,
           """
@@ -400,7 +401,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
       end)
 
     disconnect(page_a)
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     saved_counter = Agent.get(counter, & &1)
 
     # Give it some time to produce more logs.

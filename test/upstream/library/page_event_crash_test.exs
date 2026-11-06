@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -23,7 +24,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     do: @moduletag(timeout: @slow_timeout)
 
   # The `crash` fixture: page.goto('chrome://crash').catch(e => {})
-  defp crash(page), do: Task.start(fn -> Page.goto(page, "chrome://crash") end)
+  defp crash(page), do: Runtime.Promise.void(fn -> Page.goto(page, "chrome://crash") end)
 
   test "should emit crash event when page crashes", %{page: page} do
     Page.set_content!(page, "<div>This page should crash</div>")
@@ -55,9 +56,9 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   end
 
   test "expect should not hang when page crashed", %{page: page} do
-    expect_promise = Task.async(fn -> Expect.to_be_visible(Page.get_by_text(page, "child")) end)
+    expect_promise = Runtime.Promise.async(fn -> Expect.to_be_visible(Page.get_by_text(page, "child")) end)
     crash(page)
-    assert {:error, _} = Task.await(expect_promise, :infinity)
+    assert {:error, _} = Runtime.Promise.await(expect_promise)
   end
 
   test "should cancel waitForEvent when page crashes", %{page: page} do
@@ -72,10 +73,10 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     Page.set_content!(page, "<div>This page should crash</div>")
     TestServer.set_route(server, "/one-style.css", fn _conn -> Process.sleep(:infinity) end)
     navigation = Page.wait_for_navigation(page, wait_until: :domcontentloaded)
-    promise = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
+    promise = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
     Promise.await!(navigation)
     crash(page)
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Exception.message(error) =~ "page.goto: Page crashed"
   end
 

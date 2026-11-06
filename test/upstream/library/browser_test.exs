@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.BrowserTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
@@ -47,10 +48,10 @@ defmodule PlaywrightEx.Library.BrowserTest do
     page = Browser.new_page!(browser)
     test = self()
     Page.on(page, :close, fn _ -> send(test, :closed) end)
-    promise = Task.async(fn -> Page.evaluate(page, "() => new Promise(() => {})") end)
+    promise = Runtime.Promise.async(fn -> Page.evaluate(page, "() => new Promise(() => {})") end)
     Browser.close!(browser)
     assert_received :closed
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Exception.message(error) =~ @k_target_closed_error_message
   end
 

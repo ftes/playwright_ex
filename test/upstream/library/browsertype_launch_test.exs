@@ -8,14 +8,15 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   test "should reject all promises when browser is closed", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
     page = BrowserContext.new_page!(Browser.new_context!(browser))
-    never_resolves = Task.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end)
+    never_resolves = Runtime.Promise.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end)
     Page.evaluate!(page, "() => new Promise(f => window.builtins.setTimeout(f, 0))")
     Browser.close!(browser)
-    {:error, error} = Task.await(never_resolves, :infinity)
+    {:error, error} = Runtime.Promise.await(never_resolves)
     # WebKit under task-set -c 1 is giving browser, rest are giving target.
     assert Exception.message(error) =~ " closed"
   end

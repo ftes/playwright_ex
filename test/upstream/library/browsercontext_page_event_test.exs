@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   test "should have url", %{browser: browser, server: server} do
@@ -96,16 +97,16 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     context = Browser.new_context!(browser)
     page_promise = BrowserContext.wait_for_event(context, :page)
     # void context.newPage()
-    new_page_task = Task.async(fn -> BrowserContext.new_page(context) end)
+    new_page_task = Runtime.Promise.async(fn -> BrowserContext.new_page(context) end)
     new_page = Promise.await!(page_promise)
     assert Page.url(new_page) == "about:blank"
 
     popup_promise = BrowserContext.wait_for_event(context, :page)
-    evaluate_task = Task.async(fn -> Page.evaluate!(new_page, "() => window.open('about:blank')") end)
+    evaluate_task = Runtime.Promise.async(fn -> Page.evaluate!(new_page, "() => window.open('about:blank')") end)
     popup = Promise.await!(popup_promise)
     assert Page.url(popup) == "about:blank"
-    Task.await(evaluate_task, :infinity)
-    Task.await(new_page_task, :infinity)
+    Runtime.Promise.await(evaluate_task)
+    Runtime.Promise.await(new_page_task)
     BrowserContext.close!(context)
   end
 

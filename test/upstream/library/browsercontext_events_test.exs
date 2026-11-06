@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
   alias PlaywrightEx.WebError
@@ -109,7 +110,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
   test "dialog event should work @smoke", %{page: page} do
     dialog1_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
     dialog2_promise = Page.wait_for_event(page, :dialog)
-    task = Task.async(fn -> Page.evaluate!(page, "() => prompt('hey?')") end)
+    task = Runtime.Promise.async(fn -> Page.evaluate!(page, "() => prompt('hey?')") end)
     dialog1 = Promise.await!(dialog1_promise)
     dialog2 = Promise.await!(dialog2_promise)
 
@@ -117,12 +118,12 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog1) == "hey?"
     assert Dialog.page(dialog1) == page
     Dialog.accept!(dialog1, "hello")
-    assert Task.await(task, :infinity) == "hello"
+    assert Runtime.Promise.await(task) == "hello"
   end
 
   test "dialogclosed event should work", %{page: page} do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
-    task = Task.async(fn -> Page.evaluate!(page, "() => prompt('hey?')") end)
+    task = Runtime.Promise.async(fn -> Page.evaluate!(page, "() => prompt('hey?')") end)
     dialog = Promise.await!(dialog_promise)
     closed1_promise = BrowserContext.wait_for_event(Page.context(page), :dialog_closed)
     closed2_promise = Page.wait_for_event(page, :dialog_closed)
@@ -131,7 +132,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     closed2 = Promise.await!(closed2_promise)
     assert closed1 == dialog
     assert closed2 == dialog
-    assert Task.await(task, :infinity) == "hello"
+    assert Runtime.Promise.await(task) == "hello"
   end
 
   test "dialog event should work in popup", %{page: page} do
@@ -139,7 +140,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     popup_promise = Page.wait_for_event(page, :popup)
 
     task =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(page, """
         () => {
           const win = window.open('');
@@ -154,7 +155,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
-    assert Task.await(task, :infinity) == "hello"
+    assert Runtime.Promise.await(task) == "hello"
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: dialog from javascript: url is not reported at all")
@@ -162,7 +163,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
 
     task =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(page, """
         async () => {
           window.open('javascript:prompt("hey?")');
@@ -175,7 +176,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == nil
     Dialog.accept!(dialog, "hello")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "dialog event should work in immediately closed popup", %{page: page} do
@@ -183,7 +184,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     popup_promise = Page.wait_for_event(page, :popup)
 
     task =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(page, """
         async () => {
           const win = window.open();
@@ -200,7 +201,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
-    assert Task.await(task, :infinity) == "hello"
+    assert Runtime.Promise.await(task) == "hello"
   end
 
   test "dialog event should work with inline script tag", %{page: page, server: server} do
@@ -215,14 +216,14 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
 
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
     popup_promise = BrowserContext.wait_for_event(Page.context(page), :page)
-    task = Task.async(fn -> Page.click!(page, "a") end)
+    task = Runtime.Promise.async(fn -> Page.click!(page, "a") end)
     dialog = Promise.await!(dialog_promise)
     popup = Promise.await!(popup_promise)
 
     assert Dialog.message(dialog) == "hey?"
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
     Utils.poll(fn -> Page.evaluate!(popup, "window.result") end, &assert(&1 == "hello"))
   end
 

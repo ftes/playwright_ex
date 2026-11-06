@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
 
@@ -351,13 +352,13 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
       <div id="cover" style="position: fixed; inset: 0;"></div>
     """)
 
-    click_promise = Task.async(fn -> Locator.click!(Page.locator(page, "summary")) end)
+    click_promise = Runtime.Promise.async(fn -> Locator.click!(Page.locator(page, "summary")) end, shared: true)
     # Give it enough time to go through a few retries while the button is covered.
     Page.wait_for_timeout!(page, 2000)
-    clicked = Task.yield(click_promise, 0) != nil
+    clicked = Runtime.Promise.settled?(click_promise)
     assert clicked == false
     Locator.evaluate!(Page.locator(page, "#cover"), "e => e.remove()")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     Expect.to_have_attribute!(Page.locator(page, "details"), "open", "")
   end
 

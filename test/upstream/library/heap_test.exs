@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Library.HeapTest do
 
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   # queryObjectCount (node:inspector Runtime.queryObjects on this process' V8 heap) and the
   # beforeAll that records client classes  -- not ported: in-process heap inspection
@@ -56,7 +57,7 @@ defmodule PlaywrightEx.Library.HeapTest do
       if Agent.get_and_update(counter, &{&1 + 1, &1 + 1}) == k_frame_count, do: send(me, :done)
     end)
 
-    Task.start(fn ->
+    Runtime.Promise.void(fn ->
       Page.evaluate(
         page,
         """

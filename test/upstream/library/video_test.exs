@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Library.VideoTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.TestServer
@@ -174,13 +175,13 @@ defmodule PlaywrightEx.Library.VideoTest do
       size = %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
       page = BrowserContext.new_page!(context)
-      delete_promise = Task.async(fn -> Video.delete!(Page.video(page)) end)
+      delete_promise = Runtime.Promise.async(fn -> Video.delete!(Page.video(page)) end)
       Page.evaluate!(page, "() => document.body.style.backgroundColor = 'red'")
       ensure_some_frames(page)
       BrowserContext.close!(context)
 
       video_path = Video.path!(Page.video(page))
-      Task.await(delete_promise, :infinity)
+      Runtime.Promise.await(delete_promise)
       refute File.exists?(video_path)
     end
 

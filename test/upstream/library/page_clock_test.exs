@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Library.PageClockTest do
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -319,7 +320,7 @@ defmodule PlaywrightEx.Library.PageClockTest do
 
     test "replaces global performance.now", %{page: page} do
       promise =
-        Task.async(fn ->
+        Runtime.Promise.async(fn ->
           Page.evaluate!(page, """
           async () => {
             const prev = performance.now();
@@ -330,10 +331,8 @@ defmodule PlaywrightEx.Library.PageClockTest do
           """)
         end)
 
-      # JS starts the evaluate before runFor; let the task send it first.
-      Process.sleep(100)
       Clock.run_for!(Page.clock(page), 1000)
-      assert Task.await(promise, :infinity) == %{"prev" => 1000, "next" => 2000}
+      assert Runtime.Promise.await(promise) == %{"prev" => 1000, "next" => 2000}
     end
 
     test "fakes Date constructor", %{page: page} do
@@ -349,7 +348,7 @@ defmodule PlaywrightEx.Library.PageClockTest do
     Clock.pause_at!(Page.clock(page), 2000)
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(page, """
         async () => {
           const prev = performance.now();
@@ -360,11 +359,9 @@ defmodule PlaywrightEx.Library.PageClockTest do
         """)
       end)
 
-    # JS starts the evaluate before runFor; let the task send it first.
-    Process.sleep(100)
     Clock.run_for!(Page.clock(page), 1000)
     assert Page.evaluate!(page, "() => performance.timeOrigin") == 1000
-    assert Task.await(promise, :infinity) == %{"prev" => 1000, "next" => 2000}
+    assert Runtime.Promise.await(promise) == %{"prev" => 1000, "next" => 2000}
   end
 
   describe "popup" do

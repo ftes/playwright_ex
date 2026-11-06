@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
@@ -905,12 +906,12 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     CDPSession.send!(client, "Page.enable")
     dialog_promise = Page.wait_for_event(page, :dialog)
     closed_promise = Page.wait_for_event(page, :dialog_closed)
-    evaluate_promise = Task.async(fn -> Page.evaluate(page, "() => alert('yo')") end)
+    evaluate_promise = Runtime.Promise.async(fn -> Page.evaluate(page, "() => alert('yo')") end)
     dialog = Promise.await!(dialog_promise)
     # Handle the dialog out of band, similar to the user closing it in the headed browser.
     CDPSession.send!(client, "Page.handleJavaScriptDialog", %{accept: true})
     assert Promise.await!(closed_promise) == dialog
-    {:ok, _} = Task.await(evaluate_promise, :infinity)
+    {:ok, _} = Runtime.Promise.await(evaluate_promise)
   end
 
   test "should not leak service worker session after context close"

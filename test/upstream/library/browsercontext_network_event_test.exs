@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -177,9 +178,9 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
         Page.evaluate!(page, "() => fetch('./get', { method: 'GET' })")
       end)
 
-    finish_promise = Task.async(fn -> Response.finished(page_response) end)
+    finish_promise = Runtime.Promise.async(fn -> Response.finished(page_response) end)
     BrowserContext.close!(Page.context(page))
-    {:error, error} = Task.await(finish_promise, :infinity)
+    {:error, error} = Runtime.Promise.await(finish_promise)
     assert error.message =~ "closed"
   end
 end

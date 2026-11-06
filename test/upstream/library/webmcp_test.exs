@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.WebMCP
 
@@ -222,11 +223,11 @@ defmodule PlaywrightEx.Library.WebmcpTest do
 
     Page.goto!(page, server.prefix <> "/")
 
-    result = Task.async(fn -> WebMCP.call_tool!(Page.webmcp(page), "gated") end)
+    result = Runtime.Promise.async(fn -> WebMCP.call_tool!(Page.webmcp(page), "gated") end)
     Page.wait_for_function!(page, "() => !!window.release")
     assert length(WebMCP.tools!(Page.webmcp(page))) == 2
     Page.evaluate!(page, "() => window.release()")
-    assert Task.await(result, :infinity) == text_content("released")
+    assert Runtime.Promise.await(result) == text_content("released")
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium implements declarative tools")

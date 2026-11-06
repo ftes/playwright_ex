@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Library.TapTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Touchscreen
 
@@ -216,10 +217,10 @@ defmodule PlaywrightEx.Library.TapTest do
       """)
       |> JSHandle.as_element()
 
-    tap_promise = Task.async(fn -> ElementHandle.tap!(div) end)
+    tap_promise = Runtime.Promise.async(fn -> ElementHandle.tap!(div) end)
     JSHandle.evaluate!(div, "div => div.onclick = () => div.textContent = 'clicked'")
     JSHandle.evaluate!(div, "div => div.style.display = 'block'")
-    Task.await(tap_promise, :infinity)
+    Runtime.Promise.await(tap_promise)
     assert ElementHandle.text_content!(div) == "clicked"
   end
 

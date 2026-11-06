@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
@@ -76,7 +77,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     crashed_page1 = BrowserContext.new_page!(context1)
     Page.goto!(crashed_page1, server.empty_page)
     crash = Page.wait_for_event(crashed_page1, :crash)
-    Task.start(fn -> Page.goto(crashed_page1, "chrome://crash") end)
+    Runtime.Promise.void(fn -> Page.goto(crashed_page1, "chrome://crash") end)
     Promise.await!(crash)
     Browser.close!(cdp_browser1)
 
@@ -104,7 +105,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     popup1 = Promise.await!(popup)
     Page.wait_for_load_state!(popup1)
     crash = Page.wait_for_event(crashed_page1, :crash)
-    Task.start(fn -> Page.goto(crashed_page1, "chrome://crash") end)
+    Runtime.Promise.void(fn -> Page.goto(crashed_page1, "chrome://crash") end)
     Promise.await!(crash)
     Browser.close!(cdp_browser1)
 

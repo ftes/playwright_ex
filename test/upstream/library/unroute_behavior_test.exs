@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -45,11 +46,11 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     end
 
     BrowserContext.route!(context, ~r/.*/, handler)
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
     assert_receive {:route_callback, handler_pid}, 5000
     BrowserContext.unroute!(context, ~r/.*/, handler)
     send(handler_pid, :continue)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(navigation_promise)
     assert_received :second_handler_called
   end
 
@@ -78,14 +79,17 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     end
 
     BrowserContext.route!(context, ~r/.*/, handler)
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
     assert_receive {:route_callback, handler_pid}, 5000
-    unroute_promise = Task.async(fn -> BrowserContext.unroute_all!(context, behavior: :wait) end)
+
+    unroute_promise =
+      Runtime.Promise.async(fn -> BrowserContext.unroute_all!(context, behavior: :wait) end, shared: true)
+
     Process.sleep(500)
-    assert Task.yield(unroute_promise, 0) == nil
+    refute Runtime.Promise.settled?(unroute_promise)
     send(handler_pid, :continue)
-    Task.await(unroute_promise, :infinity)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(unroute_promise)
+    Runtime.Promise.await(navigation_promise)
     refute_received :second_handler_called
   end
 
@@ -106,13 +110,16 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     end
 
     BrowserContext.route!(context, ~r/.*/, handler)
-    navigation_promise = Task.async(fn -> Page.goto(page, server.empty_page) end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto(page, server.empty_page) end)
     assert_receive {:route_callback, handler_pid}, 5000
-    unroute_promise = Task.async(fn -> BrowserContext.unroute_all!(context, behavior: :ignore_errors) end)
+
+    unroute_promise =
+      Runtime.Promise.async(fn -> BrowserContext.unroute_all!(context, behavior: :ignore_errors) end, shared: true)
+
     Process.sleep(500)
-    Task.await(unroute_promise, :infinity)
+    Runtime.Promise.await(unroute_promise)
     send(handler_pid, :continue)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(navigation_promise)
     # The error in the unrouted handler should be silently caught and remaining handler called.
     refute_received :second_handler_called
   end
@@ -123,7 +130,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     me = self()
     BrowserContext.route!(context, ~r/.*/, fn _route -> send(me, :route_callback) end)
     Page.route!(page, ~r/.*/, &Route.fallback!/1)
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     assert_receive :route_callback, 5000
     Page.close!(page)
   end
@@ -134,7 +141,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     me = self()
     Page.route!(page, ~r/.*/, fn _route -> send(me, :route_callback) end)
     Page.route!(page, ~r/.*/, &Route.fallback!/1)
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     assert_receive :route_callback, 5000
     BrowserContext.close!(context)
   end
@@ -155,11 +162,11 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     end
 
     Page.route!(page, ~r/.*/, handler)
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
     assert_receive {:route_callback, handler_pid}, 5000
     Page.unroute!(page, ~r/.*/, handler)
     send(handler_pid, :continue)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(navigation_promise)
     assert_received :second_handler_called
   end
 
@@ -188,14 +195,14 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     end
 
     Page.route!(page, ~r/.*/, handler)
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
     assert_receive {:route_callback, handler_pid}, 5000
-    unroute_promise = Task.async(fn -> Page.unroute_all!(page, behavior: :wait) end)
+    unroute_promise = Runtime.Promise.async(fn -> Page.unroute_all!(page, behavior: :wait) end, shared: true)
     Process.sleep(500)
-    assert Task.yield(unroute_promise, 0) == nil
+    refute Runtime.Promise.settled?(unroute_promise)
     send(handler_pid, :continue)
-    Task.await(unroute_promise, :infinity)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(unroute_promise)
+    Runtime.Promise.await(navigation_promise)
     refute_received :second_handler_called
   end
 
@@ -216,13 +223,13 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     end
 
     Page.route!(page, ~r/.*/, handler)
-    navigation_promise = Task.async(fn -> Page.goto(page, server.empty_page) end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto(page, server.empty_page) end)
     assert_receive {:route_callback, handler_pid}, 5000
-    unroute_promise = Task.async(fn -> Page.unroute_all!(page, behavior: :ignore_errors) end)
+    unroute_promise = Runtime.Promise.async(fn -> Page.unroute_all!(page, behavior: :ignore_errors) end, shared: true)
     Process.sleep(500)
-    Task.await(unroute_promise, :infinity)
+    Runtime.Promise.await(unroute_promise)
     send(handler_pid, :continue)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(navigation_promise)
     # The error in the unrouted handler should be silently caught.
     refute_received :second_handler_called
   end
@@ -237,7 +244,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
       await_forever(page)
     end)
 
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     assert_receive :route_callback, 5000
     Page.close!(page)
     Process.sleep(500)
@@ -248,7 +255,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn route -> send(me, {:route_callback, route}) end)
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     assert_receive {:route_callback, route}, 5000
     Page.close!(page)
     # Should not throw.
@@ -263,7 +270,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn route -> send(me, {:route_callback, route}) end)
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     assert_receive {:route_callback, route}, 5000
     Page.close!(page)
     # Should not throw.
@@ -274,7 +281,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn route -> send(me, {:route_callback, route}) end)
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     assert_receive {:route_callback, route}, 5000
     Page.close!(page)
     # Should not throw.
@@ -292,7 +299,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
       Route.fulfill!(route, response: response)
     end)
 
-    Task.start(fn -> Page.evaluate(page, "() => fetch('/')") end)
+    Runtime.Promise.void(fn -> Page.evaluate(page, "() => fetch('/')") end)
     assert_receive :route_promise, 5000
     Page.unroute_all!(page, behavior: :wait)
   end
@@ -308,7 +315,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
       Route.fulfill!(route, response: response)
     end)
 
-    Task.start(fn -> Page.evaluate(page, "() => fetch('/')") end)
+    Runtime.Promise.void(fn -> Page.evaluate(page, "() => fetch('/')") end)
     assert_receive :route_promise, 5000
     BrowserContext.unroute_all!(context, behavior: :wait)
   end

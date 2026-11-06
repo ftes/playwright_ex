@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   import PlaywrightEx.Utils, only: [attach_frame: 3]
@@ -82,7 +83,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<a id="download" download="name" href="/download">Download</a>))
     server_request = TestServer.wait_for_request(server, "/download")
-    Task.start(fn -> Locator.click(Page.locator(page, "#download")) end)
+    Runtime.Promise.void(fn -> Locator.click(Page.locator(page, "#download")) end)
     req = Task.await(server_request, :infinity)
     assert header(req, "user-agent") == "MyCustomUA"
   end
