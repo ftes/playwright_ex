@@ -178,7 +178,7 @@ defmodule PlaywrightEx.Page do
 
   ### `:request`
 
-  Emitted when a page issues a request. The [request] object is read-only. In order to intercept and mutate requests, see
+  Emitted when a page issues a request. The [`Request`](`PlaywrightEx.Request`) object is read-only. In order to intercept and mutate requests, see
   `PlaywrightEx.Page.route/4` or `PlaywrightEx.BrowserContext.route/4`.
 
   ### `:request_failed`
@@ -204,7 +204,7 @@ defmodule PlaywrightEx.Page do
 
   ### `:response`
 
-  Emitted when [response] status and headers are received for a request. For a successful response, the sequence of events
+  Emitted when [`Response`](`PlaywrightEx.Response`) status and headers are received for a request. For a successful response, the sequence of events
   is `request`, `response` and `requestfinished`.
 
   ### `:web_socket`
@@ -660,7 +660,7 @@ defmodule PlaywrightEx.Page do
   ## Options
 
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
-  * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
+  * `:click_count` (`t:integer/0`) - defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).
   * `:delay` (`t:number/0`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:modifiers` (list of `:alt` | `:control` | `:control_or_meta` | `:meta` | `:shift`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
@@ -5289,7 +5289,7 @@ defmodule PlaywrightEx.Page do
             }
 
   @doc deprecated:
-         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+         "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc ~S"""
   Sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text. `PlaywrightEx.Page.type/4` can be used to send
   fine-grained keyboard events. To fill values in form fields, use `PlaywrightEx.Page.fill/4`.
@@ -5328,7 +5328,7 @@ defmodule PlaywrightEx.Page do
   end
 
   @doc deprecated:
-         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+         "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc "Like `type/4`, but returns the value and raises on error."
   @spec type!(t(), String.t(), String.t(), type_options()) :: :ok
   def type!(page, selector, text, options \\ []) do
@@ -5831,7 +5831,7 @@ defmodule PlaywrightEx.Page do
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
             }
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Page.wait_for_url/3 instead"
   @doc ~S"""
   Waits for the main frame navigation and returns the main resource response. In case of multiple redirects, the navigation
   returns the response of the last redirect. In case of navigation to a different anchor or navigation due to
@@ -5902,7 +5902,7 @@ defmodule PlaywrightEx.Page do
     Facade.promise("page.waitForNavigation", page, fn -> PlaywrightEx.Client.Page.wait_for_navigation(page, options) end)
   end
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Page.wait_for_url/3 instead"
   @doc ~S"""
   Like `wait_for_navigation/2`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_navigation(...))`, the value or a raise.
 
@@ -6747,7 +6747,7 @@ defmodule PlaywrightEx.Page do
               optional(:signal) => PlaywrightEx.AbortSignal.t()
             }
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Page.wait_for_url/3 instead"
   @doc ~S"""
   Waits for the main frame navigation and returns the main resource response. In case of multiple redirects, the navigation
   returns the response of the last redirect. In case of navigation to a different anchor or navigation due to
@@ -6816,7 +6816,7 @@ defmodule PlaywrightEx.Page do
     )
   end
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Page.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Page.wait_for_url/3 instead"
   @doc "Like `expect_navigation/3`, but returns the value and raises on error."
   @spec expect_navigation!(t(), (-> term()), expect_navigation_options()) :: nil | PlaywrightEx.Response.t()
   def expect_navigation!(page, action, options \\ []) do

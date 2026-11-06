@@ -314,7 +314,7 @@ defmodule PlaywrightEx.Frame do
   ## Options
 
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
-  * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
+  * `:click_count` (`t:integer/0`) - defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).
   * `:delay` (`t:number/0`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:modifiers` (list of `:alt` | `:control` | `:control_or_meta` | `:meta` | `:shift`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
@@ -3237,7 +3237,7 @@ defmodule PlaywrightEx.Frame do
             }
 
   @doc deprecated:
-         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+         "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc ~S"""
   Sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text. `PlaywrightEx.Frame.type/4` can be used to
   send fine-grained keyboard events. To fill values in form fields, use `PlaywrightEx.Frame.fill/4`.
@@ -3276,7 +3276,7 @@ defmodule PlaywrightEx.Frame do
   end
 
   @doc deprecated:
-         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+         "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc "Like `type/4`, but returns the value and raises on error."
   @spec type!(t(), String.t(), String.t(), type_options()) :: :ok
   def type!(frame, selector, text, options \\ []) do
@@ -3595,7 +3595,7 @@ defmodule PlaywrightEx.Frame do
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
             }
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Frame.wait_for_url/3 instead"
   @doc ~S"""
   Waits for the frame navigation and returns the main resource response. In case of multiple redirects, the navigation
   returns the response of the last redirect. In case of navigation to a different anchor or navigation due to
@@ -3667,7 +3667,7 @@ defmodule PlaywrightEx.Frame do
     end)
   end
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Frame.wait_for_url/3 instead"
   @doc ~S"""
   Like `wait_for_navigation/2`, but awaits the promise: `PlaywrightEx.Promise.await!(wait_for_navigation(...))`, the value or a raise.
 
@@ -3970,7 +3970,7 @@ defmodule PlaywrightEx.Frame do
               optional(:signal) => PlaywrightEx.AbortSignal.t()
             }
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Frame.wait_for_url/3 instead"
   @doc ~S"""
   Waits for the frame navigation and returns the main resource response. In case of multiple redirects, the navigation
   returns the response of the last redirect. In case of navigation to a different anchor or navigation due to
@@ -4038,7 +4038,7 @@ defmodule PlaywrightEx.Frame do
     )
   end
 
-  @doc deprecated: "This method is inherently racy, please use [`method: Frame.waitForURL`] instead."
+  @doc deprecated: "This method is inherently racy, please use PlaywrightEx.Frame.wait_for_url/3 instead"
   @doc "Like `expect_navigation/3`, but returns the value and raises on error."
   @spec expect_navigation!(t(), (-> term()), expect_navigation_options()) :: nil | PlaywrightEx.Response.t()
   def expect_navigation!(frame, action, options \\ []) do

@@ -126,7 +126,7 @@ defmodule PlaywrightEx.BrowserContext do
   ### `:request`
 
   *Since Playwright 1.12.* Emitted when a request is issued from any pages created through this context.
-  The [request] object is read-only. To only listen for requests from a particular
+  The [`Request`](`PlaywrightEx.Request`) object is read-only. To only listen for requests from a particular
   page, use [`Page.on(:request)`](PlaywrightEx.Page.html#module-request).
 
   In order to intercept and mutate requests, see `PlaywrightEx.BrowserContext.route/4`
@@ -150,7 +150,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ### `:response`
 
-  *Since Playwright 1.12.* Emitted when [response] status and headers are received for a request. For a successful response, the sequence of events
+  *Since Playwright 1.12.* Emitted when [`Response`](`PlaywrightEx.Response`) status and headers are received for a request. For a successful response, the sequence of events
   is `request`, `response` and `requestfinished`. To listen for response events
   from a particular page, use [`Page.on(:response)`](PlaywrightEx.Page.html#module-response).
 
@@ -398,7 +398,7 @@ defmodule PlaywrightEx.BrowserContext do
     end)
   end
 
-  @doc deprecated: "Background pages have been removed from Chromium together with Manifest V2 extensions."
+  @doc deprecated: "Background pages have been removed from Chromium together with Manifest V2 extensions"
   @doc ~S"""
   Returns an empty list.
 
@@ -667,7 +667,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:origin` (`t:String.t/0`) - The [origin] to grant permissions to, e.g. "https://example.com".
+  * `:origin` (`t:String.t/0`) - The [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin) to grant permissions to, e.g. "https://example.com".
   """
   @spec grant_permissions(t(), [String.t()], grant_permissions_options()) :: :ok | {:error, PlaywrightEx.error()}
   def grant_permissions(browser_context, permissions, options \\ []) do

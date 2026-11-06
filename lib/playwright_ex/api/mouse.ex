@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Mouse do
   ## Options
 
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
-  * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
+  * `:click_count` (`t:integer/0`) - defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).
   * `:delay` (`t:number/0`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   """
   @spec click(t(), number(), number(), click_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Mouse do
   ## Options
 
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
-  * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
+  * `:click_count` (`t:integer/0`) - defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).
   """
   @spec down(t(), down_options()) :: :ok | {:error, PlaywrightEx.error()}
   def down(mouse, options \\ []) do
@@ -207,7 +207,7 @@ defmodule PlaywrightEx.Mouse do
   ## Options
 
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
-  * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
+  * `:click_count` (`t:integer/0`) - defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).
   """
   @spec up(t(), up_options()) :: :ok | {:error, PlaywrightEx.error()}
   def up(mouse, options \\ []) do

@@ -670,7 +670,7 @@ defmodule PlaywrightEx.Locator do
   ## Options
 
   * `:button` (`:left` | `:right` | `:middle`) - Defaults to `:left`.
-  * `:click_count` (`t:integer/0`) - defaults to 1. See [UIEvent.detail].
+  * `:click_count` (`t:integer/0`) - defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).
   * `:delay` (`t:number/0`) - Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
   * `:force` (`t:boolean/0`) - Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
   * `:modifiers` (list of `:alt` | `:control` | `:control_or_meta` | `:meta` | `:shift`) - Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores current
@@ -3898,7 +3898,7 @@ defmodule PlaywrightEx.Locator do
             }
 
   @doc deprecated:
-         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+         "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc ~S"""
   Focuses the element, and then sends a `keydown`, `keypress`/`input`, and `keyup` event for each character in the text.
 
@@ -3933,7 +3933,7 @@ defmodule PlaywrightEx.Locator do
   end
 
   @doc deprecated:
-         "In most cases, you should use [`method: Locator.fill`] instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use [`method: Locator.pressSequentially`]."
+         "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc "Like `type/3`, but returns the value and raises on error."
   @spec type!(t(), String.t(), type_options()) :: :ok
   def type!(this, text, options \\ []) do

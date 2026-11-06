@@ -389,14 +389,14 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     """
     #{attributes}
 
-    #{deprecated(member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
+    #{deprecated(ctx, member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
     #{spec(name, m, ":ok | {:error, PlaywrightEx.error()}")}
     #{clauses(m, name)}def #{head(name, params, m.or_options)} do
       #{conversions}
       Facade.matcher(#{receiver}, fn -> #{call} end)
     end
 
-    #{deprecated(member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met."
+    #{deprecated(ctx, member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met."
     #{spec(name <> "!", m, ":ok")}
     #{clauses(m, name <> "!")}def #{head(name <> "!", params, m.or_options)} do
       #{conversions}
@@ -445,7 +445,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       spec_args: ["t()" | Enum.map(args, &arg_spec(ctx, &1, name))],
       return: if(void?, do: ":ok", else: return_spec(ctx, member)),
       examples: examples,
-      docs: deprecated(member) <> "@doc #{doc(doc)}"
+      deprecated: deprecated(ctx, member),
+      docs: deprecated(ctx, member) <> "@doc #{doc(doc)}"
     })
   end
 
@@ -575,7 +576,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       Facade.promise(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end)
     end
 
-    #{deprecated(member)}@doc #{doc(promise_bang_doc(member, m))}
+    #{m.deprecated}@doc #{doc(promise_bang_doc(member, m))}
     #{spec(m.name <> "!", m, m.return)}
     def #{m.name}!(#{Enum.join(m.params, ", ")}),
       do: Facade.await!(#{m.name}(#{Enum.map_join(m.params, ", ", &no_default/1)}))
@@ -600,7 +601,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       Facade.#{async}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
     end
 
-    #{deprecated(member)}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
+    #{m.deprecated}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
     #{spec(m.name <> "!", m, m.return)}
     #{clauses(m, m.name <> "!")}def #{head(m.name <> "!", m.params, m.function || m.or_options)} do
       #{m.conversions}
@@ -866,10 +867,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp props(%{"union" => union}) when is_list(union), do: Enum.find_value(union, [], &(props(&1) != [] && props(&1)))
   defp props(_type), do: []
 
-  defp deprecated(%{"deprecated" => text}) when is_binary(text),
-    do: "@doc deprecated: #{inspect(first_line(String.replace(text, "↵", " ")))}\n"
+  # ExDoc shows `deprecated:` as plain text, then a full stop: the rendered text without markup.
+  defp deprecated(ctx, %{"deprecated" => text}) when is_binary(text) do
+    text =
+      text
+      |> String.replace("↵", " ")
+      |> first_line()
+      |> text(ctx)
+      |> plain()
+      |> String.trim_trailing(".")
 
-  defp deprecated(_member), do: ""
+    "@doc deprecated: #{inspect(text)}\n"
+  end
+
+  defp deprecated(_ctx, _member), do: ""
+
+  # Markdown links as their labels, code spans as their code.
+  defp plain(markdown) do
+    markdown
+    |> then(&Regex.replace(~r/\[([^\]]*)\]\([^)]*\)/, &1, "\\1"))
+    |> String.replace("`", "")
+  end
 
   defp listeners_source(_ctx, _class, _events, [], _receiver), do: ""
 
@@ -1208,7 +1226,13 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # Member refs (`[method: Page.goto]`), markdown links, inline code and raw type refs
   # (`[Promise]`), in one pass so that code and link texts are left alone.
-  @inline ~r/\[`(method|property|event): (\w+)\.(\w+)(?:#\w+)?`\]|\[([^\]]*)\]\(([^)]*)\)|`([^`]+)`|\[([A-Za-z]\w*)\]/
+  @inline ~r/\[`(method|property|event): (\w+)\.(\w+)(?:#\w+)?`\]|\[([^\]]*)\]\(([^)]*)\)|`([^`]+)`|\[([A-Za-z](?:[\w.]*\w)?)\]/
+
+  # Refs to web APIs and terms, as MDN links.
+  @web_refs %{
+    "UIEvent.detail" => "[`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail)",
+    "origin" => "[origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin)"
+  }
 
   # Upstream joins the lines of a paragraph with `↵` (soft line breaks).
   defp text(text, ctx) do
@@ -1232,9 +1256,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp inline(ctx, match, _ref, _link, code, "") when code != "",
     do: code_link(ctx, code) || prose_code(ctx, code) || match
 
-  # `[Promise]`, `[string]`; not `[contenteditable]`.
-  defp inline(ctx, match, _ref, _link, _code, type),
-    do: code_link(ctx, type) || if(type =~ ~r/^[A-Z]|^string$/, do: "`#{type}`", else: match)
+  # `[Promise]`, `[string]`, a web API (`[UIEvent.detail]`), a class in lower case (`[request]`);
+  # not `[contenteditable]`.
+  defp inline(ctx, match, _ref, _link, _code, type) do
+    code_link(ctx, type) || @web_refs[type] || (type =~ ~r/^[a-z]+$/ && code_link(ctx, Macro.camelize(type))) ||
+      if(type =~ ~r/^[A-Z]|^string$/, do: "`#{type}`", else: match)
+  end
 
   # A facade function where generated, else playwright.dev (`linkUtils.js` createMarkdownLink).
   defp member_link(ctx, "event", class, event) do

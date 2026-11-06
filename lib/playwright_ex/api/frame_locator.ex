@@ -75,7 +75,7 @@ defmodule PlaywrightEx.FrameLocator do
   @doc false
   def __client__, do: PlaywrightEx.Client.FrameLocator
 
-  @doc deprecated: "Use [`method: Locator.first`] followed by [`method: Locator.contentFrame`] instead."
+  @doc deprecated: "Use PlaywrightEx.Locator.first/1 followed by PlaywrightEx.Locator.content_frame/1 instead"
   @doc ~S"""
   Returns locator to the first matching frame.
 
@@ -644,7 +644,7 @@ defmodule PlaywrightEx.FrameLocator do
     PlaywrightEx.Client.FrameLocator.get_by_title(frame_locator, text, options)
   end
 
-  @doc deprecated: "Use [`method: Locator.last`] followed by [`method: Locator.contentFrame`] instead."
+  @doc deprecated: "Use PlaywrightEx.Locator.last/1 followed by PlaywrightEx.Locator.content_frame/1 instead"
   @doc ~S"""
   Returns locator to the last matching frame.
 
@@ -711,7 +711,7 @@ defmodule PlaywrightEx.FrameLocator do
     PlaywrightEx.Client.FrameLocator.locator(frame_locator, selector_or_locator, options)
   end
 
-  @doc deprecated: "Use [`method: Locator.nth`] followed by [`method: Locator.contentFrame`] instead."
+  @doc deprecated: "Use PlaywrightEx.Locator.nth/2 followed by PlaywrightEx.Locator.content_frame/1 instead"
   @doc ~S"""
   Returns locator to the n-th matching frame. It's zero based, `nth(0)` selects the first frame.
 

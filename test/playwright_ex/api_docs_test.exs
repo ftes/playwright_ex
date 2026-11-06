@@ -57,6 +57,23 @@ defmodule PlaywrightEx.ApiDocsTest do
     assert calls == []
   end
 
+  test "no raw upstream member refs (`[method: Page.goto]`), also in `deprecated:`", %{docs: docs} do
+    deprecated =
+      for module <- @modules,
+          {:docs_v1, _, _, _, _, _, entries} = Code.fetch_docs(module),
+          {{_, name, arity}, _, _, _, %{deprecated: text}} <- entries,
+          do: {module, "#{name}/#{arity} deprecated", "", text}
+
+    assert offending(docs ++ deprecated, ~r/\[`?(?:method|property|event|param|option): /) == []
+    # ExDoc shows `deprecated:` as plain text.
+    assert offending(deprecated, ~r/[`\[]/) == []
+  end
+
+  test "no unresolved bracket refs (`[UIEvent.detail]`, `[request]`): links or code", %{docs: docs} do
+    docs = for {module, function, signature, prose} <- docs, do: {module, function, signature, without_code(prose)}
+    assert offending(docs, ~r/\[[A-Za-z][\w.]*\](?![(:\[])/) == []
+  end
+
   # Until our versions are Playwright's: "*Since Playwright 1.8.*" in the text.
   test "no `since:` metadata (it would read as a PlaywrightEx version)" do
     with_since =
@@ -100,6 +117,9 @@ defmodule PlaywrightEx.ApiDocsTest do
     |> Enum.reverse()
     |> Enum.join("\n")
   end
+
+  # Inline code spans removed (`[contenteditable]` is code).
+  defp without_code(prose), do: Regex.replace(~r/`[^`]*`/, prose, "")
 
   # The options (`@type <name>_options`) and arguments of a function, snake_case strings.
   defp own_names(_types, "moduledoc", _signature), do: []
