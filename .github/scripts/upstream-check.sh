@@ -10,9 +10,15 @@ set -euo pipefail
 
 # Our version for an upstream release: a new upstream major.minor X.Y gives X.Y.0, an upstream
 # patch of the minor we already mirror gives our next patch (the patch is ours, see PLAN.md).
+# A pre-release of ours (0.17.0-rc.0: versions don't mirror upstream yet, docs/architecture.md
+# "Port and versions") stays as it is; the next candidate is picked by hand.
 next_version() {
   local ours=$1 upstream=$2
   local o_major o_minor o_patch u_major u_minor
+  if [[ $ours == *-* ]]; then
+    echo "$ours"
+    return
+  fi
   IFS=. read -r o_major o_minor o_patch <<<"$ours"
   IFS=. read -r u_major u_minor _ <<<"$upstream"
   if [[ $o_major == "$u_major" && $o_minor == "$u_minor" ]]; then
@@ -36,6 +42,8 @@ target=${1:-}
 # A target given by hand is a deliberate retry: only an open PR blocks it, not a closed one.
 if [[ -n $target ]]; then states=open; else states=all; fi
 stable='^[0-9]+\.[0-9]+\.[0-9]+$'
+# Ours may be a pre-release (X.Y.Z-rc.N).
+semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
 
 out() {
   echo "$1=$2"
@@ -50,7 +58,7 @@ stop() {
 
 from=$(<"$root/DRIVER_VERSION")
 ours=$(sed -nE 's/^ *@version "([^"]+)".*/\1/p' "$root/mix.exs")
-[[ $from =~ $stable && $ours =~ $stable ]] || { echo "cannot read DRIVER_VERSION/@version" >&2; exit 1; }
+[[ $from =~ $stable && $ours =~ $semver ]] || { echo "cannot read DRIVER_VERSION/@version" >&2; exit 1; }
 out from "$from"
 
 # The driver is the playwright-core npm package (PlaywrightEx.Driver.npm_url/0), so the npm
