@@ -1107,3 +1107,12 @@ drift). Blockers for release, assigned to follow-up workstreams:
   Upstream, `Mix.PlaywrightEx.*` and the contributor tasks (gen.api, gen.protocol, parity,
   checksums). The `config :playwright_ex, :expect` docs render in `PlaywrightEx.Expect` (single
   source: `Matchers.Expect.__config_doc__/0`).
+- WR5 (examples spike): all 56 Locator JS blocks translated in `test/examples/locator_test.exs`
+  (55 run on all three browsers, 1 compile-only: the `testIdAttribute` config becomes
+  `Selectors.set_test_id_attribute`, VM-global; none dropped). Shared getBy* blocks also render in
+  Page, Frame and FrameLocator. ExampleCase: test names use the JS's first line (whole blocks broke
+  the atom limit), `binding()` silences unused result bindings (`texts = ...`), `writes:` removes
+  files an example writes (`path: "link.png"`), FrameLocator/Selectors aliased. File fixtures
+  for `setInputFiles` live next to the tests (`Path.join(__DIR__, ...)` mirrors `__dirname`).
+  Printed values use `# => value` (credo bans `IO.inspect`, the formatter moves end-of-line
+  comments above the line). No port bugs found.

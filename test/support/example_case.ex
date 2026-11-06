@@ -21,6 +21,8 @@ defmodule PlaywrightEx.ExampleCase do
     * `:html` - the document every request gets, default an empty page.
     * `:given` - bindings the docs leave out, e.g. `given: [frame: Page.main_frame(page)]`.
     * `:skip` - why the example only compiles (it needs the network, say).
+    * `:writes` - files the example writes to the working directory (`path: "link.png"`),
+      removed after it.
 
   Output (`IO.puts`) is captured.
   """
@@ -40,8 +42,8 @@ defmodule PlaywrightEx.ExampleCase do
       import PlaywrightEx.ExampleCase, only: [example: 3]
 
       # The docs' examples use the short names.
-      alias PlaywrightEx.{Browser, BrowserContext, BrowserType, Expect, Frame, Keyboard, Locator, Mouse}
-      alias PlaywrightEx.{Page, Playwright, Request, Response, Route}
+      alias PlaywrightEx.{Browser, BrowserContext, BrowserType, Expect, Frame, FrameLocator, Keyboard, Locator, Mouse}
+      alias PlaywrightEx.{Page, Playwright, Request, Response, Route, Selectors}
     end
   end
 
@@ -57,6 +59,7 @@ defmodule PlaywrightEx.ExampleCase do
     context = Browser.new_context!(browser)
     BrowserContext.set_default_timeout(context, 5_000)
     on_exit(fn -> BrowserContext.close(context) end)
+    for path <- Map.get(tags, :writes) || [], do: on_exit(fn -> File.rm(path) end)
     html = Map.get(tags, :html) || @html
     BrowserContext.route!(context, "**/*", &Route.fulfill(&1, body: html, content_type: "text/html"))
     page = BrowserContext.new_page!(context)
@@ -70,9 +73,11 @@ defmodule PlaywrightEx.ExampleCase do
 
     quote do
       @tag html: unquote(opts[:html])
+      @tag writes: unquote(opts[:writes])
       if reason = unquote(opts[:skip]), do: @tag(skip: reason)
 
-      test "#{unquote(member)}: #{unquote(js)}", %{
+      # The first line of the JS: a whole block can exceed the atom limit of the test's funs.
+      test "#{unquote(member)} (line #{__ENV__.line}): #{unquote(js) |> String.split("\n") |> hd()}", %{
         playwright: var!(playwright),
         browser: var!(browser),
         context: var!(context),
@@ -83,6 +88,8 @@ defmodule PlaywrightEx.ExampleCase do
         ExUnit.CaptureIO.capture_io(fn ->
           unquote_splicing(bindings)
           unquote(body)
+          # The docs bind results they don't use (`texts = ...`).
+          _ = binding()
         end)
       end
     end

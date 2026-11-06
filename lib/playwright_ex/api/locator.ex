@@ -61,8 +61,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const texts = await page.getByRole('link').allInnerTexts();
+  ```elixir
+  texts = Page.get_by_role(page, :link) |> Locator.all_inner_texts!()
   ```
   """
   @spec all_inner_texts(t()) :: {:ok, [String.t()]} | {:error, Exception.t()}
@@ -87,8 +87,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const texts = await page.getByRole('link').allTextContents();
+  ```elixir
+  texts = Page.get_by_role(page, :link) |> Locator.all_text_contents!()
   ```
   """
   @spec all_text_contents(t()) :: {:ok, [String.t()]} | {:error, Exception.t()}
@@ -111,8 +111,8 @@ defmodule PlaywrightEx.Locator do
 
   The following example finds a button with a specific title.
 
-  ```js
-  const button = page.getByRole('button').and(page.getByTitle('Subscribe'));
+  ```elixir
+  button = Page.get_by_role(page, :button) |> Locator.and_(Page.get_by_title(page, "Subscribe"))
   ```
 
   ## Arguments
@@ -157,8 +157,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('link').ariaSnapshot();
+  ```elixir
+  Page.get_by_role(page, :link) |> Locator.aria_snapshot!()
   ```
 
   **Details**
@@ -258,8 +258,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('list').ariaSnapshotJSON();
+  ```elixir
+  Page.get_by_role(page, :list) |> Locator.aria_snapshot_json!()
   ```
 
   **Details**
@@ -464,8 +464,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('checkbox').check();
+  ```elixir
+  Page.get_by_role(page, :checkbox) |> Locator.check!()
   ```
 
   ## Options
@@ -540,8 +540,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('textbox').clear();
+  ```elixir
+  Page.get_by_role(page, :textbox) |> Locator.clear!()
   ```
 
   ## Options
@@ -651,8 +651,8 @@ defmodule PlaywrightEx.Locator do
 
   Click a button:
 
-  ```js
-  await page.getByRole('button').click();
+  ```elixir
+  Page.get_by_role(page, :button) |> Locator.click!()
   ```
 
   Shift-right-click at a specific position on a canvas:
@@ -718,8 +718,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const count = await page.getByRole('listitem').count();
+  ```elixir
+  count = Page.get_by_role(page, :listitem) |> Locator.count!()
   ```
   """
   @spec count(t()) :: {:ok, integer()} | {:error, Exception.t()}
@@ -859,9 +859,9 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const button = page.getByTestId('btn-sub').describe('Subscribe button');
-  await button.click();
+  ```elixir
+  button = Page.get_by_test_id(page, "btn-sub") |> Locator.describe("Subscribe button")
+  Locator.click!(button)
   ```
 
   ## Arguments
@@ -879,12 +879,14 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const button = page.getByRole('button').describe('Subscribe button');
-  console.log(button.description()); // "Subscribe button"
+  ```elixir
+  button = Page.get_by_role(page, :button) |> Locator.describe("Subscribe button")
+  Locator.description(button)
+  # => "Subscribe button"
 
-  const input = page.getByRole('textbox');
-  console.log(input.description()); // null
+  input = Page.get_by_role(page, :textbox)
+  Locator.description(input)
+  # => nil
   ```
   """
   @spec description(t()) :: nil | String.t()
@@ -905,8 +907,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await locator.dispatchEvent('click');
+  ```elixir
+  Locator.dispatch_event!(locator, "click")
   ```
 
   **Details**
@@ -935,9 +937,9 @@ defmodule PlaywrightEx.Locator do
 
   You can also specify [`JSHandle`](`PlaywrightEx.JSHandle`) as the property value if you want live objects to be passed into the event:
 
-  ```js
-  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-  await locator.dispatchEvent('dragstart', { dataTransfer });
+  ```elixir
+  data_transfer = Page.evaluate_handle!(page, "() => new DataTransfer()")
+  Locator.dispatch_event!(locator, "dragstart", %{dataTransfer: data_transfer})
   ```
 
   ## Arguments
@@ -1027,16 +1029,13 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const source = page.locator('#source');
-  const target = page.locator('#target');
+  ```elixir
+  source = Page.locator(page, "#source")
+  target = Page.locator(page, "#target")
 
-  await source.dragTo(target);
-  // or specify exact positions relative to the top-left corners of the elements:
-  await source.dragTo(target, {
-    sourcePosition: { x: 34, y: 7 },
-    targetPosition: { x: 10, y: 20 },
-  });
+  Locator.drag_to!(source, target)
+  # or specify exact positions relative to the top-left corners of the elements:
+  Locator.drag_to!(source, target, source_position: %{x: 34, y: 7}, target_position: %{x: 10, y: 20})
   ```
 
   ## Arguments
@@ -1127,21 +1126,16 @@ defmodule PlaywrightEx.Locator do
 
   Drop a file buffer onto an upload area:
 
-  ```js
-  await page.locator('#dropzone').drop({
-    files: { name: 'note.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') },
-  });
+  ```elixir
+  Page.locator(page, "#dropzone")
+  |> Locator.drop!(%{files: %{name: "note.txt", mimeType: "text/plain", buffer: "hello"}})
   ```
 
   Drop plain text and a URL together:
 
-  ```js
-  await page.locator('#dropzone').drop({
-    data: {
-      'text/plain': 'hello world',
-      'text/uri-list': 'https://example.com',
-    },
-  });
+  ```elixir
+  Page.locator(page, "#dropzone")
+  |> Locator.drop!(%{data: %{"text/plain" => "hello world", "text/uri-list" => "https://example.com"}})
   ```
 
   ## Arguments
@@ -1280,11 +1274,11 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('iframe[name="embedded"]');
-  // ...
-  const frameLocator = locator.contentFrame();
-  await frameLocator.getByRole('button').click();
+  ```elixir
+  locator = Page.locator(page, ~s(iframe[name="embedded"]))
+  # ...
+  frame_locator = Locator.content_frame(locator)
+  FrameLocator.get_by_role(frame_locator, :button) |> Locator.click!()
   ```
   """
   @spec content_frame(t()) :: PlaywrightEx.FrameLocator.t()
@@ -1379,9 +1373,9 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const locator = page.locator('div');
-  const moreThanTen = await locator.evaluateAll((divs, min) => divs.length > min, 10);
+  ```elixir
+  locator = Page.locator(page, "div")
+  more_than_ten = Locator.evaluate_all!(locator, "(divs, min) => divs.length > min", 10)
   ```
 
   ## Arguments
@@ -1499,8 +1493,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('textbox').fill('example value');
+  ```elixir
+  Page.get_by_role(page, :textbox) |> Locator.fill!("example value")
   ```
 
   **Details**
@@ -1576,13 +1570,13 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const rowLocator = page.locator('tr');
-  // ...
-  await rowLocator
-      .filter({ hasText: 'text in column 1' })
-      .filter({ has: page.getByRole('button', { name: 'column 2 button' }) })
-      .screenshot();
+  ```elixir
+  row_locator = Page.locator(page, "tr")
+  # ...
+  row_locator
+  |> Locator.filter(has_text: "text in column 1")
+  |> Locator.filter(has: Page.get_by_role(page, :button, name: "column 2 button"))
+  |> Locator.screenshot!()
   ```
 
   ## Options
@@ -1661,9 +1655,9 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const locator = page.frameLocator('iframe').getByText('Submit');
-  await locator.click();
+  ```elixir
+  locator = Page.frame_locator(page, "iframe") |> FrameLocator.get_by_text("Submit")
+  Locator.click!(locator)
   ```
 
   ## Arguments
@@ -1738,8 +1732,8 @@ defmodule PlaywrightEx.Locator do
   <img alt='Playwright logo'>
   ```
 
-  ```js
-  await page.getByAltText('Playwright logo').click();
+  ```elixir
+  Page.get_by_alt_text(page, "Playwright logo") |> Locator.click!()
   ```
 
   ## Arguments
@@ -1776,9 +1770,9 @@ defmodule PlaywrightEx.Locator do
   <input id="password-input">
   ```
 
-  ```js
-  await page.getByLabel('Username').fill('john');
-  await page.getByLabel('Password').fill('secret');
+  ```elixir
+  Page.get_by_label(page, "Username") |> Locator.fill!("john")
+  Page.get_by_label(page, "Password") |> Locator.fill!("secret")
   ```
 
   ## Arguments
@@ -1815,10 +1809,8 @@ defmodule PlaywrightEx.Locator do
 
   You can fill the input after locating it by the placeholder text:
 
-  ```js
-  await page
-      .getByPlaceholder('name@example.com')
-      .fill('playwright@microsoft.com');
+  ```elixir
+  Page.get_by_placeholder(page, "name@example.com") |> Locator.fill!("playwright@microsoft.com")
   ```
 
   ## Arguments
@@ -1981,12 +1973,12 @@ defmodule PlaywrightEx.Locator do
 
   You can locate each element by its implicit role:
 
-  ```js
-  await expect(page.getByRole('heading', { name: 'Sign up' })).toBeVisible();
+  ```elixir
+  Page.get_by_role(page, :heading, name: "Sign up") |> Expect.to_be_visible!()
 
-  await page.getByRole('checkbox', { name: 'Subscribe' }).check();
+  Page.get_by_role(page, :checkbox, name: "Subscribe") |> Locator.check!()
 
-  await page.getByRole('button', { name: /submit/i }).click();
+  Page.get_by_role(page, :button, name: ~r/submit/i) |> Locator.click!()
   ```
 
   **Details**
@@ -2139,23 +2131,17 @@ defmodule PlaywrightEx.Locator do
 
   You can locate the element by its test id:
 
-  ```js
-  await page.getByTestId('directions').click();
+  ```elixir
+  Page.get_by_test_id(page, "directions") |> Locator.click!()
   ```
 
   **Details**
 
   By default, the `data-testid` attribute is used as a test id. Use `PlaywrightEx.Selectors.set_test_id_attribute/2` to configure a different test id attribute if necessary.
 
-  ```js
-  // Set custom test id attribute from @playwright/test config:
-  import { defineConfig } from '@playwright/test';
-
-  export default defineConfig({
-    use: {
-      testIdAttribute: 'data-pw'
-    },
-  });
+  ```elixir
+  # Set a custom test id attribute:
+  Playwright.selectors(playwright) |> Selectors.set_test_id_attribute("data-pw")
   ```
 
   ## Arguments
@@ -2189,21 +2175,21 @@ defmodule PlaywrightEx.Locator do
 
   You can locate by text substring, exact string, or a regular expression:
 
-  ```js
-  // Matches <span>
-  page.getByText('world');
+  ```elixir
+  # Matches <span>
+  Page.get_by_text(page, "world")
 
-  // Matches first <div>
-  page.getByText('Hello world');
+  # Matches first <div>
+  Page.get_by_text(page, "Hello world")
 
-  // Matches second <div>
-  page.getByText('Hello', { exact: true });
+  # Matches second <div>
+  Page.get_by_text(page, "Hello", exact: true)
 
-  // Matches both <div>s
-  page.getByText(/Hello/);
+  # Matches both <div>s
+  Page.get_by_text(page, ~r/Hello/)
 
-  // Matches second <div>
-  page.getByText(/^hello$/i);
+  # Matches second <div>
+  Page.get_by_text(page, ~r/^hello$/i)
   ```
 
   **Details**
@@ -2246,8 +2232,8 @@ defmodule PlaywrightEx.Locator do
 
   You can check the issues count after locating it by the title text:
 
-  ```js
-  await expect(page.getByTitle('Issues count')).toHaveText('25 issues');
+  ```elixir
+  Page.get_by_title(page, "Issues count") |> Expect.to_have_text!("25 issues")
   ```
 
   ## Arguments
@@ -2296,9 +2282,9 @@ defmodule PlaywrightEx.Locator do
 
   * `:style` - *Since 1.60.* Inline CSS applied to the highlight overlay, e.g.
 
-    ```js
-    await locator.highlight({ style: 'outline: 2px dashed red' });
-    await locator.highlight({ style: { color: 'red' } });
+    ```elixir
+    Locator.highlight!(locator, style: "outline: 2px dashed red")
+    Locator.highlight!(locator, style: %{"color" => "red"})
     ```
   """
   @spec highlight(t(), highlight_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
@@ -2366,8 +2352,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('link').hover();
+  ```elixir
+  Page.get_by_role(page, :link) |> Locator.hover!()
   ```
 
   **Details**
@@ -2518,8 +2504,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const value = await page.getByRole('textbox').inputValue();
+  ```elixir
+  value = Page.get_by_role(page, :textbox) |> Locator.input_value!()
   ```
 
   **Details**
@@ -2569,8 +2555,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const checked = await page.getByRole('checkbox').isChecked();
+  ```elixir
+  checked = Page.get_by_role(page, :checkbox) |> Locator.is_checked!()
   ```
 
   ## Options
@@ -2616,8 +2602,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const disabled = await page.getByRole('button').isDisabled();
+  ```elixir
+  disabled = Page.get_by_role(page, :button) |> Locator.is_disabled!()
   ```
 
   ## Options
@@ -2663,8 +2649,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const editable = await page.getByRole('textbox').isEditable();
+  ```elixir
+  editable = Page.get_by_role(page, :textbox) |> Locator.is_editable!()
   ```
 
   ## Options
@@ -2710,8 +2696,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const enabled = await page.getByRole('button').isEnabled();
+  ```elixir
+  enabled = Page.get_by_role(page, :button) |> Locator.is_enabled!()
   ```
 
   ## Options
@@ -2755,8 +2741,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const hidden = await page.getByRole('button').isHidden();
+  ```elixir
+  hidden = Page.get_by_role(page, :button) |> Locator.is_hidden!()
   ```
 
   ## Options
@@ -2792,8 +2778,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const visible = await page.getByRole('button').isVisible();
+  ```elixir
+  visible = Page.get_by_role(page, :button) |> Locator.is_visible!()
   ```
 
   ## Options
@@ -2820,8 +2806,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const banana = await page.getByRole('listitem').last();
+  ```elixir
+  banana = Page.get_by_role(page, :listitem) |> Locator.last()
   ```
   """
   @spec last(t()) :: PlaywrightEx.Locator.t()
@@ -2903,10 +2889,10 @@ defmodule PlaywrightEx.Locator do
 
   You can turn the ref into locator code:
 
-  ```js
-  const normalized = await page.getByRef('e2').normalize();
-  console.log(normalized.toString());
-  // getByRole('button', { name: 'Submit' })
+  ```elixir
+  normalized = Page.get_by_ref(page, "e2") |> Locator.normalize!()
+  # prints Page.get_by_role(page, :button, name: "Submit")
+  IO.puts(Locator.to_string(normalized))
   ```
   """
   @spec normalize(t()) :: {:ok, PlaywrightEx.Locator.t()} | {:error, Exception.t()}
@@ -2927,8 +2913,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const banana = await page.getByRole('listitem').nth(2);
+  ```elixir
+  banana = Page.get_by_role(page, :listitem) |> Locator.nth(2)
   ```
   """
   @spec nth(t(), integer()) :: PlaywrightEx.Locator.t()
@@ -2951,13 +2937,16 @@ defmodule PlaywrightEx.Locator do
   > If both "New email" button and security dialog appear on screen, the "or" locator will match both of them,
   > possibly throwing the ["strict mode violation" error](https://playwright.dev/docs/locators#strictness). In this case, you can use `PlaywrightEx.Locator.first/1` to only match one of them.
 
-  ```js
-  const newEmail = page.getByRole('button', { name: 'New' });
-  const dialog = page.getByText('Confirm security settings');
-  await expect(newEmail.or(dialog).first()).toBeVisible();
-  if (await dialog.isVisible())
-    await page.getByRole('button', { name: 'Dismiss' }).click();
-  await newEmail.click();
+  ```elixir
+  new_email = Page.get_by_role(page, :button, name: "New")
+  dialog = Page.get_by_text(page, "Confirm security settings")
+  new_email |> Locator.or_(dialog) |> Locator.first() |> Expect.to_be_visible!()
+
+  if Locator.is_visible!(dialog) do
+    Page.get_by_role(page, :button, name: "Dismiss") |> Locator.click!()
+  end
+
+  Locator.click!(new_email)
   ```
 
   ## Arguments
@@ -3007,8 +2996,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('textbox').press('Backspace');
+  ```elixir
+  Page.get_by_role(page, :textbox) |> Locator.press!("Backspace")
   ```
 
   **Details**
@@ -3103,17 +3092,19 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await locator.pressSequentially('Hello'); // Types instantly
-  await locator.pressSequentially('World', { delay: 100 }); // Types slower, like a user
+  ```elixir
+  # Types instantly
+  Locator.press_sequentially!(locator, "Hello")
+  # Types slower, like a user
+  Locator.press_sequentially!(locator, "World", delay: 100)
   ```
 
   An example of typing into a text field and then submitting the form:
 
-  ```js
-  const locator = page.getByLabel('Password');
-  await locator.pressSequentially('my password');
-  await locator.press('Enter');
+  ```elixir
+  locator = Page.get_by_label(page, "Password")
+  Locator.press_sequentially!(locator, "my password")
+  Locator.press!(locator, "Enter")
   ```
 
   ## Arguments
@@ -3207,14 +3198,14 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('link').screenshot();
+  ```elixir
+  Page.get_by_role(page, :link) |> Locator.screenshot!()
   ```
 
   Disable animations and save screenshot to a file:
 
-  ```js
-  await page.getByRole('link').screenshot({ animations: 'disabled', path: 'link.png' });
+  ```elixir
+  Page.get_by_role(page, :link) |> Locator.screenshot!(animations: :disabled, path: "link.png")
   ```
 
   **Details**
@@ -3376,15 +3367,15 @@ defmodule PlaywrightEx.Locator do
   </select>
   ```
 
-  ```js
-  // single selection matching the value or label
-  element.selectOption('blue');
+  ```elixir
+  # single selection matching the value or label
+  Locator.select_option!(element, "blue")
 
-  // single selection matching the label
-  element.selectOption({ label: 'Blue' });
+  # single selection matching the label
+  Locator.select_option!(element, %{label: "Blue"})
 
-  // multiple selection for red, green and blue options
-  element.selectOption(['red', 'green', 'blue']);
+  # multiple selection for red, green and blue options
+  Locator.select_option!(element, ["red", "green", "blue"])
   ```
 
   ## Arguments
@@ -3535,8 +3526,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('checkbox').setChecked(true);
+  ```elixir
+  Page.get_by_role(page, :checkbox) |> Locator.set_checked!(true)
   ```
 
   **Details**
@@ -3625,28 +3616,23 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  // Select one file
-  await page.getByLabel('Upload file').setInputFiles(path.join(__dirname, 'myfile.pdf'));
+  ```elixir
+  # Select one file
+  Page.get_by_label(page, "Upload file") |> Locator.set_input_files!(Path.join(__DIR__, "myfile.pdf"))
 
-  // Select multiple files
-  await page.getByLabel('Upload files').setInputFiles([
-    path.join(__dirname, 'file1.txt'),
-    path.join(__dirname, 'file2.txt'),
-  ]);
+  # Select multiple files
+  Page.get_by_label(page, "Upload files")
+  |> Locator.set_input_files!([Path.join(__DIR__, "file1.txt"), Path.join(__DIR__, "file2.txt")])
 
-  // Select a directory
-  await page.getByLabel('Upload directory').setInputFiles(path.join(__dirname, 'mydir'));
+  # Select a directory
+  Page.get_by_label(page, "Upload directory") |> Locator.set_input_files!(Path.join(__DIR__, "mydir"))
 
-  // Remove all the selected files
-  await page.getByLabel('Upload file').setInputFiles([]);
+  # Remove all the selected files
+  Page.get_by_label(page, "Upload file") |> Locator.set_input_files!([])
 
-  // Upload buffer from memory
-  await page.getByLabel('Upload file').setInputFiles({
-    name: 'file.txt',
-    mimeType: 'text/plain',
-    buffer: Buffer.from('this is test')
-  });
+  # Upload buffer from memory
+  Page.get_by_label(page, "Upload file")
+  |> Locator.set_input_files!(%{name: "file.txt", mimeType: "text/plain", buffer: "this is test"})
   ```
 
   **Details**
@@ -3968,8 +3954,8 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  await page.getByRole('checkbox').uncheck();
+  ```elixir
+  Page.get_by_role(page, :checkbox) |> Locator.uncheck!()
   ```
 
   **Details**
@@ -4042,8 +4028,8 @@ defmodule PlaywrightEx.Locator do
 
   This will only find the second button, because it is visible, and then click it.
 
-  ```js
-  await page.locator('button').visible().click();
+  ```elixir
+  Page.locator(page, "button") |> Locator.visible() |> Locator.click!()
   ```
 
   To match invisible elements instead, use `PlaywrightEx.Locator.filter/2` with the `visible` option set to `false`.
@@ -4084,9 +4070,9 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const orderSent = page.locator('#order-sent');
-  await orderSent.waitFor();
+  ```elixir
+  order_sent = Page.locator(page, "#order-sent")
+  Locator.wait_for!(order_sent)
   ```
 
   ## Options
@@ -4144,18 +4130,17 @@ defmodule PlaywrightEx.Locator do
 
   Wait for an attribute to appear:
 
-  ```js
-  const toggle = page.getByRole('button', { name: 'Menu' });
-  await toggle.click();
-  await toggle.waitForFunction(element => element.hasAttribute('aria-expanded'));
+  ```elixir
+  toggle = Page.get_by_role(page, :button, name: "Menu")
+  Locator.click!(toggle)
+  Locator.wait_for_function!(toggle, "element => element.hasAttribute('aria-expanded')")
   ```
 
   Passing argument to `pageFunction`:
 
-  ```js
-  await page.getByTestId('status').waitForFunction((element, value) => {
-    return element.textContent === value;
-  }, 'Ready');
+  ```elixir
+  Page.get_by_test_id(page, "status")
+  |> Locator.wait_for_function!("(element, value) => element.textContent === value", "Ready")
   ```
 
   ## Arguments
@@ -4202,9 +4187,9 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const thirdColumn = page.getByRole('cell').nth(2).within(page.getByRole('row'));
-  await expect(thirdColumn).toHaveText(['Apple', 'Banana', 'Cherry']);
+  ```elixir
+  third_column = Page.get_by_role(page, :cell) |> Locator.nth(2) |> Locator.within(Page.get_by_role(page, :row))
+  Expect.to_have_text!(third_column, ["Apple", "Banana", "Cherry"])
   ```
 
   ## Arguments

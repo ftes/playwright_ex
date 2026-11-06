@@ -1820,8 +1820,8 @@ defmodule PlaywrightEx.Page do
   <img alt='Playwright logo'>
   ```
 
-  ```js
-  await page.getByAltText('Playwright logo').click();
+  ```elixir
+  Page.get_by_alt_text(page, "Playwright logo") |> Locator.click!()
   ```
 
   ## Arguments
@@ -1858,9 +1858,9 @@ defmodule PlaywrightEx.Page do
   <input id="password-input">
   ```
 
-  ```js
-  await page.getByLabel('Username').fill('john');
-  await page.getByLabel('Password').fill('secret');
+  ```elixir
+  Page.get_by_label(page, "Username") |> Locator.fill!("john")
+  Page.get_by_label(page, "Password") |> Locator.fill!("secret")
   ```
 
   ## Arguments
@@ -1897,10 +1897,8 @@ defmodule PlaywrightEx.Page do
 
   You can fill the input after locating it by the placeholder text:
 
-  ```js
-  await page
-      .getByPlaceholder('name@example.com')
-      .fill('playwright@microsoft.com');
+  ```elixir
+  Page.get_by_placeholder(page, "name@example.com") |> Locator.fill!("playwright@microsoft.com")
   ```
 
   ## Arguments
@@ -2091,12 +2089,12 @@ defmodule PlaywrightEx.Page do
 
   You can locate each element by its implicit role:
 
-  ```js
-  await expect(page.getByRole('heading', { name: 'Sign up' })).toBeVisible();
+  ```elixir
+  Page.get_by_role(page, :heading, name: "Sign up") |> Expect.to_be_visible!()
 
-  await page.getByRole('checkbox', { name: 'Subscribe' }).check();
+  Page.get_by_role(page, :checkbox, name: "Subscribe") |> Locator.check!()
 
-  await page.getByRole('button', { name: /submit/i }).click();
+  Page.get_by_role(page, :button, name: ~r/submit/i) |> Locator.click!()
   ```
 
   **Details**
@@ -2249,23 +2247,17 @@ defmodule PlaywrightEx.Page do
 
   You can locate the element by its test id:
 
-  ```js
-  await page.getByTestId('directions').click();
+  ```elixir
+  Page.get_by_test_id(page, "directions") |> Locator.click!()
   ```
 
   **Details**
 
   By default, the `data-testid` attribute is used as a test id. Use `PlaywrightEx.Selectors.set_test_id_attribute/2` to configure a different test id attribute if necessary.
 
-  ```js
-  // Set custom test id attribute from @playwright/test config:
-  import { defineConfig } from '@playwright/test';
-
-  export default defineConfig({
-    use: {
-      testIdAttribute: 'data-pw'
-    },
-  });
+  ```elixir
+  # Set a custom test id attribute:
+  Playwright.selectors(playwright) |> Selectors.set_test_id_attribute("data-pw")
   ```
 
   ## Arguments
@@ -2299,21 +2291,21 @@ defmodule PlaywrightEx.Page do
 
   You can locate by text substring, exact string, or a regular expression:
 
-  ```js
-  // Matches <span>
-  page.getByText('world');
+  ```elixir
+  # Matches <span>
+  Page.get_by_text(page, "world")
 
-  // Matches first <div>
-  page.getByText('Hello world');
+  # Matches first <div>
+  Page.get_by_text(page, "Hello world")
 
-  // Matches second <div>
-  page.getByText('Hello', { exact: true });
+  # Matches second <div>
+  Page.get_by_text(page, "Hello", exact: true)
 
-  // Matches both <div>s
-  page.getByText(/Hello/);
+  # Matches both <div>s
+  Page.get_by_text(page, ~r/Hello/)
 
-  // Matches second <div>
-  page.getByText(/^hello$/i);
+  # Matches second <div>
+  Page.get_by_text(page, ~r/^hello$/i)
   ```
 
   **Details**
@@ -2356,8 +2348,8 @@ defmodule PlaywrightEx.Page do
 
   You can check the issues count after locating it by the title text:
 
-  ```js
-  await expect(page.getByTitle('Issues count')).toHaveText('25 issues');
+  ```elixir
+  Page.get_by_title(page, "Issues count") |> Expect.to_have_text!("25 issues")
   ```
 
   ## Arguments
