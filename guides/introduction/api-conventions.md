@@ -24,6 +24,10 @@ snake_case. Where a JS name is no Elixir name, Python's is used: `$eval` is
 `not_to_*` (see [Assertions](#assertions)). Properties are functions too: `page.keyboard` is
 `Page.keyboard(page)`, `request.url()` is `Request.url(request)`.
 
+Predicates keep Python's names, `Locator.is_visible/2` and `Browser.is_connected/1`, not
+`visible?`: a `?` function returns a plain boolean, and most of these are calls with a tuple and a
+bang form (`{:ok, true} = Locator.is_visible(locator)`, `true = Locator.is_visible!(locator)`).
+
 ## Results: tuple or bang
 
 Each call that JS awaits has two forms. `name/n` returns `{:ok, value}` or
