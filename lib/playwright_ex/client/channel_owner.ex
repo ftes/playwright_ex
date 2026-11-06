@@ -328,6 +328,9 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   # event the call enables reads what they write (`this._bindings.set(...)` before a
   # `bindingCall`): JS runs them before it dispatches that event, the caller's process may not.
   # It must not await; an exception it raises rejects the call. It does not run when the call fails.
+  # Elixir only: `params` may be a 0-arity fun, called in the connection when the message is
+  # written (one step with it): params computed from fields other processes write
+  # (`_updateInterceptionPatterns`). It must not await.
   def channel_call(this, method, params, options \\ %{}, on_reply \\ nil) do
     method = to_string(method)
     type = get(this, :_type)
@@ -349,7 +352,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     _wrap_api_call(
       this,
       fn api_zone ->
-        validated_params = validator.(params, "", _validator_to_wire_context(this))
+        context = _validator_to_wire_context(this)
+
+        validated_params =
+          if is_function(params, 0),
+            do: fn -> validator.(params.(), "", context) end,
+            else: validator.(params, "", context)
+
         %{signal: signal, timeout: timeout} = Map.merge(%{signal: nil, timeout: 0}, options)
 
         if !api_zone.internal and _report(api_zone) do
@@ -359,7 +368,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           ClientInstrumentation.on_api_call_begin(get(this, :_instrumentation), api_zone, %{
             type: type,
             method: method,
-            params: params
+            params: if(is_function(params, 0), do: params.(), else: params)
           })
 
           log_api_call(get(this, :_logger), "=> #{api_zone.apiName} started")

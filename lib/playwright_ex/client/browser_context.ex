@@ -275,6 +275,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
     end
 
     nil
+  rescue
+    # deviation: a callback rejected by its route's teardown is not logged (RouteHandler).
+    e -> RouteHandler._reraise_unless_teardown(e, __STACKTRACE__)
   end
 
   def _on_web_socket_route(this, web_socket_route) do
@@ -513,12 +516,19 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   defp _update_interception_patterns(this, options) do
-    patterns = RouteHandler.prepare_interception_patterns(get(this, :_routes))
+    # deviation: computed when the message is written, in one step with it (`channel_call/5`), so
+    # a concurrent `route()` cannot send stale patterns after fresh ones.
+    patterns = fn -> RouteHandler.prepare_interception_patterns(get(this, :_routes)) end
 
     _wrap_api_call(
       this,
       fn _ ->
-        channel_call(this, :setNetworkInterceptionPatterns, %{patterns: patterns}, TimeoutSettings.k_no_timeout())
+        channel_call(
+          this,
+          :setNetworkInterceptionPatterns,
+          fn -> %{patterns: patterns.()} end,
+          TimeoutSettings.k_no_timeout()
+        )
       end,
       options
     )
@@ -527,12 +537,18 @@ defmodule PlaywrightEx.Client.BrowserContext do
   end
 
   defp _update_web_socket_interception_patterns(this, options) do
-    patterns = WebSocketRouteHandler.prepare_interception_patterns(get(this, :_webSocketRoutes))
+    # deviation: computed when the message is written (see `_update_interception_patterns`).
+    patterns = fn -> WebSocketRouteHandler.prepare_interception_patterns(get(this, :_webSocketRoutes)) end
 
     _wrap_api_call(
       this,
       fn _ ->
-        channel_call(this, :setWebSocketInterceptionPatterns, %{patterns: patterns}, TimeoutSettings.k_no_timeout())
+        channel_call(
+          this,
+          :setWebSocketInterceptionPatterns,
+          fn -> %{patterns: patterns.()} end,
+          TimeoutSettings.k_no_timeout()
+        )
       end,
       options
     )

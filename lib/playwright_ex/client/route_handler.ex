@@ -88,8 +88,13 @@ defmodule PlaywrightEx.Client.RouteHandler do
             reraise e, __STACKTRACE__
         end
     after
-      Promise.resolve(handler_invocation.complete, nil)
-      set_delete(this, :_activeInvocations, handler_invocation)
+      # Elixir only: settled, its latch row is freed in the same step as the invocation leaves
+      # `_activeInvocations` (`stop` arms the latches it reads there in one step too).
+      atomic(this, fn ->
+        Promise.resolve(handler_invocation.complete, nil)
+        Promise.free(handler_invocation.complete)
+        set_delete(this, :_activeInvocations, handler_invocation)
+      end)
     end
   end
 
@@ -101,10 +106,10 @@ defmodule PlaywrightEx.Client.RouteHandler do
     if behavior == "ignoreErrors" do
       put(this, :_ignoreException, true)
     else
-      promises =
+      # Elixir only: the invocations are read and their latches armed in one step (see `_handle_impl`).
+      Promise.await_all_atomic(this, fn ->
         for activation <- get(this, :_activeInvocations), !get(activation.route, :_didThrow), do: activation.complete
-
-      Promise.await(Promise.all(promises))
+      end)
     end
 
     nil
@@ -112,7 +117,13 @@ defmodule PlaywrightEx.Client.RouteHandler do
 
   defp _handle_internal(this, route) do
     update(this, :handledCount, &(&1 + 1))
-    handled_promise = Promise.async(fn -> Route._start_handling(route) end)
+    # Elixir only: a rejection of the handling promise is the route's teardown (`_teardown?/1`).
+    handled_promise =
+      Promise.catch_(Promise.async(fn -> Route._start_handling(route) end), fn e ->
+        Process.put({__MODULE__, :teardown}, true)
+        raise e
+      end)
+
     # Extract handler into a variable to avoid [RouteHandler.handler] in the stack.
     handler = get(this, :handler)
 
@@ -129,6 +140,16 @@ defmodule PlaywrightEx.Client.RouteHandler do
       )
 
     handled
+  end
+
+  @doc false
+  # Elixir only: JS's `_startHandling` promise never settles when its route goes away with the
+  # page or context, so the route callback stays pending, silently. Here its latch is rejected
+  # (TargetClosedError): the callback rejects, and the `route` listener (`_onRoute`) drops that
+  # rejection instead of logging it as uncaught. Other errors are raised again.
+  def _reraise_unless_teardown(error, stacktrace) do
+    if !(Process.delete({__MODULE__, :teardown}) && Errors.is_target_closed_error(error)),
+      do: reraise(error, stacktrace)
   end
 
   def will_expire(this) do
