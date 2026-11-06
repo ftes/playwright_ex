@@ -22,9 +22,11 @@ defmodule PlaywrightEx.Library.TracingTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Runtime.Facade
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -85,7 +87,7 @@ defmodule PlaywrightEx.Library.TracingTest do
       )
 
     assert style
-    assert style["snapshot"]["response"]["content"]["_file"]
+    Utils.assert_truthy(style["snapshot"]["response"]["content"]["_file"])
 
     script =
       Enum.find(
@@ -573,7 +575,7 @@ defmodule PlaywrightEx.Library.TracingTest do
       Task.async(fn ->
         Stream.repeatedly(fn ->
           # Produce a lot of operations to make sure tracing operations are enqueued.
-          for _ <- 1..100, do: Task.start(fn -> Page.evaluate(page, "1 + 1") end)
+          for _ <- 1..100, do: Runtime.Promise.void(fn -> Page.evaluate(page, "1 + 1") end)
           Process.sleep(250)
         end)
         |> Stream.run()
@@ -835,10 +837,10 @@ defmodule PlaywrightEx.Library.TracingTest do
 
       # Navigate to the same page to produce the same trace resources
       # that might be concurrently exported.
-      promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end)
+      promise = Runtime.Promise.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end)
       Page.wait_for_timeout!(page, timeout)
       Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
-      Task.await(promise, :infinity)
+      Runtime.Promise.await(promise)
     end
   end
 
@@ -1019,7 +1021,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))
     assert length(actions) == 1
     req = hd(actions)["snapshot"]["request"]
-    assert req["postData"]["_file"]
+    Utils.assert_truthy(req["postData"]["_file"])
     assert %{"method" => "POST", "url" => ^url} = req
   end
 

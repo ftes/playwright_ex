@@ -7,8 +7,10 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
   alias PlaywrightEx.WebSocket
   alias PlaywrightEx.WebSocketRoute
 
@@ -331,7 +333,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     end)
 
     evaluate_promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(
           page,
           """
@@ -352,7 +354,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
 
     # Wait for all frames so the HAR tracer has observed them before the context is closed.
     for event <- [:frame_sent, :frame_received, :frame_sent, :frame_received], do: assert_receive(^event)
-    Task.await(evaluate_promise, :infinity)
+    Runtime.Promise.await(evaluate_promise)
     after_ms = now_ms()
 
     # Do not close the WebSocket on the page side. Closing the context should still flush messages.
@@ -430,7 +432,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
 
     ws_entry = find_entry(log, ws_url)
     assert ws_entry["_resourceType"] == "websocket"
-    assert ws_entry["response"]["_failureText"]
+    Utils.assert_truthy(ws_entry["response"]["_failureText"])
   end
 
   test "should record websocket handshake failure", %{
@@ -446,7 +448,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     upgrade_promise = TestServer.wait_for_upgrade(server)
 
     ws_close =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(
           page,
           """
@@ -463,7 +465,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     %{socket: socket} = Task.await(upgrade_promise, :infinity)
     TestServer.WebSocket.write(socket, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
     TestServer.WebSocket.destroy(socket)
-    Task.await(ws_close, :infinity)
+    Runtime.Promise.await(ws_close)
     log = get_log(session)
 
     ws_entry = find_entry(log, ws_url)
@@ -475,7 +477,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
       assert ws_entry["response"]["statusText"] == "Forbidden"
     end
 
-    assert ws_entry["response"]["_failureText"]
+    Utils.assert_truthy(ws_entry["response"]["_failureText"])
   end
 
   @collect_messages_until_closed """

@@ -11,7 +11,9 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   # browserTest's `context` fixture.
   @moduletag :page
@@ -359,10 +361,12 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page2, @fetch_function, "2") == "2"
     assert Page.evaluate!(page2, @fetch_function, "3") == "3"
 
-    assert (case Page.evaluate(page2, @fetch_function, "4") do
-              {:ok, value} -> value
-              {:error, e} -> e
-            end)
+    Utils.assert_truthy(
+      case Page.evaluate(page2, @fetch_function, "4") do
+        {:ok, value} -> value
+        {:error, e} -> e
+      end
+    )
   end
 
   @fetch_path_function """
@@ -673,9 +677,9 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     page1 = BrowserContext.new_page!(context1)
     Page.goto!(page1, server.empty_page)
     req_promise = TestServer.wait_for_request(server, "/x")
-    eval_promise = Task.async(fn -> Page.evaluate!(page1, fetch_x, server.prefix <> "/x") end)
+    eval_promise = Runtime.Promise.async(fn -> Page.evaluate!(page1, fetch_x, server.prefix <> "/x") end)
     Task.await(req_promise, :infinity)
-    req = Task.await(eval_promise, :infinity)
+    req = Runtime.Promise.await(eval_promise)
     assert req == "cancelled"
     BrowserContext.close!(context1)
 
@@ -691,17 +695,22 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     BrowserContext.route_from_har!(context2, path)
     page2 = BrowserContext.new_page!(context2)
     Page.goto!(page2, server.empty_page)
-    eval_promise = Task.async(fn -> Page.evaluate(page2, fetch_x, server.prefix <> "/x") end)
-    # Promise.race([evalPromise, page2.waitForTimeout(1000).then(() => 'timeout')])
+    eval_promise = Runtime.Promise.async(fn -> Page.evaluate(page2, fetch_x, server.prefix <> "/x") end, shared: true)
+
+    timeout =
+      fn -> Page.wait_for_timeout!(page2, 1000) end
+      |> Runtime.Promise.async()
+      |> Runtime.Promise.then_(fn _ -> "timeout" end)
+
     result =
-      case Task.yield(eval_promise, 1000) do
-        {:ok, {:ok, value}} -> value
-        nil -> "timeout"
+      case Runtime.Promise.await(Runtime.Promise.race([eval_promise, timeout])) do
+        {:ok, value} -> value
+        "timeout" -> "timeout"
       end
 
     assert result == "timeout"
     # Not upstream: settle the pending evaluate before the test process exits.
     BrowserContext.close!(context2)
-    Task.await(eval_promise, :infinity)
+    Runtime.Promise.await(eval_promise)
   end
 end

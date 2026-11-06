@@ -8,6 +8,8 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   alias PlaywrightEx.Coverage
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
+  alias PlaywrightEx.Utils
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
@@ -147,14 +149,12 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     session = BrowserContext.new_cdp_session!(context, page)
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         CDPSession.send(session, "Runtime.evaluate", %{expression: "new Promise(() => {})", awaitPromise: true})
       end)
 
-    # Let the call reach the driver before the page closes (JS sends it synchronously).
-    Process.sleep(100)
     Page.close!(page)
-    {:error, error1} = Task.await(promise, :infinity)
+    {:error, error1} = Runtime.Promise.await(promise)
     assert Exception.message(error1) =~ @k_target_closed_error_message
 
     {:error, error2} =
@@ -212,7 +212,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     session = Browser.new_browser_cdp_session!(browser)
 
     version = CDPSession.send!(session, "Browser.getVersion")
-    assert version["userAgent"]
+    Utils.assert_truthy(version["userAgent"])
 
     test_pid = self()
     CDPSession.on(session, "Target.targetCreated", fn _ -> send(test_pid, :got_event) end)

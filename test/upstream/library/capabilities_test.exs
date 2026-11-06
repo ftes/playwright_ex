@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
 
@@ -197,27 +198,30 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Locator.click!(Page.locator(page, "body"))
 
     picker =
-      Task.async(fn ->
-        Page.evaluate(page, """
-        async () => {
-          const dir = await window.showDirectoryPicker();
-          return dir.name;
-          // In headless it throws (aborted), in headed it stalls (Test ended) and waits for the picker to be accepted.
-        }
-        """)
-      end)
+      Runtime.Promise.async(
+        fn ->
+          Page.evaluate(page, """
+          async () => {
+            const dir = await window.showDirectoryPicker();
+            return dir.name;
+            // In headless it throws (aborted), in headed it stalls (Test ended) and waits for the picker to be accepted.
+          }
+          """)
+        end,
+        shared: true
+      )
 
     # The dialog will not be accepted, so we just wait for some time to
     # to give the browser a chance to crash.
     Page.wait_for_timeout!(page, 3_000)
 
     # `.catch(e => expect(e.message).toMatch(...))`: checked if it settled (headed: it stalls until the test ends).
-    case Task.yield(picker, 0) || Task.shutdown(picker) do
-      {:ok, {:error, e}} ->
+    if Runtime.Promise.settled?(picker) do
+      with {:error, e} <- Runtime.Promise.await(picker) do
         assert Exception.message(e) =~ ~r/((DOMException|AbortError): .*The user aborted a request|Test ended)/
-
-      _ ->
-        :ok
+      end
+    else
+      Runtime.Promise.free(picker)
     end
   end
 
@@ -244,7 +248,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   test "navigator.clipboard should be present", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/18901
     Page.goto!(page, server.empty_page)
-    assert Page.evaluate!(page, "() => navigator.clipboard")
+    Utils.assert_truthy(Page.evaluate!(page, "() => navigator.clipboard"))
   end
 
   test "should set CloseEvent.wasClean to false when the server terminates a WebSocket connection",
@@ -302,7 +306,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     # issue: https://github.com/microsoft/playwright/issues/29032
     Page.goto!(page, server.empty_page)
     defined = Page.evaluate!(page, "() => !!window.safari")
-    assert defined
+    Utils.assert_truthy(defined)
     assert Page.evaluate!(page, "() => typeof window.safari.pushNotification") == "object"
 
     assert Page.evaluate!(page, "() => window.safari.pushNotification.toString()") ==
@@ -336,7 +340,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     # issue: https://github.com/microsoft/playwright/issues/22738
     Page.goto!(page, server.empty_page)
     defined = Page.evaluate!(page, "() => 'loading' in HTMLImageElement.prototype")
-    assert defined
+    Utils.assert_truthy(defined)
   end
 
   test "window.GestureEvent in WebKit", %{page: page, server: server, browser_name: browser_name} do
@@ -371,7 +375,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     }
     """)
 
-    refute Page.evaluate!(page, "() => !!document.fullscreenElement")
+    Utils.assert_falsy(Page.evaluate!(page, "() => !!document.fullscreenElement"))
   end
 
   test "should send no Content-Length header for GET requests with a Content-Type", %{page: page, server: server} do

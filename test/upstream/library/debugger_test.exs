@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Debugger
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Utils
 
@@ -95,15 +96,15 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert Debugger.paused_details(dbg) == nil
 
     Debugger.request_pause!(dbg)
-    pause_promise = Task.async(fn -> Page.pause!(page) end)
     once_paused(dbg)
+    pause_promise = Runtime.Promise.async(fn -> Page.pause!(page) end)
     assert_receive :paused_state_changed, 5000
 
     assert %{title: title} = Debugger.paused_details(dbg)
     assert title =~ "Pause"
 
     Debugger.resume!(dbg)
-    Task.await(pause_promise, :infinity)
+    Runtime.Promise.await(pause_promise)
   end
 
   test "should run to location", %{context: context} do
@@ -115,7 +116,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     # First, pause on next action.
     Debugger.request_pause!(dbg)
     once_paused(dbg)
-    Task.start(fn -> Page.click(page, "div") end)
+    Runtime.Promise.void(fn -> Page.click(page, "div") end)
     assert_receive :paused_state_changed, 5000
 
     # Now run to a specific location.
@@ -191,7 +192,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     end
 
     Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "error"))
-    assert click_call.().error
+    Utils.assert_truthy(click_call.().error)
   end
 
   test "should not stream internal api calls", %{context: context} do
@@ -223,14 +224,14 @@ defmodule PlaywrightEx.Library.DebuggerTest do
 
     # The next normal call still pauses.
     once_paused(dbg)
-    click_promise = Task.async(fn -> Page.click!(page, "button") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "button") end)
     assert_receive :paused_state_changed, 5000
     assert Debugger.paused_details(dbg)
 
     once_paused(dbg)
     Debugger.resume!(dbg)
     assert_receive :paused_state_changed, 5000
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
   end
 
   test "should expose the action point while paused on an input action", %{context: context} do
@@ -244,7 +245,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     # so the action point is known — unlike the default "pause before waiting" behavior.
     Debugger.request_pause!(dbg)
     once_paused(dbg)
-    click_promise = Task.async(fn -> Page.click!(page, "button") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "button") end)
     assert_receive :paused_state_changed, 5000
 
     assert Debugger.paused_details(dbg).title =~ "Click"
@@ -263,7 +264,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     once_paused(dbg)
     Debugger.resume!(dbg)
     assert_receive :paused_state_changed, 5000
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
   end
 
   test "should replay ongoing calls when enabled late", %{context: context} do
@@ -307,14 +308,14 @@ defmodule PlaywrightEx.Library.DebuggerTest do
 
     Debugger.request_pause!(dbg)
     once_paused(dbg)
-    click_promise = Task.async(fn -> Page.click!(page, "div") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "div") end)
     assert_receive :paused_state_changed, 5000
     assert Debugger.paused_details(dbg).title =~ "Click"
 
     once_paused(dbg)
     Debugger.resume!(dbg)
     assert_receive :paused_state_changed, 5000
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Debugger.paused_details(dbg) == nil
   end
 end

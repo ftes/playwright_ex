@@ -35,11 +35,13 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   alias PlaywrightEx.RemoteServer.RunServer
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Runtime.Facade
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Utils
   alias PlaywrightEx.Video
 
   # Deviations:
@@ -227,7 +229,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         end)
 
         browser = connect!(browser_type, "wss://localhost:#{https_server.port}/ws")
-        assert Browser.version(browser)
+        Utils.assert_truthy(Browser.version(browser))
         Browser.close!(browser)
         # Deviation: waits for the driver to drop the connection, so that it doesn't write to the
         # pipe of its stopped port (EPIPE).
@@ -583,10 +585,13 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
         page = Browser.new_page!(browser)
         request = TestServer.wait_for_request(server, "/one-style.css")
-        navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
+
+        navigation =
+          Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
+
         Task.await(request, :infinity)
         Browser.close!(browser)
-        {:error, error} = Task.await(navigation, :infinity)
+        {:error, error} = Runtime.Promise.await(navigation)
         assert Exception.message(error) =~ "has been closed"
       end
 
@@ -605,13 +610,15 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
         browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
         page = Browser.new_page!(browser)
-        watchdog = Task.async(fn -> Page.wait_for_selector(page, "div", state: :attached, timeout: 60_000) end)
+
+        watchdog =
+          Runtime.Promise.async(fn -> Page.wait_for_selector(page, "div", state: :attached, timeout: 60_000) end)
 
         # Make sure the previous waitForSelector has time to make it to the browser before we disconnect.
         Page.wait_for_selector!(page, "body", state: :attached)
 
         Browser.close!(browser)
-        {:error, error} = Task.await(watchdog, :infinity)
+        {:error, error} = Runtime.Promise.await(watchdog)
         assert Exception.message(error) =~ "has been closed"
       end
 
@@ -917,7 +924,10 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
         page = Browser.new_page!(browser)
         request = TestServer.wait_for_request(server, "/one-style.css")
-        navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
+
+        navigation =
+          Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
+
         wait_for_navigation = Page.wait_for_navigation(page)
         # Elixir only: closes once the stylesheet is requested (upstream at once, at any navigation stage).
         Task.await(request, :infinity)
@@ -929,7 +939,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert_receive {^ref, _}
         assert Browser.is_connected(browser) == false
 
-        {:error, nav_error} = Task.await(navigation, :infinity)
+        {:error, nav_error} = Runtime.Promise.await(navigation)
         assert Exception.message(nav_error) =~ @k_target_closed_error_message
         {:error, error} = Promise.await(wait_for_navigation)
         assert Exception.message(error) =~ @k_target_closed_error_message
@@ -1187,7 +1197,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
         url = URI.parse(PlaywrightServer.ws_endpoint(remote_server))
         browser = connect!(browser_type, "http://localhost:#{url.port}")
-        assert Browser.version(browser)
+        Utils.assert_truthy(Browser.version(browser))
         Browser.close!(browser)
       end
 
@@ -1525,7 +1535,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       browser = connect!(browser_type, RemoteServer.ws_endpoint(remote_server))
       page = Browser.new_page!(browser)
       request = TestServer.wait_for_request(server, "/one-style.css")
-      navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
+      navigation = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html", timeout: 60_000) end)
       wait_for_navigation = Page.wait_for_navigation(page)
       # Elixir only: closes once the stylesheet is requested (upstream at once, at any navigation stage).
       Task.await(request, :infinity)
@@ -1536,7 +1546,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       assert_receive {^ref, _}
       assert Browser.is_connected(browser) == false
 
-      {:error, nav_error} = Task.await(navigation, :infinity)
+      {:error, nav_error} = Runtime.Promise.await(navigation)
       assert Exception.message(nav_error) =~ "has been closed"
       {:error, error} = Promise.await(wait_for_navigation)
       assert Exception.message(error) =~ @k_target_closed_error_message

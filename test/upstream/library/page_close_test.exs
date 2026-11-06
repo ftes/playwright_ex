@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -27,7 +28,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
   test "should close page with active dialog", %{page: page} do
     Page.evaluate!(page, ~s("trigger builtins.setTimeout"))
     Page.set_content!(page, ~s|<button onclick="builtins.setTimeout(() => alert(1))">alert</button>|)
-    Task.start(fn -> Page.click(page, "button") end)
+    Runtime.Promise.void(fn -> Page.click(page, "button") end)
     page |> Page.wait_for_event(:dialog) |> Promise.await!()
     Page.close!(page)
   end
@@ -162,16 +163,16 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     req_promise = Page.wait_for_request(page, "**/one-style.css")
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
     req = Promise.await!(req_promise)
-    resp_promise = Task.async(fn -> Request.response(req) end)
-    headers_promise = Task.async(fn -> Request.all_headers(req) end)
+    resp_promise = Runtime.Promise.async(fn -> Request.response(req) end)
+    headers_promise = Runtime.Promise.async(fn -> Request.all_headers(req) end)
     Page.close!(page)
-    assert message(Task.await(resp_promise, :infinity)) =~ @k_target_closed_error_message
+    assert message(Runtime.Promise.await(resp_promise)) =~ @k_target_closed_error_message
     # All headers are the same as "provisional" headers in Firefox.
     if browser_name == "firefox" do
-      {:ok, headers} = Task.await(headers_promise, :infinity)
-      assert headers["user-agent"]
+      {:ok, headers} = Runtime.Promise.await(headers_promise)
+      Utils.assert_truthy(headers["user-agent"])
     else
-      assert message(Task.await(headers_promise, :infinity)) =~ @k_target_closed_error_message
+      assert message(Runtime.Promise.await(headers_promise)) =~ @k_target_closed_error_message
     end
   end
 
@@ -221,9 +222,9 @@ defmodule PlaywrightEx.Library.PageCloseTest do
         Page.evaluate!(page, "() => fetch('./get', { method: 'GET' })")
       end)
 
-    finish_promise = Task.async(fn -> Response.finished(page_response) end)
+    finish_promise = Runtime.Promise.async(fn -> Response.finished(page_response) end)
     Page.close!(page)
-    error = Task.await(finish_promise, :infinity)
+    error = Runtime.Promise.await(finish_promise)
     assert message(error) =~ "closed"
   end
 
