@@ -130,6 +130,15 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   @doc false
+  # In the connection, in a `run/2` call: drops a held wake-up `{:pw, ref, _}` to `pid` (a
+  # disarmed latch waiter), so a wake-up held past the call's reply cannot arrive after the
+  # caller flushed `ref`. A wake-up already sent arrived before the reply.
+  def unwake(pid, ref) do
+    if in_conn?(), do: Process.put(:pw_unwake, [{pid, ref} | Process.get(:pw_unwake, [])])
+    :ok
+  end
+
+  @doc false
   # A dispatch step (listener invocation), run after the step that produced it (depth first).
   def push_step(step) do
     if !in_conn?(), do: raise("Conn.push_step/1 outside the connection process")
@@ -194,6 +203,7 @@ defmodule PlaywrightEx.Runtime.Conn do
 
   def handle_call({:run, fun, token}, from, state) do
     {result, steps, wakes} = collect(fn -> catch_run(fun) end)
+    state = drop_unwakes(state)
     frame = %{steps: steps, blocked: nil, from: from, result: result, wakes: wakes}
     nested = nested?(state, token)
 
@@ -324,6 +334,29 @@ defmodule PlaywrightEx.Runtime.Conn do
     do: hold_wakes(%{state | frames: [Map.delete(frame, :wakes) | state.frames]}, frame.wakes)
 
   defp hold_wakes(state, wakes), do: %{state | wakes: wakes ++ state.wakes}
+
+  # Held wake-ups dropped by `unwake/2`: those of the frame stack and of queued frames.
+  defp drop_unwakes(state) do
+    case Process.delete(:pw_unwake) do
+      nil ->
+        state
+
+      drop ->
+        drop = Map.from_keys(drop, true)
+        keep = fn wakes -> Enum.reject(wakes, &match?({pid, {:pw, ref, _}} when is_map_key(drop, {pid, ref}), &1)) end
+
+        queue =
+          :queue.filter(
+            fn
+              {:frame, frame} -> [{:frame, %{frame | wakes: keep.(frame.wakes)}}]
+              _msg -> true
+            end,
+            state.queue
+          )
+
+        %{state | wakes: keep.(state.wakes), queue: queue}
+    end
+  end
 
   defp send_wakes(state, wakes) do
     for {pid, message} <- Enum.reverse(wakes), do: send(pid, message)

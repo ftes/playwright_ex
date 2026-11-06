@@ -505,8 +505,13 @@ defmodule PlaywrightEx.Runtime.Promise do
 
   defp finish_leaf({:lost, _leaf}), do: :ok
 
+  # Also drops a wake-up held by the connection (`Conn.unwake/2`): settled inside a dispatch's
+  # synchronous section, it would come after `flush/1`.
   defp disarm_latch(owner, latch, wref) do
+    me = self()
+
     Heap.atomic(owner, fn ->
+      Conn.unwake(me, wref)
       key = Heap.key(owner, {:latch, latch})
 
       with [{_, {:pending, waiters}}] <- :ets.lookup(owner.table, key),

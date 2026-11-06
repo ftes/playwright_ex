@@ -268,6 +268,51 @@ defmodule PlaywrightEx.RuntimeConnTest do
       flush()
     end
 
+    # A race's losing latch is disarmed and its message flushed. Its wake-up may be held
+    # (`Conn.wake/2`) while the race is decided by another leg: no message may come after.
+    test "a latch that loses a race while its wake-up is held leaves no message", %{page: page} do
+      test = self()
+      latch = RuntimePromise.new(page)
+
+      EventEmitter.once(page, "x", fn _ ->
+        RuntimePromise.resolve(latch, nil)
+        send(test, :settled)
+      end)
+
+      # Holds the emit's synchronous section open until the test says so.
+      EventEmitter.on(page, "x", fn _ ->
+        send(test, {:holding, self()})
+
+        receive do
+          :go -> :ok
+        end
+      end)
+
+      racer =
+        Task.async(fn ->
+          other = RuntimePromise.new()
+          send(test, {:other, other})
+          send(test, {:raced, RuntimePromise.await(RuntimePromise.race([latch, other]))})
+
+          receive do
+            :report -> Process.info(self(), :messages)
+          end
+        end)
+
+      assert_receive {:other, other}
+      key = PlaywrightEx.Runtime.Heap.key(page, {:latch, latch.ref})
+      wait_until(fn -> match?([{_, {:pending, [_]}}], :ets.lookup(page.table, key)) end)
+      emitter = Task.async(fn -> EventEmitter.emit(page, "x") end)
+      assert_receive :settled
+      assert_receive {:holding, holder}
+      RuntimePromise.resolve(other, :other)
+      assert_receive {:raced, :other}
+      send(holder, :go)
+      Task.await(emitter)
+      send(racer.pid, :report)
+      assert Task.await(racer) == {:messages, []}
+    end
+
     test "wait_for_event rejects on page close", %{page: page} do
       promise = Page.wait_for_event(page, :popup)
       Page.close!(page)
