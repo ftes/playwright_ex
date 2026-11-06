@@ -71,31 +71,10 @@ above), and keep the bang forms for what happens later on its own (a timer in th
 
 **Processes.** Each driver connection is one process that dispatches the driver's messages in
 order. Your code runs in your own processes, and calls from many processes overlap. Listeners and
-route handlers hold dispatch until they return or await Playwright, as JS runs them until their
-first `await`. One that blocks on other work (`receive`, `Process.sleep/1`, HTTP) stalls its
-connection, as blocking the event loop does in JS.
-
-**Subscribe before you check.** In JS, nothing runs between two lines without an `await`, so
-"read state, then wait for the event that changes it" cannot miss the event. Here the
-connection keeps dispatching between your two calls, so the event can land in between, and the
-wait then hangs. Start the wait first, then read the state, then await or free the wait:
-
-```elixir
-# JS: context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker')
-promise = BrowserContext.wait_for_event(context, :service_worker)
-
-case BrowserContext.service_workers(context) do
-  [worker | _] ->
-    PlaywrightEx.Promise.free(promise)
-    worker
-
-  [] ->
-    PlaywrightEx.Promise.await!(promise)
-end
-```
-
-The client's own waits (`wait_for_url`, `wait_for_load_state`, `wait_for_navigation`, the
-matchers) already do this. Only code that checks state itself and then waits needs it.
+route handlers hold dispatch until they return or await Playwright, so one that blocks on other
+work stalls its connection. And since the connection keeps dispatching between two of your calls,
+start a wait before checking the state it waits for. The [Concurrency](concurrency.md) guide
+covers these, promise lifetimes and where the runtime differs from JS.
 
 ## Mapping
 
@@ -402,4 +381,3 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 
 - Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`,
   soft assertions, file-based aria snapshots, `toMatchSnapshot`.
-- `inspect(locator)` and locators in matcher messages show JS syntax and raw selectors.

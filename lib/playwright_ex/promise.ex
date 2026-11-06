@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Promise do
 
   @doc """
   Elixir only: drops a promise nobody will await, such as a wait started before checking state
-  that turned out to be ready (see the "Concurrency" guide). Its result is no longer kept, no
+  that turned out to be ready (see the [Concurrency](concurrency.md) guide). Its result is no longer kept, no
   late message reaches the caller; don't await it afterwards. Without `free/1` the result is
   kept until the owner exits.
   """

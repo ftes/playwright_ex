@@ -79,6 +79,7 @@ defmodule PlaywrightEx.MixProject do
       extras: [
         "README.md": [title: "Overview"],
         "guides/migration.md": [title: "Migrating to 1.64"],
+        "guides/concurrency.md": [title: "Concurrency"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
       nest_modules_by_prefix: [PlaywrightEx],

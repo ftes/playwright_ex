@@ -7,7 +7,8 @@
 
 Elixir client for Playwright: a 1:1 port of the official JavaScript client, with the public API
 generated from upstream's docs, so the [playwright.dev](https://playwright.dev/docs/api/class-playwright)
-docs apply. Coming from 0.x? See the [migration guide](guides/migration.md).
+docs apply. Coming from 0.x? See the [migration guide](guides/migration.md). How listeners and
+promises behave across processes: the [concurrency guide](guides/concurrency.md).
 
 ```elixir
 alias PlaywrightEx.{Browser, BrowserType, Expect, Locator, Page, Playwright}
@@ -27,3 +28,5 @@ The pinned driver (Node and `playwright-core`) downloads on first start, or with
 
 1. `mix setup` installs dependencies, the pinned Playwright driver and Chromium.
 2. `mix test`, or `mix check` for everything CI runs.
+3. Porting rules: [`PORTING.md`](https://github.com/ftes/playwright_ex/blob/main/PORTING.md); the why behind the design:
+   [`docs/architecture.md`](https://github.com/ftes/playwright_ex/blob/main/docs/architecture.md).
