@@ -1047,3 +1047,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   in 20 cycles). Only its transport uses it, whose calls after close raise and are dropped as in
   JS. `Heap.release_disposed/1` is gone; connect_backlog_test's bound is back to 20 (Linux
   firefox: 0 new rows, 3/3 runs).
+
+- User, 2026-11-06, review decision 1: `~` is not special to us (paths are repo-local); use Elixir's
+  `Path.expand` and its errors, no imitation of Node's system behaviour or error texts (wr4-paths).
+- User, 2026-11-06, review decision 2: route/WebSocket-route/locator-handler callbacks stay JS
+  functions (0..n args by arity; a returned `PlaywrightEx.Promise` is awaited, any other value ignored).
