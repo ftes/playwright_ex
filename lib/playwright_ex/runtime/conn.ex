@@ -104,6 +104,18 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   @doc false
+  # In the connection: undoes `anchor/3`. The pid's monitor is shared by the guids it anchors, so
+  # it goes with the last of them.
+  def unanchor(table, pid, guid) do
+    :ets.delete(table, {:connection, {:anchored, pid, guid}})
+    :ets.delete(table, {guid, {:anchor, pid}})
+
+    if :ets.select_count(table, [{{{:connection, {:anchored, pid, :_}}, :_}, [], [true]}]) == 0 do
+      with mref when is_reference(mref) <- Process.delete({:pw_anchor, pid}), do: Process.demonitor(mref, [:flush])
+    end
+  end
+
+  @doc false
   # `connection.onmessage`: buffered, sent at the end of this turn.
   def post(message), do: Process.put(:pw_out, [message | Process.get(:pw_out, [])])
 

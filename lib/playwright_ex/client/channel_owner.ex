@@ -301,7 +301,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
       [{_, anchor} | _] ->
         case anchor do
-          {:processes, pids} -> for pid <- pids, do: :ets.delete(table, {:connection, {:anchored, pid, guid}})
+          {:processes, pids} -> for pid <- pids, do: Conn.unanchor(table, pid, guid)
           anchor -> :ets.delete(table, {anchor, {:retained, guid}})
         end
 

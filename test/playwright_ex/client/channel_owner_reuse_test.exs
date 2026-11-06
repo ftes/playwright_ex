@@ -68,4 +68,20 @@ defmodule PlaywrightEx.Client.ChannelOwnerReuseTest do
     Selectors.set_test_id_attribute(selectors, "data-testid")
     Selectors.register!(selectors, "reusedContextCSS", "({ query() {}, queryAll() { return []; } })")
   end
+
+  # The disposed context was anchored to its creator; the reuse undoes that, monitor included.
+  test "a reused context drops the disposed one's anchor", %{browser_type: browser_type} do
+    browser = BrowserType.launch!(browser_type)
+
+    Task.async(fn ->
+      reused_context(browser)
+      reused_context(browser)
+      assert :ets.select(browser.table, [{{{:connection, {:anchored, self(), :_}}, :_}, [], [true]}]) == []
+      {:dictionary, dictionary} = Process.info(browser.conn, :dictionary)
+      refute List.keymember?(dictionary, {:pw_anchor, self()}, 0)
+    end)
+    |> Task.await()
+
+    PlaywrightEx.Browser.close!(browser)
+  end
 end
