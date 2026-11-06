@@ -2,13 +2,10 @@
 
 Places where playwright_ex behaves worse than upstream's JS client. Ids are the `#draft-N` ids
 DECISIONS_TABLE.md refers to. Work items and upstream-only problems are in PLAN.md "Later".
-Being worked on (2026-11-06): OOPIF; #18, #7, #6, #10b; #19, #20; #13, #14.
+Being worked on (2026-11-06): #18, #7, #6, #10b; #19, #20; #13, #14.
 
 ## Runtime ordering
 
-- **OOPIF "should click"** (chromium/oopif_test): on macOS our click right after the OOPIF's
-  `goto` always misses; the driver's JS client misses 1-3 in 10. Skipped on macOS for now.
-  Find what JS does between `goto` and `click` that we don't.
 - **#18 Latch settled mid-emit**: `Browser._did_close` settles `_closedPromise` in a listener
   step, so `Browser.close!` can return before the `disconnected` listener ran; JS resolves it
   inside the synchronous `emit`. Repro: the skipped stress test "connect: the disconnected

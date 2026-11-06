@@ -543,5 +543,8 @@ Work items:
 Upstream only (track, report, re-check on rolls):
 - **#10a Chromium worker hang**: `workers_test:237` hangs for upstream's JS client too (6/510
   under 2-CPU load); reported as microsoft/playwright#43922; tagged flaky.
+- **OOPIF "should click"** (chromium/oopif_test, skipped on macOS): a browser race right after an
+  OOPIF `goto`; the driver's JS client misses it as often (5-8 in 10 when looped), with the same CDP
+  commands and gap. Our random test order on a shared browser hits it more; upstream runs in order.
 - **#12 Driver crash on an HTTPS proxy closing mid-handshake** (unhandled TLSSocket error in the
   Node driver): our TestProxy avoids it; reproduce against the driver and report upstream.

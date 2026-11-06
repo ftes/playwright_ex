@@ -1026,3 +1026,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   "Later": work items and upstream-only problems. PLAN.md stays after CLOSE. No transport matrix:
   the driver pipe is the only transport (upstream's `driver` test mode); remote servers are
   `BrowserType.connect`, covered by upstream's connect specs.
+
+- **OOPIF "should click" is a browser race, not ours** (wr3-oopif): CDP sequence and frame-goto→mousePressed
+  gap match the JS client (55-63 ms vs 56-60 ms); looped, JS fails as often or more; a 50 ms sleep fixes both.
+  Keep the macOS skip with a corrected comment; moved from ISSUES.md to PLAN Later (upstream only).
