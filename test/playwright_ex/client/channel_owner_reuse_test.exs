@@ -42,7 +42,8 @@ defmodule PlaywrightEx.Client.ChannelOwnerReuseTest do
 
   # The disposed context's anchor (the process that created it) exiting freed the rows of the
   # new one, which shares its guid: its `_onClose` found no `_browser`, so it stayed in
-  # `selectors._contextsForSelectors` and the next `selectors.register` on this driver raised.
+  # `selectors._contextsForSelectors` and the next `selectors.register` on this driver raised
+  # (`setTestIdAttribute`: BadMapError on its nil `_options`).
   test "a reused context outlives the creator of the disposed one", %{
     playwright: playwright,
     browser_type: browser_type
@@ -64,6 +65,7 @@ defmodule PlaywrightEx.Client.ChannelOwnerReuseTest do
 
     PlaywrightEx.Browser.close!(browser)
     refute context in contexts_for_selectors.()
+    Selectors.set_test_id_attribute(selectors, "data-testid")
     Selectors.register!(selectors, "reusedContextCSS", "({ query() {}, queryAll() { return []; } })")
   end
 end

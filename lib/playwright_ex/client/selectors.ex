@@ -49,11 +49,8 @@ defmodule PlaywrightEx.Client.Selectors do
 
     # One synchronous section.
     atomic(this, fn ->
-      # deviation: a context disposed without `_onClose` (its browser closed under a reused
-      # context) stays in the set, as in JS, but its rows are freed once its creators exit (JS
-      # writes to the dead object); skip it.
-      for context <- get(this, :_contextsForSelectors), options = get(context, :_options) do
-        put(context, :_options, Map.put(options, :testIdAttributeName, attribute_name))
+      for context <- get(this, :_contextsForSelectors) do
+        put(context, :_options, Map.put(get(context, :_options), :testIdAttributeName, attribute_name))
 
         Promise.void(fn ->
           channel_call(
