@@ -1,4 +1,4 @@
-# Migrating to 1.64
+# Migrating from 0.x
 
 PlaywrightEx 1.64 is a 1:1 port of the official JavaScript client, and its public API is
 generated from Playwright's own docs. Versions follow Playwright (1.64.x drives Playwright 1.64).
@@ -9,10 +9,10 @@ is `PlaywrightEx.Page.get_by_role/3`, `locator.click()` is `PlaywrightEx.Locator
 This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_browser/2`,
 `subscribe/2` and `JsLogger` are gone. Snippets below alias `PlaywrightEx.{Page, Locator, ...}`.
 
-## Concepts
+## Handles, not guids
 
-**Handles, not guids.** Functions take and return structs (`%PlaywrightEx.Page{}`, typed
-`PlaywrightEx.Page.t()`). Each handle knows its connection, so there is no `connection:` option.
+Functions take and return structs (`%PlaywrightEx.Page{}`, typed `PlaywrightEx.Page.t()`). Each
+handle knows its connection, so there is no `connection:` option.
 
 ```elixir
 # before
@@ -24,57 +24,11 @@ page = BrowserContext.new_page!(context)
 Page.goto!(page, "/")
 ```
 
-**`{:ok, v}` or bang.** Every async member has `name/n` returning `{:ok, value} | {:error, exception}`
-(`:ok` for void ones) and `name!/n` that raises. Sync members (`Page.url/1`, `Page.locator/3`,
-`Locator.filter/2`, `Page.mouse/1`) return plain values.
-
-**Options.** Keyword lists (or maps) with snake_case keys, validated: unknown keys and enum values
-raise `ArgumentError`. Nested objects are maps with the JS keys, the same shape results come
-back in (`%{name: "a", value: "b", sameSite: "Lax"}`). Enums are atoms (`get_by_role(page, :button)`).
-Optional arguments stay positional; the options may take the place of an optional string, enum or
-handle before them (`Page.wait_for_load_state(page, timeout: 1_000)`,
-`Expect.to_have_attribute(locator, "disabled", timeout: 1_000)`). Where JS passes a result as the
-options, so does Elixir: `Credentials.create!(credentials, known.rpId, known)`.
-
-**Timeouts.** Set defaults once instead of a `timeout:` per call:
-
-```elixir
-BrowserContext.set_default_timeout(context, 5_000)
-BrowserContext.set_default_navigation_timeout(context, 10_000)
-```
-
-`timeout:` remains on the members that have it in JS. Matchers default to 5 s; change it with
-`config :playwright_ex, :expect, timeout: 10_000`.
-
-**Events.** `on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in
-its own process, and the connection dispatches the next driver message only once the listener
-returns or awaits a Playwright call (see below), so keep it short; `send/2` to the owning process
-is the safe default. For one event, use a promise handle or the `expect_*` callback form:
-
-```elixir
-promise = Page.wait_for_event(page, :popup)
-Locator.click!(Page.get_by_text(page, "Open"))
-popup = PlaywrightEx.Promise.await!(promise)
-
-{:ok, popup} = Page.expect_popup(page, fn -> Locator.click!(Page.get_by_text(page, "Open")) end)
-```
-
-**Assertions.** `PlaywrightEx.Expect` has the web-first matchers. They retry, return
-`:ok | {:error, %ExpectError{}}`, and the bang forms raise `ExUnit.AssertionError`.
-`expect(locator).not.toHaveText("x")` is `Expect.not_to_have_text(locator, "x")` or
-`locator |> Expect.not_() |> Expect.to_have_text("x")`.
-
-**Promises.** `wait_for_*` members return a `PlaywrightEx.Promise`: the wait starts before the
-call returns, and any process can `await/1` it. Their bang forms (`Page.wait_for_event!/3`) await
-it at once, so they miss what the code before them triggered: start the wait before the action (as
-above), and keep the bang forms for what happens later on its own (a timer in the page).
-
-**Processes.** Each driver connection is one process that dispatches the driver's messages in
-order. Your code runs in your own processes, and calls from many processes overlap. Listeners and
-route handlers hold dispatch until they return or await Playwright, so one that blocks on other
-work stalls its connection. And since the connection keeps dispatching between two of your calls,
-start a wait before checking the state it waits for. The [Concurrency](concurrency.md) guide
-covers these, promise lifetimes and where the runtime differs from JS.
+A `timeout:` per call is no longer needed: set defaults once
+([Timeouts](introduction/getting-started.md#timeouts)). How JS calls read in Elixir (results,
+options, enums, promises and `expect_*`, events, assertions, errors) is in
+[From playwright.dev to Elixir](introduction/api-conventions.md); listeners and processes in
+[Concurrency](concurrency.md).
 
 ## Mapping
 

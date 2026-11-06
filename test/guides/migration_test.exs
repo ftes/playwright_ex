@@ -276,26 +276,6 @@ defmodule PlaywrightEx.Guides.MigrationTest do
     assert_raise ArgumentError, ~r/unknown option :timout/, fn -> Page.goto(page, "/", timout: 1) end
   end
 
-  test "README snippet (default supervisor name, routed instead of the network)" do
-    {:ok, _} = start_supervised(PlaywrightEx.Supervisor, id: :readme)
-    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright()))
-    page = Browser.new_page!(browser)
-
-    Page.route!(page, "https://elixir-lang.org/**", fn route, request ->
-      title = if String.ends_with?(Request.url(request), "/install.html"), do: "Install", else: "Elixir"
-
-      Route.fulfill(route,
-        body: ~s(<title>#{title}</title><a href="/install.html">Install</a>),
-        content_type: "text/html"
-      )
-    end)
-
-    Page.goto!(page, "https://elixir-lang.org/")
-    Page.get_by_role(page, :link, name: "Install") |> Locator.click!()
-    Expect.to_have_title!(page, ~r/Install/)
-    Browser.close!(browser)
-  end
-
   test "bounding calls without a timeout", %{page: page} do
     task = Task.async(fn -> Page.close(page) end)
     assert {:ok, :ok} = Task.yield(task, 5_000) || Task.shutdown(task)

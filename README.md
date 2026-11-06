@@ -5,10 +5,30 @@
 
 # PlaywrightEx
 
-Elixir client for Playwright: a 1:1 port of the official JavaScript client, with the public API
-generated from upstream's docs, so the [playwright.dev](https://playwright.dev/docs/api/class-playwright)
-docs apply. Coming from 0.x? See the [migration guide](guides/migration.md). How listeners and
-promises behave across processes: the [concurrency guide](guides/concurrency.md).
+Elixir client for [Playwright](https://playwright.dev). Automate Chromium, Firefox and WebKit:
+end-to-end tests, web scraping, agentic AI.
+
+PlaywrightEx is a 1:1 port of the official JavaScript client. Its API is generated from
+Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
+is pinned and installed by Mix, no npm needed. Versions follow Playwright: 1.64.x drives
+Playwright 1.64.
+
+## Installation
+
+```elixir
+def deps do
+  [
+    {:playwright_ex, "~> 1.64"}
+  ]
+end
+```
+
+```sh
+mix deps.get
+mix playwright_ex.install
+```
+
+## Example
 
 ```elixir
 alias PlaywrightEx.{Browser, BrowserType, Expect, Locator, Page, Playwright}
@@ -21,8 +41,25 @@ Page.get_by_role(page, :link, name: "Install") |> Locator.click!()
 Expect.to_have_title!(page, ~r/Install/)
 ```
 
-The pinned driver (Node and `playwright-core`) downloads on first start, or with
-`mix playwright_ex.install`.
+## Reading playwright.dev
+
+The [Python docs](https://playwright.dev/python/docs/intro) are the closest read, since the
+names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_selector`.
+`page.get_by_role("button").click()` is `Page.get_by_role(page, :button) |> Locator.click!()`.
+
+## Guides
+
+- [Getting started](guides/introduction/getting-started.md): install, the driver, a first script.
+- [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
+  Elixir.
+- [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
+- [Testing with ExUnit](guides/testing-with-exunit.md): a browser case template, assertions, failures.
+- [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
+  [Debugging and CI](guides/debugging-and-ci.md).
+- [Concurrency](guides/concurrency.md): listeners, promises and processes.
+- [Migrating from 0.x](guides/migration.md).
+
+Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
 ## Contributing
 

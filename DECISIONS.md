@@ -1134,3 +1134,15 @@ drift). Blockers for release, assigned to follow-up workstreams:
   Actions YAML, the Dockerfile and `docker run`; `DEBUG=pw:api` is tested only as a driver that
   starts. Not in `mix.exs` extras yet (another agent owns it); `mix docs --warnings-as-errors`
   passed with them added locally.
+- WR6 (intro docs): README, getting started, "From playwright.dev to Elixir" and the cheatsheet
+  written, each snippet mirrored in `test/guides/*_test.exs` (green on all three browsers).
+  migration.md keeps only 0.x material ("Handles, not guids", mapping, behaviour changes) and is
+  titled "Migrating from 0.x". The cheatsheet's `console.log` listener is `Logger.info`, not
+  `IO.puts`: a listener runs in its own process, so `capture_io` can't check it. The aliases
+  note for examples lives in the `PlaywrightEx` moduledoc, not in every generated moduledoc
+  (gen.api churn while examples are translated); revisit if readers land on a module page
+  confused. Guide tests that start the supervisor under its default name are `async: false`.
+- Lead, guides merge: the four usage guides are registered in `mix.exs` extras (Guides group) and
+  linked from README and getting started; the guide's GitHub Actions snippet uses
+  `upload-artifact@v7` (latest; it said v4). Open for the user: the failure-artifacts recipe in
+  "Testing with ExUnit" (trace every test, write on exit, a formatter deletes passing tests' files).

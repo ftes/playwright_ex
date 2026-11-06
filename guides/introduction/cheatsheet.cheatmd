@@ -1,0 +1,411 @@
+# Cheatsheet
+
+Frequent calls, JS first, Elixir below. Snippets alias `PlaywrightEx.{Page, Locator, ...}`;
+[From playwright.dev to Elixir](api-conventions.md) explains the rules behind them.
+
+## Setup
+{: .col-2}
+
+### Launch
+
+```js
+const browser = await chromium.launch();
+const context = await browser.newContext({ baseURL: 'http://localhost:4000' });
+const page = await context.newPage();
+```
+
+```elixir
+browser = PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!()
+context = Browser.new_context!(browser, base_url: "http://localhost:4000")
+page = BrowserContext.new_page!(context)
+```
+
+### Close
+
+```js
+await context.close();
+await browser.close();
+```
+
+```elixir
+BrowserContext.close!(context)
+Browser.close!(browser)
+```
+
+## Navigation
+{: .col-2}
+
+### Go to a URL
+
+```js
+await page.goto('/login');
+await page.goBack();
+await page.goForward();
+await page.reload();
+```
+
+```elixir
+Page.goto!(page, "/login")
+Page.go_back!(page)
+Page.go_forward!(page)
+Page.reload!(page)
+```
+
+### Where am I
+
+```js
+page.url();
+await page.title();
+await page.waitForURL('**/dashboard');
+```
+
+```elixir
+Page.url(page)
+Page.title!(page)
+Page.wait_for_url!(page, "**/dashboard")
+```
+
+## Locators
+{: .col-2}
+
+### Find
+
+```js
+page.getByRole('button', { name: 'Sign in' });
+page.getByLabel('Email');
+page.getByPlaceholder('name@example.com');
+page.getByText('Welcome', { exact: true });
+page.getByTestId('submit');
+page.locator('.flash');
+```
+
+```elixir
+Page.get_by_role(page, :button, name: "Sign in")
+Page.get_by_label(page, "Email")
+Page.get_by_placeholder(page, "name@example.com")
+Page.get_by_text(page, "Welcome", exact: true)
+Page.get_by_test_id(page, "submit")
+Page.locator(page, ".flash")
+```
+
+### Narrow down
+
+```js
+page.getByRole('listitem').filter({ hasText: 'Apple' });
+page.locator('nav').getByRole('link');
+page.getByRole('listitem').nth(1);
+page.getByRole('listitem').first();
+```
+
+```elixir
+Page.get_by_role(page, :listitem) |> Locator.filter(has_text: "Apple")
+Page.locator(page, "nav") |> Locator.get_by_role(:link)
+Page.get_by_role(page, :listitem) |> Locator.nth(1)
+Page.get_by_role(page, :listitem) |> Locator.first()
+```
+
+### Many elements
+
+```js
+await page.getByRole('listitem').count();
+for (const item of await page.getByRole('listitem').all())
+  console.log(await item.textContent());
+```
+
+```elixir
+Page.get_by_role(page, :listitem) |> Locator.count!()
+
+for item <- Page.get_by_role(page, :listitem) |> Locator.all!() do
+  IO.puts(Locator.text_content!(item))
+end
+```
+
+### Frames
+
+```js
+page.frameLocator('#editor').getByRole('textbox');
+```
+
+```elixir
+Page.frame_locator(page, "#editor") |> FrameLocator.get_by_role(:textbox)
+```
+
+## Actions
+{: .col-2}
+
+### Click and type
+
+```js
+await locator.click();
+await locator.dblclick();
+await locator.fill('ada@example.com');
+await locator.press('Enter');
+await locator.pressSequentially('hello');
+await locator.clear();
+```
+
+```elixir
+Locator.click!(locator)
+Locator.dblclick!(locator)
+Locator.fill!(locator, "ada@example.com")
+Locator.press!(locator, "Enter")
+Locator.press_sequentially!(locator, "hello")
+Locator.clear!(locator)
+```
+
+### Forms
+
+```js
+await locator.check();
+await locator.uncheck();
+await locator.selectOption('blue');
+await locator.setInputFiles('avatar.png');
+```
+
+```elixir
+Locator.check!(locator)
+Locator.uncheck!(locator)
+Locator.select_option!(locator, "blue")
+Locator.set_input_files!(locator, "avatar.png")
+```
+
+### Mouse and keyboard
+
+```js
+await locator.hover();
+await locator.dragTo(target);
+await page.keyboard.press('Control+A');
+await page.mouse.click(10, 10);
+```
+
+```elixir
+Locator.hover!(locator)
+Locator.drag_to!(locator, target)
+Page.keyboard(page) |> Keyboard.press!("Control+A")
+Page.mouse(page) |> Mouse.click!(10, 10)
+```
+
+### Read
+
+```js
+await locator.textContent();
+await locator.innerText();
+await locator.inputValue();
+await locator.getAttribute('href');
+await locator.isVisible();
+```
+
+```elixir
+Locator.text_content!(locator)
+Locator.inner_text!(locator)
+Locator.input_value!(locator)
+Locator.get_attribute!(locator, "href")
+Locator.is_visible!(locator)
+```
+
+## Assertions
+{: .col-2}
+
+### Locator
+
+```js
+await expect(locator).toBeVisible();
+await expect(locator).toHaveText('Welcome');
+await expect(locator).toContainText('Wel');
+await expect(locator).toHaveValue('ada@example.com');
+await expect(locator).toHaveCount(3);
+await expect(locator).toBeChecked();
+await expect(locator).toHaveAttribute('href', '/home');
+```
+
+```elixir
+Expect.to_be_visible!(locator)
+Expect.to_have_text!(locator, "Welcome")
+Expect.to_contain_text!(locator, "Wel")
+Expect.to_have_value!(locator, "ada@example.com")
+Expect.to_have_count!(locator, 3)
+Expect.to_be_checked!(locator)
+Expect.to_have_attribute!(locator, "href", "/home")
+```
+
+### Page
+
+```js
+await expect(page).toHaveTitle(/Dashboard/);
+await expect(page).toHaveURL('/dashboard');
+```
+
+```elixir
+Expect.to_have_title!(page, ~r/Dashboard/)
+Expect.to_have_url!(page, "/dashboard")
+```
+
+### Negate, time out
+
+```js
+await expect(locator).not.toBeVisible();
+await expect(locator).toBeVisible({ timeout: 10_000 });
+```
+
+```elixir
+Expect.not_to_be_visible!(locator)
+Expect.to_be_visible!(locator, timeout: 10_000)
+```
+
+## Waiting
+{: .col-2}
+
+### Popup
+
+```js
+const popupPromise = page.waitForEvent('popup');
+await page.getByText('Open').click();
+const popup = await popupPromise;
+```
+
+```elixir
+popup =
+  Page.expect_popup!(page, fn ->
+    Page.get_by_text(page, "Open") |> Locator.click!()
+  end)
+```
+
+### Download
+
+```js
+const downloadPromise = page.waitForEvent('download');
+await page.getByText('Export').click();
+const download = await downloadPromise;
+await download.saveAs('report.csv');
+```
+
+```elixir
+download =
+  Page.expect_download!(page, fn ->
+    Page.get_by_text(page, "Export") |> Locator.click!()
+  end)
+
+Download.save_as!(download, "report.csv")
+```
+
+### States
+
+```js
+await locator.waitFor({ state: 'hidden' });
+await page.waitForLoadState('networkidle');
+await page.waitForFunction(() => window.ready);
+```
+
+```elixir
+Locator.wait_for!(locator, state: :hidden)
+Page.wait_for_load_state!(page, :networkidle)
+Page.wait_for_function!(page, "() => window.ready")
+```
+
+### Listeners
+
+```js
+page.on('console', msg => console.log(msg.text()));
+page.on('dialog', dialog => dialog.accept());
+```
+
+```elixir
+require Logger
+Page.on(page, :console, &Logger.info(ConsoleMessage.text(&1)))
+Page.on(page, :dialog, &Dialog.accept/1)
+```
+
+## Network
+{: .col-2}
+
+### Mock
+
+```js
+await page.route('**/api/user', route =>
+  route.fulfill({ json: { name: 'Ada' } }));
+await page.route('**/*.png', route => route.abort());
+```
+
+```elixir
+Page.route!(page, "**/api/user", &Route.fulfill(&1, json: %{name: "Ada"}))
+Page.route!(page, "**/*.png", &Route.abort/1)
+```
+
+### Modify a request
+
+```js
+await page.route('**/api/**', route => {
+  const headers = { ...route.request().headers(), 'x-test': '1' };
+  return route.continue({ headers });
+});
+```
+
+```elixir
+Page.route!(page, "**/api/**", fn route, request ->
+  headers = Map.put(Request.headers(request), "x-test", "1")
+  Route.continue(route, headers: headers)
+end)
+```
+
+### Wait for a response
+
+```js
+const responsePromise = page.waitForResponse('**/api/user');
+await page.getByText('Load').click();
+const response = await responsePromise;
+await response.json();
+```
+
+```elixir
+response =
+  Page.expect_response!(page, "**/api/user", fn ->
+    Page.get_by_text(page, "Load") |> Locator.click!()
+  end)
+
+Response.json!(response)
+```
+
+### API requests
+
+```js
+const response = await page.request.get('/api/user');
+await expect(response).toBeOK();
+await response.json();
+```
+
+```elixir
+response = Page.request(page) |> APIRequestContext.get!("/api/user")
+Expect.to_be_ok!(response)
+APIResponse.json!(response)
+```
+
+## Screenshots and scripts
+{: .col-2}
+
+### Screenshots
+
+```js
+await page.screenshot({ path: 'page.png', fullPage: true });
+await locator.screenshot({ path: 'button.png' });
+const buffer = await page.screenshot();
+```
+
+```elixir
+Page.screenshot!(page, path: "page.png", full_page: true)
+Locator.screenshot!(locator, path: "button.png")
+png = Page.screenshot!(page)
+```
+
+### Evaluate
+
+```js
+await page.evaluate(() => document.title);
+await page.evaluate(([a, b]) => a + b, [1, 2]);
+await locator.evaluate(el => el.textContent);
+```
+
+```elixir
+Page.evaluate!(page, "() => document.title")
+Page.evaluate!(page, "([a, b]) => a + b", [1, 2])
+Locator.evaluate!(locator, "el => el.textContent")
+```

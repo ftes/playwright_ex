@@ -624,12 +624,14 @@ Upstream) and contributor mix tasks are left out by `filter_modules` (done; modu
    wording rewritten where it describes the JS call (not where a `PlaywrightEx.Promise` is meant);
    the four `wait_for_event` timeout docs (was Later #2). Never inside code blocks. Residue gets
    `ApiRules` overrides; a test fails on new JS-isms in rendered prose so version bumps stay clean.
-3. `mix.exs` docs config: extras, `groups_for_extras`, the module groups; a moduledoc note on the
-   examples' aliases.
-4. README; getting started; API conventions (out of migration.md); cheatsheet.
-5. Testing with ExUnit; events and waiting; network; debugging and CI. Each with its test. Done (wr6-guides):
-   `guides/{testing-with-exunit,events-and-waiting,network,debugging-and-ci}.md`, tests in
-   `test/guides/`; not yet in `mix.exs` extras (item 3).
+3. Done (wr6-intro): `mix.exs` docs config (extras, `groups_for_extras` Introduction/Guides/Upgrading,
+   the module groups); the aliases note is in the `PlaywrightEx` moduledoc. New guides go in
+   `extras` and the Guides group by hand.
+4. Done (wr6-intro): README; getting started; API conventions (migration.md keeps "Handles, not
+   guids", the mapping and behaviour changes); cheatsheet. Tests: `test/guides/{readme,
+   getting_started,api_conventions,cheatsheet}_test.exs` (README's moved out of migration_test).
+5. Done (wr6-guides): `guides/{testing-with-exunit,events-and-waiting,network,debugging-and-ci}.md`,
+   tests in `test/guides/`, registered in `mix.exs` extras.
 
 ## Later
 
