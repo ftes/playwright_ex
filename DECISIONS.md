@@ -1200,3 +1200,13 @@ drift). Blockers for release, assigned to follow-up workstreams:
   Rejected "input errors raise, later failures are tuples": driver-detected input errors are
   tuples anyway, and ~75 `throw new Error` sites would need judgment on every bump. Why is in
   docs/architecture.md and the API conventions guide.
+- User, 2026-11-06, code review: bang matchers always raise `PlaywrightEx.ExpectError` (no ExUnit
+  detection; `Code.ensure_loaded?(ExUnit.AssertionError)` was true in nearly every mix/iex run).
+  JS's expect throws its own error; ExUnit reports it as a failure with the same text. Callers who
+  want `ExUnit.AssertionError` wrap (testing-with-exunit guide). ptp and fluffy raise their own.
+  Also done: `Conn.unanchor/3`, `:expect` config validated at app start, no stack-trace source
+  cache (~12 us per call, noise next to the round trip), supervisor_test fallback. Skipped: the
+  `unrouteAll` race (decision 11).
+- Correction, 2026-11-06: the Selectors guard's note above ("stays in the set, as in JS") was the
+  guid-reuse bug (`_forget_disposed`, ISSUES.md); the guard is removed. JS removes the context in
+  `_onClose` on every path.
