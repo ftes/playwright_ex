@@ -1065,3 +1065,12 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - User, 2026-11-06, review decision 3: `JSHandle.get_properties` stays a map (C3a-14); iteration
   order is a documented deviation. Polling/soft asserts and runner setup stay out of the library; a
   "Testing with ExUnit" guide covers setup and an `eventually` helper snippet (docs plan).
+
+
+- **Docs plan** (wr4-docs): PLAN "Docs". README stays the landing page; a few short Elixir guides
+  (getting started, API conventions out of migration.md, cheatsheet, testing with ExUnit, events,
+  network, debugging and CI) link upstream pages for depth. JS examples get Elixir translations
+  stored as `example` tests in `test/examples`, keyed by the upstream JS text and rendered by
+  gen.api, so each one compiles and runs (about 93% can run, the rest compile only); Python's
+  block is translator input, not the key. Rejected `iex>` doctests, a compile-only checker and
+  mapping onto upstream test ports. Prototype with 5 examples committed; Later #1/#2 moved there.

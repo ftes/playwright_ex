@@ -511,8 +511,105 @@ are included.
    `cssParser` is not ported) with an `"elixir"` factory renders `Locator.toString`,
    `String.Chars`, `Inspect` and the matchers' `Locator:` line. The driver's install hint is
    rewritten to `mix playwright_ex.install`. Text the driver renders (call logs) stays JS.
-5. Later: the facade docs' 321 upstream examples are JS (ratified for 1.64). Translate them in
-   the generator (or take Python's and rewrite) after the release.
+5. The facade docs' upstream examples are JS (ratified for 1.64); translating them: "Docs" below.
+
+## Docs
+
+Researched 2026-11-06 (wr4-docs): upstream guide pages, playwright.dev/python, the hexdocs of Req,
+Phoenix, Ecto, Oban, Finch, Wallaby, PhoenixTest, and main's README.
+
+### Target structure
+
+`main: "readme"`, `extra_section: "GUIDES"`, `groups_for_extras` by folder. Small libraries (Req,
+Wallaby) land on the README; guides stay few and short, Elixir-specific, each linking the upstream
+page for depth. Our names are Python's (snake_case, keyword options, `expect_*`, `eval_on_selector`),
+so the README points to playwright.dev's Python docs as the closest read.
+
+- Introduction
+  - `README.md` "Overview": pitch (1:1 port, generated API, pinned driver; testing, scraping,
+    agents), install, the quick example, reading playwright.dev, guide links, contributing.
+  - `guides/introduction/getting-started.md`: dependency, `mix playwright_ex.install` (browsers,
+    `--with-deps`), the supervisor in an app tree or `test_helper.exs`, a first script, headless,
+    `Driver` options, upgrading (versions mirror Playwright). From upstream library-python,
+    library-js, intro-python (updating, system requirements), browsers; main's "Getting started".
+  - `guides/introduction/api-conventions.md` "From playwright.dev to Elixir": names, `{:ok, v}`/bang,
+    options and JS-key maps, enums, optional positionals, promises and `expect_*`, events, errors,
+    `%Regex{}`, `evaluate` as JS source. Moved out of migration.md "Concepts" (it is not about 0.x)
+    plus architecture "Generated facade".
+  - `guides/introduction/cheatsheet.cheatmd`: JS → Elixir for the frequent calls (Phoenix/Ecto have
+    cheatsheets). From upstream locators, input, test-assertions-csharp-java-python.
+- Guides
+  - `guides/testing-with-exunit.md`: browser in `setup_all`, a context per test (`async: true`),
+    `base_url`, default timeouts, `Expect` and `config :playwright_ex, :expect`, storage state for
+    login, trace/screenshot on failure; polling non-page state: prefer web-first `Expect.*`, else a
+    documented `eventually` helper snippet to copy (our test `to_pass`; no library function, as
+    `expect.poll`/`toPass`/`expect.soft` are test-runner features: user decision); Phoenix (`server: true`, Ecto sandbox via the user agent)
+    briefly, pointing to phoenix_test_playwright. From upstream writing-tests-python,
+    browser-contexts, auth (library parts), test-assertions-csharp-java-python; Wallaby's setup list.
+  - `guides/events-and-waiting.md`: promise vs callback form, `on`/`off`, dialogs, downloads,
+    popups, file chooser, navigations. From upstream events, dialogs, downloads, pages, navigations.
+  - `guides/network.md`: route/fulfill/continue, HAR, `APIRequestContext`, waiting for responses.
+    From upstream network, mock, api-testing-python.
+  - `guides/debugging-and-ci.md`: tracing and `mix playwright_ex.cli show-trace`, screenshots,
+    video, console/pageerror listeners (what `JsLogger` did), call logs in errors; GitHub Actions
+    (install with `--with-deps`, cache the driver dir), Docker, `BrowserType.connect` to a
+    `run-server` container. From upstream trace-viewer-intro-java-python, debug, screenshots, ci,
+    docker; main's "Remote server via WebSocket" (the docker command).
+  - `guides/concurrency.md` (exists).
+- Upgrading: `guides/migration.md` "Migrating from 0.x" (mapping and behaviour changes stay),
+  `CHANGELOG.md`.
+
+Not ported: the test-runner pages (test-*-js, best practices, UI mode, VS Code, codegen, MCP/agents)
+and pages that are only API depth (other-locators, handles, emulation, clock): the facade docs cover
+them. Main's README has nothing else to keep (0.x API, npm install, `EventWaiter` downloads).
+
+Module groups (playwright.dev's API sidebar order): Core (`PlaywrightEx`, `Supervisor`, `Driver`,
+`Promise`, `Playwright`, `BrowserType`, `Browser`, `BrowserContext`), Pages (`Page`, `Frame`,
+`Locator`, `FrameLocator`, input, `Dialog`, `Download`, `FileChooser`, `Worker`, ...), Assertions
+(`Expect`, `ExpectError`), Network (`Request`, `Response`, `Route`, `WebSocket*`, `API*`), Artifacts
+and debugging (`Tracing`, `Video`, `Screencast`, `Coverage`, `CDPSession`, ...), Errors, then the
+internals (Client, Matchers, Protocol, Runtime) last.
+
+### Examples
+
+- Source: the JS block, as the key (the facade is filtered to `langs: js`; 322 blocks in it, about
+  288 distinct texts, since Page, Frame and Locator share many). The translator also gets Python's
+  sync block: 226 of the 228 members with a Python example have a JS one too (220 with the same
+  count), and Python already has our names, keyword options, string `evaluate` and `expect_*`.
+  About 30 kept members have JS only (newer APIs: `drop`, `ariaSnapshotJSON`, `Page.frame`, ...).
+- Method: a translation memory, not a transpiler. `test/examples/<class>_test.exs` holds `example`
+  tests (`PlaywrightEx.ExampleCase`) with the upstream `js:`; `mix playwright_ex.gen.api` renders
+  the body (read as source, `Mix.PlaywrightEx.Examples`) in place of the equal JS block, keeps JS
+  where none exists, and fails on a translation upstream no longer has. Churn is small: 1.64.1 to
+  1.66-next changes 3 of 343 blocks. Translate per class with agents (JS and Python in the brief),
+  reviewed as a diff. Conventions: short aliases (the moduledoc says so), bang forms, pipes, the
+  upstream URLs kept (routed in tests).
+- Verification: each example compiles in the suite (undefined functions are warnings, so errors
+  with `--warnings-as-errors`) and runs against the browser: every request of the context gets the
+  example's `html:` (default an empty page), `given:` binds what the docs leave out, `skip:` makes
+  it compile-only with a reason. Rejected: `iex>` doctests (scripts with no printable results, no
+  setup or fixtures, they would live in generated moduledocs), a compile-only checker (weaker, and
+  the tests give it for free), mapping onto upstream test ports (they don't contain the examples).
+- Coverage (heuristic, 322 blocks): 80 run with the default page (25%: 60 need nothing, 20
+  navigate, routed offline), 131 more with an `html:` fixture (41%), 21 need files or a tmp dir
+  (7%), 68 are fragments needing `given:` (21%: `frame` 17, `locator` 5, handles, `// ...`), 16 are
+  scripts that launch their own browser (5%, run or `skip:` when they hit the network), 6 are
+  test-runner config (2%, `defineConfig`, `test.use`: Elixir text or dropped in `ApiRules`). So
+  about 93% can run, the rest compile only or go.
+- Prototype (committed): `ExampleCase`, the loader and generator hook, 5 examples (Locator.all,
+  boundingBox, click, evaluate; Page.route compile-only); 4 run in 0.5 s.
+- Guides: snippets mirrored in `test/guides/<guide>_test.exs`, as `migration_test.exs` does.
+
+### Work list
+
+1. Translate the examples, class by class: Page, Locator, Frame, Expect, BrowserContext, then the
+   rest; `mix test test/examples` and `gen.api --check` green per batch. Runner-config blocks get
+   `ApiRules` text.
+2. Four `wait_for_event` timeout docs still describe JS (was Later #2): Elixir text in `ApiRules`.
+3. `mix.exs` docs config: extras, `groups_for_extras`, the module groups; a moduledoc note on the
+   examples' aliases.
+4. README; getting started; API conventions (out of migration.md); cheatsheet.
+5. Testing with ExUnit; events and waiting; network; debugging and CI. Each with its test.
 
 ## Later
 
@@ -524,8 +621,7 @@ Work items:
   major.minor), turn CHANGELOG's Unreleased into the release entry, tag, publish.
 - **#4 Ruleset on `main`**: it requires `Test (port)` and `Test (websocket)`, which CI no longer
   produces. Require the aggregate `Tests` job (all three browsers block it) and PRs on `main`.
-- **#1 JS examples in the facade docs** (item 5 above): translate after the release.
-- **#2 Four `wait_for_event` timeout docs** still describe JS: give them Elixir text in `ApiRules`.
+- **#1, #2**: moved to "Docs" (examples, `wait_for_event` timeout docs).
 - **#15 Typespecs**: `Disposable.t()` is `term()` (make it the union of `DisposableObject` and
   `DisposableStub`); type storage state's documented keys, keep the open rest round-tripping.
 - **#16 Inline aria snapshot rebaselining**: without a test runner an inline snapshot that upstream

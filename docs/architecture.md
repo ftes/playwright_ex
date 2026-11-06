@@ -63,7 +63,9 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   waits exist but await at once.
 - Docs render from the `spec` AST, not `comment` (admonitions, nested option bullets,
   `*Since 1.x.*`, events as moduledoc headings). Non-JS doc variants replace JS-only text where
-  the type matches. The 321 code examples stay JS for 1.64 (an issue tracks translating them).
+  the type matches. A JS example with an Elixir translation in `test/examples` (tests, so each
+  compiles and runs; `PlaywrightEx.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
+  rest stay JS until translated.
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
   serialization, the inspector, the test runner (`toPass`, `expect.poll`, soft asserts, file aria
   snapshots, jest matchers). `to_have_screenshot(target, path:)` stays, with an explicit path in

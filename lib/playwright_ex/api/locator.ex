@@ -33,9 +33,10 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  for (const li of await page.getByRole('listitem').all())
-    await li.click();
+  ```elixir
+  for li <- Page.get_by_role(page, :listitem) |> Locator.all!() do
+    Locator.click!(li)
+  end
   ```
   """
   @spec all(t()) :: {:ok, [PlaywrightEx.Locator.t()]} | {:error, Exception.t()}
@@ -376,9 +377,9 @@ defmodule PlaywrightEx.Locator do
 
   **Usage**
 
-  ```js
-  const box = await page.getByRole('button').boundingBox();
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  ```elixir
+  box = Page.get_by_role(page, :button) |> Locator.bounding_box!()
+  Mouse.click!(Page.mouse(page), box.x + box.width / 2, box.y + box.height / 2)
   ```
 
   ## Options
@@ -656,12 +657,9 @@ defmodule PlaywrightEx.Locator do
 
   Shift-right-click at a specific position on a canvas:
 
-  ```js
-  await page.locator('canvas').click({
-    button: 'right',
-    modifiers: ['Shift'],
-    position: { x: 23, y: 32 },
-  });
+  ```elixir
+  Page.locator(page, "canvas")
+  |> Locator.click!(button: :right, modifiers: [:shift], position: %{x: 23, y: 32})
   ```
 
   ## Options
@@ -1322,11 +1320,13 @@ defmodule PlaywrightEx.Locator do
 
   Passing argument to `pageFunction`:
 
-  ```js
-  const result = await page.getByTestId('myId').evaluate((element, [x, y]) => {
-    return element.textContent + ' ' + x * y;
-  }, [7, 8]);
-  console.log(result); // prints "myId text 56"
+  ```elixir
+  result =
+    Page.get_by_test_id(page, "myId")
+    |> Locator.evaluate!("(element, [x, y]) => element.textContent + ' ' + x * y", [7, 8])
+
+  # prints "myId text 56"
+  IO.puts(result)
   ```
 
   ## Arguments

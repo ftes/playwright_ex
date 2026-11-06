@@ -4167,11 +4167,11 @@ defmodule PlaywrightEx.Page do
 
   An example of a naive handler that aborts all image requests:
 
-  ```js
-  const page = await browser.newPage();
-  await page.route('**/*.{png,jpg,jpeg}', route => route.abort());
-  await page.goto('https://example.com');
-  await browser.close();
+  ```elixir
+  page = Browser.new_page!(browser)
+  Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+  Page.goto!(page, "https://example.com")
+  Browser.close!(browser)
   ```
 
   or the same snippet using a regex pattern instead:
