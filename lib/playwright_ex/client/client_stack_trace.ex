@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
     parsed_frames =
       Enum.map(stack, fn {module, function, arity, location} ->
         frame = %{
-          # JS stack frames carry absolute paths (metadata.location.file): expanded below.
+          # JS stack frames carry absolute paths (metadata.location.file): see `source_file/2`.
           file: if(file = location[:file], do: to_string(file), else: ""),
           line: location[:line] || 0,
           column: 0,
@@ -52,19 +52,42 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
       if outermost, do: Enum.drop(parsed_frames, elem(outermost, 1) + 1), else: Enum.drop(parsed_frames, 1)
 
     parsed_frames = Enum.reject(parsed_frames, &(&1.frame.file == ""))
-    cwd = if parsed_frames != [], do: cwd()
+    frames = Enum.map(parsed_frames, &%{&1.frame | file: source_file(elem(&1.mfa, 0), &1.frame.file)})
 
-    %{frames: Enum.map(parsed_frames, &%{&1.frame | file: Path.expand(&1.frame.file, cwd)}), apiName: api_name}
+    %{frames: frames, apiName: api_name}
   end
 
-  # Elixir only: BEAM frames carry paths relative to the project root, resolved against the
-  # working directory at the first call (`File.cwd!/0` costs ~50 us per call, on every API call
-  # before its message is sent).
-  defp cwd do
-    with nil <- :persistent_term.get({__MODULE__, :cwd}, nil) do
-      cwd = File.cwd!()
-      :persistent_term.put({__MODULE__, :cwd}, cwd)
-      cwd
+  # Elixir only: BEAM frames carry paths relative to their app's root; a module's compile info has
+  # its absolute source. A frame that isn't its module's source (injected code, `nofile`,
+  # deterministic builds) stays relative: the driver resolves it against its working directory,
+  # the BEAM's at launch.
+  defp source_file(module, file) do
+    if Path.type(file) == :absolute do
+      file
+    else
+      source = module_source(module)
+      if source && String.ends_with?(source, "/" <> file), do: source, else: file
+    end
+  end
+
+  # Cached per module: `module_info/1` costs ~2 us, on every frame of every API call.
+  defp module_source(module) do
+    key = {__MODULE__, :source, module}
+
+    case :persistent_term.get(key, :none) do
+      :none ->
+        source =
+          try do
+            if source = module.module_info(:compile)[:source], do: List.to_string(source)
+          rescue
+            _ -> nil
+          end
+
+        :persistent_term.put(key, source)
+        source
+
+      source ->
+        source
     end
   end
 

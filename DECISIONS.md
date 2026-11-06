@@ -1171,3 +1171,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - User, 2026-11-06, review decision 9: a storage-state file that can't be read raises
   `PlaywrightError` with upstream's "Error reading storage state from" prefix and the `File.Error`
   as `:cause` (as Python wraps it); malformed JSON keeps its `JSON.DecodeError` with the prefix.
+- User, 2026-11-06, review decision 10: stack frames take their module's absolute source path
+  (`module_info(:compile)[:source]`, cached per module) when it ends with the frame's relative
+  file; others stay relative and the driver resolves them against its working directory (the
+  BEAM's at launch). No cwd cache: `File.cd!` doesn't change frames, deps frames are correct.
+  page_close #7 and connect_to_worker #10b: 40/40 each.
