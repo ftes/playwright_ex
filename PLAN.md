@@ -604,10 +604,26 @@ Upstream) and contributor mix tasks are left out by `filter_modules` (done; modu
 
 ### Work list
 
-1. Translate the examples, class by class: Page, Locator, Frame, Expect, BrowserContext, then the
-   rest; `mix test test/examples` and `gen.api --check` green per batch. Runner-config blocks get
-   `ApiRules` text.
-2. Four `wait_for_event` timeout docs still describe JS (was Later #2): Elixir text in `ApiRules`.
+1. All examples before 1.64.0 (user decision). Done: Locator (56 blocks, spike). Left: 241
+   distinct blocks (api.json JS view minus translated; GenericAssertions, SnapshotAssertions and
+   Logger are not in the facade), split by owner class (the first of Page, Frame, Locator,
+   FrameLocator, the assertions, BrowserContext, ... that shows the block) into five parallel
+   agents, one `test/examples/<class>_test.exs` per class, manifests listing each agent's blocks:
+   page (61), expect (48: Locator/Page/APIResponse assertions), frame-handles-input (53: Frame,
+   FrameLocator, ElementHandle, JSHandle, Keyboard, Mouse, dialogs, downloads, workers, ...),
+   context-network (56: BrowserContext, Browser, BrowserType, Playwright, APIRequestContext,
+   Route, Request, WebSocketRoute, Selectors), debug-time-misc (23: Clock, Tracing, Screencast,
+   Video, Coverage, Credentials, CDPSession, WebMCP). Conventions: test/examples/locator_test.exs.
+   ExampleCase changes additive only. The lead merges, regenerates the facade once, runs
+   `test/examples` on all three browsers and reviews per class.
+2. Prose in Elixir, in the generator (parallel to 1, touches only `gen.api`/`ApiRules` and
+   generated files): `null`/`undefined` → `nil`; backticked camelCase option and argument names
+   of the member → `:snake_case` options / `snake_case` arguments (217 backticked camelCase names,
+   e.g. `ignoreCase`, `baseURL`, `filePaths`; JS page-side names such as `setTimeout` stay);
+   `receiver.method()` in prose → the function link where the class is known; "Promise"/"await"
+   wording rewritten where it describes the JS call (not where a `PlaywrightEx.Promise` is meant);
+   the four `wait_for_event` timeout docs (was Later #2). Never inside code blocks. Residue gets
+   `ApiRules` overrides; a test fails on new JS-isms in rendered prose so version bumps stay clean.
 3. `mix.exs` docs config: extras, `groups_for_extras`, the module groups; a moduledoc note on the
    examples' aliases.
 4. README; getting started; API conventions (out of migration.md); cheatsheet.

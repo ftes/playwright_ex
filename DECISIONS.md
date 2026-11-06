@@ -1118,3 +1118,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   comments above the line). No port bugs found.
 - User, 2026-11-06, docs Q3: "Testing with ExUnit" is framework-neutral (a server running
   somewhere, `base_url`); no Phoenix or Ecto sandbox setup; one link to Fluffy for Phoenix tests.
+- User, 2026-11-06, examples: translate all before 1.64.0, split over parallel agents by owner
+  class (PLAN Docs work list 1), and polish the facade prose into Elixir in the generator (item 2).
+  Lead: `Object<string, T>` dictionaries (headers, `highlight` `style:`) keep string keys: their
+  keys are data, not option names (as `extraHTTPHeaders`; CSS names have dashes).
