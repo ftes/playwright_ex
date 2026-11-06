@@ -11,49 +11,61 @@ defmodule PlaywrightEx.Credentials do
 
   **Usage: seed a known credential**
 
-  ```js
-  const context = await browser.newContext();
+  ```elixir
+  context = Browser.new_context!(browser)
 
-  // A passkey your backend already provisioned for a test user.
-  await context.credentials.create('example.com', {
-    id: knownCredentialId, // base64url
-    userHandle: knownUserHandle, // base64url
-    privateKey: knownPrivateKey, // base64url PKCS#8 (DER)
-    publicKey: knownPublicKey, // base64url SPKI (DER)
-  });
-  await context.credentials.install();
+  # A passkey your backend already provisioned for a test user.
+  # All base64url: the private key PKCS#8 (DER), the public key SPKI (DER).
+  BrowserContext.credentials(context)
+  |> Credentials.create!("example.com",
+    id: known_credential_id,
+    user_handle: known_user_handle,
+    private_key: known_private_key,
+    public_key: known_public_key
+  )
 
-  const page = await context.newPage();
-  await page.goto('https://example.com/login');
-  // The page's navigator.credentials.get() is answered with the seeded passkey.
+  BrowserContext.credentials(context) |> Credentials.install!()
+
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com/login")
+  # The page's navigator.credentials.get() is answered with the seeded passkey.
   ```
 
   **Usage: capture a credential, then reuse it**
 
-  ```js
-  // setup test: let the app register a passkey, then save the storage state with it.
-  const context = await browser.newContext();
-  await context.credentials.install();
+  ```elixir
+  # setup test: let the app register a passkey, then save the storage state with it.
+  context = Browser.new_context!(browser)
+  BrowserContext.credentials(context) |> Credentials.install!()
 
-  const page = await context.newPage();
-  await page.goto('https://example.com/register');
-  await page.getByRole('button', { name: 'Create a passkey' }).click();
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com/register")
+  Page.get_by_role(page, :button, name: "Create a passkey") |> Locator.click!()
 
-  // Read back the passkey the page registered — it includes the private key.
-  const [credential] = await context.credentials.get({ rpId: 'example.com' });
-  fs.writeFileSync('playwright/.auth/passkey.json', JSON.stringify(credential));
+  # Read back the passkey the page registered — it includes the private key.
+  [credential] = BrowserContext.credentials(context) |> Credentials.get!(rp_id: "example.com")
+  File.write!("playwright/.auth/passkey.json", JSON.encode!(credential))
   ```
 
-  ```js
-  // later test: seed the captured passkey so the app starts already enrolled.
-  const credential = JSON.parse(fs.readFileSync('playwright/.auth/passkey.json', 'utf8'));
-  const context = await browser.newContext();
-  await context.credentials.create(credential.rpId, credential);
-  await context.credentials.install();
+  ```elixir
+  # later test: seed the captured passkey so the app starts already enrolled.
+  credential = File.read!("playwright/.auth/passkey.json") |> JSON.decode!()
+  context = Browser.new_context!(browser)
 
-  const page = await context.newPage();
-  await page.goto('https://example.com/login');
-  // navigator.credentials.get() resolves the captured passkey — already signed in.
+  BrowserContext.credentials(context)
+  |> Credentials.create!(credential["rpId"],
+    id: credential["id"],
+    user_handle: credential["userHandle"],
+    private_key: credential["privateKey"],
+    public_key: credential["publicKey"],
+    sign_count: credential["signCount"]
+  )
+
+  BrowserContext.credentials(context) |> Credentials.install!()
+
+  page = BrowserContext.new_page!(context)
+  Page.goto!(page, "https://example.com/login")
+  # navigator.credentials.get() resolves the captured passkey — already signed in.
   ```
 
   **Usage: save credentials in the storage state, restore later**

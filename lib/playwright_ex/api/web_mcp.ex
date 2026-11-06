@@ -13,15 +13,16 @@ defmodule PlaywrightEx.WebMCP do
 
   Tool names, descriptions, input schemas and results are provided by the page, so treat them as untrusted input.
 
-  ```js
-  const browser = await chromium.launch({ args: ['--enable-features=WebMCP'] });
-  const page = await browser.newPage();
-  await page.goto('https://example.com');
+  ```elixir
+  browser = Playwright.chromium(playwright) |> BrowserType.launch!(args: ["--enable-features=WebMCP"])
+  page = Browser.new_page!(browser)
+  Page.goto!(page, "https://example.com")
 
-  for (const tool of await page.webmcp.tools())
-    console.log(tool.name, tool.description);
+  for tool <- Page.webmcp(page) |> WebMCP.tools!() do
+    IO.puts("#{tool.name} #{tool.description}")
+  end
 
-  const result = await page.webmcp.callTool('add', { a: 2, b: 40 });
+  result = Page.webmcp(page) |> WebMCP.call_tool!("add", %{a: 2, b: 40})
   ```
   """
 
@@ -44,9 +45,10 @@ defmodule PlaywrightEx.WebMCP do
   @doc ~S"""
   Calls a tool registered by the frame and returns its result. The result is whatever the tool's `execute` function resolved to, typically an object with a `content` array. A result with `isError: true` is returned as is. The method throws when the tool is not registered or its `execute` function throws.
 
-  ```js
-  const result = await page.webmcp.callTool('add', { a: 2, b: 40 });
-  console.log(result.content[0].text); // "42"
+  ```elixir
+  result = Page.webmcp(page) |> WebMCP.call_tool!("add", %{a: 2, b: 40})
+  # prints 42
+  IO.puts(hd(result["content"])["text"])
   ```
 
   ## Arguments

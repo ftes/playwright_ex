@@ -15,15 +15,13 @@ defmodule PlaywrightEx.CDPSession do
   * Getting Started with DevTools Protocol:
     https://github.com/aslushnikov/getting-started-with-cdp/blob/master/README.md
 
-  ```js
-  const client = await page.context().newCDPSession(page);
-  await client.send('Animation.enable');
-  client.on('Animation.animationCreated', () => console.log('Animation created!'));
-  const response = await client.send('Animation.getPlaybackRate');
-  console.log('playback rate is ' + response.playbackRate);
-  await client.send('Animation.setPlaybackRate', {
-    playbackRate: response.playbackRate / 2
-  });
+  ```elixir
+  client = Page.context(page) |> BrowserContext.new_cdp_session!(page)
+  CDPSession.send!(client, "Animation.enable")
+  CDPSession.on(client, "Animation.animationCreated", fn _ -> IO.puts("Animation created!") end)
+  response = CDPSession.send!(client, "Animation.getPlaybackRate")
+  IO.puts("playback rate is #{response["playbackRate"]}")
+  CDPSession.send!(client, "Animation.setPlaybackRate", %{playbackRate: response["playbackRate"] / 2})
   ```
 
   ## Events
@@ -39,10 +37,10 @@ defmodule PlaywrightEx.CDPSession do
 
   **Usage**
 
-  ```js
-  session.on('event', ({ method, params }) => {
-    console.log(`CDP event: ${method}`, params);
-  });
+  ```elixir
+  CDPSession.on(session, :event, fn event ->
+    IO.puts("CDP event: #{event.method} #{inspect(event[:params])}")
+  end)
   ```
   """
 

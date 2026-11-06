@@ -56,23 +56,25 @@ defmodule PlaywrightEx.Screencast do
 
   **Usage**
 
-  ```js
-  // Record video
-  await page.screencast.start({ path: 'video.webm', size: { width: 1280, height: 800 } });
-  // ... perform actions ...
-  await page.screencast.stop();
+  ```elixir
+  # Record video
+  Page.screencast(page) |> Screencast.start!(path: "video.webm", size: %{width: 1280, height: 800})
+  # ... perform actions ...
+  Page.screencast(page) |> Screencast.stop!()
   ```
 
-  ```js
-  // Capture frames
-  await page.screencast.start({
-    onFrame: ({ data, timestamp, viewportWidth, viewportHeight }) => {
-      console.log(`frame size: ${data.length} (${viewportWidth}x${viewportHeight}) at ${timestamp}`);
-    },
-    size: { width: 800, height: 600 },
-  });
-  // ... perform actions ...
-  await page.screencast.stop();
+  ```elixir
+  # Capture frames
+  Page.screencast(page)
+  |> Screencast.start!(
+    on_frame: fn %{data: data, timestamp: timestamp, viewportWidth: width, viewportHeight: height} ->
+      IO.puts("frame size: #{byte_size(data)} (#{width}x#{height}) at #{timestamp}")
+    end,
+    size: %{width: 800, height: 600}
+  )
+
+  # ... perform actions ...
+  Page.screencast(page) |> Screencast.stop!()
   ```
 
   ## Options
@@ -253,14 +255,15 @@ defmodule PlaywrightEx.Screencast do
 
     **Usage**
 
-    ```js
-    await page.screencast.showActions({
-      style: {
-        point: 'width: 20px; height: 20px; border-radius: 50%; background: red',
-        highlight: 'outline: 2px solid #333; background: rgba(0, 128, 255, .15)',
-        title: 'font-size: 16px',
-      },
-    });
+    ```elixir
+    Page.screencast(page)
+    |> Screencast.show_actions!(
+      style: %{
+        point: "width: 20px; height: 20px; border-radius: 50%; background: red",
+        highlight: "outline: 2px solid #333; background: rgba(0, 128, 255, .15)",
+        title: "font-size: 16px"
+      }
+    )
     ```
 
     * `:point` - CSS declarations for the marker at the action point. The marker is positioned at the action point, has zero size and is centered on the point, so its size and look come from this style. Not shown when omitted.

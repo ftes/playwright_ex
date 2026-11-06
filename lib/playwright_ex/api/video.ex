@@ -5,8 +5,8 @@ defmodule PlaywrightEx.Video do
   @moduledoc ~S"""
   When browser context is created with the `recordVideo` option, each page has a video object associated with it.
 
-  ```js
-  console.log(await page.video().path());
+  ```elixir
+  IO.puts(Page.video(page) |> Video.path!())
   ```
   """
 

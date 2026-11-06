@@ -15,7 +15,8 @@ defmodule PlaywrightEx.ExampleCase do
 
   The body sees `playwright`, `browser`, `context` and `page` (`page` has loaded `html:` from
   `https://example.com/`: every request of the context is fulfilled with it, so examples that
-  navigate stay offline). Options:
+  navigate stay offline). Contexts the example creates itself, of `browser` or of a browser it
+  launches, are routed the same. Options:
 
     * `:js` - the upstream JS block, as api.json has it (required).
     * `:html` - the document every request gets, default an empty page.
@@ -32,8 +33,10 @@ defmodule PlaywrightEx.ExampleCase do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.TestBrowser
 
   @html "<!doctype html><title>Example</title>"
@@ -56,15 +59,22 @@ defmodule PlaywrightEx.ExampleCase do
     %{playwright: playwright, browser: browser}
   end
 
-  setup %{browser: browser} = tags do
+  setup %{playwright: playwright, browser: browser} = tags do
     context = Browser.new_context!(browser)
     BrowserContext.set_default_timeout(context, 5_000)
     on_exit(fn -> BrowserContext.close(context) end)
     for path <- Map.get(tags, :writes) || [], do: on_exit(fn -> File.rm(path) end)
     html = Map.get(tags, :html) || @html
-    BrowserContext.route!(context, "**/*", &Route.fulfill(&1, body: html, content_type: "text/html"))
+    fulfill = &Route.fulfill(&1, body: html, content_type: "text/html")
+    offline = &BrowserContext.route!(&1, "**/*", fulfill)
+    offline.(context)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "https://example.com/")
+    # The contexts the example creates (`Browser.new_context`, a browser of its own).
+    instrumentation = Heap.get(playwright, :_instrumentation)
+    listener = %{runAfterCreateBrowserContext: offline}
+    ClientInstrumentation.add_listener(instrumentation, listener)
+    on_exit(fn -> ClientInstrumentation.remove_listener(instrumentation, listener) end)
     %{context: context, page: page}
   end
 
