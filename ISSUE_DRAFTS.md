@@ -211,3 +211,29 @@ gray video and screencast frames in video and tracing). Upstream's client fails 
 Linux CI passes them. Re-run them with the next WebKit build and drop the skips that pass.
 
 Source: DECISIONS workstreams T, U1, round 2 (C3a-10, VF-E).
+
+---
+
+## #draft-18 Settle latches after the emit that settles them
+
+Labels: bug, runtime
+
+A latch settled in a listener step (`Browser._did_close` settling `_closedPromise`) wakes its
+awaiter before the same emit's later listeners run, so after `connect`, `Browser.close!` can
+return before the `disconnected` listener ran. JS resolves the promise inside the synchronous
+`emit`. Idea: `Runtime.Conn` holds back latch wake-ups until the frame's steps finish. Repro: the
+skipped stress test "connect: the disconnected listener has run when close returns".
+
+Source: test/OTP_BACKLOG.md; Phase 2 stress run.
+
+---
+
+## #draft-19 Free a disposed JSHandle's rows
+
+Labels: enhancement, runtime
+
+A disposed JSHandle keeps ~7 heap rows until its context is freed (35k rows after 5k disposes in
+perf_test), so a long-lived page grows without bound. Free them on an explicit `dispose` and keep
+only a tombstone, as for collected objects.
+
+Source: test/OTP_BACKLOG.md; Phase 2 perf run.

@@ -18,6 +18,14 @@ strays, remote connection leak and `_actual_headers` items. What's left:
   order; `Page.url` is still about:blank after `unroute_all` returns. No ordering difference found
   in the dispose path; next step is a CDP trace of a failing run (scripts in the round-2 notes).
 
+- **Latch settled mid-emit** (stress_test "connect: the disconnected listener has run when close
+  returns", skipped): `_did_close` settles `_closedPromise` in a listener step, which wakes its
+  awaiter before the emit's later listeners run; JS resolves it inside the synchronous `emit`.
+  Fix idea: `Runtime.Conn` holds back wake-ups for latches settled while a frame's steps run.
+- **Disposed JSHandle rows**: each disposed handle keeps ~7 rows until its context is freed
+  (35k rows after 5k disposes), so a long-lived page grows. Fix idea: free them on an explicit
+  `dispose`, keeping a tombstone.
+
 Possibly load-flaky, to watch: `locator_query_test.exs:324` (webkit), `conn_test.exs:360`
 (120 s timeout once in a loaded full run), `page_screenshot_test.exs:482`,
 `page_add_locator_handler_test.exs` "should work" (hover with 2 concurrent pages).

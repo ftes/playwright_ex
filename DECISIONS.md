@@ -1011,3 +1011,11 @@ drift). Blockers for release, assigned to follow-up workstreams:
   ("Dispatch failed" logs, ~10 per full run, gone). OOPIF "should click" gets a macOS `env:` skip:
   the driver's JS client loses the same click-after-goto race 1-3 in 10 there; ours every time;
   Linux CI passes.
+- Phase 2 stress/perf (manual only: `mix test --only stress` / `--only perf`, excluded by default):
+  7 stress scenarios pass x100 on chromium, webkit and firefox (container, CPUS=2). Perf vs baton,
+  5 interleaved rounds: p50/p99 at or below baton everywhere except context close with 1000
+  handles (+21%, +1.9 ms; linear ~7 us/child, 7x faster than baton at 5000); rows back to
+  baseline; ETS stays at 3.3 MB (baton 27-84 MB). Gaps kept as backlog/issue drafts: a latch
+  settled mid-emit wakes awaiters early; disposed handles keep rows until their context closes.
+- Lead, webkit CI: the backlog leak tests settle eventually and accept rows below baseline; the
+  OOPIF module (chromium only) no longer launches its browser in setup_all on other browsers.
