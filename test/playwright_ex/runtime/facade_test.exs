@@ -108,19 +108,9 @@ defmodule PlaywrightEx.Runtime.FacadeTest do
     assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
   end
 
-  test "a failed bang matcher raises ExUnit.AssertionError, or the ExpectError without ExUnit" do
+  test "a failed bang matcher raises the ExpectError" do
     error = %PlaywrightEx.ExpectError{message: "Expect failed"}
-
-    # Not `catch_error/1` or `assert_raise/2`: ExUnit lets an `ExUnit.AssertionError` through.
-    raised = fn ex_unit? ->
-      try do
-        Facade.reraise_expect_error(error, [], ex_unit?)
-      rescue
-        e -> e
-      end
-    end
-
-    assert %ExUnit.AssertionError{message: "Expect failed"} = raised.(true)
-    assert raised.(false) == error
+    assert Facade.matcher(nil, fn -> raise error end) == {:error, error}
+    assert_raise PlaywrightEx.ExpectError, "Expect failed", fn -> Facade.matcher!(nil, fn -> raise error end) end
   end
 end

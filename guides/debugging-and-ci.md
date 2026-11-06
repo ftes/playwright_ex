@@ -13,7 +13,7 @@ Call log:
   - waiting for getByRole('button', { name: 'Save' })
 ```
 
-A failed `Expect.*` bang raises `ExUnit.AssertionError` with the expected and received values and
+A failed `Expect.*` bang raises `PlaywrightEx.ExpectError` with the expected and received values and
 the same log. Most failures are clear from that alone.
 
 ## Traces

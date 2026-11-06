@@ -402,7 +402,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       Facade.matcher(#{receiver}, fn -> #{call} end)
     end
 
-    #{deprecated(ctx, member)}@doc "Like `#{name}/#{length(params)}`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
+    #{deprecated(ctx, member)}@doc "Like `#{name}/#{length(params)}`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
     #{spec(name <> "!", m, ":ok")}
     #{clauses(m, name <> "!")}def #{head(name <> "!", params, m.or_options)} do
       #{conversions}

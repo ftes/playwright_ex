@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
     Expect.not_to_have_text!(locator, "Error")
     locator |> Expect.not_() |> Expect.to_have_text!("Error")
     assert {:error, %PlaywrightEx.ExpectError{}} = Expect.to_have_text(locator, "Error", timeout: 100)
-    assert_raise ExUnit.AssertionError, fn -> Expect.to_have_text!(locator, "Error", timeout: 100) end
+    assert_raise PlaywrightEx.ExpectError, fn -> Expect.to_have_text!(locator, "Error", timeout: 100) end
   end
 
   test "errors", %{page: page} do

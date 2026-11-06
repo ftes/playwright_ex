@@ -141,10 +141,22 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.Eventually do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.Assertions do
+  @moduledoc false
+  @doc "Runs `fun`, re-raising a failed matcher as an `ExUnit.AssertionError`."
+  def assert_expect(fun) do
+    fun.()
+  rescue
+    e in PlaywrightEx.ExpectError ->
+      reraise ExUnit.AssertionError, [message: Exception.message(e)], __STACKTRACE__
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
 
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Guides.TestingWithExUnit.Assertions
   alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
   alias PlaywrightEx.Guides.TestingWithExUnit.Eventually
   alias PlaywrightEx.Guides.TestingWithExUnit.RetainOnFailure
@@ -179,6 +191,14 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   test "artifacts_dir" do
     assert BrowserCase.artifacts_dir(MyApp.SignUpTest, :"test signs up") ==
              "tmp/test-results/MyApp.SignUpTest/test_signs_up"
+  end
+
+  test "assert_expect raises a failed matcher as an ExUnit.AssertionError", %{page: page} do
+    Page.goto!(page, "/sign-up")
+
+    assert_raise ExUnit.AssertionError, ~r/toHaveText/, fn ->
+      Assertions.assert_expect(fn -> Expect.to_have_text!(Page.get_by_role(page, :status), "Saved", timeout: 100) end)
+    end
   end
 
   test "eventually raises the last error after the timeout" do

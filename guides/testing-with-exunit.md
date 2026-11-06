@@ -73,7 +73,8 @@ navigations apart.
 ## Assertions
 
 `PlaywrightEx.Expect` has the web-first assertions: they retry until the page matches or the
-timeout passes. The bang forms raise `ExUnit.AssertionError`, so a failure reads like any other:
+timeout passes. The bang forms raise `PlaywrightEx.ExpectError` with the expected and received
+values and the call log:
 
 ```elixir
 Expect.to_have_url!(page, ~r"/dashboard$")
@@ -87,6 +88,24 @@ Their timeout is 5 seconds; set it for the suite in `config/test.exs`:
 
 ```elixir
 config :playwright_ex, :expect, timeout: 10_000
+```
+
+Where an `ExUnit.AssertionError` is needed (a helper that rescues only that), wrap the matcher:
+
+```elixir
+defmodule MyApp.Assertions do
+  @doc "Runs `fun`, re-raising a failed matcher as an `ExUnit.AssertionError`."
+  def assert_expect(fun) do
+    fun.()
+  rescue
+    e in PlaywrightEx.ExpectError ->
+      reraise ExUnit.AssertionError, [message: Exception.message(e)], __STACKTRACE__
+  end
+end
+```
+
+```elixir
+assert_expect(fn -> Expect.to_have_text!(Page.get_by_role(page, :status), "Saved") end)
 ```
 
 ## Logging in once

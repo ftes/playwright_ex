@@ -18,7 +18,8 @@ Drives Playwright 1.64.
   supervision tree.
 - `mix playwright_ex.install` fails with the CLI's exit status instead of a `MatchError`.
 - Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError` at application start.
-  Without ExUnit, failed bang matchers raise `PlaywrightEx.ExpectError`.
+- Failed bang matchers raise `PlaywrightEx.ExpectError`, not `ExUnit.AssertionError` (see
+  [Testing with ExUnit](guides/testing-with-exunit.md#assertions) to wrap them).
 
 ### Added
 - [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before

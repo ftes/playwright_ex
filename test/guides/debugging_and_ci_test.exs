@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
     assert [_ | _] = error.log
 
     error =
-      assert_raise ExUnit.AssertionError, fn ->
+      assert_raise PlaywrightEx.ExpectError, fn ->
         Expect.to_have_text!(Page.get_by_role(page, :button), "Save", timeout: 100)
       end
 

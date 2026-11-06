@@ -359,7 +359,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
               "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
               "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout " <>
               "(5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
-              "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
+              "whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` " <>
+              "(the Testing with ExUnit guide shows how to wrap it in an `ExUnit.AssertionError`)."
         }
         | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]
       ] ++ [%{"type" => "text", "text" => "## Configuration\n\n" <> PlaywrightEx.Matchers.Expect.__config_doc__()}]
