@@ -101,7 +101,7 @@ Review these first: they shape the public API.
 - **`WritableStream.stream/1` returns a `Collectable`** (`Enum.into(File.stream!(...), ...)`
   for `stream.pipeline`); remote `lastModifiedMs` has whole-second precision (Erlang stat).
 - **Test deviations, commented**: `(function(){})` needs a `() =>` wrapper (no `isFunction`,
-  PLAN); circular `jsonValue` is `%{"b" => :circular}`; missing-file error lacks "ENOENT:";
+  PLAN); circular `jsonValue` is `%{"b" => :circular}`; (missing-file errors now carry Node's ENOENT text, round 2);
   `waitFor`/`visibility` `as any` options assert the facade's `ArgumentError`, so
   "should tolerate waitFor=visible" expects an error where upstream expects none.
 - **`test/support/utils.ex`** ports `tests/config/utils.ts` (`attach_frame`, `verify_viewport`, ...).
@@ -970,3 +970,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - Lead, A2b-06: keep library/heap's "should collect frames" and "cycle handles" ported (python rules
   the whole file out): without `setMaxDispatchersForTest` no frame is collected, so the first is
   marked a deviation that checks 310 frameattached events, not the GC path.
+- VF-C3 (input/handles): setInputFiles raises Node's `ENOENT: no such file or directory, stat
+  '<path>'` (asserted verbatim), resolves paths with `path.resolve` (a leading `~` is a file name),
+  and a remote directory upload skips symlinks as `Dirent.isFile` does.
+- Lead, C3a-14: `JSHandle.get_properties` keeps returning a map (python returns a dict; an ordered
+  list would change the public API); marked a deviation. C3a-10: page_mouse's Mac-WebKit env skip
+  is unverifiable here; re-check on the next WebKit roll.
