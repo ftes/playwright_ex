@@ -11,7 +11,10 @@ max_cases =
   end
 
 # Headed windows steal focus on macOS: `mix test --include headed` runs them (PORTING "Tests").
-if match?({:unix, :darwin}, :os.type()), do: ExUnit.configure(exclude: [:headed])
+# Stress and perf tests are manual only (`mix test --only stress`, `--only perf`), not run by CI.
+exclude = [:stress, :perf]
+exclude = if match?({:unix, :darwin}, :os.type()), do: [:headed | exclude], else: exclude
+ExUnit.configure(exclude: exclude)
 
 # Our own tests (not mirrored from upstream, which get upstream's 30 s): tight, so a hang fails
 # fast. The slowest takes ~5 s (a 5 s navigation timeout) on each browser (2026-11-05, macOS);
