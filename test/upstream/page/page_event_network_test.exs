@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -153,12 +154,12 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     Page.evaluate!(page, "url => void fetch(url)", server.prefix <> "/foo")
     assert_receive {:response_from_server, response_from_server}
     request = Promise.await!(request_promise)
-    response_promise = Task.async(fn -> Request.response(request) end)
+    response_promise = Runtime.Promise.async(fn -> Request.response(request) end)
     # navigate, which should cancel the request
     Page.goto!(page, server.cross_process_prefix)
     # make sure we aren't stalling this request on the server
     send(response_from_server, {:end, "done"})
     # the response should resolve to null, because the page navigated.
-    assert Task.await(response_promise, :infinity) == {:ok, nil}
+    assert Runtime.Promise.await(response_promise) == {:ok, nil}
   end
 end

@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -109,18 +110,18 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
   test "should waitFor", %{page: page} do
     Page.set_content!(page, "<div></div>")
     locator = Page.locator(page, "span")
-    promise = Task.async(fn -> Locator.wait_for!(locator) end)
+    promise = Runtime.Promise.async(fn -> Locator.wait_for!(locator) end)
     Page.eval_on_selector!(page, "div", "div => div.innerHTML = '<span>target</span>'")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
     Expect.to_have_text!(locator, "target")
   end
 
   test "should waitFor hidden", %{page: page} do
     Page.set_content!(page, "<div><span>target</span></div>")
     locator = Page.locator(page, "span")
-    promise = Task.async(fn -> Locator.wait_for!(locator, state: :hidden) end)
+    promise = Runtime.Promise.async(fn -> Locator.wait_for!(locator, state: :hidden) end)
     Page.eval_on_selector!(page, "div", "div => div.innerHTML = ''")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "should combine visible with other selectors", %{page: page} do

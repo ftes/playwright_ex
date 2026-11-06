@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
 
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.TimeoutError
 
@@ -104,7 +105,7 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
     img_request = TestServer.wait_for_request(server, img_path)
 
     content_promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.set_content!(page, ~s(<img src="#{server.prefix <> img_path}"></img>))
         send(test, :loaded)
       end)
@@ -113,7 +114,7 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
     refute_received :loaded
     assert_receive {:img_response, img_response}
     send(img_response, :end)
-    Task.await(content_promise, :infinity)
+    Runtime.Promise.await(content_promise)
   end
 
   test "should work fast enough", %{page: page} do
@@ -143,10 +144,10 @@ defmodule PlaywrightEx.Page.PageSetContentTest do
   test "content() should throw nice error during navigation", %{page: page, server: server} do
     for timeout <- 0..180//20 do
       Page.set_content!(page, "<div>hello</div>")
-      promise = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+      promise = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
       Page.wait_for_timeout!(page, timeout)
       content_or_error = Page.content(page)
-      Task.await(promise, :infinity)
+      Runtime.Promise.await(promise)
       empty_output = "<html><head></head><body></body></html>"
 
       case content_or_error do

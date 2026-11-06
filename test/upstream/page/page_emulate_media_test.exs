@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -79,7 +80,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
 
   test "should work during navigation", %{page: page, server: server} do
     Page.emulate_media!(page, color_scheme: :light)
-    navigated = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+    navigated = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
 
     for i <- 0..8 do
       emulated =
@@ -89,7 +90,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
       Task.await(emulated, :infinity)
     end
 
-    Task.await(navigated, :infinity)
+    Runtime.Promise.await(navigated)
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
   end
 

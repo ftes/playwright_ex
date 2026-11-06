@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -158,12 +159,12 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.status(page_response) == 200
     refute_received :request_finished
 
-    response_text = Task.async(fn -> Response.text!(page_response) end)
+    response_text = Runtime.Promise.async(fn -> Response.text!(page_response) end)
     # Write part of the response and wait for it to be flushed.
     server_write(server_response, "wor")
     # Finish response.
     server_write(server_response, "ld!", :end)
-    assert Task.await(response_text, :infinity) == "hello world!"
+    assert Runtime.Promise.await(response_text) == "hello world!"
   end
 
   test "should return json", %{page: page, server: server} do

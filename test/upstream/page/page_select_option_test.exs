@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Utils
 
   @moduletag :page
@@ -233,33 +234,36 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
 
   test "should wait for option to be present", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
-    select_promise = Task.async(fn -> Page.select_option!(page, "select", "scarlet") end)
+    select_promise = Runtime.Promise.async(fn -> Page.select_option!(page, "select", "scarlet") end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(select_promise, 0) == nil
+    refute Runtime.Promise.settled?(select_promise)
     Page.eval_on_selector!(page, "select", @add_scarlet)
-    items = Task.await(select_promise, :infinity)
+    items = Runtime.Promise.await(select_promise)
     assert items == ["scarlet"]
   end
 
   test "should wait for option index to be present", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     len = Page.eval_on_selector!(page, "select", "select => select.options.length")
-    select_promise = Task.async(fn -> Page.select_option!(page, "select", %{index: len}) end)
+    select_promise = Runtime.Promise.async(fn -> Page.select_option!(page, "select", %{index: len}) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(select_promise, 0) == nil
+    refute Runtime.Promise.settled?(select_promise)
     Page.eval_on_selector!(page, "select", @add_scarlet)
-    items = Task.await(select_promise, :infinity)
+    items = Runtime.Promise.await(select_promise)
     assert items == ["scarlet"]
   end
 
   test "should wait for multiple options to be present", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
-    select_promise = Task.async(fn -> Page.select_option!(page, "select", ["green", "scarlet"]) end)
+
+    select_promise =
+      Runtime.Promise.async(fn -> Page.select_option!(page, "select", ["green", "scarlet"]) end, shared: true)
+
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(select_promise, 0) == nil
+    refute Runtime.Promise.settled?(select_promise)
     Page.eval_on_selector!(page, "select", @add_scarlet)
-    items = Task.await(select_promise, :infinity)
+    items = Runtime.Promise.await(select_promise)
     assert items == ["green", "scarlet"]
   end
 
@@ -323,10 +327,10 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     </script>
     """)
 
-    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    select_promise = Runtime.Promise.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise, :infinity)
+    Runtime.Promise.await(select_promise)
     assert Page.evaluate!(page, "() => window['result']") == "two"
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
@@ -353,10 +357,10 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     {:error, error} = Locator.select_option(Page.locator(page, "select"), "two", timeout: 1000)
     assert Exception.message(error) =~ "option being selected is not enabled"
 
-    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    select_promise = Runtime.Promise.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise, :infinity)
+    Runtime.Promise.await(select_promise)
     assert Page.evaluate!(page, "() => window['result']") == "two"
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
@@ -385,10 +389,10 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     {:error, error} = Locator.select_option(Page.locator(page, "select"), "two", timeout: 1000)
     assert Exception.message(error) =~ "option being selected is not enabled"
 
-    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    select_promise = Runtime.Promise.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise, :infinity)
+    Runtime.Promise.await(select_promise)
     assert Page.evaluate!(page, "() => window['result']") == "two"
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
@@ -422,10 +426,10 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     </script>
     """)
 
-    select_promise = Task.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
+    select_promise = Runtime.Promise.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end)
     Process.sleep(1000)
     Page.evaluate!(page, "() => window.hydrate()")
-    Task.await(select_promise, :infinity)
+    Runtime.Promise.await(select_promise)
     Expect.to_have_value!(Page.locator(page, "select"), "two")
     assert Page.evaluate!(page, "() => window['result']") == "two"
   end

@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -413,7 +414,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
   end
 
   test "should waitForSelector with distributed elements", %{page: page} do
-    promise = Task.async(fn -> Page.wait_for_selector!(page, "div >> text=Hello") end)
+    promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div >> text=Hello") end)
 
     Page.evaluate!(page, """
     () => {
@@ -432,7 +433,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     }
     """)
 
-    handle = Task.await(promise, :infinity)
+    handle = Runtime.Promise.await(promise)
     assert ElementHandle.text_content!(handle) == "Hello from light"
   end
 

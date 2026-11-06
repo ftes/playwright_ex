@@ -53,9 +53,9 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
   test "elementHandle.waitForSelector should wait", %{page: page} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
-    promise = Task.async(fn -> ElementHandle.wait_for_selector!(div, "span", state: :attached) end)
+    promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector!(div, "span", state: :attached) end)
     JSHandle.evaluate!(div, "div => div.innerHTML = '<span>target</span>'")
-    span = Task.await(promise, :infinity)
+    span = Runtime.Promise.await(promise)
     assert JSHandle.evaluate!(span, "e => e.textContent") == "target"
   end
 
@@ -69,29 +69,29 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
   test "elementHandle.waitForSelector should throw on navigation", %{page: page, server: server} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
-    promise = Task.async(fn -> ElementHandle.wait_for_selector(div, "span") end)
+    promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector(div, "span") end)
     # Give it some time before navigating.
     for _ <- 1..10, do: Page.evaluate!(page, "() => 1")
     Page.goto!(page, server.empty_page)
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Exception.message(error) =~ "waiting for locator('span') to be visible"
   end
 
   test "should work with removed MutationObserver", %{page: page} do
     Page.evaluate!(page, "() => delete window.MutationObserver")
-    task = Task.async(fn -> Page.wait_for_selector!(page, ".zombo") end)
+    task = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ".zombo") end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
-    handle = Task.await(task, :infinity)
+    handle = Runtime.Promise.await(task)
     assert Page.evaluate!(page, "x => x.textContent", handle) == "anything"
   end
 
   test "should resolve promise when node is added", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
-    watchdog = Task.async(fn -> Frame.wait_for_selector!(frame, "div", state: :attached) end)
+    watchdog = Runtime.Promise.async(fn -> Frame.wait_for_selector!(frame, "div", state: :attached) end)
     Frame.evaluate!(frame, @add_element, "br")
     Frame.evaluate!(frame, @add_element, "div")
-    e_handle = Task.await(watchdog, :infinity)
+    e_handle = Runtime.Promise.await(watchdog)
     tag_name = e_handle |> JSHandle.get_property!("tagName") |> JSHandle.json_value!()
     assert tag_name == "DIV"
   end
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
 
   test "should resolve promise when node is added in shadow dom", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
-    watchdog = Task.async(fn -> Page.wait_for_selector!(page, "span") end)
+    watchdog = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "span") end)
 
     Page.evaluate!(page, """
     () => {
@@ -213,26 +213,26 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     }
     """)
 
-    handle = Task.await(watchdog, :infinity)
+    handle = Runtime.Promise.await(watchdog)
     assert JSHandle.evaluate!(handle, "e => e.textContent") == "Hello from shadow"
   end
 
   test "should work when node is added through innerHTML", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
-    watchdog = Task.async(fn -> Page.wait_for_selector!(page, "h3 div", state: :attached) end)
+    watchdog = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "h3 div", state: :attached) end)
     Page.evaluate!(page, @add_element, "span")
     Page.evaluate!(page, "() => document.querySelector('span').innerHTML = '<h3><div></div></h3>'")
-    Task.await(watchdog, :infinity)
+    Runtime.Promise.await(watchdog)
   end
 
   test "page.waitForSelector is shortcut for main frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Utils.attach_frame(page, "frame1", server.empty_page)
     other_frame = Enum.at(Page.frames(page), 1)
-    watchdog = Task.async(fn -> Page.wait_for_selector!(page, "div", state: :attached) end)
+    watchdog = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div", state: :attached) end)
     Frame.evaluate!(other_frame, @add_element, "div")
     Page.evaluate!(page, @add_element, "div")
-    e_handle = Task.await(watchdog, :infinity)
+    e_handle = Runtime.Promise.await(watchdog)
     assert ElementHandle.owner_frame!(e_handle) == Page.main_frame(page)
   end
 
@@ -241,19 +241,22 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     Utils.attach_frame(page, "frame2", server.empty_page)
     frame1 = Enum.at(Page.frames(page), 1)
     frame2 = Enum.at(Page.frames(page), 2)
-    wait_for_selector_promise = Task.async(fn -> Frame.wait_for_selector!(frame2, "div", state: :attached) end)
+
+    wait_for_selector_promise =
+      Runtime.Promise.async(fn -> Frame.wait_for_selector!(frame2, "div", state: :attached) end)
+
     Frame.evaluate!(frame1, @add_element, "div")
     Frame.evaluate!(frame2, @add_element, "div")
-    e_handle = Task.await(wait_for_selector_promise, :infinity)
+    e_handle = Runtime.Promise.await(wait_for_selector_promise)
     assert ElementHandle.owner_frame!(e_handle) == frame2
   end
 
   test "should throw when frame is detached", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
-    wait_promise = Task.async(fn -> Frame.wait_for_selector(frame, ".box") end)
+    wait_promise = Runtime.Promise.async(fn -> Frame.wait_for_selector(frame, ".box") end)
     Utils.detach_frame(page, "frame1")
-    {:error, wait_error} = Task.await(wait_promise, :infinity)
+    {:error, wait_error} = Runtime.Promise.await(wait_promise)
     assert wait_error
     assert Exception.message(wait_error) =~ "frame.waitForSelector: Frame was detached"
   end

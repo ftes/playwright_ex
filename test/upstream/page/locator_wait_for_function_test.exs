@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
   alias PlaywrightEx.AbortController
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -95,7 +96,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     controller = AbortController.new()
 
     task =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Locator.wait_for_function(
           Page.locator(page, "#target"),
           "element => element.textContent === 'yes'",
@@ -108,7 +109,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     Page.wait_for_timeout!(page, 100)
     reason = %RuntimeError{message: "Aborted by user"}
     AbortController.abort(controller, reason)
-    {:error, error} = Task.await(task, :infinity)
+    {:error, error} = Runtime.Promise.await(task)
     assert error.name == "AbortError"
     assert error.cause == reason
   end

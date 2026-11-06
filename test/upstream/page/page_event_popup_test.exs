@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageEventPopupTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -71,7 +72,7 @@ defmodule PlaywrightEx.Page.PageEventPopupTest do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
 
     evaluate_promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(page, """
         () => {
           const win = window.open('');
@@ -85,7 +86,7 @@ defmodule PlaywrightEx.Page.PageEventPopupTest do
     assert Dialog.message(dialog) == "hello"
     assert Dialog.page(dialog) == popup
     Dialog.dismiss!(dialog)
-    Task.await(evaluate_promise, :infinity)
+    Runtime.Promise.await(evaluate_promise)
   end
 
   test "should work with empty url", %{page: page} do

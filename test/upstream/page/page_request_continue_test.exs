@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -90,7 +91,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     me = self()
     Page.route!(page, "**/*", fn route -> send(me, {:route, route}) end)
     server_request_promise = TestServer.wait_for_request(server, "/empty.html")
-    goto = Task.async(fn -> Page.goto(page, server.empty_page) end)
+    goto = Runtime.Promise.async(fn -> Page.goto(page, server.empty_page) end)
     assert_receive {:route, route}, 5000
 
     Route.continue!(route,
@@ -100,7 +101,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     server_request = Task.await(server_request_promise, :infinity)
     assert req_header(server_request, "trailer") == nil
     assert req_header(server_request, "host") == url_host(server.empty_page)
-    Task.await(goto, :infinity)
+    Runtime.Promise.await(goto)
   end
 
   test "should delete header with undefined value", %{page: page, server: server} do
@@ -188,7 +189,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Page.goto!(page, server.empty_page)
 
     fetch =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate(
           page,
           """
@@ -208,7 +209,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Request.failure(cancelled_request).errorText =~ ~r/cancelled|aborted/i
     # Should not throw.
     Route.continue!(route)
-    Task.await(fetch, :infinity)
+    Runtime.Promise.await(fetch)
   end
 
   test "should override method along with url", %{page: page, server: server} do
@@ -764,9 +765,9 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     """)
 
     Page.route!(page, "**/*", &Route.continue/1)
-    url = Task.async(fn -> Page.wait_for_url!(page, "#{server.prefix}/final") end)
+    url = Runtime.Promise.async(fn -> Page.wait_for_url!(page, "#{server.prefix}/final") end)
     Locator.click!(Page.locator(page, "input"))
-    Task.await(url, :infinity)
+    Runtime.Promise.await(url)
     Expect.to_have_text!(Page.locator(page, "p"), "ok")
   end
 

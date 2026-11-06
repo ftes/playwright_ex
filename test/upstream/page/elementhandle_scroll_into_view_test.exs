@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -38,11 +39,11 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
 
   defp test_waiting(page, after_) do
     div = Page.query_selector!(page, "div")
-    task = Task.async(fn -> ElementHandle.scroll_into_view_if_needed!(div) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.scroll_into_view_if_needed!(div) end, shared: true)
     Page.wait_for_timeout!(page, 1000)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(div, after_)
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for display:none to become visible", %{page: page} do

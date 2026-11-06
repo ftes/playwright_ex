@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
 
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -15,9 +16,9 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
   end
 
   test "should respect timeout", %{page: page, server: server} do
-    promise = Task.async(fn -> Page.wait_for_url(page, "**/frame.html", timeout: 2500) end)
+    promise = Runtime.Promise.async(fn -> Page.wait_for_url(page, "**/frame.html", timeout: 2500) end)
     Page.goto!(page, server.empty_page)
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Exception.message(error) =~ "page.waitForURL: Timeout 2500ms exceeded."
   end
 
@@ -33,21 +34,22 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     end)
 
     css_request = TestServer.wait_for_request(server, "/one-style.css")
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/one-style.html") end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto!(page, server.prefix <> "/one-style.html") end)
 
     dom_content_loaded_promise =
-      Task.async(fn -> Page.wait_for_url!(page, "**/one-style.html", wait_until: :domcontentloaded) end)
+      Runtime.Promise.async(fn -> Page.wait_for_url!(page, "**/one-style.html", wait_until: :domcontentloaded) end)
 
     # `bothFired`: the load wait is still pending once domcontentloaded has fired.
-    load_promise = Task.async(fn -> Page.wait_for_url!(page, "**/one-style.html", wait_until: :load) end)
+    load_promise =
+      Runtime.Promise.async(fn -> Page.wait_for_url!(page, "**/one-style.html", wait_until: :load) end, shared: true)
 
     Task.await(css_request, :infinity)
     assert_receive {:response, response}
-    Task.await(dom_content_loaded_promise, :infinity)
-    assert Task.yield(load_promise, 0) == nil
+    Runtime.Promise.await(dom_content_loaded_promise)
+    refute Runtime.Promise.settled?(load_promise)
     send(response, :end)
-    Task.await(load_promise, :infinity)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(load_promise)
+    Runtime.Promise.await(navigation_promise)
   end
 
   test "should work with commit", %{page: page, server: server} do
@@ -59,7 +61,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
       |> Plug.Conn.send_resp(200, ~s(<title>Hello</title><script src="script.js"></script>))
     end)
 
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     Page.wait_for_url!(page, "**/empty.html", wait_until: :commit)
     assert Page.title!(page) == "Hello"
   end
@@ -132,14 +134,14 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
 
   test "should work with url match for same document navigations", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
-    wait_promise = Task.async(fn -> Page.wait_for_url!(page, ~r/third\.html/) end)
-    assert Task.yield(wait_promise, 0) == nil
+    wait_promise = Runtime.Promise.async(fn -> Page.wait_for_url!(page, ~r/third\.html/) end, shared: true)
+    refute Runtime.Promise.settled?(wait_promise)
     Page.evaluate!(page, "() => { history.pushState({}, '', '/first.html'); }")
-    assert Task.yield(wait_promise, 0) == nil
+    refute Runtime.Promise.settled?(wait_promise)
     Page.evaluate!(page, "() => { history.pushState({}, '', '/second.html'); }")
-    assert Task.yield(wait_promise, 0) == nil
+    refute Runtime.Promise.settled?(wait_promise)
     Page.evaluate!(page, "() => { history.pushState({}, '', '/third.html'); }")
-    assert Task.await(wait_promise, :infinity) == :ok
+    assert Runtime.Promise.await(wait_promise) == :ok
   end
 
   test "should work on frame", %{page: page, server: server} do

@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -748,7 +749,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     <div>Hello</div>
     """)
 
-    snapshot_promise = Task.async(fn -> Locator.aria_snapshot!(Page.locator(page, "#target")) end)
+    snapshot_promise = Runtime.Promise.async(fn -> Locator.aria_snapshot!(Page.locator(page, "#target")) end)
     Page.wait_for_timeout!(page, 2000)
 
     Page.set_content!(page, """
@@ -758,7 +759,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     </div>
     """)
 
-    assert contains_yaml?(Task.await(snapshot_promise, :infinity), """
+    assert contains_yaml?(Runtime.Promise.await(snapshot_promise), """
            - text: Hello
            """)
   end

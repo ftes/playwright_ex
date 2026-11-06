@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageBasicTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -47,9 +48,9 @@ defmodule PlaywrightEx.Page.PageBasicTest do
   test "should fire domcontentloaded when expected", %{page: page} do
     # deviation: subscribe-first (OTP runtime)
     dom_content_loaded = Page.wait_for_event(page, :dom_content_loaded)
-    navigated_promise = Task.async(fn -> Page.goto!(page, "about:blank") end)
+    navigated_promise = Runtime.Promise.async(fn -> Page.goto!(page, "about:blank") end)
     Promise.await!(dom_content_loaded)
-    Task.await(navigated_promise, :infinity)
+    Runtime.Promise.await(navigated_promise)
   end
 
   test "should pass self as argument to domcontentloaded event", %{page: page} do
@@ -94,9 +95,9 @@ defmodule PlaywrightEx.Page.PageBasicTest do
 
   test "page.title should not throw during navigation", %{page: page, server: server} do
     Page.set_content!(page, "<title>hello</title>")
-    promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/title.html") end)
+    promise = Runtime.Promise.async(fn -> Page.goto!(page, server.prefix <> "/title.html") end)
     title_or_error = Page.title!(page)
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
     assert is_binary(title_or_error)
     assert title_or_error =~ ~r/^(hello|Loading http.*title.html||Woof-Woof)$/
     Expect.to_have_title!(page, "Woof-Woof")

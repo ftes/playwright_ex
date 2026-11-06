@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -406,30 +407,30 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
     test "with frameLocator", %{page: page} do
       Page.set_content!(page, "<div></div>")
       locator = page |> Page.frame_locator("iframe") |> FrameLocator.locator("input")
-      promise = Task.async(fn -> Expect.to_be_visible!(locator) end)
+      promise = Runtime.Promise.async(fn -> Expect.to_be_visible!(locator) end, shared: true)
       Page.wait_for_timeout!(page, 1000)
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       Page.set_content!(page, ~s(<iframe srcdoc="<input>"></iframe>))
-      assert Task.await(promise, :infinity) == :ok
+      assert Runtime.Promise.await(promise) == :ok
     end
 
     test "with frameLocator 2", %{page: page} do
       Page.set_content!(page, "<iframe></iframe>")
       locator = page |> Page.frame_locator("iframe") |> FrameLocator.locator("input")
-      promise = Task.async(fn -> Expect.to_be_visible!(locator) end)
+      promise = Runtime.Promise.async(fn -> Expect.to_be_visible!(locator) end, shared: true)
       Page.wait_for_timeout!(page, 1000)
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       Page.set_content!(page, ~s(<iframe srcdoc="<input>"></iframe>))
-      assert Task.await(promise, :infinity) == :ok
+      assert Runtime.Promise.await(promise) == :ok
     end
 
     test "over navigation", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
-      promise = Task.async(fn -> Expect.to_be_visible!(Page.locator(page, "input")) end)
+      promise = Runtime.Promise.async(fn -> Expect.to_be_visible!(Page.locator(page, "input")) end, shared: true)
       Page.wait_for_timeout!(page, 1000)
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       Page.goto!(page, server.prefix <> "/input/checkbox.html")
-      assert Task.await(promise, :infinity) == :ok
+      assert Runtime.Promise.await(promise) == :ok
     end
   end
 
@@ -700,20 +701,20 @@ defmodule PlaywrightEx.Page.ExpectBooleanTest do
     test "with frameLocator", %{page: page} do
       Page.set_content!(page, "<div></div>")
       locator = page |> Page.frame_locator("iframe") |> FrameLocator.locator("input")
-      promise = Task.async(fn -> Expect.to_be_attached!(locator) end)
+      promise = Runtime.Promise.async(fn -> Expect.to_be_attached!(locator) end, shared: true)
       Page.wait_for_timeout!(page, 1000)
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       Page.set_content!(page, ~s(<iframe srcdoc="<input>"></iframe>))
-      assert Task.await(promise, :infinity) == :ok
+      assert Runtime.Promise.await(promise) == :ok
     end
 
     test "over navigation", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
-      promise = Task.async(fn -> Expect.to_be_attached!(Page.locator(page, "input")) end)
+      promise = Runtime.Promise.async(fn -> Expect.to_be_attached!(Page.locator(page, "input")) end, shared: true)
       Page.wait_for_timeout!(page, 1000)
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       Page.goto!(page, server.prefix <> "/input/checkbox.html")
-      assert Task.await(promise, :infinity) == :ok
+      assert Runtime.Promise.await(promise) == :ok
     end
   end
 end

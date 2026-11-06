@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -15,11 +16,11 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
   test "should wait for visible", %{page: page} do
     Page.set_content!(page, "<div style='display:none'>content</div>")
     div = Page.query_selector!(page, "div")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(div, :visible) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(div, :visible) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(div, "div => div.style.display = 'block'")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for already visible", %{page: page} do
@@ -38,20 +39,20 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
   test "should throw waiting for visible when detached", %{page: page} do
     Page.set_content!(page, "<div style='display:none'>content</div>")
     div = Page.query_selector!(page, "div")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state(div, :visible) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state(div, :visible) end)
     JSHandle.evaluate!(div, "div => div.remove()")
-    {:error, error} = Task.await(task, :infinity)
+    {:error, error} = Runtime.Promise.await(task)
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
   test "should wait for hidden", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     div = Page.query_selector!(page, "div")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(div, :hidden) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(div, :hidden) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(div, "div => div.style.display = 'none'")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for already hidden", %{page: page} do
@@ -63,40 +64,40 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
   test "should wait for hidden when detached", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     div = Page.query_selector!(page, "div")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(div, :hidden) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(div, :hidden) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(div, "div => div.remove()")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should throw waiting for enabled when detached", %{page: page} do
     Page.set_content!(page, "<button disabled>Target</button>")
     button = Page.query_selector!(page, "button")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state(button, :enabled) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state(button, :enabled) end)
     JSHandle.evaluate!(button, "button => button.remove()")
-    {:error, error} = Task.await(task, :infinity)
+    {:error, error} = Runtime.Promise.await(task)
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
   test "should wait for aria enabled button", %{page: page} do
     Page.set_content!(page, "<button aria-disabled=true><span>Target</span></button>")
     span = Page.query_selector!(page, "text=Target")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(span, "span => span.parentElement.setAttribute('aria-disabled', 'false')")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for button with an aria-disabled parent", %{page: page} do
     Page.set_content!(page, ~s(<div role="group" aria-disabled=true><button><span>Target</span></button></div>))
     span = Page.query_selector!(page, "text=Target")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(span, "span => span.parentElement.parentElement.setAttribute('aria-disabled', 'false')")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for stable position", %{page: page, server: server} do
@@ -112,20 +113,20 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
 
     # rafraf for Firefox to kick in the animation.
     rafraf(page)
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(button, :stable) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(button, :stable) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(button, "button => button.style.transition = ''")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for editable input", %{page: page} do
     Page.set_content!(page, "<input readonly>")
     input = Page.query_selector!(page, "input")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(input, :editable) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(input, :editable) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(input, "input => input.readOnly = false")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 end

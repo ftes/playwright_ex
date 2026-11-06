@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -221,12 +222,12 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       Page.evaluate!(page, "() => window.scrollBy(50, 100)")
       element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
       JSHandle.evaluate!(element_handle, "e => e.style.visibility = 'hidden'")
-      promise = Task.async(fn -> ElementHandle.screenshot!(element_handle) end)
+      promise = Runtime.Promise.async(fn -> ElementHandle.screenshot!(element_handle) end, shared: true)
       rafraf(page, 10)
       # done is false
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       JSHandle.evaluate!(element_handle, "e => e.style.visibility = 'visible'")
-      screenshot = Task.await(promise, :infinity)
+      screenshot = Runtime.Promise.await(promise)
       to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
     end
 

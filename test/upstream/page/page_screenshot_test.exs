@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -600,12 +601,12 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       Page.route!(page, "**/subframe.html", fn route -> send(test, {:route, route}) end)
 
       Page.goto!(page, server.empty_page)
-      done = Task.async(fn -> Page.set_content!(page, "<iframe src='/subframe.html'></iframe>") end)
+      done = Runtime.Promise.async(fn -> Page.set_content!(page, "<iframe src='/subframe.html'></iframe>") end)
       assert_receive {:route, route}, 5000
 
       Page.screenshot!(page, mask: [Page.locator(page, "non-existent")])
       Route.fulfill!(route, body: "")
-      Task.await(done, :infinity)
+      Runtime.Promise.await(done)
     end
 
     test "should work when subframe used document.open after a weird url", %{page: page, server: server} do

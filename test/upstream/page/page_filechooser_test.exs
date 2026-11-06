@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.TimeoutError
 
@@ -37,7 +38,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   # `page.waitForEvent('filechooser').then(fileChooser => fileChooser.setFiles(files))`
   defp set_files_on_chooser(page, files) do
     promise = Page.wait_for_event(page, :file_chooser)
-    Task.async(fn -> promise |> Promise.await!() |> FileChooser.set_files!(files) end)
+    Runtime.Promise.async(fn -> promise |> Promise.await!() |> FileChooser.set_files!(files) end)
   end
 
   # A listener that refers to itself (`const listener = chooser => { page.off(..., listener); ... }`):
@@ -152,7 +153,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
       }
       """)
 
-    Task.await(set_files, :infinity)
+    Runtime.Promise.await(set_files)
     assert content == "contents of the file"
   end
 
@@ -300,7 +301,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.set_content!(page, "<input type=file>")
     set_files = set_files_on_chooser(page, asset.("file-to-upload.txt"))
     content = Page.eval_on_selector!(page, "input", @read_selected_file)
-    Task.await(set_files, :infinity)
+    Runtime.Promise.await(set_files)
     assert content == "contents of the file"
   end
 
@@ -308,11 +309,11 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.set_content!(page, "<input type=file>")
     set_files1 = set_files_on_chooser(page, asset.("file-to-upload.txt"))
     file_length1 = Page.eval_on_selector!(page, "input", @pick_files_length)
-    Task.await(set_files1, :infinity)
+    Runtime.Promise.await(set_files1)
     assert file_length1 == 1
     set_files2 = set_files_on_chooser(page, [])
     file_length2 = Page.eval_on_selector!(page, "input", @pick_files_length)
-    Task.await(set_files2, :infinity)
+    Runtime.Promise.await(set_files2)
     assert file_length2 == 0
   end
 

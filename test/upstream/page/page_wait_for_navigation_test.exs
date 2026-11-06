@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
 
@@ -73,7 +74,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     # `bothFired` is false while the load wait is pending.
     load_promise = Page.wait_for_navigation(page, wait_until: :load)
     both_fired = then_resolved(load_promise)
-    navigation_promise = Task.async(fn -> Page.goto!(page, server.prefix <> "/one-style.html") end)
+    navigation_promise = Runtime.Promise.async(fn -> Page.goto!(page, server.prefix <> "/one-style.html") end)
 
     Task.await(css_request, :infinity)
     assert_receive {:response, response}
@@ -81,7 +82,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     refute resolved?(both_fired)
     send(response, :end)
     Promise.await!(load_promise)
-    Task.await(navigation_promise, :infinity)
+    Runtime.Promise.await(navigation_promise)
   end
 
   test "should work with commit", %{page: page, server: server} do
@@ -95,7 +96,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
 
     # deviation: subscribe-first (OTP runtime)
     navigation = Page.wait_for_navigation(page, wait_until: :commit)
-    Task.start(fn -> Page.goto(page, server.empty_page) end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.empty_page) end)
     Promise.await!(navigation)
     assert Page.title!(page) == "Hello"
   end
@@ -176,11 +177,13 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     TestServer.set_route(server, "/frames/style.css", &hang/1)
     Page.once(page, :frame_attached, fn frame -> send(test, {:attached, frame}) end)
     Page.on(page, :frame_navigated, fn frame -> send(test, {:navigated, frame}) end)
-    done = Task.async(fn -> Page.goto(page, server.prefix <> "/frames/one-frame.html") end)
+    done = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/frames/one-frame.html") end, shared: true)
     assert_receive {:attached, frame}, 5000
     assert_receive {:navigated, ^frame}, 5000
     Frame.evaluate!(frame, "() => window.stop()")
-    assert {:ok, _} = Task.await(done, :infinity)
+    # `expect(done).toBe(true)`: the goto reply may still be in flight here, so a short bound.
+    Utils.to_pass(fn -> assert Runtime.Promise.settled?(done) end, timeout: 1000, intervals: [10])
+    assert {:ok, _} = Runtime.Promise.await(done)
   end
 
   test "should work with url match", %{page: page, server: server} do
@@ -236,12 +239,12 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     Page.goto!(page, server.empty_page)
     wait_promise = Page.wait_for_navigation(page, wait_until: :domcontentloaded)
     url = server.cross_process_prefix <> "/empty.html"
-    goto_promise = Task.async(fn -> Page.goto!(page, url) end)
+    goto_promise = Runtime.Promise.async(fn -> Page.goto!(page, url) end)
     response = Promise.await!(wait_promise)
     assert Response.url(response) == url
     assert Page.url(page) == url
     assert Page.evaluate!(page, "document.location.href") == url
-    Task.await(goto_promise, :infinity)
+    Runtime.Promise.await(goto_promise)
   end
 
   test "should work on frame", %{page: page, server: server} do

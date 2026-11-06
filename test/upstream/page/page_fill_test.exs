@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -316,13 +317,13 @@ defmodule PlaywrightEx.Page.PageFillTest do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.eval_on_selector!(page, "input", "i => i.disabled = true")
 
-    task = Task.async(fn -> Page.fill!(page, "input", "some value") end)
+    task = Runtime.Promise.async(fn -> Page.fill!(page, "input", "some value") end, shared: true)
     give_it_a_chance_to_fill(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     assert Page.evaluate!(page, "() => window['result']") == ""
 
     Page.eval_on_selector!(page, "input", "i => i.disabled = false")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
@@ -330,13 +331,13 @@ defmodule PlaywrightEx.Page.PageFillTest do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.eval_on_selector!(page, "textarea", "i => i.readOnly = true")
 
-    task = Task.async(fn -> Page.fill!(page, "textarea", "some value") end)
+    task = Runtime.Promise.async(fn -> Page.fill!(page, "textarea", "some value") end, shared: true)
     give_it_a_chance_to_fill(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     assert Page.evaluate!(page, "() => window['result']") == ""
 
     Page.eval_on_selector!(page, "textarea", "i => i.readOnly = false")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
@@ -344,13 +345,13 @@ defmodule PlaywrightEx.Page.PageFillTest do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.eval_on_selector!(page, "input", "i => i.style.display = 'none'")
 
-    task = Task.async(fn -> Page.fill!(page, "input", "some value") end)
+    task = Runtime.Promise.async(fn -> Page.fill!(page, "input", "some value") end, shared: true)
     give_it_a_chance_to_fill(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     assert Page.evaluate!(page, "() => window['result']") == ""
 
     Page.eval_on_selector!(page, "input", "i => i.style.display = 'inline'")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 

@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -27,7 +28,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
 
   defp hang(_conn), do: Process.sleep(:infinity)
 
-  # The action runs in a task: `actionFinished` is `Task.yield(task, 0) != nil`.
+  # `actionFinished` is `Runtime.Promise.settled?(action_promise)`.
   defp network_idle_test(frame, server, action, is_set_content \\ false) do
     wait_for_request = fn suffix ->
       {TestServer.wait_for_request(server, suffix), Page.wait_for_request(Frame.page(frame), server.prefix <> suffix)}
@@ -48,15 +49,15 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
 
     # Navigate to a page which loads immediately and then does a bunch of
     # requests via javascript's fetch method.
-    action_promise = Task.async(action)
+    action_promise = Runtime.Promise.async(action, shared: true)
 
     # Wait for the frame's 'load' event.
     if wait_for_load_promise, do: Promise.await!(wait_for_load_promise)
-    refute Task.yield(action_promise, 0)
+    refute Runtime.Promise.settled?(action_promise)
 
     # Wait for the initial resource to be requested.
     await_both.(first_fetch_resource_requested)
-    refute Task.yield(action_promise, 0)
+    refute Runtime.Promise.settled?(action_promise)
 
     # Trigger the second request.
     Page.evaluate!(Frame.page(frame), "() => window['fetchSecond']()")
@@ -66,14 +67,14 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
 
     # Wait for the second round to be requested.
     await_both.(second_fetch_resource_requested)
-    refute Task.yield(action_promise, 0)
+    refute Runtime.Promise.settled?(action_promise)
 
     # Finishing the second response should trigger networkidle.
     timer = System.monotonic_time(:millisecond)
     assert_receive {:response_b, response_b}
     send(response_b, {:end, 404, "File not found"})
 
-    response = Task.await(action_promise, :infinity)
+    response = Runtime.Promise.await(action_promise)
     timer_triggered = System.monotonic_time(:millisecond) - timer >= 500
     assert timer_triggered == true
     if !is_set_content, do: assert(Response.ok(response) == true)
@@ -104,7 +105,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
   test "should wait for networkidle in waitForNavigation", %{page: page, server: server} do
     network_idle_test(Page.main_frame(page), server, fn ->
       promise = Page.wait_for_navigation(page, wait_until: :networkidle)
-      Task.start(fn -> Page.goto(page, server.prefix <> "/networkidle.html") end)
+      Runtime.Promise.void(fn -> Page.goto(page, server.prefix <> "/networkidle.html") end)
       Promise.await!(promise)
     end)
   end
@@ -181,26 +182,29 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     TestServer.set_route(server, "/empty.html", &hang/1)
 
     promise =
-      Task.async(fn ->
-        Page.set_content!(
-          page,
-          """
-          <body>
-            <script>
-              const iframe = document.createElement('iframe');
-              iframe.src = #{JSON.encode!(server.empty_page)};
-              document.body.appendChild(iframe);
-            </script>
-          </body>
-          """,
-          wait_until: :networkidle
-        )
-      end)
+      Runtime.Promise.async(
+        fn ->
+          Page.set_content!(
+            page,
+            """
+            <body>
+              <script>
+                const iframe = document.createElement('iframe');
+                iframe.src = #{JSON.encode!(server.empty_page)};
+                document.body.appendChild(iframe);
+              </script>
+            </body>
+            """,
+            wait_until: :networkidle
+          )
+        end,
+        shared: true
+      )
 
     Page.wait_for_timeout!(page, 600)
-    refute Task.yield(promise, 0)
+    refute Runtime.Promise.settled?(promise)
     Page.evaluate!(page, "() => { document.querySelector('iframe').remove(); }")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   # issue: https://github.com/microsoft/playwright/issues/18283

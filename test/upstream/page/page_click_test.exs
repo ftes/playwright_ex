@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   defp give_it_a_chance_to_click(page), do: rafraf(page, 5)
 
   # `const p = action().then(() => done = true)`: `done?(task)` tells whether it has settled.
-  defp done?(task), do: Task.yield(task, 0) != nil
+  defp done?(promise), do: Runtime.Promise.settled?(promise)
 
   # `expect.poll(fun).toEqual(expected)`: the last value of `fun`, polled until it equals `expected`.
   defp poll(fun, expected, tries \\ 100) do
@@ -241,35 +241,35 @@ defmodule PlaywrightEx.Page.PageClickTest do
   test "should waitFor display:none to be gone", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.display = 'none'")
-    clicked = Task.async(fn -> Page.click!(page, "button", timeout: 0) end)
+    clicked = Runtime.Promise.async(fn -> Page.click!(page, "button", timeout: 0) end, shared: true)
     give_it_a_chance_to_click(page)
     assert Page.evaluate!(page, "result") == "Was not clicked"
     refute done?(clicked)
     Page.eval_on_selector!(page, "button", "b => b.style.display = 'block'")
-    Task.await(clicked, :infinity)
+    Runtime.Promise.await(clicked)
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
   test "should waitFor visibility:hidden to be gone", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.visibility = 'hidden'")
-    clicked = Task.async(fn -> Page.click!(page, "button", timeout: 0) end)
+    clicked = Runtime.Promise.async(fn -> Page.click!(page, "button", timeout: 0) end, shared: true)
     give_it_a_chance_to_click(page)
     assert Page.evaluate!(page, "result") == "Was not clicked"
     refute done?(clicked)
     Page.eval_on_selector!(page, "button", "b => b.style.visibility = 'visible'")
-    Task.await(clicked, :infinity)
+    Runtime.Promise.await(clicked)
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
   test "should waitFor visible when parent is hidden", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.parentElement.style.display = 'none'")
-    clicked = Task.async(fn -> Page.click!(page, "button", timeout: 0) end)
+    clicked = Runtime.Promise.async(fn -> Page.click!(page, "button", timeout: 0) end, shared: true)
     give_it_a_chance_to_click(page)
     refute done?(clicked)
     Page.eval_on_selector!(page, "button", "b => b.parentElement.style.display = 'block'")
-    Task.await(clicked, :infinity)
+    Runtime.Promise.await(clicked)
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
@@ -609,7 +609,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   test "should wait for becoming hit target", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", @fly_over)
-    click_promise = Task.async(fn -> Page.click!(page, "button") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "button") end, shared: true)
     refute done?(click_promise)
 
     Page.eval_on_selector!(page, ".flyover", "flyOver => flyOver.style.left = '0'")
@@ -617,14 +617,14 @@ defmodule PlaywrightEx.Page.PageClickTest do
     refute done?(click_promise)
 
     Page.eval_on_selector!(page, ".flyover", "flyOver => flyOver.style.left = '200px'")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
   test "should wait for becoming hit target with trial run", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", @fly_over)
-    click_promise = Task.async(fn -> Page.click!(page, "button", trial: true) end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "button", trial: true) end, shared: true)
     refute done?(click_promise)
 
     Page.eval_on_selector!(page, ".flyover", "flyOver => flyOver.style.left = '0'")
@@ -632,7 +632,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     refute done?(click_promise)
 
     Page.eval_on_selector!(page, ".flyover", "flyOver => flyOver.style.left = '200px'")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
 
     # Should not actually click.
     assert Page.evaluate!(page, "() => window['result']") == "Was not clicked"
@@ -693,23 +693,23 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
   test "should wait for button to be enabled", %{page: page} do
     Page.set_content!(page, ~s(<button onclick="window.__CLICKED=true;" disabled><span>Click target</span></button>))
-    click_promise = Task.async(fn -> Page.click!(page, "text=Click target") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "text=Click target") end, shared: true)
     give_it_a_chance_to_click(page)
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('button').removeAttribute('disabled')")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
   test "should wait for input to be enabled", %{page: page} do
     Page.set_content!(page, ~s(<input onclick="window.__CLICKED=true;" disabled>))
-    click_promise = Task.async(fn -> Page.click!(page, "input") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "input") end, shared: true)
     give_it_a_chance_to_click(page)
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('input').removeAttribute('disabled')")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -724,12 +724,12 @@ defmodule PlaywrightEx.Page.PageClickTest do
       </script>
     """)
 
-    click_promise = Task.async(fn -> Page.click!(page, "select") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "select") end, shared: true)
     give_it_a_chance_to_click(page)
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('select').removeAttribute('disabled')")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -745,12 +745,12 @@ defmodule PlaywrightEx.Page.PageClickTest do
       ~s(<button onclick="window.__CLICKED=true" style="pointer-events:none"><span>Click target</span></button>)
     )
 
-    click_promise = Task.async(fn -> Page.click!(page, "text=Click target") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "text=Click target") end, shared: true)
     give_it_a_chance_to_click(page)
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('button').style.removeProperty('pointer-events')")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -760,12 +760,12 @@ defmodule PlaywrightEx.Page.PageClickTest do
       ~s(<label onclick="window.__CLICKED=true" style="pointer-events:none"><span>Click target</span></label>)
     )
 
-    click_promise = Task.async(fn -> Page.click!(page, "text=Click target") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "text=Click target") end)
     # Do a few roundtrips to the page.
     for _ <- 1..5, do: assert(Page.evaluate!(page, "window.__CLICKED") == nil)
     # remove `pointer-events: none` css from button.
     Page.evaluate!(page, "() => document.querySelector('label').style.removeProperty('pointer-events')")
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
@@ -811,9 +811,9 @@ defmodule PlaywrightEx.Page.PageClickTest do
     Page.goto!(page, server.prefix <> "/input/animating-button.html")
     Page.evaluate!(page, "addButton()")
     handle = Page.query_selector!(page, "button")
-    promise = Task.async(fn -> ElementHandle.click(handle) end)
+    promise = Runtime.Promise.async(fn -> ElementHandle.click(handle) end)
     Page.evaluate!(page, "stopButton(true)")
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Page.evaluate!(page, "window.clicked") == nil
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
@@ -821,7 +821,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   test "should retry when element detaches after animation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/animating-button.html")
     Page.evaluate!(page, "addButton()")
-    promise = Task.async(fn -> Page.click!(page, "button") end)
+    promise = Runtime.Promise.async(fn -> Page.click!(page, "button") end, shared: true)
     refute done?(promise)
     assert Page.evaluate!(page, "window.clicked") == nil
     Page.evaluate!(page, "stopButton(true)")
@@ -833,7 +833,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     refute done?(promise)
     assert Page.evaluate!(page, "window.clicked") == nil
     Page.evaluate!(page, "stopButton(false)")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
     assert Page.evaluate!(page, "clicked") == true
   end
 
@@ -862,18 +862,18 @@ defmodule PlaywrightEx.Page.PageClickTest do
   test "should retry when element is animating from outside the viewport", %{page: page} do
     Page.set_content!(page, @animating_from_outside)
     handle = Page.query_selector!(page, "button")
-    promise = Task.async(fn -> ElementHandle.click!(handle) end)
+    promise = Runtime.Promise.async(fn -> ElementHandle.click!(handle) end)
     JSHandle.evaluate!(handle, "button => button.className = 'animated'")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
     assert Page.evaluate!(page, "clicked") == true
   end
 
   test "should fail when element is animating from outside the viewport with force", %{page: page} do
     Page.set_content!(page, @animating_from_outside)
     handle = Page.query_selector!(page, "button")
-    promise = Task.async(fn -> ElementHandle.click(handle, force: true) end)
+    promise = Runtime.Promise.async(fn -> ElementHandle.click(handle, force: true) end)
     JSHandle.evaluate!(handle, "button => button.className = 'animated'")
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Page.evaluate!(page, "window.clicked") == nil
     assert Exception.message(error) =~ "Element is outside of the viewport"
   end
@@ -1327,7 +1327,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     controller = AbortController.new()
 
     task =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         page |> Page.locator("button") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
       end)
 
@@ -1336,7 +1336,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
 
     reason = %RuntimeError{message: "foo bar"}
     AbortController.abort(controller, reason)
-    {:error, error} = Task.await(task, :infinity)
+    {:error, error} = Runtime.Promise.await(task)
     assert error.message =~ "locator.click: foo bar"
     assert error.message =~ ~r/Call log:[\s\S]*operation was aborted: foo bar/
     assert error.name == "AbortError"

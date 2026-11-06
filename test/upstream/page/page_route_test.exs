@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -249,23 +250,26 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Page.route!(page, "**/global-var.html", fn route -> send(me, {:route, route}) end)
 
     status_promise =
-      Task.async(fn ->
-        Page.evaluate!(page, """
-        async () => {
-          const request = new XMLHttpRequest();
-          request.open('GET', '/global-var.html', false);  // `false` makes the request synchronous
-          request.send(null);
-          return request.status;
-        }
-        """)
-      end)
+      Runtime.Promise.async(
+        fn ->
+          Page.evaluate!(page, """
+          async () => {
+            const request = new XMLHttpRequest();
+            request.open('GET', '/global-var.html', false);  // `false` makes the request synchronous
+            request.send(null);
+            return request.status;
+          }
+          """)
+        end,
+        shared: true
+      )
 
     assert_receive {:route, route}, 5000
     # Check that intercepted request is actually paused.
     Process.sleep(500)
-    assert Task.yield(status_promise, 0) == nil
+    refute Runtime.Promise.settled?(status_promise)
     Route.continue!(route)
-    assert Task.await(status_promise, :infinity) == 200
+    assert Runtime.Promise.await(status_promise) == 200
   end
 
   test "should pause intercepted fetch request until continue", %{page: page, server: server} do
@@ -274,21 +278,24 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Page.route!(page, "**/global-var.html", fn route -> send(me, {:route, route}) end)
 
     status_promise =
-      Task.async(fn ->
-        Page.evaluate!(page, """
-        async () => {
-          const response = await fetch('/global-var.html');
-          return response.status;
-        }
-        """)
-      end)
+      Runtime.Promise.async(
+        fn ->
+          Page.evaluate!(page, """
+          async () => {
+            const response = await fetch('/global-var.html');
+            return response.status;
+          }
+          """)
+        end,
+        shared: true
+      )
 
     assert_receive {:route, route}, 5000
     # Check that intercepted request is actually paused.
     Process.sleep(500)
-    assert Task.yield(status_promise, 0) == nil
+    refute Runtime.Promise.settled?(status_promise)
     Route.continue!(route)
-    assert Task.await(status_promise, :infinity) == 200
+    assert Runtime.Promise.await(status_promise) == 200
   end
 
   test "should work with custom referer headers", %{
@@ -348,7 +355,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     Page.route!(page, "**/data.json", fn route -> send(me, {:route, route}) end)
     Page.goto!(page, server.empty_page)
 
-    Task.start(fn ->
+    Runtime.Promise.void(fn ->
       Page.evaluate(
         page,
         """
@@ -1291,7 +1298,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     test "route.#{method} should throw if called twice", %{page: page, server: server} do
       me = self()
       Page.route!(page, "**/*", &send(me, {:route, &1}))
-      Task.start(fn -> Page.goto(page, server.prefix <> "/empty.html") end)
+      Runtime.Promise.void(fn -> Page.goto(page, server.prefix <> "/empty.html") end)
       assert_receive {:route, route}, 5000
       apply(Route, :"#{@method}!", [route])
       {:error, e} = apply(Route, @method, [route])

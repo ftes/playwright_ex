@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Page.EvalOnSelectorTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -186,17 +187,17 @@ defmodule PlaywrightEx.Page.EvalOnSelectorTest do
   end
 
   test "should work with spaces in css attributes when missing", %{page: page} do
-    input_promise = Task.async(fn -> Page.wait_for_selector!(page, ~s([placeholder="Select date"])) end)
+    input_promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ~s([placeholder="Select date"])) end)
     assert Page.query_selector!(page, ~s([placeholder="Select date"])) == nil
     Page.set_content!(page, ~s(<div><input placeholder="Select date"></div>))
-    Task.await(input_promise, :infinity)
+    Runtime.Promise.await(input_promise)
   end
 
   test "should work with quotes in css attributes when missing", %{page: page} do
-    input_promise = Task.async(fn -> Page.wait_for_selector!(page, ~S([placeholder="Select\"date"])) end)
+    input_promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ~S([placeholder="Select\"date"])) end)
     assert Page.query_selector!(page, ~S([placeholder="Select\"date"])) == nil
     Page.set_content!(page, ~s(<div><input placeholder="Select&quot;date"></div>))
-    Task.await(input_promise, :infinity)
+    Runtime.Promise.await(input_promise)
   end
 
   test "should return complex values", %{page: page} do

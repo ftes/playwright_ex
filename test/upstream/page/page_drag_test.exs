@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Utils
 
   @moduletag :page
@@ -411,7 +412,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
     Page.set_content!(page, ~s(<button draggable="true">Draggable</button>))
 
     result_promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate!(page, """
         () =>
           new Promise(resolve => {
@@ -442,7 +443,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
     Mouse.move!(Page.mouse(page), 100, 100)
     Mouse.up!(Page.mouse(page))
 
-    assert Task.await(result_promise, :infinity) == %{"types" => ["custom-type"], "data" => "Hello World"}
+    assert Runtime.Promise.await(result_promise) == %{"types" => ["custom-type"], "data" => "Hello World"}
   end
 
   test "what happens when dragging element is destroyed", %{page: page} do

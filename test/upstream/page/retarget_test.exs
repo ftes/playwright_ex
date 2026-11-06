@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -36,31 +37,31 @@ defmodule PlaywrightEx.Page.RetargetTest do
   test "should wait for enclosing disabled button", %{page: page} do
     Page.set_content!(page, "<button><span>Target</span></button>")
     span = Page.query_selector!(page, "text=Target")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(span, :disabled) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :disabled) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(span, "span => span.parentElement.disabled = true")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for enclosing button with a disabled fieldset", %{page: page} do
     Page.set_content!(page, "<fieldset disabled=true><button><span>Target</span></button></div>")
     span = Page.query_selector!(page, "text=Target")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(span, "span => span.parentElement.parentElement.disabled = false")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should wait for enclosing enabled button", %{page: page} do
     Page.set_content!(page, "<button disabled><span>Target</span></button>")
     span = Page.query_selector!(page, "text=Target")
-    task = Task.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
     give_it_a_chance_to_resolve(page)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(span, "span => span.parentElement.disabled = false")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 
   test "should check the box outside shadow dom label", %{page: page} do

@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -109,7 +110,8 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     me = self()
     Page.route!(page, "**/title.html", fn route -> send(me, {:route, route}) end)
 
-    eval_promise = Task.async(fn -> Page.evaluate!(page, "url => fetch(url)", server.prefix <> "/title.html") end)
+    eval_promise =
+      Runtime.Promise.async(fn -> Page.evaluate!(page, "url => fetch(url)", server.prefix <> "/title.html") end)
 
     assert_receive {:route, route}, 5000
     response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
@@ -126,7 +128,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
            ]
 
     Route.fulfill!(route, response: response)
-    Task.await(eval_promise, :infinity)
+    Runtime.Promise.await(eval_promise)
   end
 
   test "should give access to the intercepted response body", %{page: page, server: server} do
@@ -135,7 +137,8 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     me = self()
     Page.route!(page, "**/simple.json", fn route -> send(me, {:route, route}) end)
 
-    eval_promise = Task.async(fn -> Page.evaluate(page, "url => fetch(url)", server.prefix <> "/simple.json") end)
+    eval_promise =
+      Runtime.Promise.async(fn -> Page.evaluate(page, "url => fetch(url)", server.prefix <> "/simple.json") end)
 
     assert_receive {:route, route}, 5000
     response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
@@ -143,7 +146,7 @@ defmodule PlaywrightEx.Page.PageRequestInterceptTest do
     assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
 
     Route.fulfill!(route, response: response)
-    Task.await(eval_promise, :infinity)
+    Runtime.Promise.await(eval_promise)
   end
 
   # it.fixme(browserName !== 'firefox')

@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
   alias PlaywrightEx.AbortController
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TimeoutError
 
   @moduletag :page
@@ -82,19 +83,19 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   test "should not throw when navigating during one-shot check", %{page: page, server: server} do
     Page.set_content!(page, "<div>hello</div>")
-    promise = Task.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
+    promise = Runtime.Promise.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<div>bye</div>")
-    assert Task.await(promise, :infinity) == :ok
+    assert Runtime.Promise.await(promise) == :ok
   end
 
   test "should not throw when navigating during first locator handler check", %{page: page, server: server} do
     Page.add_locator_handler!(page, Page.locator(page, "span"), fn _locator -> :ok end)
     Page.set_content!(page, "<div>hello</div>")
-    promise = Task.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
+    promise = Runtime.Promise.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<div>bye</div>")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "should timeout during first locator handler check", %{page: page} do
@@ -136,13 +137,13 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     controller = AbortController.new()
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Expect.to_be_visible(Page.locator(page, "span"), timeout: 5000, signal: AbortController.signal(controller))
       end)
 
     Page.wait_for_timeout!(page, 500)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     refute error.name == "AbortError"
 
     expected = """
@@ -166,7 +167,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     controller = AbortController.new()
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Expect.to_have_text(Page.locator(page, "span"), "missing",
           timeout: 5000,
           signal: AbortController.signal(controller)
@@ -175,7 +176,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 300)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     refute error.name == "AbortError"
     assert error.message =~ "expect(locator).toHaveText(expected) failed"
   end
@@ -185,13 +186,13 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     controller = AbortController.new()
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Expect.to_have_count(Page.locator(page, "span"), 3, timeout: 5000, signal: AbortController.signal(controller))
       end)
 
     Page.wait_for_timeout!(page, 300)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     refute error.name == "AbortError"
     assert error.message =~ "expect(locator).toHaveCount(expected) failed"
   end
@@ -201,7 +202,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     controller = AbortController.new()
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Expect.to_match_aria_snapshot(Page.locator(page, "body"), "- list",
           timeout: 5000,
           signal: AbortController.signal(controller)
@@ -210,7 +211,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
     Page.wait_for_timeout!(page, 300)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     refute error.name == "AbortError"
     assert error.message =~ "expect(locator).toMatchAriaSnapshot(expected) failed"
   end
@@ -220,13 +221,13 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     controller = AbortController.new()
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Expect.to_have_url(page, "https://example.com/", timeout: 5000, signal: AbortController.signal(controller))
       end)
 
     Page.wait_for_timeout!(page, 500)
     AbortController.abort(controller, %RuntimeError{message: "stop it"})
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     refute error.name == "AbortError"
     assert error.message =~ "expect(page).toHaveURL(expected) failed"
   end

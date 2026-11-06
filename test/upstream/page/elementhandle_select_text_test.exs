@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -44,10 +45,10 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
     textarea = Page.query_selector!(page, "textarea")
     JSHandle.evaluate!(textarea, "textarea => textarea.value = 'some value'")
     JSHandle.evaluate!(textarea, "e => e.style.display = 'none'")
-    task = Task.async(fn -> ElementHandle.select_text!(textarea, timeout: 3000) end)
+    task = Runtime.Promise.async(fn -> ElementHandle.select_text!(textarea, timeout: 3000) end, shared: true)
     Page.wait_for_timeout!(page, 1000)
-    assert Task.yield(task, 0) == nil
+    refute Runtime.Promise.settled?(task)
     JSHandle.evaluate!(textarea, "e => e.style.display = 'block'")
-    Task.await(task, :infinity)
+    Runtime.Promise.await(task)
   end
 end

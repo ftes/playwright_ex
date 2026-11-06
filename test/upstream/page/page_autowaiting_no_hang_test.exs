@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -111,14 +112,14 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     stall_route(server, self(), fn _conn -> Process.exit(self(), :kill) end)
 
     Page.goto!(page, server.prefix <> "/one-style.html")
-    Task.start(fn -> Page.goto(page, server.prefix <> "/stall.html") end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.prefix <> "/stall.html") end)
     assert_receive {:stall, release}, 5000
 
-    click_promise = Task.async(fn -> Page.click!(page, "body") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "body") end)
     Page.wait_for_timeout!(page, 1000)
     release.()
 
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
   end
 
   test "clicking in the middle of navigation that commits", %{page: page, server: server} do
@@ -129,14 +130,14 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     end)
 
     Page.goto!(page, server.prefix <> "/one-style.html")
-    Task.start(fn -> Page.goto(page, server.prefix <> "/stall.html") end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.prefix <> "/stall.html") end)
     assert_receive {:stall, release}, 5000
 
-    click_promise = Task.async(fn -> Page.click!(page, "body") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "body") end)
     Page.wait_for_timeout!(page, 1000)
     release.()
 
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
     Expect.to_contain_text!(Page.locator(page, "body"), "hello world")
   end
 
@@ -181,13 +182,13 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     end)
 
     Page.goto!(page, server.prefix <> "/one-style.html")
-    Task.start(fn -> Page.goto(page, server.prefix <> "/stall.html") end)
+    Runtime.Promise.void(fn -> Page.goto(page, server.prefix <> "/stall.html") end)
     assert_receive {:stall, release}, 5000
 
-    go_back_promise = Task.async(fn -> Page.go_back(page) end)
+    go_back_promise = Runtime.Promise.async(fn -> Page.go_back(page) end)
     Page.wait_for_timeout!(page, 1000)
     release.()
 
-    Task.await(go_back_promise, :infinity)
+    Runtime.Promise.await(go_back_promise)
   end
 end

@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Selectors
   alias PlaywrightEx.Utils
 
@@ -89,7 +90,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
 
   test "should dispatch click when node is added in shadow dom", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
-    watchdog = Task.async(fn -> Page.dispatch_event!(page, "span", "click") end)
+    watchdog = Runtime.Promise.async(fn -> Page.dispatch_event!(page, "span", "click") end)
 
     Page.evaluate!(page, """
     () => {
@@ -110,7 +111,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     }
     """)
 
-    Task.await(watchdog, :infinity)
+    Runtime.Promise.await(watchdog)
     assert Page.evaluate!(page, "() => window['clicked']") == true
   end
 

@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Request
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -157,7 +158,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Task.start(fn ->
       Process.sleep(500)
 
-      Task.start(fn ->
+      Runtime.Promise.void(fn ->
         Page.evaluate(page, """
         () => {
           const iframe = document.createElement('iframe');
@@ -191,7 +192,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
-    promise = Task.async(fn -> Locator.wait_for!(button) end)
+    promise = Runtime.Promise.async(fn -> Locator.wait_for!(button) end)
     Locator.evaluate!(Page.locator(page, "iframe"), "e => e.remove()")
 
     Page.evaluate!(page, """
@@ -202,14 +203,14 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     }
     """)
 
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "click should survive frame reattach", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
-    promise = Task.async(fn -> Locator.click!(button) end)
+    promise = Runtime.Promise.async(fn -> Locator.click!(button) end)
     Locator.evaluate!(Page.locator(page, "iframe"), "e => e.remove()")
 
     Page.evaluate!(page, """
@@ -220,16 +221,16 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     }
     """)
 
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "click should survive iframe navigation", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
-    promise = Task.async(fn -> Locator.click!(button) end)
-    Task.start(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
-    Task.await(promise, :infinity)
+    promise = Runtime.Promise.async(fn -> Locator.click!(button) end)
+    Runtime.Promise.void(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
+    Runtime.Promise.await(promise)
   end
 
   test "should non work for non-frame", %{page: page} do
@@ -422,10 +423,10 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     assert error.message =~ "element is inside a hidden frame, retrying"
     assert Locator.evaluate!(button, "() => window.__clicked") == nil
 
-    click_promise = Task.async(fn -> Locator.click!(button) end)
-    visible_promise = Task.async(fn -> Expect.to_be_visible!(button) end)
+    click_promise = Runtime.Promise.async(fn -> Locator.click!(button) end)
+    visible_promise = Runtime.Promise.async(fn -> Expect.to_be_visible!(button) end)
     Page.evaluate!(page, "() => document.querySelector('iframe').style.visibility = 'visible'")
-    Task.await_many([click_promise, visible_promise], :infinity)
+    Runtime.Promise.await(Runtime.Promise.all([click_promise, visible_promise]))
     assert Locator.evaluate!(button, "() => window.__clicked") == true
 
     Page.evaluate!(page, "() => document.querySelector('iframe').style.visibility = 'hidden'")

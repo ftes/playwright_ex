@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Utils
 
@@ -37,9 +38,9 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   end
 
   test "should accept a string", %{page: page} do
-    watchdog = Task.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end)
+    watchdog = Runtime.Promise.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end)
     Page.evaluate!(page, "() => window['__FOO'] = 1")
-    Task.await(watchdog, :infinity)
+    Runtime.Promise.await(watchdog)
   end
 
   test "should work when resolved right before execution context disposal", %{page: page} do
@@ -109,10 +110,12 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
 
   test "should poll on raf", %{page: page} do
     watchdog =
-      Task.async(fn -> Page.wait_for_function!(page, "() => window['__FOO'] === 'hit'", %{}, polling: :raf) end)
+      Runtime.Promise.async(fn ->
+        Page.wait_for_function!(page, "() => window['__FOO'] === 'hit'", %{}, polling: :raf)
+      end)
 
     Page.evaluate!(page, "() => window['__FOO'] = 'hit'")
-    Task.await(watchdog, :infinity)
+    Runtime.Promise.await(watchdog)
   end
 
   test "should fail with predicate throwing on first call", %{page: page} do
@@ -144,11 +147,13 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Page.goto!(page, server.empty_page)
 
     p =
-      Task.async(fn -> Page.wait_for_function(page, "() => window['__FOO'] === 'hit'", %{}, polling: :raf) end)
+      Runtime.Promise.async(fn ->
+        Page.wait_for_function(page, "() => window['__FOO'] === 'hit'", %{}, polling: :raf)
+      end)
 
     Page.wait_for_timeout!(page, 1000)
     Page.evaluate!(page, "() => window['__FOO'] = 'hit'")
-    assert {:ok, _} = Task.await(p, :infinity)
+    assert {:ok, _} = Runtime.Promise.await(p)
   end
 
   test "should throw on bad polling value", %{page: page} do
@@ -174,10 +179,15 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   test "should accept ElementHandle arguments", %{page: page} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
-    wait_for_function = Task.async(fn -> Page.wait_for_function!(page, "element => !element.parentElement", div) end)
-    assert Task.yield(wait_for_function, 0) == nil
+
+    wait_for_function =
+      Runtime.Promise.async(fn -> Page.wait_for_function!(page, "element => !element.parentElement", div) end,
+        shared: true
+      )
+
+    refute Runtime.Promise.settled?(wait_for_function)
     Page.evaluate!(page, "element => element.remove()", div)
-    Task.await(wait_for_function, :infinity)
+    Runtime.Promise.await(wait_for_function)
   end
 
   test "should respect timeout", %{page: page} do
@@ -196,7 +206,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
 
   test "should disable timeout when its set to 0", %{page: page} do
     watchdog =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.wait_for_function!(
           page,
           """
@@ -213,27 +223,29 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
 
     Page.wait_for_function!(page, "() => window['__counter'] > 10")
     Page.evaluate!(page, "() => window['__injected'] = true")
-    Task.await(watchdog, :infinity)
+    Runtime.Promise.await(watchdog)
   end
 
   test "should survive cross-process navigation", %{page: page, server: server} do
-    wait_for_function = Task.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end)
+    wait_for_function =
+      Runtime.Promise.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end, shared: true)
+
     Page.goto!(page, server.empty_page)
-    assert Task.yield(wait_for_function, 0) == nil
+    refute Runtime.Promise.settled?(wait_for_function)
     Page.reload!(page)
-    assert Task.yield(wait_for_function, 0) == nil
+    refute Runtime.Promise.settled?(wait_for_function)
     Page.goto!(page, server.cross_process_prefix <> "/grid.html")
-    assert Task.yield(wait_for_function, 0) == nil
+    refute Runtime.Promise.settled?(wait_for_function)
     Page.evaluate!(page, "() => window['__FOO'] = 1")
-    assert Task.await(wait_for_function, :infinity)
+    assert Runtime.Promise.await(wait_for_function)
   end
 
   test "should survive navigations", %{page: page, server: server} do
-    watchdog = Task.async(fn -> Page.wait_for_function!(page, "() => window['__done']") end)
+    watchdog = Runtime.Promise.async(fn -> Page.wait_for_function!(page, "() => window['__done']") end)
     Page.goto!(page, server.empty_page)
     Page.goto!(page, server.prefix <> "/consolelog.html")
     Page.evaluate!(page, "() => window['__done'] = true")
-    Task.await(watchdog, :infinity)
+    Runtime.Promise.await(watchdog)
   end
 
   test "should work with multiline body", %{page: page} do
@@ -317,9 +329,9 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   test "should throw when frame is detached", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
-    promise = Task.async(fn -> Frame.wait_for_function(frame, "() => false") end)
+    promise = Runtime.Promise.async(fn -> Frame.wait_for_function(frame, "() => false") end)
     Utils.detach_frame(page, "frame1")
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert error
     assert Exception.message(error) =~ ~r/frame.waitForFunction: (Frame was detached|Execution context was destroyed)/
   end

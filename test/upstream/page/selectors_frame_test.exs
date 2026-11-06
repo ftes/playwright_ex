@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Utils
 
   @moduletag :page
@@ -245,7 +246,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Task.start(fn ->
       Process.sleep(500)
 
-      Task.start(fn ->
+      Runtime.Promise.void(fn ->
         Page.evaluate(page, """
         () => {
           const iframe = document.createElement('iframe');
@@ -282,7 +283,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     button =
       Page.locator(page, ~s|iframe >> internal:control=enter-frame >> button:has-text("Hello nested iframe")|)
 
-    promise = Task.async(fn -> Locator.wait_for!(button) end)
+    promise = Runtime.Promise.async(fn -> Locator.wait_for!(button) end)
     Locator.evaluate!(Page.locator(page, "iframe"), "e => e.remove()")
 
     Page.evaluate!(page, """
@@ -293,7 +294,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     }
     """)
 
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "waitForSelector should survive frame reattach (handle)", %{page: page, server: server} do
@@ -302,7 +303,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     body = Page.query_selector!(page, "body")
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         ElementHandle.wait_for_selector!(
           body,
           ~s|iframe >> internal:control=enter-frame >> button:has-text("Hello nested iframe")|
@@ -319,7 +320,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     }
     """)
 
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "waitForSelector should survive iframe navigation (handle)", %{page: page, server: server} do
@@ -328,15 +329,15 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     body = Page.query_selector!(page, "body")
 
     promise =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         ElementHandle.wait_for_selector!(
           body,
           ~s|iframe >> internal:control=enter-frame >> button:has-text("Hello nested iframe")|
         )
       end)
 
-    Task.start(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
-    Task.await(promise, :infinity)
+    Runtime.Promise.void(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
+    Runtime.Promise.await(promise)
   end
 
   test "click should survive frame reattach", %{page: page, server: server} do
@@ -346,7 +347,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     button =
       Page.locator(page, ~s|iframe >> internal:control=enter-frame >> button:has-text("Hello nested iframe")|)
 
-    promise = Task.async(fn -> Locator.click!(button) end)
+    promise = Runtime.Promise.async(fn -> Locator.click!(button) end)
     Locator.evaluate!(Page.locator(page, "iframe"), "e => e.remove()")
 
     Page.evaluate!(page, """
@@ -357,7 +358,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     }
     """)
 
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "click should survive iframe navigation", %{page: page, server: server} do
@@ -367,18 +368,18 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     button =
       Page.locator(page, ~s|iframe >> internal:control=enter-frame >> button:has-text("Hello nested iframe")|)
 
-    promise = Task.async(fn -> Locator.click!(button) end)
-    Task.start(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
-    Task.await(promise, :infinity)
+    promise = Runtime.Promise.async(fn -> Locator.click!(button) end)
+    Runtime.Promise.void(fn -> Locator.evaluate(Page.locator(page, "iframe"), "e => e.src = 'iframe-2.html'") end)
+    Runtime.Promise.await(promise)
   end
 
   test "click should survive navigation", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.prefix <> "/iframe.html")
-    promise = Task.async(fn -> Page.click!(page, ~s|button:has-text("Hello nested iframe")|) end)
+    promise = Runtime.Promise.async(fn -> Page.click!(page, ~s|button:has-text("Hello nested iframe")|) end)
     Page.wait_for_timeout!(page, 100)
     Page.goto!(page, server.prefix <> "/iframe-2.html")
-    Task.await(promise, :infinity)
+    Runtime.Promise.await(promise)
   end
 
   test "should non work for non-frame", %{page: page} do

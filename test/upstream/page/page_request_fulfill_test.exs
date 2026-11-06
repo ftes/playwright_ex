@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -88,7 +89,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     Page.goto!(page, server.empty_page)
 
     fetch =
-      Task.async(fn ->
+      Runtime.Promise.async(fn ->
         Page.evaluate(
           page,
           """
@@ -109,7 +110,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Request.failure(cancelled_request).errorText =~ ~r/cancelled|aborted/i
     # Should not throw.
     Route.fulfill!(route, status: 200)
-    Task.await(fetch, :infinity)
+    Runtime.Promise.await(fetch)
   end
 
   test "should allow mocking binary responses", %{page: page, server: server, asset: asset} do

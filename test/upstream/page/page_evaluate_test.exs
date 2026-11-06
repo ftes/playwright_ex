@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
   alias PlaywrightEx.Protocol.Serializers.JSError
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -576,7 +577,8 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   end
 
   test "should throw a nice error after a navigation", %{page: page} do
-    error_promise = Task.async(fn -> Page.evaluate(page, "() => new Promise(f => window['__resolve'] = f)") end)
+    error_promise =
+      Runtime.Promise.async(fn -> Page.evaluate(page, "() => new Promise(f => window['__resolve'] = f)") end)
 
     Page.expect_navigation!(page, fn ->
       Page.evaluate!(page, """
@@ -587,7 +589,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
       """)
     end)
 
-    error = Task.await(error_promise, :infinity)
+    error = Runtime.Promise.await(error_promise)
     assert message(error) =~ "navigation"
   end
 
@@ -860,9 +862,9 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   test "should throw when frame is detached", %{page: page, server: server} do
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
-    promise = Task.async(fn -> Frame.evaluate(frame, "() => new Promise(() => {})") end)
+    promise = Runtime.Promise.async(fn -> Frame.evaluate(frame, "() => new Promise(() => {})") end)
     detach_frame(page, "frame1")
-    error = Task.await(promise, :infinity)
+    error = Runtime.Promise.await(promise)
     assert {:error, _} = error
     assert message(error) =~ ~r/frame.evaluate: (Frame was detached|Execution context was destroyed)/
   end

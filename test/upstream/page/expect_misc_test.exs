@@ -18,11 +18,11 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
     test "toHaveCount pass", %{page: page} do
       Page.set_content!(page, "<select><option>One</option></select>")
       locator = Page.locator(page, "option")
-      promise = Task.async(fn -> Expect.to_have_count!(locator, 2) end)
+      promise = Runtime.Promise.async(fn -> Expect.to_have_count!(locator, 2) end, shared: true)
       Page.wait_for_timeout!(page, 1000)
-      assert Task.yield(promise, 0) == nil
+      refute Runtime.Promise.settled?(promise)
       Page.set_content!(page, "<select><option>One</option><option>Two</option></select>")
-      assert Task.await(promise, :infinity) == :ok
+      assert Runtime.Promise.await(promise) == :ok
     end
 
     test "pass zero", %{page: page} do
@@ -480,7 +480,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
       Page.goto!(page, "data:text/html,<div>A</div>")
 
       expect_promise =
-        Task.async(fn ->
+        Runtime.Promise.async(fn ->
           Expect.to_have_url!(page, fn url -> url == "data:text/html,<div>B</div>" end, timeout: 1000)
         end)
 
@@ -489,7 +489,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
         Page.goto(page, "data:text/html,<div>B</div>")
       end)
 
-      assert Task.await(expect_promise, :infinity) == :ok
+      assert Runtime.Promise.await(expect_promise) == :ok
     end
 
     test "support ignoreCase", %{page: page} do
@@ -772,10 +772,10 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
 
   test "should report expect error details when page closes during expect", %{page: page} do
     Page.set_content!(page, "<div>hello</div>")
-    promise = Task.async(fn -> Expect.to_have_text(Page.locator(page, "div"), "world", timeout: 10_000) end)
+    promise = Runtime.Promise.async(fn -> Expect.to_have_text(Page.locator(page, "div"), "world", timeout: 10_000) end)
     Page.wait_for_timeout!(page, 1000)
     Page.close!(page)
-    {:error, error} = Task.await(promise, :infinity)
+    {:error, error} = Runtime.Promise.await(promise)
     assert Exception.message(error) =~ "expect(locator).toHaveText(expected) failed"
     assert Exception.message(error) =~ ~s|Expected: "world"|
     assert Exception.message(error) =~ ~s|Received: "hello"|

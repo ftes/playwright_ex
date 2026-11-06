@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -27,17 +28,17 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
   end
 
   # `promise.then(() => resolved = true)`: whether the task has finished, without waiting.
-  defp resolved?(task), do: Task.yield(task, 0) != nil
+  defp resolved?(promise), do: Runtime.Promise.settled?(promise)
 
   test "should pick up ongoing navigation", %{page: page, server: server} do
     stall_route(server, "/one-style.css")
     request = TestServer.wait_for_request(server, "/one-style.css")
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
     Task.await(request, :infinity)
-    wait_promise = Task.async(fn -> Page.wait_for_load_state!(page) end)
+    wait_promise = Runtime.Promise.async(fn -> Page.wait_for_load_state!(page) end)
     assert_receive {:response, response}
     send(response, {:end, 404, "Not found"})
-    Task.await(wait_promise, :infinity)
+    Runtime.Promise.await(wait_promise)
   end
 
   test "should respect timeout", %{page: page, server: server} do
@@ -177,12 +178,12 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
 
     Task.await(css_request, :infinity)
     assert_receive {:response, css_response}
-    load_sate_promise = Task.async(fn -> Page.wait_for_load_state!(popup) end)
+    load_sate_promise = Runtime.Promise.async(fn -> Page.wait_for_load_state!(popup) end, shared: true)
     # Round trips!
     for _ <- 1..5, do: Page.evaluate!(page, "window")
     refute resolved?(load_sate_promise)
     send(css_response, {:end, 200, ""})
-    Task.await(load_sate_promise, :infinity)
+    Runtime.Promise.await(load_sate_promise)
     assert Page.url(popup) == server.prefix <> "/one-style.html"
   end
 
@@ -194,12 +195,12 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     Page.route!(page, server.prefix <> "/one-style.css", &send(test, {:route, &1}))
     Frame.goto!(frame, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
     assert_receive {:route, request}
-    load_promise = Task.async(fn -> Frame.wait_for_load_state!(frame) end)
+    load_promise = Runtime.Promise.async(fn -> Frame.wait_for_load_state!(frame) end, shared: true)
     # give the promise a chance to resolve, even though it shouldn't
     Page.evaluate!(page, "1")
     refute resolved?(load_promise)
     Route.continue!(request)
-    Task.await(load_promise, :infinity)
+    Runtime.Promise.await(load_promise)
   end
 
   test "should work with javascript: iframe", %{page: page, server: server} do

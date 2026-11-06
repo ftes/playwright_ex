@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
 
@@ -129,11 +130,11 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
       me = self()
       # `requestHeadersPromise = request.allHeaders()`: started in the listener, awaited later.
       Page.on(page, :request, fn request ->
-        Task.start(fn -> send(me, {:request_headers, Request.all_headers(request)}) end)
+        Runtime.Promise.void(fn -> send(me, {:request_headers, Request.all_headers(request)}) end)
       end)
 
       Page.on(page, :response, fn response ->
-        Task.start(fn -> send(me, {:response_headers, Response.all_headers(response)}) end)
+        Runtime.Promise.void(fn -> send(me, {:response_headers, Response.all_headers(response)}) end)
       end)
 
       TestServer.set_route(server, "/empty.html", fn conn ->
@@ -545,7 +546,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     Page.set_content!(page, ~s(<a target=_blank href="#{server.empty_page}">click me</a>))
     request_promise = BrowserContext.wait_for_event(Page.context(page), :request)
     popup_promise = BrowserContext.wait_for_event(Page.context(page), :page)
-    clicked = Task.async(fn -> page |> Page.get_by_text("click me") |> Locator.click!() end)
+    clicked = Runtime.Promise.async(fn -> page |> Page.get_by_text("click me") |> Locator.click!() end)
     request = PlaywrightEx.Promise.await!(request_promise)
 
     assert Request.is_navigation_request(request) == true
@@ -563,7 +564,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     response = Request.response!(request)
     Response.finished!(response)
     PlaywrightEx.Promise.await!(popup_promise)
-    Task.await(clicked, :infinity)
+    Runtime.Promise.await(clicked)
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Does not send second request")

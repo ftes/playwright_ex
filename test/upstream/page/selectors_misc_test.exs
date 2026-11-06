@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
 
@@ -42,9 +43,9 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     {:error, error} = Page.wait_for_selector(page, "div:visible", timeout: 1000)
     assert error.message =~ "1000ms"
 
-    promise = Task.async(fn -> Page.wait_for_selector!(page, "div:visible", state: :attached) end)
+    promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div:visible", state: :attached) end)
     Page.eval_on_selector!(page, "#target2", "div => div.textContent = 'Now visible'")
-    element = Task.await(promise, :infinity)
+    element = Runtime.Promise.await(promise)
     assert JSHandle.evaluate!(element, "e => e.id") == "target2"
 
     assert Page.eval_on_selector!(page, "div:visible", "div => div.id") == "target2"
@@ -63,9 +64,9 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     {:error, error} = Page.wait_for_selector(page, "div >> visible=true", timeout: 1000)
     assert error.message =~ "1000ms"
 
-    promise = Task.async(fn -> Page.wait_for_selector!(page, "div >> visible=true", state: :attached) end)
+    promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div >> visible=true", state: :attached) end)
     Page.eval_on_selector!(page, "#target2", "div => div.textContent = 'Now visible'")
-    element = Task.await(promise, :infinity)
+    element = Runtime.Promise.await(promise)
     assert JSHandle.evaluate!(element, "e => e.id") == "target2"
 
     assert Page.eval_on_selector!(page, "div >> visible=true", "div => div.id") == "target2"
@@ -111,7 +112,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     {:error, error} = Page.query_selector(page, ":nth-match(div, bar, foo)")
     assert error.message =~ ~s("nth-match" engine expects a one-based index as the last argument)
 
-    promise = Task.async(fn -> Page.wait_for_selector!(page, ":nth-match(div, 3)", state: :attached) end)
+    promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ":nth-match(div, 3)", state: :attached) end)
 
     Page.eval_on_selector!(page, "section", """
     section => {
@@ -121,7 +122,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     }
     """)
 
-    element = Task.await(promise, :infinity)
+    element = Runtime.Promise.await(promise)
     assert JSHandle.evaluate!(element, "e => e.id") == "target3"
   end
 
@@ -140,7 +141,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector!(page, "section, div >> nth=1", "e => e.id") == "target1"
     assert Page.eval_on_selector!(page, "div, section >> nth=2", "e => e.id") == "target2"
 
-    promise = Task.async(fn -> Page.wait_for_selector!(page, "div >> nth=2", state: :attached) end)
+    promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div >> nth=2", state: :attached) end)
 
     Page.eval_on_selector!(page, "section", """
     section => {
@@ -150,7 +151,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     }
     """)
 
-    element = Task.await(promise, :infinity)
+    element = Runtime.Promise.await(promise)
     assert JSHandle.evaluate!(element, "e => e.id") == "target3"
 
     Page.set_content!(page, """

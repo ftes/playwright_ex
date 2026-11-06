@@ -134,9 +134,9 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
       send(test, :navigate_failed)
     end)
 
-    click_promise = Task.async(fn -> Page.click(page, "input[type=submit]") end)
+    click_promise = Runtime.Promise.async(fn -> Page.click(page, "input[type=submit]") end)
     assert_receive :navigate_failed, 30_000
-    Task.await(click_promise, :infinity)
+    Runtime.Promise.await(click_promise)
   end
 
   test "page.reload during renderer-initiated navigation", %{page: page, server: server} do

@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Utils
@@ -465,11 +466,11 @@ defmodule PlaywrightEx.Page.PageGotoTest do
       hang(conn)
     end)
 
-    first = Task.async(fn -> Page.goto(page, server.prefix <> "/empty.html") end)
+    first = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/empty.html") end)
     assert_receive :another, 5_000
-    another = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
-    {:error, error} = Task.await(first, :infinity)
-    Task.await(another, :infinity)
+    another = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
+    {:error, error} = Runtime.Promise.await(first)
+    Runtime.Promise.await(another)
 
     case browser_name do
       "chromium" ->
@@ -709,10 +710,10 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   test "should fail when canceled by another navigation", %{page: page, server: server} do
     TestServer.set_route(server, "/one-style.html", &hang/1)
     request = TestServer.wait_for_request(server, "/one-style.html")
-    failed = Task.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
+    failed = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
     Task.await(request, :infinity)
     Page.goto!(page, server.prefix <> "/empty.html")
-    {:error, error} = Task.await(failed, :infinity)
+    {:error, error} = Runtime.Promise.await(failed)
     assert Exception.message(error) != ""
   end
 
@@ -802,9 +803,9 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end)
 
     module_request = TestServer.wait_for_request(server, "/module.js")
-    navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/window-stop.html") end)
+    navigation = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/window-stop.html") end, shared: true)
     Task.await(module_request, :infinity)
-    done? = fn -> match?({:ok, {:ok, _}}, Task.yield(navigation, 0)) end
+    done? = fn -> Runtime.Promise.settled?(navigation) and match?({:ok, _}, Runtime.Promise.await(navigation)) end
     refute done?.()
     # give it some time to erroneously resolve
     Page.wait_for_timeout!(page, 1000)
@@ -817,11 +818,14 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
   test "should return from goto if new navigation is started", %{page: page, server: server} do
     TestServer.set_route(server, "/slow.js", &hang/1)
-    navigation = Task.async(fn -> Page.goto!(page, server.prefix <> "/load-event/load-event.html") end)
+
+    navigation =
+      Runtime.Promise.async(fn -> Page.goto!(page, server.prefix <> "/load-event/load-event.html") end, shared: true)
+
     Process.sleep(500)
-    assert Task.yield(navigation, 0) == nil
+    refute Runtime.Promise.settled?(navigation)
     Page.goto!(page, server.empty_page)
-    assert Response.status(Task.await(navigation, :infinity)) == 200
+    assert Response.status(Runtime.Promise.await(navigation)) == 200
   end
 
   test "should return when navigation is committed if commit is specified", %{page: page, server: server} do
@@ -865,10 +869,10 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     TestServer.set_route(server, "/style2.css", &hang/1)
 
     frame_detached = Page.wait_for_event(page, :frame_detached)
-    done = Task.async(fn -> Page.goto!(page, server.empty_page, wait_until: :load) end)
+    done = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page, wait_until: :load) end)
     # Make sure that iframe is gone.
     PlaywrightEx.Promise.await!(frame_detached)
-    Task.await(done, :infinity)
+    Runtime.Promise.await(done)
     assert Page.query_selector!(page, "iframe") == nil
   end
 
