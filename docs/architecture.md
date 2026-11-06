@@ -56,6 +56,14 @@ storage state and cookies, `@result_options` for `Credentials.create`).
 - Handles are facade structs (`%PlaywrightEx.Page{}`) built from the client's
   `__struct_fields__/0`, not `@opaque` (OTP 28 opaques are nominal, which breaks cross-module
   specs). Exceptions are top-level (`PlaywrightEx.TimeoutError`, ...) with the JS message.
+- Tuple forms return what the JS promise rejects with (`Facade.error?/1`: the library's errors,
+  `RuntimeError` for the client's `new Error`, the protocol `ValidationError`, `JSON.DecodeError`,
+  `File.Error`); anything else raises in both forms. The criterion is upstream's, so it needs no
+  per-call judgment or bump step and upstream predicts it. Rejected: raising for input errors the
+  client detects (`File.read/1`'s convention), as the driver's input errors (a bad selector) still
+  arrive as `PlaywrightError`, so callers couldn't rely on it, and each of upstream's ~75
+  `throw new Error` would need classifying. Our own Elixir-side checks (unknown option or event,
+  RegExp translation) raise `ArgumentError`.
 - Names that are no Elixir function names take Python's (`$eval` is `eval_on_selector`,
   `and`/`or` are `and_`/`or_`, `not` is `not_to_*` and `Expect.not_/1`): the closest official
   precedent. JS readonly fields are arity-1 functions.

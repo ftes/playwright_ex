@@ -33,8 +33,12 @@ bang form (`{:ok, true} = Locator.is_visible(locator)`, `true = Locator.is_visib
 Each call that JS awaits has two forms. `name/n` returns `{:ok, value}` or
 `{:error, exception}` (`:ok` when JS returns nothing), `name!/n` returns the value or raises.
 `exception` is one of the errors a JS promise rejects with (`t:PlaywrightEx.error/0`, see
-[Errors](#errors)); a bug or a misuse, such as an unknown option, raises in both forms. Calls JS
-doesn't await (`page.url()`, `page.locator()`, `locator.filter()`) return plain values.
+[Errors](#errors)), including the client's own argument checks (`path` and `content` both given),
+which JS rejects with too. Anything else raises in both forms: a bug, an exception from your own
+handler, or an Elixir-side check such as an unknown option (`ArgumentError`). The line is JS's, so
+a tuple form returns what a JS `.catch()` would get, and Playwright's docs tell you what a call can
+fail with. Calls JS doesn't await (`page.url()`, `page.locator()`, `locator.filter()`) return plain
+values.
 
 ```elixir
 title = Page.title!(page)

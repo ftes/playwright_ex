@@ -1194,3 +1194,9 @@ drift). Blockers for release, assigned to follow-up workstreams:
 - User, 2026-11-06, release: start with 0.17.0-rc.0 (breaking minor bump before 1.0), not 1.64.0;
   versions switch to Playwright's major.minor later (PLAN "Later" #3, which lists every place to
   change). The daily bump prompt leaves `@version` alone until then.
+- User, 2026-11-06, best-practice review: tuple forms return what the JS promise rejects with,
+  client argument checks (`RuntimeError`) included; anything else raises (bugs, listener
+  exceptions re-raised by `remove_all_listeners(behavior: :wait)`, Elixir-side `ArgumentError`s).
+  Rejected "input errors raise, later failures are tuples": driver-detected input errors are
+  tuples anyway, and ~75 `throw new Error` sites would need judgment on every bump. Why is in
+  docs/architecture.md and the API conventions guide.
