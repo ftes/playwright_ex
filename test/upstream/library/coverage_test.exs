@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Utils
 
   import PlaywrightEx.Utils, only: [parse_trace_coverage: 2]
 
@@ -105,7 +106,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
         JSON.encode!(file_coverage("a.js", 3))
       )
 
-    assert hd(first)["data"]["a.js"]["statementMap"]
+    Utils.assert_truthy(hd(first)["data"]["a.js"]["statementMap"])
     assert hd(first)["data"]["a.js"]["s"] == %{"0" => 3}
 
     second =

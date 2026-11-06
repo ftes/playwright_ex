@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -446,23 +447,20 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     end
 
     if browser_name == "firefox" do
-      assert Frame.evaluate!(frame, "() => document.hasStorageAccess()")
+      Utils.assert_truthy(Frame.evaluate!(frame, "() => document.hasStorageAccess()"))
       assert fetch_cookie.() == "name=value"
     else
       if browser_name == "webkit" and linux?(),
-        do: assert(Frame.evaluate!(frame, "() => document.hasStorageAccess()")),
-        else: refute(Frame.evaluate!(frame, "() => document.hasStorageAccess()"))
+        do: Utils.assert_truthy(Frame.evaluate!(frame, "() => document.hasStorageAccess()")),
+        else: Utils.assert_falsy(Frame.evaluate!(frame, "() => document.hasStorageAccess()"))
 
       if windows?() and browser_name == "webkit",
         do: assert(fetch_cookie.() == "name=value"),
         else: refute(fetch_cookie.())
 
-      assert Frame.evaluate!(
-               frame,
-               "() => document.requestStorageAccess().then(() => true, e => false)"
-             )
+      Utils.assert_truthy(Frame.evaluate!(frame, "() => document.requestStorageAccess().then(() => true, e => false)"))
 
-      assert Frame.evaluate!(frame, "() => document.hasStorageAccess()")
+      Utils.assert_truthy(Frame.evaluate!(frame, "() => document.hasStorageAccess()"))
 
       if browser_name == "webkit" and linux?(),
         do: assert(fetch_cookie.() == nil),

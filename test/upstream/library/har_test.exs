@@ -31,6 +31,7 @@ defmodule PlaywrightEx.Library.HarTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Utils
 
   # testInfo.outputPath(): a fresh directory per test.
   setup do
@@ -117,7 +118,7 @@ defmodule PlaywrightEx.Library.HarTest do
     log = get_log(session)
     assert length(log["pages"]) == 1
     page_entry = hd(log["pages"])
-    assert page_entry["id"]
+    Utils.assert_truthy(page_entry["id"])
     assert page_entry["title"] == "Hello"
     assert date_ms(page_entry["startedDateTime"]) > now_ms() - 3600 * 1000
     assert page_entry["pageTimings"]["onContentLoad"] > 0
@@ -134,7 +135,7 @@ defmodule PlaywrightEx.Library.HarTest do
     log = read_log(har_path)
     assert length(log["pages"]) == 1
     page_entry = hd(log["pages"])
-    assert page_entry["id"]
+    Utils.assert_truthy(page_entry["id"])
     assert page_entry["title"] == "Hello"
   end
 
@@ -649,7 +650,7 @@ defmodule PlaywrightEx.Library.HarTest do
     TestServer.set_route(server, "/har.html", &destroy_socket/1)
     Page.goto(page, server.prefix <> "/har.html")
     log = get_log(session)
-    assert hd(log["entries"])["response"]["_failureText"]
+    Utils.assert_truthy(hd(log["entries"])["response"]["_failureText"])
     request = hd(log["entries"])["request"]
     assert String.ends_with?(request["url"], "/har.html")
     assert request["method"] == "GET"
@@ -680,7 +681,7 @@ defmodule PlaywrightEx.Library.HarTest do
 
     Page.goto(page, server.prefix <> "/foo")
     log = get_log(session)
-    assert hd(log["entries"])["response"]["_failureText"]
+    Utils.assert_truthy(hd(log["entries"])["response"]["_failureText"])
     request = hd(log["entries"])["request"]
     assert request["url"] == server.empty_page
     assert request["method"] == "POST"
@@ -1518,7 +1519,7 @@ defmodule PlaywrightEx.Library.HarTest do
       log = read_log(har_path)
       style_entry = Enum.find(log["entries"], &String.ends_with?(&1["request"]["url"], "/one-style.css"))
       file = style_entry["response"]["content"]["_file"]
-      assert file
+      Utils.assert_truthy(file)
       # _file is relative to the har file directory.
       resource_path = Path.join(Path.dirname(har_path), file)
       assert String.starts_with?(resource_path, resources_dir <> "/")

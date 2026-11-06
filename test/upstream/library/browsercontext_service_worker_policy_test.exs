@@ -12,12 +12,13 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Response
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
   test "should allow service workers by default", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
-    assert Page.evaluate!(page, "() => window['registrationPromise']")
+    Utils.assert_truthy(Page.evaluate!(page, "() => window['registrationPromise']"))
   end
 
   for {mode, worker_response} <- [

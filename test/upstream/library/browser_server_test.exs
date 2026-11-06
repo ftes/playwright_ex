@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Library.BrowserServerTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestBrowser
+  alias PlaywrightEx.Utils
 
   # it.skip(({ mode }) => mode !== 'default')  -- always default mode
 
@@ -45,9 +46,9 @@ defmodule PlaywrightEx.Library.BrowserServerTest do
 
     descriptor = file |> File.read!() |> JSON.decode!()
     assert descriptor["title"] == "my-title"
-    assert descriptor["playwrightVersion"]
-    assert descriptor["playwrightLib"]
-    assert descriptor["browser"]["browserName"]
+    Utils.assert_truthy(descriptor["playwrightVersion"])
+    Utils.assert_truthy(descriptor["playwrightLib"])
+    Utils.assert_truthy(descriptor["browser"]["browserName"])
     assert descriptor["endpoint"] == server_info.endpoint
 
     # process.platform !== 'win32'  -- no Windows

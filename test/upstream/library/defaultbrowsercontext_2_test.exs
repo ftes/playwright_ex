@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Selectors
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
@@ -316,7 +317,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   test "exposes browser", %{launch_persistent: launch_persistent} do
     %{context: context} = launch_persistent.([])
     browser = BrowserContext.browser(context)
-    assert Browser.version(browser)
+    Utils.assert_truthy(Browser.version(browser))
     page = Browser.new_page!(browser)
     Page.goto!(page, "data:text/html,<html><title>Title</title></html>")
     assert Page.title!(page) == "Title"

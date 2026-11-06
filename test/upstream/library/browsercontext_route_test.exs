@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   # `const intercepted = []; ... intercepted.push(x)`: the handlers send to the test process.
   defp received(acc \\ []) do
@@ -40,7 +41,7 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
     # The handler's assertions, in the test process.
     assert [{request, frame_url}] = received()
     assert Request.url(request) =~ "empty.html"
-    assert Request.headers(request)["user-agent"]
+    Utils.assert_truthy(Request.headers(request)["user-agent"])
     assert Request.method(request) == "GET"
     assert Request.post_data(request) == nil
     assert Request.is_navigation_request(request) == true
