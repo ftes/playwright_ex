@@ -76,7 +76,8 @@ defmodule PlaywrightEx.Library.ScreencastTest do
       on_frame: fn _ ->
         Agent.update(state, &%{&1 | frame_count: &1.frame_count + 1, last_frame_timestamp: now()})
         send(me, :first_frame)
-        PlaywrightEx.Promise.await!(callback_done)
+        # `async () => { ...; await callbackDone; }`: the returned promise is awaited before the ack.
+        callback_done
       end
     )
 

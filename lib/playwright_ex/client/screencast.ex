@@ -4,16 +4,19 @@ defmodule PlaywrightEx.Client.Screencast do
   Port of `#{@upstream}`.
 
   `onFrame` is called with `%{data: binary, timestamp: number, viewportWidth: integer,
-  viewportHeight: integer}`; the frame is acknowledged (backpressure) when it returns.
+  viewportHeight: integer}`; the frame is acknowledged (backpressure) when it returns or, if it
+  returns a promise, when that settles.
   """
   import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4, _channel: 1]
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.Artifact
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Client.TimeoutSettings
+  alias PlaywrightEx.Runtime.Promise
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Screencast{}` (gen.api copies these fields).
   @doc false
@@ -28,14 +31,19 @@ defmodule PlaywrightEx.Client.Screencast do
 
     EventEmitter.on(_channel(get(this, :_page)), "screencastFrame", fn %{frameId: frame_id} = frame ->
       try do
-        if on_frame = get(this, :_onFrame),
-          do:
-            on_frame.(%{
-              data: frame.data,
-              timestamp: frame.timestamp,
-              viewportWidth: frame.viewportWidth,
-              viewportHeight: frame.viewportHeight
-            })
+        if on_frame = get(this, :_onFrame) do
+          result =
+            ClientHelper.call_function(on_frame, [
+              %{
+                data: frame.data,
+                timestamp: frame.timestamp,
+                viewportWidth: frame.viewportWidth,
+                viewportHeight: frame.viewportHeight
+              }
+            ])
+
+          if is_struct(result, Promise), do: Promise.await(result)
+        end
       after
         try do
           channel_call(get(this, :_page), :screencastFrameAck, %{frameId: frame_id}, TimeoutSettings.k_no_timeout())
