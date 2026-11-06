@@ -138,7 +138,6 @@ defmodule PlaywrightEx.Client.ConnectBacklogTest do
   } do
     server = start_remote_server.("launchServer", %{})
     endpoint = PlaywrightEx.RemoteServer.ws_endpoint(server)
-    %{conn: parent} = browser_type
     connect_close = fn -> Browser.close!(BrowserType.connect!(browser_type, endpoint)) end
     # Warm up (the first connect creates objects of the local connection).
     Task.await(Task.async(connect_close))
@@ -148,8 +147,9 @@ defmodule PlaywrightEx.Client.ConnectBacklogTest do
 
     for _ <- 1..20, do: Task.await(Task.async(connect_close))
 
-    assert eventually(fn -> counts(browser_type) == before end),
-           "#{inspect(before)} -> #{inspect(counts(browser_type))}"
+    # No more than before (the warm-up's forwarder may still have been exiting then).
+    no_growth = fn -> Enum.all?(counts(browser_type), fn {key, count} -> count <= before[key] end) end
+    assert eventually(no_growth), "#{inspect(before)} -> #{inspect(counts(browser_type))}"
 
     assert :ets.info(browser_type.table, :size) - rows < 20
   end
