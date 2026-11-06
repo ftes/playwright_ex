@@ -44,14 +44,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.29.*
   """
   @spec all(t()) :: {:ok, [PlaywrightEx.Locator.t()]} | {:error, PlaywrightEx.error()}
-  def all(this) do
-    Facade.async("locator.all", this, fn -> PlaywrightEx.Client.Locator.all(this) end)
+  def all(locator) do
+    Facade.async("locator.all", locator, fn -> PlaywrightEx.Client.Locator.all(locator) end)
   end
 
   @doc "Like `all/1`, but returns the value and raises on error."
   @spec all!(t()) :: [PlaywrightEx.Locator.t()]
-  def all!(this) do
-    Facade.async!("locator.all", this, fn -> PlaywrightEx.Client.Locator.all(this) end)
+  def all!(locator) do
+    Facade.async!("locator.all", locator, fn -> PlaywrightEx.Client.Locator.all(locator) end)
   end
 
   @doc ~S"""
@@ -70,14 +70,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec all_inner_texts(t()) :: {:ok, [String.t()]} | {:error, PlaywrightEx.error()}
-  def all_inner_texts(this) do
-    Facade.async("locator.allInnerTexts", this, fn -> PlaywrightEx.Client.Locator.all_inner_texts(this) end)
+  def all_inner_texts(locator) do
+    Facade.async("locator.allInnerTexts", locator, fn -> PlaywrightEx.Client.Locator.all_inner_texts(locator) end)
   end
 
   @doc "Like `all_inner_texts/1`, but returns the value and raises on error."
   @spec all_inner_texts!(t()) :: [String.t()]
-  def all_inner_texts!(this) do
-    Facade.async!("locator.allInnerTexts", this, fn -> PlaywrightEx.Client.Locator.all_inner_texts(this) end)
+  def all_inner_texts!(locator) do
+    Facade.async!("locator.allInnerTexts", locator, fn -> PlaywrightEx.Client.Locator.all_inner_texts(locator) end)
   end
 
   @doc ~S"""
@@ -96,14 +96,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec all_text_contents(t()) :: {:ok, [String.t()]} | {:error, PlaywrightEx.error()}
-  def all_text_contents(this) do
-    Facade.async("locator.allTextContents", this, fn -> PlaywrightEx.Client.Locator.all_text_contents(this) end)
+  def all_text_contents(locator) do
+    Facade.async("locator.allTextContents", locator, fn -> PlaywrightEx.Client.Locator.all_text_contents(locator) end)
   end
 
   @doc "Like `all_text_contents/1`, but returns the value and raises on error."
   @spec all_text_contents!(t()) :: [String.t()]
-  def all_text_contents!(this) do
-    Facade.async!("locator.allTextContents", this, fn -> PlaywrightEx.Client.Locator.all_text_contents(this) end)
+  def all_text_contents!(locator) do
+    Facade.async!("locator.allTextContents", locator, fn -> PlaywrightEx.Client.Locator.all_text_contents(locator) end)
   end
 
   @doc ~S"""
@@ -121,11 +121,11 @@ defmodule PlaywrightEx.Locator do
 
   ## Arguments
 
-  * `locator` - Additional locator to match.
+  * `other_locator` - Additional locator to match.
   """
   @spec and_(t(), PlaywrightEx.Locator.t()) :: PlaywrightEx.Locator.t()
-  def and_(this, locator) do
-    PlaywrightEx.Client.Locator.and_(this, locator)
+  def and_(locator, other_locator) do
+    PlaywrightEx.Client.Locator.and_(locator, other_locator)
   end
 
   @aria_snapshot_options {:object,
@@ -218,16 +218,17 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec aria_snapshot(t(), aria_snapshot_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
-  def aria_snapshot(this, options \\ []) do
+  def aria_snapshot(locator, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_options, "locator.ariaSnapshot")
-    Facade.async("locator.ariaSnapshot", this, fn -> PlaywrightEx.Client.Locator.aria_snapshot(this, options) end)
+    Facade.async("locator.ariaSnapshot", locator, fn -> PlaywrightEx.Client.Locator.aria_snapshot(locator, options) end)
   end
 
   @doc "Like `aria_snapshot/2`, but returns the value and raises on error."
   @spec aria_snapshot!(t(), aria_snapshot_options()) :: String.t()
-  def aria_snapshot!(this, options \\ []) do
+  def aria_snapshot!(locator, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_options, "locator.ariaSnapshot")
-    Facade.async!("locator.ariaSnapshot", this, fn -> PlaywrightEx.Client.Locator.aria_snapshot(this, options) end)
+
+    Facade.async!("locator.ariaSnapshot", locator, fn -> PlaywrightEx.Client.Locator.aria_snapshot(locator, options) end)
   end
 
   @aria_snapshot_json_options {:object,
@@ -300,21 +301,21 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec aria_snapshot_json(t(), aria_snapshot_json_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
-  def aria_snapshot_json(this, options \\ []) do
+  def aria_snapshot_json(locator, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_json_options, "locator.ariaSnapshotJSON")
 
-    Facade.async("locator.ariaSnapshotJSON", this, fn ->
-      PlaywrightEx.Client.Locator.aria_snapshot_json(this, options)
+    Facade.async("locator.ariaSnapshotJSON", locator, fn ->
+      PlaywrightEx.Client.Locator.aria_snapshot_json(locator, options)
     end)
   end
 
   @doc "Like `aria_snapshot_json/2`, but returns the value and raises on error."
   @spec aria_snapshot_json!(t(), aria_snapshot_json_options()) :: term()
-  def aria_snapshot_json!(this, options \\ []) do
+  def aria_snapshot_json!(locator, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_json_options, "locator.ariaSnapshotJSON")
 
-    Facade.async!("locator.ariaSnapshotJSON", this, fn ->
-      PlaywrightEx.Client.Locator.aria_snapshot_json(this, options)
+    Facade.async!("locator.ariaSnapshotJSON", locator, fn ->
+      PlaywrightEx.Client.Locator.aria_snapshot_json(locator, options)
     end)
   end
 
@@ -343,16 +344,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec blur(t(), blur_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def blur(this, options \\ []) do
+  def blur(locator, options \\ []) do
     options = Facade.options!(options, @blur_options, "locator.blur")
-    Facade.async_void("locator.blur", this, fn -> PlaywrightEx.Client.Locator.blur(this, options) end)
+    Facade.async_void("locator.blur", locator, fn -> PlaywrightEx.Client.Locator.blur(locator, options) end)
   end
 
   @doc "Like `blur/2`, but returns the value and raises on error."
   @spec blur!(t(), blur_options()) :: :ok
-  def blur!(this, options \\ []) do
+  def blur!(locator, options \\ []) do
     options = Facade.options!(options, @blur_options, "locator.blur")
-    Facade.async_void!("locator.blur", this, fn -> PlaywrightEx.Client.Locator.blur(this, options) end)
+    Facade.async_void!("locator.blur", locator, fn -> PlaywrightEx.Client.Locator.blur(locator, options) end)
   end
 
   @bounding_box_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -401,17 +402,17 @@ defmodule PlaywrightEx.Locator do
   """
   @spec bounding_box(t(), bounding_box_options()) ::
           {:ok, nil | %{x: number(), y: number(), width: number(), height: number()}} | {:error, PlaywrightEx.error()}
-  def bounding_box(this, options \\ []) do
+  def bounding_box(locator, options \\ []) do
     options = Facade.options!(options, @bounding_box_options, "locator.boundingBox")
-    Facade.async("locator.boundingBox", this, fn -> PlaywrightEx.Client.Locator.bounding_box(this, options) end)
+    Facade.async("locator.boundingBox", locator, fn -> PlaywrightEx.Client.Locator.bounding_box(locator, options) end)
   end
 
   @doc "Like `bounding_box/2`, but returns the value and raises on error."
   @spec bounding_box!(t(), bounding_box_options()) ::
           nil | %{x: number(), y: number(), width: number(), height: number()}
-  def bounding_box!(this, options \\ []) do
+  def bounding_box!(locator, options \\ []) do
     options = Facade.options!(options, @bounding_box_options, "locator.boundingBox")
-    Facade.async!("locator.boundingBox", this, fn -> PlaywrightEx.Client.Locator.bounding_box(this, options) end)
+    Facade.async!("locator.boundingBox", locator, fn -> PlaywrightEx.Client.Locator.bounding_box(locator, options) end)
   end
 
   @check_options {:object,
@@ -497,16 +498,16 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec check(t(), check_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def check(this, options \\ []) do
+  def check(locator, options \\ []) do
     options = Facade.options!(options, @check_options, "locator.check")
-    Facade.async_void("locator.check", this, fn -> PlaywrightEx.Client.Locator.check(this, options) end)
+    Facade.async_void("locator.check", locator, fn -> PlaywrightEx.Client.Locator.check(locator, options) end)
   end
 
   @doc "Like `check/2`, but returns the value and raises on error."
   @spec check!(t(), check_options()) :: :ok
-  def check!(this, options \\ []) do
+  def check!(locator, options \\ []) do
     options = Facade.options!(options, @check_options, "locator.check")
-    Facade.async_void!("locator.check", this, fn -> PlaywrightEx.Client.Locator.check(this, options) end)
+    Facade.async_void!("locator.check", locator, fn -> PlaywrightEx.Client.Locator.check(locator, options) end)
   end
 
   @clear_options {:object,
@@ -564,16 +565,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec clear(t(), clear_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def clear(this, options \\ []) do
+  def clear(locator, options \\ []) do
     options = Facade.options!(options, @clear_options, "locator.clear")
-    Facade.async_void("locator.clear", this, fn -> PlaywrightEx.Client.Locator.clear(this, options) end)
+    Facade.async_void("locator.clear", locator, fn -> PlaywrightEx.Client.Locator.clear(locator, options) end)
   end
 
   @doc "Like `clear/2`, but returns the value and raises on error."
   @spec clear!(t(), clear_options()) :: :ok
-  def clear!(this, options \\ []) do
+  def clear!(locator, options \\ []) do
     options = Facade.options!(options, @clear_options, "locator.clear")
-    Facade.async_void!("locator.clear", this, fn -> PlaywrightEx.Client.Locator.clear(this, options) end)
+    Facade.async_void!("locator.clear", locator, fn -> PlaywrightEx.Client.Locator.clear(locator, options) end)
   end
 
   @click_options {:object,
@@ -700,16 +701,16 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec click(t(), click_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def click(this, options \\ []) do
+  def click(locator, options \\ []) do
     options = Facade.options!(options, @click_options, "locator.click")
-    Facade.async_void("locator.click", this, fn -> PlaywrightEx.Client.Locator.click(this, options) end)
+    Facade.async_void("locator.click", locator, fn -> PlaywrightEx.Client.Locator.click(locator, options) end)
   end
 
   @doc "Like `click/2`, but returns the value and raises on error."
   @spec click!(t(), click_options()) :: :ok
-  def click!(this, options \\ []) do
+  def click!(locator, options \\ []) do
     options = Facade.options!(options, @click_options, "locator.click")
-    Facade.async_void!("locator.click", this, fn -> PlaywrightEx.Client.Locator.click(this, options) end)
+    Facade.async_void!("locator.click", locator, fn -> PlaywrightEx.Client.Locator.click(locator, options) end)
   end
 
   @doc ~S"""
@@ -728,14 +729,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec count(t()) :: {:ok, integer()} | {:error, PlaywrightEx.error()}
-  def count(this) do
-    Facade.async("locator.count", this, fn -> PlaywrightEx.Client.Locator.count(this) end)
+  def count(locator) do
+    Facade.async("locator.count", locator, fn -> PlaywrightEx.Client.Locator.count(locator) end)
   end
 
   @doc "Like `count/1`, but returns the value and raises on error."
   @spec count!(t()) :: integer()
-  def count!(this) do
-    Facade.async!("locator.count", this, fn -> PlaywrightEx.Client.Locator.count(this) end)
+  def count!(locator) do
+    Facade.async!("locator.count", locator, fn -> PlaywrightEx.Client.Locator.count(locator) end)
   end
 
   @dblclick_options {:object,
@@ -844,16 +845,16 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec dblclick(t(), dblclick_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def dblclick(this, options \\ []) do
+  def dblclick(locator, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "locator.dblclick")
-    Facade.async_void("locator.dblclick", this, fn -> PlaywrightEx.Client.Locator.dblclick(this, options) end)
+    Facade.async_void("locator.dblclick", locator, fn -> PlaywrightEx.Client.Locator.dblclick(locator, options) end)
   end
 
   @doc "Like `dblclick/2`, but returns the value and raises on error."
   @spec dblclick!(t(), dblclick_options()) :: :ok
-  def dblclick!(this, options \\ []) do
+  def dblclick!(locator, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "locator.dblclick")
-    Facade.async_void!("locator.dblclick", this, fn -> PlaywrightEx.Client.Locator.dblclick(this, options) end)
+    Facade.async_void!("locator.dblclick", locator, fn -> PlaywrightEx.Client.Locator.dblclick(locator, options) end)
   end
 
   @doc ~S"""
@@ -874,8 +875,8 @@ defmodule PlaywrightEx.Locator do
   * `description` - Locator description.
   """
   @spec describe(t(), String.t()) :: PlaywrightEx.Locator.t()
-  def describe(this, description) do
-    PlaywrightEx.Client.Locator.describe(this, description)
+  def describe(locator, description) do
+    PlaywrightEx.Client.Locator.describe(locator, description)
   end
 
   @doc ~S"""
@@ -896,8 +897,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.57.*
   """
   @spec description(t()) :: nil | String.t()
-  def description(this) do
-    PlaywrightEx.Client.Locator.description(this)
+  def description(locator) do
+    PlaywrightEx.Client.Locator.description(locator)
   end
 
   @dispatch_event_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -967,21 +968,21 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec dispatch_event(t(), String.t(), term() | nil, dispatch_event_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def dispatch_event(this, type, event_init \\ nil, options \\ []) do
+  def dispatch_event(locator, type, event_init \\ nil, options \\ []) do
     options = Facade.options!(options, @dispatch_event_options, "locator.dispatchEvent")
 
-    Facade.async_void("locator.dispatchEvent", this, fn ->
-      PlaywrightEx.Client.Locator.dispatch_event(this, type, event_init, options)
+    Facade.async_void("locator.dispatchEvent", locator, fn ->
+      PlaywrightEx.Client.Locator.dispatch_event(locator, type, event_init, options)
     end)
   end
 
   @doc "Like `dispatch_event/4`, but returns the value and raises on error."
   @spec dispatch_event!(t(), String.t(), term() | nil, dispatch_event_options()) :: :ok
-  def dispatch_event!(this, type, event_init \\ nil, options \\ []) do
+  def dispatch_event!(locator, type, event_init \\ nil, options \\ []) do
     options = Facade.options!(options, @dispatch_event_options, "locator.dispatchEvent")
 
-    Facade.async_void!("locator.dispatchEvent", this, fn ->
-      PlaywrightEx.Client.Locator.dispatch_event(this, type, event_init, options)
+    Facade.async_void!("locator.dispatchEvent", locator, fn ->
+      PlaywrightEx.Client.Locator.dispatch_event(locator, type, event_init, options)
     end)
   end
 
@@ -1076,16 +1077,20 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec drag_to(t(), PlaywrightEx.Locator.t(), drag_to_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def drag_to(this, target, options \\ []) do
+  def drag_to(locator, target, options \\ []) do
     options = Facade.options!(options, @drag_to_options, "locator.dragTo")
-    Facade.async_void("locator.dragTo", this, fn -> PlaywrightEx.Client.Locator.drag_to(this, target, options) end)
+
+    Facade.async_void("locator.dragTo", locator, fn -> PlaywrightEx.Client.Locator.drag_to(locator, target, options) end)
   end
 
   @doc "Like `drag_to/3`, but returns the value and raises on error."
   @spec drag_to!(t(), PlaywrightEx.Locator.t(), drag_to_options()) :: :ok
-  def drag_to!(this, target, options \\ []) do
+  def drag_to!(locator, target, options \\ []) do
     options = Facade.options!(options, @drag_to_options, "locator.dragTo")
-    Facade.async_void!("locator.dragTo", this, fn -> PlaywrightEx.Client.Locator.drag_to(this, target, options) end)
+
+    Facade.async_void!("locator.dragTo", locator, fn ->
+      PlaywrightEx.Client.Locator.drag_to(locator, target, options)
+    end)
   end
 
   @drop_payload {:fields,
@@ -1184,10 +1189,10 @@ defmodule PlaywrightEx.Locator do
           },
           drop_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
-  def drop(this, payload, options \\ []) do
+  def drop(locator, payload, options \\ []) do
     payload = Facade.arg!(payload, @drop_payload, "locator.drop")
     options = Facade.options!(options, @drop_options, "locator.drop")
-    Facade.async_void("locator.drop", this, fn -> PlaywrightEx.Client.Locator.drop(this, payload, options) end)
+    Facade.async_void("locator.drop", locator, fn -> PlaywrightEx.Client.Locator.drop(locator, payload, options) end)
   end
 
   @doc "Like `drop/3`, but returns the value and raises on error."
@@ -1203,10 +1208,10 @@ defmodule PlaywrightEx.Locator do
           },
           drop_options()
         ) :: :ok
-  def drop!(this, payload, options \\ []) do
+  def drop!(locator, payload, options \\ []) do
     payload = Facade.arg!(payload, @drop_payload, "locator.drop")
     options = Facade.options!(options, @drop_options, "locator.drop")
-    Facade.async_void!("locator.drop", this, fn -> PlaywrightEx.Client.Locator.drop(this, payload, options) end)
+    Facade.async_void!("locator.drop", locator, fn -> PlaywrightEx.Client.Locator.drop(locator, payload, options) end)
   end
 
   @element_handle_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -1239,16 +1244,22 @@ defmodule PlaywrightEx.Locator do
   """
   @spec element_handle(t(), element_handle_options()) ::
           {:ok, PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
-  def element_handle(this, options \\ []) do
+  def element_handle(locator, options \\ []) do
     options = Facade.options!(options, @element_handle_options, "locator.elementHandle")
-    Facade.async("locator.elementHandle", this, fn -> PlaywrightEx.Client.Locator.element_handle(this, options) end)
+
+    Facade.async("locator.elementHandle", locator, fn ->
+      PlaywrightEx.Client.Locator.element_handle(locator, options)
+    end)
   end
 
   @doc "Like `element_handle/2`, but returns the value and raises on error."
   @spec element_handle!(t(), element_handle_options()) :: PlaywrightEx.ElementHandle.t()
-  def element_handle!(this, options \\ []) do
+  def element_handle!(locator, options \\ []) do
     options = Facade.options!(options, @element_handle_options, "locator.elementHandle")
-    Facade.async!("locator.elementHandle", this, fn -> PlaywrightEx.Client.Locator.element_handle(this, options) end)
+
+    Facade.async!("locator.elementHandle", locator, fn ->
+      PlaywrightEx.Client.Locator.element_handle(locator, options)
+    end)
   end
 
   @doc ~S"""
@@ -1261,14 +1272,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec element_handles(t()) :: {:ok, [PlaywrightEx.ElementHandle.t()]} | {:error, PlaywrightEx.error()}
-  def element_handles(this) do
-    Facade.async("locator.elementHandles", this, fn -> PlaywrightEx.Client.Locator.element_handles(this) end)
+  def element_handles(locator) do
+    Facade.async("locator.elementHandles", locator, fn -> PlaywrightEx.Client.Locator.element_handles(locator) end)
   end
 
   @doc "Like `element_handles/1`, but returns the value and raises on error."
   @spec element_handles!(t()) :: [PlaywrightEx.ElementHandle.t()]
-  def element_handles!(this) do
-    Facade.async!("locator.elementHandles", this, fn -> PlaywrightEx.Client.Locator.element_handles(this) end)
+  def element_handles!(locator) do
+    Facade.async!("locator.elementHandles", locator, fn -> PlaywrightEx.Client.Locator.element_handles(locator) end)
   end
 
   @doc ~S"""
@@ -1290,8 +1301,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.43.*
   """
   @spec content_frame(t()) :: PlaywrightEx.FrameLocator.t()
-  def content_frame(this) do
-    PlaywrightEx.Client.Locator.content_frame(this)
+  def content_frame(locator) do
+    PlaywrightEx.Client.Locator.content_frame(locator)
   end
 
   @evaluate_options {:object,
@@ -1349,21 +1360,21 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
-  def evaluate(this, expression, arg \\ nil, options \\ []) do
+  def evaluate(locator, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "locator.evaluate")
 
-    Facade.async("locator.evaluate", this, fn ->
-      PlaywrightEx.Client.Locator.evaluate(this, expression, arg, options)
+    Facade.async("locator.evaluate", locator, fn ->
+      PlaywrightEx.Client.Locator.evaluate(locator, expression, arg, options)
     end)
   end
 
   @doc "Like `evaluate/4`, but returns the value and raises on error."
   @spec evaluate!(t(), String.t(), term() | nil, evaluate_options()) :: term()
-  def evaluate!(this, expression, arg \\ nil, options \\ []) do
+  def evaluate!(locator, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "locator.evaluate")
 
-    Facade.async!("locator.evaluate", this, fn ->
-      PlaywrightEx.Client.Locator.evaluate(this, expression, arg, options)
+    Facade.async!("locator.evaluate", locator, fn ->
+      PlaywrightEx.Client.Locator.evaluate(locator, expression, arg, options)
     end)
   end
 
@@ -1393,14 +1404,18 @@ defmodule PlaywrightEx.Locator do
   * `arg` - Optional argument to pass to `expression`.
   """
   @spec evaluate_all(t(), String.t(), term() | nil) :: {:ok, term()} | {:error, PlaywrightEx.error()}
-  def evaluate_all(this, expression, arg \\ nil) do
-    Facade.async("locator.evaluateAll", this, fn -> PlaywrightEx.Client.Locator.evaluate_all(this, expression, arg) end)
+  def evaluate_all(locator, expression, arg \\ nil) do
+    Facade.async("locator.evaluateAll", locator, fn ->
+      PlaywrightEx.Client.Locator.evaluate_all(locator, expression, arg)
+    end)
   end
 
   @doc "Like `evaluate_all/3`, but returns the value and raises on error."
   @spec evaluate_all!(t(), String.t(), term() | nil) :: term()
-  def evaluate_all!(this, expression, arg \\ nil) do
-    Facade.async!("locator.evaluateAll", this, fn -> PlaywrightEx.Client.Locator.evaluate_all(this, expression, arg) end)
+  def evaluate_all!(locator, expression, arg \\ nil) do
+    Facade.async!("locator.evaluateAll", locator, fn ->
+      PlaywrightEx.Client.Locator.evaluate_all(locator, expression, arg)
+    end)
   end
 
   @evaluate_handle_options {:object,
@@ -1454,21 +1469,21 @@ defmodule PlaywrightEx.Locator do
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
           {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
-  def evaluate_handle(this, expression, arg \\ nil, options \\ []) do
+  def evaluate_handle(locator, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "locator.evaluateHandle")
 
-    Facade.async("locator.evaluateHandle", this, fn ->
-      PlaywrightEx.Client.Locator.evaluate_handle(this, expression, arg, options)
+    Facade.async("locator.evaluateHandle", locator, fn ->
+      PlaywrightEx.Client.Locator.evaluate_handle(locator, expression, arg, options)
     end)
   end
 
   @doc "Like `evaluate_handle/4`, but returns the value and raises on error."
   @spec evaluate_handle!(t(), String.t(), term() | nil, evaluate_handle_options()) :: PlaywrightEx.JSHandle.t()
-  def evaluate_handle!(this, expression, arg \\ nil, options \\ []) do
+  def evaluate_handle!(locator, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "locator.evaluateHandle")
 
-    Facade.async!("locator.evaluateHandle", this, fn ->
-      PlaywrightEx.Client.Locator.evaluate_handle(this, expression, arg, options)
+    Facade.async!("locator.evaluateHandle", locator, fn ->
+      PlaywrightEx.Client.Locator.evaluate_handle(locator, expression, arg, options)
     end)
   end
 
@@ -1533,16 +1548,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec fill(t(), String.t(), fill_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def fill(this, value, options \\ []) do
+  def fill(locator, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "locator.fill")
-    Facade.async_void("locator.fill", this, fn -> PlaywrightEx.Client.Locator.fill(this, value, options) end)
+    Facade.async_void("locator.fill", locator, fn -> PlaywrightEx.Client.Locator.fill(locator, value, options) end)
   end
 
   @doc "Like `fill/3`, but returns the value and raises on error."
   @spec fill!(t(), String.t(), fill_options()) :: :ok
-  def fill!(this, value, options \\ []) do
+  def fill!(locator, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "locator.fill")
-    Facade.async_void!("locator.fill", this, fn -> PlaywrightEx.Client.Locator.fill(this, value, options) end)
+    Facade.async_void!("locator.fill", locator, fn -> PlaywrightEx.Client.Locator.fill(locator, value, options) end)
   end
 
   @filter_options {:object,
@@ -1606,9 +1621,9 @@ defmodule PlaywrightEx.Locator do
   * `:visible` (`t:boolean/0`) - *Since Playwright 1.51.* Only matches visible or invisible elements. Prefer the `PlaywrightEx.Locator.visible/1` shortcut when matching only visible elements.
   """
   @spec filter(t(), filter_options()) :: PlaywrightEx.Locator.t()
-  def filter(this, options \\ []) do
+  def filter(locator, options \\ []) do
     options = Facade.options!(options, @filter_options, "locator.filter")
-    PlaywrightEx.Client.Locator.filter(this, options)
+    PlaywrightEx.Client.Locator.filter(locator, options)
   end
 
   @doc ~S"""
@@ -1617,8 +1632,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec first(t()) :: PlaywrightEx.Locator.t()
-  def first(this) do
-    PlaywrightEx.Client.Locator.first(this)
+  def first(locator) do
+    PlaywrightEx.Client.Locator.first(locator)
   end
 
   @focus_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -1646,16 +1661,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec focus(t(), focus_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def focus(this, options \\ []) do
+  def focus(locator, options \\ []) do
     options = Facade.options!(options, @focus_options, "locator.focus")
-    Facade.async_void("locator.focus", this, fn -> PlaywrightEx.Client.Locator.focus(this, options) end)
+    Facade.async_void("locator.focus", locator, fn -> PlaywrightEx.Client.Locator.focus(locator, options) end)
   end
 
   @doc "Like `focus/2`, but returns the value and raises on error."
   @spec focus!(t(), focus_options()) :: :ok
-  def focus!(this, options \\ []) do
+  def focus!(locator, options \\ []) do
     options = Facade.options!(options, @focus_options, "locator.focus")
-    Facade.async_void!("locator.focus", this, fn -> PlaywrightEx.Client.Locator.focus(this, options) end)
+    Facade.async_void!("locator.focus", locator, fn -> PlaywrightEx.Client.Locator.focus(locator, options) end)
   end
 
   @doc ~S"""
@@ -1676,8 +1691,8 @@ defmodule PlaywrightEx.Locator do
   * `selector` - A selector to use when resolving DOM element.
   """
   @spec frame_locator(t(), String.t()) :: PlaywrightEx.FrameLocator.t()
-  def frame_locator(this, selector) do
-    PlaywrightEx.Client.Locator.frame_locator(this, selector)
+  def frame_locator(locator, selector) do
+    PlaywrightEx.Client.Locator.frame_locator(locator, selector)
   end
 
   @get_attribute_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -1714,17 +1729,22 @@ defmodule PlaywrightEx.Locator do
   """
   @spec get_attribute(t(), String.t(), get_attribute_options()) ::
           {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
-  def get_attribute(this, name, options \\ []) do
+  def get_attribute(locator, name, options \\ []) do
     options = Facade.options!(options, @get_attribute_options, "locator.getAttribute")
-    Facade.async("locator.getAttribute", this, fn -> PlaywrightEx.Client.Locator.get_attribute(this, name, options) end)
+
+    Facade.async("locator.getAttribute", locator, fn ->
+      PlaywrightEx.Client.Locator.get_attribute(locator, name, options)
+    end)
   end
 
   @doc "Like `get_attribute/3`, but returns the value and raises on error."
   @spec get_attribute!(t(), String.t(), get_attribute_options()) :: nil | String.t()
-  def get_attribute!(this, name, options \\ []) do
+  def get_attribute!(locator, name, options \\ []) do
     options = Facade.options!(options, @get_attribute_options, "locator.getAttribute")
 
-    Facade.async!("locator.getAttribute", this, fn -> PlaywrightEx.Client.Locator.get_attribute(this, name, options) end)
+    Facade.async!("locator.getAttribute", locator, fn ->
+      PlaywrightEx.Client.Locator.get_attribute(locator, name, options)
+    end)
   end
 
   @get_by_alt_text_options {:object, %{exact: {:exact, nil}}}
@@ -1759,9 +1779,9 @@ defmodule PlaywrightEx.Locator do
   """
   @spec get_by_alt_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_alt_text_options()) ::
           PlaywrightEx.Locator.t()
-  def get_by_alt_text(this, text, options \\ []) do
+  def get_by_alt_text(locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_alt_text_options, "locator.getByAltText")
-    PlaywrightEx.Client.Locator.get_by_alt_text(this, text, options)
+    PlaywrightEx.Client.Locator.get_by_alt_text(locator, text, options)
   end
 
   @get_by_label_options {:object, %{exact: {:exact, nil}}}
@@ -1799,9 +1819,9 @@ defmodule PlaywrightEx.Locator do
   """
   @spec get_by_label(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_label_options()) ::
           PlaywrightEx.Locator.t()
-  def get_by_label(this, text, options \\ []) do
+  def get_by_label(locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_label_options, "locator.getByLabel")
-    PlaywrightEx.Client.Locator.get_by_label(this, text, options)
+    PlaywrightEx.Client.Locator.get_by_label(locator, text, options)
   end
 
   @get_by_placeholder_options {:object, %{exact: {:exact, nil}}}
@@ -1838,9 +1858,9 @@ defmodule PlaywrightEx.Locator do
   """
   @spec get_by_placeholder(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_placeholder_options()) ::
           PlaywrightEx.Locator.t()
-  def get_by_placeholder(this, text, options \\ []) do
+  def get_by_placeholder(locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_placeholder_options, "locator.getByPlaceholder")
-    PlaywrightEx.Client.Locator.get_by_placeholder(this, text, options)
+    PlaywrightEx.Client.Locator.get_by_placeholder(locator, text, options)
   end
 
   @get_by_role_role {:enum,
@@ -2127,10 +2147,10 @@ defmodule PlaywrightEx.Locator do
           | :treeitem,
           get_by_role_options()
         ) :: PlaywrightEx.Locator.t()
-  def get_by_role(this, role, options \\ []) do
+  def get_by_role(locator, role, options \\ []) do
     role = Facade.arg!(role, @get_by_role_role, "locator.getByRole")
     options = Facade.options!(options, @get_by_role_options, "locator.getByRole")
-    PlaywrightEx.Client.Locator.get_by_role(this, role, options)
+    PlaywrightEx.Client.Locator.get_by_role(locator, role, options)
   end
 
   @doc ~S"""
@@ -2166,8 +2186,8 @@ defmodule PlaywrightEx.Locator do
   * `test_id` - Id to locate the element by.
   """
   @spec get_by_test_id(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t()) :: PlaywrightEx.Locator.t()
-  def get_by_test_id(this, test_id) do
-    PlaywrightEx.Client.Locator.get_by_test_id(this, test_id)
+  def get_by_test_id(locator, test_id) do
+    PlaywrightEx.Client.Locator.get_by_test_id(locator, test_id)
   end
 
   @get_by_text_options {:object, %{exact: {:exact, nil}}}
@@ -2226,9 +2246,9 @@ defmodule PlaywrightEx.Locator do
   """
   @spec get_by_text(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_text_options()) ::
           PlaywrightEx.Locator.t()
-  def get_by_text(this, text, options \\ []) do
+  def get_by_text(locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_text_options, "locator.getByText")
-    PlaywrightEx.Client.Locator.get_by_text(this, text, options)
+    PlaywrightEx.Client.Locator.get_by_text(locator, text, options)
   end
 
   @get_by_title_options {:object, %{exact: {:exact, nil}}}
@@ -2265,9 +2285,9 @@ defmodule PlaywrightEx.Locator do
   """
   @spec get_by_title(t(), String.t() | Regex.t() | PlaywrightEx.RegExp.t(), get_by_title_options()) ::
           PlaywrightEx.Locator.t()
-  def get_by_title(this, text, options \\ []) do
+  def get_by_title(locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_title_options, "locator.getByTitle")
-    PlaywrightEx.Client.Locator.get_by_title(this, text, options)
+    PlaywrightEx.Client.Locator.get_by_title(locator, text, options)
   end
 
   @doc ~S"""
@@ -2276,14 +2296,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.60.*
   """
   @spec hide_highlight(t()) :: :ok | {:error, PlaywrightEx.error()}
-  def hide_highlight(this) do
-    Facade.async_void("locator.hideHighlight", this, fn -> PlaywrightEx.Client.Locator.hide_highlight(this) end)
+  def hide_highlight(locator) do
+    Facade.async_void("locator.hideHighlight", locator, fn -> PlaywrightEx.Client.Locator.hide_highlight(locator) end)
   end
 
   @doc "Like `hide_highlight/1`, but returns the value and raises on error."
   @spec hide_highlight!(t()) :: :ok
-  def hide_highlight!(this) do
-    Facade.async_void!("locator.hideHighlight", this, fn -> PlaywrightEx.Client.Locator.hide_highlight(this) end)
+  def hide_highlight!(locator) do
+    Facade.async_void!("locator.hideHighlight", locator, fn -> PlaywrightEx.Client.Locator.hide_highlight(locator) end)
   end
 
   @highlight_options {:object, %{style: {:style, nil}}}
@@ -2308,16 +2328,16 @@ defmodule PlaywrightEx.Locator do
     ```
   """
   @spec highlight(t(), highlight_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
-  def highlight(this, options \\ []) do
+  def highlight(locator, options \\ []) do
     options = Facade.options!(options, @highlight_options, "locator.highlight")
-    Facade.async("locator.highlight", this, fn -> PlaywrightEx.Client.Locator.highlight(this, options) end)
+    Facade.async("locator.highlight", locator, fn -> PlaywrightEx.Client.Locator.highlight(locator, options) end)
   end
 
   @doc "Like `highlight/2`, but returns the value and raises on error."
   @spec highlight!(t(), highlight_options()) :: PlaywrightEx.Disposable.t()
-  def highlight!(this, options \\ []) do
+  def highlight!(locator, options \\ []) do
     options = Facade.options!(options, @highlight_options, "locator.highlight")
-    Facade.async!("locator.highlight", this, fn -> PlaywrightEx.Client.Locator.highlight(this, options) end)
+    Facade.async!("locator.highlight", locator, fn -> PlaywrightEx.Client.Locator.highlight(locator, options) end)
   end
 
   @hover_options {:object,
@@ -2416,16 +2436,16 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec hover(t(), hover_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def hover(this, options \\ []) do
+  def hover(locator, options \\ []) do
     options = Facade.options!(options, @hover_options, "locator.hover")
-    Facade.async_void("locator.hover", this, fn -> PlaywrightEx.Client.Locator.hover(this, options) end)
+    Facade.async_void("locator.hover", locator, fn -> PlaywrightEx.Client.Locator.hover(locator, options) end)
   end
 
   @doc "Like `hover/2`, but returns the value and raises on error."
   @spec hover!(t(), hover_options()) :: :ok
-  def hover!(this, options \\ []) do
+  def hover!(locator, options \\ []) do
     options = Facade.options!(options, @hover_options, "locator.hover")
-    Facade.async_void!("locator.hover", this, fn -> PlaywrightEx.Client.Locator.hover(this, options) end)
+    Facade.async_void!("locator.hover", locator, fn -> PlaywrightEx.Client.Locator.hover(locator, options) end)
   end
 
   @inner_html_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2453,16 +2473,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec inner_html(t(), inner_html_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
-  def inner_html(this, options \\ []) do
+  def inner_html(locator, options \\ []) do
     options = Facade.options!(options, @inner_html_options, "locator.innerHTML")
-    Facade.async("locator.innerHTML", this, fn -> PlaywrightEx.Client.Locator.inner_html(this, options) end)
+    Facade.async("locator.innerHTML", locator, fn -> PlaywrightEx.Client.Locator.inner_html(locator, options) end)
   end
 
   @doc "Like `inner_html/2`, but returns the value and raises on error."
   @spec inner_html!(t(), inner_html_options()) :: String.t()
-  def inner_html!(this, options \\ []) do
+  def inner_html!(locator, options \\ []) do
     options = Facade.options!(options, @inner_html_options, "locator.innerHTML")
-    Facade.async!("locator.innerHTML", this, fn -> PlaywrightEx.Client.Locator.inner_html(this, options) end)
+    Facade.async!("locator.innerHTML", locator, fn -> PlaywrightEx.Client.Locator.inner_html(locator, options) end)
   end
 
   @inner_text_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2494,16 +2514,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec inner_text(t(), inner_text_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
-  def inner_text(this, options \\ []) do
+  def inner_text(locator, options \\ []) do
     options = Facade.options!(options, @inner_text_options, "locator.innerText")
-    Facade.async("locator.innerText", this, fn -> PlaywrightEx.Client.Locator.inner_text(this, options) end)
+    Facade.async("locator.innerText", locator, fn -> PlaywrightEx.Client.Locator.inner_text(locator, options) end)
   end
 
   @doc "Like `inner_text/2`, but returns the value and raises on error."
   @spec inner_text!(t(), inner_text_options()) :: String.t()
-  def inner_text!(this, options \\ []) do
+  def inner_text!(locator, options \\ []) do
     options = Facade.options!(options, @inner_text_options, "locator.innerText")
-    Facade.async!("locator.innerText", this, fn -> PlaywrightEx.Client.Locator.inner_text(this, options) end)
+    Facade.async!("locator.innerText", locator, fn -> PlaywrightEx.Client.Locator.inner_text(locator, options) end)
   end
 
   @input_value_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2545,16 +2565,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec input_value(t(), input_value_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
-  def input_value(this, options \\ []) do
+  def input_value(locator, options \\ []) do
     options = Facade.options!(options, @input_value_options, "locator.inputValue")
-    Facade.async("locator.inputValue", this, fn -> PlaywrightEx.Client.Locator.input_value(this, options) end)
+    Facade.async("locator.inputValue", locator, fn -> PlaywrightEx.Client.Locator.input_value(locator, options) end)
   end
 
   @doc "Like `input_value/2`, but returns the value and raises on error."
   @spec input_value!(t(), input_value_options()) :: String.t()
-  def input_value!(this, options \\ []) do
+  def input_value!(locator, options \\ []) do
     options = Facade.options!(options, @input_value_options, "locator.inputValue")
-    Facade.async!("locator.inputValue", this, fn -> PlaywrightEx.Client.Locator.input_value(this, options) end)
+    Facade.async!("locator.inputValue", locator, fn -> PlaywrightEx.Client.Locator.input_value(locator, options) end)
   end
 
   @is_checked_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2592,16 +2612,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_checked(t(), is_checked_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
-  def is_checked(this, options \\ []) do
+  def is_checked(locator, options \\ []) do
     options = Facade.options!(options, @is_checked_options, "locator.isChecked")
-    Facade.async("locator.isChecked", this, fn -> PlaywrightEx.Client.Locator.is_checked(this, options) end)
+    Facade.async("locator.isChecked", locator, fn -> PlaywrightEx.Client.Locator.is_checked(locator, options) end)
   end
 
   @doc "Like `is_checked/2`, but returns the value and raises on error."
   @spec is_checked!(t(), is_checked_options()) :: boolean()
-  def is_checked!(this, options \\ []) do
+  def is_checked!(locator, options \\ []) do
     options = Facade.options!(options, @is_checked_options, "locator.isChecked")
-    Facade.async!("locator.isChecked", this, fn -> PlaywrightEx.Client.Locator.is_checked(this, options) end)
+    Facade.async!("locator.isChecked", locator, fn -> PlaywrightEx.Client.Locator.is_checked(locator, options) end)
   end
 
   @is_disabled_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2639,16 +2659,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_disabled(t(), is_disabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
-  def is_disabled(this, options \\ []) do
+  def is_disabled(locator, options \\ []) do
     options = Facade.options!(options, @is_disabled_options, "locator.isDisabled")
-    Facade.async("locator.isDisabled", this, fn -> PlaywrightEx.Client.Locator.is_disabled(this, options) end)
+    Facade.async("locator.isDisabled", locator, fn -> PlaywrightEx.Client.Locator.is_disabled(locator, options) end)
   end
 
   @doc "Like `is_disabled/2`, but returns the value and raises on error."
   @spec is_disabled!(t(), is_disabled_options()) :: boolean()
-  def is_disabled!(this, options \\ []) do
+  def is_disabled!(locator, options \\ []) do
     options = Facade.options!(options, @is_disabled_options, "locator.isDisabled")
-    Facade.async!("locator.isDisabled", this, fn -> PlaywrightEx.Client.Locator.is_disabled(this, options) end)
+    Facade.async!("locator.isDisabled", locator, fn -> PlaywrightEx.Client.Locator.is_disabled(locator, options) end)
   end
 
   @is_editable_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2686,16 +2706,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_editable(t(), is_editable_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
-  def is_editable(this, options \\ []) do
+  def is_editable(locator, options \\ []) do
     options = Facade.options!(options, @is_editable_options, "locator.isEditable")
-    Facade.async("locator.isEditable", this, fn -> PlaywrightEx.Client.Locator.is_editable(this, options) end)
+    Facade.async("locator.isEditable", locator, fn -> PlaywrightEx.Client.Locator.is_editable(locator, options) end)
   end
 
   @doc "Like `is_editable/2`, but returns the value and raises on error."
   @spec is_editable!(t(), is_editable_options()) :: boolean()
-  def is_editable!(this, options \\ []) do
+  def is_editable!(locator, options \\ []) do
     options = Facade.options!(options, @is_editable_options, "locator.isEditable")
-    Facade.async!("locator.isEditable", this, fn -> PlaywrightEx.Client.Locator.is_editable(this, options) end)
+    Facade.async!("locator.isEditable", locator, fn -> PlaywrightEx.Client.Locator.is_editable(locator, options) end)
   end
 
   @is_enabled_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -2733,16 +2753,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_enabled(t(), is_enabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
-  def is_enabled(this, options \\ []) do
+  def is_enabled(locator, options \\ []) do
     options = Facade.options!(options, @is_enabled_options, "locator.isEnabled")
-    Facade.async("locator.isEnabled", this, fn -> PlaywrightEx.Client.Locator.is_enabled(this, options) end)
+    Facade.async("locator.isEnabled", locator, fn -> PlaywrightEx.Client.Locator.is_enabled(locator, options) end)
   end
 
   @doc "Like `is_enabled/2`, but returns the value and raises on error."
   @spec is_enabled!(t(), is_enabled_options()) :: boolean()
-  def is_enabled!(this, options \\ []) do
+  def is_enabled!(locator, options \\ []) do
     options = Facade.options!(options, @is_enabled_options, "locator.isEnabled")
-    Facade.async!("locator.isEnabled", this, fn -> PlaywrightEx.Client.Locator.is_enabled(this, options) end)
+    Facade.async!("locator.isEnabled", locator, fn -> PlaywrightEx.Client.Locator.is_enabled(locator, options) end)
   end
 
   @is_hidden_options {:object, %{timeout: {:timeout, nil}}}
@@ -2770,16 +2790,16 @@ defmodule PlaywrightEx.Locator do
   * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_hidden(t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
-  def is_hidden(this, options \\ []) do
+  def is_hidden(locator, options \\ []) do
     options = Facade.options!(options, @is_hidden_options, "locator.isHidden")
-    Facade.async("locator.isHidden", this, fn -> PlaywrightEx.Client.Locator.is_hidden(this, options) end)
+    Facade.async("locator.isHidden", locator, fn -> PlaywrightEx.Client.Locator.is_hidden(locator, options) end)
   end
 
   @doc "Like `is_hidden/2`, but returns the value and raises on error."
   @spec is_hidden!(t(), is_hidden_options()) :: boolean()
-  def is_hidden!(this, options \\ []) do
+  def is_hidden!(locator, options \\ []) do
     options = Facade.options!(options, @is_hidden_options, "locator.isHidden")
-    Facade.async!("locator.isHidden", this, fn -> PlaywrightEx.Client.Locator.is_hidden(this, options) end)
+    Facade.async!("locator.isHidden", locator, fn -> PlaywrightEx.Client.Locator.is_hidden(locator, options) end)
   end
 
   @is_visible_options {:object, %{timeout: {:timeout, nil}}}
@@ -2807,16 +2827,16 @@ defmodule PlaywrightEx.Locator do
   * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec is_visible(t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
-  def is_visible(this, options \\ []) do
+  def is_visible(locator, options \\ []) do
     options = Facade.options!(options, @is_visible_options, "locator.isVisible")
-    Facade.async("locator.isVisible", this, fn -> PlaywrightEx.Client.Locator.is_visible(this, options) end)
+    Facade.async("locator.isVisible", locator, fn -> PlaywrightEx.Client.Locator.is_visible(locator, options) end)
   end
 
   @doc "Like `is_visible/2`, but returns the value and raises on error."
   @spec is_visible!(t(), is_visible_options()) :: boolean()
-  def is_visible!(this, options \\ []) do
+  def is_visible!(locator, options \\ []) do
     options = Facade.options!(options, @is_visible_options, "locator.isVisible")
-    Facade.async!("locator.isVisible", this, fn -> PlaywrightEx.Client.Locator.is_visible(this, options) end)
+    Facade.async!("locator.isVisible", locator, fn -> PlaywrightEx.Client.Locator.is_visible(locator, options) end)
   end
 
   @doc ~S"""
@@ -2831,8 +2851,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec last(t()) :: PlaywrightEx.Locator.t()
-  def last(this) do
-    PlaywrightEx.Client.Locator.last(this)
+  def last(locator) do
+    PlaywrightEx.Client.Locator.last(locator)
   end
 
   @locator_options {:object,
@@ -2886,9 +2906,9 @@ defmodule PlaywrightEx.Locator do
     For example, `"Playwright"` matches `<article><div>Playwright</div></article>`.
   """
   @spec locator(t(), String.t() | PlaywrightEx.Locator.t(), locator_options()) :: PlaywrightEx.Locator.t()
-  def locator(this, selector_or_locator, options \\ []) do
+  def locator(locator, selector_or_locator, options \\ []) do
     options = Facade.options!(options, @locator_options, "locator.locator")
-    PlaywrightEx.Client.Locator.locator(this, selector_or_locator, options)
+    PlaywrightEx.Client.Locator.locator(locator, selector_or_locator, options)
   end
 
   @doc ~S"""
@@ -2918,14 +2938,14 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.59.*
   """
   @spec normalize(t()) :: {:ok, PlaywrightEx.Locator.t()} | {:error, PlaywrightEx.error()}
-  def normalize(this) do
-    Facade.async("locator.normalize", this, fn -> PlaywrightEx.Client.Locator.normalize(this) end)
+  def normalize(locator) do
+    Facade.async("locator.normalize", locator, fn -> PlaywrightEx.Client.Locator.normalize(locator) end)
   end
 
   @doc "Like `normalize/1`, but returns the value and raises on error."
   @spec normalize!(t()) :: PlaywrightEx.Locator.t()
-  def normalize!(this) do
-    Facade.async!("locator.normalize", this, fn -> PlaywrightEx.Client.Locator.normalize(this) end)
+  def normalize!(locator) do
+    Facade.async!("locator.normalize", locator, fn -> PlaywrightEx.Client.Locator.normalize(locator) end)
   end
 
   @doc ~S"""
@@ -2940,8 +2960,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.14.*
   """
   @spec nth(t(), integer()) :: PlaywrightEx.Locator.t()
-  def nth(this, index) do
-    PlaywrightEx.Client.Locator.nth(this, index)
+  def nth(locator, index) do
+    PlaywrightEx.Client.Locator.nth(locator, index)
   end
 
   @doc ~S"""
@@ -2974,11 +2994,11 @@ defmodule PlaywrightEx.Locator do
 
   ## Arguments
 
-  * `locator` - Alternative locator to match.
+  * `other_locator` - Alternative locator to match.
   """
   @spec or_(t(), PlaywrightEx.Locator.t()) :: PlaywrightEx.Locator.t()
-  def or_(this, locator) do
-    PlaywrightEx.Client.Locator.or_(this, locator)
+  def or_(locator, other_locator) do
+    PlaywrightEx.Client.Locator.or_(locator, other_locator)
   end
 
   @doc ~S"""
@@ -2987,8 +3007,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.19.*
   """
   @spec page(t()) :: PlaywrightEx.Page.t()
-  def page(this) do
-    PlaywrightEx.Client.Locator.page(this)
+  def page(locator) do
+    PlaywrightEx.Client.Locator.page(locator)
   end
 
   @press_options {:object,
@@ -3069,16 +3089,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec press(t(), String.t(), press_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def press(this, key, options \\ []) do
+  def press(locator, key, options \\ []) do
     options = Facade.options!(options, @press_options, "locator.press")
-    Facade.async_void("locator.press", this, fn -> PlaywrightEx.Client.Locator.press(this, key, options) end)
+    Facade.async_void("locator.press", locator, fn -> PlaywrightEx.Client.Locator.press(locator, key, options) end)
   end
 
   @doc "Like `press/3`, but returns the value and raises on error."
   @spec press!(t(), String.t(), press_options()) :: :ok
-  def press!(this, key, options \\ []) do
+  def press!(locator, key, options \\ []) do
     options = Facade.options!(options, @press_options, "locator.press")
-    Facade.async_void!("locator.press", this, fn -> PlaywrightEx.Client.Locator.press(this, key, options) end)
+    Facade.async_void!("locator.press", locator, fn -> PlaywrightEx.Client.Locator.press(locator, key, options) end)
   end
 
   @press_sequentially_options {:object,
@@ -3151,21 +3171,21 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec press_sequentially(t(), String.t(), press_sequentially_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def press_sequentially(this, text, options \\ []) do
+  def press_sequentially(locator, text, options \\ []) do
     options = Facade.options!(options, @press_sequentially_options, "locator.pressSequentially")
 
-    Facade.async_void("locator.pressSequentially", this, fn ->
-      PlaywrightEx.Client.Locator.press_sequentially(this, text, options)
+    Facade.async_void("locator.pressSequentially", locator, fn ->
+      PlaywrightEx.Client.Locator.press_sequentially(locator, text, options)
     end)
   end
 
   @doc "Like `press_sequentially/3`, but returns the value and raises on error."
   @spec press_sequentially!(t(), String.t(), press_sequentially_options()) :: :ok
-  def press_sequentially!(this, text, options \\ []) do
+  def press_sequentially!(locator, text, options \\ []) do
     options = Facade.options!(options, @press_sequentially_options, "locator.pressSequentially")
 
-    Facade.async_void!("locator.pressSequentially", this, fn ->
-      PlaywrightEx.Client.Locator.press_sequentially(this, text, options)
+    Facade.async_void!("locator.pressSequentially", locator, fn ->
+      PlaywrightEx.Client.Locator.press_sequentially(locator, text, options)
     end)
   end
 
@@ -3280,16 +3300,16 @@ defmodule PlaywrightEx.Locator do
   * `:type` (`:png` | `:jpeg` | `:webp`) - Specify screenshot type, defaults to `:png`.
   """
   @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, PlaywrightEx.error()}
-  def screenshot(this, options \\ []) do
+  def screenshot(locator, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "locator.screenshot")
-    Facade.async("locator.screenshot", this, fn -> PlaywrightEx.Client.Locator.screenshot(this, options) end)
+    Facade.async("locator.screenshot", locator, fn -> PlaywrightEx.Client.Locator.screenshot(locator, options) end)
   end
 
   @doc "Like `screenshot/2`, but returns the value and raises on error."
   @spec screenshot!(t(), screenshot_options()) :: binary()
-  def screenshot!(this, options \\ []) do
+  def screenshot!(locator, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "locator.screenshot")
-    Facade.async!("locator.screenshot", this, fn -> PlaywrightEx.Client.Locator.screenshot(this, options) end)
+    Facade.async!("locator.screenshot", locator, fn -> PlaywrightEx.Client.Locator.screenshot(locator, options) end)
   end
 
   @scroll_into_view_if_needed_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -3321,21 +3341,21 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec scroll_into_view_if_needed(t(), scroll_into_view_if_needed_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def scroll_into_view_if_needed(this, options \\ []) do
+  def scroll_into_view_if_needed(locator, options \\ []) do
     options = Facade.options!(options, @scroll_into_view_if_needed_options, "locator.scrollIntoViewIfNeeded")
 
-    Facade.async_void("locator.scrollIntoViewIfNeeded", this, fn ->
-      PlaywrightEx.Client.Locator.scroll_into_view_if_needed(this, options)
+    Facade.async_void("locator.scrollIntoViewIfNeeded", locator, fn ->
+      PlaywrightEx.Client.Locator.scroll_into_view_if_needed(locator, options)
     end)
   end
 
   @doc "Like `scroll_into_view_if_needed/2`, but returns the value and raises on error."
   @spec scroll_into_view_if_needed!(t(), scroll_into_view_if_needed_options()) :: :ok
-  def scroll_into_view_if_needed!(this, options \\ []) do
+  def scroll_into_view_if_needed!(locator, options \\ []) do
     options = Facade.options!(options, @scroll_into_view_if_needed_options, "locator.scrollIntoViewIfNeeded")
 
-    Facade.async_void!("locator.scrollIntoViewIfNeeded", this, fn ->
-      PlaywrightEx.Client.Locator.scroll_into_view_if_needed(this, options)
+    Facade.async_void!("locator.scrollIntoViewIfNeeded", locator, fn ->
+      PlaywrightEx.Client.Locator.scroll_into_view_if_needed(locator, options)
     end)
   end
 
@@ -3437,12 +3457,12 @@ defmodule PlaywrightEx.Locator do
           | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, PlaywrightEx.error()}
-  def select_option(this, values, options \\ []) do
+  def select_option(locator, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "locator.selectOption")
     options = Facade.options!(options, @select_option_options, "locator.selectOption")
 
-    Facade.async("locator.selectOption", this, fn ->
-      PlaywrightEx.Client.Locator.select_option(this, values, options)
+    Facade.async("locator.selectOption", locator, fn ->
+      PlaywrightEx.Client.Locator.select_option(locator, values, options)
     end)
   end
 
@@ -3458,12 +3478,12 @@ defmodule PlaywrightEx.Locator do
           | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
           select_option_options()
         ) :: [String.t()]
-  def select_option!(this, values, options \\ []) do
+  def select_option!(locator, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "locator.selectOption")
     options = Facade.options!(options, @select_option_options, "locator.selectOption")
 
-    Facade.async!("locator.selectOption", this, fn ->
-      PlaywrightEx.Client.Locator.select_option(this, values, options)
+    Facade.async!("locator.selectOption", locator, fn ->
+      PlaywrightEx.Client.Locator.select_option(locator, values, options)
     end)
   end
 
@@ -3500,16 +3520,20 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec select_text(t(), select_text_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def select_text(this, options \\ []) do
+  def select_text(locator, options \\ []) do
     options = Facade.options!(options, @select_text_options, "locator.selectText")
-    Facade.async_void("locator.selectText", this, fn -> PlaywrightEx.Client.Locator.select_text(this, options) end)
+
+    Facade.async_void("locator.selectText", locator, fn -> PlaywrightEx.Client.Locator.select_text(locator, options) end)
   end
 
   @doc "Like `select_text/2`, but returns the value and raises on error."
   @spec select_text!(t(), select_text_options()) :: :ok
-  def select_text!(this, options \\ []) do
+  def select_text!(locator, options \\ []) do
     options = Facade.options!(options, @select_text_options, "locator.selectText")
-    Facade.async_void!("locator.selectText", this, fn -> PlaywrightEx.Client.Locator.select_text(this, options) end)
+
+    Facade.async_void!("locator.selectText", locator, fn ->
+      PlaywrightEx.Client.Locator.select_text(locator, options)
+    end)
   end
 
   @set_checked_options {:object,
@@ -3598,21 +3622,21 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec set_checked(t(), boolean(), set_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def set_checked(this, checked, options \\ []) do
+  def set_checked(locator, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "locator.setChecked")
 
-    Facade.async_void("locator.setChecked", this, fn ->
-      PlaywrightEx.Client.Locator.set_checked(this, checked, options)
+    Facade.async_void("locator.setChecked", locator, fn ->
+      PlaywrightEx.Client.Locator.set_checked(locator, checked, options)
     end)
   end
 
   @doc "Like `set_checked/3`, but returns the value and raises on error."
   @spec set_checked!(t(), boolean(), set_checked_options()) :: :ok
-  def set_checked!(this, checked, options \\ []) do
+  def set_checked!(locator, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "locator.setChecked")
 
-    Facade.async_void!("locator.setChecked", this, fn ->
-      PlaywrightEx.Client.Locator.set_checked(this, checked, options)
+    Facade.async_void!("locator.setChecked", locator, fn ->
+      PlaywrightEx.Client.Locator.set_checked(locator, checked, options)
     end)
   end
 
@@ -3696,12 +3720,12 @@ defmodule PlaywrightEx.Locator do
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_input_files_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
-  def set_input_files(this, files, options \\ []) do
+  def set_input_files(locator, files, options \\ []) do
     files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles")
     options = Facade.options!(options, @set_input_files_options, "locator.setInputFiles")
 
-    Facade.async_void("locator.setInputFiles", this, fn ->
-      PlaywrightEx.Client.Locator.set_input_files(this, files, options)
+    Facade.async_void("locator.setInputFiles", locator, fn ->
+      PlaywrightEx.Client.Locator.set_input_files(locator, files, options)
     end)
   end
 
@@ -3714,12 +3738,12 @@ defmodule PlaywrightEx.Locator do
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_input_files_options()
         ) :: :ok
-  def set_input_files!(this, files, options \\ []) do
+  def set_input_files!(locator, files, options \\ []) do
     files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles")
     options = Facade.options!(options, @set_input_files_options, "locator.setInputFiles")
 
-    Facade.async_void!("locator.setInputFiles", this, fn ->
-      PlaywrightEx.Client.Locator.set_input_files(this, files, options)
+    Facade.async_void!("locator.setInputFiles", locator, fn ->
+      PlaywrightEx.Client.Locator.set_input_files(locator, files, options)
     end)
   end
 
@@ -3811,16 +3835,16 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec tap(t(), tap_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def tap(this, options \\ []) do
+  def tap(locator, options \\ []) do
     options = Facade.options!(options, @tap_options, "locator.tap")
-    Facade.async_void("locator.tap", this, fn -> PlaywrightEx.Client.Locator.tap(this, options) end)
+    Facade.async_void("locator.tap", locator, fn -> PlaywrightEx.Client.Locator.tap(locator, options) end)
   end
 
   @doc "Like `tap/2`, but returns the value and raises on error."
   @spec tap!(t(), tap_options()) :: :ok
-  def tap!(this, options \\ []) do
+  def tap!(locator, options \\ []) do
     options = Facade.options!(options, @tap_options, "locator.tap")
-    Facade.async_void!("locator.tap", this, fn -> PlaywrightEx.Client.Locator.tap(this, options) end)
+    Facade.async_void!("locator.tap", locator, fn -> PlaywrightEx.Client.Locator.tap(locator, options) end)
   end
 
   @text_content_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -3852,16 +3876,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec text_content(t(), text_content_options()) :: {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
-  def text_content(this, options \\ []) do
+  def text_content(locator, options \\ []) do
     options = Facade.options!(options, @text_content_options, "locator.textContent")
-    Facade.async("locator.textContent", this, fn -> PlaywrightEx.Client.Locator.text_content(this, options) end)
+    Facade.async("locator.textContent", locator, fn -> PlaywrightEx.Client.Locator.text_content(locator, options) end)
   end
 
   @doc "Like `text_content/2`, but returns the value and raises on error."
   @spec text_content!(t(), text_content_options()) :: nil | String.t()
-  def text_content!(this, options \\ []) do
+  def text_content!(locator, options \\ []) do
     options = Facade.options!(options, @text_content_options, "locator.textContent")
-    Facade.async!("locator.textContent", this, fn -> PlaywrightEx.Client.Locator.text_content(this, options) end)
+    Facade.async!("locator.textContent", locator, fn -> PlaywrightEx.Client.Locator.text_content(locator, options) end)
   end
 
   @doc ~S"""
@@ -3870,8 +3894,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.57.*
   """
   @spec to_string(t()) :: String.t()
-  def to_string(this) do
-    PlaywrightEx.Client.Locator.to_string(this)
+  def to_string(locator) do
+    PlaywrightEx.Client.Locator.to_string(locator)
   end
 
   @type_options {:object,
@@ -3927,18 +3951,18 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec type(t(), String.t(), type_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def type(this, text, options \\ []) do
+  def type(locator, text, options \\ []) do
     options = Facade.options!(options, @type_options, "locator.type")
-    Facade.async_void("locator.type", this, fn -> PlaywrightEx.Client.Locator.type(this, text, options) end)
+    Facade.async_void("locator.type", locator, fn -> PlaywrightEx.Client.Locator.type(locator, text, options) end)
   end
 
   @doc deprecated:
          "In most cases, you should use PlaywrightEx.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use PlaywrightEx.Locator.press_sequentially/3"
   @doc "Like `type/3`, but returns the value and raises on error."
   @spec type!(t(), String.t(), type_options()) :: :ok
-  def type!(this, text, options \\ []) do
+  def type!(locator, text, options \\ []) do
     options = Facade.options!(options, @type_options, "locator.type")
-    Facade.async_void!("locator.type", this, fn -> PlaywrightEx.Client.Locator.type(this, text, options) end)
+    Facade.async_void!("locator.type", locator, fn -> PlaywrightEx.Client.Locator.type(locator, text, options) end)
   end
 
   @uncheck_options {:object,
@@ -4024,16 +4048,16 @@ defmodule PlaywrightEx.Locator do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec uncheck(t(), uncheck_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def uncheck(this, options \\ []) do
+  def uncheck(locator, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "locator.uncheck")
-    Facade.async_void("locator.uncheck", this, fn -> PlaywrightEx.Client.Locator.uncheck(this, options) end)
+    Facade.async_void("locator.uncheck", locator, fn -> PlaywrightEx.Client.Locator.uncheck(locator, options) end)
   end
 
   @doc "Like `uncheck/2`, but returns the value and raises on error."
   @spec uncheck!(t(), uncheck_options()) :: :ok
-  def uncheck!(this, options \\ []) do
+  def uncheck!(locator, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "locator.uncheck")
-    Facade.async_void!("locator.uncheck", this, fn -> PlaywrightEx.Client.Locator.uncheck(this, options) end)
+    Facade.async_void!("locator.uncheck", locator, fn -> PlaywrightEx.Client.Locator.uncheck(locator, options) end)
   end
 
   @doc ~S"""
@@ -4061,8 +4085,8 @@ defmodule PlaywrightEx.Locator do
   *Since Playwright 1.63.*
   """
   @spec visible(t()) :: PlaywrightEx.Locator.t()
-  def visible(this) do
-    PlaywrightEx.Client.Locator.visible(this)
+  def visible(locator) do
+    PlaywrightEx.Client.Locator.visible(locator)
   end
 
   @wait_for_options {:object,
@@ -4123,16 +4147,16 @@ defmodule PlaywrightEx.Locator do
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
   @spec wait_for(t(), wait_for_options()) :: :ok | {:error, PlaywrightEx.error()}
-  def wait_for(this, options \\ []) do
+  def wait_for(locator, options \\ []) do
     options = Facade.options!(options, @wait_for_options, "locator.waitFor")
-    Facade.async_void("locator.waitFor", this, fn -> PlaywrightEx.Client.Locator.wait_for(this, options) end)
+    Facade.async_void("locator.waitFor", locator, fn -> PlaywrightEx.Client.Locator.wait_for(locator, options) end)
   end
 
   @doc "Like `wait_for/2`, but returns the value and raises on error."
   @spec wait_for!(t(), wait_for_options()) :: :ok
-  def wait_for!(this, options \\ []) do
+  def wait_for!(locator, options \\ []) do
     options = Facade.options!(options, @wait_for_options, "locator.waitFor")
-    Facade.async_void!("locator.waitFor", this, fn -> PlaywrightEx.Client.Locator.wait_for(this, options) end)
+    Facade.async_void!("locator.waitFor", locator, fn -> PlaywrightEx.Client.Locator.wait_for(locator, options) end)
   end
 
   @wait_for_function_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -4188,26 +4212,26 @@ defmodule PlaywrightEx.Locator do
   """
   @spec wait_for_function(t(), String.t(), term() | nil, wait_for_function_options()) ::
           :ok | {:error, PlaywrightEx.error()}
-  def wait_for_function(this, expression, arg \\ nil, options \\ []) do
+  def wait_for_function(locator, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @wait_for_function_options, "locator.waitForFunction")
 
-    Facade.async_void("locator.waitForFunction", this, fn ->
-      PlaywrightEx.Client.Locator.wait_for_function(this, expression, arg, options)
+    Facade.async_void("locator.waitForFunction", locator, fn ->
+      PlaywrightEx.Client.Locator.wait_for_function(locator, expression, arg, options)
     end)
   end
 
   @doc "Like `wait_for_function/4`, but returns the value and raises on error."
   @spec wait_for_function!(t(), String.t(), term() | nil, wait_for_function_options()) :: :ok
-  def wait_for_function!(this, expression, arg \\ nil, options \\ []) do
+  def wait_for_function!(locator, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @wait_for_function_options, "locator.waitForFunction")
 
-    Facade.async_void!("locator.waitForFunction", this, fn ->
-      PlaywrightEx.Client.Locator.wait_for_function(this, expression, arg, options)
+    Facade.async_void!("locator.waitForFunction", locator, fn ->
+      PlaywrightEx.Client.Locator.wait_for_function(locator, expression, arg, options)
     end)
   end
 
   @doc ~S"""
-  Returns a locator that matches this locator's elements inside each element matched by `locator`.
+  Returns a locator that matches this locator's elements inside each element matched by `other_locator`.
 
   Note that relative locators, such as `PlaywrightEx.Locator.nth/2` or `PlaywrightEx.Locator.first/1`, are resolved separately inside each matched parent. In the example below, `Page.get_by_role(page, :cell) |> Locator.nth(2)` picks the third cell of every row, not the third cell in the whole table.
 
@@ -4222,10 +4246,10 @@ defmodule PlaywrightEx.Locator do
 
   ## Arguments
 
-  * `locator` - Locator matching the parent elements to search within.
+  * `other_locator` - Locator matching the parent elements to search within.
   """
   @spec within(t(), PlaywrightEx.Locator.t()) :: PlaywrightEx.Locator.t()
-  def within(this, locator) do
-    PlaywrightEx.Client.Locator.within(this, locator)
+  def within(locator, other_locator) do
+    PlaywrightEx.Client.Locator.within(locator, other_locator)
   end
 end

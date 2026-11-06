@@ -229,9 +229,15 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp class_source(ctx, class) do
     name = class["name"]
-    members = class["members"] |> Enum.reject(&(&1["kind"] == "event")) |> Enum.uniq_by(& &1["alias"])
+    receiver = snake(name)
+
+    members =
+      class["members"]
+      |> Enum.reject(&(&1["kind"] == "event"))
+      |> Enum.uniq_by(& &1["alias"])
+      |> Enum.map(&rename_clashing_args(&1, receiver))
+
     events = for m <- class["members"], m["kind"] == "event", do: m
-    receiver = receiver(name, members)
     ctx = Map.put(ctx, :receiver, receiver)
     listeners = if events != [], do: @listener_methods, else: []
 
@@ -351,7 +357,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     name = snake(member["alias"])
     api_name = api_name(class["name"], member["alias"])
     receiver = matcher_receiver(matcher["receivers"])
-    vars = Enum.map(member["args"], &var(&1["name"]))
+    vars = Enum.map(member["args"], &arg_var/1)
     attrs = for {arg, var} <- Enum.zip(member["args"], vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(member["args"], vars), &param/1)]
     fun = matcher_function(member)
@@ -411,7 +417,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     callback = member["callback"]
     api_name = api_name(class["name"], if(callback, do: callback["call"], else: member["alias"]))
     args = if callback, do: with_action(member["args"]), else: member["args"]
-    vars = Enum.map(args, &var(&1["name"]))
+    vars = Enum.map(args, &arg_var/1)
     attrs = for {arg, var} <- Enum.zip(args, vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(args, vars), &param/1)]
     void? = get_in(member, ["type", "name"]) == "void"
@@ -738,7 +744,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       since(member),
       positional != [] &&
         "## Arguments\n\n" <>
-          Enum.map_join(positional, "\n", &bullet(ctx, "`#{var(&1["name"])}`", &1, member["since"])),
+          Enum.map_join(positional, "\n", &bullet(ctx, "`#{arg_var(&1)}`", &1, member["since"])),
       options != [] &&
         "## Options\n\n" <>
           options_function_doc(args) <> Enum.map_join(options, "\n", &option_bullet(ctx, &1, member["since"]))
@@ -755,7 +761,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     or_options =
       case Enum.find(args, & &1["orOptions"]) do
         nil -> ""
-        arg -> "The options may take the place of `#{var(arg["name"])}`, which is then `nil`.\n\n"
+        arg -> "The options may take the place of `#{arg_var(arg)}`, which is then `nil`.\n\n"
       end
 
     function <> or_options
@@ -1124,11 +1130,16 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   defp matcher_receiver(receivers), do: receivers |> Enum.map_join("_or_", &snake/1)
 
-  defp receiver(class_name, members) do
-    receiver = snake(class_name)
-    taken = for m <- members, a <- m["args"], do: var(a["name"])
-    if receiver in taken, do: "this", else: receiver
+  # The receiver is named after the class (`locator`); an argument of the same name
+  # (`Locator.and_(locator, other_locator)`) is `other_<name>`.
+  defp rename_clashing_args(member, receiver) do
+    Map.update!(member, "args", fn args ->
+      Enum.map(args, &if(var(&1["name"]) == receiver, do: Map.put(&1, "var", "other_" <> receiver), else: &1))
+    end)
   end
+
+  # The variable of an argument.
+  defp arg_var(arg), do: arg["var"] || var(arg["name"])
 
   defp event_atom(event), do: atom(event["name"])
 
@@ -1311,7 +1322,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
     receiver = [{receiver_name(ctx.class), "`#{ctx.receiver}`"}]
     options = for p <- props, do: {p["name"], "`#{inspect(atom(p["name"]))}`"}
-    arguments = for arg <- positional, name <- [arg["name"], arg["alias"]], name, do: {name, "`#{var(arg["name"])}`"}
+    arguments = for arg <- positional, name <- [arg["name"], arg["alias"]], name, do: {name, "`#{arg_var(arg)}`"}
     keep = for name <- keep, do: {name, "`#{name}`"}
     names = Map.new(receiver ++ options ++ arguments ++ keep)
 
