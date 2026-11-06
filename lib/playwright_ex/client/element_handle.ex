@@ -15,7 +15,6 @@ defmodule PlaywrightEx.Client.ElementHandle do
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.WritableStream
   alias PlaywrightEx.Isomorphic.MimeType
-  alias PlaywrightEx.Runtime.Node
 
   def from(handle) do
     handle
@@ -323,13 +322,13 @@ defmodule PlaywrightEx.Client.ElementHandle do
   defp resolve_paths_and_directory_for_input_files(items) do
     {local_paths, local_directory} =
       Enum.reduce(items, {nil, nil}, fn item, {local_paths, local_directory} ->
-        stat = Node.fs!(File.stat(item), "stat", item)
+        stat = File.stat!(item)
 
         if stat.type == :directory do
           if local_directory, do: raise("Multiple directories are not supported")
-          {local_paths, Node.path_resolve(item)}
+          {local_paths, Path.expand(item)}
         else
-          {(local_paths || []) ++ [Node.path_resolve(item)], local_directory}
+          {(local_paths || []) ++ [Path.expand(item)], local_directory}
         end
       end)
 
@@ -368,7 +367,7 @@ defmodule PlaywrightEx.Client.ElementHandle do
                   items:
                     Enum.map(files, fn file ->
                       # deviation: `mtimeMs` in whole seconds (Erlang's `File.stat/2` has no sub-second mtime).
-                      last_modified_ms = Node.fs!(File.stat(file, time: :posix), "stat", file).mtime * 1000
+                      last_modified_ms = File.stat!(file, time: :posix).mtime * 1000
 
                       %{
                         name:

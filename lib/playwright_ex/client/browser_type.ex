@@ -11,7 +11,6 @@ defmodule PlaywrightEx.Client.BrowserType do
   alias PlaywrightEx.Client.Selectors
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
-  alias PlaywrightEx.Runtime.Node
 
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
@@ -95,7 +94,7 @@ defmodule PlaywrightEx.Client.BrowserType do
         userDataDir:
           if(Path.type(user_data_dir) == :absolute or user_data_dir == "",
             do: user_data_dir,
-            else: Node.path_resolve(user_data_dir)
+            else: Path.expand(user_data_dir)
           )
       })
 

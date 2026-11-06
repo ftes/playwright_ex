@@ -191,9 +191,9 @@ single thread. Use each only where the JS code needs it, with its marker.
 - JS truthiness (`expect(x).toBeTruthy()`) is `Utils.assert_truthy/1`/`assert_falsy/1`, not a
   bare `assert` (`:null` is truthy in Elixir). `expect.poll` and `toPass` are `Utils.poll/3` and
   `Utils.to_pass/2`.
-- Node built-ins whose text tests assert: `Runtime.Node.path_resolve/1` for `path.resolve` (not
-  `Path.expand`: no `~`), `Runtime.Node.fs!/3` for Node's `ENOENT: ...` errors. Keep upstream's
-  assertion and fix the client or helper instead.
+- Local file access: `path.resolve` is `Path.expand/1`, `fs` calls are `File.*!` (raising
+  `File.Error`). Don't imitate system or Node error texts: assert the Elixir error and mark it
+  `# deviation: Elixir's File error, not Node's text.` Errors the driver sends stay verbatim.
 - A test-side change of behaviour is marked like lib code (`# deviation: <reason>`). Helper
   modules of a spec (event subclasses) are top-level modules: parity treats nested modules as specs.
 

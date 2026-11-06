@@ -168,8 +168,8 @@ code to keep in sync: Elixir `JSON` (with `ClientHelper.json_parse/1` mapping `n
 by listener processes), ETS for state, `Enumerable`/`Collectable` for streams, `DateTime` for
 `Date`, keyword lists for `URLSearchParams`/`FormData`. `PlaywrightEx.AbortController` is global
 as in JS: signals live in an ETS table of the application, any process aborts, listeners run in
-the aborting process and only send messages. `PlaywrightEx.Runtime.Node` covers the Node built-ins
-whose behaviour shows (`path.resolve`, `fs` error texts), so upstream assertions hold verbatim.
+the aborting process and only send messages. Local file access is plain Elixir: `path.resolve` is
+`Path.expand/1`, a failed `fs` call raises `File.Error`; Node's error texts are not imitated.
 
 Kept as ports because the output is user-visible and must match: the MIME table, the
 `URLSearchParams` serializer (byte-equal to JS), the `JSON.stringify(v, undefined, 2)` layout of

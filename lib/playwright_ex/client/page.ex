@@ -45,7 +45,6 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Isomorphic.LongStandingScope
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
-  alias PlaywrightEx.Runtime.Node
   alias PlaywrightEx.TargetClosedError
 
   def from(page) do
@@ -876,7 +875,7 @@ defmodule PlaywrightEx.Client.Page do
 
     if options[:path] do
       FileUtils.mkdir_if_needed(options.path)
-      Node.fs!(File.write(options.path, result.binary), "open", options.path)
+      File.write!(options.path, result.binary)
     end
 
     result.binary
@@ -1192,9 +1191,8 @@ defmodule PlaywrightEx.Client.Page do
     result = channel_call(this, :pdf, transport_options, TimeoutSettings.k_no_timeout())
 
     if options[:path] do
-      dir = Path.dirname(options.path)
-      Node.fs!(File.mkdir_p(dir), "mkdir", dir)
-      Node.fs!(File.write(options.path, result.pdf), "open", options.path)
+      File.mkdir_p!(Path.dirname(options.path))
+      File.write!(options.path, result.pdf)
     end
 
     result.pdf

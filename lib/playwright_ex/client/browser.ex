@@ -11,7 +11,6 @@ defmodule PlaywrightEx.Client.Browser do
   alias PlaywrightEx.Client.FileUtils
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Client.Selectors
-  alias PlaywrightEx.Runtime.Node
 
   def from(browser) do
     browser
@@ -168,7 +167,7 @@ defmodule PlaywrightEx.Client.Browser do
 
     if path = get(this, :_path) do
       FileUtils.mkdir_if_needed(path)
-      Node.fs!(File.write(path, buffer), "open", path)
+      File.write!(path, buffer)
       put(this, :_path, nil)
     end
 

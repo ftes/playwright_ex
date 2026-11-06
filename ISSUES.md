@@ -22,4 +22,5 @@ Being worked on (2026-11-06): #18, #7, #6, #10b.
 
 - **#8 Possibly load-flaky** (seen once each): `locator_query_test.exs:324` (webkit),
   `conn_test.exs:360`, `page_screenshot_test.exs:482`, `page_add_locator_handler_test.exs`
-  "should work". Drop each that stays green on CI until release.
+  "should work", `network_backlog_test` "handled routes leave no rows" (63 vs 62 rows, twice
+  in full runs). Drop each that stays green on CI until release.

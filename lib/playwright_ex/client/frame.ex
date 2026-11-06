@@ -19,7 +19,6 @@ defmodule PlaywrightEx.Client.Frame do
   alias PlaywrightEx.Isomorphic.AbortSignal
   alias PlaywrightEx.Isomorphic.LocatorUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
-  alias PlaywrightEx.Runtime.Node
 
   # types.ts kLifecycleEvents
   @k_lifecycle_events ["load", "domcontentloaded", "networkidle", "commit"]
@@ -468,7 +467,7 @@ defmodule PlaywrightEx.Client.Frame do
 
     copy =
       if copy[:path] do
-        copy = Map.put(copy, :content, Node.fs!(File.read(copy.path), "open", copy.path))
+        copy = Map.put(copy, :content, File.read!(copy.path))
         Map.put(copy, :content, ClientHelper.add_source_url_to_script(copy.content, copy.path))
       else
         copy
@@ -482,7 +481,7 @@ defmodule PlaywrightEx.Client.Frame do
 
     copy =
       if copy[:path] do
-        copy = Map.put(copy, :content, Node.fs!(File.read(copy.path), "open", copy.path))
+        copy = Map.put(copy, :content, File.read!(copy.path))
         Map.put(copy, :content, copy.content <> "/*# sourceURL=" <> String.replace(copy.path, "\n", "") <> "*/")
       else
         copy

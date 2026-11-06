@@ -1052,3 +1052,13 @@ drift). Blockers for release, assigned to follow-up workstreams:
   `Path.expand` and its errors, no imitation of Node's system behaviour or error texts (wr4-paths).
 - User, 2026-11-06, review decision 2: route/WebSocket-route/locator-handler callbacks stay JS
   functions (0..n args by arity; a returned `PlaywrightEx.Promise` is awaited, any other value ignored).
+
+- **Local file access is plain Elixir** (wr4-paths, user decision): `Runtime.Node` is gone.
+  `path.resolve` is `Path.expand/1` (a leading `~` expands; paths are repo-local anyway), `fs`
+  calls are `File.*!` raising `File.Error`, not Node's `ENOENT: ..., open '...'` text. Specs that
+  asserted Node's text assert `%File.Error{}` (`# deviation:`); the storage-state missing-file
+  error is a bare `File.Error` (no "Error reading storage state" prefix; malformed JSON keeps it).
+  Driver-sent errors (HAR/trace save, `ECONNRESET`) and the `systemErrorMessage` port stay.
+  playwright-python does the same: `os.stat`/`open` raise `FileNotFoundError`, paths use
+  `os.path.abspath`, its specs assert `errno`/`[Errno 2]` instead of Node's text (it does wrap the
+  storage-state error in `Error` to keep the prefix).

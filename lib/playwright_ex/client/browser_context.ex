@@ -34,7 +34,6 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.UrlMatch
-  alias PlaywrightEx.Runtime.Node
   alias PlaywrightEx.TargetClosedError
 
   def from(context) do
@@ -709,7 +708,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
       storage_state
     else
       try do
-        JSON.decode!(Node.fs!(File.read(storage_state), "open", storage_state))
+        JSON.decode!(File.read!(storage_state))
       rescue
         e ->
           reraise Errors.rewrite_error_message(
@@ -741,7 +740,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
       })
 
     if context_params[:recordVideo] && context_params.recordVideo[:dir],
-      do: put_in(context_params, [:recordVideo, :dir], Node.path_resolve(context_params.recordVideo.dir)),
+      do: put_in(context_params, [:recordVideo, :dir], Path.expand(context_params.recordVideo.dir)),
       else: context_params
   end
 

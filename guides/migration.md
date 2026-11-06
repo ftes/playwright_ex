@@ -369,6 +369,8 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 - Error messages start with the API name (`locator.click: ...`).
 - `Tracing.start/2` no longer takes `coverage:`.
 - Unknown options raise `ArgumentError` instead of being passed through.
+- Local file errors (a missing `set_input_files` file, `path:` or storage-state file) raise
+  Elixir's `File.Error` (as `Route.fulfill(path:)` did before), not a driver error.
 - Strings are literal text (or globs, for URLs), never patterns. A `Regex` passed where JS
   takes a `RegExp` is sent to the browser or driver as a JS regex (modifiers `i`, `m`, `s`,
   `u`). Options and PCRE-only syntax JS cannot run (`x`, `U`, `\A`, `\z`, atomic groups,

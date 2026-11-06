@@ -172,9 +172,9 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   test "should throw an error if the file does not exist", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     input = Page.query_selector!(page, "input")
+    # deviation: Elixir's File error, not Node's text.
     {:error, error} = ElementHandle.set_input_files(input, "i actually do not exist.txt")
-    assert Exception.message(error) =~ "ENOENT: no such file or directory"
-    assert Exception.message(error) =~ "i actually do not exist.txt"
+    assert %File.Error{reason: :enoent, path: "i actually do not exist.txt"} = error
   end
 
   @tag :tmp_dir

@@ -14,7 +14,6 @@ defmodule PlaywrightEx.Client.Route do
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.LongStandingScope
   alias PlaywrightEx.Isomorphic.MimeType
-  alias PlaywrightEx.Runtime.Node
 
   def from(route) do
     route
@@ -150,7 +149,7 @@ defmodule PlaywrightEx.Client.Route do
     {body, is_base64, length} =
       cond do
         ClientHelper.truthy(options[:path]) ->
-          buffer = Node.fs!(File.read(options.path), "open", options.path)
+          buffer = File.read!(options.path)
           {Base.encode64(buffer), true, byte_size(buffer)}
 
         is_binary(body) ->

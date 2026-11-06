@@ -94,7 +94,6 @@ defmodule PlaywrightEx.Client.APIRequest do
   alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Isomorphic.Headers
-  alias PlaywrightEx.Runtime.Node
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.APIRequest{}` (gen.api copies these fields).
   @doc false
@@ -116,7 +115,7 @@ defmodule PlaywrightEx.Client.APIRequest do
 
     storage_state =
       if is_binary(options[:storageState]),
-        do: JSON.decode!(Node.fs!(File.read(options.storageState), "open", options.storageState)),
+        do: JSON.decode!(File.read!(options.storageState)),
         else: options[:storageState]
 
     playwright = get(this, :_playwright)
@@ -172,7 +171,6 @@ defmodule PlaywrightEx.Client.APIRequestContext do
   alias PlaywrightEx.Client.Tracing
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Runtime.Heap
-  alias PlaywrightEx.Runtime.Node
   alias PlaywrightEx.TargetClosedError
 
   def from(channel) do
@@ -381,7 +379,7 @@ defmodule PlaywrightEx.Client.APIRequestContext do
     if options[:path] do
       FileUtils.mkdir_if_needed(options.path)
       json = ClientHelper.json_stringify_indented(state, 2, "APIRequestContextStorageStateResult")
-      Node.fs!(File.write(options.path, json), "open", options.path)
+      File.write!(options.path, json)
     end
 
     state
