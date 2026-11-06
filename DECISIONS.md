@@ -985,3 +985,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   stays in `_contextsForSelectors` after its browser closed under a reused context (as in JS) but
   whose rows were freed once its creators exited; `set_test_id_attribute` now skips such contexts
   (`# deviation:`). A user calling it from a long-lived process had the same crash.
+- VF-X (X-01, page specs): an un-awaited upstream call is `Runtime.Promise.async` (returns once the
+  call is sent; `shared: true` where upstream checks `done`, tested with `settled?/1`);
+  `void x()`/`.catch(() => {})` is `Runtime.Promise.void`; setTimeout timers stay `Task.start` +
+  sleep; `Promise.all` of awaited calls stays `Task.async` + `await_many`. 160 + 15 sites converted,
+  no hidden race surfaced. X-07: 19 JS-value truthiness sites use `Utils.assert_truthy/falsy`.
