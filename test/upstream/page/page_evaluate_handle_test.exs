@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Page.PageEvaluateHandleTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -20,7 +21,7 @@ defmodule PlaywrightEx.Page.PageEvaluateHandleTest do
   test "should accept object handle to primitive types", %{page: page} do
     a_handle = Page.evaluate_handle!(page, "() => 5")
     is_five = Page.evaluate!(page, "e => Object.is(e, 5)", a_handle)
-    assert is_five
+    Utils.assert_truthy(is_five)
   end
 
   test "should accept nested handle", %{page: page} do

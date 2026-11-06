@@ -642,7 +642,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
       )
 
     headers = Request.all_headers!(request)
-    assert headers["origin"]
+    Utils.assert_truthy(headers["origin"])
     assert Request.failure(request).errorText == "mixed-content"
   end
 end

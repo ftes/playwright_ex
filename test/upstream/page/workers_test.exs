@@ -444,9 +444,9 @@ defmodule PlaywrightEx.Page.WorkersTest do
     request = Promise.await!(request_promise)
     response = Request.response!(request)
     request_headers = Request.all_headers!(request)
-    assert request_headers["host"]
+    Utils.assert_truthy(request_headers["host"])
     response_headers = Response.all_headers!(response)
-    assert response_headers["content-type"]
+    Utils.assert_truthy(response_headers["content-type"])
   end
 
   # annotation: issue 39948
@@ -461,9 +461,9 @@ defmodule PlaywrightEx.Page.WorkersTest do
     request = Promise.await!(request_promise)
     response = Request.response!(request)
     request_headers = Request.all_headers!(request)
-    assert request_headers["host"]
+    Utils.assert_truthy(request_headers["host"])
     response_headers = Response.all_headers!(response)
-    assert response_headers["content-type"]
+    Utils.assert_truthy(response_headers["content-type"])
   end
 
   # annotation: issue 39948
@@ -491,6 +491,6 @@ defmodule PlaywrightEx.Page.WorkersTest do
 
     response = Request.response!(request)
     headers = Response.all_headers!(response)
-    assert headers["content-type"]
+    Utils.assert_truthy(headers["content-type"])
   end
 end

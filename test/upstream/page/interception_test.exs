@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -330,7 +331,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert [{route, request, frame_url}] = received()
     assert Route.request(route) == request
     assert Request.url(request) =~ "empty.html"
-    assert Request.headers(request)["user-agent"]
+    Utils.assert_truthy(Request.headers(request)["user-agent"])
     assert Request.method(request) == "GET"
     assert Request.post_data(request) == nil
     assert Request.is_navigation_request(request) == true

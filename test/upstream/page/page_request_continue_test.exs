@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -142,7 +143,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert text == "done"
     assert_received {:intercepted_request, intercepted_request}
     assert Request.headers(intercepted_request)["foo"] == nil
-    refute req_header(server_request, "foo")
+    Utils.assert_falsy(req_header(server_request, "foo"))
     assert req_header(server_request, "bar") == "b"
   end
 
@@ -554,7 +555,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Page.goto!(page, server.prefix <> "/redirect")
     server_request = TestServer.wait_for_request(server, "/empty.html")
     Page.goto!(page, server.empty_page)
-    refute req_header(Task.await(server_request, :infinity), "cookie")
+    Utils.assert_falsy(req_header(Task.await(server_request, :infinity), "cookie"))
   end
 
   test "continue should propagate headers to redirects", %{page: page, server: server} do
@@ -634,7 +635,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       )
 
     assert text == "done"
-    refute req_header(Task.await(server_request, :infinity), "foo")
+    Utils.assert_falsy(req_header(Task.await(server_request, :infinity), "foo"))
   end
 
   test "propagate headers same origin redirect", %{page: page, server: server} do
@@ -684,8 +685,8 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert text == "done"
     assert_receive {:server_request, server_request}
     # Authorization header not propagated to cross-origin redirect.
-    refute req_header(server_request, "authorization")
-    refute req_header(server_request, "cookie")
+    Utils.assert_falsy(req_header(server_request, "authorization"))
+    Utils.assert_falsy(req_header(server_request, "cookie"))
     assert req_header(server_request, "custom") == "foo"
   end
 
@@ -737,10 +738,10 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert_receive {:server_request, server_request}
 
     if browser_name == "webkit",
-      do: refute(req_header(server_request, "authorization")),
+      do: Utils.assert_falsy(req_header(server_request, "authorization")),
       else: assert(req_header(server_request, "authorization") == "credentials")
 
-    refute req_header(server_request, "cookie")
+    Utils.assert_falsy(req_header(server_request, "cookie"))
     assert req_header(server_request, "custom") == "foo"
   end
 

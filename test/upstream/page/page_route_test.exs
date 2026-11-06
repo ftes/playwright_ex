@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -44,7 +45,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     assert [{route, request, frame_url}] = received()
     assert Route.request(route) == request
     assert Request.url(request) =~ "empty.html"
-    assert Request.headers(request)["user-agent"]
+    Utils.assert_truthy(Request.headers(request)["user-agent"])
     assert Request.method(request) == "GET"
     assert Request.post_data(request) == nil
     assert Request.is_navigation_request(request) == true
@@ -1191,7 +1192,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
 
     Page.goto!(page, server.prefix <> "/empty.html")
     headers = List.last(received())
-    assert headers["accept"]
+    Utils.assert_truthy(headers["accept"])
   end
 
   test "should contain sec-fetch headers in route", %{page: page, server: server} do
@@ -1275,7 +1276,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     request = List.last(received())
     response = Request.response!(request)
     headers = Response.all_headers!(response)
-    assert headers["content-type"]
+    Utils.assert_truthy(headers["content-type"])
   end
 
   test "should contain raw response header after fulfill", %{page: page, server: server} do
@@ -1290,7 +1291,7 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     request = List.last(received())
     response = Request.response!(request)
     headers = Response.all_headers!(response)
-    assert headers["content-type"]
+    Utils.assert_truthy(headers["content-type"])
   end
 
   for method <- [:fulfill, :continue, :fallback, :abort] do
