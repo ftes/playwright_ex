@@ -716,11 +716,10 @@ defmodule PlaywrightEx.Client.BrowserContext do
         JSON.decode!(File.read!(storage_state))
       rescue
         e ->
-          reraise Errors.rewrite_error_message(
-                    e,
-                    "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)
-                  ),
-                  __STACKTRACE__
+          message = "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)
+          # deviation: File.Error has no message to rewrite; wrap it, as playwright-python does.
+          e = if is_struct(e, File.Error), do: %PlaywrightEx.PlaywrightError{message: message, cause: e}, else: e
+          reraise Errors.rewrite_error_message(e, message), __STACKTRACE__
       end
     end
   end

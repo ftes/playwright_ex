@@ -345,9 +345,10 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   @tag :tmp_dir
   test "should handle missing file", %{browser: browser, tmp_dir: tmp_dir} do
     file = Path.join(tmp_dir, "does-not-exist.json")
-    # deviation: Elixir's File error, not Node's text.
     {:error, error} = Browser.new_context(browser, storage_state: file)
-    assert %File.Error{reason: :enoent, path: ^file} = error
+    # deviation: Elixir's File error text, not Node's ENOENT.
+    assert error.message =~ "Error reading storage state from #{file}:\ncould not read file"
+    assert %File.Error{reason: :enoent, path: ^file} = error.cause
   end
 
   @tag :tmp_dir
@@ -757,9 +758,8 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   test "setStorageState should handle missing file", %{context_factory: context_factory, tmp_dir: tmp_dir} do
     context = context_factory.([])
     file = Path.join(tmp_dir, "does-not-exist.json")
-    # deviation: Elixir's File error, not Node's text.
     {:error, error} = BrowserContext.set_storage_state(context, file)
-    assert %File.Error{reason: :enoent, path: ^file} = error
+    assert error.message =~ "Error reading storage state from #{file}"
   end
 
   # The JSON file has string keys, the returned state atom keys.

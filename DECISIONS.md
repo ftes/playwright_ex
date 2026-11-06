@@ -1166,3 +1166,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   supervised owner (Fluffy's `BrowserRuntime`) for lazy launch and restart. No parity check covers
   the guides' prose; the bump checklist (PORTING, `upstream-update.md`) gains a step to read
   upstream's `docs/src/*.md` diff (outside `api/`) for patterns the guides should mention.
+- User, 2026-11-06, review decision 8: a disposed JSHandle/ElementHandle frees all its rows; field
+  reads and `to_string/1` raise TargetClosedError (JS keeps the last preview), no tombstone (#19).
+- User, 2026-11-06, review decision 9: a storage-state file that can't be read raises
+  `PlaywrightError` with upstream's "Error reading storage state from" prefix and the `File.Error`
+  as `:cause` (as Python wraps it); malformed JSON keeps its `JSON.DecodeError` with the prefix.
