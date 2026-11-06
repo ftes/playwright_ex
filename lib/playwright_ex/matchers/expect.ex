@@ -5,6 +5,8 @@ defmodule PlaywrightEx.Matchers.Expect do
 
       config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
 
+  The keys (other keys raise `ArgumentError`):
+
     * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
@@ -64,9 +66,21 @@ defmodule PlaywrightEx.Matchers.Expect do
       app_env_expect_config(Application.get_env(:playwright_ex, :expect, []))
   end
 
+  @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot]
+
   # Elixir only: `config :playwright_ex, :expect, ...` as an `ExpectConfig`.
   @doc false
   def app_env_expect_config(env) do
+    env =
+      case Keyword.validate(env, @config_keys) do
+        {:ok, env} ->
+          env
+
+        {:error, unknown} ->
+          raise ArgumentError,
+                "config :playwright_ex, :expect: unknown keys #{inspect(unknown)}, expected one of #{inspect(@config_keys)}"
+      end
+
     config = %{
       timeout: if(env[:timeout] == :infinity, do: 0, else: env[:timeout]),
       updateSnapshots: if(env[:update_snapshots] != nil, do: to_string(env[:update_snapshots])),

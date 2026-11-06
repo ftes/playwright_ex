@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a
   supervision tree.
 - `mix playwright_ex.install` fails with the CLI's exit status instead of a `MatchError`.
+- Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError`. Without ExUnit,
+  failed bang matchers raise `PlaywrightEx.ExpectError`.
 
 ## [0.17.0-rc.0] 2026-11-06
 

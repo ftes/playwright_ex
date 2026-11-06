@@ -146,11 +146,22 @@ defmodule PlaywrightEx.Runtime.Facade do
 
   def negated(actual, is_not, _api_name), do: {actual, is_not}
 
-  @doc "Like `matcher/2`, but raises: `ExUnit.AssertionError` when the expectation is not met."
+  @doc """
+  Like `matcher/2`, but raises: `ExUnit.AssertionError` when the expectation is not met, or the
+  `PlaywrightEx.ExpectError` where ExUnit (an optional application) is not loaded.
+  """
   def matcher!(receiver, fun) do
     async_void!(nil, receiver, fun)
   rescue
-    e in ExpectError -> reraise ExUnit.AssertionError, [message: Exception.message(e)], __STACKTRACE__
+    e in ExpectError -> reraise_expect_error(e, __STACKTRACE__, Code.ensure_loaded?(ExUnit.AssertionError))
+  end
+
+  @doc false
+  @spec reraise_expect_error(Exception.t(), Exception.stacktrace(), boolean()) :: no_return()
+  def reraise_expect_error(e, stacktrace, ex_unit?) do
+    if ex_unit?,
+      do: reraise(ExUnit.AssertionError, [message: Exception.message(e)], stacktrace),
+      else: reraise(e, stacktrace)
   end
 
   @doc "Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`."

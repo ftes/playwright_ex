@@ -20,6 +20,8 @@ defmodule PlaywrightEx.Expect do
 
       config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
 
+  The keys (other keys raise `ArgumentError`):
+
     * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
@@ -120,7 +122,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_attached/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_attached/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_attached!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_attached_options()) :: :ok
   def to_be_attached!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeAttached")
@@ -181,7 +183,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_attached/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_attached/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_attached!(PlaywrightEx.Locator.t(), not_to_be_attached_options()) :: :ok
   def not_to_be_attached!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeAttached")
@@ -264,7 +266,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_checked/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_checked/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_checked!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_checked_options()) :: :ok
   def to_be_checked!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeChecked")
@@ -339,7 +341,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_checked/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_checked/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_checked!(PlaywrightEx.Locator.t(), not_to_be_checked_options()) :: :ok
   def not_to_be_checked!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeChecked")
@@ -406,7 +408,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_disabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_disabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_disabled!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_disabled_options()) :: :ok
   def to_be_disabled!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeDisabled")
@@ -462,7 +464,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_disabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_disabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_disabled!(PlaywrightEx.Locator.t(), not_to_be_disabled_options()) :: :ok
   def not_to_be_disabled!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeDisabled")
@@ -530,7 +532,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_editable/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_editable/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_editable!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_editable_options()) :: :ok
   def to_be_editable!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeEditable")
@@ -591,7 +593,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_editable/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_editable/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_editable!(PlaywrightEx.Locator.t(), not_to_be_editable_options()) :: :ok
   def not_to_be_editable!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEditable")
@@ -654,7 +656,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_empty/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_empty/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_empty!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_empty_options()) :: :ok
   def to_be_empty!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeEmpty")
@@ -709,7 +711,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_empty/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_empty/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_empty!(PlaywrightEx.Locator.t(), not_to_be_empty_options()) :: :ok
   def not_to_be_empty!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEmpty")
@@ -777,7 +779,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_enabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_enabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_enabled!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_enabled_options()) :: :ok
   def to_be_enabled!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeEnabled")
@@ -837,7 +839,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_enabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_enabled/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_enabled!(PlaywrightEx.Locator.t(), not_to_be_enabled_options()) :: :ok
   def not_to_be_enabled!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEnabled")
@@ -900,7 +902,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_focused/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_focused/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_focused!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_focused_options()) :: :ok
   def to_be_focused!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeFocused")
@@ -955,7 +957,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_focused/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_focused/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_focused!(PlaywrightEx.Locator.t(), not_to_be_focused_options()) :: :ok
   def not_to_be_focused!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeFocused")
@@ -1018,7 +1020,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_hidden/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_hidden/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_hidden!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_hidden_options()) :: :ok
   def to_be_hidden!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeHidden")
@@ -1073,7 +1075,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_hidden/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_hidden/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_hidden!(PlaywrightEx.Locator.t(), not_to_be_hidden_options()) :: :ok
   def not_to_be_hidden!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeHidden")
@@ -1147,7 +1149,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_in_viewport/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_in_viewport/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_in_viewport!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_in_viewport_options()) :: :ok
   def to_be_in_viewport!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeInViewport")
@@ -1209,7 +1211,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_in_viewport/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_in_viewport/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_in_viewport!(PlaywrightEx.Locator.t(), not_to_be_in_viewport_options()) :: :ok
   def not_to_be_in_viewport!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeInViewport")
@@ -1288,7 +1290,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_visible/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_visible/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_visible!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_visible_options()) :: :ok
   def to_be_visible!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, false, "expect.toBeVisible")
@@ -1348,7 +1350,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_visible/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_visible/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_visible!(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok
   def not_to_be_visible!(locator, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToBeVisible")
@@ -1439,7 +1441,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_contain_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_contain_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_contain_class!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | [String.t()],
@@ -1503,7 +1505,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_contain_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_contain_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_contain_class!(PlaywrightEx.Locator.t(), String.t() | [String.t()], not_to_contain_class_options()) ::
           :ok
   def not_to_contain_class!(locator, expected, options \\ []) do
@@ -1632,7 +1634,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_contain_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_contain_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_contain_text!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -1717,7 +1719,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_contain_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_contain_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_contain_text!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -1801,7 +1803,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_accessible_description/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_accessible_description/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_accessible_description!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -1880,7 +1882,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_accessible_description/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_accessible_description/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_accessible_description!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -1966,7 +1968,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_accessible_error_message/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_accessible_error_message/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_accessible_error_message!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -2045,7 +2047,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_accessible_error_message/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_accessible_error_message/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_accessible_error_message!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -2127,7 +2129,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_accessible_name/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_accessible_name/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_accessible_name!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -2204,7 +2206,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_accessible_name/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_accessible_name/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_accessible_name!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -2306,7 +2308,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_attribute/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_attribute/4`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_attribute!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
@@ -2406,7 +2408,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_attribute/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_attribute/4`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_attribute!(
           PlaywrightEx.Locator.t(),
           String.t(),
@@ -2504,7 +2506,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_class!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -2571,7 +2573,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_class/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_class!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -2642,7 +2644,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_count/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_count/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_count!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), integer(), to_have_count_options()) ::
           :ok
   def to_have_count!(locator, count, options \\ []) do
@@ -2703,7 +2705,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_count/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_count/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_count!(PlaywrightEx.Locator.t(), integer(), not_to_have_count_options()) :: :ok
   def not_to_have_count!(locator, count, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCount")
@@ -2785,7 +2787,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_css/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_css/4`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_css!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
@@ -2865,7 +2867,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_css/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_css/4`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_css!(
           PlaywrightEx.Locator.t(),
           String.t(),
@@ -2940,7 +2942,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_id/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_id/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_id!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -3007,7 +3009,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_id/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_id/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_id!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -3084,7 +3086,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_js_property/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_js_property/4`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_js_property!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
@@ -3150,7 +3152,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_js_property/4`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_js_property/4`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_js_property!(PlaywrightEx.Locator.t(), String.t(), term(), not_to_have_js_property_options()) :: :ok
   def not_to_have_js_property!(locator, name, value, options \\ []) do
     {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveJSProperty")
@@ -3389,7 +3391,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_role/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_role/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_role!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           :alert
@@ -3705,7 +3707,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_role/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_role/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_role!(
           PlaywrightEx.Locator.t(),
           :alert
@@ -3935,7 +3937,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_screenshot/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_screenshot/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_screenshot!(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           to_have_screenshot_options()
@@ -4073,7 +4075,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_screenshot/2`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_screenshot/2`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_screenshot!(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
           :ok
   def not_to_have_screenshot!(locator_or_page, options \\ []) do
@@ -4200,7 +4202,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_text!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -4285,7 +4287,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_text/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_text!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -4359,7 +4361,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_value/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_value/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_value!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -4426,7 +4428,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_value/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_value/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_value!(
           PlaywrightEx.Locator.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -4511,7 +4513,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_values/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_values/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_values!(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -4578,7 +4580,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_values/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_values/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_values!(
           PlaywrightEx.Locator.t(),
           [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
@@ -4625,7 +4627,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_match_aria_snapshot/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_match_aria_snapshot/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_match_aria_snapshot!(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t(),
@@ -4688,7 +4690,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_match_aria_snapshot/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_match_aria_snapshot/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_match_aria_snapshot!(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
           String.t(),
@@ -4733,7 +4735,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_be_ok/1`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_be_ok/1`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_be_ok!(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok
   def to_be_ok!(api_response) do
     {api_response, is_not} = Facade.negated(api_response, false, "expect.toBeOK")
@@ -4767,7 +4769,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_be_ok/1`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_be_ok/1`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_be_ok!(PlaywrightEx.APIResponse.t()) :: :ok
   def not_to_be_ok!(api_response) do
     {api_response, is_not} = Facade.negated(api_response, true, "expect.notToBeOK")
@@ -4835,7 +4837,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_title/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_title/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_title!(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -4902,7 +4904,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_title/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_title/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_title!(
           PlaywrightEx.Page.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
@@ -4995,7 +4997,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `to_have_url/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `to_have_url/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec to_have_url!(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
@@ -5069,7 +5071,7 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @doc "Like `not_to_have_url/3`, but raises `ExUnit.AssertionError` when the expectation is not met."
+  @doc "Like `not_to_have_url/3`, but raises `ExUnit.AssertionError` when the expectation is not met (`PlaywrightEx.ExpectError` without ExUnit)."
   @spec not_to_have_url!(
           PlaywrightEx.Page.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),

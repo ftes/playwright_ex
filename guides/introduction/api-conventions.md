@@ -165,7 +165,9 @@ locator |> Expect.not_() |> Expect.to_have_text!("Error")
 
 Matchers retry until they pass or time out (5 seconds, `config :playwright_ex, :expect`). They
 return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}`; the bang forms raise
-`ExUnit.AssertionError`, so a failed one fails an ExUnit test as `assert` does.
+`ExUnit.AssertionError`, so a failed one fails an ExUnit test as `assert` does (where ExUnit
+isn't loaded, they raise the `PlaywrightEx.ExpectError`). Unknown keys in the `:expect` config
+raise `ArgumentError`.
 
 ## Errors
 
