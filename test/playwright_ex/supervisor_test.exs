@@ -44,6 +44,20 @@ defmodule PlaywrightEx.SupervisorTest do
              start_supervised({PlaywrightEx.Supervisor, name: __MODULE__.Exits, executable: executable})
   end
 
+  test "a call that cannot be encoded fails alone, the driver stays" do
+    name = __MODULE__.Unencodable
+    start_supervised!({PlaywrightEx.Supervisor, name: name})
+    playwright = PlaywrightEx.playwright(name)
+    chromium = Playwright.chromium(playwright)
+
+    assert {:error, %PlaywrightEx.PlaywrightError{message: message}} =
+             BrowserType.launch(chromium, executable_path: <<0xFF>>, timeout: 1_000)
+
+    assert message =~ "cannot be encoded as JSON"
+    assert PlaywrightEx.playwright(name) == playwright
+    assert BrowserType.name(chromium) == "chromium"
+  end
+
   # The root of the restarted driver (`playwright/1` exits while there is none).
   defp restarted(name, old, attempts \\ 100) do
     new =

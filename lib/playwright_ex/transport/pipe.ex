@@ -18,8 +18,14 @@ defmodule PlaywrightEx.Transport.Pipe do
       turns together (`send_messages/2`), written with one port command.
     * `on_close` gets the driver's exit status (`nil` after `close/1`), for the log of a lost
       driver (`PlaywrightEx.OutOfProcess`); upstream's `onclose` takes none.
+    * A message that cannot be encoded (a string that is not UTF-8, a term JSON has no form for)
+      is not written, and this process lives on: a call is answered with an error through
+      `on_message`, so only it fails; another message is logged. Upstream, `JSON.stringify`
+      throws in the caller.
   """
   use GenServer
+
+  require Logger
 
   @doc """
   Options: `:executable` (`{program, args}`, see `PlaywrightEx.Driver.executable/1`),
@@ -69,7 +75,23 @@ defmodule PlaywrightEx.Transport.Pipe do
   defp queue(state, message) do
     data = message |> to_json() |> JSON.encode_to_iodata!()
     %{state | queue: [state.queue, <<IO.iodata_length(data)::little-unsigned-32>>, data]}
+  rescue
+    e ->
+      unencodable(state, message, Exception.message(e))
+      state
   end
+
+  # The driver never answers `__waitInfo__`.
+  defp unencodable(state, %{id: id, method: method}, reason) when id != nil and method != "__waitInfo__" do
+    error = %{"message" => "Message cannot be encoded as JSON: #{reason}", "name" => "Error", "stack" => ""}
+    state.on_message.(%{"id" => id, "error" => %{"error" => error}})
+  end
+
+  defp unencodable(_state, message, reason),
+    do:
+      Logger.error(
+        "Playwright message dropped, it cannot be encoded as JSON (#{reason}): #{inspect(message, limit: 20, printable_limit: 200)}"
+      )
 
   defp flush(%{queue: []} = state), do: state
 

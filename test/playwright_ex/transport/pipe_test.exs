@@ -1,6 +1,8 @@
 defmodule PlaywrightEx.Transport.PipeTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias PlaywrightEx.Transport.Pipe
 
   # `sh -c '...' run-driver`: the appended `run-driver` becomes `$0`.
@@ -33,6 +35,27 @@ defmodule PlaywrightEx.Transport.PipeTest do
       assert_receive {:message, %{"id" => ^i, "s" => s}}, 5000
       assert s == if(i == 10, do: large, else: "small")
     end
+  end
+
+  test "a message that cannot be encoded is not written: a call gets an error, others are logged" do
+    pipe = start("exec cat")
+
+    log =
+      capture_log(fn ->
+        Pipe.send_messages(pipe, [
+          %{id: 1, method: "evaluate", params: %{s: <<0xFF>>}},
+          %{guid: "x", method: "__abort__", params: %{reason: {:not, :json}}},
+          %{id: 2, s: "ok"}
+        ])
+
+        assert_receive {:message, %{"id" => 1, "error" => %{"error" => %{"message" => message}}}}, 5000
+        assert message =~ "Message cannot be encoded as JSON: "
+        # Written after the others: the pipe lives on.
+        assert_receive {:message, %{"id" => 2, "s" => "ok"}}, 5000
+      end)
+
+    assert log =~ "Playwright message dropped, it cannot be encoded as JSON"
+    refute_received {:message, _}
   end
 
   test "close/1 closes the pipe and calls on_close once" do
