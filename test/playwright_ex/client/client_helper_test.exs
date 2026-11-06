@@ -57,6 +57,37 @@ defmodule PlaywrightEx.Client.ClientHelperTest do
     assert ClientHelper.number_to_string(8.5) == "8.5"
   end
 
+  # Expected values are Node's `String(x)` (the driver's node).
+  test "number_to_string: exponent form and shortest digits, as JS Number::toString" do
+    for {number, expected} <- [
+          {0, "0"},
+          {0.0, "0"},
+          {-0.0, "0"},
+          {1.0e21, "1e+21"},
+          {1.0e-7, "1e-7"},
+          {123.456, "123.456"},
+          {2 ** 53, "9007199254740992"},
+          {2 ** 53 + 2, "9007199254740994"},
+          {2 ** 60, "1152921504606847000"},
+          {1.0e300, "1e+300"},
+          {5.0e-324, "5e-324"},
+          {123.0e20, "1.23e+22"},
+          {1.0e20, "100000000000000000000"},
+          {123_456_789_012_345_680_000, "123456789012345680000"},
+          {1.0e-6, "0.000001"},
+          {0.000001234, "0.000001234"},
+          {-1.5e-10, "-1.5e-10"},
+          {0.1, "0.1"},
+          {-123.456e25, "-1.23456e+27"},
+          {1.5e21, "1.5e+21"},
+          {1.7_976_931_348_623_157e308, "1.7976931348623157e+308"},
+          {:nan, "NaN"},
+          {:neg_infinity, "-Infinity"}
+        ] do
+      assert ClientHelper.number_to_string(number) == expected, "String(#{inspect(number)})"
+    end
+  end
+
   @tag :page
   test "fulfill json: :null sends null and response.json() is :null", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route -> Route.fulfill!(route, json: :null) end)

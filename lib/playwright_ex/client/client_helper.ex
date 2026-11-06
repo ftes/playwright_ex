@@ -151,14 +151,49 @@ defmodule PlaywrightEx.Client.ClientHelper do
     end
   end
 
-  # Elixir only: `String(number)`: integral floats have no fraction (`100.0` is `"100"`).
+  # Elixir only: `String(number)`, JS Number::toString: the shortest round-trip digits, in
+  # exponent form when the decimal exponent is >= 21 or <= -7 (`1e+21`, `1e-7`). Integers are JS
+  # numbers too: beyond 2^53 they are rounded to a double first.
   @doc false
-  def number_to_string(number) when is_integer(number), do: Integer.to_string(number)
+  def number_to_string(number) when is_integer(number) and abs(number) <= 9_007_199_254_740_992,
+    do: Integer.to_string(number)
 
-  def number_to_string(number) when is_float(number) and number == trunc(number) and abs(number) < 1.0e21,
-    do: Integer.to_string(trunc(number))
+  def number_to_string(number) when is_integer(number), do: number_to_string(number * 1.0)
+  def number_to_string(:nan), do: "NaN"
+  def number_to_string(:infinity), do: "Infinity"
+  def number_to_string(:neg_infinity), do: "-Infinity"
+  def number_to_string(number) when number == 0, do: "0"
+  def number_to_string(number) when number < 0, do: "-" <> number_to_string(-number)
 
-  def number_to_string(number) when is_float(number), do: Float.to_string(number)
+  def number_to_string(number) when is_float(number) do
+    # Erlang's `:short` is the shortest round-trip form, `123.456` or `1.23e22`.
+    [int, frac, exp] =
+      case String.split(:erlang.float_to_binary(number, [:short]), ["e", "."]) do
+        [int, frac] -> [int, frac, "0"]
+        parts -> parts
+      end
+
+    # digits is s, n the decimal point's position (the value is 0.s * 10^n).
+    digits = int <> frac
+    n = byte_size(int) + String.to_integer(exp)
+    trimmed = String.trim_leading(digits, "0")
+    n = n - (byte_size(digits) - byte_size(trimmed))
+    digits = String.trim_trailing(trimmed, "0")
+    k = byte_size(digits)
+
+    cond do
+      k <= n and n <= 21 -> digits <> String.duplicate("0", n - k)
+      0 < n and n <= 21 -> binary_part(digits, 0, n) <> "." <> binary_part(digits, n, k - n)
+      -6 < n and n <= 0 -> "0." <> String.duplicate("0", -n) <> digits
+      true -> exponent_form(digits, n - 1)
+    end
+  end
+
+  defp exponent_form(digits, e) do
+    sign = if e < 0, do: "-", else: "+"
+    {first, rest} = String.split_at(digits, 1)
+    if(rest == "", do: first, else: first <> "." <> rest) <> "e" <> sign <> Integer.to_string(abs(e))
+  end
 
   # Elixir only: JS truthiness (`!!value`, the left side of `||`).
   @doc false
