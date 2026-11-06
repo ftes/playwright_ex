@@ -639,34 +639,9 @@ Upstream) and contributor mix tasks are left out by `filter_modules` (done; modu
 Not blocking the release. Ids are the `#draft-N` ids DECISIONS_TABLE.md refers to; issues to fix
 before the release are in ISSUES.md.
 
-Work items:
-- **#3 Versions matching Playwright**: 0.17.0-rc.N first (user, 2026-11-06). Once stable, switch to
-  Playwright's major.minor (1.64.x drives Playwright 1.64): `@version`, the README/getting-started
-  install snippets and "This release drives" lines, migration.md's intro, docs/architecture.md,
-  and `.github/prompts/upstream-update.md` step 4 (sets `@version` to Playwright's again). Until
-  then the docs' `@doc since:` / *Since 1.x* tags are Playwright versions, not ours.
-- **#4 Ruleset on `main`**: it requires `Test (port)` and `Test (websocket)`, which CI no longer
-  produces. Require the aggregate `Tests` job (all three browsers block it) and PRs on `main`.
-- **#1, #2**: moved to "Docs" (examples, `wait_for_event` timeout docs).
-- **#15 Typespecs**: `Disposable.t()` is `term()` (make it the union of `DisposableObject` and
-  `DisposableStub`); type storage state's documented keys, keep the open rest round-tripping.
-- **#16 Inline aria snapshot rebaselining**: without a test runner an inline snapshot that upstream
-  would rebaseline fails with the new snapshot in the message. Porting the runner's source
-  rewriting would let `update_snapshots` write it back.
-- **#17 macOS WebKit `env:` skips** (12 tests, macOS 26; upstream's client fails them too, Linux
-  CI passes): re-run on each WebKit roll, drop the skips that pass.
-- **#11 Firefox Partitioned cookies** from a fresh Bandit server: `env:` skip, upstream's client
-  too; mechanism unknown.
-- **#5 Waiter rejection timing**: JS rejects a waiter inside `emit`, ours settles in the waiting
-  process. Documented (architecture "Ordering", concurrency guide). The fix (blocking mailbox
-  step plus per-process event buffer, ~150-250 lines) only if a user hits it, or if #18's fix
-  covers it.
-
-Upstream only (track, report, re-check on rolls):
-- **#10a Chromium worker hang**: `workers_test:237` hangs for upstream's JS client too (6/510
-  under 2-CPU load); reported as microsoft/playwright#43922; tagged flaky.
-- **OOPIF "should click"** (chromium/oopif_test, skipped on macOS): a browser race right after an
-  OOPIF `goto`; the driver's JS client misses it as often (5-8 in 10 when looped), with the same CDP
-  commands and gap. Our random test order on a shared browser hits it more; upstream runs in order.
-- **#12 Driver crash on an HTTPS proxy closing mid-handshake** (unhandled TLSSocket error in the
-  Node driver): our TestProxy avoids it; reproduce against the driver and report upstream.
+Work items are GitHub issues (2026-11-06): #126 versions matching Playwright (#3), #127
+typespecs (#15), #128 waiter rejection timing (#5), #129 inline aria snapshot rebaselining (#16),
+#130 driver crash on an HTTPS proxy closing mid-handshake (#12). #4 (ruleset on `main`) is done:
+it requires `Tests`, plus linear history and signed commits, so PR #124 merges with "Squash and
+merge". #1, #2 are done (Docs). The re-checks (#17 macOS WebKit, #11 Firefox Partitioned cookies,
+#10a Chromium worker hang, OOPIF) are in PORTING "Upstream issues to re-check", run on each bump.
