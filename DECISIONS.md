@@ -981,3 +981,7 @@ drift). Blockers for release, assigned to follow-up workstreams:
   of awaited calls stays `Task.async` + `Task.await_many` (not X-01). Lead: tracing's screencast
   frames tests get the same macOS 26 WebKit `env:` skip as video_test (they fail on the base too;
   Linux CI webkit passes them).
+- Lead, CI fix after VF-H: H-06's per-test `selectors.setTestIdAttribute` reset hit a context that
+  stays in `_contextsForSelectors` after its browser closed under a reused context (as in JS) but
+  whose rows were freed once its creators exited; `set_test_id_attribute` now skips such contexts
+  (`# deviation:`). A user calling it from a long-lived process had the same crash.
