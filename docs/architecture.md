@@ -192,7 +192,8 @@ jest-matcher-utils/pretty-format/jest-diff (ExUnit.Diff is private and colour-on
 ## URL globs
 
 Globs become regexes through the driver (`LocalUtils.globToRegex`, cached per glob, base URL and
-WebSocket flag), as Python, Java and .NET do. A local port of `urlMatch` with a reduced WHATWG
+WebSocket flag), as Python, Java and .NET do. Function matchers get the URL string, as in those
+clients; `URLPattern` has no Elixir counterpart and is dropped. A local port of `urlMatch` with a reduced WHATWG
 URL was tried and reverted: 417 more lines to keep exact for no user-visible gain.
 `toHaveURL` with a base URL uses `URI.merge` plus lowercasing, less exact than WHATWG on
 default ports, IDN and percent-encoding.
@@ -232,7 +233,8 @@ WebSocket framing uses cowlib's `cow_ws` on the raw socket: Bandit's WebSock ans
 with 1000 and hides the peer's close frame. `TestProxy` is a small `:gen_tcp` HTTP and SOCKS5
 proxy. Snapshot comparison and video decoding use the driver's own comparator and ffmpeg.
 `launchServer` specs run on the driver's `launch-server` CLI or upstream's unmodified
-`remote-server-impl.js`, as Python's and Java's suites do. Every long-lived child (servers, the
+`remote-server-impl.js`, as Python's and Java's suites do. Tests of driver env vars run a second
+driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
 `ClientProcess` BEAM) exits on stdin EOF, so a killed test BEAM leaves no orphans
 (`no_orphan_processes_test`). Upstream assets come from the pinned release cache, not vendored.
 Stress and perf runs are manual, not CI.

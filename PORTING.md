@@ -28,7 +28,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
-  Markers are per line.
+  Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
 - Every upstream client file needs a module (`mix playwright_ex.parity` fails otherwise). A
   file left out on purpose (type-only, not in api.json) goes in `@unported_client_files` in
   `Mix.Tasks.PlaywrightEx.Parity`, with a reason.
@@ -125,7 +125,8 @@ single thread. Use each only where the JS code needs it, with its marker.
   `launch-server` CLI) we run too.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
-  upstream:tests/page/page-goto.spec.ts`), test names identical to upstream.
+  upstream:tests/page/page-goto.spec.ts`), test names identical to upstream. ExUnit has no nested
+  describes: `describe "a b"` for upstream's `describe('a') > describe('b')`.
 - Keep the upstream order. A test that is not ported stays as a bodiless test (`test "should
   work"`), and its reason goes in `test/upstream_not_ported.txt` (the playwright-python/java
   mechanism): one rule per line, a selector then the reason; the selector is a registry ID
