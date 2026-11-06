@@ -59,7 +59,7 @@ several bullets lists each bullet's destination; the first destination is the ma
 | 46 | 2026-11-05 Global AbortController, Expect.not_, bang waits (KK) | arch §BEAM; aborted-signal row: dropped: superseded (rows freed when the creator exits, abort_signal moduledoc); `not_`, bang waits: arch §Generated facade, guide:migration; orOptions: guide:migration |
 | 47 | 2026-11-05 Fixtures exit with the test BEAM (OO) | arch §Test infrastructure; `--inspect-brk` window: dropped: accepted, test-only |
 | 48 | 2026-11-05 Heap lifetimes without tracing (design study) | dropped: not taken; named as the rejected alternative in arch §Runtime |
-| 49 | 2026-11-05 Flake causes and fixes (CC) | UpstreamCase timeouts: arch §Test infrastructure; firefox non-blocking: arch §CI, #draft-9; connect_to_worker: #draft-10 |
+| 49 | 2026-11-05 Flake causes and fixes (CC) | UpstreamCase timeouts: arch §Test infrastructure; firefox non-blocking: dropped: firefox blocks since 2026-11-06; connect_to_worker: #draft-10 |
 | 50 | 2026-11-05 Stdlib in place of JS ports (QQ) | arch §BEAM (kept jest-style messages, URLSearchParams); `:json.format`: dropped: superseded (round 2 layout); Regex PCRE-only raises: arch §Value mapping; RegExp open: dropped: resolved (RR) |
 | 51 | 2026-11-05 OTP-native runtime spike (PP) | arch §Runtime, §Ordering; effort estimate: dropped: history |
 | 52 | 2026-11-05 Test WebSocket framing via cowlib (SS) | arch §Test infrastructure |

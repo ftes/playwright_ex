@@ -1019,3 +1019,5 @@ drift). Blockers for release, assigned to follow-up workstreams:
   settled mid-emit wakes awaiters early; disposed handles keep rows until their context closes.
 - Lead, webkit CI: the backlog leak tests settle eventually and accept rows below baseline; the
   OOPIF module (chromium only) no longer launches its browser in setup_all on other browsers.
+- User, 2026-11-06: firefox blocks CI like chromium and webkit (one matrix, no `continue-on-error`);
+  its Linux viewport/worker-timestamp failures no longer reproduce (green on the last tips).

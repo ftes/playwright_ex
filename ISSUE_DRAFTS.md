@@ -106,14 +106,9 @@ Source: test/OTP_BACKLOG.md.
 
 ---
 
-## #draft-9 Make firefox blocking in CI
+## #draft-9 (done) Make firefox blocking in CI
 
-Labels: ci, firefox
-
-Firefox is `continue-on-error` in the CI matrix because of Linux-only failures: `innerWidth` vs
-the context viewport, and worker timestamps. Fix or tag them, then drop `continue-on-error`.
-
-Source: DECISIONS workstream CC.
+Done on `restructure`: firefox blocks like chromium and webkit.
 
 ---
 

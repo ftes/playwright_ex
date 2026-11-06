@@ -72,8 +72,6 @@ jobs:
     needs: build
     # firefox's slowest run (with retry) is ~40 min; a hang fails here instead of at GitHub's 6 h.
     timeout-minutes: 60
-    # firefox is non-blocking until its Linux viewport/worker-timestamp failures are fixed.
-    continue-on-error: ${{ matrix.browser == 'firefox' }}
     strategy:
       fail-fast: false
       matrix:
@@ -171,7 +169,7 @@ jobs:
       - name: Run headful tests
         run: HEADED=1 xvfb-run --auto-servernum -- mix test --only headed || if [[ $? = 2 ]]; then HEADED=1 xvfb-run --auto-servernum -- mix test --failed; else false; fi
 
-  # The one check to require: green when every blocking matrix entry is.
+  # The one check to require: green when every browser is.
   tests:
     name: Tests
     if: always()

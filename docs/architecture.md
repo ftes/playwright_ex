@@ -242,8 +242,7 @@ Stress and perf runs are manual, not CI.
 ## CI
 
 One matrix runs chromium, firefox and webkit under `xvfb-run`; the aggregate `Tests` job is the
-check to require. Firefox is `continue-on-error` until its Linux viewport and worker-timestamp
-failures are fixed. Test failures (exit 2) are rerun once with `--failed`; compile errors (exit
+check to require, and all three browsers block it. Test failures (exit 2) are rerun once with `--failed`; compile errors (exit
 1) are not. One rerun rather than upstream's `retries: 3`, so flakes stay visible.
 `max_cases` is half the schedulers on CI, like Playwright's default workers. Headed tests run
 under xvfb with `HEADED=1 --only headed`. A daily workflow checks npm for a new release and opens a
