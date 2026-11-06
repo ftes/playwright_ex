@@ -55,10 +55,10 @@ defmodule PlaywrightEx.Request do
 
   Example of logging of all the failed requests:
 
-  ```js
-  page.on('requestfailed', request => {
-    console.log(request.url() + ' ' + request.failure().errorText);
-  });
+  ```elixir
+  Page.on(page, :request_failed, fn request ->
+    IO.puts(Request.url(request) <> " " <> Request.failure(request).errorText)
+  end)
   ```
   """
   @spec failure(t()) :: nil | %{errorText: String.t()}

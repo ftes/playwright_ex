@@ -189,11 +189,13 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end)
   end
 
-  # The text of every JS code block in the docs.
-  defp js_blocks(%{"type" => "code", "codeLang" => "js", "lines" => lines}), do: [Enum.join(lines, "\n")]
+  # The text of every JS code block in the docs (trailing blank lines dropped, as in `Examples`).
+  defp js_blocks(%{"type" => "code", "codeLang" => "js", "lines" => lines}), do: [js_text(lines)]
   defp js_blocks(term) when is_map(term), do: term |> Map.values() |> js_blocks()
   defp js_blocks(term) when is_list(term), do: Enum.flat_map(term, &js_blocks/1)
   defp js_blocks(_term), do: []
+
+  defp js_text(lines), do: lines |> Enum.join("\n") |> String.trim_trailing()
 
   # `Expect` (the assertion classes, see `Mix.PlaywrightEx.ApiRules`) is implemented by the matchers.
   defp impl("Expect"), do: PlaywrightEx.Matchers.Expect
@@ -1107,7 +1109,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     lang = lang |> String.split() |> hd()
 
     {lang, lines, comment} =
-      case Map.fetch(ctx.examples, Enum.join(lines, "\n")) do
+      case Map.fetch(ctx.examples, js_text(lines)) do
         {:ok, elixir} when lang == "js" -> {"elixir", String.split(elixir, "\n"), "#"}
         _ -> {lang, lines, "//"}
       end

@@ -21,6 +21,8 @@ defmodule PlaywrightEx.ExampleCase do
     * `:js` - the upstream JS block, as api.json has it (required).
     * `:html` - the document every request gets, default an empty page.
     * `:given` - bindings the docs leave out, e.g. `given: [frame: Page.main_frame(page)]`.
+    * `:after` - code run after the body, not shown, e.g. to await the listeners it added:
+      `after: Page.remove_all_listeners!(page, :console, behavior: :wait)`.
     * `:skip` - why the example only compiles (it needs the network, say).
     * `:writes` - files the example writes to the working directory (`path: "link.png"`),
       removed after it.
@@ -119,6 +121,7 @@ defmodule PlaywrightEx.ExampleCase do
         ExUnit.CaptureIO.capture_io(fn ->
           unquote_splicing(bindings)
           unquote(body)
+          unquote(opts[:after])
           # The docs bind results they don't use (`texts = ...`).
           _ = binding()
         end)
