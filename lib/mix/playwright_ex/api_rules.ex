@@ -119,7 +119,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds. Defaults to `timeout` in " <>
-                        "`config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`)."
+                        "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
 
   # Assertion classes and the class of their receiver (`expect(receiver)`).
@@ -225,19 +225,20 @@ defmodule Mix.PlaywrightEx.ApiRules do
     receivers = members |> Enum.flat_map(& &1["matcher"]["receivers"]) |> Enum.uniq()
     members = [negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers) | members]
 
-    spec = [
-      %{
-        "type" => "text",
-        "text" =>
-          "Web-first assertions: the methods of `LocatorAssertions`, `PageAssertions` and `APIResponseAssertions`, " <>
-            "as functions of their receiver. `expect(locator).toHaveText(expected)` is " <>
-            "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
-            "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout " <>
-            "(5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
-            "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
-      }
-      | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]
-    ]
+    spec =
+      [
+        %{
+          "type" => "text",
+          "text" =>
+            "Web-first assertions: the methods of `LocatorAssertions`, `PageAssertions` and `APIResponseAssertions`, " <>
+              "as functions of their receiver. `expect(locator).toHaveText(expected)` is " <>
+              "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
+              "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout " <>
+              "(5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
+              "whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`."
+        }
+        | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]
+      ] ++ [%{"type" => "text", "text" => "## Configuration\n\n" <> PlaywrightEx.Matchers.Expect.__config_doc__()}]
 
     others ++ [%{"name" => "Expect", "since" => "v1.17", "spec" => spec, "extends" => nil, "members" => members}]
   end
@@ -276,7 +277,12 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp expect_options(arg), do: arg
 
   defp expect_config_doc(text) when is_binary(text),
-    do: String.replace(text, "`TestConfig.expect`", "`config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`)")
+    do:
+      String.replace(
+        text,
+        "`TestConfig.expect`",
+        "`config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`)"
+      )
 
   defp expect_config_doc(spec) when is_list(spec), do: Enum.map(spec, &expect_config_doc/1)
   defp expect_config_doc(node) when is_map(node), do: Map.new(node, fn {k, v} -> {k, expect_config_doc(v)} end)
@@ -298,7 +304,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "text" =>
               "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
                 "corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` " <>
-                "in the configuration of `PlaywrightEx.Matchers.Expect`); on failure the `-actual`, `-diff` and " <>
+                "in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and " <>
                 "`-previous` images are written next to it."
           }
         ]

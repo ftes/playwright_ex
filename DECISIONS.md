@@ -1102,3 +1102,8 @@ drift). Blockers for release, assigned to follow-up workstreams:
   baton; accepted, no close-walk optimization.
 - User, 2026-11-06, docs Q1: good guides block 1.64.0; how many examples translate before the
   release is decided on the Locator spike's numbers (wr5-examples).
+- User, 2026-11-06, docs Q2: internals are hidden from hexdocs with ExDoc `filter_modules` (as main),
+  moduledocs kept: Client, Matchers, Protocol, Runtime, Transport, Isomorphic, OutOfProcess,
+  Upstream, `Mix.PlaywrightEx.*` and the contributor tasks (gen.api, gen.protocol, parity,
+  checksums). The `config :playwright_ex, :expect` docs render in `PlaywrightEx.Expect` (single
+  source: `Matchers.Expect.__config_doc__/0`).

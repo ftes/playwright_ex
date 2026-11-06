@@ -567,8 +567,8 @@ Module groups (playwright.dev's API sidebar order): Core (`PlaywrightEx`, `Super
 `Promise`, `Playwright`, `BrowserType`, `Browser`, `BrowserContext`), Pages (`Page`, `Frame`,
 `Locator`, `FrameLocator`, input, `Dialog`, `Download`, `FileChooser`, `Worker`, ...), Assertions
 (`Expect`, `ExpectError`), Network (`Request`, `Response`, `Route`, `WebSocket*`, `API*`), Artifacts
-and debugging (`Tracing`, `Video`, `Screencast`, `Coverage`, `CDPSession`, ...), Errors, then the
-internals (Client, Matchers, Protocol, Runtime) last.
+and debugging (`Tracing`, `Video`, `Screencast`, `Coverage`, `CDPSession`, ...), Errors. Internals (Client, Matchers, Protocol, Runtime, Transport, Isomorphic, OutOfProcess,
+Upstream) and contributor mix tasks are left out by `filter_modules` (done; moduledocs kept).
 
 ### Examples
 

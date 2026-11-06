@@ -1,21 +1,6 @@
 defmodule PlaywrightEx.Matchers.Expect do
   @upstream "packages/playwright/src/matchers/expect.ts"
-  @moduledoc """
-  Port of `#{@upstream}`: how a matcher is called. The generated `PlaywrightEx.Expect` is
-  `createMatchers`: one function per web-first matcher (`to_have_text`), and one with
-  `isNot` set (`not_to_have_text`, Python's name for `expect(x).not.toHaveText`). Each calls
-  `create_matcher/4` with the matcher of `custom_async_matchers/0`.
-
-  A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
-  `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
-  `MatcherResult` map; a failed one raises `PlaywrightEx.ExpectError`.
-
-  Deviations: there is no test runner (`testInfo` is `null`, so no steps, soft assertions or
-  test deadlines) and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
-  `expect.extend`, `toPass`, `toMatchSnapshot` and `resolves`/`rejects` are not ported.
-
-  ## Configuration
-
+  @config_doc """
   The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs:
 
       config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
@@ -32,6 +17,28 @@ defmodule PlaywrightEx.Matchers.Expect do
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
   """
+  @moduledoc """
+  Port of `#{@upstream}`: how a matcher is called. The generated `PlaywrightEx.Expect` is
+  `createMatchers`: one function per web-first matcher (`to_have_text`), and one with
+  `isNot` set (`not_to_have_text`, Python's name for `expect(x).not.toHaveText`). Each calls
+  `create_matcher/4` with the matcher of `custom_async_matchers/0`.
+
+  A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
+  `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
+  `MatcherResult` map; a failed one raises `PlaywrightEx.ExpectError`.
+
+  Deviations: there is no test runner (`testInfo` is `null`, so no steps, soft assertions or
+  test deadlines) and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
+  `expect.extend`, `toPass`, `toMatchSnapshot` and `resolves`/`rejects` are not ported.
+
+  ## Configuration
+
+  #{@config_doc}
+  """
+
+  @doc false
+  # The configuration section, also rendered in the generated `PlaywrightEx.Expect` (`ApiRules`).
+  def __config_doc__, do: @config_doc
 
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Isomorphic.StringUtils

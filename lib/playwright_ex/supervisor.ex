@@ -11,8 +11,7 @@ defmodule PlaywrightEx.Supervisor do
     * `:executable`, `:node`, `:cache_dir` - see `PlaywrightEx.Driver`.
     * `:env` - extra environment variables for the driver process.
 
-  Child: the driver connection (`PlaywrightEx.OutOfProcess`, which starts the connection process
-  `PlaywrightEx.Runtime.Conn` and the driver's pipe).
+  Child: the driver connection (the driver's pipe and the connection process).
   """
   use Supervisor
 

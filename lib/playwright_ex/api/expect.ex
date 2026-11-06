@@ -3,7 +3,7 @@
 defmodule PlaywrightEx.Expect do
   @moduledoc since: "1.17"
   @moduledoc ~S"""
-  Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver. `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout (5 seconds by default, see the configuration in `PlaywrightEx.Matchers.Expect`) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`.
+  Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver. `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout (5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise `ExUnit.AssertionError`.
 
   The [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions) class provides assertion methods that can be used to make assertions about the [`Locator`](`PlaywrightEx.Locator`) state in the tests.
 
@@ -16,6 +16,25 @@ defmodule PlaywrightEx.Expect do
     await expect(page.locator('.status')).toHaveText('Submitted');
   });
   ```
+
+  ## Configuration
+
+  The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs:
+
+      config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
+
+    * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
+      timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
+    * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
+      `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones).
+      A screenshot is written to its `path`. An inline aria snapshot can't be written into the
+      test source without a test runner, so where upstream suggests a rebaseline (an empty
+      snapshot, or any under `:all` or a mismatch under `:changed`) the matcher fails with the
+      new snapshot in its message.
+    * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
+    * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
+      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
+
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -78,7 +97,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -139,7 +158,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -221,7 +240,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -297,7 +316,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -363,7 +382,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -419,7 +438,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -486,7 +505,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -547,7 +566,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -609,7 +628,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -665,7 +684,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -732,7 +751,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -793,7 +812,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -855,7 +874,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -911,7 +930,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -973,7 +992,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1029,7 +1048,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1102,7 +1121,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1164,7 +1183,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1243,7 +1262,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:visible` - *Since 1.26.*
@@ -1304,7 +1323,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:visible` - *Since 1.26.*
@@ -1392,7 +1411,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1459,7 +1478,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1583,7 +1602,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:use_inner_text` - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -1668,7 +1687,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:use_inner_text` - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -1753,7 +1772,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1830,7 +1849,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1918,7 +1937,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1995,7 +2014,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2079,7 +2098,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2156,7 +2175,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2239,7 +2258,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2339,7 +2358,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2449,7 +2468,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2516,7 +2535,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2590,7 +2609,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2651,7 +2670,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2729,7 +2748,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2809,7 +2828,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2885,7 +2904,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2952,7 +2971,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3028,7 +3047,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3098,7 +3117,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3252,7 +3271,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3568,7 +3587,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3845,7 +3864,7 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Matchers.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
   * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -3857,8 +3876,8 @@ defmodule PlaywrightEx.Expect do
     a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
     The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
   * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
-  * `:max_diff_pixel_ratio` - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`). Note that `threshold` defines which pixels are considered different.
-  * `:max_diff_pixels` - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`). Note that `threshold` defines which pixels are considered different.
+  * `:max_diff_pixel_ratio` - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `threshold` defines which pixels are considered different.
+  * `:max_diff_pixels` - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `threshold` defines which pixels are considered different.
   * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
     Defaults to `false`.
   * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
@@ -3873,8 +3892,8 @@ defmodule PlaywrightEx.Expect do
   * `:style_path` - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
   * `:threshold` - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
-    `config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`). Defaults to `0.2`.
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+    `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:clip` - An object which specifies clipping of the resulting image.
@@ -3985,7 +4004,7 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Matchers.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:path` - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
   * `:animations` - When set to `"disabled"`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -3997,8 +4016,8 @@ defmodule PlaywrightEx.Expect do
     a pink box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
     The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
   * `:mask_color` - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
-  * `:max_diff_pixel_ratio` - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`). Note that `threshold` defines which pixels are considered different.
-  * `:max_diff_pixels` - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`). Note that `threshold` defines which pixels are considered different.
+  * `:max_diff_pixel_ratio` - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `threshold` defines which pixels are considered different.
+  * `:max_diff_pixels` - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `threshold` defines which pixels are considered different.
   * `:omit_background` - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
     Defaults to `false`.
   * `:scale` - When set to `"css"`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `"device"` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
@@ -4013,8 +4032,8 @@ defmodule PlaywrightEx.Expect do
   * `:style_path` - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
   * `:threshold` - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
-    `config :playwright_ex, :expect` (`PlaywrightEx.Matchers.Expect`). Defaults to `0.2`.
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+    `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:clip` - An object which specifies clipping of the resulting image.
@@ -4144,7 +4163,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:use_inner_text` - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -4229,7 +4248,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   * `:use_inner_text` - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -4304,7 +4323,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4371,7 +4390,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4456,7 +4475,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4523,7 +4542,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4596,7 +4615,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4659,7 +4678,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4806,7 +4825,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4873,7 +4892,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4966,7 +4985,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -5040,7 +5059,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see `PlaywrightEx.Matchers.Expect`).
+  * `:timeout` - Time to retry the assertion for in milliseconds. Defaults to `timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
