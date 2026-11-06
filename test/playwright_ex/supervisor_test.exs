@@ -46,6 +46,7 @@ defmodule PlaywrightEx.SupervisorTest do
     cond do
       new not in [nil, old] -> new
       attempts > 0 -> Process.sleep(50) && restarted(name, old, attempts - 1)
+      true -> flunk("driver did not restart")
     end
   end
 end
