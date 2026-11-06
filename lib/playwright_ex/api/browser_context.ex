@@ -358,7 +358,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:expose_functions` (`boolean()`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the init script. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Unlike functions passed to `PlaywrightEx.Page.evaluate/4`, functions passed to an init script are exposed in every new document, so they survive navigations. Defaults to `false`, in which case functions are not serializable and are silently dropped.
+  * `:expose_functions` (`t:boolean/0`) - *Since 1.62.* When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the init script. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Unlike functions passed to `PlaywrightEx.Page.evaluate/4`, functions passed to an init script are exposed in every new document, so they survive navigations. Defaults to `false`, in which case functions are not serializable and are silently dropped.
   """
   @spec add_init_script(
           t(),
@@ -443,9 +443,9 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:domain` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.43.* Only removes cookies with the given domain.
-  * `:name` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.43.* Only removes cookies with the given name.
-  * `:path` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - *Since 1.43.* Only removes cookies with the given path.
+  * `:domain` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - *Since 1.43.* Only removes cookies with the given domain.
+  * `:name` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - *Since 1.43.* Only removes cookies with the given name.
+  * `:path` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - *Since 1.43.* Only removes cookies with the given path.
   """
   @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, Exception.t()}
   def clear_cookies(browser_context, options \\ []) do
@@ -511,7 +511,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:reason` (`String.t()`) - *Since 1.40.* The reason to be reported to the operations interrupted by the context closure.
+  * `:reason` (`t:String.t/0`) - *Since 1.40.* The reason to be reported to the operations interrupted by the context closure.
   """
   @spec close(t(), close_options()) :: :ok | {:error, Exception.t()}
   def close(browser_context, options \\ []) do
@@ -662,7 +662,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:origin` (`String.t()`) - The [origin] to grant permissions to, e.g. "https://example.com".
+  * `:origin` (`t:String.t/0`) - The [origin] to grant permissions to, e.g. "https://example.com".
   """
   @spec grant_permissions(t(), [String.t()], grant_permissions_options()) :: :ok | {:error, Exception.t()}
   def grant_permissions(browser_context, permissions, options \\ []) do
@@ -772,7 +772,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   The options may take the place of `event`, which is then `nil`.
 
-  * `:behavior` (`:wait | :ignore_errors | :default`) - Specifies whether to wait for already running listeners and what to do if they throw errors:
+  * `:behavior` (`:wait` | `:ignore_errors` | `:default`) - Specifies whether to wait for already running listeners and what to do if they throw errors:
 
     * `:default` - do not wait for current listener calls (if any) to finish, if the listener throws, it may result in unhandled error
     * `:wait` - wait for current listener calls (if any) to finish
@@ -889,7 +889,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:times` (`integer()`) - *Since 1.15.* How often a route should be used. By default it will be used every time.
+  * `:times` (`t:integer/0`) - *Since 1.15.* How often a route should be used. By default it will be used every time.
   """
   @spec route(
           t(),
@@ -959,16 +959,16 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:not_found` (`:abort | :fallback`)
+  * `:not_found` (`:abort` | `:fallback`)
 
     * If set to 'abort' any request not found in the HAR file will be aborted.
     * If set to 'fallback' falls through to the next route handler in the handler chain.
 
     Defaults to abort.
-  * `:update` (`boolean()`) - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.
-  * `:update_content` (`:embed | :attach`) - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
-  * `:update_mode` (`:full | :minimal`) - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:minimal`.
-  * `:url` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
+  * `:update` (`t:boolean/0`) - If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.
+  * `:update_content` (`:embed` | `:attach`) - *Since 1.32.* Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
+  * `:update_mode` (`:full` | `:minimal`) - *Since 1.32.* When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:minimal`.
+  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
   """
   @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Exception.t()}
   def route_from_har(browser_context, har, options \\ []) do
@@ -1293,19 +1293,19 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:credentials` (`boolean()`) - *Since 1.61.* Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage
+  * `:credentials` (`t:boolean/0`) - *Since 1.61.* Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage
     state snapshot. The captured credentials carry their private keys and signature counters, so they can be re-seeded into a later context via the
     `:storage_state` option or `PlaywrightEx.BrowserContext.set_storage_state/2`.
     Note that restoring the storage state that contains credentials will automatically install the virtual WebAuthn authenticator (see `PlaywrightEx.Credentials.install/1`), and prevent all real authenticators from working in this context.
-  * `:indexed_db` (`boolean()`) - *Since 1.51.* Set to `true` to include [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) in the storage state snapshot.
+  * `:indexed_db` (`t:boolean/0`) - *Since 1.51.* Set to `true` to include [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) in the storage state snapshot.
     If your application uses IndexedDB to store authentication tokens, like Firebase Authentication, enable this.
-  * `:opfs` (`boolean()`) - *Since 1.63.* Set to `true` to include the [origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system)
+  * `:opfs` (`t:boolean/0`) - *Since 1.63.* Set to `true` to include the [origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system)
     in the storage state snapshot.
 
     > #### Note {: .info}
     >
     > OPFS is currently not supported in ephemeral WebKit contexts.
-  * `:path` (`String.t()`) - The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to
+  * `:path` (`t:String.t/0`) - The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to
     current working directory. If no path is provided, storage
     state is still returned, but won't be saved to the disk.
   """
@@ -1509,7 +1509,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:behavior` (`:wait | :ignore_errors | :default`) - Specifies whether to wait for already running handlers and what to do if they throw errors:
+  * `:behavior` (`:wait` | `:ignore_errors` | `:default`) - Specifies whether to wait for already running handlers and what to do if they throw errors:
 
     * `:default` - do not wait for current handler calls (if any) to finish, if unrouted handler throws, it may result in unhandled error
     * `:wait` - wait for current handler calls (if any) to finish
@@ -1602,12 +1602,12 @@ defmodule PlaywrightEx.BrowserContext do
 
   A function in place of the options is the `:predicate` option.
 
-  * `:predicate` (`fun()`) - Receives the event data and returns a truthy value when the waiting should resolve.
-  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:predicate` (`t:fun/0`) - Receives the event data and returns a truthy value when the waiting should resolve.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1694,11 +1694,11 @@ defmodule PlaywrightEx.BrowserContext do
   A function in place of the options is the `:predicate` option.
 
   * `:predicate` (`(PlaywrightEx.ConsoleMessage.t() -> boolean())`) - Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and returns a truthy value when the waiting should resolve.
-  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1776,12 +1776,12 @@ defmodule PlaywrightEx.BrowserContext do
 
   A function in place of the options is the `:predicate` option.
 
-  * `:predicate` (`fun()`) - Receives the event data and returns a truthy value when the waiting should resolve.
-  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:predicate` (`t:fun/0`) - Receives the event data and returns a truthy value when the waiting should resolve.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -1857,11 +1857,11 @@ defmodule PlaywrightEx.BrowserContext do
   A function in place of the options is the `:predicate` option.
 
   * `:predicate` (`(PlaywrightEx.Page.t() -> boolean())`) - Receives the [`Page`](`PlaywrightEx.Page`) object and returns a truthy value when the waiting should resolve.
-  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

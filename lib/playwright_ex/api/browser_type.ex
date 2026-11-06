@@ -63,7 +63,7 @@ defmodule PlaywrightEx.BrowserType do
 
   ## Options
 
-  * `:expose_network` (`String.t()`) - *Since 1.37.* This option exposes network available on the connecting client to the browser being connected to. Consists of a list of rules separated by comma.
+  * `:expose_network` (`t:String.t/0`) - *Since 1.37.* This option exposes network available on the connecting client to the browser being connected to. Consists of a list of rules separated by comma.
 
     Available rules:
 
@@ -77,9 +77,9 @@ defmodule PlaywrightEx.BrowserType do
     1. `"<loopback>"` to expose localhost network.
     1. `"*.test.internal-domain,*.staging.internal-domain,<loopback>"` to expose test/staging deployments and localhost.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - *Since 1.11.* Additional HTTP headers to be sent with web socket connect request. Optional.
-  * `:slow_mo` (`number()`) - *Since 1.10.* Slows down Playwright operations by the specified amount of milliseconds. Useful so that you
+  * `:slow_mo` (`t:number/0`) - *Since 1.10.* Slows down Playwright operations by the specified amount of milliseconds. Useful so that you
     can see what is going on. Defaults to 0.
-  * `:timeout` (`number() | :infinity`) - *Since 1.10.* Maximum time in milliseconds to wait for the connection to be established. Defaults to
+  * `:timeout` (`t:number/0` | `:infinity`) - *Since 1.10.* Maximum time in milliseconds to wait for the connection to be established. Defaults to
     `0` (no timeout).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -168,21 +168,21 @@ defmodule PlaywrightEx.BrowserType do
 
   ## Options
 
-  * `:artifacts_dir` (`String.t()`) - *Since 1.61.* If specified, browser artifacts (such as traces and downloads) are saved into this directory.
-  * `:endpoint_url` (`String.t()`) - *Since 1.14.*
+  * `:artifacts_dir` (`t:String.t/0`) - *Since 1.61.* If specified, browser artifacts (such as traces and downloads) are saved into this directory.
+  * `:endpoint_url` (`t:String.t/0`) - *Since 1.14.*
   * `:headers` (`%{optional(String.t()) => String.t()}`) - *Since 1.11.* Additional HTTP headers to be sent with connect request. Optional.
-  * `:is_local` (`boolean()`) - *Since 1.58.* Tells Playwright that it runs on the same host as the CDP server. It will enable certain optimizations that rely upon
+  * `:is_local` (`t:boolean/0`) - *Since 1.58.* Tells Playwright that it runs on the same host as the CDP server. It will enable certain optimizations that rely upon
     the file system being the same between Playwright and the Browser.
-  * `:no_defaults` (`boolean()`) - *Since 1.60.* When true, Playwright will not apply its default overrides to the existing default browser context.
+  * `:no_defaults` (`t:boolean/0`) - *Since 1.60.* When true, Playwright will not apply its default overrides to the existing default browser context.
     Specifically, `:accept_downloads` is left at the browser's setting, focus
     emulation is not enabled, and media emulation options (such as `:color_scheme`,
     `:reduced_motion`, `:forced_colors`, and
     `contrast`) are not applied. Useful when attaching to a user's daily-driver
     browser where these overrides would interfere with existing browser state. New contexts created via
     `PlaywrightEx.Browser.new_context/2` are not affected. Defaults to `false`.
-  * `:slow_mo` (`number()`) - *Since 1.11.* Slows down Playwright operations by the specified amount of milliseconds. Useful so that you
+  * `:slow_mo` (`t:number/0`) - *Since 1.11.* Slows down Playwright operations by the specified amount of milliseconds. Useful so that you
     can see what is going on. Defaults to 0.
-  * `:timeout` (`number() | :infinity`) - *Since 1.11.* Maximum time in milliseconds to wait for the connection to be established. Defaults to
+  * `:timeout` (`t:number/0` | `:infinity`) - *Since 1.11.* Maximum time in milliseconds to wait for the connection to be established. Defaults to
     `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.BrowserType do
 
   ## Options
 
-  * `:args` (`[String.t()]`)
+  * `:args` (list of `t:String.t/0`)
 
     > #### Warning {: .warning}
     >
@@ -335,36 +335,36 @@ defmodule PlaywrightEx.BrowserType do
 
     Additional arguments to pass to the browser instance. The list of Chromium flags can be found
     [here](https://peter.sh/experiments/chromium-command-line-switches/).
-  * `:artifacts_dir` (`String.t()`) - If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the browser closes.
-  * `:channel` (`String.t()`) - Browser distribution channel.
+  * `:artifacts_dir` (`t:String.t/0`) - If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the browser closes.
+  * `:channel` (`t:String.t/0`) - Browser distribution channel.
 
     Use "chromium" to [opt in to new headless mode](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
 
     Use "chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge", "msedge-beta", "msedge-dev", or "msedge-canary" to use branded [Google Chrome and Microsoft Edge](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge).
-  * `:chromium_sandbox` (`boolean()`) - Enable Chromium sandboxing. Defaults to `false`.
-  * `:downloads_path` (`String.t()`) - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
+  * `:chromium_sandbox` (`t:boolean/0`) - Enable Chromium sandboxing. Defaults to `false`.
+  * `:downloads_path` (`t:String.t/0`) - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
     deleted when browser is closed. In either case, the downloads are deleted when the browser context they were created in
     is closed.
   * `:env` (`%{optional(String.t()) => String.t() | nil}`)
-  * `:executable_path` (`String.t()`) - Path to a browser executable to run instead of the bundled one. If `:executable_path` is a relative path, then
+  * `:executable_path` (`t:String.t/0`) - Path to a browser executable to run instead of the bundled one. If `:executable_path` is a relative path, then
     it is resolved relative to the current working directory. Note that Playwright only works with the bundled Chromium,
     Firefox or WebKit, use at your own risk.
   * `:firefox_user_prefs` (`%{optional(String.t()) => String.t() | number() | boolean()}`) - Firefox user preferences. Learn more about the Firefox user preferences at
     [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
     You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
-  * `:handle_sighup` (`boolean()`) - Close the browser process on SIGHUP. Defaults to `true`.
-  * `:handle_sigint` (`boolean()`) - Close the browser process on Ctrl-C. Defaults to `true`.
-  * `:handle_sigterm` (`boolean()`) - Close the browser process on SIGTERM. Defaults to `true`.
-  * `:headless` (`boolean()`) - Whether to run browser in headless mode. More details for
+  * `:handle_sighup` (`t:boolean/0`) - Close the browser process on SIGHUP. Defaults to `true`.
+  * `:handle_sigint` (`t:boolean/0`) - Close the browser process on Ctrl-C. Defaults to `true`.
+  * `:handle_sigterm` (`t:boolean/0`) - Close the browser process on SIGTERM. Defaults to `true`.
+  * `:headless` (`t:boolean/0`) - Whether to run browser in headless mode. More details for
     [Chromium](https://developers.google.com/web/updates/2017/04/headless-chrome) and
     [Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
-  * `:ignore_default_args` (`boolean() | [String.t()]`) - If `true`, Playwright does not pass its own configurations args and only uses the ones from `:args`. If an
+  * `:ignore_default_args` (`t:boolean/0` | list of `t:String.t/0`) - If `true`, Playwright does not pass its own configurations args and only uses the ones from `:args`. If an
     array is given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
-  * `:logger` (`map()`) - Logger sink for Playwright logging.
+  * `:logger` (`t:map/0`) - Logger sink for Playwright logging.
     * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
     * `:log`
-  * `:proxy` (`map()`) - Network proxy settings.
+  * `:proxy` (`t:map/0`) - Network proxy settings.
     * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
       `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP
       proxy.
@@ -372,12 +372,12 @@ defmodule PlaywrightEx.BrowserType do
       .domain.com"`.
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
-  * `:slow_mo` (`number()`) - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
-  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
+  * `:slow_mo` (`t:number/0`) - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
     disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:traces_dir` (`String.t()`) - If specified, traces are saved into this directory.
+  * `:traces_dir` (`t:String.t/0`) - If specified, traces are saved into this directory.
   """
   @spec launch(t(), launch_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, Exception.t()}
   def launch(browser_type, options \\ []) do
@@ -730,8 +730,8 @@ defmodule PlaywrightEx.BrowserType do
 
   ## Options
 
-  * `:accept_downloads` (`boolean()`) - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
-  * `:args` (`[String.t()]`)
+  * `:accept_downloads` (`t:boolean/0`) - Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.
+  * `:args` (list of `t:String.t/0`)
 
     > #### Warning {: .warning}
     >
@@ -739,20 +739,20 @@ defmodule PlaywrightEx.BrowserType do
 
     Additional arguments to pass to the browser instance. The list of Chromium flags can be found
     [here](https://peter.sh/experiments/chromium-command-line-switches/).
-  * `:artifacts_dir` (`String.t()`) - If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the browser closes.
-  * `:base_url` (`String.t()`) - When using `PlaywrightEx.Page.goto/3`, `PlaywrightEx.Page.route/4`, `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
+  * `:artifacts_dir` (`t:String.t/0`) - If specified, artifacts (traces, videos, downloads, HAR files, etc.) are saved into this directory. The directory is not cleaned up when the browser closes. If not specified, a temporary directory is used and cleaned up when the browser closes.
+  * `:base_url` (`t:String.t/0`) - When using `PlaywrightEx.Page.goto/3`, `PlaywrightEx.Page.route/4`, `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:
 
     * baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
     * baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in `http://localhost:3000/foo/bar.html`
     * baseURL: `http://localhost:3000/foo` (without trailing slash) and navigating to `./bar.html` results in `http://localhost:3000/bar.html`
-  * `:bypass_csp` (`boolean()`) - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
-  * `:channel` (`String.t()`) - Browser distribution channel.
+  * `:bypass_csp` (`t:boolean/0`) - Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
+  * `:channel` (`t:String.t/0`) - Browser distribution channel.
 
     Use "chromium" to [opt in to new headless mode](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
 
     Use "chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge", "msedge-beta", "msedge-dev", or "msedge-canary" to use branded [Google Chrome and Microsoft Edge](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge).
-  * `:chromium_sandbox` (`boolean()`) - Enable Chromium sandboxing. Defaults to `false`.
-  * `:client_certificates` (`[map()]`) - *Since 1.46.* TLS Client Authentication allows the server to request a client certificate and verify it.
+  * `:chromium_sandbox` (`t:boolean/0`) - Enable Chromium sandboxing. Defaults to `false`.
+  * `:client_certificates` (list of `t:map/0`) - *Since 1.46.* TLS Client Authentication allows the server to request a client certificate and verify it.
 
     **Details**
 
@@ -772,15 +772,15 @@ defmodule PlaywrightEx.BrowserType do
     * `:pfxPath` - Path to the PFX or PKCS12 encoded private key and certificate chain.
     * `:pfx` - Direct value of the PFX or PKCS12 encoded private key and certificate chain.
     * `:passphrase` - Passphrase for the private key (PEM or PFX).
-  * `:color_scheme` (`:null | :light | :dark | :no_preference`) - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `:light` and `:dark`. See
+  * `:color_scheme` (`:null` | `:light` | `:dark` | `:no_preference`) - Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `:light` and `:dark`. See
     `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:light`.
-  * `:contrast` (`:null | :no_preference | :more`) - Emulates `'prefers-contrast'` media feature, supported values are `:no_preference`, `:more`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.
-  * `:device_scale_factor` (`number()`) - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
-  * `:downloads_path` (`String.t()`) - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
+  * `:contrast` (`:null` | `:no_preference` | `:more`) - Emulates `'prefers-contrast'` media feature, supported values are `:no_preference`, `:more`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.
+  * `:device_scale_factor` (`t:number/0`) - Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
+  * `:downloads_path` (`t:String.t/0`) - If specified, accepted downloads are downloaded into this directory. Otherwise, temporary directory is created and is
     deleted when browser is closed. In either case, the downloads are deleted when the browser context they were created in
     is closed.
   * `:env` (`%{optional(String.t()) => String.t() | nil}`)
-  * `:executable_path` (`String.t()`) - Path to a browser executable to run instead of the bundled one. If `:executable_path` is a relative path, then
+  * `:executable_path` (`t:String.t/0`) - Path to a browser executable to run instead of the bundled one. If `:executable_path` is a relative path, then
     it is resolved relative to the current working directory. Note that Playwright only works with the bundled Chromium,
     Firefox or WebKit, use at your own risk.
   * `:extra_http_headers` (`%{optional(String.t()) => String.t()}`) - An object containing additional HTTP headers to be sent with every request. Defaults to none.
@@ -788,19 +788,19 @@ defmodule PlaywrightEx.BrowserType do
     [`about:config`](https://support.mozilla.org/en-US/kb/about-config-editor-firefox).
 
     You can also provide a path to a custom [`policies.json` file](https://mozilla.github.io/policy-templates/) via `PLAYWRIGHT_FIREFOX_POLICIES_JSON` environment variable.
-  * `:forced_colors` (`:null | :active | :none`) - Emulates `'forced-colors'` media feature, supported values are `:active`, `:none`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:none`.
-  * `:geolocation` (`map()`)
+  * `:forced_colors` (`:null` | `:active` | `:none`) - Emulates `'forced-colors'` media feature, supported values are `:active`, `:none`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:none`.
+  * `:geolocation` (`t:map/0`)
     * `:latitude` - Latitude between -90 and 90.
     * `:longitude` - Longitude between -180 and 180.
     * `:accuracy` - Non-negative accuracy value. Defaults to `0`.
-  * `:handle_sighup` (`boolean()`) - Close the browser process on SIGHUP. Defaults to `true`.
-  * `:handle_sigint` (`boolean()`) - Close the browser process on Ctrl-C. Defaults to `true`.
-  * `:handle_sigterm` (`boolean()`) - Close the browser process on SIGTERM. Defaults to `true`.
-  * `:has_touch` (`boolean()`) - Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#devices).
-  * `:headless` (`boolean()`) - Whether to run browser in headless mode. More details for
+  * `:handle_sighup` (`t:boolean/0`) - Close the browser process on SIGHUP. Defaults to `true`.
+  * `:handle_sigint` (`t:boolean/0`) - Close the browser process on Ctrl-C. Defaults to `true`.
+  * `:handle_sigterm` (`t:boolean/0`) - Close the browser process on SIGTERM. Defaults to `true`.
+  * `:has_touch` (`t:boolean/0`) - Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#devices).
+  * `:headless` (`t:boolean/0`) - Whether to run browser in headless mode. More details for
     [Chromium](https://developers.google.com/web/updates/2017/04/headless-chrome) and
     [Firefox](https://hacks.mozilla.org/2017/12/using-headless-mode-in-firefox/). Defaults to `true`.
-  * `:http_credentials` (`map() | [map()]`) - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+  * `:http_credentials` (`t:map/0` | list of `t:map/0`) - Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
     If no origin is specified, the username and password are sent to any servers upon unauthorized responses.
 
     Pass an array to use different credentials for different origins. The first entry that matches the request origin is used, and entries with no origin match any request.
@@ -809,19 +809,19 @@ defmodule PlaywrightEx.BrowserType do
     * `:password`
     * `:origin` - Restrain sending http credentials on specific origin (scheme://host:port).
     * `:send` - This option only applies to the requests sent from corresponding [`APIRequestContext`](`PlaywrightEx.APIRequestContext`) and does not affect requests sent from the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
-  * `:ignore_default_args` (`boolean() | [String.t()]`) - If `true`, Playwright does not pass its own configurations args and only uses the ones from `:args`. If an
+  * `:ignore_default_args` (`t:boolean/0` | list of `t:String.t/0`) - If `true`, Playwright does not pass its own configurations args and only uses the ones from `:args`. If an
     array is given, then filters out the given default arguments. Dangerous option; use with care. Defaults to `false`.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:is_mobile` (`boolean()`) - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
-  * `:java_script_enabled` (`boolean()`) - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
-  * `:locale` (`String.t()`) - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
-  * `:logger` (`map()`) - Logger sink for Playwright logging.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:is_mobile` (`t:boolean/0`) - Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).
+  * `:java_script_enabled` (`t:boolean/0`) - Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
+  * `:locale` (`t:String.t/0`) - Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+  * `:logger` (`t:map/0`) - Logger sink for Playwright logging.
     * `:isEnabled` - Determines whether sink is interested in the logger with the given name and severity.
     * `:log`
-  * `:offline` (`boolean()`) - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
-  * `:permissions` (`[String.t()]`) - A list of permissions to grant to all pages in this context. See
+  * `:offline` (`t:boolean/0`) - Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).
+  * `:permissions` (list of `t:String.t/0`) - A list of permissions to grant to all pages in this context. See
     `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.
-  * `:proxy` (`map()`) - Network proxy settings.
+  * `:proxy` (`t:map/0`) - Network proxy settings.
     * `:server` - Proxy to be used for all requests. HTTP and SOCKS proxies are supported, for example
       `http://myproxy.com:3128` or `socks5://myproxy.com:3128`. Short form `myproxy.com:3128` is considered an HTTP
       proxy.
@@ -829,7 +829,7 @@ defmodule PlaywrightEx.BrowserType do
       .domain.com"`.
     * `:username` - Optional username to use if HTTP proxy requires authentication.
     * `:password` - Optional password to use if HTTP proxy requires authentication.
-  * `:record_har` (`map()`) - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
+  * `:record_har` (`t:map/0`) - Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not
     specified, the HAR is not recorded. Make sure to call `PlaywrightEx.BrowserContext.close/2` for the HAR to be
     saved.
     * `:omitContent` - Optional setting to control whether to omit request content from the HAR. Defaults to
@@ -838,7 +838,7 @@ defmodule PlaywrightEx.BrowserType do
     * `:path` - Path on the filesystem to write the HAR file to. If the file name ends with `.zip`, `content: 'attach'` is used by default.
     * `:mode` - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
     * `:urlFilter` - A glob or regex pattern to filter requests that are stored in the HAR. When a `:base_url` via the context options was provided and the passed URL is a path, it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
-  * `:record_video` (`map()`) - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
+  * `:record_video` (`t:map/0`) - Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make
     sure to call `PlaywrightEx.BrowserContext.close/2` for videos to be saved.
     * `:dir` - Path to the directory to put videos into. If not specified, the videos will be stored in `:artifacts_dir` (see `PlaywrightEx.BrowserType.launch/2` options).
     * `:size` - Optional dimensions of the recorded videos. If not specified the size will be equal to `:viewport`
@@ -856,29 +856,29 @@ defmodule PlaywrightEx.BrowserType do
         * `:point` - CSS declarations for the zero-sized marker centered on the action point. Not shown when omitted.
         * `:highlight` - CSS declarations for the box that covers the target element. Not shown when omitted.
         * `:title` - CSS declarations for the action title.
-  * `:reduced_motion` (`:null | :reduce | :no_preference`) - Emulates `'prefers-reduced-motion'` media feature, supported values are `:reduce`, `:no_preference`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.
-  * `:screen` (`map()`) - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
+  * `:reduced_motion` (`:null` | `:reduce` | `:no_preference`) - Emulates `'prefers-reduced-motion'` media feature, supported values are `:reduce`, `:no_preference`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.
+  * `:screen` (`t:map/0`) - Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the
     `:viewport` is set.
     * `:width` - page width in pixels.
     * `:height` - page height in pixels.
-  * `:service_workers` (`:allow | :block`) - Whether to allow sites to register Service workers. Defaults to `:allow`.
+  * `:service_workers` (`:allow` | `:block`) - Whether to allow sites to register Service workers. Defaults to `:allow`.
 
     * `:allow`: [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) can be registered.
     * `:block`: Playwright will block all registration of Service Workers.
-  * `:slow_mo` (`number()`) - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
-  * `:strict_selectors` (`boolean()`) - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
+  * `:slow_mo` (`t:number/0`) - Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on.
+  * `:strict_selectors` (`t:boolean/0`) - If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations
     on selectors that imply single target DOM element will throw when more than one element matches the selector.
     This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`.
     See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.
-  * `:timeout` (`number() | :infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
     disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:timezone_id` (`String.t()`) - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
+  * `:timezone_id` (`t:String.t/0`) - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
     for a list of supported timezone IDs. Defaults to the system timezone.
-  * `:traces_dir` (`String.t()`) - If specified, traces are saved into this directory.
-  * `:user_agent` (`String.t()`) - Specific user agent to use in this context.
-  * `:viewport` (`:null | map()`) - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
+  * `:traces_dir` (`t:String.t/0`) - If specified, traces are saved into this directory.
+  * `:user_agent` (`t:String.t/0`) - Specific user agent to use in this context.
+  * `:viewport` (`:null` | `t:map/0`) - Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
     Use `:null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
 
     > #### Note {: .info}

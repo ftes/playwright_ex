@@ -75,21 +75,21 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:live` (`boolean()`) - *Since 1.59.* When enabled, the trace is written to an unarchived file that is updated in real time as actions occur,
+  * `:live` (`t:boolean/0`) - *Since 1.59.* When enabled, the trace is written to an unarchived file that is updated in real time as actions occur,
     instead of caching changes and archiving them into a zip file at the end. This is useful for live trace
     viewing during test execution.
-  * `:name` (`String.t()`) - If specified, intermediate trace files are going to be saved into the files with the
+  * `:name` (`t:String.t/0`) - If specified, intermediate trace files are going to be saved into the files with the
     given name prefix inside the `:traces_dir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
     To specify the final trace zip file name, you need to pass `path` option to
     `PlaywrightEx.Tracing.stop/2` instead.
-  * `:screenshots` (`boolean()`) - Whether to capture screenshots during tracing. Screenshots are used to build
+  * `:screenshots` (`t:boolean/0`) - Whether to capture screenshots during tracing. Screenshots are used to build
     a timeline preview.
-  * `:snapshots` (`boolean() | map()`) - Which snapshots to capture on every action. Passing `true` is a shortcut for `{ dom: true }`.
+  * `:snapshots` (`t:boolean/0` | `t:map/0`) - Which snapshots to capture on every action. Passing `true` is a shortcut for `{ dom: true }`.
     * `:dom` - Capture DOM snapshot on every action and record network activity. Optional.
     * `:aria` - Capture aria snapshot of the page on every action. Optional.
     * `:screen` - Capture a screenshot of the page on every action. Optional.
-  * `:sources` (`boolean()`) - *Since 1.17.* Whether to include source files for trace actions.
-  * `:title` (`String.t()`) - *Since 1.17.* Trace name to be shown in the Trace Viewer.
+  * `:sources` (`t:boolean/0`) - *Since 1.17.* Whether to include source files for trace actions.
+  * `:title` (`t:String.t/0`) - *Since 1.17.* Trace name to be shown in the Trace Viewer.
   """
   @spec start(t(), start_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def start(tracing, options \\ []) do
@@ -135,11 +135,11 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:name` (`String.t()`) - *Since 1.32.* If specified, intermediate trace files are going to be saved into the files with the
+  * `:name` (`t:String.t/0`) - *Since 1.32.* If specified, intermediate trace files are going to be saved into the files with the
     given name prefix inside the `:traces_dir` directory specified in `PlaywrightEx.BrowserType.launch/2`.
     To specify the final trace zip file name, you need to pass `path` option to
     `PlaywrightEx.Tracing.stop_chunk/2` instead.
-  * `:title` (`String.t()`) - *Since 1.17.* Trace name to be shown in the Trace Viewer.
+  * `:title` (`t:String.t/0`) - *Since 1.17.* Trace name to be shown in the Trace Viewer.
   """
   @spec start_chunk(t(), start_chunk_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def start_chunk(tracing, options \\ []) do
@@ -199,11 +199,11 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:content` (`:omit | :embed | :attach`) - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `:attach` for `.zip` output files and to `embed` for all other file extensions.
-  * `:mode` (`:full | :minimal`) - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:full`.
-  * `:resources_dir` (`String.t()`) - Only used together with `content: 'attach'`. When set, response bodies are placed in this directory instead of next to
+  * `:content` (`:omit` | `:embed` | `:attach`) - Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `:attach` for `.zip` output files and to `embed` for all other file extensions.
+  * `:mode` (`:full` | `:minimal`) - When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:full`.
+  * `:resources_dir` (`t:String.t/0`) - Only used together with `content: 'attach'`. When set, response bodies are placed in this directory instead of next to
     the HAR file. Not compatible with a `.zip` HAR file.
-  * `:url_filter` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - A glob or regex pattern to filter requests that are stored in the HAR. Defaults to none.
+  * `:url_filter` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - A glob or regex pattern to filter requests that are stored in the HAR. Defaults to none.
   """
   @spec start_har(t(), String.t(), start_har_options()) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, Exception.t()}
   def start_har(tracing, path, options \\ []) do
@@ -257,7 +257,7 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:location` (`map()`) - Specifies a custom location for the group to be shown in the trace viewer. Defaults to the location of the `PlaywrightEx.Tracing.group/3` call.
+  * `:location` (`t:map/0`) - Specifies a custom location for the group to be shown in the trace viewer. Defaults to the location of the `PlaywrightEx.Tracing.group/3` call.
     * `:file`
     * `:line`
     * `:column`
@@ -303,7 +303,7 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:path` (`String.t()`) - Export trace into the file with the given path.
+  * `:path` (`t:String.t/0`) - Export trace into the file with the given path.
   """
   @spec stop(t(), stop_options()) :: :ok | {:error, Exception.t()}
   def stop(tracing, options \\ []) do
@@ -330,7 +330,7 @@ defmodule PlaywrightEx.Tracing do
 
   ## Options
 
-  * `:path` (`String.t()`) - Export trace collected since the last `PlaywrightEx.Tracing.start_chunk/2` call into the file with the given path.
+  * `:path` (`t:String.t/0`) - Export trace collected since the last `PlaywrightEx.Tracing.start_chunk/2` call into the file with the given path.
   """
   @spec stop_chunk(t(), stop_chunk_options()) :: :ok | {:error, Exception.t()}
   def stop_chunk(tracing, options \\ []) do

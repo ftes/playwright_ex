@@ -1154,4 +1154,6 @@ drift). Blockers for release, assigned to follow-up workstreams:
   options typedoc names `fun/arity`, so ExDoc links it (user).
 - User/lead, docs: option bullets carry their type after the name, as NimbleOptions renders them
   (`* `:timeout` (`number() | :infinity`) - ...`); an object option's maps read `map()`, its fields
-  follow as nested bullets. No extra link to the options type: the `@spec` already links it.
+  follow as nested bullets. No extra link to the options type: the `@spec` already links it. Each
+  alternative is its own code span so ExDoc links it (`t:String.t/0`, `t:boolean/0` to Elixir's
+  typespecs page, `t:PlaywrightEx.AbortSignal.t/0`); lists read "list of", literals stay code.

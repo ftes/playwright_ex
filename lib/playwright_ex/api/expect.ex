@@ -88,14 +88,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:attached` (`boolean()`)
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:attached` (`t:boolean/0`)
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -149,14 +149,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:attached` (`boolean()`)
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:attached` (`t:boolean/0`)
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -228,17 +228,17 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:checked` (`boolean()`) - Provides state to assert for. Asserts for input to be checked by default.
+  * `:checked` (`t:boolean/0`) - Provides state to assert for. Asserts for input to be checked by default.
     This option can't be used when `:indeterminate` is set to true.
-  * `:indeterminate` (`boolean()`) - *Since 1.50.* Asserts that the element is in the indeterminate (mixed) state. Only supported for checkboxes and radio buttons.
+  * `:indeterminate` (`t:boolean/0`) - *Since 1.50.* Asserts that the element is in the indeterminate (mixed) state. Only supported for checkboxes and radio buttons.
     This option can't be true when `:checked` is provided.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -304,17 +304,17 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:checked` (`boolean()`) - Provides state to assert for. Asserts for input to be checked by default.
+  * `:checked` (`t:boolean/0`) - Provides state to assert for. Asserts for input to be checked by default.
     This option can't be used when `:indeterminate` is set to true.
-  * `:indeterminate` (`boolean()`) - *Since 1.50.* Asserts that the element is in the indeterminate (mixed) state. Only supported for checkboxes and radio buttons.
+  * `:indeterminate` (`t:boolean/0`) - *Since 1.50.* Asserts that the element is in the indeterminate (mixed) state. Only supported for checkboxes and radio buttons.
     This option can't be true when `:checked` is provided.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -374,13 +374,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -430,13 +430,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -496,14 +496,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:editable` (`boolean()`) - *Since 1.26.*
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:editable` (`t:boolean/0`) - *Since 1.26.*
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -557,14 +557,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:editable` (`boolean()`) - *Since 1.26.*
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:editable` (`t:boolean/0`) - *Since 1.26.*
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -620,13 +620,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -676,13 +676,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -742,14 +742,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:enabled` (`boolean()`) - *Since 1.26.*
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:enabled` (`t:boolean/0`) - *Since 1.26.*
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -803,14 +803,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:enabled` (`boolean()`) - *Since 1.26.*
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:enabled` (`t:boolean/0`) - *Since 1.26.*
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -866,13 +866,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -922,13 +922,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -984,13 +984,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1040,13 +1040,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1111,15 +1111,15 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ratio` (`number()`) - The minimal ratio of the element to intersect viewport. If equals to `0`, then
+  * `:ratio` (`t:number/0`) - The minimal ratio of the element to intersect viewport. If equals to `0`, then
     element should intersect viewport at any positive ratio. Defaults to `0`.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1173,15 +1173,15 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ratio` (`number()`) - The minimal ratio of the element to intersect viewport. If equals to `0`, then
+  * `:ratio` (`t:number/0`) - The minimal ratio of the element to intersect viewport. If equals to `0`, then
     element should intersect viewport at any positive ratio. Defaults to `0`.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1253,16 +1253,16 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:visible` (`boolean()`) - *Since 1.26.*
+  * `:visible` (`t:boolean/0`) - *Since 1.26.*
   """
   @spec to_be_visible(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_visible_options()) ::
           :ok | {:error, Exception.t()}
@@ -1314,16 +1314,16 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:visible` (`boolean()`) - *Since 1.26.*
+  * `:visible` (`t:boolean/0`) - *Since 1.26.*
   """
   @spec not_to_be_visible(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok | {:error, Exception.t()}
   def not_to_be_visible(locator, options \\ []) do
@@ -1402,13 +1402,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1469,13 +1469,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1593,17 +1593,17 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:use_inner_text` (`boolean()`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
+  * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec to_contain_text(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -1678,17 +1678,17 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:use_inner_text` (`boolean()`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
+  * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec not_to_contain_text(
           PlaywrightEx.Locator.t(),
@@ -1763,14 +1763,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1840,14 +1840,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1928,14 +1928,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2005,14 +2005,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2089,14 +2089,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2166,14 +2166,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2249,14 +2249,14 @@ defmodule PlaywrightEx.Expect do
 
   The options may take the place of `value`, which is then `nil`.
 
-  * `:ignore_case` (`boolean()`) - *Since 1.40.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.40.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2349,14 +2349,14 @@ defmodule PlaywrightEx.Expect do
 
   The options may take the place of `value`, which is then `nil`.
 
-  * `:ignore_case` (`boolean()`) - *Since 1.40.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.40.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2460,13 +2460,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2527,13 +2527,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2601,13 +2601,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2662,13 +2662,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2739,14 +2739,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:pseudo` (`:before | :after`) - *Since 1.60.* Pseudo-element to read computed styles from.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:pseudo` (`:before` | `:after`) - *Since 1.60.* Pseudo-element to read computed styles from.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2819,14 +2819,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:pseudo` (`:before | :after`) - *Since 1.60.* Pseudo-element to read computed styles from.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:pseudo` (`:before` | `:after`) - *Since 1.60.* Pseudo-element to read computed styles from.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2896,13 +2896,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -2963,13 +2963,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3039,13 +3039,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3109,13 +3109,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3263,13 +3263,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3579,13 +3579,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -3862,44 +3862,44 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` (`String.t()`) - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
-  * `:animations` (`:disabled | :allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+  * `:path` (`t:String.t/0`) - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:animations` (`:disabled` | `:allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
     * infinite animations are canceled to initial state, and then played over after the screenshot.
 
     Defaults to `:disabled` that disables animations.
-  * `:caret` (`:hide | :initial`) - When set to `:hide`, screenshot will hide text caret. When set to `:initial`, text caret behavior will not be changed.  Defaults to `:hide`.
-  * `:mask` (`[PlaywrightEx.Locator.t()]`) - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+  * `:caret` (`:hide` | `:initial`) - When set to `:hide`, screenshot will hide text caret. When set to `:initial`, text caret behavior will not be changed.  Defaults to `:hide`.
+  * `:mask` (list of `t:PlaywrightEx.Locator.t/0`) - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
     a pink box `#FF00FF` (customized by `:mask_color`) that completely covers its bounding box.
     The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
-  * `:mask_color` (`String.t()`) - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
-  * `:max_diff_pixel_ratio` (`number()`) - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
-  * `:max_diff_pixels` (`integer()`) - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
-  * `:omit_background` (`boolean()`) - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+  * `:mask_color` (`t:String.t/0`) - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:max_diff_pixel_ratio` (`t:number/0`) - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
+  * `:max_diff_pixels` (`t:integer/0`) - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
+  * `:omit_background` (`t:boolean/0`) - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
     Defaults to `false`.
-  * `:scale` (`:css | :device`) - When set to `:css`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `:device` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+  * `:scale` (`:css` | `:device`) - When set to `:css`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `:device` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
 
     Defaults to `:css`.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:style_path` (`String.t() | [String.t()]`) - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
-  * `:threshold` (`number()`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
+  * `:style_path` (`t:String.t/0` | list of `t:String.t/0`) - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
+  * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:clip` (`map()`) - An object which specifies clipping of the resulting image.
+  * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
     * `:x` - x-coordinate of top-left corner of clip area
     * `:y` - y-coordinate of top-left corner of clip area
     * `:width` - width of clipping area
     * `:height` - height of clipping area
-  * `:full_page` (`boolean()`) - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
+  * `:full_page` (`t:boolean/0`) - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
     `false`.
   """
   @spec to_have_screenshot(
@@ -4002,44 +4002,44 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` (`String.t()`) - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
-  * `:animations` (`:disabled | :allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
+  * `:path` (`t:String.t/0`) - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:animations` (`:disabled` | `:allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
     * infinite animations are canceled to initial state, and then played over after the screenshot.
 
     Defaults to `:disabled` that disables animations.
-  * `:caret` (`:hide | :initial`) - When set to `:hide`, screenshot will hide text caret. When set to `:initial`, text caret behavior will not be changed.  Defaults to `:hide`.
-  * `:mask` (`[PlaywrightEx.Locator.t()]`) - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
+  * `:caret` (`:hide` | `:initial`) - When set to `:hide`, screenshot will hide text caret. When set to `:initial`, text caret behavior will not be changed.  Defaults to `:hide`.
+  * `:mask` (list of `t:PlaywrightEx.Locator.t/0`) - Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with
     a pink box `#FF00FF` (customized by `:mask_color`) that completely covers its bounding box.
     The mask is also applied to invisible elements, see [Matching only visible elements](https://playwright.dev/docs/locators#matching-only-visible-elements) to disable that.
-  * `:mask_color` (`String.t()`) - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
-  * `:max_diff_pixel_ratio` (`number()`) - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
-  * `:max_diff_pixels` (`integer()`) - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
-  * `:omit_background` (`boolean()`) - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
+  * `:mask_color` (`t:String.t/0`) - *Since 1.35.* Specify the color of the overlay box for masked elements, in [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+  * `:max_diff_pixel_ratio` (`t:number/0`) - An acceptable ratio of pixels that are different to the total amount of pixels, between `0` and `1`. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
+  * `:max_diff_pixels` (`t:integer/0`) - An acceptable amount of pixels that could be different. Default is configurable with `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Note that `:threshold` defines which pixels are considered different.
+  * `:omit_background` (`t:boolean/0`) - Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
     Defaults to `false`.
-  * `:scale` (`:css | :device`) - When set to `:css`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `:device` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
+  * `:scale` (`:css` | `:device`) - When set to `:css`, screenshot will have a single pixel per each css pixel on the page. For high-dpi devices, this will keep screenshots small. Using `:device` option will produce a single pixel per each device pixel, so screenshots of high-dpi devices will be twice as large or even larger.
 
     Defaults to `:css`.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:style_path` (`String.t() | [String.t()]`) - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
-  * `:threshold` (`number()`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
+  * `:style_path` (`t:String.t/0` | list of `t:String.t/0`) - *Since 1.41.* File name containing the stylesheet to apply while making the screenshot. This is where you can hide dynamic elements, make elements invisible or change their properties to help you creating repeatable screenshots. This stylesheet pierces the Shadow DOM and applies to the inner frames.
+  * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:clip` (`map()`) - An object which specifies clipping of the resulting image.
+  * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
     * `:x` - x-coordinate of top-left corner of clip area
     * `:y` - y-coordinate of top-left corner of clip area
     * `:width` - width of clipping area
     * `:height` - height of clipping area
-  * `:full_page` (`boolean()`) - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
+  * `:full_page` (`t:boolean/0`) - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
     `false`.
   """
   @spec not_to_have_screenshot(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
@@ -4154,17 +4154,17 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:use_inner_text` (`boolean()`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
+  * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec to_have_text(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -4239,17 +4239,17 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.23.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression flag if specified.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:use_inner_text` (`boolean()`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
+  * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec not_to_have_text(
           PlaywrightEx.Locator.t(),
@@ -4315,13 +4315,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4382,13 +4382,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4467,13 +4467,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4534,13 +4534,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4592,7 +4592,7 @@ defmodule PlaywrightEx.Expect do
           | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
 
   @doc since: "1.49"
-  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n## Options\n\n* `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n## Options\n\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is accepted too (the same as `0`)."
   @spec to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t(),
@@ -4646,13 +4646,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4793,13 +4793,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4860,13 +4860,13 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -4952,14 +4952,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - *Since 1.44.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression parameter if specified. A provided predicate ignores this flag.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.44.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression parameter if specified. A provided predicate ignores this flag.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -5026,14 +5026,14 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:ignore_case` (`boolean()`) - *Since 1.44.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression parameter if specified. A provided predicate ignores this flag.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
+  * `:ignore_case` (`t:boolean/0`) - *Since 1.44.* Whether to perform case-insensitive match. `:ignore_case` option takes precedence over the corresponding regular expression parameter if specified. A provided predicate ignores this flag.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """

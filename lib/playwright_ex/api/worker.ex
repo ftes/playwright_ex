@@ -143,12 +143,12 @@ defmodule PlaywrightEx.Worker do
 
   A function in place of the options is the `:predicate` option.
 
-  * `:predicate` (`fun()`) - Receives the event data and returns a truthy value when the waiting should resolve.
-  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:predicate` (`t:fun/0`) - Receives the event data and returns a truthy value when the waiting should resolve.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
@@ -240,12 +240,12 @@ defmodule PlaywrightEx.Worker do
 
   A function in place of the options is the `:predicate` option.
 
-  * `:predicate` (`fun()`) - Receives the event data and returns a truthy value when the waiting should resolve.
-  * `:timeout` (`number() | :infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:predicate` (`t:fun/0`) - Receives the event data and returns a truthy value when the waiting should resolve.
+  * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).

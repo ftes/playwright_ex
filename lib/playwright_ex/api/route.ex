@@ -110,9 +110,9 @@ defmodule PlaywrightEx.Route do
   ## Options
 
   * `:headers` (`%{optional(String.t()) => String.t()}`) - If set changes the request HTTP headers. Header values will be converted to a string.
-  * `:method` (`String.t()`) - If set changes the request method (e.g. GET or POST).
-  * `:post_data` (`String.t() | {:binary, binary()} | term()`) - If set changes the post data of request.
-  * `:url` (`String.t()`) - If set changes the request URL. New URL must have same protocol as original one.
+  * `:method` (`t:String.t/0`) - If set changes the request method (e.g. GET or POST).
+  * `:post_data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - If set changes the post data of request.
+  * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one.
   """
   @spec continue(t(), continue_options()) :: :ok | {:error, Exception.t()}
   def continue(route, options \\ []) do
@@ -222,9 +222,9 @@ defmodule PlaywrightEx.Route do
   ## Options
 
   * `:headers` (`%{optional(String.t()) => String.t()}`) - If set changes the request HTTP headers. Header values will be converted to a string.
-  * `:method` (`String.t()`) - If set changes the request method (e.g. GET or POST).
-  * `:post_data` (`String.t() | {:binary, binary()} | term()`) - If set changes the post data of request.
-  * `:url` (`String.t()`) - If set changes the request URL. New URL must have same protocol as original one. Changing the URL won't
+  * `:method` (`t:String.t/0`) - If set changes the request method (e.g. GET or POST).
+  * `:post_data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - If set changes the post data of request.
+  * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one. Changing the URL won't
     affect the route matching, all the routes are matched using the original request URL.
   """
   @spec fallback(t(), fallback_options()) :: :ok | {:error, Exception.t()}
@@ -299,21 +299,21 @@ defmodule PlaywrightEx.Route do
   ## Options
 
   * `:headers` (`%{optional(String.t()) => String.t()}`) - If set changes the request HTTP headers. Header values will be converted to a string.
-  * `:max_redirects` (`integer()`) - *Since 1.31.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.31.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:method` (`String.t()`) - If set changes the request method (e.g. GET or POST).
-  * `:post_data` (`String.t() | {:binary, binary()} | term()`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:method` (`t:String.t/0`) - If set changes the request method (e.g. GET or POST).
+  * `:post_data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - *Since 1.33.* Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - *Since 1.33.* Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
-  * `:url` (`String.t()`) - If set changes the request URL. New URL must have same protocol as original one.
+  * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one.
   """
   @spec fetch(t(), fetch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, Exception.t()}
   def fetch(route, options \\ []) do
@@ -383,14 +383,14 @@ defmodule PlaywrightEx.Route do
 
   ## Options
 
-  * `:body` (`String.t() | {:binary, binary()}`) - Response body.
-  * `:content_type` (`String.t()`) - If set, equals to setting `Content-Type` response header.
+  * `:body` (`t:String.t/0` | `{:binary, binary()}`) - Response body.
+  * `:content_type` (`t:String.t/0`) - If set, equals to setting `Content-Type` response header.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Response headers. Header values will be converted to a string.
-  * `:json` (`term()`) - *Since 1.29.* JSON response. This method will set the content type to `application/json` if not set.
-  * `:path` (`String.t()`) - File path to respond with. The content type will be inferred from file extension. If `:path` is a relative path, then it
+  * `:json` (`t:term/0`) - *Since 1.29.* JSON response. This method will set the content type to `application/json` if not set.
+  * `:path` (`t:String.t/0`) - File path to respond with. The content type will be inferred from file extension. If `:path` is a relative path, then it
     is resolved relative to the current working directory.
-  * `:response` (`PlaywrightEx.APIResponse.t()`) - *Since 1.15.* [`APIResponse`](`PlaywrightEx.APIResponse`) to fulfill route's request with. Individual fields of the response (such as headers) can be overridden using fulfill options.
-  * `:status` (`integer()`) - Response status code, defaults to `200`.
+  * `:response` (`t:PlaywrightEx.APIResponse.t/0`) - *Since 1.15.* [`APIResponse`](`PlaywrightEx.APIResponse`) to fulfill route's request with. Individual fields of the response (such as headers) can be overridden using fulfill options.
+  * `:status` (`t:integer/0`) - Response status code, defaults to `200`.
   """
   @spec fulfill(t(), fulfill_options()) :: :ok | {:error, Exception.t()}
   def fulfill(route, options \\ []) do

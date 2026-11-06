@@ -166,12 +166,12 @@ defmodule PlaywrightEx.Credentials do
 
   ## Options
 
-  * `:id` (`String.t()`) - Base64url-encoded credential id. Auto-generated if omitted.
-  * `:private_key` (`String.t()`) - Base64url-encoded PKCS#8 (DER) private key. Auto-generated if omitted.
-  * `:public_key` (`String.t()`) - Base64url-encoded SPKI (DER) public key. Auto-generated if omitted.
-  * `:sign_count` (`integer()`) - *Since 1.64.* Initial value of the [signature counter](https://www.w3.org/TR/webauthn-2/#signature-counter). The counter is incremented by one on
+  * `:id` (`t:String.t/0`) - Base64url-encoded credential id. Auto-generated if omitted.
+  * `:private_key` (`t:String.t/0`) - Base64url-encoded PKCS#8 (DER) private key. Auto-generated if omitted.
+  * `:public_key` (`t:String.t/0`) - Base64url-encoded SPKI (DER) public key. Auto-generated if omitted.
+  * `:sign_count` (`t:integer/0`) - *Since 1.64.* Initial value of the [signature counter](https://www.w3.org/TR/webauthn-2/#signature-counter). The counter is incremented by one on
     every successful `navigator.credentials.get()` assertion, so the first assertion reports `signCount + 1`. Defaults to `0`.
-  * `:user_handle` (`String.t()`) - Base64url-encoded user handle. Auto-generated if omitted.
+  * `:user_handle` (`t:String.t/0`) - Base64url-encoded user handle. Auto-generated if omitted.
   """
   @spec create(t(), String.t(), create_options()) ::
           {:ok,
@@ -253,8 +253,8 @@ defmodule PlaywrightEx.Credentials do
 
   ## Options
 
-  * `:id` (`String.t()`) - Only return the credential with this base64url-encoded id.
-  * `:rp_id` (`String.t()`) - Only return credentials for this relying party id.
+  * `:id` (`t:String.t/0`) - Only return the credential with this base64url-encoded id.
+  * `:rp_id` (`t:String.t/0`) - Only return credentials for this relying party id.
   """
   @spec get(t(), get_options()) ::
           {:ok,

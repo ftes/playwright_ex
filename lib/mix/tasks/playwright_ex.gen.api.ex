@@ -760,12 +760,43 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # The option's type after its name, as NimbleOptions renders it; an object's fields follow as
   # nested bullets, so its maps read `map()`.
   defp option_bullet(ctx, prop, since),
-    do: bullet(ctx, "`#{inspect(atom(prop["name"]))}` (`#{option_type(ctx, prop)}`)", prop, since)
+    do: bullet(ctx, "`#{inspect(atom(prop["name"]))}` (#{linked_type(option_type(ctx, prop))})", prop, since)
 
   defp option_type(ctx, prop) do
     spec = prop_spec(ctx, prop)
     if props(prop["type"]) == [], do: spec, else: shallow_maps(spec)
   end
+
+  # A type as ExDoc links it: each alternative of a union its own code span, types as `t:` refs
+  # (`t:String.t/0`, `t:boolean/0`), lists as "list of", anything else (literals, functions,
+  # dictionaries) as plain code.
+  defp linked_type(spec), do: spec |> split_union() |> Enum.map_join(" | ", &linked_alternative/1)
+
+  defp linked_alternative(type) do
+    cond do
+      type =~ ~r/^\[.*\]$/s ->
+        "list of " <> linked_type(String.slice(type, 1..-2//1))
+
+      match = Regex.run(~r/^((?:[A-Z]\w*\.)*)([a-z_]\w*)\(\)$/, type) ->
+        "`t:#{Enum.at(match, 1)}#{Enum.at(match, 2)}/0`"
+
+      true ->
+        "`#{type}`"
+    end
+  end
+
+  # The top-level alternatives of `a | [b | c] | %{d => e | f}`.
+  defp split_union(spec), do: spec |> String.graphemes() |> split_union(0, "", [])
+  defp split_union([], _depth, current, acc), do: Enum.reverse([String.trim(current) | acc])
+  defp split_union(["|" | rest], 0, current, acc), do: split_union(rest, 0, "", [String.trim(current) | acc])
+
+  defp split_union([c | rest], depth, current, acc) when c in ["[", "{", "("],
+    do: split_union(rest, depth + 1, current <> c, acc)
+
+  defp split_union([c | rest], depth, current, acc) when c in ["]", "}", ")"],
+    do: split_union(rest, depth - 1, current <> c, acc)
+
+  defp split_union([c | rest], depth, current, acc), do: split_union(rest, depth, current <> c, acc)
 
   # `%{...}` (balanced) as `map()`: the fields are listed below the option.
   defp shallow_maps(spec), do: spec |> String.graphemes() |> shallow_maps(0, "")

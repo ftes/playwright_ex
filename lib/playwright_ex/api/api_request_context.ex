@@ -135,9 +135,9 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:domain` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Only removes cookies with the given domain.
-  * `:name` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Only removes cookies with the given name.
-  * `:path` (`String.t() | Regex.t() | PlaywrightEx.RegExp.t()`) - Only removes cookies with the given path.
+  * `:domain` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - Only removes cookies with the given domain.
+  * `:name` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - Only removes cookies with the given name.
+  * `:path` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`) - Only removes cookies with the given path.
   """
   @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, Exception.t()}
   def clear_cookies(api_request_context, options \\ []) do
@@ -286,32 +286,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - *Since 1.17.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - *Since 1.17.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - *Since 1.17.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - *Since 1.17.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:multipart` (`term() | map()`) - *Since 1.17.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:multipart` (`t:term/0` | `t:map/0`) - *Since 1.17.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -346,7 +346,7 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:reason` (`String.t()`) - *Since 1.45.* The reason to be reported to the operations interrupted by the context disposal.
+  * `:reason` (`t:String.t/0`) - *Since 1.45.* The reason to be reported to the operations interrupted by the context disposal.
   """
   @spec dispose(t(), dispose_options()) :: :ok | {:error, Exception.t()}
   def dispose(api_request_context, options \\ []) do
@@ -469,34 +469,34 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:method` (`String.t()`) - If set changes the fetch method (e.g. [PUT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT) or
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:method` (`t:String.t/0`) - If set changes the fetch method (e.g. [PUT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT) or
     [POST](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST)). If not specified, GET method is used.
-  * `:multipart` (`term() | map()`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -612,32 +612,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - *Since 1.26.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - *Since 1.26.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - *Since 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - *Since 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:multipart` (`term() | map()`) - *Since 1.26.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:multipart` (`t:term/0` | `t:map/0`) - *Since 1.26.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -735,32 +735,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - *Since 1.26.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - *Since 1.26.* Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - *Since 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - *Since 1.26.* Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:multipart` (`term() | map()`) - *Since 1.26.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:multipart` (`t:term/0` | `t:map/0`) - *Since 1.26.* Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -858,32 +858,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:multipart` (`term() | map()`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1013,32 +1013,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:multipart` (`term() | map()`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1136,32 +1136,32 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:data` (`String.t() | {:binary, binary()} | term()`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
+  * `:data` (`t:String.t/0` | `{:binary, binary()}` | `t:term/0`) - Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
     and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be
     set to `application/octet-stream` if not explicitly set.
-  * `:fail_on_status_code` (`boolean()`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
+  * `:fail_on_status_code` (`t:boolean/0`) - Whether to throw on response codes other than 2xx and 3xx. By default response object is returned
     for all status codes.
-  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()} | term()`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
+  * `:form` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`) - Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded`
     unless explicitly provided. Use `FormData` to send multiple values for the same field.
   * `:headers` (`%{optional(String.t()) => String.t()}`) - Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.
-  * `:ignore_https_errors` (`boolean()`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
-  * `:max_redirects` (`integer()`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
+  * `:ignore_https_errors` (`t:boolean/0`) - Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
+  * `:max_redirects` (`t:integer/0`) - *Since 1.26.* Maximum number of request redirects that will be followed automatically. An error will be thrown if the number is exceeded.
     Defaults to `20`. Pass `0` to not follow redirects.
-  * `:max_retries` (`integer()`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
-  * `:multipart` (`term() | map()`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
+  * `:max_retries` (`t:integer/0`) - *Since 1.46.* Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. An error will be thrown if the limit is exceeded. Defaults to `0` - no retries.
+  * `:multipart` (`t:term/0` | `t:map/0`) - Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as
     this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data`
     unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream)
     or as file-like object containing file name, mime-type and its content.
     * `:name` - File name
     * `:mimeType` - File type
     * `:buffer` - File content
-  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t()`) - Query parameters to be sent with the URL.
-  * `:signal` (`PlaywrightEx.AbortSignal.t()`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
+  * `:params` (`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`) - Query parameters to be sent with the URL.
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since 1.62.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and throw an error.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`number() | :infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
     In Elixir, `:infinity` is accepted too (the same as `0`).
   """
@@ -1198,9 +1198,9 @@ defmodule PlaywrightEx.APIRequestContext do
 
   ## Options
 
-  * `:indexed_db` (`boolean()`) - *Since 1.51.* Set to `true` to include IndexedDB in the storage state snapshot.
-  * `:opfs` (`boolean()`) - *Since 1.63.* Set to `true` to include the origin private file system in the storage state snapshot.
-  * `:path` (`String.t()`) - The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to
+  * `:indexed_db` (`t:boolean/0`) - *Since 1.51.* Set to `true` to include IndexedDB in the storage state snapshot.
+  * `:opfs` (`t:boolean/0`) - *Since 1.63.* Set to `true` to include the origin private file system in the storage state snapshot.
+  * `:path` (`t:String.t/0`) - The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to
     current working directory. If no path is provided, storage
     state is still returned, but won't be saved to the disk.
   """
