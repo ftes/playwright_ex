@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Client.NetworkBacklogTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Conn
+  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -45,8 +46,9 @@ defmodule PlaywrightEx.Client.NetworkBacklogTest do
 
     Page.evaluate!(page, "async () => { for (let i = 0; i < 100; i++) await fetch('/fulfill'); }")
 
-    # Back to the baseline or below (a browser may free rows of its own meanwhile).
-    assert page_rows(page) <= rows
+    # Back to the baseline or below (a browser may free rows of its own meanwhile). The last
+    # requests' rows go a moment after `evaluate` returns (webkit CI: 2 left when read at once).
+    Utils.to_pass(fn -> assert page_rows(page) <= rows end)
   end
 
   test "concurrent routes send the patterns of all of them", %{page: page} do
