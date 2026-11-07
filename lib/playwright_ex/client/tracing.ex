@@ -23,52 +23,48 @@ defmodule PlaywrightEx.Client.Tracing do
     this
   end
 
-  # @apiCall()
+  @api_call %{}
   def start(this, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      put(this, :_includeSources, !!options[:sources])
-      put(this, :_isLive, !!options[:live])
-      snapshots = if is_map(options[:snapshots]), do: options.snapshots, else: %{dom: options[:snapshots]}
+    put(this, :_includeSources, !!options[:sources])
+    put(this, :_isLive, !!options[:live])
+    snapshots = if is_map(options[:snapshots]), do: options.snapshots, else: %{dom: options[:snapshots]}
 
+    channel_call(
+      this,
+      :tracingStart,
+      %{
+        name: options[:name],
+        snapshotDom: snapshots[:dom],
+        snapshotAria: snapshots[:aria],
+        snapshotScreen: snapshots[:screen],
+        screencast: options[:screenshots],
+        coverage: options[:_coverage],
+        live: options[:live]
+      },
+      TimeoutSettings.k_no_timeout()
+    )
+
+    %{traceName: trace_name} =
       channel_call(
         this,
-        :tracingStart,
-        %{
-          name: options[:name],
-          snapshotDom: snapshots[:dom],
-          snapshotAria: snapshots[:aria],
-          snapshotScreen: snapshots[:screen],
-          screencast: options[:screenshots],
-          coverage: options[:_coverage],
-          live: options[:live]
-        },
+        :tracingStartChunk,
+        %{name: options[:name], title: options[:title]},
         TimeoutSettings.k_no_timeout()
       )
 
-      %{traceName: trace_name} =
-        channel_call(
-          this,
-          :tracingStartChunk,
-          %{name: options[:name], title: options[:title]},
-          TimeoutSettings.k_no_timeout()
-        )
-
-      _start_collecting_stacks(this, trace_name, get(this, :_isLive))
-      DisposableStub.new(fn -> stop(this) end)
-    end)
+    _start_collecting_stacks(this, trace_name, get(this, :_isLive))
+    DisposableStub.new(fn -> stop(this) end)
   end
 
-  # @apiCall()
+  @api_call %{}
   def start_chunk(this, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      %{traceName: trace_name} = channel_call(this, :tracingStartChunk, options, TimeoutSettings.k_no_timeout())
-      _start_collecting_stacks(this, trace_name, get(this, :_isLive))
-      DisposableStub.new(fn -> stop_chunk(this) end)
-    end)
+    %{traceName: trace_name} = channel_call(this, :tracingStartChunk, options, TimeoutSettings.k_no_timeout())
+    _start_collecting_stacks(this, trace_name, get(this, :_isLive))
+    DisposableStub.new(fn -> stop_chunk(this) end)
   end
 
   def group(this, name, options \\ %{}) do
@@ -111,71 +107,63 @@ defmodule PlaywrightEx.Client.Tracing do
     put(this, :_stacksId, result && result[:stacksId])
   end
 
-  # @apiCall()
+  @api_call %{}
   def stop_chunk(this, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      _do_stop_chunk(this, options[:path])
-      nil
-    end)
+    _do_stop_chunk(this, options[:path])
+    nil
   end
 
-  # @apiCall()
+  @api_call %{}
   def stop(this, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      error =
-        try do
-          _do_stop_chunk(this, options[:path])
-          nil
-        rescue
-          e -> e
-        end
+    error =
+      try do
+        _do_stop_chunk(this, options[:path])
+        nil
+      rescue
+        e -> e
+      end
 
-      channel_call(this, :tracingStop, %{}, TimeoutSettings.k_no_timeout())
-      if error, do: raise(error)
-      nil
-    end)
+    channel_call(this, :tracingStop, %{}, TimeoutSettings.k_no_timeout())
+    if error, do: raise(error)
+    nil
   end
 
-  # @apiCall()
+  @api_call %{}
   def start_har(this, path, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      if get(this, :_harId), do: raise("HAR recording has already been started")
+    if get(this, :_harId), do: raise("HAR recording has already been started")
 
-      if options[:resourcesDir] && Regex.match?(~r/\.zip\z/i, path),
-        do: raise("resourcesDir option is not compatible with a .zip har file")
+    if options[:resourcesDir] && Regex.match?(~r/\.zip\z/i, path),
+      do: raise("resourcesDir option is not compatible with a .zip har file")
 
-      default_content = if Regex.match?(~r/\.zip\z/i, path), do: "attach", else: "embed"
+    default_content = if Regex.match?(~r/\.zip\z/i, path), do: "attach", else: "embed"
 
-      put(
-        this,
-        :_harId,
-        _record_into_har(this, path, nil, %{
-          url: options[:urlFilter],
-          updateContent: if(options[:content] == nil, do: default_content, else: options.content),
-          updateMode: if(options[:mode] == nil, do: "full", else: options.mode),
-          resourcesDir: options[:resourcesDir]
-        })
-      )
+    put(
+      this,
+      :_harId,
+      _record_into_har(this, path, nil, %{
+        url: options[:urlFilter],
+        updateContent: if(options[:content] == nil, do: default_content, else: options.content),
+        updateMode: if(options[:mode] == nil, do: "full", else: options.mode),
+        resourcesDir: options[:resourcesDir]
+      })
+    )
 
-      DisposableStub.new(fn -> stop_har(this) end)
-    end)
+    DisposableStub.new(fn -> stop_har(this) end)
   end
 
-  # @apiCall()
+  @api_call %{}
   def stop_har(this) do
-    api_call().(this, fn ->
-      har_id = get(this, :_harId)
-      if !har_id, do: raise("HAR recording has not been started")
-      put(this, :_harId, nil)
-      _export_har(this, har_id)
-      nil
-    end)
+    har_id = get(this, :_harId)
+    if !har_id, do: raise("HAR recording has not been started")
+    put(this, :_harId, nil)
+    _export_har(this, har_id)
+    nil
   end
 
   def _record_into_har(this, har, page, options \\ %{}) do
@@ -264,17 +252,15 @@ defmodule PlaywrightEx.Client.Tracing do
     nil
   end
 
-  # @internal
+  @internal true
   def _export_all_hars(this) do
-    internal().(this, fn ->
-      Promise.await(
-        Promise.all(
-          for har_id <- Map.keys(get(this, :_harRecorders)), do: Promise.async(fn -> _export_har(this, har_id) end)
-        )
+    Promise.await(
+      Promise.all(
+        for har_id <- Map.keys(get(this, :_harRecorders)), do: Promise.async(fn -> _export_har(this, har_id) end)
       )
+    )
 
-      nil
-    end)
+    nil
   end
 
   defp _do_stop_chunk(this, file_path) do

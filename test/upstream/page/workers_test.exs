@@ -263,7 +263,8 @@ defmodule PlaywrightEx.Page.WorkersTest do
              "flaky: Chromium sometimes fetches the iframe's worker.js but never auto-attaches the worker " <>
                "(no Target.attachedToTarget, so no page worker event). The JS client hangs too: 6/510 " <>
                "in a 2-CPU Linux container, this client ~3% (before and after the OTP Phase 1 changes). " <>
-               "Upstream: https://github.com/microsoft/playwright/issues/43922"
+               "A Chromium bug: https://issues.chromium.org/issues/582409894 " <>
+               "(upstream: https://github.com/microsoft/playwright/issues/43922)"
          )
   test "WO-014 should attribute network activity for worker inside iframe to the iframe", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && browserMajorVersion < 114, ...)  -- the pinned browsers are newer

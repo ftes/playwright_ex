@@ -31,108 +31,102 @@ defmodule PlaywrightEx.Client.BrowserType do
     get(this, :_initializer).name
   end
 
-  # @apiCall()
+  @api_call %{}
   def launch(this, options \\ %{}) do
-    api_call().(this, fn ->
-      if options[:userDataDir],
-        do:
-          raise(
-            "userDataDir option is not supported in `browserType.launch`. Use `browserType.launchPersistentContext` instead"
-          )
-
-      if options[:port], do: raise("Cannot specify a port without launching as a server.")
-
-      logger = options[:logger] || (get(get(this, :_playwright), :_defaultLaunchOptions) || %{})[:logger]
-      options = Map.merge(get(get(this, :_playwright), :_defaultLaunchOptions) || %{}, options)
-
-      launch_options =
-        Map.merge(options, %{
-          ignoreDefaultArgs: if(is_list(options[:ignoreDefaultArgs]), do: options[:ignoreDefaultArgs]),
-          ignoreAllDefaultArgs: !!options[:ignoreDefaultArgs] and !is_list(options[:ignoreDefaultArgs]),
-          env: if(options[:env], do: env_object_to_array(options[:env]))
-        })
-
-      # Elixir only: `_set_creator/1`, the calling process anchors the browser (here and below).
-      browser =
-        ChannelOwner._set_creator(
-          Browser.from(
-            channel_call(
-              this,
-              :launch,
-              launch_options,
-              TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options)
-            ).browser
-          )
+    if options[:userDataDir],
+      do:
+        raise(
+          "userDataDir option is not supported in `browserType.launch`. Use `browserType.launchPersistentContext` instead"
         )
 
-      Browser._connect_to_browser_type(browser, this, options, logger)
-      browser
-    end)
+    if options[:port], do: raise("Cannot specify a port without launching as a server.")
+
+    logger = options[:logger] || (get(get(this, :_playwright), :_defaultLaunchOptions) || %{})[:logger]
+    options = Map.merge(get(get(this, :_playwright), :_defaultLaunchOptions) || %{}, options)
+
+    launch_options =
+      Map.merge(options, %{
+        ignoreDefaultArgs: if(is_list(options[:ignoreDefaultArgs]), do: options[:ignoreDefaultArgs]),
+        ignoreAllDefaultArgs: !!options[:ignoreDefaultArgs] and !is_list(options[:ignoreDefaultArgs]),
+        env: if(options[:env], do: env_object_to_array(options[:env]))
+      })
+
+    # Elixir only: `_set_creator/1`, the calling process anchors the browser (here and below).
+    browser =
+      ChannelOwner._set_creator(
+        Browser.from(
+          channel_call(
+            this,
+            :launch,
+            launch_options,
+            TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options)
+          ).browser
+        )
+      )
+
+    Browser._connect_to_browser_type(browser, this, options, logger)
+    browser
   end
 
   # launchServer  -- not ported: BrowserServer (architecture: Generated facade)
 
-  # @apiCall()
+  @api_call %{}
   def launch_persistent_context(this, user_data_dir, options \\ %{}) do
-    api_call().(this, fn ->
-      if options[:port], do: raise("Cannot specify a port without launching as a server.")
+    if options[:port], do: raise("Cannot specify a port without launching as a server.")
 
-      options =
-        Selectors._with_selector_options(
-          get(get(this, :_playwright), :selectors),
-          Map.merge(get(get(this, :_playwright), :_defaultLaunchOptions) || %{}, options)
-        )
+    options =
+      Selectors._with_selector_options(
+        get(get(this, :_playwright), :selectors),
+        Map.merge(get(get(this, :_playwright), :_defaultLaunchOptions) || %{}, options)
+      )
 
-      options = ClientInstrumentation.run_before_create_browser_context(get(this, :_instrumentation), options)
+    options = ClientInstrumentation.run_before_create_browser_context(get(this, :_instrumentation), options)
 
-      logger = options[:logger] || (get(get(this, :_playwright), :_defaultLaunchOptions) || %{})[:logger]
-      context_params = BrowserContext.prepare_browser_context_params(options)
+    logger = options[:logger] || (get(get(this, :_playwright), :_defaultLaunchOptions) || %{})[:logger]
+    context_params = BrowserContext.prepare_browser_context_params(options)
 
-      persistent_params =
-        Map.merge(context_params, %{
-          ignoreDefaultArgs: if(is_list(options[:ignoreDefaultArgs]), do: options[:ignoreDefaultArgs]),
-          ignoreAllDefaultArgs: !!options[:ignoreDefaultArgs] and !is_list(options[:ignoreDefaultArgs]),
-          env: if(options[:env], do: env_object_to_array(options[:env])),
-          channel: options[:channel],
-          userDataDir:
-            if(Path.type(user_data_dir) == :absolute or user_data_dir == "",
-              do: user_data_dir,
-              else: Path.expand(user_data_dir)
-            )
-        })
+    persistent_params =
+      Map.merge(context_params, %{
+        ignoreDefaultArgs: if(is_list(options[:ignoreDefaultArgs]), do: options[:ignoreDefaultArgs]),
+        ignoreAllDefaultArgs: !!options[:ignoreDefaultArgs] and !is_list(options[:ignoreDefaultArgs]),
+        env: if(options[:env], do: env_object_to_array(options[:env])),
+        channel: options[:channel],
+        userDataDir:
+          if(Path.type(user_data_dir) == :absolute or user_data_dir == "",
+            do: user_data_dir,
+            else: Path.expand(user_data_dir)
+          )
+      })
 
-      # The statements up to the next await run on reply, before the context's events
-      # (`channel_call/5`): its close reads the browser type.
-      result =
-        channel_call(
-          this,
-          :launchPersistentContext,
-          persistent_params,
-          TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options),
-          fn result ->
-            browser = Browser.from(result.browser)
-            Browser._connect_to_browser_type(browser, this, options, logger)
-          end
-        )
+    # The statements up to the next await run on reply, before the context's events
+    # (`channel_call/5`): its close reads the browser type.
+    result =
+      channel_call(
+        this,
+        :launchPersistentContext,
+        persistent_params,
+        TimeoutSettings.launch_timeout(TimeoutSettings.new(nil), options),
+        fn result ->
+          browser = Browser.from(result.browser)
+          Browser._connect_to_browser_type(browser, this, options, logger)
+        end
+      )
 
-      ChannelOwner._set_creator(Browser.from(result.browser))
-      context = ChannelOwner._set_creator(BrowserContext.from(result.context))
-      BrowserContext._initialize_har_from_options(context, options[:recordHar])
-      ClientInstrumentation.run_after_create_browser_context(get(this, :_instrumentation), context)
-      context
-    end)
+    ChannelOwner._set_creator(Browser.from(result.browser))
+    context = ChannelOwner._set_creator(BrowserContext.from(result.context))
+    BrowserContext._initialize_har_from_options(context, options[:recordHar])
+    ClientInstrumentation.run_after_create_browser_context(get(this, :_instrumentation), context)
+    context
   end
 
-  # @apiCall()
+  @api_call %{}
   def connect(this, options_or_endpoint, options \\ %{}) do
-    api_call().(this, fn ->
-      if is_binary(options_or_endpoint) do
-        _connect(this, Map.put(options, :endpoint, options_or_endpoint))
-      else
-        if !options_or_endpoint[:wsEndpoint], do: raise("options.wsEndpoint is required")
-        _connect(this, Map.put(options_or_endpoint, :endpoint, options_or_endpoint.wsEndpoint))
-      end
-    end)
+    if is_binary(options_or_endpoint) do
+      _connect(this, Map.put(options, :endpoint, options_or_endpoint))
+    else
+      if !options_or_endpoint[:wsEndpoint], do: raise("options.wsEndpoint is required")
+      _connect(this, Map.put(options_or_endpoint, :endpoint, options_or_endpoint.wsEndpoint))
+    end
   end
 
   def _connect(this, params) do

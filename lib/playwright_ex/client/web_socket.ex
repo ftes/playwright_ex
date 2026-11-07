@@ -70,38 +70,36 @@ defmodule PlaywrightEx.Client.WebSocket do
     get(this, :_isClosed)
   end
 
-  # @apiCall()
+  @api_call %{}
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
 
-    api_call().(this, fn ->
-      page = get(this, :_page)
+    page = get(this, :_page)
 
-      timeout_options =
-        TimeoutSettings.timeout(
-          get(page, :_timeoutSettings),
-          if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
-        )
-
-      predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
-      waiter = Waiter.create_for_event(this, event)
-
-      Waiter.reject_on_timeout(
-        waiter,
-        timeout_options,
-        ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+    timeout_options =
+      TimeoutSettings.timeout(
+        get(page, :_timeoutSettings),
+        if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
       )
 
-      if event != Events.WebSocket.error(),
-        do: Waiter.reject_on_event(waiter, this, Events.WebSocket.error(), %RuntimeError{message: "Socket error"})
+    predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
+    waiter = Waiter.create_for_event(this, event)
 
-      if event != Events.WebSocket.close(),
-        do: Waiter.reject_on_event(waiter, this, Events.WebSocket.close(), %RuntimeError{message: "Socket closed"})
+    Waiter.reject_on_timeout(
+      waiter,
+      timeout_options,
+      ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+    )
 
-      Waiter.reject_on_event(waiter, page, Events.Page.close(), fn -> Page._close_error_with_reason(page) end)
-      result = Waiter.wait_for_event(waiter, this, event, predicate)
-      Waiter.dispose(waiter)
-      result
-    end)
+    if event != Events.WebSocket.error(),
+      do: Waiter.reject_on_event(waiter, this, Events.WebSocket.error(), %RuntimeError{message: "Socket error"})
+
+    if event != Events.WebSocket.close(),
+      do: Waiter.reject_on_event(waiter, this, Events.WebSocket.close(), %RuntimeError{message: "Socket closed"})
+
+    Waiter.reject_on_event(waiter, page, Events.Page.close(), fn -> Page._close_error_with_reason(page) end)
+    result = Waiter.wait_for_event(waiter, this, event, predicate)
+    Waiter.dispose(waiter)
+    result
   end
 end

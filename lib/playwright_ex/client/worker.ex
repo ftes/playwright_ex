@@ -90,40 +90,38 @@ defmodule PlaywrightEx.Client.Worker do
     JSHandle.from(result.handle)
   end
 
-  # @apiCall()
+  @api_call %{}
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
 
-    api_call().(this, fn ->
-      page = get(this, :_page)
-      context = get(this, :_context)
+    page = get(this, :_page)
+    context = get(this, :_context)
 
-      timeout_settings =
-        (page && get(page, :_timeoutSettings)) || (context && get(context, :_timeoutSettings)) ||
-          TimeoutSettings.new()
+    timeout_settings =
+      (page && get(page, :_timeoutSettings)) || (context && get(context, :_timeoutSettings)) ||
+        TimeoutSettings.new()
 
-      timeout_options =
-        TimeoutSettings.timeout(
-          timeout_settings,
-          if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
-        )
-
-      predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
-      waiter = Waiter.create_for_event(this, event)
-
-      Waiter.reject_on_timeout(
-        waiter,
-        timeout_options,
-        ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+    timeout_options =
+      TimeoutSettings.timeout(
+        timeout_settings,
+        if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
       )
 
-      if event != Events.Worker.close(),
-        do: Waiter.reject_on_event(waiter, this, Events.Worker.close(), fn -> _close_error_with_reason(this) end)
+    predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
+    waiter = Waiter.create_for_event(this, event)
 
-      result = Waiter.wait_for_event(waiter, this, event, predicate)
-      Waiter.dispose(waiter)
-      result
-    end)
+    Waiter.reject_on_timeout(
+      waiter,
+      timeout_options,
+      ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+    )
+
+    if event != Events.Worker.close(),
+      do: Waiter.reject_on_event(waiter, this, Events.Worker.close(), fn -> _close_error_with_reason(this) end)
+
+    result = Waiter.wait_for_event(waiter, this, event, predicate)
+    Waiter.dispose(waiter)
+    result
   end
 
   def _disconnect(this, options \\ %{}) do

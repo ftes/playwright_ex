@@ -50,7 +50,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `class X extends ChannelOwner`, `super(...)` | `use PlaywrightEx.Client.ChannelOwner`, `ChannelOwner.new(__MODULE__, parent, type, guid, init)` |
 | `super.foo()` | `Parent.foo(this)` |
 | `this.foo()` where a subclass may override | `impl(this).foo(this)` (`Heap.impl/1`: the client module of a facade struct) |
-| `@apiCall({ title: 'X' })` / `@internal` method decorator | `# @apiCall({ title: 'X' })` above the def, the body (after JS default parameters) in `api_call(%{title: "X"}).(this, fn -> ... end)` / `internal().(this, fn -> ... end)` (`ChannelOwner.api_call/1`): runs it through the receiver's `_wrap_api_call/3` |
+| `@apiCall({ title: 'X' })` / `@apiCall()` / `@internal` method decorator | `@api_call %{title: "X"}` / `@api_call %{}` / `@internal true` above the def (`PlaywrightEx.Client.Decorators`): the whole body, JS default parameters included (applied in the body), runs through the receiver's `_wrap_api_call/3` |
 | `this._channel.foo(params, options)` | `channel_call(this, :foo, params, options)`; the generated validator converts to the wire |
 | `this._channel.on('event', ...)` | `EventEmitter.on(_channel(this), "event", ...)` |
 | `X.from(channel)` | identity: channels and owners are the same handle |
@@ -215,7 +215,8 @@ single thread. Use each only where the JS code needs it, with its marker.
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
    update `@unported_client_files` / `test/upstream_not_ported.txt`. Copy upstream's
    `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and removed
-   tests, not changed bodies: port those from the spec diff.
+   tests (a test named at runtime, in a loop, by its identifier only), not changed bodies: port
+   those from the spec diff.
 5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.
@@ -232,5 +233,5 @@ Problems upstream's own client has too; re-check on each bump, drop what's fixed
   link-local targets, `colorScheme: null` on a dark host): upstream's client fails them too;
   Linux CI passes.
 - **Chromium worker hang** (`workers_test`, tagged flaky): upstream's client hangs too (6/510
-  under 2-CPU load), microsoft/playwright#43922, closed right after 1.65.0 (101/101 unloaded on
-  1.65).
+  under 2-CPU load). A Chromium bug, reproduced with a bare CDP client: microsoft/playwright#43922
+  was closed as https://issues.chromium.org/issues/582409894. Re-check when that is fixed.

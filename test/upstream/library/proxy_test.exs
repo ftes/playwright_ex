@@ -11,6 +11,8 @@ defmodule PlaywrightEx.Library.ProxyTest do
   alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
 
+  @browser_name System.get_env("BROWSER", "chromium")
+
   setup {TestProxy, :proxy_server}
   setup {TestProxy, :socks_port}
 
@@ -77,7 +79,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
         # it.skip(browserName === 'webkit' && platform === 'darwin' && ... && additionalBypass, 'Mac webkit does not proxy localhost when bypass rules are set.');
         @tag skip:
                (cond do
-                  not (System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type())) ->
+                  not (@browser_name == "webkit" and match?({:unix, :darwin}, :os.type())) ->
                     nil
 
                   target not in ["localhost", "127.0.0.1"] ->

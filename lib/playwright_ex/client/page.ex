@@ -562,58 +562,54 @@ defmodule PlaywrightEx.Client.Page do
     Frame.wait_for_url(get(this, :_mainFrame), url, options)
   end
 
-  # @apiCall()
+  @api_call %{}
   def wait_for_request(this, url_or_predicate, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      predicate = fn request ->
-        if is_binary(url_or_predicate) or PlaywrightEx.RegExp.reg_exp?(url_or_predicate) do
-          _url_matches(this, Request.url(request), url_or_predicate)
-        else
-          # await urlOrPredicate(request): a returned promise is awaited
-          result = url_or_predicate.(request)
-          if is_struct(result, Promise), do: Promise.await(result), else: result
-        end
+    predicate = fn request ->
+      if is_binary(url_or_predicate) or PlaywrightEx.RegExp.reg_exp?(url_or_predicate) do
+        _url_matches(this, Request.url(request), url_or_predicate)
+      else
+        # await urlOrPredicate(request): a returned promise is awaited
+        result = url_or_predicate.(request)
+        if is_struct(result, Promise), do: Promise.await(result), else: result
       end
+    end
 
-      trimmed_url = trim_url(url_or_predicate)
-      log_line = if trimmed_url, do: "waiting for request #{trimmed_url}"
+    trimmed_url = trim_url(url_or_predicate)
+    log_line = if trimmed_url, do: "waiting for request #{trimmed_url}"
 
-      _wait_for_event(
-        this,
-        Events.Page.request(),
-        %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
-        log_line
-      )
-    end)
+    _wait_for_event(
+      this,
+      Events.Page.request(),
+      %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
+      log_line
+    )
   end
 
-  # @apiCall()
+  @api_call %{}
   def wait_for_response(this, url_or_predicate, options \\ %{}) do
     options = options || %{}
 
-    api_call().(this, fn ->
-      predicate = fn response ->
-        if is_binary(url_or_predicate) or PlaywrightEx.RegExp.reg_exp?(url_or_predicate) do
-          _url_matches(this, Response.url(response), url_or_predicate)
-        else
-          # await urlOrPredicate(response): a returned promise is awaited
-          result = url_or_predicate.(response)
-          if is_struct(result, Promise), do: Promise.await(result), else: result
-        end
+    predicate = fn response ->
+      if is_binary(url_or_predicate) or PlaywrightEx.RegExp.reg_exp?(url_or_predicate) do
+        _url_matches(this, Response.url(response), url_or_predicate)
+      else
+        # await urlOrPredicate(response): a returned promise is awaited
+        result = url_or_predicate.(response)
+        if is_struct(result, Promise), do: Promise.await(result), else: result
       end
+    end
 
-      trimmed_url = trim_url(url_or_predicate)
-      log_line = if trimmed_url, do: "waiting for response #{trimmed_url}"
+    trimmed_url = trim_url(url_or_predicate)
+    log_line = if trimmed_url, do: "waiting for response #{trimmed_url}"
 
-      _wait_for_event(
-        this,
-        Events.Page.response(),
-        %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
-        log_line
-      )
-    end)
+    _wait_for_event(
+      this,
+      Events.Page.response(),
+      %{predicate: predicate, timeout: options[:timeout], signal: options[:signal]},
+      log_line
+    )
   end
 
   # urlMatches(this._browserContext._options.baseURL, url, match), with the LocalUtils (UrlMatch).
@@ -626,10 +622,10 @@ defmodule PlaywrightEx.Client.Page do
     )
   end
 
-  # @apiCall()
+  @api_call %{}
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
-    api_call().(this, fn -> _wait_for_event(this, event, options_or_predicate, ~s(waiting for event "#{event}")) end)
+    _wait_for_event(this, event, options_or_predicate, ~s(waiting for event "#{event}"))
   end
 
   def _close_error_with_reason(this) do
@@ -746,25 +742,23 @@ defmodule PlaywrightEx.Client.Page do
     end
   end
 
-  # @apiCall({ title: 'Route requests' })
+  @api_call %{title: "Route requests"}
   def route(this, url, handler, options \\ %{}) do
     options = options || %{}
 
-    api_call(%{title: "Route requests"}).(this, fn ->
-      route_handler =
-        RouteHandler.new(
-          Connection.local_utils(get(this, :_connection)),
-          get(get(this, :_browserContext), :_options)[:baseURL],
-          url,
-          handler,
-          options[:times],
-          this
-        )
+    route_handler =
+      RouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
+        get(get(this, :_browserContext), :_options)[:baseURL],
+        url,
+        handler,
+        options[:times],
+        this
+      )
 
-      update(this, :_routes, &[route_handler | &1])
-      _update_interception_patterns(this)
-      DisposableStub.new(fn -> unroute(this, url, handler) end)
-    end)
+    update(this, :_routes, &[route_handler | &1])
+    _update_interception_patterns(this)
+    DisposableStub.new(fn -> unroute(this, url, handler) end)
   end
 
   def route_from_har(this, har, options \\ %{}) do
@@ -783,20 +777,18 @@ defmodule PlaywrightEx.Client.Page do
     nil
   end
 
-  # @apiCall({ title: 'Route WebSockets' })
+  @api_call %{title: "Route WebSockets"}
   def route_web_socket(this, url, handler) do
-    api_call(%{title: "Route WebSockets"}).(this, fn ->
-      route_handler =
-        WebSocketRouteHandler.new(
-          Connection.local_utils(get(this, :_connection)),
-          get(get(this, :_browserContext), :_options)[:baseURL],
-          url,
-          handler
-        )
+    route_handler =
+      WebSocketRouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
+        get(get(this, :_browserContext), :_options)[:baseURL],
+        url,
+        handler
+      )
 
-      update(this, :_webSocketRoutes, &[route_handler | &1])
-      _update_web_socket_interception_patterns(this)
-    end)
+    update(this, :_webSocketRoutes, &[route_handler | &1])
+    _update_web_socket_interception_patterns(this)
   end
 
   defp _dispose_har_routers(this) do
@@ -806,25 +798,21 @@ defmodule PlaywrightEx.Client.Page do
     update(this, :_harRouters, &(&1 -- routers))
   end
 
-  # @apiCall({ title: 'Unroute requests' })
+  @api_call %{title: "Unroute requests"}
   def unroute_all(this, options \\ nil) do
-    api_call(%{title: "Unroute requests"}).(this, fn ->
-      _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
-      _dispose_har_routers(this)
-      nil
-    end)
+    _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
+    _dispose_har_routers(this)
+    nil
   end
 
-  # @apiCall({ title: 'Unroute requests' })
+  @api_call %{title: "Unroute requests"}
   def unroute(this, url, handler \\ nil) do
-    api_call(%{title: "Unroute requests"}).(this, fn ->
-      {removed, remaining} =
-        Enum.split_with(get(this, :_routes), fn route ->
-          UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
-        end)
+    {removed, remaining} =
+      Enum.split_with(get(this, :_routes), fn route ->
+        UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
+      end)
 
-      _unroute_internal(this, removed, remaining, "default")
-    end)
+    _unroute_internal(this, removed, remaining, "default")
   end
 
   defp _unroute_internal(this, removed, _remaining, behavior) do
@@ -846,9 +834,9 @@ defmodule PlaywrightEx.Client.Page do
     _update_interception_patterns(this)
   end
 
-  # @internal
+  @internal true
   defp _disable_interception(this) do
-    internal().(this, fn -> _update_interception_patterns(this) end)
+    _update_interception_patterns(this)
   end
 
   defp _update_interception_patterns(this) do

@@ -7,7 +7,9 @@ defmodule PlaywrightEx.Client.Screencast do
   viewportHeight: integer}`; the frame is acknowledged (backpressure) when it returns or, if it
   returns a promise, when that settles.
   """
-  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4, _channel: 1, api_call: 0]
+  use PlaywrightEx.Client.Decorators
+
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4, _channel: 1]
   import PlaywrightEx.Runtime.Heap
 
   alias PlaywrightEx.Client.Artifact
@@ -88,20 +90,18 @@ defmodule PlaywrightEx.Client.Screencast do
     DisposableStub.new(fn -> stop(this) end)
   end
 
-  # @apiCall()
+  @api_call %{}
   def stop(this) do
-    api_call().(this, fn ->
-      put(this, :_started, false)
-      put(this, :_onFrame, nil)
-      channel_call(get(this, :_page), :screencastStop, %{}, TimeoutSettings.k_no_timeout())
+    put(this, :_started, false)
+    put(this, :_onFrame, nil)
+    channel_call(get(this, :_page), :screencastStop, %{}, TimeoutSettings.k_no_timeout())
 
-      if get(this, :_savePath),
-        do: if(artifact = get(this, :_artifact), do: Artifact.save_as(artifact, get(this, :_savePath)))
+    if get(this, :_savePath),
+      do: if(artifact = get(this, :_artifact), do: Artifact.save_as(artifact, get(this, :_savePath)))
 
-      put(this, :_artifact, nil)
-      put(this, :_savePath, nil)
-      nil
-    end)
+    put(this, :_artifact, nil)
+    put(this, :_savePath, nil)
+    nil
   end
 
   def show_actions(this, options \\ nil) do

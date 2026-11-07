@@ -111,19 +111,19 @@ defmodule PlaywrightEx.Client.Request do
     end
   end
 
-  # @internal
+  @internal true
   def all_headers(this) do
-    internal().(this, fn -> RawHeaders.headers(_actual_headers(this)) end)
+    RawHeaders.headers(_actual_headers(this))
   end
 
-  # @internal
+  @internal true
   def headers_array(this) do
-    internal().(this, fn -> RawHeaders.headers_array(_actual_headers(this)) end)
+    RawHeaders.headers_array(_actual_headers(this))
   end
 
-  # @internal
+  @internal true
   def header_value(this, name) do
-    internal().(this, fn -> RawHeaders.get(_actual_headers(this), name) end)
+    RawHeaders.get(_actual_headers(this), name)
   end
 
   def response(this) do
