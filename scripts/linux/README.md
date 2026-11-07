@@ -19,7 +19,7 @@ CPUS=2 scripts/linux/run stress 6 test/upstream/page/workers_test.exs --repeat-u
 ## Commands
 
 - `setup [browsers...]`: build the image, (re)create the container, install driver and browsers.
-- `test [mix test args...]`: `xvfb-run mix test <args>`, as CI.
+- `test [mix test args...]`: `xvfb-run mix test <args>` (CI starts one Xvfb per job instead).
 - `exec <shell command>`: any command in the synced checkout.
 - `stress <copies> [mix test args...]`: that many parallel `mix test` runs; logs in `tmp/linux/`.
   `CPUS=2` limits the container to CI's 2 cores.
