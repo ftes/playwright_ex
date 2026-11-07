@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0-rc.1] 2026-11-07
+
 ### Added
 - `__options__/1` on the facade modules: the options of a function with their doc, since,
   rendered type and typespec, for wrappers that pass them on (`Locator.__options__(:click)`).
