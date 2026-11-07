@@ -5955,6 +5955,8 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `url_or_predicate` - Request URL string, regex or predicate receiving [`Request`](`PlaywrightEx.Request`) object.
+    When a `:base_url` via the context options was provided and the passed URL is a path,
+    it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
 
   ## Options
 

@@ -1304,7 +1304,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Options
 
-  * `:credentials` (`t:boolean/0`) - *Since Playwright 1.61.* Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage
+  * `:credentials` (`t:boolean/0`) - *Since Playwright 1.62.* Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage
     state snapshot. The captured credentials carry their private keys and signature counters, so they can be re-seeded into a later context via the
     `:storage_state` option or `PlaywrightEx.BrowserContext.set_storage_state/2`.
     Note that restoring the storage state that contains credentials will automatically install the virtual WebAuthn authenticator (see `PlaywrightEx.Credentials.install/1`), and prevent all real authenticators from working in this context.
@@ -2196,7 +2196,7 @@ defmodule PlaywrightEx.BrowserContext do
         type_doc: "`t:boolean/0`",
         doc:
           "Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage state snapshot. The captured credentials carry their private keys and signature counters, so they can be re-seeded into a later context via the `:storage_state` option or `PlaywrightEx.BrowserContext.set_storage_state/2`. Note that restoring the storage state that contains credentials will automatically install the virtual WebAuthn authenticator (see `PlaywrightEx.Credentials.install/1`), and prevent all real authenticators from working in this context.",
-        since: "1.61",
+        since: "1.62",
         spec: quote(do: boolean())
       },
       indexed_db: %{

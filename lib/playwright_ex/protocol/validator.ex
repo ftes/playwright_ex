@@ -2560,7 +2560,10 @@ defmodule PlaywrightEx.Protocol.Validator do
   def scheme("PageWebStorageClearParams"), do: {:object, [kind: {:enum, ["local", "session"]}]}
   def scheme("PageWebStorageClearResult"), do: {:optional, {:object, []}}
   def scheme("RootInitializer"), do: {:optional, {:object, []}}
-  def scheme("RootInitializeParams"), do: {:object, [sdkLanguage: {:type, "SDKLanguage"}]}
+
+  def scheme("RootInitializeParams"),
+    do: {:object, [sdkLanguage: {:type, "SDKLanguage"}, supportsLoneSurrogates: {:optional, :boolean}]}
+
   def scheme("RootInitializeResult"), do: {:object, [playwright: {:channel, ["Playwright"]}]}
 
   def scheme("PlaywrightInitializer"),

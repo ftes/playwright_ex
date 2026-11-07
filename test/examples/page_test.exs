@@ -778,10 +778,11 @@ defmodule PlaywrightEx.Examples.PageTest do
 
   example "Page.screencast",
     js: ~S"""
-    page.screencast.on('screencastFrame', data => {
-      console.log('received frame, jpeg size:', data.length);
+    await page.screencast.start({
+      onFrame: ({ data }) => {
+        console.log('received frame, jpeg size:', data.length);
+      },
     });
-    await page.screencast.start();
     // ... perform actions ...
     await page.screencast.stop();
     """ do

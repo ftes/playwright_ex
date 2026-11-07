@@ -4,7 +4,7 @@ defmodule PlaywrightEx.CDPSession do
   @moduledoc ~S"""
   The [`CDPSession`](`PlaywrightEx.CDPSession`) instances are used to talk raw Chrome Devtools Protocol:
 
-  * protocol methods can be called with `PlaywrightEx.CDPSession.send/3` method.
+  * protocol methods can be called with `PlaywrightEx.CDPSession.send/4` method.
   * protocol events can be subscribed to with `PlaywrightEx.CDPSession.on/3` method.
 
   Useful links:
@@ -78,6 +78,13 @@ defmodule PlaywrightEx.CDPSession do
     Facade.async_void!("cdpSession.detach", cdp_session, fn -> PlaywrightEx.Client.CDPSession.detach(cdp_session) end)
   end
 
+  @send_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `send/4`, see its docs."
+  @type send_options ::
+          [signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          | %{optional(:signal) => PlaywrightEx.AbortSignal.t(), optional(:timeout) => number() | :infinity}
+
   @doc ~S"""
   *Since Playwright 1.8.*
 
@@ -85,19 +92,32 @@ defmodule PlaywrightEx.CDPSession do
 
   * `method` - Protocol method name.
   * `params` - Optional method parameters.
+
+  ## Options
+
+  * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.65.* Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.
+
+    In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
+  * `:timeout` (`t:number/0` | `:infinity`) - *Since Playwright 1.65.* Maximum time in milliseconds to wait for the response. Defaults to `0` - no timeout.
+
+    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec send(t(), String.t(), map() | nil) :: {:ok, map()} | {:error, PlaywrightEx.error()}
-  def send(cdp_session, method, params \\ nil) do
+  @spec send(t(), String.t(), map() | nil, send_options()) :: {:ok, map()} | {:error, PlaywrightEx.error()}
+  def send(cdp_session, method, params \\ nil, options \\ []) do
+    options = Facade.options!(options, @send_options, "cdpSession.send")
+
     Facade.async("cdpSession.send", cdp_session, fn ->
-      PlaywrightEx.Client.CDPSession.send(cdp_session, method, params)
+      PlaywrightEx.Client.CDPSession.send(cdp_session, method, params, options)
     end)
   end
 
-  @doc "Like `send/3`, but returns the value and raises on error."
-  @spec send!(t(), String.t(), map() | nil) :: map()
-  def send!(cdp_session, method, params \\ nil) do
+  @doc "Like `send/4`, but returns the value and raises on error."
+  @spec send!(t(), String.t(), map() | nil, send_options()) :: map()
+  def send!(cdp_session, method, params \\ nil, options \\ []) do
+    options = Facade.options!(options, @send_options, "cdpSession.send")
+
     Facade.async!("cdpSession.send", cdp_session, fn ->
-      PlaywrightEx.Client.CDPSession.send(cdp_session, method, params)
+      PlaywrightEx.Client.CDPSession.send(cdp_session, method, params, options)
     end)
   end
 
@@ -159,5 +179,27 @@ defmodule PlaywrightEx.CDPSession do
   def prepend_listener(cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.prependListener", true)
     Facade.listen(fn -> PlaywrightEx.Client.CDPSession.prepend_listener(cdp_session, event, listener) end)
+  end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:send) do
+    [
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail.",
+        since: "1.65",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Maximum time in milliseconds to wait for the response. Defaults to `0` - no timeout.",
+        since: "1.65",
+        spec: quote(do: number() | :infinity)
+      }
+    ]
   end
 end

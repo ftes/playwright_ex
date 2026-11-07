@@ -210,7 +210,7 @@ defmodule PlaywrightEx.Examples.FrameTest do
     frame.selectOption('select#colors', { label: 'Blue' });
 
     // multiple selection
-    frame.selectOption('select#colors', 'red', 'green', 'blue');
+    frame.selectOption('select#colors', ['red', 'green', 'blue']);
     """,
     html: @select,
     given: [frame: Page.main_frame(page)] do

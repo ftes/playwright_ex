@@ -147,7 +147,7 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   * `handler` - Function that will handle WebSocket closure. Received an optional [close code](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#code) and an optional [close reason](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#reason).
   """
-  @spec on_close(t(), (integer() | nil -> term())) :: :ok
+  @spec on_close(t(), (integer() | nil, String.t() | nil -> term())) :: :ok
   def on_close(web_socket_route, handler) do
     PlaywrightEx.Client.WebSocketRoute.on_close(web_socket_route, handler)
     :ok
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.WebSocketRoute do
 
   * `handler` - Function that will handle messages.
   """
-  @spec on_message(t(), (String.t() -> term())) :: :ok
+  @spec on_message(t(), (String.t() | {:binary, binary()} -> term())) :: :ok
   def on_message(web_socket_route, handler) do
     PlaywrightEx.Client.WebSocketRoute.on_message(web_socket_route, handler)
     :ok
