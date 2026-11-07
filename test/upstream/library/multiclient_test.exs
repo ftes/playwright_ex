@@ -487,7 +487,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     {:error, error} = Locator.click(Page.locator(page, "#target"), timeout: 1000)
     assert Exception.message(error) =~ "Timeout 1000ms exceeded"
     # expect(called).toBe(1)
-    assert_received :called
+    assert_receive :called
     refute_received :called
 
     disconnect(page)

@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["isTrusted"] == true
     assert event["button"] == 1
     assert event["buttons"] == 4
-    assert event["pointerId"] >= 0
+    assert is_number(event["pointerId"]) and event["pointerId"] >= 0
   end
 
   test "MO-005 should report correct buttons property", %{page: page} do

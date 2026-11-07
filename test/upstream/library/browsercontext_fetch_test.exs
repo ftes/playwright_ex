@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp fields(parts), do: for(%{filename: nil} = part <- parts, do: {part.name, part.body})
   defp files(parts), do: for(%{filename: filename} = part <- parts, filename != nil, into: %{}, do: {part.name, part})
 
-  # `new Request(..., { body }).formData()`, field name to value: undici's multipart parser
+  # deviation: no undici here. `new Request(..., { body }).formData()`, field name to value: undici's multipart parser
   # decodes the `%0A`, `%0D` and `%22` escapes in names (`parseMultipartFormDataName`).
   defp form_data(parts) do
     decode = &(&1 |> String.replace("%0A", "\n") |> String.replace("%0D", "\r") |> String.replace("%22", "\""))

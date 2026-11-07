@@ -77,6 +77,18 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
            ]
   end
 
+  test "spec_ids/1: the identifiers of static, template and concatenated names" do
+    source = ~S"""
+    it('AA-001 should work', async ({ page }) => {});
+    it(`AA-002 should be ${dynamic}`, async () => {});
+    it('AA-003 wpt #' + range, async () => {});
+    it('no identifier', async () => {});
+    test.step('AA-004 not a test');
+    """
+
+    assert Parity.spec_ids(source) == MapSet.new(~w(AA-001 AA-002 AA-003))
+  end
+
   test "unordered/2: names outside the longest common subsequence, unknown names ignored" do
     assert Parity.unordered(~w(a b c d e), ~w(a d b x c e)) == ["d"]
     assert Parity.unordered(~w(a b c d), ~w(b c d a)) == ["a"]

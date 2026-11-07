@@ -237,9 +237,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
   def _on_route(this, route) do
     put(route, :_context, this)
     page = Request._safe_page(Route.request(route))
-    route_handlers = get(this, :_routes)
-    # Elixir only: `_routesArray` stands for the identity of the `_routes` array (`_unroute_internal`).
-    routes_array = get(this, :_routesArray)
+    # Elixir only: `_routesArray` stands for the identity of the `_routes` array (`_unroute_internal`),
+    # read with it in one synchronous section.
+    {route_handlers, routes_array} = atomic(this, fn -> {get(this, :_routes), get(this, :_routesArray)} end)
 
     handled =
       Enum.reduce_while(route_handlers, false, fn route_handler, _ ->

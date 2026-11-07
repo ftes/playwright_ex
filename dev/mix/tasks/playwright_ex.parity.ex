@@ -429,11 +429,11 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   end
 
   @doc false
-  # The identifiers its test names start with in a spec file (also of names built at runtime).
+  # The identifiers its test names start with in a spec file (also of names built at runtime, by
+  # template or concatenation: the identifier is their literal start).
   def spec_ids(source) do
     for match <- Regex.scan(@spec_test, source, capture: :all_but_first),
-        [single, double, template, next] = pad(match, 4),
-        next != "",
+        [single, double, template, _next] = pad(match, 4),
         id = TestRegistry.id(unescape(single <> double <> template)),
         into: MapSet.new(),
         do: id

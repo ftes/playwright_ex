@@ -177,9 +177,17 @@ defmodule PlaywrightEx.Client.EventEmitter do
   # From `Conn.invoke/4`, where a listener's exception is caught (`_callHandler`'s `catch` and its
   # promise's `.catch`). `throw error` re-raises it to `Conn.invoke/4`, which logs it as uncaught.
   def _handle_listener_error(this, type, kind, reason, stacktrace) do
-    if type == "error" or listener_count(this, "error") == 0,
+    if type == "error" or error_listener_count(this) == 0,
       do: :erlang.raise(kind, reason, stacktrace),
       else: emit(this, "error", Exception.normalize(kind, reason, stacktrace))
+  end
+
+  # Elixir only: an emitter whose rows are gone has no listeners left, and the listener's own error
+  # is the one to report.
+  defp error_listener_count(this) do
+    listener_count(this, "error")
+  rescue
+    TargetClosedError -> 0
   end
 
   def add_listener(this, type, listener), do: _add_listener(this, type, listener, false)

@@ -203,9 +203,9 @@ defmodule PlaywrightEx.Client.Page do
 
   defp _on_route(this, route) do
     put(route, :_context, context(this))
-    route_handlers = get(this, :_routes)
-    # Elixir only: `_routesArray` stands for the identity of the `_routes` array (`_unroute_internal`).
-    routes_array = get(this, :_routesArray)
+    # Elixir only: `_routesArray` stands for the identity of the `_routes` array (`_unroute_internal`),
+    # read with it in one synchronous section.
+    {route_handlers, routes_array} = atomic(this, fn -> {get(this, :_routes), get(this, :_routesArray)} end)
 
     handled =
       Enum.reduce_while(route_handlers, false, fn route_handler, _ ->
