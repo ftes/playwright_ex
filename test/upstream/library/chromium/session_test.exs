@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   @upstream "tests/library/chromium/session.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.CDPSession
@@ -9,6 +10,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
+  alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Utils
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
@@ -30,6 +32,39 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
 
     foo = Page.evaluate!(page, "() => window['foo']")
     assert foo == "bar"
+  end
+
+  @tag :page
+  test "CD-038 should respect timeout and signal options", %{page: page} do
+    client = BrowserContext.new_cdp_session!(Page.context(page), page)
+
+    eval_response =
+      CDPSession.send!(client, "Runtime.evaluate", %{expression: "1 + 2", returnByValue: true}, timeout: 5000)
+
+    assert eval_response["result"]["value"] == 3
+
+    {:error, error} =
+      CDPSession.send(client, "Runtime.evaluate", %{expression: "new Promise(() => {})", awaitPromise: true},
+        timeout: 500
+      )
+
+    assert %TimeoutError{} = error
+    assert error.message =~ "Timeout 500ms exceeded"
+
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        CDPSession.send(client, "Runtime.evaluate", %{expression: "new Promise(() => {})", awaitPromise: true},
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    reason = %RuntimeError{message: "Aborted by user"}
+    AbortController.abort(controller, reason)
+    {:error, abort_error} = Runtime.Promise.await(promise)
+    assert abort_error.name == "AbortError"
+    assert abort_error.cause == reason
   end
 
   @tag :page
