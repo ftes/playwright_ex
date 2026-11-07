@@ -146,6 +146,8 @@ jobs:
         partition: ${{ fromJSON('{"1":[1],"2":[1,2],"3":[1,2,3],"4":[1,2,3,4],"5":[1,2,3,4,5],"6":[1,2,3,4,5,6],"7":[1,2,3,4,5,6,7],"8":[1,2,3,4,5,6,7,8]}')[inputs.partitions || '6'] }}
     env:
       BROWSER: ${{ matrix.browser }}
+      # The Xvfb of "Start Xvfb".
+      DISPLAY: ':99'
       # Empty (the default, and on other events) leaves test_helper.exs's default.
       PW_MAX_CASES: ${{ inputs.max_cases }}
 
@@ -202,12 +204,24 @@ jobs:
       - name: Check parity with upstream
         if: matrix.browser == 'chromium' && matrix.partition == 1
         run: mix playwright_ex.parity
-      # Under xvfb like upstream's CI (Linux firefox WebGL needs a display). Test failures (exit 2)
-      # are retried once, as upstream retries on CI (`retries: 3`); compile errors are not. The
-      # first run's failures (PlaywrightEx.FailuresFormatter) go to the job summary and annotations,
-      # so a green rerun does not hide them. The rerun takes no --partitions: the failures manifest
-      # holds this partition's failures only, and --partitions would split those files again. The
-      # 10 slowest modules (PlaywrightEx.ModuleTimesFormatter) are the floor of a partition's time.
+      # A display like upstream's CI (Linux firefox WebGL needs one): one Xvfb with xvfb-run's
+      # defaults, left running for the job. Not xvfb-run: its teardown can exit 5 in place of mix's.
+      - name: Start Xvfb
+        run: |
+          Xvfb "$DISPLAY" -screen 0 1280x1024x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+          pid=$!
+          for _ in $(seq 100); do
+            if kill -0 "$pid" 2> /dev/null && [[ -S /tmp/.X11-unix/X${DISPLAY#:} ]]; then exit 0; fi
+            sleep 0.1
+          done
+          cat "$RUNNER_TEMP/xvfb.log"
+          exit 1
+      # Test failures (exit 2) are retried once, as upstream retries on CI (`retries: 3`); compile
+      # errors are not. The first run's failures (PlaywrightEx.FailuresFormatter) go to the job
+      # summary and annotations, so a green rerun does not hide them. The rerun takes no
+      # --partitions: the failures manifest holds this partition's failures only, and --partitions
+      # would split those files again. The 10 slowest modules (PlaywrightEx.ModuleTimesFormatter)
+      # are the floor of a partition's time.
       - name: Run tests
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
@@ -217,7 +231,7 @@ jobs:
         run: |
           label="$BROWSER, $MIX_TEST_PARTITION/$PARTITIONS"
           status=0
-          xvfb-run --auto-servernum -- mix test --warnings-as-errors --partitions "$PARTITIONS" || status=$?
+          mix test --warnings-as-errors --partitions "$PARTITIONS" || status=$?
           if [[ -s "$PW_MODULE_TIMES_FILE" ]]; then
             echo "Slowest modules ($label), wall ms, setup_all included:"
             sort -rn "$PW_MODULE_TIMES_FILE" | head -n 10
@@ -235,7 +249,7 @@ jobs:
             done < "$PW_FAILURES_FILE"
           fi
           if [[ $status = 2 ]]; then
-            PW_FAILURES_FILE='' xvfb-run --auto-servernum -- mix test --failed
+            PW_FAILURES_FILE='' mix test --failed
           else
             exit $status
           fi
@@ -269,7 +283,11 @@ jobs:
       # Blocking as the job is: green on all three browsers.
       - name: Run headful tests
         if: matrix.partition == 1
-        run: HEADED=1 xvfb-run --auto-servernum -- mix test --only headed || if [[ $? = 2 ]]; then HEADED=1 xvfb-run --auto-servernum -- mix test --failed; else false; fi
+        run: HEADED=1 mix test --only headed || if [[ $? = 2 ]]; then HEADED=1 mix test --failed; else false; fi
+      # The display is shared by the steps above: its log, in case it went down.
+      - name: Show Xvfb log
+        if: failure()
+        run: cat "$RUNNER_TEMP/xvfb.log" || true
 
   # The one check to require: green when every browser's partitions are.
   tests:

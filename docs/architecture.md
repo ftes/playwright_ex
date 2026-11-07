@@ -282,7 +282,7 @@ Stress and perf runs are manual, not CI.
 
 ## CI
 
-One matrix runs chromium, firefox and webkit under `xvfb-run`, each split into 6 jobs by
+One matrix runs chromium, firefox and webkit on one Xvfb per job, each split into 6 jobs by
 `mix test --partitions` (test files round-robin); the aggregate `Tests` job is the check to
 require, and every job blocks it. Test failures (exit 2) are rerun once with `--failed`; compile
 errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flakes stay visible.

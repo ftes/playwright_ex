@@ -181,7 +181,7 @@ single thread. Use each only where the JS code needs it, with its marker.
   `{ artifactsDir: undefined }`). A driver of the test's own: `start_playwright/2`.
 - Headed: `HEADED=1` is upstream's `--headed` (the `headless` fixture, `_defaultLaunchOptions`).
   Tag every test that launches headed (or that upstream skips when headless) `@tag :headed`: CI
-  runs `HEADED=1 mix test --only headed` (Linux: under `xvfb-run`). Other specs' `!headless`
+  runs `HEADED=1 mix test --only headed` (Linux: on Xvfb). Other specs' `!headless`
   annotations stay comments, as we run them headless.
 - `:headed` tests are excluded on macOS (windows steal focus): `mix test --include headed`.
 - An upstream call that is not awaited (`const p = page.waitForEvent(...)`) is
