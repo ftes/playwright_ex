@@ -289,4 +289,58 @@ defmodule PlaywrightEx.WebSocket do
     event = Facade.event!(event, @events, "webSocket.prependListener")
     Facade.listen(fn -> PlaywrightEx.Client.WebSocket.prepend_listener(web_socket, event, listener) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:wait_for_event) do
+    [
+      predicate: %{
+        type_doc: "`t:fun/0`",
+        doc: "Receives the event data and returns a truthy value when the waiting should resolve.",
+        since: nil,
+        spec: quote(do: fun())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      }
+    ]
+  end
+
+  def __options__(:expect_event) do
+    [
+      predicate: %{
+        type_doc: "`t:fun/0`",
+        doc: "Receives the event data and returns a truthy value when the waiting should resolve.",
+        since: nil,
+        spec: quote(do: fun())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed with its page's `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      }
+    ]
+  end
 end

@@ -222,4 +222,25 @@ defmodule PlaywrightEx.WebSocketRoute do
   def url(web_socket_route) do
     PlaywrightEx.Client.WebSocketRoute.url(web_socket_route)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:close) do
+    [
+      code: %{
+        type_doc: "`t:integer/0`",
+        doc: "Optional [close code](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#code).",
+        since: nil,
+        spec: quote(do: integer())
+      },
+      reason: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Optional [close reason](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#reason).",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
 end

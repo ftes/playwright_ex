@@ -38,6 +38,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`). The
       call runs in `PlaywrightEx.Runtime.Facade.listen/1`: the listener is a user listener.
+    * Functions with options: `__options__(:click)` lists the options with their doc and type, for
+      wrappers that pass them on.
 
   `--check` writes nothing and fails if a file is out of date (`mix playwright_ex.parity` runs it).
   """
@@ -263,6 +265,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     #{Enum.map_join(members, "\n\n", &member_source(ctx, class, &1, receiver))}
 
     #{listeners_source(ctx, class, events, listeners, receiver)}
+
+    #{options_metadata_source(ctx, members)}
     """
 
     """
@@ -416,7 +420,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     # A callback form (`expect_popup`) is named after the wait it starts (`page.waitForEvent`).
     callback = member["callback"]
     api_name = api_name(class["name"], if(callback, do: callback["call"], else: member["alias"]))
-    args = if callback, do: with_action(member["args"]), else: member["args"]
+    args = member_args(member)
     vars = Enum.map(args, &arg_var/1)
     attrs = for {arg, var} <- Enum.zip(args, vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(args, vars), &param/1)]
@@ -628,6 +632,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end
     """
   end
+
+  # The arguments of the facade function: a callback form takes an `action`.
+  defp member_args(%{"callback" => callback} = member) when is_map(callback), do: with_action(member["args"])
+  defp member_args(member), do: member["args"]
 
   # The `action` of a callback form, before the options (C#'s `RunAndWaitForPopupAsync(action, options)`).
   defp with_action(args) do
@@ -921,6 +929,50 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       """
     end)
   end
+
+  # `__options__(:click)`: the options of `click/2` and `click!/2` as their docs show them, for
+  # wrappers that pass them on. Only functions with options have a clause.
+  defp options_metadata_source(ctx, members) do
+    clauses =
+      for member <- members,
+          %{"name" => "options"} = options <- member["args"],
+          do: options_metadata_clause(ctx, member, options)
+
+    if clauses != [],
+      do: """
+      @doc false
+      @spec __options__(atom()) :: [
+              {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+            ]
+      #{Enum.join(clauses, "\n\n")}
+      """
+  end
+
+  # `doc` is the first paragraph of the option's bullet (`member_doc/3`) after its admonitions
+  # (`:args`' warning), on one line unless it is a block (a list): upstream's soft line breaks
+  # are where its source wraps. `since` is the version the bullet inlines, `type_doc` its type,
+  # `spec` the type of `@type <member>_options`.
+  defp options_metadata_clause(ctx, member, options) do
+    ctx = %{member_names(ctx, member_args(member), member["proseKeep"] || []) | input: true}
+
+    entries =
+      Enum.map_join(props(options["type"]), ",\n", fn prop ->
+        doc =
+          for(node <- prop["spec"] || [], node["type"] != "note", do: node) |> md(ctx) |> String.split("\n\n") |> hd()
+
+        doc = if block_start?(doc), do: doc, else: String.replace(doc, ~r/\s*\n\s*/, " ")
+
+        since = if newer?(prop["since"], member["since"]), do: version(prop["since"])
+
+        "#{key(atom(prop["name"]))} %{type_doc: #{string(linked_type(option_type(ctx, prop)))}, " <>
+          "doc: #{string(doc)}, since: #{inspect(since)}, spec: quote(do: #{prop_spec(ctx, prop)})}"
+      end)
+
+    "def __options__(#{inspect(String.to_atom(snake(member["alias"])))}) do\n[#{entries}]\nend"
+  end
+
+  # A string literal: `inspect/1` truncates long ones.
+  defp string(text), do: inspect(text, printable_limit: :infinity)
 
   defp listener_spec(ctx, name, event) do
     payload = if event["type"], do: type_spec(ctx, event["type"], :out), else: "nil"
