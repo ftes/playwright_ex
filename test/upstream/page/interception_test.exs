@@ -53,6 +53,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   end
 
   test "RO-152 should intercept after a service worker", %{page: page, server: server, browser_name: browser_name} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41932' }
     Page.goto!(page, server.prefix <> "/serviceworkers/fetchdummy/sw.html")
     Page.evaluate!(page, "() => window['activationPromise']")
 
@@ -69,6 +70,29 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     # Page route is applied after service worker fetch event.
     sw_response2 = Page.evaluate!(page, "() => window['fetchDummy']('foo')")
     assert sw_response2 == "responseFromServiceWorker:foo"
+
+    # Frozen WebKit predates the header preservation fix.
+    # if (!isFrozenWebkit)  -- we run a current WebKit
+    headers = %{
+      "cache-control" => "max-age=12345",
+      "accept-language" => "fr-CH",
+      "accept" => "application/custom"
+    }
+
+    received_headers =
+      Page.evaluate!(
+        page,
+        """
+        async headers => {
+          const response = await fetch('headers', { headers });
+          return response.json();
+        }
+        """,
+        headers
+      )
+
+    # expect(receivedHeaders).toMatchObject(headers)
+    assert Map.take(received_headers, Map.keys(headers)) == headers
 
     # Page route is not applied to service worker initiated fetch.
     non_intercepted_response = Page.evaluate!(page, "() => window['fetchDummy']('passthrough')")

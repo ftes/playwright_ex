@@ -101,6 +101,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
   end
 
   test "EH-122 should wait for stable position", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43632' }
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 

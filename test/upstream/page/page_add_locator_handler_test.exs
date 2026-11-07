@@ -6,8 +6,13 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
+
+  # `new ManualPromise()`: a runtime promise (the public API creates none), a latch owned by the
+  # page, so the handler process and the test both use it.
+  defp manual_promise(page), do: Runtime.Promise.new(page)
 
   # Handlers report to the test process: `++called` is `send(test, :called)`.
   defp called(count \\ 0, message \\ :called) do
@@ -146,13 +151,25 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   end
 
   test "LH-005 should throw when handler times out", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43607' }
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
+    release_handler = manual_promise(page)
+    handler_finished = manual_promise(page)
+
     Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
       send(test, :called)
-      # Deliberately timeout: await a promise that does not settle while the page is open.
-      PlaywrightEx.Promise.await(Page.wait_for_event(page, :close, timeout: 0))
+      # Deliberately timeout.
+      PlaywrightEx.Promise.await!(release_handler)
+
+      result =
+        case Locator.click(Page.locator(page, "#close"), timeout: 3000) do
+          :ok -> nil
+          {:error, e} -> e
+        end
+
+      Runtime.Promise.resolve(handler_finished, result)
     end)
 
     Locator.hover!(Page.locator(page, "#aside"))
@@ -172,6 +189,9 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
 
     # Should not enter the same handler while it is still running.
     assert called() == 1
+
+    Runtime.Promise.resolve(release_handler, nil)
+    assert PlaywrightEx.Promise.await!(handler_finished) == nil
   end
 
   test "LH-006 should work with toBeVisible", %{page: page, server: server} do
