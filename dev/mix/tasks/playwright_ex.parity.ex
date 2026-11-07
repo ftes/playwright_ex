@@ -9,7 +9,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   Sources: `PlaywrightEx.Upstream.ensure!/0` (the pinned upstream release).
 
     * Completeness: every upstream client file (`packages/playwright-core/src/client/*.ts`) needs a
-      module with `@upstream` for it (in `lib` or `test/support`), unless listed with a reason in
+      module with `@upstream` for it (in `lib`, `dev` or `test/support`), unless listed with a reason in
       `@unported_client_files` in this module. An exclusion for a file that is not upstream, or
       that has a module after all, is stale. Review the list on a version roll.
     * Test registry (`Mix.PlaywrightEx.TestRegistry`, as playwright-python's
@@ -79,7 +79,10 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     Mix.Task.run("compile")
 
     lib_modules =
-      Enum.flat_map(Path.wildcard("lib/**/*.ex") ++ Path.wildcard("test/support/**/*.ex"), &elixir_modules/1)
+      for dir <- ~w(lib dev test/support),
+          file <- Path.wildcard("#{dir}/**/*.ex"),
+          module <- elixir_modules(file),
+          do: module
 
     test_files = Path.wildcard("test/**/*_test.exs")
     test_modules = Enum.flat_map(test_files, &elixir_modules/1)

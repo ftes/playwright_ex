@@ -177,17 +177,18 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
-  # Internals and the maintainer tooling (dev/, compiled in :dev): in the source with their
-  # moduledocs, not in hexdocs.
+  # Internals and the maintainer tooling (dev/, compiled in :dev and :test only): in the source
+  # with their moduledocs, not in hexdocs. Matched against the end of the absolute source path,
+  # down to the file name, so the checkout's own location (say ~/dev/playwright_ex) can't match.
   defp internal_source?(path) do
-    String.starts_with?(Path.relative_to(path, __DIR__), "dev/") or
-      Enum.any?(
-        [
-          ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/",
-          ~r"/lib/playwright_ex/out_of_process\.ex$"
-        ],
-        &(path =~ &1)
-      )
+    Enum.any?(
+      [
+        ~r"/dev/(mix/tasks|mix/playwright_ex|playwright_ex)/[^/]+\.ex$",
+        ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/[^/]+\.ex$",
+        ~r"/lib/playwright_ex/out_of_process\.ex$"
+      ],
+      &(path =~ &1)
+    )
   end
 
   defp aliases do
