@@ -17,8 +17,6 @@ Drives [Playwright 1.65](https://github.com/microsoft/playwright/releases/tag/v1
   `nil`: `CDPSession.send/4` results and events, `Locator.aria_snapshot_json/2`, IndexedDB values
   in `storage_state`. Storage state files are read the same way: a `null` in an optional field
   (`"sameSite": null`) fails validation, as it does upstream.
-- Argument checks of a method run inside its API call, as upstream's `@apiCall` decorators do:
-  their errors carry the API name (`browserType.launch: ...`).
 - An error raised by a `CDPSession` listener is emitted as `"error"` when the session has an
   `"error"` listener.
 - Upstream's breaking changes in 1.65: actions wait for the element to be not inert, cookie
