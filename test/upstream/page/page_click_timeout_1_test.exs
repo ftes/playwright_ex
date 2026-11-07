@@ -21,4 +21,17 @@ defmodule PlaywrightEx.Page.PageClickTimeout1Test do
     assert Exception.message(error) =~ "element is not enabled"
     assert Exception.message(error) =~ "retrying click action"
   end
+
+  test "CL-112 should timeout waiting for inert element to become non-inert", %{page: page} do
+    Page.set_content!(
+      page,
+      ~s(<div inert><button onclick="javascript:window.__CLICKED=true;">Click target</button></div>)
+    )
+
+    {:error, error} = Page.click(page, "text=Click target", timeout: 3000)
+    assert Page.evaluate!(page, "window.__CLICKED") == nil
+    assert Exception.message(error) =~ "page.click: Timeout 3000ms exceeded."
+    assert Exception.message(error) =~ "element is inert"
+    assert Exception.message(error) =~ "retrying click action"
+  end
 end

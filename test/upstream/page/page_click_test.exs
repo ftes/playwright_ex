@@ -19,6 +19,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Runtime
+  alias PlaywrightEx.TestServer
 
   @moduletag :page
 
@@ -384,6 +385,15 @@ defmodule PlaywrightEx.Page.PageClickTest do
     Page.click!(page, "a")
   end
 
+  test "CL-033 should not wait for navigation after clicking a link answered with 204", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43279' }
+    TestServer.set_route(server, "/204", fn conn -> Plug.Conn.send_resp(conn, 204, "") end)
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s(<a href="#{server.prefix}/204">link</a>))
+    Page.click!(page, "a", timeout: 5000)
+    assert Page.url(page) == server.empty_page
+  end
+
   test "CL-034 should click the button inside an iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<div style="width:100px;height:100px">spacer</div>))
@@ -698,6 +708,21 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     refute done?(click_promise)
     Page.evaluate!(page, "() => document.querySelector('button').removeAttribute('disabled')")
+    Runtime.Promise.await(click_promise)
+    assert Page.evaluate!(page, "__CLICKED") == true
+  end
+
+  test "CL-050 should wait for element to become non-inert", %{page: page} do
+    Page.set_content!(
+      page,
+      ~s(<div inert id=container><button onclick="window.__CLICKED=true;"><span>Click target</span></button></div>)
+    )
+
+    click_promise = Runtime.Promise.async(fn -> Page.click!(page, "text=Click target") end, shared: true)
+    give_it_a_chance_to_click(page)
+    assert Page.evaluate!(page, "window.__CLICKED") == nil
+    refute done?(click_promise)
+    Page.evaluate!(page, "() => document.getElementById('container').removeAttribute('inert')")
     Runtime.Promise.await(click_promise)
     assert Page.evaluate!(page, "__CLICKED") == true
   end

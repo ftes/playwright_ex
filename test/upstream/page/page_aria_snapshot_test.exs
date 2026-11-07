@@ -131,6 +131,43 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
+  test "AR-008 should not snapshot text directly inside closed details", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/43019
+    Page.set_content!(page, """
+    <details>
+      <summary>Summary</summary>
+      Details
+    </details>
+    """)
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - group: Summary
+    """)
+
+    Page.eval_on_selector!(page, "details", "details => details.open = true")
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - group: Summary Details
+    """)
+  end
+
+  test "AR-009 should not snapshot text that is not assigned to a slot", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/43019
+    Page.set_content!(page, """
+    <div role=button>Light</div>
+    <script>
+      document.querySelector('div').attachShadow({ mode: 'open' }).innerHTML = '<p>Shadow</p>';
+    </script>
+    """)
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - button "Shadow":
+      - paragraph: Shadow
+    """)
+
+    Expect.to_be_visible!(Page.get_by_role(page, :button, name: "Shadow", exact: true))
+  end
+
   test "AR-010 should snapshot integration", %{page: page} do
     Page.set_content!(page, """
     <h1>Microsoft</h1>
@@ -635,6 +672,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
   end
 
   test "AR-031 should escape special yaml values", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43451' }
     Page.set_content!(page, """
     <a href="#">true</a>False
     <a href="#">NO</a>yes
@@ -644,6 +682,8 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     <a href="#">123</a>123
     <a href="#">-1.2</a>-1.2
     <a href="#">-</a>-
+    <a href="#">~</a>~
+    <a href="#">.inf</a>.NaN
     <input type=text value="555">
     """)
 
@@ -672,6 +712,12 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     - link "-":
       - /url: "#"
     - text: "-"
+    - link "~":
+      - /url: "#"
+    - text: "~"
+    - link ".inf":
+      - /url: "#"
+    - text: ".NaN"
     - textbox: "555"
     """)
   end
@@ -869,5 +915,30 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
              unshift("""
              - iframe
              """)
+  end
+
+  test "AR-171 should include inert elements and elements outside of a modal dialog", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36938' }
+    Page.set_content!(page, """
+    <button>Hi</button>
+    <button inert>Hello</button>
+    <div inert>
+      <button>Yay</button>
+    </div>
+    <dialog id=dialog>
+      <button>Inside</button>
+    </dialog>
+    <script>
+      document.getElementById('dialog').showModal();
+    </script>
+    """)
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - button "Hi"
+    - button "Hello"
+    - button "Yay"
+    - dialog:
+      - button "Inside"
+    """)
   end
 end
