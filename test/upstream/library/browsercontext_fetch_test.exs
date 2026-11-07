@@ -123,6 +123,13 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp fields(parts), do: for(%{filename: nil} = part <- parts, do: {part.name, part.body})
   defp files(parts), do: for(%{filename: filename} = part <- parts, filename != nil, into: %{}, do: {part.name, part})
 
+  # `new Request(..., { body }).formData()`, field name to value: undici's multipart parser
+  # decodes the `%0A`, `%0D` and `%22` escapes in names (`parseMultipartFormDataName`).
+  defp form_data(parts) do
+    decode = &(&1 |> String.replace("%0A", "\n") |> String.replace("%0D", "\r") |> String.replace("%22", "\""))
+    Map.new(parts, &{decode.(&1.name), &1.body})
+  end
+
   # ------------------------------------------------------------------------------
 
   test "FE-088 get should work @smoke", %{context: context, server: server} do
@@ -337,6 +344,20 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       response_query = URI.parse(APIResponse.url(response)).query
       assert get_all(response_query, "param1") == ["value1", "value2"]
       assert get_all(response_query, "парам2") == ["знач2"]
+    end
+
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43210' }
+    test "FE-101 #{method} should append string and URLSearchParams params to the URL query", %{
+      context: context,
+      server: server
+    } do
+      # URLSearchParams: a keyword list.
+      for params <- ["q=cat", "?q=cat", [{"q", "cat"}]] do
+        task = TestServer.wait_for_request(server, "/empty.html?page=2&q=cat")
+        request!(@method, BrowserContext.request(context), server.empty_page <> "?page=2", params: params)
+        request = Task.await(task, :infinity)
+        assert request.request_path <> "?" <> request.query_string == "/empty.html?page=2&q=cat"
+      end
     end
 
     test "FE-102 #{method} should support failOnStatusCode", %{context: context, server: server} do
@@ -1148,6 +1169,33 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert files["file"].mimetype == file.mimeType
     assert files["file"].body == file.buffer
     assert APIResponse.status(response) == 200
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43422' }
+  test "FE-159 should escape quotes and newlines in multipart field and file names", %{context: context, server: server} do
+    body_received = TestServer.wait_for_request(server, "/empty.html")
+
+    APIRequestContext.post!(BrowserContext.request(context), server.empty_page,
+      # A list of pairs: Elixir maps have no insertion order.
+      multipart: [
+        {"say\"hi\nthere", "v1"},
+        {"file", %{name: "report \"final\"\r\n.txt", mimeType: "text/plain", buffer: "hello"}}
+      ]
+    )
+
+    server_request = Task.await(body_received, :infinity)
+    body = server_request.assigns.post_body
+    headers = body |> String.split("\r\n") |> Enum.filter(&String.starts_with?(&1, "content-disposition"))
+
+    assert headers == [
+             ~s|content-disposition: form-data; name="say%22hi%0D%0Athere"|,
+             ~s|content-disposition: form-data; name="file"; filename="report %22final%22%0D%0A.txt"|
+           ]
+
+    # Node's standard multipart parser expects that escaping.
+    form = form_data(parse_multipart(server_request))
+    assert form["say\"hi\r\nthere"] == "v1"
+    assert form["file"] == "hello"
   end
 
   test "FE-160 should support multipart/form-data with ReadStream values", %{

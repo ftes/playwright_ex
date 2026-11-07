@@ -296,6 +296,25 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     assert BrowserContext.cookies!(context, "https://sub.foo.com") == expected
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43078' }
+  test "CO-011 should only return cookies that apply to the url", %{context: context} do
+    BrowserContext.add_cookies!(context, [
+      %{name: "hostonly", value: "v", domain: "foo.com", path: "/api"},
+      %{name: "subdomains", value: "v", domain: ".foo.com", path: "/api"},
+      %{name: "slash", value: "v", domain: "foo.com", path: "/foo/"}
+    ])
+
+    names = fn url -> context |> BrowserContext.cookies!(url) |> Enum.map(& &1.name) |> Enum.sort() end
+    assert names.("http://foo.com/api") == ["hostonly", "subdomains"]
+    assert names.("http://foo.com/api/x") == ["hostonly", "subdomains"]
+    assert names.("http://foo.com/apiv2") == []
+    assert names.("http://sub.foo.com/api") == ["subdomains"]
+    assert names.("http://notfoo.com/api") == []
+    assert names.("http://foo.com/foo") == []
+    assert names.("http://foo.com/foo/") == ["slash"]
+    assert names.("http://foo.com/foo/bar") == ["slash"]
+  end
+
   test "CO-012 should return cookies with empty value", %{context: context, page: page, server: server} do
     set_cookie_route(server, "/empty.html", "name=;Path=/")
     Page.goto!(page, server.empty_page)

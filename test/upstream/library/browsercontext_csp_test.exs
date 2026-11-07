@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Utils
 
   import PlaywrightEx.Utils, only: [attach_frame: 3]
 
@@ -91,6 +92,20 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
     assert Frame.evaluate!(frame, ~s|window["__inlineScriptValue"]|) == 42
     Frame.add_script_tag(frame, content: ~s|window["__injected"] = 42;|)
     assert Frame.evaluate!(frame, ~s|window["__injected"]|) == 42
+    BrowserContext.close!(context)
+  end
+
+  test "CS-005 should not crash on javascript: navigation", %{browser: browser, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43213' });
+    context = Browser.new_context!(browser, bypass_csp: true)
+    page = BrowserContext.new_page!(context)
+    test = self()
+    Page.on(page, :crash, fn _ -> send(test, :crashed) end)
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s|<a id="a" href="javascript:window.__clicked = true">click</a>|)
+    Page.click!(page, "#a")
+    Utils.poll(fn -> Page.evaluate!(page, ~s|() => window['__clicked']|) end, &assert(&1 == true))
+    refute_received :crashed
     BrowserContext.close!(context)
   end
 end
