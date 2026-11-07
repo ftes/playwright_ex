@@ -441,7 +441,7 @@ defmodule PlaywrightEx.Isomorphic.MimeType do
 
       matches ->
         {dot_index, _} = List.last(matches)
-        extension = binary_part(path, dot_index + 1, byte_size(path) - dot_index - 1)
+        extension = String.downcase(binary_part(path, dot_index + 1, byte_size(path) - dot_index - 1))
         @types[extension] || nil
     end
   end

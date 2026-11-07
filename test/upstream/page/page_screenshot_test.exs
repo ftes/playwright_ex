@@ -369,6 +369,50 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-webgl.png")
     end
 
+    @tag skip:
+           (cond do
+              @browser_name == "webkit" and match?({:unix, :darwin}, :os.type()) and
+                  String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64") ->
+                "upstream skip: WebGL is not available on Intel macOS - https://bugs.webkit.org/show_bug.cgi?id=278277"
+
+              @browser_name == "firefox" and match?({:unix, :linux}, :os.type()) and
+                  System.get_env("DISPLAY") in [nil, ""] ->
+                "env: Linux firefox WebGL needs a DISPLAY (upstream CI runs under xvfb-run)"
+
+              true ->
+                nil
+            end)
+    test "SS-095 should capture webgl canvas after its drawing buffer is resized", %{page: page} do
+      # issue: https://github.com/microsoft/playwright/issues/42885
+      Page.set_viewport_size!(page, %{width: 200, height: 200})
+
+      Page.set_content!(
+        page,
+        ~s[<body style="margin:0"><div style="width:100px;height:100px;background:rgb(0,255,0)"></div></body>]
+      )
+
+      expected = Page.screenshot!(page)
+
+      Page.set_content!(page, """
+      <body style="margin:0"><canvas style="width:100px;height:100px"></canvas><script>
+        const gl = document.querySelector('canvas').getContext('webgl');
+        window.draw = size => {
+          gl.canvas.width = size;
+          gl.canvas.height = size;
+          gl.viewport(0, 0, size, size);
+          gl.clearColor(0, 1, 0, 1);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+        };
+        draw(100);
+      </script></body>
+      """)
+
+      rafraf(page)
+      Page.evaluate!(page, "() => window.draw(50)")
+      rafraf(page)
+      assert compare_pngs(Page.screenshot!(page), expected) == nil
+    end
+
     test "SS-026 should work for translateZ", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/screenshots/translateZ.html")
@@ -423,12 +467,16 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
     @tag :tmp_dir
     test "SS-031 path option should detect jpeg", %{page: page, server: server, tmp_dir: tmp_dir} do
+      # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43323' }
       Page.set_viewport_size!(page, %{width: 300, height: 300})
       Page.goto!(page, server.empty_page)
       output_path = Path.join(tmp_dir, "screenshot.jpg")
       screenshot = Page.screenshot!(page, omit_background: true, path: output_path)
       to_match_snapshot(File.read!(output_path), "white.jpg")
       to_match_snapshot(screenshot, "white.jpg")
+      upper_case_path = Path.join(tmp_dir, "screenshot.JPG")
+      Page.screenshot!(page, omit_background: true, path: upper_case_path)
+      to_match_snapshot(File.read!(upper_case_path), "white.jpg")
     end
 
     test "SS-032 path option should throw for unsupported mime type", %{page: page} do
@@ -490,6 +538,27 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       reload_several_times = Task.async(fn -> for _ <- 1..5, do: Page.reload!(page) end)
       screenshot_several_times = Task.async(fn -> for _ <- 1..5, do: Page.screenshot!(page, full_page: true) end)
       Task.await_many([reload_several_times, screenshot_several_times], :infinity)
+    end
+
+    @tag skip:
+           if(@browser_name == "webkit", do: "upstream fixme: Fixed upstream in https://commits.webkit.org/323883@main")
+    test "SS-096 should not wait for unused font face with failed local() source", %{page: page, server: server} do
+      # issue: https://github.com/microsoft/playwright/issues/42986
+      Page.goto!(page, server.empty_page)
+
+      Page.set_content!(page, """
+      <style>
+      @font-face {
+        font-family: 'pwtest-iconfont';
+        src: local('NoSuchFont'), url('#{server.prefix}/webfont/iconfont.woff2') format('woff2');
+        unicode-range: U+0400-04FF;
+      }
+      </style>
+      <div style="font-family: 'pwtest-iconfont'">hello</div>
+      """)
+
+      Page.screenshot!(page)
+      assert Page.evaluate!(page, "() => document.fonts.status") == "loaded"
     end
   end
 
@@ -1030,7 +1099,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     """)
 
     Expect.to_have_screenshot!(page,
-      path: upstream_snapshot(tmp_dir, "page-screenshot-should-capture-css-transform-1", browser_name)
+      path: upstream_snapshot(tmp_dir, "SS-066-page-screenshot-should-capture-css-transform-1", browser_name)
     )
   end
 
@@ -1038,7 +1107,10 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   test "SS-067 should capture css box-shadow", %{page: page, browser_name: browser_name, tmp_dir: tmp_dir} do
     # it.skip(isElectron || isAndroid, 'Returns screenshot of a different size.')
     Page.set_content!(page, ~s(<div style="box-shadow: red 10px 10px 10px; width: 50px; height: 50px;"></div>))
-    Expect.to_have_screenshot!(page, path: upstream_snapshot(tmp_dir, "should-capture-css-box-shadow-1", browser_name))
+
+    Expect.to_have_screenshot!(page,
+      path: upstream_snapshot(tmp_dir, "SS-067-should-capture-css-box-shadow-1", browser_name)
+    )
   end
 
   # utils.isLosslessWebp (packages/utils/webp/webp.ts)
