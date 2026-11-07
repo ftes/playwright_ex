@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Driver do
   @node_version @node_version_file |> File.read!() |> String.trim()
 
   if @checksums.driver_version != @driver_version or @checksums.node_version != @node_version do
-    raise "priv/driver_checksums.exs is stale; run `mix playwright_ex.checksums`"
+    raise "priv/driver_checksums.exs is stale; regenerate it with `mix playwright_ex.checksums` in the source repo"
   end
 
   @platforms ~w(darwin-arm64 darwin-x64 linux-x64 linux-arm64 win-x64 win-arm64)

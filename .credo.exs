@@ -12,7 +12,7 @@ upstream_shaped = [
   configs: [
     %{
       name: "default",
-      files: %{included: ["lib/", "test/", "config/", "mix.exs"], excluded: [~r"/_build/", ~r"/deps/"]},
+      files: %{included: ["lib/", "dev/", "test/", "config/", "mix.exs"], excluded: [~r"/_build/", ~r"/deps/"]},
       checks: %{
         extra: [
           {Credo.Check.Readability.PredicateFunctionNames, files: %{excluded: upstream_shaped}},

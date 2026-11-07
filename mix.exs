@@ -37,7 +37,9 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  # dev/: maintainer tooling (generators, parity, checksums, `PlaywrightEx.Upstream`), not in the package.
+  defp elixirc_paths(:dev), do: ["lib", "dev"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "dev"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
@@ -59,15 +61,7 @@ defmodule PlaywrightEx.MixProject do
       links: %{"Github" => @source_url},
       # Hex's default files, plus the pinned versions `PlaywrightEx.Driver` reads when compiling.
       files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md DRIVER_VERSION NODE_VERSION),
-      # Maintainer-only tasks and their helpers: they need the upstream sources and `test/`.
-      exclude_patterns: ~w(
-        priv/plts
-        lib/mix/playwright_ex/
-        lib/mix/tasks/playwright_ex.checksums.ex
-        lib/mix/tasks/playwright_ex.gen.
-        lib/mix/tasks/playwright_ex.parity.ex
-        lib/playwright_ex/upstream.ex
-      )
+      exclude_patterns: ~w(priv/plts)
     ]
   end
 
@@ -183,17 +177,17 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
-  # Internals and contributor tasks: in the source with their moduledocs, not in hexdocs.
+  # Internals and the maintainer tooling (dev/, compiled in :dev): in the source with their
+  # moduledocs, not in hexdocs.
   defp internal_source?(path) do
-    Enum.any?(
-      [
-        ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/",
-        ~r"/lib/playwright_ex/(out_of_process|upstream)\.ex$",
-        ~r"/lib/mix/playwright_ex/",
-        ~r"/lib/mix/tasks/playwright_ex\.(checksums|gen\.api|gen\.protocol|parity)\.ex$"
-      ],
-      &(path =~ &1)
-    )
+    String.starts_with?(Path.relative_to(path, __DIR__), "dev/") or
+      Enum.any?(
+        [
+          ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/",
+          ~r"/lib/playwright_ex/out_of_process\.ex$"
+        ],
+        &(path =~ &1)
+      )
   end
 
   defp aliases do

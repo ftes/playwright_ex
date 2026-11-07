@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
-- The Hex package no longer ships the maintainer-only mix tasks (`gen.api`, `gen.protocol`,
-  `parity`, `checksums`) and their helpers.
+- The maintainer-only mix tasks (`gen.api`, `gen.protocol`, `parity`, `checksums`) and their
+  helpers moved out of `lib` into `dev/` and no longer ship in the Hex package.
 
 ## [0.17.0-rc.0] 2026-11-06
 
