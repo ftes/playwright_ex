@@ -219,8 +219,9 @@ single thread. Use each only where the JS code needs it, with its marker.
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
-   (`grep -rlE '"(env|flaky):' test/upstream`) with `mix test --include skip` on the browser they
-   name, drop each skip that passes, and re-check "Upstream issues to re-check" below.
+   (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
+   browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that
+   passes, and re-check "Upstream issues to re-check" below.
 
 ### Upstream issues to re-check
 
