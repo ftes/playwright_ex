@@ -8,8 +8,8 @@ name: Elixir CI
 on:
   push:
     branches: ["main"]
+  # Any base branch, so PRs stacked on another PR's branch get CI too.
   pull_request:
-    branches: ["main"]
   # Nightly, so firefox/webkit regressions show up without a push.
   schedule:
     - cron: "0 3 * * *"
