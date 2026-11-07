@@ -20,11 +20,6 @@ defmodule PlaywrightEx.Library.VideoTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()
-  @mac_webkit_frames_skip if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-                            do:
-                              "env: Mac WebKit (macOS 26) video frames leave the right/bottom of the viewport gray (upstream client too)"
-                          )
-
   # it.skip(({ video }) => video === 'on', 'conflicts with built-in video recording');  -- the runner records no video
 
   defp almost_red?(%{r: r, g: g, b: b, alpha: alpha}), do: r > 185 and g < 70 and b < 70 and alpha == 255
@@ -95,7 +90,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       BrowserContext.close!(context)
     end
 
-    @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
+    @tag skip: @ffmpeg_skip
     @tag :tmp_dir
     test "VI-003 should capture static page", %{browser: browser, tmp_dir: tmp_dir} do
       # Firefox does not have a mobile variant and has a large minimum size (500 on windows and 450 elsewhere).
@@ -132,7 +127,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       assert video_player.videoHeight == video_size.height
     end
 
-    @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
+    @tag skip: @ffmpeg_skip
     @tag :tmp_dir
     test "VI-005 should continue recording main page after popup closes", %{browser: browser, tmp_dir: tmp_dir} do
       # Issue: https://github.com/microsoft/playwright/issues/30837
@@ -278,7 +273,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag skip:
-           @ffmpeg_skip || @mac_webkit_frames_skip ||
+           @ffmpeg_skip ||
              if(@browser_name == "firefox", do: "upstream fixme: https://github.com/microsoft/playwright/issues/14557")
     @tag :tmp_dir
     test "VI-014 should work for popups", %{browser: browser, server: server, tmp_dir: videos_path} do
@@ -562,7 +557,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag skip:
-           @ffmpeg_skip || @mac_webkit_frames_skip ||
+           @ffmpeg_skip ||
              if(@browser_name == "firefox" and match?({:win32, _}, :os.type()),
                do: "upstream fixme: https://github.com/microsoft/playwright/issues/14405"
              )
@@ -600,7 +595,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag skip:
-           @ffmpeg_skip || @mac_webkit_frames_skip ||
+           @ffmpeg_skip ||
              if(@browser_name == "firefox" and match?({:win32, _}, :os.type()),
                do: "upstream fixme: https://github.com/microsoft/playwright/issues/14405"
              )
@@ -643,7 +638,7 @@ defmodule PlaywrightEx.Library.VideoTest do
       expect_all(pixels, &almost_red?/1)
     end
 
-    @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
+    @tag skip: @ffmpeg_skip
     @tag :tmp_dir
     test "VI-030 should work with video+trace", %{browser: browser, tmp_dir: tmp_dir} do
       # it.skip(trace === 'on'): no runner trace; it.fixme(!headless, ...): headless;

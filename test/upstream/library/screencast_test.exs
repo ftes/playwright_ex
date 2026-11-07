@@ -14,13 +14,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   alias PlaywrightEx.Utils
   alias PlaywrightEx.VideoPlayer
 
-  @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()
-  @mac_webkit_frames_skip if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-                            do:
-                              "env: Mac WebKit (macOS 26) video frames leave the right/bottom of the viewport gray (upstream client too)"
-                          )
-
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
@@ -121,10 +115,6 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-           do: "env: Mac WebKit (macOS 26) reports a 901x361 viewport for 1000x400 (upstream client too)"
-         )
   test "SC-003 onFrame receives viewport size", %{browser: browser, server: server} do
     # test.skip(trace === 'on', ...): no trace; test.fixme(browserName === 'firefox' && isMac && !headless, ...): headless
     context = Browser.new_context!(browser, viewport: %{width: 1000, height: 400})
@@ -321,7 +311,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   # test.slow()
   @tag timeout: @slow_timeout
-  @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
+  @tag skip: @ffmpeg_skip
   @tag :tmp_dir
   test "SC-015 start dispose stops recording", %{browser: browser, tmp_dir: tmp_dir} do
     size = %{width: 800, height: 800}
