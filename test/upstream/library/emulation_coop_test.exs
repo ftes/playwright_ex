@@ -10,14 +10,16 @@ defmodule PlaywrightEx.Library.EmulationCoopTest do
   defp setup_routes(server) do
     for {path, coop} <- [{"/plain.html", false}, {"/coop.html", true}] do
       TestServer.set_route(server, path, fn conn ->
-        conn = if coop, do: Plug.Conn.put_resp_header(conn, "cross-origin-opener-policy", "same-origin"), else: conn
-
         conn
+        |> put_coop_header(coop)
         |> Plug.Conn.put_resp_header("content-type", "text/html")
         |> Plug.Conn.send_resp(200, "<title>t</title><p>hello</p>")
       end)
     end
   end
+
+  defp put_coop_header(conn, true), do: Plug.Conn.put_resp_header(conn, "cross-origin-opener-policy", "same-origin")
+  defp put_coop_header(conn, false), do: conn
 
   defp probe(browser, server, options, path, media \\ nil) do
     context = Browser.new_context!(browser, options)
