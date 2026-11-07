@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
   import PlaywrightEx.Utils, only: [rafraf: 2]
 
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -51,19 +52,15 @@ defmodule PlaywrightEx.Page.PageFillTest do
   end
 
   test "FI-005 should fill range input", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43328' }
     Page.set_content!(page, "<input type=range min=0 max=100 value=50>")
     Page.fill!(page, "input", "42")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "42"
-  end
-
-  test "should throw on incorrect range value", %{page: page} do
-    Page.set_content!(page, "<input type=range min=0 max=100 value=50>")
-    {:error, error1} = Page.fill(page, "input", "foo")
-    assert Exception.message(error1) =~ "Malformed value"
-    {:error, error2} = Page.fill(page, "input", "200")
-    assert Exception.message(error2) =~ "Malformed value"
-    {:error, error3} = Page.fill(page, "input", "15.43")
-    assert Exception.message(error3) =~ "Malformed value"
+    # Valid numbers that the browser may serialize differently.
+    for {value, expected} <- [{"42.0", 42}, {"1e1", 10}] do
+      Page.fill!(page, "input", value)
+      assert Page.eval_on_selector!(page, "input", "input => input.valueAsNumber") == expected
+    end
   end
 
   test "FI-006 should fill color input", %{page: page} do
@@ -80,17 +77,6 @@ defmodule PlaywrightEx.Page.PageFillTest do
     if browser_name == "webkit" and windows?(),
       do: assert(Page.eval_on_selector!(page, "input", "input => input.value") == "#AbCd00"),
       else: assert(Page.eval_on_selector!(page, "input", "input => input.value") == "#abcd00")
-  end
-
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
-           do: "upstream skip: WebKit win does not support color inputs"
-         )
-  test "should throw on incorrect color value", %{page: page} do
-    # it.skip(browserName === 'webkit' && isWindows, 'WebKit win does not support color inputs')
-    Page.set_content!(page, ~s(<input type=color value="#e66465">))
-    {:error, error1} = Page.fill(page, "input", "badvalue")
-    assert Exception.message(error1) =~ "Malformed value"
   end
 
   test "FI-008 should fill date input after clicking", %{page: page} do
@@ -165,14 +151,6 @@ defmodule PlaywrightEx.Page.PageFillTest do
     end
   end
 
-  @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit does not support date inputs")
-  test "should throw on incorrect date", %{page: page} do
-    # it.skip(browserName === 'webkit', 'WebKit does not support date inputs')
-    Page.set_content!(page, "<input type=date>")
-    {:error, error} = Page.fill(page, "input", "2020-13-05")
-    assert Exception.message(error) =~ "Malformed value"
-  end
-
   test "FI-010 should fill time input", %{page: page} do
     Page.set_content!(page, "<input type=time>")
     Page.fill!(page, "input", "13:15")
@@ -185,48 +163,25 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-07"
   end
 
-  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium supports month inputs")
-  test "should throw on incorrect month", %{page: page} do
-    # it.skip(browserName !== 'chromium', 'Only Chromium supports month inputs')
-    Page.set_content!(page, "<input type=month>")
-    {:error, error} = Page.fill(page, "input", "2020-13")
-    assert Exception.message(error) =~ "Malformed value"
-  end
-
   test "FI-012 should fill week input", %{page: page} do
     Page.set_content!(page, "<input type=week>")
     Page.fill!(page, "input", "2020-W50")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-W50"
   end
 
-  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium supports week inputs")
-  test "should throw on incorrect week", %{page: page} do
-    # it.skip(browserName !== 'chromium', 'Only Chromium supports week inputs')
-    Page.set_content!(page, "<input type=week>")
-    {:error, error} = Page.fill(page, "input", "2020-123")
-    assert Exception.message(error) =~ "Malformed value"
-  end
-
-  @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit does not support time inputs")
-  test "should throw on incorrect time", %{page: page} do
-    # it.skip(browserName === 'webkit', 'WebKit does not support time inputs')
-    Page.set_content!(page, "<input type=time>")
-    {:error, error} = Page.fill(page, "input", "25:05")
-    assert Exception.message(error) =~ "Malformed value"
-  end
-
-  test "FI-013 should fill datetime-local input", %{page: page} do
+  test "FI-013 should fill datetime-local input", %{page: page, browser_name: browser_name} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43370' }
     Page.set_content!(page, "<input type=datetime-local>")
     Page.fill!(page, "input", "2020-03-02T05:15")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-03-02T05:15"
-  end
 
-  @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium supports datetime-local inputs")
-  test "should throw on incorrect datetime-local", %{page: page} do
-    # it.skip(browserName !== 'chromium', 'Only Chromium supports datetime-local inputs')
-    Page.set_content!(page, "<input type=datetime-local>")
-    {:error, error} = Page.fill(page, "input", "abc")
-    assert Exception.message(error) =~ "Malformed value"
+    # The browser omits zero seconds. WebKit on Windows does not implement datetime-local inputs and keeps the value as is.
+    Page.fill!(page, "input", "2020-03-02T06:20:00")
+
+    # channel !== 'webkit-wsl': no channels here.
+    if browser_name == "webkit" and windows?(),
+      do: assert(Page.eval_on_selector!(page, "input", "input => input.value") == "2020-03-02T06:20:00"),
+      else: assert(Page.eval_on_selector!(page, "input", "input => input.value") == "2020-03-02T06:20")
   end
 
   test "FI-014 should fill contenteditable", %{page: page, server: server} do
@@ -368,14 +323,18 @@ defmodule PlaywrightEx.Page.PageFillTest do
   end
 
   test "FI-025 should be able to fill when focus is in the wrong frame", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43483' }
     Page.set_content!(page, """
     <div contentEditable="true"></div>
-    <iframe></iframe>
+    <iframe srcdoc="<body contenteditable><p>old</p></body>"></iframe>
     """)
 
     Page.focus!(page, "iframe")
     Page.fill!(page, "div", "some value")
     assert Page.eval_on_selector!(page, "div", "d => d.textContent") == "some value"
+    paragraph = page |> Page.frame_locator("iframe") |> FrameLocator.locator("p")
+    Locator.fill!(paragraph, "new")
+    Expect.to_have_text!(paragraph, "new")
   end
 
   test "FI-026 should be able to fill the input[type=number]", %{page: page} do
@@ -451,5 +410,35 @@ defmodule PlaywrightEx.Page.PageFillTest do
 
     Page.fill!(page, "div[contenteditable]", "some value")
     assert page |> Page.locator("div[contenteditable]") |> Locator.text_content!() == "some value"
+  end
+
+  test "FI-034 should retry on inert element", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42967' }
+    Page.set_content!(page, """
+    <div inert id=container>
+      <input id=target>
+    </div>
+    <input id=outside>
+    """)
+
+    Page.focus!(page, "#outside")
+
+    task = Runtime.Promise.async(fn -> Page.fill!(page, "#target", "some value") end, shared: true)
+    give_it_a_chance_to_fill(page)
+    refute Runtime.Promise.settled?(task)
+    assert Page.eval_on_selector!(page, "#target", "i => i.value") == ""
+    assert Page.eval_on_selector!(page, "#outside", "i => i.value") == ""
+
+    Page.eval_on_selector!(page, "#container", "e => e.removeAttribute('inert')")
+    Runtime.Promise.await(task)
+    assert Page.eval_on_selector!(page, "#target", "i => i.value") == "some value"
+    assert Page.eval_on_selector!(page, "#outside", "i => i.value") == ""
+  end
+
+  test "FI-036 should fail with a nice error on inert element", %{page: page} do
+    Page.set_content!(page, "<div inert><input></div>")
+    {:error, error} = Page.fill(page, "input", "some value", timeout: 1000)
+    assert Exception.message(error) =~ "Timeout 1000ms exceeded"
+    assert Exception.message(error) =~ "element is inert"
   end
 end

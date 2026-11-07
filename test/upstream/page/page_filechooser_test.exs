@@ -2,14 +2,16 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   @upstream "tests/page/page-filechooser.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import PlaywrightEx.Utils, only: [attach_frame: 3, assert_truthy: 1]
 
   alias PlaywrightEx.AbortController
+  alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.FileChooser
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.TimeoutError
@@ -370,6 +372,104 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.click!(page, "input")
     assert_receive {:chooser, chooser}
     assert chooser
+  end
+
+  describe "user activation" do
+    # Each test navigates to a fresh document, because transient activation
+    # (including the one granted by page.evaluate in all browsers) sticks to
+    # the document for several seconds.
+    @activation_html """
+      <button id="once">once</button>
+      <button id="twice">twice</button>
+      <input type=file>
+      <script>
+        const input = document.querySelector('input');
+        document.querySelector('#once').addEventListener('click', () => input.click());
+        document.querySelector('#twice').addEventListener('click', () => { input.click(); input.click(); });
+        window.showPicker = () => {
+          try {
+            input.showPicker();
+            return 'ok';
+          } catch (e) {
+            return e.name;
+          }
+        };
+        if (location.search === '?click')
+          setTimeout(() => input.click(), 0);
+        if (location.search === '?showPicker')
+          setTimeout(() => console.log('showPicker:' + window.showPicker()), 0);
+      </script>
+    """
+
+    setup %{page: page, server: server} do
+      Page.route!(page, server.prefix <> "/activation.html*", fn route ->
+        Route.fulfill(route, content_type: "text/html", body: @activation_html)
+      end)
+
+      :ok
+    end
+
+    @tag skip:
+           if(@browser_name == "webkit",
+             do: "upstream fixme: WebKit opens the file chooser from input.click() without user activation"
+           )
+    test "FC-026 should not open file chooser without user activation", %{page: page, server: server} do
+      # test.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
+      test = self()
+      Page.on(page, :file_chooser, fn _ -> send(test, :chooser) end)
+
+      Page.goto!(page, server.prefix <> "/activation.html?click")
+      Page.wait_for_timeout!(page, 500)
+      assert choosers() == 0
+
+      # Do not poll with waitForFunction: each poll evaluates in the page with a user gesture,
+      # which grants transient user activation and would let showPicker() succeed.
+      result = Page.wait_for_event(page, :console, &String.starts_with?(ConsoleMessage.text(&1), "showPicker:"))
+      Page.goto!(page, server.prefix <> "/activation.html?showPicker")
+      assert ConsoleMessage.text(Promise.await!(result)) == "showPicker:NotAllowedError"
+      assert choosers() == 0
+    end
+
+    test "FC-027 should open file chooser with user activation", %{page: page, server: server} do
+      Page.goto!(page, server.prefix <> "/activation.html")
+      chooser = Page.expect_event!(page, :file_chooser, fn -> Page.click!(page, "#once") end)
+      assert_truthy(chooser)
+
+      # page.evaluate grants transient user activation in all browsers.
+      Page.goto!(page, server.prefix <> "/activation.html")
+
+      chooser2 =
+        Page.expect_event!(page, :file_chooser, fn ->
+          Page.evaluate!(page, "() => document.querySelector('input').click()")
+        end)
+
+      assert_truthy(chooser2)
+      Page.goto!(page, server.prefix <> "/activation.html")
+      assert Page.evaluate!(page, "() => window.showPicker()") == "ok"
+    end
+
+    @tag skip:
+           if(@browser_name == "webkit",
+             do: "upstream fixme: WebKit does not consume user activation when opening the file chooser"
+           )
+    test "FC-028 should consume user activation when opening file chooser", %{page: page, server: server} do
+      # test.fixme(isElectron || isAndroid, ...)  -- neither applies here
+      test = self()
+      Page.on(page, :file_chooser, fn _ -> send(test, :chooser) end)
+      Page.goto!(page, server.prefix <> "/activation.html")
+      Page.click!(page, "#twice")
+      Page.wait_for_timeout!(page, 500)
+      assert choosers() == 1
+    end
+  end
+
+  # `let choosers = 0; page.on('filechooser', () => choosers++)`: the listener sends to the test process.
+  defp choosers(count \\ 0) do
+    receive do
+      :chooser -> choosers(count + 1)
+    after
+      0 -> count
+    end
   end
 
   # `const logs = []; ... logs.push(x)`: the listener sends to the test process.
