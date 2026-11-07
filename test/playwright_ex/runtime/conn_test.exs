@@ -122,6 +122,45 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert Page.evaluate!(page, "fetch('/data').then(r => r.text())") == "from handler"
     end
 
+    test "remove_all_listeners waits: the first to return leaves the second's rejection handler", %{
+      page: page,
+      server: server
+    } do
+      reached_console = RuntimePromise.new(page)
+      release_console = RuntimePromise.new(page)
+      reached_request = RuntimePromise.new(page)
+      release_request = RuntimePromise.new(page)
+
+      Page.on(page, :console, fn _ ->
+        RuntimePromise.resolve(reached_console, nil)
+        Promise.await!(release_console)
+      end)
+
+      Page.on(page, :request, fn _ ->
+        RuntimePromise.resolve(reached_request, nil)
+        Promise.await!(release_request)
+        raise "Error in request handler"
+      end)
+
+      Page.evaluate!(page, "console.log(1)")
+      Promise.await!(reached_console)
+      Page.goto!(page, server.empty_page)
+      Promise.await!(reached_request)
+
+      handler = fn -> PlaywrightEx.Runtime.Heap.get(page, :_rejectionHandler) end
+      wait_console = RuntimePromise.async(fn -> Page.remove_all_listeners!(page, :console, behavior: :wait) end)
+      wait_until(fn -> handler.() != nil end)
+      console_handler = handler.()
+      wait_request = RuntimePromise.async(fn -> Page.remove_all_listeners!(page, :request, behavior: :wait) end)
+      wait_until(fn -> handler.() != console_handler end)
+
+      RuntimePromise.resolve(release_console, nil)
+      assert {:ok, _} = Promise.await(wait_console)
+      RuntimePromise.resolve(release_request, nil)
+      assert {:error, error} = Promise.await(wait_request)
+      assert Exception.message(error) =~ "Error in request handler"
+    end
+
     test "console event before evaluate returns, 100 times", %{page: page, server: server} do
       test = self()
       Page.goto!(page, server.empty_page)
