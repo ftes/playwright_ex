@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Frame
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -69,7 +70,16 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     assert message(error) =~ "custom reason"
   end
 
-  test "PA-042 should reject all promises when page is closed", %{page: page} do
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43647' }
+  test "PA-042 should reject all promises when page is closed", %{page: page, server: server} do
+    TestServer.set_route(server, "/hang", fn _conn -> Process.sleep(:infinity) end)
+    request_promise = TestServer.wait_for_request(server, "/hang")
+    Page.set_content!(page, ~s(<iframe src="#{server.prefix}/hang"></iframe>), wait_until: :domcontentloaded)
+    Task.await(request_promise, :infinity)
+
+    frame_error_promise =
+      Runtime.Promise.async(fn -> Frame.evaluate(Enum.at(Page.frames(page), 1), "() => new Promise(() => {})") end)
+
     [error, _] =
       Task.await_many(
         [
@@ -80,6 +90,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
       )
 
     assert message(error) =~ @k_target_closed_error_message
+    assert message(Runtime.Promise.await(frame_error_promise)) =~ @k_target_closed_error_message
   end
 
   test "PA-043 should set the page close state", %{page: page} do

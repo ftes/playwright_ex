@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
@@ -288,35 +289,59 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Route.fulfill!(route)
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43878' }
   test "RO-200 should not continue requests in flight (page)", %{page: page, server: server} do
-    me = self()
+    # A latch: the route handlers and the test await it.
+    route_promise = Runtime.Promise.new(page)
+    {:ok, started} = Agent.start_link(fn -> 0 end)
     Page.goto!(page, server.empty_page)
 
     Page.route!(page, "**/*", fn route ->
-      send(me, :route_promise)
-      Page.wait_for_timeout!(page, 3000)
+      if Agent.get_and_update(started, &{&1 + 1, &1 + 1}) == 2,
+        do: Runtime.Promise.resolve(route_promise, nil)
+
+      Runtime.Promise.await(route_promise)
+      Page.wait_for_timeout!(page, if(String.ends_with?(Request.url(Route.request(route)), "/a"), do: 100, else: 1000))
       response = Route.fetch!(route)
-      Route.fulfill!(route, response: response)
+      Route.fulfill!(route, response: response, body: "mocked")
     end)
 
-    Runtime.Promise.void(fn -> Page.evaluate(page, "() => fetch('/')") end)
-    assert_receive :route_promise, 5000
+    fetch_promise =
+      Runtime.Promise.async(fn ->
+        Page.evaluate!(page, "() => Promise.all(['/a', '/b'].map(async path => (await fetch(path)).text()))")
+      end)
+
+    Runtime.Promise.await(route_promise)
     Page.unroute_all!(page, behavior: :wait)
+    bodies = Runtime.Promise.await(fetch_promise)
+    assert bodies == ["mocked", "mocked"]
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43878' }
   test "RO-201 should not continue requests in flight (context)", %{page: page, context: context, server: server} do
-    me = self()
+    # A latch: the route handlers and the test await it.
+    route_promise = Runtime.Promise.new(page)
+    {:ok, started} = Agent.start_link(fn -> 0 end)
     Page.goto!(page, server.empty_page)
 
     BrowserContext.route!(context, "**/*", fn route ->
-      send(me, :route_promise)
-      Page.wait_for_timeout!(page, 3000)
+      if Agent.get_and_update(started, &{&1 + 1, &1 + 1}) == 2,
+        do: Runtime.Promise.resolve(route_promise, nil)
+
+      Runtime.Promise.await(route_promise)
+      Page.wait_for_timeout!(page, if(String.ends_with?(Request.url(Route.request(route)), "/a"), do: 100, else: 1000))
       response = Route.fetch!(route)
-      Route.fulfill!(route, response: response)
+      Route.fulfill!(route, response: response, body: "mocked")
     end)
 
-    Runtime.Promise.void(fn -> Page.evaluate(page, "() => fetch('/')") end)
-    assert_receive :route_promise, 5000
+    fetch_promise =
+      Runtime.Promise.async(fn ->
+        Page.evaluate!(page, "() => Promise.all(['/a', '/b'].map(async path => (await fetch(path)).text()))")
+      end)
+
+    Runtime.Promise.await(route_promise)
     BrowserContext.unroute_all!(context, behavior: :wait)
+    bodies = Runtime.Promise.await(fetch_promise)
+    assert bodies == ["mocked", "mocked"]
   end
 end

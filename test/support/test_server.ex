@@ -230,9 +230,17 @@ defmodule PlaywrightEx.TestServer do
       # Notify request subscriber.
       handler = GenServer.call(this.pid, {:on_request, path_with_search, conn})
 
-      if handler,
-        do: handler.(conn),
-        else: serve_file(this, conn)
+      cond do
+        handler ->
+          handler.(conn)
+
+        path_with_search == "/favicon.ico" ->
+          # Headless Chrome requests the favicon after a load and logs a 404 to the console of the page.
+          Plug.Conn.send_resp(conn, 204, "")
+
+        true ->
+          serve_file(this, conn)
+      end
     end
   end
 

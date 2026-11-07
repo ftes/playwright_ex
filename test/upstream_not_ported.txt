@@ -15,7 +15,9 @@
 # Upstream internals, not the client API.
 library/unit/android-webviews       server internals (Android)
 library/unit/clock                  injected clock internals (driver side)
+library/unit/code-frame             isomorphic codeFrame of the @playwright/test reporters (Node-only tooling, not the client)
 library/unit/codegen                trace viewer codegen (Node-only tooling)
+library/unit/http-server            the driver's HttpServer / serveFolder (trace viewer server, driver side)
 library/unit/json-schema            isomorphic JSON schema validator (driver side)
 library/unit/sequence               server internals
 library/events/*                    Tests the EventEmitter class of the Node.js client.
@@ -96,6 +98,8 @@ LE-011      queryObjectCount (in-process V8 heap inspection)
 LE-012      coreServer.setMaxDispatchersForTest, queryObjectCount (in-process server internals)
 # library/launcher
 BT-020      __testHookGracefullyClose is a JS function
+# library/multiclient
+MC-019      BrowserContext._startRecording / _stopRecording (internal recorder API with JS recorder callbacks; codegen runs in the driver)
 # library/screenshot
 SS-080      __testHookBeforeScreenshot (JS-only test hook)
 SS-086      __testHookBeforeScreenshot (JS-only test hook)

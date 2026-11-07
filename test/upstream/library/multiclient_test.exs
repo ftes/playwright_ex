@@ -457,4 +457,51 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
     Tracing.start!(BrowserContext.tracing(Page.context(page_b)))
   end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43282' }
+  test "MC-019 should not deliver an action buffered before the second recording started"
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43607' }
+  test "MC-020 should run locator handlers after reconnecting with a pending callback", %{
+    connect: connect,
+    remote_server: remote_server,
+    server: server
+  } do
+    browser = connect.(LaunchServer.ws_endpoint(remote_server))
+    page = Browser.new_page!(browser)
+    Page.goto!(page, server.prefix <> "/input/handle-locator.html")
+
+    test = self()
+
+    Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn _ ->
+      send(test, :called)
+      Runtime.Promise.await(Runtime.Promise.new())
+    end)
+
+    Page.evaluate!(page, """
+    () => {
+      window.setupAnnoyingInterstitial('none', 1);
+    }
+    """)
+
+    {:error, error} = Locator.click(Page.locator(page, "#target"), timeout: 1000)
+    assert Exception.message(error) =~ "Timeout 1000ms exceeded"
+    # expect(called).toBe(1)
+    assert_received :called
+    refute_received :called
+
+    disconnect(page)
+
+    reconnected_browser = connect.(LaunchServer.ws_endpoint(remote_server))
+    reconnected_page = reconnected_browser |> Browser.contexts() |> hd() |> BrowserContext.pages() |> hd()
+
+    Page.add_locator_handler!(
+      reconnected_page,
+      Page.get_by_text(reconnected_page, "This interstitial covers the button"),
+      fn _ -> Locator.click!(Page.locator(reconnected_page, "#close")) end
+    )
+
+    Locator.click!(Page.locator(reconnected_page, "#target"), timeout: 3000)
+    assert Page.evaluate!(reconnected_page, "window.clicked") == 1
+  end
 end

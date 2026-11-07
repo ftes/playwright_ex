@@ -169,6 +169,7 @@ defmodule PlaywrightEx.Library.PageClockTest do
       assert length(calls.()) == 10
     end
 
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43452' }
     @tag :calls
     test "CK-011 passes 2 hours, 34 minutes and 10 seconds", %{page: page, calls: calls} do
       Page.evaluate!(page, """
@@ -181,8 +182,9 @@ defmodule PlaywrightEx.Library.PageClockTest do
       assert length(calls.()) == 925
     end
 
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43783' }
     @tag :calls
-    test "CK-012 throws for invalid format", %{page: page, calls: calls} do
+    test "CK-012 throws for invalid format", %{page: page, calls: calls, server: server} do
       Page.evaluate!(page, """
       async () => {
         setInterval(window.stub, 10000);
@@ -190,7 +192,12 @@ defmodule PlaywrightEx.Library.PageClockTest do
       """)
 
       {:error, _} = Clock.run_for(Page.clock(page), "12:02:34:10")
+
+      # await expect(page.clock.runFor(NaN)).rejects.toThrow('clock.runFor: Invalid ticks: NaN');  -- not ported: Elixir has no NaN float
+      # await expect(page.clock.fastForward(Infinity)).rejects.toThrow('clock.fastForward: Invalid ticks: Infinity');  -- not ported: Elixir has no Infinity float
       assert calls.() == []
+      Page.goto!(page, server.empty_page)
+      assert Page.evaluate!(page, "() => Date.now()") == 1000
     end
 
     test "CK-013 returns the current now value", %{page: page} do
@@ -218,8 +225,11 @@ defmodule PlaywrightEx.Library.PageClockTest do
       assert calls.() == []
     end
 
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43783' }
     @tag :calls
-    test "CK-015 pushes back execution time for skipped timers", %{page: page, calls: calls} do
+    test "CK-015 pushes back execution time for skipped timers", %{page: page, calls: calls, server: server} do
+      Page.goto!(page, server.empty_page)
+
       Page.evaluate!(page, """
       async () => {
         setTimeout(() => {
@@ -228,8 +238,12 @@ defmodule PlaywrightEx.Library.PageClockTest do
       }
       """)
 
-      Clock.fast_forward!(Page.clock(page), 2000)
-      assert calls.() == [%{params: [1000 + 2000]}]
+      fifty_days = 50 * 24 * 60 * 60 * 1000
+      Clock.fast_forward!(Page.clock(page), fifty_days)
+      assert calls.() == [%{params: [1000 + fifty_days]}]
+      assert Page.evaluate!(page, "() => Date.now()") == 1000 + fifty_days
+      Page.reload!(page)
+      assert Page.evaluate!(page, "() => Date.now()") == 1000 + fifty_days
     end
 
     @tag :calls
@@ -615,6 +629,66 @@ defmodule PlaywrightEx.Library.PageClockTest do
       assert calls.() == [%{params: ["outer"]}]
       Clock.run_for!(Page.clock(page), 1)
       assert calls.() == [%{params: ["outer"]}, %{params: ["inner"]}]
+    end
+
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43214' },
+    #             { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43869' }
+    test "CK-045 should stay paused on the next page when an init script reads the time", %{
+      page: page,
+      server: server
+    } do
+      TestServer.set_route(server, "/timer.html", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "text/html")
+        |> Plug.Conn.send_resp(
+          200,
+          "<script>setTimeout(() => document.documentElement.dataset.fired = 'true', 0);</script>"
+        )
+      end)
+
+      Clock.install!(Page.clock(page), time: 0)
+      Clock.pause_at!(Page.clock(page), 1000)
+      Page.add_init_script!(page, "(() => Date.now())()")
+      Page.goto!(page, server.empty_page)
+      Clock.run_for!(Page.clock(page), 1000)
+      Page.goto!(page, server.prefix <> "/timer.html")
+      assert Page.evaluate!(page, "() => Date.now()") == 2000
+      Page.wait_for_timeout!(page, 500)
+      assert Page.evaluate!(page, "() => Date.now()") == 2000
+      assert Page.evaluate!(page, "() => document.documentElement.dataset.fired") == nil
+      Clock.run_for!(Page.clock(page), 0)
+      assert Page.evaluate!(page, "() => document.documentElement.dataset.fired") == "true"
+    end
+
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43214' }
+    test "CK-046 should not advance performance.now() before the first clock call on a new page", %{
+      page: page,
+      server: server
+    } do
+      Clock.pause_at!(Page.clock(page), 1000)
+      Page.goto!(page, server.empty_page)
+      Page.wait_for_timeout!(page, 500)
+      assert Page.evaluate!(page, "() => [performance.now(), Date.now()]") == [0, 1000]
+    end
+
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43869' }
+    test "CK-220 should keep timers scheduled during load pending when paused", %{page: page, server: server} do
+      TestServer.set_route(server, "/timer.html", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "text/html")
+        |> Plug.Conn.send_resp(
+          200,
+          "<script>setTimeout(() => document.documentElement.dataset.fired = 'true', 0);</script>"
+        )
+      end)
+
+      Clock.install!(Page.clock(page), time: 0)
+      Clock.pause_at!(Page.clock(page), 1000)
+      Page.goto!(page, server.prefix <> "/timer.html")
+      Page.wait_for_timeout!(page, 500)
+      assert Page.evaluate!(page, "() => document.documentElement.dataset.fired") == nil
+      Clock.run_for!(Page.clock(page), 0)
+      assert Page.evaluate!(page, "() => document.documentElement.dataset.fired") == "true"
     end
   end
 

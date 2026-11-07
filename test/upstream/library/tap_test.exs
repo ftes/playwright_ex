@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Library.TapTest do
     %{page: BrowserContext.new_page!(context)}
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43569' }
   test "TA-001 should send all of the correct events @smoke", %{page: page} do
     Page.set_content!(page, """
       <div id="a" style="background: lightblue; width: 50px; height: 50px">a</div>
@@ -43,6 +44,23 @@ defmodule PlaywrightEx.Library.TapTest do
              "mouseup",
              "click"
            ]
+
+    JSHandle.evaluate!(events_handle, "events => events.length = 0")
+
+    Locator.evaluate!(Page.locator(page, "#b"), """
+    target => {
+      target.addEventListener('pointerdown', event => event.preventDefault(), { once: true });
+    }
+    """)
+
+    Page.tap!(page, "#b")
+
+    events =
+      events_handle
+      |> JSHandle.json_value!()
+      |> Enum.filter(&(&1 in ["pointerdown", "pointerup", "mousedown", "mouseup", "click"]))
+
+    assert events == ["pointerdown", "pointerup", "click"]
   end
 
   test "TA-002 trial run should not tap", %{page: page} do

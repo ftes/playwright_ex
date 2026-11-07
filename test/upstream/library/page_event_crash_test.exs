@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Worker
 
   @moduletag :page
 
@@ -103,6 +104,26 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     assert BrowserContext.pages(Page.context(page)) == []
   end
 
-  @tag skip: "upstream fixme: test.fixme (no reason given)"
-  test "ER-021 should reject in-flight worker.evaluate when page crashes"
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43204' }
+  test "ER-021 should reject in-flight worker.evaluate when page crashes", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    worker_promise = Page.wait_for_event(page, :worker)
+
+    Page.evaluate!(page, """
+    () => new Worker(URL.createObjectURL(
+        new Blob(['self.onmessage = () => {}'], { type: 'application/javascript' })))
+    """)
+
+    worker = Promise.await!(worker_promise)
+    test = self()
+    Worker.once(worker, :close, fn _ -> send(test, :closed) end)
+    # never resolves in-worker
+    eval_promise = Runtime.Promise.async(fn -> Worker.evaluate(worker, "() => new Promise(() => {})") end)
+    crash(page)
+    {:error, error} = Runtime.Promise.await(eval_promise)
+    # Chromium may detach the worker before it reports the crash.
+    assert Exception.message(error) =~ ~r/Page crashed|Target page, context or browser has been closed/
+    assert_receive :closed
+    assert Page.workers(page) == []
+  end
 end

@@ -180,6 +180,35 @@ defmodule PlaywrightEx.Library.PopupTest do
     BrowserContext.close!(context)
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43496' },
+  #             { type: 'issue', description: 'https://issues.chromium.org/u/1/issues/576333026' }
+  @tag skip:
+         if(@browser_name == "chromium",
+           do:
+             "upstream fixme: Subresources of an about:blank popup are paused on the opener target and never continued"
+         )
+  test "PO-029 should load subresources of an about:blank popup when the opener has routes", %{
+    browser: browser,
+    server: server
+  } do
+    context = Browser.new_context!(browser)
+    page = BrowserContext.new_page!(context)
+    Page.route!(page, "**/*", fn route -> Route.continue!(route) end)
+    Page.goto!(page, server.empty_page)
+
+    popup =
+      Page.expect_popup!(page, fn ->
+        Page.evaluate!(
+          page,
+          ~s|url => window.open('').document.write(`<img src="${url}">`)|,
+          server.prefix <> "/pptr.png"
+        )
+      end)
+
+    Page.wait_for_function!(popup, "() => document.querySelector('img')?.naturalWidth > 0")
+    BrowserContext.close!(context)
+  end
+
   test "PO-023 BrowserContext.addInitScript should apply to an in-process popup", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     BrowserContext.add_init_script!(context, "window['injected'] = 123")

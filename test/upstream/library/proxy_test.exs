@@ -4,7 +4,10 @@ defmodule PlaywrightEx.Library.ProxyTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Request
+  alias PlaywrightEx.Response
   alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
 
@@ -19,12 +22,23 @@ defmodule PlaywrightEx.Library.ProxyTest do
     assert error.message =~ "proxy.server: expected string, got number"
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43871' }
   test "PR-002 should use proxy @smoke", %{browser_type: browser_type, server: server} do
     TestServer.set_route(server, "/target.html", &served_by_the_proxy/1)
     browser = BrowserType.launch!(browser_type, proxy: %{server: server.host})
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    url = "http://staging.example.org/target.html"
+    {:ok, requests} = Agent.start_link(fn -> [] end)
+
+    Page.on(page, :request, fn request ->
+      if Request.is_navigation_request(request),
+        do: Agent.update(requests, &(&1 ++ [Request.url(request)]))
+    end)
+
+    Page.goto!(page, url)
     assert Page.title!(page) == "Served by the proxy"
+    assert Page.url(page) == url
+    assert Agent.get(requests, & &1) == [url]
     Browser.close!(browser)
   end
 
@@ -33,11 +47,11 @@ defmodule PlaywrightEx.Library.ProxyTest do
     browser = BrowserType.launch!(browser_type, proxy: %{server: "localhost:#{server.port}"})
 
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert Page.title!(page) == "Served by the proxy"
 
     page2 = Browser.new_page!(browser)
-    Page.goto!(page2, "http://non-existent.com/target.html")
+    Page.goto!(page2, "http://non-existent.test/target.html")
     assert Page.title!(page2) == "Served by the proxy"
 
     Browser.close!(browser)
@@ -47,7 +61,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     TestServer.set_route(server, "/target.html", &served_by_the_proxy/1)
     browser = BrowserType.launch!(browser_type, proxy: %{server: "127.0.0.1:#{server.port}"})
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert Page.title!(page) == "Served by the proxy"
     Browser.close!(browser)
   end
@@ -135,7 +149,8 @@ defmodule PlaywrightEx.Library.ProxyTest do
     end
   end
 
-  test "PR-007 should authenticate", %{browser_type: browser_type, server: server} do
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43326' }
+  test "PR-007 should authenticate", %{browser_type: browser_type, server: server, browser_name: browser_name} do
     TestServer.set_route(server, "/target.html", fn conn ->
       case Plug.Conn.get_req_header(conn, "proxy-authorization") do
         [] ->
@@ -148,12 +163,40 @@ defmodule PlaywrightEx.Library.ProxyTest do
       end
     end)
 
+    TestServer.set_route(server, "/protected.html", fn conn ->
+      if Plug.Conn.get_req_header(conn, "proxy-authorization") == [] do
+        conn
+        |> Plug.Conn.put_resp_header("proxy-authenticate", ~s(Basic realm="Access to internal site"))
+        |> Plug.Conn.send_resp(407, "")
+      else
+        conn
+        |> Plug.Conn.put_resp_header("www-authenticate", ~s(Basic realm="site"))
+        |> Plug.Conn.send_resp(401, conn |> Plug.Conn.get_req_header("authorization") |> List.first("no credentials"))
+      end
+    end)
+
     browser =
       BrowserType.launch!(browser_type, proxy: %{server: server.host, username: "user", password: "secret"})
 
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert Page.title!(page) == "Basic " <> Base.encode64("user:secret")
+    # Proxy credentials must not be sent to the website's own auth challenge.
+    response_or_error =
+      case Page.goto(page, "http://non-existent.test/protected.html") do
+        {:ok, response} -> response
+        {:error, error} -> error
+      end
+
+    # isHeadlessShell is headless chromium (no channel).
+    if browser_name == "chromium" and not PlaywrightEx.TestBrowser.headless() do
+      # Branded Chromium shows a login dialog for the 401 and fails the navigation.
+      assert response_or_error.message =~ "net::ERR_INVALID_AUTH_CREDENTIALS"
+    else
+      assert Response.status(response_or_error) == 401
+      assert Locator.text_content!(Page.locator(page, "body")) == "no credentials"
+    end
+
     Browser.close!(browser)
   end
 
@@ -174,7 +217,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
       # on every CONNECT, while libsoup on Linux/macOS sends it only after a 407.
       # Force the first CONNECT to fail regardless to deterministically exercise
       # the reconnect path on all platforms.
-      if req.method != "CONNECT" or not String.starts_with?(req.headers["host"] || "", "non-existent.com") do
+      if req.method != "CONNECT" or not String.starts_with?(req.headers["host"] || "", "non-existent.test") do
         true
       else
         had_auth = req.headers["proxy-authorization"] != nil
@@ -193,7 +236,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
       BrowserType.launch!(browser_type, proxy: %{server: proxy_server.host, username: "user", password: "secret"})
 
     page = Browser.new_page!(browser, ignore_https_errors: true)
-    Page.goto!(page, "https://non-existent.com/target.html")
+    Page.goto!(page, "https://non-existent.test/target.html")
     assert Page.title!(page) == "Served by https server via proxy"
     attempts = Agent.get(connect_attempts, & &1.attempts)
     assert length(attempts) >= 2
@@ -235,7 +278,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
       BrowserType.launch!(browser_type, proxy: %{server: server.host, username: "user", password: "secret"})
 
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com/page1.html")
+    Page.goto!(page, "http://non-existent.test/page1.html")
     assert Page.title!(page) == "Served by the proxy"
     Browser.close!(browser)
   end
@@ -306,7 +349,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
   test "PR-012 should use socks proxy", %{browser_type: browser_type, socks_port: socks_port} do
     browser = BrowserType.launch!(browser_type, proxy: %{server: "socks5://localhost:#{socks_port}"})
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com")
+    Page.goto!(page, "http://non-existent.test")
     assert Page.title!(page) == "Served by the SOCKS proxy"
     Browser.close!(browser)
   end
@@ -315,11 +358,11 @@ defmodule PlaywrightEx.Library.ProxyTest do
     browser = BrowserType.launch!(browser_type, proxy: %{server: "socks5://localhost:#{socks_port}"})
 
     page = Browser.new_page!(browser)
-    Page.goto!(page, "http://non-existent.com")
+    Page.goto!(page, "http://non-existent.test")
     assert Page.title!(page) == "Served by the SOCKS proxy"
 
     page2 = Browser.new_page!(browser)
-    Page.goto!(page2, "http://non-existent.com")
+    Page.goto!(page2, "http://non-existent.test")
     assert Page.title!(page2) == "Served by the SOCKS proxy"
 
     Browser.close!(browser)

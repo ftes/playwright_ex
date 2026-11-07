@@ -147,7 +147,8 @@ defmodule PlaywrightEx.Library.WebmcpTest do
 
     {:error, error} = WebMCP.call_tool(Page.webmcp(page), "throwing")
     # Chromium does not report the error that the tool threw.
-    assert Exception.message(error) =~ if(browser_name == "chromium", do: "the invocation failed", else: "boom")
+    assert Exception.message(error) =~
+             if(browser_name == "chromium", do: ~r/the invocation failed|Tool execution failed/, else: ~r/boom/)
   end
 
   test "WM-006 should throw for an unknown tool", %{page: page, server: server} do

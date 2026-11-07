@@ -139,6 +139,58 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
+  test "TR-003 should not store secrets in context options", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    context =
+      Browser.new_context!(browser,
+        base_url: server.prefix,
+        viewport: %{width: 500, height: 600},
+        device_scale_factor: 2,
+        is_mobile: false,
+        user_agent: "custom-ua",
+        http_credentials: %{username: "user", password: "secret-password"},
+        extra_http_headers: %{"x-secret" => "secret-header"},
+        storage_state: %{
+          cookies: [
+            %{
+              name: "session",
+              value: "secret-cookie",
+              domain: "localhost",
+              path: "/",
+              expires: -1,
+              httpOnly: false,
+              secure: false,
+              sameSite: "Lax"
+            }
+          ],
+          origins: []
+        }
+      )
+
+    Tracing.start!(tracing(context))
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, server.empty_page)
+    Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
+    BrowserContext.close!(context)
+
+    %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace.zip"), browser)
+    assert hd(events)["type"] == "context-options"
+
+    assert hd(events)["options"] == %{
+             "baseURL" => server.prefix,
+             "viewport" => %{"width" => 500, "height" => 600},
+             "deviceScaleFactor" => 2,
+             "isMobile" => false,
+             "userAgent" => "custom-ua"
+           }
+
+    # fs.readFileSync(...).toString('latin1'): the raw bytes.
+    trace_text = File.read!(Path.join(tmp_dir, "trace.zip"))
+    refute trace_text =~ "secret-password"
+    refute trace_text =~ "secret-header"
+    refute trace_text =~ "secret-cookie"
+  end
+
+  @tag :tmp_dir
   test "TR-004 should not collect snapshots by default", %{
     context: context,
     page: page,
@@ -1141,28 +1193,15 @@ defmodule PlaywrightEx.Library.TracingTest do
     page = BrowserContext.new_page!(context)
 
     Tracing.start!(tracing(context), name: "name1", snapshots: true)
-    # deviation: subscribe-first (OTP runtime)
-    # JS starts the evaluate and the wait in one synchronous section; here the console event may
-    # be dispatched in between, so the wait comes first (its "before" precedes the evaluate's).
+    # The wait spans the chunks: its "before" is in the first chunk, and its "after" must not get into the second one.
     console_promise = Page.wait_for_event(page, :console)
-
-    evaluate_promise =
-      start("page.evaluate", page, fn ->
-        PlaywrightEx.Client.Page.evaluate(page, """
-        () => {
-          console.log('started');
-          return new Promise(f => window.callback = f);
-        }
-        """)
-      end)
-
-    Promise.await!(console_promise)
+    Page.evaluate!(page, "() => 1")
     Tracing.stop_chunk!(tracing(context), path: Path.join(tmp_dir, "trace1.zip"))
     assert File.exists?(Path.join(traces_dir, "name1.trace")) == true
 
     Tracing.start_chunk!(tracing(context), name: "name2")
-    Page.evaluate_handle!(page, "() => window.callback()")
-    Promise.await(evaluate_promise)
+    Page.evaluate!(page, "() => console.log('started')")
+    Promise.await!(console_promise)
     Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace2.zip"))
     assert File.exists?(Path.join(traces_dir, "name2.trace")) == true
 
@@ -1170,39 +1209,41 @@ defmodule PlaywrightEx.Library.TracingTest do
 
     call_id = fn e -> e["callId"] |> String.split("@") |> Enum.at(1) |> String.to_integer() end
 
-    sanitize = fn events ->
-      before_after = Enum.filter(events, &(&1["type"] in ["after", "before"]))
-      min_call_id = before_after |> Enum.map(call_id) |> Enum.min(fn -> 0 end)
-      Enum.map(before_after, &%{type: &1["type"], callId: call_id.(&1) - min_call_id, title: &1["title"]})
+    # `minCallId` is shared across both traces: it is threaded through.
+    sanitize = fn events, min_call_id ->
+      events
+      |> Enum.filter(&(&1["type"] in ["after", "before"]))
+      |> Enum.map_reduce(min_call_id, fn e, min_call_id ->
+        min_call_id = min(min_call_id, call_id.(e))
+        {%{type: e["type"], callId: call_id.(e) - min_call_id, title: e["title"]}, min_call_id}
+      end)
     end
 
-    %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), context)
-    sanitized = sanitize.(events)
+    min_call_id = 100_000
 
-    # Deviation: the wait's "before" comes first (subscribe-first above).
+    %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace1.zip"), context)
+    {sanitized, min_call_id} = sanitize.(events, min_call_id)
+
     assert [
-             %{type: "before", callId: wait_before, title: ~s(Wait for event "console")},
-             %{type: "before", callId: call1, title: nil},
-             %{type: "after", callId: wait_after, title: nil}
+             %{type: "before", callId: c0, title: ~s(Wait for event "console")},
+             %{type: "before", callId: c1, title: nil},
+             %{type: "after", callId: c2, title: nil}
            ] = sanitized
 
-    assert is_integer(call1)
-    assert wait_before == wait_after
-
-    # Deviation: the callIds are offset against each trace's minimum, as upstream's
-    # `minCallId` is shared across both traces; compare the raw ids instead.
-    raw_call1 = events |> Enum.find(&(&1["type"] == "before" and &1["title"] == nil)) |> call_id.()
+    assert is_number(c0) and is_number(c1) and is_number(c2)
+    assert c1 > c0
+    assert c1 == c2
+    call1 = c1
 
     %{events: events} = parse_trace_raw(Path.join(tmp_dir, "trace2.zip"), context)
-    sanitized = sanitize.(events)
+    {sanitized, _min_call_id} = sanitize.(events, min_call_id)
 
     assert [
-             %{type: "before", callId: _, title: nil},
-             %{type: "after", callId: _, title: nil}
+             %{type: "before", callId: call2before, title: nil},
+             %{type: "after", callId: call2after, title: nil}
            ] = sanitized
 
-    [call2before, call2after] = events |> Enum.filter(&(&1["type"] in ["after", "before"])) |> Enum.map(call_id)
-    assert call2before > raw_call1
+    assert call2before > call1
     assert call2after == call2before
   end
 
