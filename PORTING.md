@@ -50,6 +50,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `class X extends ChannelOwner`, `super(...)` | `use PlaywrightEx.Client.ChannelOwner`, `ChannelOwner.new(__MODULE__, parent, type, guid, init)` |
 | `super.foo()` | `Parent.foo(this)` |
 | `this.foo()` where a subclass may override | `impl(this).foo(this)` (`Heap.impl/1`: the client module of a facade struct) |
+| `@apiCall({ title: 'X' })` / `@internal` method decorator | `# @apiCall({ title: 'X' })` above the def, the body (after JS default parameters) in `api_call(%{title: "X"}).(this, fn -> ... end)` / `internal().(this, fn -> ... end)` (`ChannelOwner.api_call/1`): runs it through the receiver's `_wrap_api_call/3` |
 | `this._channel.foo(params, options)` | `channel_call(this, :foo, params, options)`; the generated validator converts to the wire |
 | `this._channel.on('event', ...)` | `EventEmitter.on(_channel(this), "event", ...)` |
 | `X.from(channel)` | identity: channels and owners are the same handle |

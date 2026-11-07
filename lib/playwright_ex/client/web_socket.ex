@@ -70,10 +70,11 @@ defmodule PlaywrightEx.Client.WebSocket do
     get(this, :_isClosed)
   end
 
+  # @apiCall()
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
 
-    _wrap_api_call(this, fn _ ->
+    api_call().(this, fn ->
       page = get(this, :_page)
 
       timeout_options =

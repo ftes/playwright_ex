@@ -90,10 +90,11 @@ defmodule PlaywrightEx.Client.Worker do
     JSHandle.from(result.handle)
   end
 
+  # @apiCall()
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
 
-    ChannelOwner._wrap_api_call(this, fn _ ->
+    api_call().(this, fn ->
       page = get(this, :_page)
       context = get(this, :_context)
 

@@ -3,6 +3,8 @@ defmodule PlaywrightEx.Client.LocalUtils do
   @moduledoc "Port of `#{@upstream}`."
   use PlaywrightEx.Client.ChannelOwner
 
+  alias PlaywrightEx.Runtime.Zones
+
   def new(parent, type, guid, initializer) do
     this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
 
@@ -50,8 +52,12 @@ defmodule PlaywrightEx.Client.LocalUtils do
 
   # Elixir only: the JS client converts URL globs itself (isomorphic/urlMatch.ts). Here the driver
   # does, as in the non-JS clients (architecture: URL globs); the regex source is cached per glob.
+  # JS makes no call, so in the caller's api zone it runs as internal: not the zone's reported call
+  # (`page.route`, `@apiCall`, reports its `setNetworkInterceptionPatterns`).
   def glob_to_regex(this, params) do
     key = {params[:glob], params[:baseURL], params[:webSocketUrl]}
+    call = fn -> channel_call(this, :globToRegex, params, TimeoutSettings.k_no_timeout()).regex end
+    api_zone = Zones.data(:apiZone)
 
     # A cache: two processes converting the same glob both ask the driver (same answer).
     map_get(this, :_globToRegex, key) ||
@@ -59,7 +65,7 @@ defmodule PlaywrightEx.Client.LocalUtils do
         this,
         :_globToRegex,
         key,
-        channel_call(this, :globToRegex, params, TimeoutSettings.k_no_timeout()).regex
+        if(api_zone, do: Zones.with(:apiZone, %{api_zone | internal: true}, call), else: call.())
       )
   end
 end

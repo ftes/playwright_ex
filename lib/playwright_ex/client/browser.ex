@@ -131,18 +131,15 @@ defmodule PlaywrightEx.Client.Browser do
     nil
   end
 
+  # @apiCall({ title: 'Create page' })
   def new_page(this, options \\ %{}) do
-    _wrap_api_call(
-      this,
-      fn _ ->
-        context = new_context(this, options)
-        page = BrowserContext.new_page(context)
-        put(page, :_ownedContext, context)
-        put(context, :_ownerPage, page)
-        page
-      end,
-      %{title: "Create page"}
-    )
+    api_call(%{title: "Create page"}).(this, fn ->
+      context = new_context(this, options)
+      page = BrowserContext.new_page(context)
+      put(page, :_ownedContext, context)
+      put(context, :_ownerPage, page)
+      page
+    end)
   end
 
   def is_connected(this) do

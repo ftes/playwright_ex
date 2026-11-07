@@ -42,7 +42,7 @@ end
 defmodule PlaywrightEx.Client.Mouse do
   @upstream "packages/playwright-core/src/client/input.ts"
   @moduledoc "Port of `#{@upstream}` (`class Mouse`). No mutable state: a plain struct."
-  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4, api_call: 1]
 
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.TimeoutSettings
@@ -53,6 +53,10 @@ defmodule PlaywrightEx.Client.Mouse do
 
   def new(page) do
     %PlaywrightEx.Mouse{_page: page}
+  end
+
+  def _wrap_api_call(this, func, options \\ %{}) do
+    ChannelOwner._wrap_api_call(this._page, func, options)
   end
 
   def move(this, x, y, options \\ %{}) do
@@ -75,14 +79,12 @@ defmodule PlaywrightEx.Client.Mouse do
     nil
   end
 
+  # @apiCall({ title: 'Double click' })
   def dblclick(this, x, y, options \\ %{}) do
-    ChannelOwner._wrap_api_call(
-      this._page,
-      fn _ -> click(this, x, y, Map.merge(options || %{}, %{clickCount: 2})) end,
-      %{title: "Double click"}
-    )
-
-    nil
+    api_call(%{title: "Double click"}).(this, fn ->
+      click(this, x, y, Map.merge(options || %{}, %{clickCount: 2}))
+      nil
+    end)
   end
 
   def wheel(this, delta_x, delta_y) do

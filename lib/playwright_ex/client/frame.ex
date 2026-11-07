@@ -144,123 +144,117 @@ defmodule PlaywrightEx.Client.Frame do
     waiter
   end
 
+  # @apiCall({ title: 'Wait for navigation' }), applied in _wait_for_navigation/3
   def wait_for_navigation(this, options \\ %{}), do: _wait_for_navigation(this, options || %{}, nil)
 
-  # Elixir only: `url_check` (from `wait_for_url/3`) runs once the waits are subscribed; when it
-  # holds, this returns `:url_matched` without waiting.
+  # Elixir only: the decorated `waitForNavigation`, with `url_check` (from `wait_for_url/3`), which
+  # runs once the waits are subscribed; when it holds, this returns `:url_matched` without waiting.
   defp _wait_for_navigation(this, options, url_check) do
     page = get(this, :_page)
 
-    ChannelOwner._wrap_api_call(
-      page,
-      fn _ ->
-        wait_until =
-          verify_load_state("waitUntil", if(options[:waitUntil] == nil, do: "load", else: options.waitUntil))
+    api_call(%{title: "Wait for navigation"}).(this, fn ->
+      wait_until =
+        verify_load_state("waitUntil", if(options[:waitUntil] == nil, do: "load", else: options.waitUntil))
 
-        waiter = _setup_navigation_waiter(this, options)
+      waiter = _setup_navigation_waiter(this, options)
 
-        to_url = if is_binary(options[:url]), do: ~s( to "#{options.url}"), else: ""
-        Waiter.log(waiter, ~s(waiting for navigation#{to_url} until "#{wait_until}"))
+      to_url = if is_binary(options[:url]), do: ~s( to "#{options.url}"), else: ""
+      Waiter.log(waiter, ~s(waiting for navigation#{to_url} until "#{wait_until}"))
 
+      # deviation: subscribe-first (OTP runtime)
+      loadstate =
+        EventEmitter.subscribe(get(this, :_eventEmitter), "loadstate", fn s ->
+          Waiter.log(waiter, ~s(  "#{s}" event fired))
+          s == wait_until
+        end)
+
+      try do
+        navigated =
+          EventEmitter.subscribe(get(this, :_eventEmitter), "navigated", fn event ->
+            # Any failed navigation results in a rejection.
+            if event[:error] do
+              true
+            else
+              Waiter.log(waiter, ~s(  navigated to "#{event.url}"))
+
+              # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+              UrlMatch.url_matches(
+                Connection.local_utils(get(this, :_connection)),
+                page && get(Page.context(page), :_options)[:baseURL],
+                event.url,
+                options[:url]
+              )
+            end
+          end)
+
+        if url_check && url_check.() do
+          Promise.free(navigated)
+          Waiter.dispose(waiter)
+          :url_matched
+        else
+          navigated_event = Waiter.wait_for_promise(waiter, navigated, fn -> Promise.free(navigated) end)
+
+          if navigated_event[:error] do
+            e = %RuntimeError{message: navigated_event.error}
+            # e.stack = '';  -- n/a: Elixir exceptions carry no stack
+            Waiter.wait_for_promise(waiter, Promise.rejected(e))
+          end
+
+          # Load states that fired before the navigation (or before this check, then in
+          # `_loadStates`) are not waited for.
+          Promise.flush(loadstate.ref)
+
+          if !set_has(this, :_loadStates, wait_until) do
+            Waiter.wait_for_promise(waiter, loadstate)
+          end
+
+          request = if navigated_event[:newDocument], do: Request.from_nullable(navigated_event.newDocument[:request])
+
+          response =
+            if request do
+              response = Promise.async(fn -> Request._internal_response(Request._final_request(request)) end)
+              # Elixir only: freed, so a failure that wins leaves no late result in the mailbox.
+              Waiter.wait_for_promise(waiter, response, fn -> Promise.free(response) end)
+            end
+
+          Waiter.dispose(waiter)
+          response
+        end
+      after
+        Promise.free(loadstate)
+      end
+    end)
+  end
+
+  # @apiCall({ title: 'Wait for load state' })
+  def wait_for_load_state(this, state \\ "load", options \\ nil) do
+    state = state || "load"
+
+    api_call(%{title: "Wait for load state"}).(this, fn ->
+      state = verify_load_state("state", state)
+      waiter = _setup_navigation_waiter(this, options || %{})
+
+      try do
         # deviation: subscribe-first (OTP runtime)
         loadstate =
           EventEmitter.subscribe(get(this, :_eventEmitter), "loadstate", fn s ->
             Waiter.log(waiter, ~s(  "#{s}" event fired))
-            s == wait_until
+            s == state
           end)
 
-        try do
-          navigated =
-            EventEmitter.subscribe(get(this, :_eventEmitter), "navigated", fn event ->
-              # Any failed navigation results in a rejection.
-              if event[:error] do
-                true
-              else
-                Waiter.log(waiter, ~s(  navigated to "#{event.url}"))
-
-                # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
-                UrlMatch.url_matches(
-                  Connection.local_utils(get(this, :_connection)),
-                  page && get(Page.context(page), :_options)[:baseURL],
-                  event.url,
-                  options[:url]
-                )
-              end
-            end)
-
-          if url_check && url_check.() do
-            Promise.free(navigated)
-            Waiter.dispose(waiter)
-            :url_matched
-          else
-            navigated_event = Waiter.wait_for_promise(waiter, navigated, fn -> Promise.free(navigated) end)
-
-            if navigated_event[:error] do
-              e = %RuntimeError{message: navigated_event.error}
-              # e.stack = '';  -- n/a: Elixir exceptions carry no stack
-              Waiter.wait_for_promise(waiter, Promise.rejected(e))
-            end
-
-            # Load states that fired before the navigation (or before this check, then in
-            # `_loadStates`) are not waited for.
-            Promise.flush(loadstate.ref)
-
-            if !set_has(this, :_loadStates, wait_until) do
-              Waiter.wait_for_promise(waiter, loadstate)
-            end
-
-            request = if navigated_event[:newDocument], do: Request.from_nullable(navigated_event.newDocument[:request])
-
-            response =
-              if request do
-                response = Promise.async(fn -> Request._internal_response(Request._final_request(request)) end)
-                # Elixir only: freed, so a failure that wins leaves no late result in the mailbox.
-                Waiter.wait_for_promise(waiter, response, fn -> Promise.free(response) end)
-              end
-
-            Waiter.dispose(waiter)
-            response
-          end
-        after
+        if set_has(this, :_loadStates, state) do
           Promise.free(loadstate)
+          Waiter.log(waiter, ~s(  not waiting, "#{state}" event already fired))
+          Waiter.throw_if_immediately_rejected(waiter)
+        else
+          Waiter.wait_for_promise(waiter, loadstate, fn -> Promise.free(loadstate) end)
         end
-      end,
-      %{title: "Wait for navigation"}
-    )
-  end
+      after
+        Waiter.dispose(waiter)
+      end
 
-  def wait_for_load_state(this, state \\ "load", options \\ nil) do
-    state = verify_load_state("state", state || "load")
-    page = get(this, :_page)
-
-    ChannelOwner._wrap_api_call(
-      page,
-      fn _ ->
-        waiter = _setup_navigation_waiter(this, options || %{})
-
-        try do
-          # deviation: subscribe-first (OTP runtime)
-          loadstate =
-            EventEmitter.subscribe(get(this, :_eventEmitter), "loadstate", fn s ->
-              Waiter.log(waiter, ~s(  "#{s}" event fired))
-              s == state
-            end)
-
-          if set_has(this, :_loadStates, state) do
-            Promise.free(loadstate)
-            Waiter.log(waiter, ~s(  not waiting, "#{state}" event already fired))
-            Waiter.throw_if_immediately_rejected(waiter)
-          else
-            Waiter.wait_for_promise(waiter, loadstate, fn -> Promise.free(loadstate) end)
-          end
-        after
-          Waiter.dispose(waiter)
-        end
-
-        nil
-      end,
-      %{title: ~s(Wait for load state "#{state}")}
-    )
+      nil
+    end)
   end
 
   def wait_for_url(this, url, options \\ nil) do
