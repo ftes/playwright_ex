@@ -215,7 +215,8 @@ single thread. Use each only where the JS code needs it, with its marker.
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
    update `@unported_client_files` / `test/upstream_not_ported.txt`. Copy upstream's
    `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and removed
-   tests, not changed bodies: port those from the spec diff.
+   tests (a test named at runtime, in a loop, by its identifier only), not changed bodies: port
+   those from the spec diff.
 5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.
