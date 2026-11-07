@@ -67,8 +67,17 @@ defmodule PlaywrightEx.Client.Connection do
     def initialize(this, on_reply \\ nil) do
       on_reply = if on_reply, do: fn result -> on_reply.(Playwright.from(result.playwright)) end
 
+      # deviation: `supportsLoneSurrogates: false` (JS: true). Elixir's JSON (OTP's `:json`) rejects
+      # a lone surrogate escape (`"\ud800"`), and a UTF-8 string cannot hold one, so the driver
+      # replaces them (`toWellFormed`, U+FFFD) as it does for the Python, Java and .NET clients.
       Playwright.from(
-        channel_call(this, :initialize, %{sdkLanguage: "javascript"}, TimeoutSettings.k_no_timeout(), on_reply).playwright
+        channel_call(
+          this,
+          :initialize,
+          %{sdkLanguage: "javascript", supportsLoneSurrogates: false},
+          TimeoutSettings.k_no_timeout(),
+          on_reply
+        ).playwright
       )
     end
   end
