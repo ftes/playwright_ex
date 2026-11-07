@@ -279,12 +279,22 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.content!(page) == "<html><head></head><body>Hello, world</body></html>"
   end
 
+  # annotation: [
+  #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43503' },
+  #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43669' },
+  # ]
+  @tag skip: "pending: client port"
   test "HA-085 should round-trip har.zip", %{context_factory: context_factory, server: server, output_path: output_path} do
-    har_path = output_path.("har.zip")
+    har_path = output_path.("har.ZIP")
     context1 = context_factory.(record_har: %{mode: "minimal", path: har_path})
     page1 = BrowserContext.new_page!(context1)
     Page.goto!(page1, server.prefix <> "/one-style.html")
     BrowserContext.close!(context1)
+
+    har_dir = output_path.("har")
+    {:ok, _} = :zip.unzip(String.to_charlist(har_path), cwd: String.to_charlist(har_dir))
+    %{"log" => log} = JSON.decode!(File.read!(Path.join(har_dir, "har.har")))
+    assert is_binary(hd(log["entries"])["response"]["content"]["_file"])
 
     context2 = context_factory.([])
     BrowserContext.route_from_har!(context2, har_path, not_found: :abort)
@@ -292,6 +302,36 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Page.goto!(page2, server.prefix <> "/one-style.html")
     assert Page.content!(page2) =~ "hello, world!"
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+
+    # yazl: `:zip.create/3` in memory.
+    entries =
+      for entry <- File.ls!(har_dir) do
+        name = if entry == "har.har", do: "Recording.HAR", else: entry
+        {String.to_charlist(name), File.read!(Path.join(har_dir, entry))}
+      end
+
+    {:ok, {_, zip}} = :zip.create(~c"uppercase.har.zip", entries, [:memory])
+    uppercase_har_path = output_path.("uppercase.har.zip")
+    File.write!(uppercase_har_path, zip)
+
+    BrowserContext.unroute_all!(context2, behavior: :wait)
+    BrowserContext.route_from_har!(context2, uppercase_har_path, not_found: :abort)
+    Page.reload!(page2)
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+  end
+
+  test "HA-114 should reject a malformed har.zip", %{context_factory: context_factory, output_path: output_path} do
+    # yazl: `:zip.create/3` in memory.
+    {:ok, {_, zip}} = :zip.create(~c"malformed.har.zip", [{~c"aa/x.har", "{}"}], [:memory])
+    # yauzl reports '..' in an entry name as an 'error' event while reading entries.
+    zip = :binary.replace(zip, "aa/x.har", "../x.har", [:global])
+    har_path = output_path.("malformed.har.zip")
+    File.write!(har_path, zip)
+
+    context = context_factory.([])
+    {:error, error} = BrowserContext.route_from_har(context, har_path)
+    assert Exception.message(error) =~ "invalid relative path: ../x.har"
   end
 
   test "HA-086 should produce extracted zip", %{

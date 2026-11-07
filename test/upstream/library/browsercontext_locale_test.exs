@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
   alias PlaywrightEx.TestServer
 
   defp header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
@@ -155,27 +156,42 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43484' }
   test "LC-010 should propagate locale to workers", %{browser: browser, browser_name: browser_name, server: server} do
     context = Browser.new_context!(browser, locale: "ru-RU")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
 
-    msg =
-      Page.expect_console_message!(
-        page,
-        fn ->
-          Page.evaluate!(page, """
-          () => new Worker(URL.createObjectURL(new Blob(['console.log("locale:" + Intl.NumberFormat().resolvedOptions().locale)'], { type: 'application/javascript' })))
-          """)
-        end,
-        predicate: &String.starts_with?(ConsoleMessage.text(&1), "locale:")
-      )
+    msg = Page.wait_for_event(page, :console, &String.starts_with?(ConsoleMessage.text(&1), "locale:"))
+    languages = Page.wait_for_event(page, :console, &String.starts_with?(ConsoleMessage.text(&1), "languages:"))
+    request = TestServer.wait_for_request(server, "/title.html")
 
-    if browser_name == "webkit",
+    Page.evaluate!(
+      page,
+      """
+      url => new Worker(URL.createObjectURL(new Blob([`
+        console.log("locale:" + Intl.NumberFormat().resolvedOptions().locale);
+        console.log("languages:" + navigator.languages);
+        fetch(${JSON.stringify(url)});
+      `], { type: 'application/javascript' })))
+      """,
+      server.prefix <> "/title.html"
+    )
+
+    msg = Promise.await!(msg)
+    languages = Promise.await!(languages)
+    request = Task.await(request, :infinity)
+
+    if browser_name == "webkit" do
       # Webkit on Ubuntu is "ru-RU", and on other platforms is "ru"
-      do: assert(ConsoleMessage.text(msg) =~ "locale:ru"),
-      else: assert(ConsoleMessage.text(msg) == "locale:ru-RU")
+      assert ConsoleMessage.text(msg) =~ "locale:ru"
+      assert ConsoleMessage.text(languages) =~ "languages:ru"
+    else
+      assert ConsoleMessage.text(msg) == "locale:ru-RU"
+      assert ConsoleMessage.text(languages) == "languages:ru-RU"
+    end
 
+    assert header(request, "accept-language") =~ "ru-RU"
     BrowserContext.close!(context)
   end
 
