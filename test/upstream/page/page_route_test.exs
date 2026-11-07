@@ -245,32 +245,34 @@ defmodule PlaywrightEx.Page.PageRouteTest do
 
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: Redirected request is not paused in WebKit")
   test "RO-012 should pause intercepted XHR until continue", %{page: page, server: server} do
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     # it.fixme(browserName === 'webkit', 'Redirected request is not paused in WebKit');
     Page.goto!(page, server.empty_page)
     me = self()
     Page.route!(page, "**/global-var.html", fn route -> send(me, {:route, route}) end)
+    # `xhrFinished = true`: a message to the test process.
+    Page.on(page, :request_finished, fn request ->
+      if String.ends_with?(Request.url(request), "/global-var.html"), do: send(me, :xhr_finished)
+    end)
 
-    status_promise =
-      Runtime.Promise.async(
-        fn ->
-          Page.evaluate!(page, """
-          async () => {
-            const request = new XMLHttpRequest();
-            request.open('GET', '/global-var.html', false);  // `false` makes the request synchronous
-            request.send(null);
-            return request.status;
-          }
-          """)
-        end,
-        shared: true
-      )
+    # The synchronous request blocks the page, so it is started from a timer.
+    Page.evaluate!(page, """
+    () => {
+      window.__statusPromise = new Promise(resolve => setTimeout(() => {
+        const request = new XMLHttpRequest();
+        request.open('GET', '/global-var.html', false);  // `false` makes the request synchronous
+        request.send(null);
+        resolve(request.status);
+      }, 0));
+    }
+    """)
 
     assert_receive {:route, route}, 5000
     # Check that intercepted request is actually paused.
     Process.sleep(500)
-    refute Runtime.Promise.settled?(status_promise)
+    refute_received :xhr_finished
     Route.continue!(route)
-    assert Runtime.Promise.await(status_promise) == 200
+    assert Page.evaluate!(page, "() => window.__statusPromise") == 200
   end
 
   test "RO-013 should pause intercepted fetch request until continue", %{page: page, server: server} do
@@ -278,25 +280,22 @@ defmodule PlaywrightEx.Page.PageRouteTest do
     me = self()
     Page.route!(page, "**/global-var.html", fn route -> send(me, {:route, route}) end)
 
-    status_promise =
-      Runtime.Promise.async(
-        fn ->
-          Page.evaluate!(page, """
-          async () => {
-            const response = await fetch('/global-var.html');
-            return response.status;
-          }
-          """)
-        end,
-        shared: true
-      )
+    Page.evaluate!(page, """
+    () => {
+      window.__fetchFinished = false;
+      window.__statusPromise = fetch('/global-var.html').then(response => {
+        window.__fetchFinished = true;
+        return response.status;
+      });
+    }
+    """)
 
     assert_receive {:route, route}, 5000
     # Check that intercepted request is actually paused.
     Process.sleep(500)
-    refute Runtime.Promise.settled?(status_promise)
+    assert Page.evaluate!(page, "() => window.__fetchFinished") == false
     Route.continue!(route)
-    assert Runtime.Promise.await(status_promise) == 200
+    assert Page.evaluate!(page, "() => window.__statusPromise") == 200
   end
 
   test "RO-014 should work with custom referer headers", %{
@@ -1101,6 +1100,10 @@ defmodule PlaywrightEx.Page.PageRouteTest do
   end
 
   test "RO-045 should support the times parameter with route matching", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43507' }
+    Page.goto!(page, server.empty_page)
+    fetch_body = fn -> Page.evaluate!(page, "() => fetch('/empty.html').then(response => response.text())") end
+
     me = self()
 
     Page.route!(
@@ -1108,14 +1111,16 @@ defmodule PlaywrightEx.Page.PageRouteTest do
       "**/empty.html",
       fn route ->
         send(me, {:intercepted, 1})
-        Route.continue(route)
+        Route.fulfill(route, body: "first")
       end,
       times: 1
     )
 
-    Page.goto!(page, server.empty_page)
-    Page.goto!(page, server.empty_page)
-    Page.goto!(page, server.empty_page)
+    assert fetch_body.() == "first"
+    Page.route!(page, "**/empty.html", fn route -> Route.fulfill(route, body: "second") end, times: 1)
+    assert fetch_body.() == "second"
+    fetch_body.()
+    fetch_body.()
     assert length(received()) == 1
   end
 
@@ -1367,4 +1372,27 @@ defmodule PlaywrightEx.Page.PageRouteTest do
   end
 
   test "RO-056 should respect URLPattern ignoreCase"
+
+  test "RO-202 should continue a request reported while interception was disabled", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43619' }
+    # it.skip(isElectron)  -- no Electron
+    Page.goto!(page, server.prefix <> "/serviceworkers/slow-fallback/sw.html")
+    Page.evaluate!(page, "() => window['activationPromise']")
+
+    handler = fn route -> Route.fulfill(route, body: "mocked") end
+    Page.route!(page, "**/never-requested", handler)
+    Page.unroute!(page, "**/never-requested")
+    # The service worker holds the request, so it reaches the network
+    # after interception is enabled again.
+    request_promise = Page.wait_for_request(page, "**/simple.json")
+
+    body_promise =
+      Runtime.Promise.async(fn ->
+        Page.evaluate!(page, "() => fetch('/simple.json').then(response => response.text())")
+      end)
+
+    Promise.await!(request_promise)
+    Page.route!(page, "**/never-requested", handler)
+    assert Runtime.Promise.await(body_promise) == ~s({"foo": "bar"}\n)
+  end
 end
