@@ -2,8 +2,6 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
   @upstream "tests/page/page-event-network.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -135,9 +133,12 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert Request.redirected_to(redirected_from) == Response.request(response)
   end
 
-  @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
-  test "should resolve responses after a navigation", %{page: page, server: server} do
-    # it.fixme(browserName === 'chromium');
+  test "NE-090 should resolve responses after a cross-process navigation", %{
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43508' }
     test = self()
 
     TestServer.set_route(server, "/foo", fn conn ->
@@ -155,11 +156,87 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert_receive {:response_from_server, response_from_server}
     request = Promise.await!(request_promise)
     response_promise = Runtime.Promise.async(fn -> Request.response(request) end)
+    failed_promise = Page.wait_for_event(page, :request_failed)
     # navigate, which should cancel the request
     Page.goto!(page, server.cross_process_prefix)
     # make sure we aren't stalling this request on the server
     send(response_from_server, {:end, "done"})
     # the response should resolve to null, because the page navigated.
     assert Runtime.Promise.await(response_promise) == {:ok, nil}
+    # the request should fail with the browser's "canceled" error.
+    assert Promise.await!(failed_promise) == request
+
+    assert Request.failure(request).errorText =~
+             %{"chromium" => "net::ERR_ABORTED", "firefox" => "NS_BINDING_ABORTED", "webkit" => "cancelled"}[
+               browser_name
+             ]
+  end
+
+  test "NE-143 should resolve responses after a same-process navigation", %{
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43508' }
+    test = self()
+
+    TestServer.set_route(server, "/foo", fn conn ->
+      send(test, {:response_from_server, self()})
+
+      receive do
+        {:end, body} -> Plug.Conn.send_resp(conn, 200, body)
+      end
+    end)
+
+    TestServer.set_route(server, "/streaming", fn conn ->
+      conn = conn |> Plug.Conn.put_resp_header("content-type", "text/plain") |> Plug.Conn.send_chunked(200)
+      {:ok, conn} = Plug.Conn.chunk(conn, "partial body")
+      # The response never ends: the request process waits until the test is over.
+      ref = Process.monitor(test)
+
+      receive do
+        {:DOWN, ^ref, :process, _, _} -> conn
+      end
+    end)
+
+    Page.goto!(page, server.empty_page)
+    request_promise = Page.wait_for_request(page, server.prefix <> "/foo")
+    streaming_response_promise = Page.wait_for_response(page, server.prefix <> "/streaming")
+    # start a long running request and wait until it hits the server
+    Page.evaluate!(page, "url => void fetch(url)", server.prefix <> "/foo")
+    # start a request that never finishes streaming its body
+    Page.evaluate!(page, "url => void fetch(url)", server.prefix <> "/streaming")
+    assert_receive {:response_from_server, response_from_server}
+    request = Promise.await!(request_promise)
+    response_promise = Runtime.Promise.async(fn -> Request.response(request) end)
+    streaming_response = Promise.await!(streaming_response_promise)
+    streaming_text_promise = Runtime.Promise.async(fn -> Response.text(streaming_response) end)
+    Page.on(page, :request_failed, fn request -> send(test, {:request_failed, request}) end)
+    # navigate within the same process, which should cancel the requests
+    Page.goto!(page, server.prefix <> "/title.html")
+    # make sure we aren't stalling this request on the server
+    send(response_from_server, {:end, "done"})
+    # the response should resolve to null, because the page navigated.
+    assert Runtime.Promise.await(response_promise) == {:ok, nil}
+    # both requests should fail with the browser's "canceled" error.
+    error_text =
+      %{"chromium" => "net::ERR_ABORTED", "firefox" => "NS_BINDING_ABORTED", "webkit" => "cancelled"}[browser_name]
+
+    # `failedRequests` (pushed by the listener): the listener runs in a process of its own, so
+    # the test awaits both events.
+    assert_receive {:request_failed, failed1}
+    assert_receive {:request_failed, failed2}
+    failed_requests = [failed1, failed2] ++ received(:request_failed)
+
+    assert Enum.sort(Enum.map(failed_requests, &Request.url/1)) == [
+             server.prefix <> "/foo",
+             server.prefix <> "/streaming"
+           ]
+
+    assert Request.failure(request).errorText =~ error_text
+    assert Request.failure(Response.request(streaming_response)).errorText =~ error_text
+    # the partial body should not be available anymore.
+    {:error, streaming_text_error} = Runtime.Promise.await(streaming_text_promise)
+    assert Exception.message(streaming_text_error) =~ "navigated away"
   end
 end

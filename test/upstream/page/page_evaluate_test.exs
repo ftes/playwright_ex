@@ -326,6 +326,13 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
 
     # Now, the new promise should be awaitable.
     assert Page.evaluate!(page, "() => Promise.resolve(42)") == 42
+    # No page timers below: the frozen-clock project never fires them.
+    handle = Page.evaluate_handle!(page, "() => new Promise(f => queueMicrotask(() => f(42)))")
+    assert JSHandle.json_value!(handle) == 42
+    error = Page.wait_for_function(page, "() => false", nil, timeout: 500)
+    assert message(error) =~ "Timeout 500ms exceeded"
+    Page.evaluate!(page, "() => window.__done = true")
+    Page.wait_for_function!(page, "() => window.__done")
   end
 
   test "EV-038 should throw when passed more than one parameter", %{page: page} do
@@ -577,19 +584,18 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   end
 
   test "EV-063 should throw a nice error after a navigation", %{page: page} do
-    error_promise =
-      Runtime.Promise.async(fn -> Page.evaluate(page, "() => new Promise(f => window['__resolve'] = f)") end)
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
+    navigation_promise = Page.wait_for_navigation(page)
 
-    Page.expect_navigation!(page, fn ->
-      Page.evaluate!(page, """
-      () => {
+    error =
+      Page.evaluate(page, """
+      () => new Promise(f => setTimeout(() => {
         window.location.reload();
-        setTimeout(() => window['__resolve'](42), 1000);
-      }
+        setTimeout(() => f(42), 1000);
+      }, 0))
       """)
-    end)
 
-    error = Runtime.Promise.await(error_promise)
+    PlaywrightEx.Promise.await!(navigation_promise)
     assert message(error) =~ "navigation"
   end
 

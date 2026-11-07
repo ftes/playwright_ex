@@ -165,6 +165,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
   end
 
   test "EV-121 should work with a fire-and-forget setTimeout callback", %{page: page} do
+    # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     test = self()
 
     Page.evaluate(

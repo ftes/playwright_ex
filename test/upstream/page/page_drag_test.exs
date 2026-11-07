@@ -12,7 +12,6 @@ defmodule PlaywrightEx.Page.PageDragTest do
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Utils
 
   @moduletag :page
@@ -147,12 +146,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
     @tag skip: "upstream fixme: implement dragging with iframes"
     test "DD-007 should drag out of an iframe"
 
-    @tag skip:
-           if(@browser_name == "webkit" and not match?({:unix, :linux}, :os.type()),
-             do: "upstream fixme: WebKit doesn't handle the drop effect correctly outside of linux."
-           )
     test "DD-008 should respect the drop effect", %{page: page} do
-      # it.fixme(browserName === 'webkit' && !isLinux, 'WebKit doesn\'t handle the drop effect correctly outside of linux.');
       # it.fixme(webkit && isLinux && !headless), it.fixme(chromium && !isMac && !headless)  -- we run headless
       # it.slow(trace === 'on')  -- tracing is off
       assert test_if_dropped(page, "copy", "copy") == true
@@ -173,6 +167,40 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert test_if_dropped(page, "linkMove", "move") == true
 
       assert test_if_dropped(page, "uninitialized", "copy") == true
+    end
+
+    test "DD-028 should report the default drop effect from effectAllowed", %{page: page} do
+      # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43447' }
+      # it.fixme(browserName === 'webkit' && isLinux && !headless)  -- we run headless
+      Page.set_content!(page, """
+      <div draggable="true">drag target</div>
+      <drop-target>this is the drop target</drop-target>
+      """)
+
+      Page.evaluate!(page, """
+      () => {
+        window['dropEffect'] = 'none';
+
+        document.querySelector('div').addEventListener('dragstart', event => {
+          event.dataTransfer.effectAllowed = 'copyMove';
+          event.dataTransfer.setData('text/plain', 'drag data');
+        });
+        document.querySelector('div').addEventListener('dragend', event => {
+          window['dropEffect'] = event.dataTransfer.dropEffect;
+        });
+
+        // The target accepts the drag without setting dropEffect.
+        document.querySelector('drop-target').addEventListener('dragover', event => {
+          event.preventDefault();
+        });
+      }
+      """)
+
+      Page.hover!(page, "div")
+      Mouse.down!(Page.mouse(page))
+      Page.hover!(page, "drop-target")
+      Mouse.up!(Page.mouse(page))
+      assert Page.evaluate!(page, "dropEffect") == "move"
     end
 
     test "DD-009 should work if the drag is canceled", %{page: page, server: server} do
@@ -415,39 +443,37 @@ defmodule PlaywrightEx.Page.PageDragTest do
     # it.fixme(browserName === 'webkit' && isWindows);
     Page.set_content!(page, ~s(<button draggable="true">Draggable</button>))
 
-    result_promise =
-      Runtime.Promise.async(fn ->
-        Page.evaluate!(page, """
-        () =>
-          new Promise(resolve => {
-            document.addEventListener('dragstart', event => {
-              event.dataTransfer.setData('custom-type', 'Hello World');
-            }, false);
+    Page.evaluate!(page, """
+    () => {
+      window.__result = new Promise(resolve => {
+        document.addEventListener('dragstart', event => {
+          event.dataTransfer.setData('custom-type', 'Hello World');
+        }, false);
 
-            document.addEventListener('dragenter', event => {
-              event.preventDefault();
-            }, false);
-            document.addEventListener('dragover', event => {
-              event.preventDefault();
-            }, false);
+        document.addEventListener('dragenter', event => {
+          event.preventDefault();
+        }, false);
+        document.addEventListener('dragover', event => {
+          event.preventDefault();
+        }, false);
 
-            document.addEventListener('drop', event => {
-              event.preventDefault();
-              resolve({
-                types: event.dataTransfer.types,
-                data: event.dataTransfer.getData('custom-type'),
-              });
-            }, false);
-          })
-        """)
-      end)
+        document.addEventListener('drop', event => {
+          event.preventDefault();
+          resolve({
+            types: event.dataTransfer.types,
+            data: event.dataTransfer.getData('custom-type'),
+          });
+        }, false);
+      });
+    }
+    """)
 
     Page.hover!(page, ~s([draggable="true"]))
     Mouse.down!(Page.mouse(page))
     Mouse.move!(Page.mouse(page), 100, 100)
     Mouse.up!(Page.mouse(page))
 
-    assert Runtime.Promise.await(result_promise) == %{"types" => ["custom-type"], "data" => "Hello World"}
+    assert Page.evaluate!(page, "() => window.__result") == %{"types" => ["custom-type"], "data" => "Hello World"}
   end
 
   test "DD-020 what happens when dragging element is destroyed", %{page: page} do

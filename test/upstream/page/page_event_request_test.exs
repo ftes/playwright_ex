@@ -309,6 +309,25 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     assert winner == "requestfinished"
   end
 
+  # https://github.com/microsoft/playwright/issues/43279
+  test "NE-103 should fail 204 navigation request", %{page: page, server: server} do
+    TestServer.set_route(server, "/204", fn conn -> Plug.Conn.send_resp(conn, 204, "") end)
+    Page.goto!(page, server.empty_page)
+    me = self()
+    ends_with_204 = &String.ends_with?(Request.url(&1), "/204")
+
+    # Promise.race([...requestfailed..., ...requestfinished...])
+    for {event, label} <- [request_failed: "requestfailed", request_finished: "requestfinished"] do
+      promise = Page.wait_for_event(page, event, ends_with_204)
+      spawn(fn -> with {:ok, _} <- Promise.await(promise), do: send(me, {:race, label}) end)
+    end
+
+    Page.set_content!(page, ~s(<a href="#{server.prefix}/204">link</a>))
+    Page.click!(page, "a", no_wait_after: true)
+    assert_receive {:race, winner}, 30_000
+    assert winner == "requestfailed"
+  end
+
   # https://github.com/microsoft/playwright/issues/33148
   test "NE-104 <picture> resource should have type image", %{page: page} do
     request_promise = Page.wait_for_event(page, :request)

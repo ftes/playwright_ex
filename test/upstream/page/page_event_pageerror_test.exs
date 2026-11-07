@@ -12,6 +12,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
   end
 
   test "ER-001 should fire", %{page: page, server: server, browser_name: browser_name} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43450' }
     url = server.prefix <> "/error.html"
     error = Page.expect_event!(page, :page_error, fn -> Page.goto!(page, url) end)
     assert error.name == "Error"
@@ -44,6 +45,77 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
                    at a (myscript.js:6:5)
                    at  (myscript.js:3:1)\
                """
+    end
+
+    # The same script from another origin: Chromium reports it without an exception object,
+    # so the stack is built from the CDP call frames, which are zero-based.
+    cross_origin_url = server.cross_process_prefix <> "/error.js"
+
+    TestServer.set_route(server, "/error.js", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/javascript")
+      # Same lines as error.html, so the stack has the same locations.
+      |> Plug.Conn.send_resp(200, """
+
+      console.error('Not a JS error');
+      a();
+
+      function a() {
+          b();
+      }
+
+      function b() {
+          c();
+      }
+
+      function c() {
+          throw new Error('Fancy error!');
+      }
+      """)
+    end)
+
+    TestServer.set_route(server, "/cross-origin-error.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, ~s(<script src="#{cross_origin_url}"></script>))
+    end)
+
+    cross_origin_error =
+      Page.expect_event!(page, :page_error, fn -> Page.goto!(page, server.prefix <> "/cross-origin-error.html") end)
+
+    assert cross_origin_error.message == "Fancy error!"
+
+    cond do
+      browser_name == "chromium" and @browser_major_version >= 155 ->
+        assert cross_origin_error.stack == """
+               Uncaught Error: Fancy error!
+                   at c (#{cross_origin_url}:14:11)
+                   at b (#{cross_origin_url}:10:5)
+                   at a (#{cross_origin_url}:6:5)
+                   at <anonymous> (#{cross_origin_url}:3:1)\
+               """
+
+      browser_name == "webkit" ->
+        assert cross_origin_error.stack == """
+               Error: Fancy error!
+                   at c (#{cross_origin_url}:14:36)
+                   at b (#{cross_origin_url}:10:6)
+                   at a (#{cross_origin_url}:6:6)
+                   at global code (#{cross_origin_url}:3:2)\
+               """
+
+      # browserName === 'firefox' && !isBidi: no BiDi
+      browser_name == "firefox" ->
+        assert cross_origin_error.stack == """
+               Error: Fancy error!
+                   at c (#{cross_origin_url}:14:11)
+                   at b (#{cross_origin_url}:10:5)
+                   at a (#{cross_origin_url}:6:5)
+                   at  (#{cross_origin_url}:3:1)\
+               """
+
+      true ->
+        :ok
     end
   end
 
