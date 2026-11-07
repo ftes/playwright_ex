@@ -33,18 +33,25 @@ defmodule PlaywrightEx.PublicDocsTest do
     refute PlaywrightEx.Upstream in shown
   end
 
-  test "the docs filter ignores where the checkout lives", %{filter: filter} do
-    for checkout <- ["/home/me/dev/playwright_ex", "/srv/lib/playwright_ex/client/mix"] do
+  test "the docs filter hides lib/ internals wherever the checkout lives", %{filter: filter} do
+    for checkout <- [File.cwd!(), "/home/me/dev/playwright_ex", "/srv/lib/playwright_ex/client/mix"] do
       shown? = &filter.(nil, %{source_path: Path.join(checkout, &1)})
       assert shown?.("lib/playwright_ex.ex")
       assert shown?.("lib/playwright_ex/page.ex")
       assert shown?.("lib/mix/tasks/playwright_ex.install.ex")
       refute shown?.("lib/playwright_ex/client/page.ex")
       refute shown?.("lib/playwright_ex/out_of_process.ex")
-      refute shown?.("dev/playwright_ex/upstream.ex")
-      refute shown?.("dev/mix/tasks/playwright_ex.parity.ex")
-      refute shown?.("dev/mix/playwright_ex/test_registry.ex")
     end
+  end
+
+  test "the docs filter hides all of dev/, at any depth", %{filter: filter} do
+    shown? = &filter.(nil, %{source_path: Path.join(File.cwd!(), &1)})
+    refute shown?.("dev/playwright_ex/upstream.ex")
+    refute shown?.("dev/mix/tasks/playwright_ex.parity.ex")
+    refute shown?.("dev/mix/playwright_ex/test_registry.ex")
+    refute shown?.("dev/mix/playwright_ex/api_rules/helpers.ex")
+    refute shown?.("dev/mix/foo.ex")
+    refute shown?.("dev/support.ex")
   end
 
   test "every public function hexdocs shows has a @doc", %{modules: modules} do
