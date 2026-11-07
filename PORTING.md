@@ -232,5 +232,5 @@ Problems upstream's own client has too; re-check on each bump, drop what's fixed
   link-local targets, `colorScheme: null` on a dark host): upstream's client fails them too;
   Linux CI passes.
 - **Chromium worker hang** (`workers_test`, tagged flaky): upstream's client hangs too (6/510
-  under 2-CPU load), microsoft/playwright#43922, closed right after 1.65.0 (101/101 unloaded on
-  1.65).
+  under 2-CPU load). A Chromium bug, reproduced with a bare CDP client: microsoft/playwright#43922
+  was closed as https://issues.chromium.org/issues/582409894. Re-check when that is fixed.
