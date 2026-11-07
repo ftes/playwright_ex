@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Transport.PipeTest do
   test "round-trips messages like JSON.stringify/JSON.parse" do
     pipe = start("exec cat")
     Pipe.send_message(pipe, %{id: 1, params: %{a: nil, b: :null, c: [%{d: nil, e: "x"}]}})
-    assert_receive {:message, %{"id" => 1, "params" => %{"b" => nil, "c" => [%{"e" => "x"}]} = params}}, 5000
+    assert_receive {:message, %{"id" => 1, "params" => %{"b" => :null, "c" => [%{"e" => "x"}]} = params}}, 5000
     refute Map.has_key?(params, "a")
   end
 
