@@ -86,18 +86,18 @@ defmodule PlaywrightEx.Library.VideoTest do
     @describetag timeout: @slow_timeout
 
     @tag :page
-    test "should not have video by default", %{page: page} do
+    test "VI-001 should not have video by default", %{page: page} do
       assert Page.video(page) == nil
     end
 
-    test "should not throw without recordVideo.dir", %{browser: browser} do
+    test "VI-002 should not throw without recordVideo.dir", %{browser: browser} do
       context = Browser.new_context!(browser, record_video: %{})
       BrowserContext.close!(context)
     end
 
     @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
     @tag :tmp_dir
-    test "should capture static page", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-003 should capture static page", %{browser: browser, tmp_dir: tmp_dir} do
       # Firefox does not have a mobile variant and has a large minimum size (500 on windows and 450 elsewhere).
       size = if @browser_name == "firefox", do: %{width: 500, height: 400}, else: %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir, size: size}, viewport: size)
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should pad a short frame to the video size", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-004 should pad a short frame to the video size", %{browser: browser, tmp_dir: tmp_dir} do
       video_size = %{width: 800, height: 600}
 
       context =
@@ -134,7 +134,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
     @tag :tmp_dir
-    test "should continue recording main page after popup closes", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-005 should continue recording main page after popup closes", %{browser: browser, tmp_dir: tmp_dir} do
       # Issue: https://github.com/microsoft/playwright/issues/30837
       # Firefox does not have a mobile variant and has a large minimum size (500 on windows and 450 elsewhere).
       size = if @browser_name == "firefox", do: %{width: 500, height: 400}, else: %{width: 320, height: 240}
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should expose video path", %{browser: browser, tmp_dir: videos_path} do
+    test "VI-006 should expose video path", %{browser: browser, tmp_dir: videos_path} do
       size = %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
       page = BrowserContext.new_page!(context)
@@ -171,7 +171,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should delete video", %{browser: browser, tmp_dir: videos_path} do
+    test "VI-007 should delete video", %{browser: browser, tmp_dir: videos_path} do
       size = %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
       page = BrowserContext.new_page!(context)
@@ -186,7 +186,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should expose video path blank page", %{browser: browser, tmp_dir: videos_path} do
+    test "VI-008 should expose video path blank page", %{browser: browser, tmp_dir: videos_path} do
       size = %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
       page = BrowserContext.new_page!(context)
@@ -197,7 +197,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should work with weird screen resolution", %{browser: browser, tmp_dir: videos_path} do
+    test "VI-009 should work with weird screen resolution", %{browser: browser, tmp_dir: videos_path} do
       size = %{width: 1904, height: 609}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
       page = BrowserContext.new_page!(context)
@@ -208,7 +208,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should work with relative path for recordVideo.dir", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-010 should work with relative path for recordVideo.dir", %{browser: browser, tmp_dir: tmp_dir} do
       videos_path = Path.relative_to_cwd(tmp_dir)
       size = %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
@@ -219,7 +219,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should expose video path blank popup", %{browser: browser, tmp_dir: videos_path} do
+    test "VI-011 should expose video path blank popup", %{browser: browser, tmp_dir: videos_path} do
       size = %{width: 320, height: 240}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
       page = BrowserContext.new_page!(context)
@@ -232,7 +232,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should capture navigation", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "VI-012 should capture navigation", %{browser: browser, server: server, tmp_dir: tmp_dir} do
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir, size: %{width: 1280, height: 720}})
       page = BrowserContext.new_page!(context)
 
@@ -257,7 +257,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should capture css transformation", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "VI-013 should capture css transformation", %{browser: browser, server: server, tmp_dir: tmp_dir} do
       # it.fixme(!headless, ...): headless; it.fixme(browserName === 'webkit' && platform === 'win32')  -- not run on Windows
       size = %{width: 600, height: 400}
       # Set viewport equal to screencast frame size to avoid scaling.
@@ -281,7 +281,7 @@ defmodule PlaywrightEx.Library.VideoTest do
            @ffmpeg_skip || @mac_webkit_frames_skip ||
              if(@browser_name == "firefox", do: "upstream fixme: https://github.com/microsoft/playwright/issues/14557")
     @tag :tmp_dir
-    test "should work for popups", %{browser: browser, server: server, tmp_dir: videos_path} do
+    test "VI-014 should work for popups", %{browser: browser, server: server, tmp_dir: videos_path} do
       # it.fixme(browserName === 'firefox' && !isBidi, ...): firefox is never BiDi here
       size = %{width: 600, height: 400}
       context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
@@ -309,7 +309,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should scale frames down to the requested size ", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "VI-015 should scale frames down to the requested size ", %{browser: browser, server: server, tmp_dir: tmp_dir} do
       # it.fixme(!headless, ...): headless; it.fixme(browserName === 'chromium' && !isHeadlessShell, ...): headless chromium is the headless shell
       context =
         Browser.new_context!(browser,
@@ -350,7 +350,10 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should use viewport scaled down to fit into 800x800 as default size", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-016 should use viewport scaled down to fit into 800x800 as default size", %{
+      browser: browser,
+      tmp_dir: tmp_dir
+    } do
       size = %{width: 1600, height: 1200}
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir}, viewport: size)
 
@@ -366,7 +369,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should be 800x450 by default", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-017 should be 800x450 by default", %{browser: browser, tmp_dir: tmp_dir} do
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir})
 
       page = BrowserContext.new_page!(context)
@@ -381,7 +384,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should record video with the requested fps", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-018 should record video with the requested fps", %{browser: browser, tmp_dir: tmp_dir} do
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir, fps: 60})
 
       page = BrowserContext.new_page!(context)
@@ -393,14 +396,14 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should throw on invalid fps", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-019 should throw on invalid fps", %{browser: browser, tmp_dir: tmp_dir} do
       {:error, error} = Browser.new_context(browser, record_video: %{dir: tmp_dir, fps: 0})
       assert error.message =~ ~s("recordVideo.fps" must be a positive number, got 0)
     end
 
     @tag skip: @ffmpeg_skip || if(@browser_name == "firefox", do: "upstream fixme: Fails in headless on bots")
     @tag :tmp_dir
-    test "should be 800x600 with null viewport", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-020 should be 800x600 with null viewport", %{browser: browser, tmp_dir: tmp_dir} do
       # it.fixme(browserName === 'firefox' && headless && !isBidi, ...): headless, firefox is never BiDi here
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir}, viewport: :null)
 
@@ -423,7 +426,7 @@ defmodule PlaywrightEx.Library.VideoTest do
                  "upstream skip: Is only failing on self-hosted github actions runner on M1 mac; not reproducible locally"
              )
     @tag :tmp_dir
-    test "should capture static page in persistent context @smoke", %{
+    test "VI-021 should capture static page in persistent context @smoke", %{
       launch_persistent: launch_persistent,
       tmp_dir: tmp_dir
     } do
@@ -448,7 +451,11 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should emulate an iphone", %{context_factory: context_factory, playwright: playwright, tmp_dir: tmp_dir} do
+    test "VI-022 should emulate an iphone", %{
+      context_factory: context_factory,
+      playwright: playwright,
+      tmp_dir: tmp_dir
+    } do
       device = Playwright.devices(playwright)["iPhone 6"]
       context = context_factory.(Map.to_list(Map.put(device, :record_video, %{dir: tmp_dir})))
 
@@ -463,7 +470,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should throw on browser close", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+    test "VI-023 should throw on browser close", %{browser_type: browser_type, tmp_dir: tmp_dir} do
       size = %{width: 320, height: 240}
       browser = BrowserType.launch!(browser_type)
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir, size: size}, viewport: size)
@@ -478,7 +485,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should throw if browser dies", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+    test "VI-024 should throw if browser dies", %{browser_type: browser_type, tmp_dir: tmp_dir} do
       size = %{width: 320, height: 240}
       browser = BrowserType.launch!(browser_type)
       context = Browser.new_context!(browser, record_video: %{dir: tmp_dir, size: size}, viewport: size)
@@ -495,7 +502,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip
     @tag :tmp_dir
-    test "should wait for video to finish if page was closed", %{browser_type: browser_type, tmp_dir: video_dir} do
+    test "VI-025 should wait for video to finish if page was closed", %{browser_type: browser_type, tmp_dir: video_dir} do
       size = %{width: 320, height: 240}
       browser = BrowserType.launch!(browser_type)
 
@@ -515,7 +522,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should close ffmpeg even if there were no frames", %{browser_type: browser_type, tmp_dir: video_dir} do
+    test "VI-026 should close ffmpeg even if there were no frames", %{browser_type: browser_type, tmp_dir: video_dir} do
       size = %{width: 320, height: 240}
       browser = BrowserType.launch!(browser_type)
       context = Browser.new_context!(browser, record_video: %{dir: video_dir, size: size}, viewport: size)
@@ -534,7 +541,7 @@ defmodule PlaywrightEx.Library.VideoTest do
     end
 
     @tag :tmp_dir
-    test "should not create video for internal pages", %{browser: browser, server: server, tmp_dir: video_dir} do
+    test "VI-027 should not create video for internal pages", %{browser: browser, server: server, tmp_dir: video_dir} do
       TestServer.set_route(server, "/empty.html", fn conn ->
         conn |> Plug.Conn.put_resp_header("set-cookie", "name=value") |> Plug.Conn.send_resp(200, "")
       end)
@@ -560,7 +567,7 @@ defmodule PlaywrightEx.Library.VideoTest do
                do: "upstream fixme: https://github.com/microsoft/playwright/issues/14405"
              )
     @tag :tmp_dir
-    test "should capture full viewport", %{browser_type: browser_type, tmp_dir: video_dir} do
+    test "VI-028 should capture full viewport", %{browser_type: browser_type, tmp_dir: video_dir} do
       # Issue: https://github.com/microsoft/playwright/issues/22411
       # it.fixme(browserName === 'chromium' && !isHeadlessShell, ...): headless chromium is the headless shell
       size = %{width: 600, height: 400}
@@ -598,7 +605,7 @@ defmodule PlaywrightEx.Library.VideoTest do
                do: "upstream fixme: https://github.com/microsoft/playwright/issues/14405"
              )
     @tag :tmp_dir
-    test "should capture full viewport on hidpi", %{browser_type: browser_type, tmp_dir: video_dir} do
+    test "VI-029 should capture full viewport on hidpi", %{browser_type: browser_type, tmp_dir: video_dir} do
       # Issue: https://github.com/microsoft/playwright/issues/22411
       # it.fixme(browserName === 'chromium' && !isHeadlessShell, ...): headless chromium is the headless shell
       # it.fixme(browserName === 'webkit' && !headless && ...): headless
@@ -638,7 +645,7 @@ defmodule PlaywrightEx.Library.VideoTest do
 
     @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
     @tag :tmp_dir
-    test "should work with video+trace", %{browser: browser, tmp_dir: tmp_dir} do
+    test "VI-030 should work with video+trace", %{browser: browser, tmp_dir: tmp_dir} do
       # it.skip(trace === 'on'): no runner trace; it.fixme(!headless, ...): headless;
       # it.fixme(browserName === 'chromium' && !isHeadlessShell, ...): headless chromium is the headless shell
       size = %{width: 500, height: 400}
@@ -672,7 +679,7 @@ defmodule PlaywrightEx.Library.VideoTest do
   # it.slow()
   @tag timeout: @slow_timeout
   @tag :tmp_dir
-  test "should saveAs video", %{browser: browser, tmp_dir: videos_path} do
+  test "VI-031 should saveAs video", %{browser: browser, tmp_dir: videos_path} do
     size = %{width: 320, height: 240}
     context = Browser.new_context!(browser, record_video: %{dir: videos_path, size: size}, viewport: size)
     page = BrowserContext.new_page!(context)

@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Page.FirefoxNetworkResponseTest do
 
   for status <- [200, 302] do
     @status status
-    test "should preserve original response header fields for #{status} responses", %{page: page, server: server} do
+    test "FF-005 should preserve original response header fields for #{status} responses", %{page: page, server: server} do
       status = @status
 
       # Deviation: upstream sends `Date`; Bandit adds its own `date` unless the response has one
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Page.FirefoxNetworkResponseTest do
     end
   end
 
-  test "should preserve synthesized response header fields", %{page: page, server: server} do
+  test "FF-006 should preserve synthesized response header fields", %{page: page, server: server} do
     cookies = [
       "a=b; Expires=Wed, 21 Oct 2037 07:28:00 GMT",
       "c=d; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/"
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Page.FirefoxNetworkResponseTest do
     )
   end
 
-  test "should report current effective fields after cache revalidation", %{page: page, server: server} do
+  test "FF-007 should report current effective fields after cache revalidation", %{page: page, server: server} do
     {:ok, validators} = Agent.start_link(fn -> [] end)
 
     TestServer.set_route(server, "/cached-headers", fn conn ->
@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Page.FirefoxNetworkResponseTest do
         do: assert(Response.header_values!(cached.response, name) == [])
   end
 
-  test "should report a standalone 304 response without waiting for a cache merge", %{page: page, server: server} do
+  test "FF-008 should report a standalone 304 response without waiting for a cache merge", %{page: page, server: server} do
     TestServer.set_route(server, "/standalone-304", fn conn ->
       write_head(conn, 304, [{"X-Literal", "standalone, value"}, {"Cache-Control", "no-store"}])
     end)

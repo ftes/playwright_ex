@@ -18,19 +18,19 @@ defmodule PlaywrightEx.Page.PageFillTest do
 
   defp give_it_a_chance_to_fill(page), do: rafraf(page, 5)
 
-  test "should fill textarea @smoke", %{page: page, server: server} do
+  test "FI-001 should fill textarea @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.fill!(page, "textarea", "some value")
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should fill input", %{page: page, server: server} do
+  test "FI-002 should fill input", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.fill!(page, "input", "some value")
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should throw on unsupported inputs", %{page: page, server: server} do
+  test "FI-003 should throw on unsupported inputs", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
 
     for type <- ["button", "checkbox", "file", "image", "radio", "reset", "submit"] do
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     end
   end
 
-  test "should fill different input types", %{page: page, server: server} do
+  test "FI-004 should fill different input types", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
 
     for type <- ["password", "search", "tel", "text", "url", "invalid-type"] do
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     end
   end
 
-  test "should fill range input", %{page: page} do
+  test "FI-005 should fill range input", %{page: page} do
     Page.set_content!(page, "<input type=range min=0 max=100 value=50>")
     Page.fill!(page, "input", "42")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "42"
@@ -66,13 +66,13 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Exception.message(error3) =~ "Malformed value"
   end
 
-  test "should fill color input", %{page: page} do
+  test "FI-006 should fill color input", %{page: page} do
     Page.set_content!(page, ~s(<input type=color value="#e66465">))
     Page.fill!(page, "input", "#aaaaaa")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "#aaaaaa"
   end
 
-  test "should fill color input case insensitive", %{page: page, browser_name: browser_name} do
+  test "FI-007 should fill color input case insensitive", %{page: page, browser_name: browser_name} do
     Page.set_content!(page, ~s(<input type=color value="#e66465">))
     Page.fill!(page, "input", "#AbCd00")
 
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Exception.message(error1) =~ "Malformed value"
   end
 
-  test "should fill date input after clicking", %{page: page} do
+  test "FI-008 should fill date input after clicking", %{page: page} do
     Page.set_content!(page, "<input type=date>")
     Page.click!(page, "input")
     Page.fill!(page, "input", "2020-03-02")
@@ -119,7 +119,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
                   @type_ in ["color", "date", "time", "datetime-local"]),
              do: "upstream skip: Some browser/platforms do not implement certain input types"
            )
-    test "input event.composed should be true and cross shadow dom boundary - #{type}",
+    test "FI-009 input event.composed should be true and cross shadow dom boundary - #{type}",
          %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
 
@@ -173,13 +173,13 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Exception.message(error) =~ "Malformed value"
   end
 
-  test "should fill time input", %{page: page} do
+  test "FI-010 should fill time input", %{page: page} do
     Page.set_content!(page, "<input type=time>")
     Page.fill!(page, "input", "13:15")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "13:15"
   end
 
-  test "should fill month input", %{page: page} do
+  test "FI-011 should fill month input", %{page: page} do
     Page.set_content!(page, "<input type=month>")
     Page.fill!(page, "input", "2020-07")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-07"
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Exception.message(error) =~ "Malformed value"
   end
 
-  test "should fill week input", %{page: page} do
+  test "FI-012 should fill week input", %{page: page} do
     Page.set_content!(page, "<input type=week>")
     Page.fill!(page, "input", "2020-W50")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-W50"
@@ -215,7 +215,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Exception.message(error) =~ "Malformed value"
   end
 
-  test "should fill datetime-local input", %{page: page} do
+  test "FI-013 should fill datetime-local input", %{page: page} do
     Page.set_content!(page, "<input type=datetime-local>")
     Page.fill!(page, "input", "2020-03-02T05:15")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "2020-03-02T05:15"
@@ -229,7 +229,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Exception.message(error) =~ "Malformed value"
   end
 
-  test "should fill contenteditable", %{page: page, server: server} do
+  test "FI-014 should fill contenteditable", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.fill!(page, "div[contenteditable]", "some value")
     assert Page.eval_on_selector!(page, "div[contenteditable]", "div => div.textContent") == "some value"
@@ -237,7 +237,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
 
   # it.fixme(browserName === 'firefox' && !isBidi): Firefox does not handle new lines in contenteditable.
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Firefox does not handle new lines in contenteditable")
-  test "should fill contenteditable with new lines", %{page: page, server: server} do
+  test "FI-015 should fill contenteditable with new lines", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<div contenteditable="true"></div>))
     page |> Page.locator("div[contenteditable]") |> Locator.fill!("John\nDoe")
@@ -246,7 +246,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
 
   # https://github.com/microsoft/playwright/issues/36715
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox (non-BiDi)")
-  test "should not double-fill in contenteditable with beforeinput handler in Firefox", %{
+  test "FI-016 should not double-fill in contenteditable with beforeinput handler in Firefox", %{
     page: page
   } do
     # it.fixme(browserName === 'firefox' && !isBidi)
@@ -267,7 +267,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     Expect.to_have_text!(locator, test_value)
   end
 
-  test "should fill elements with existing value and selection", %{page: page, server: server} do
+  test "FI-017 should fill elements with existing value and selection", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
 
     Page.eval_on_selector!(page, "input", "input => input.value = 'value one'")
@@ -299,7 +299,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.eval_on_selector!(page, "div[contenteditable]", "div => div.textContent") == "replace with this"
   end
 
-  test "should throw nice error without injected script stack when element is not an <input>", %{page: page} do
+  test "FI-018 should throw nice error without injected script stack when element is not an <input>", %{page: page} do
     Page.set_content!(page, "<select><option>value1</option></select>")
     {:error, error} = Page.fill(page, "select", "")
 
@@ -307,13 +307,13 @@ defmodule PlaywrightEx.Page.PageFillTest do
              "page.fill: Error: Element is not an <input>, <textarea> or [contenteditable] element\nCall log:"
   end
 
-  test "should throw if passed a non-string value", %{page: page, server: server} do
+  test "FI-019 should throw if passed a non-string value", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     {:error, error} = Page.fill(page, "textarea", 123)
     assert Exception.message(error) =~ "value: expected string, got number"
   end
 
-  test "should retry on disabled element", %{page: page, server: server} do
+  test "FI-020 should retry on disabled element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.eval_on_selector!(page, "input", "i => i.disabled = true")
 
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should retry on readonly element", %{page: page, server: server} do
+  test "FI-021 should retry on readonly element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.eval_on_selector!(page, "textarea", "i => i.readOnly = true")
 
@@ -341,7 +341,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should retry on invisible element", %{page: page, server: server} do
+  test "FI-022 should retry on invisible element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.eval_on_selector!(page, "input", "i => i.style.display = 'none'")
 
@@ -355,19 +355,19 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should be able to fill the body", %{page: page} do
+  test "FI-023 should be able to fill the body", %{page: page} do
     Page.set_content!(page, ~s(<body contentEditable="true"></body>))
     Page.fill!(page, "body", "some value")
     assert Page.evaluate!(page, "() => document.body.textContent") == "some value"
   end
 
-  test "should fill fixed position input", %{page: page} do
+  test "FI-024 should fill fixed position input", %{page: page} do
     Page.set_content!(page, "<input style='position: fixed;' />")
     Page.fill!(page, "input", "some value")
     assert Page.evaluate!(page, "() => document.querySelector('input').value") == "some value"
   end
 
-  test "should be able to fill when focus is in the wrong frame", %{page: page} do
+  test "FI-025 should be able to fill when focus is in the wrong frame", %{page: page} do
     Page.set_content!(page, """
     <div contentEditable="true"></div>
     <iframe></iframe>
@@ -378,31 +378,31 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.eval_on_selector!(page, "div", "d => d.textContent") == "some value"
   end
 
-  test "should be able to fill the input[type=number]", %{page: page} do
+  test "FI-026 should be able to fill the input[type=number]", %{page: page} do
     Page.set_content!(page, ~s(<input id="input" type="number"></input>))
     Page.fill!(page, "input", "42")
     assert Page.evaluate!(page, "() => window['input'].value") == "42"
   end
 
-  test "should be able to fill exponent into the input[type=number]", %{page: page} do
+  test "FI-027 should be able to fill exponent into the input[type=number]", %{page: page} do
     Page.set_content!(page, ~s(<input id="input" type="number"></input>))
     Page.fill!(page, "input", "-10e5")
     assert Page.evaluate!(page, "() => window['input'].value") == "-10e5"
   end
 
-  test "should be able to fill input[type=number] with empty string", %{page: page} do
+  test "FI-028 should be able to fill input[type=number] with empty string", %{page: page} do
     Page.set_content!(page, ~s(<input id="input" type="number" value="123"></input>))
     Page.fill!(page, "input", "")
     assert Page.evaluate!(page, "() => window['input'].value") == ""
   end
 
-  test "should not be able to fill text into the input[type=number]", %{page: page} do
+  test "FI-029 should not be able to fill text into the input[type=number]", %{page: page} do
     Page.set_content!(page, ~s(<input id="input" type="number"></input>))
     {:error, error} = Page.fill(page, "input", "abc")
     assert Exception.message(error) =~ "Cannot type text into input[type=number]"
   end
 
-  test "should be able to clear using fill()", %{page: page, server: server} do
+  test "FI-030 should be able to clear using fill()", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.fill!(page, "input", "some value")
     assert Page.evaluate!(page, "() => window['result']") == "some value"
@@ -410,7 +410,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
     assert Page.evaluate!(page, "() => window['result']") == ""
   end
 
-  test "should not throw when fill causes navigation", %{page: page, server: server} do
+  test "FI-031 should not throw when fill causes navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.set_content!(page, "<input type=date>")
 
@@ -427,7 +427,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
   end
 
   # https://github.com/microsoft/playwright/issues/15925
-  test "fill back to back", %{page: page} do
+  test "FI-032 fill back to back", %{page: page} do
     Page.set_content!(page, ~s(<input id="one"></input><input id="two"></input>))
     Page.fill!(page, "id=one", "first value")
     Page.fill!(page, "id=two", "second value")
@@ -436,7 +436,7 @@ defmodule PlaywrightEx.Page.PageFillTest do
   end
 
   # https://github.com/microsoft/playwright/issues/39492
-  test "should fill contenteditable with focus handler that collapses selection", %{page: page} do
+  test "FI-033 should fill contenteditable with focus handler that collapses selection", %{page: page} do
     Page.set_content!(page, """
     <div contenteditable="true">initial text</div>
     <script>

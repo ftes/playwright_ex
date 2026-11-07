@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Page.WheelTest do
     assert received == expected
   end
 
-  test "should dispatch wheel events @smoke", %{page: page, ignore_delta: ignore_delta} do
+  test "MO-017 should dispatch wheel events @smoke", %{page: page, ignore_delta: ignore_delta} do
     Page.set_content!(page, ~s(<div style="width: 5000px; height: 5000px;"></div>))
     Mouse.move!(Page.mouse(page), 50, 60)
     listen_for_wheel_events(page, "div")
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.WheelTest do
     )
   end
 
-  test "should dispatch wheel events after popup was opened @smoke", %{page: page, ignore_delta: ignore_delta} do
+  test "MO-018 should dispatch wheel events after popup was opened @smoke", %{page: page, ignore_delta: ignore_delta} do
     Page.set_content!(page, """
       <div style="width: 5000px; height: 5000px;"></div>
     """)
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.WheelTest do
     )
   end
 
-  test "should dispatch wheel event on svg element", %{page: page, ignore_delta: ignore_delta} do
+  test "MO-019 should dispatch wheel event on svg element", %{page: page, ignore_delta: ignore_delta} do
     Page.set_content!(page, """
       <body>
         <svg class="scroll-box"></svg>
@@ -120,14 +120,14 @@ defmodule PlaywrightEx.Page.WheelTest do
     )
   end
 
-  test "should scroll when nobody is listening", %{page: page, server: server} do
+  test "MO-020 should scroll when nobody is listening", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Mouse.move!(Page.mouse(page), 50, 60)
     Mouse.wheel!(Page.mouse(page), 0, 100)
     Page.wait_for_function!(page, "window.scrollY === 100")
   end
 
-  test "should set the modifiers", %{page: page, ignore_delta: ignore_delta} do
+  test "MO-021 should set the modifiers", %{page: page, ignore_delta: ignore_delta} do
     Page.set_content!(page, ~s(<div style="width: 5000px; height: 5000px;"></div>))
     Mouse.move!(Page.mouse(page), 50, 60)
     listen_for_wheel_events(page, "div")
@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Page.WheelTest do
     )
   end
 
-  test "should scroll horizontally", %{page: page, ignore_delta: ignore_delta} do
+  test "MO-022 should scroll horizontally", %{page: page, ignore_delta: ignore_delta} do
     Page.set_content!(page, ~s(<div style="width: 5000px; height: 5000px;"></div>))
     Mouse.move!(Page.mouse(page), 50, 60)
     listen_for_wheel_events(page, "div")
@@ -176,7 +176,7 @@ defmodule PlaywrightEx.Page.WheelTest do
     Page.wait_for_function!(page, "window.scrollX === 100")
   end
 
-  test "should work when the event is canceled", %{page: page, ignore_delta: ignore_delta} do
+  test "MO-023 should work when the event is canceled", %{page: page, ignore_delta: ignore_delta} do
     Page.set_content!(page, ~s(<div style="width: 5000px; height: 5000px;"></div>))
     Mouse.move!(Page.mouse(page), 50, 60)
     listen_for_wheel_events(page, "div")

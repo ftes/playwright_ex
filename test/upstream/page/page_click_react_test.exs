@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Page.PageClickReactTest do
 
   @moduletag :page
 
-  test "should timeout when click opens alert", %{page: page} do
+  test "CL-106 should timeout when click opens alert", %{page: page} do
     dialog_promise = Page.wait_for_event(page, :dialog)
     Page.set_content!(page, "<div onclick='window.alert(123)'>Click me</div>")
     {:error, error} = Page.click(page, "div", timeout: 3000)
@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Page.PageClickReactTest do
     Dialog.dismiss!(dialog)
   end
 
-  test "should not retarget when element changes on hover", %{page: page, server: server} do
+  test "CL-107 should not retarget when element changes on hover", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/react.html")
 
     Page.evaluate!(page, """
@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Page.PageClickReactTest do
     assert Page.evaluate!(page, "window.button2") == nil
   end
 
-  test "should not retarget when element is recycled on hover", %{page: page, server: server} do
+  test "CL-108 should not retarget when element is recycled on hover", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/react.html")
 
     Page.evaluate!(page, """

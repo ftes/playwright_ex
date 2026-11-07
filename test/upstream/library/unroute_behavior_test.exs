@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     PlaywrightEx.Promise.await(Page.wait_for_event(page, :console, predicate: fn _ -> false end, timeout: 0))
   end
 
-  test "context.unroute should not wait for pending handlers to complete",
+  test "RO-186 context.unroute should not wait for pending handlers to complete",
        %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert_received :second_handler_called
   end
 
-  test "context.unrouteAll removes all handlers", %{page: page, context: context, server: server} do
+  test "RO-187 context.unrouteAll removes all handlers", %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     BrowserContext.route!(context, "**/*", &Route.abort/1)
     BrowserContext.route!(context, "**/empty.html", &Route.abort/1)
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Page.goto!(page, server.empty_page)
   end
 
-  test "context.unrouteAll should wait for pending handlers to complete",
+  test "RO-188 context.unrouteAll should wait for pending handlers to complete",
        %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     refute_received :second_handler_called
   end
 
-  test "context.unrouteAll should not wait for pending handlers to complete if behavior is ignoreErrors",
+  test "RO-189 context.unrouteAll should not wait for pending handlers to complete if behavior is ignoreErrors",
        %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
@@ -124,7 +124,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     refute_received :second_handler_called
   end
 
-  test "page.close should not wait for active route handlers on the owning context",
+  test "RO-190 page.close should not wait for active route handlers on the owning context",
        %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Page.close!(page)
   end
 
-  test "context.close should not wait for active route handlers on the owned pages",
+  test "RO-191 context.close should not wait for active route handlers on the owned pages",
        %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     BrowserContext.close!(context)
   end
 
-  test "page.unroute should not wait for pending handlers to complete", %{page: page, server: server} do
+  test "RO-192 page.unroute should not wait for pending handlers to complete", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
 
@@ -170,7 +170,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert_received :second_handler_called
   end
 
-  test "page.unrouteAll removes all routes", %{page: page, server: server} do
+  test "RO-193 page.unrouteAll removes all routes", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     Page.route!(page, "**/*", &Route.abort/1)
     Page.route!(page, "**/empty.html", &Route.abort/1)
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     assert Response.ok(response) == true
   end
 
-  test "page.unrouteAll should wait for pending handlers to complete", %{page: page, server: server} do
+  test "RO-194 page.unrouteAll should wait for pending handlers to complete", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
 
@@ -206,7 +206,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     refute_received :second_handler_called
   end
 
-  test "page.unrouteAll should not wait for pending handlers to complete if behavior is ignoreErrors",
+  test "RO-195 page.unrouteAll should not wait for pending handlers to complete if behavior is ignoreErrors",
        %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
@@ -234,7 +234,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     refute_received :second_handler_called
   end
 
-  test "page.close does not wait for active route handlers", %{page: page, server: server} do
+  test "RO-196 page.close does not wait for active route handlers", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn _route -> send(me, :second_handler_called) end)
@@ -251,7 +251,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     refute_received :second_handler_called
   end
 
-  test "route.continue should not throw if page has been closed", %{page: page, server: server} do
+  test "RO-197 route.continue should not throw if page has been closed", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn route -> send(me, {:route_callback, route}) end)
@@ -266,7 +266,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     refute_received {:pw, _, _}
   end
 
-  test "route.fallback should not throw if page has been closed", %{page: page, server: server} do
+  test "RO-198 route.fallback should not throw if page has been closed", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn route -> send(me, {:route_callback, route}) end)
@@ -277,7 +277,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Route.fallback!(route)
   end
 
-  test "route.fulfill should not throw if page has been closed", %{page: page, server: server} do
+  test "RO-199 route.fulfill should not throw if page has been closed", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23781
     me = self()
     Page.route!(page, ~r/.*/, fn route -> send(me, {:route_callback, route}) end)
@@ -288,7 +288,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Route.fulfill!(route)
   end
 
-  test "should not continue requests in flight (page)", %{page: page, server: server} do
+  test "RO-200 should not continue requests in flight (page)", %{page: page, server: server} do
     me = self()
     Page.goto!(page, server.empty_page)
 
@@ -304,7 +304,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
     Page.unroute_all!(page, behavior: :wait)
   end
 
-  test "should not continue requests in flight (context)", %{page: page, context: context, server: server} do
+  test "RO-201 should not continue requests in flight (context)", %{page: page, context: context, server: server} do
     me = self()
     Page.goto!(page, server.empty_page)
 

@@ -13,13 +13,13 @@ defmodule PlaywrightEx.Library.ProxyTest do
 
   defp served_by_the_proxy(conn), do: Plug.Conn.send_resp(conn, 200, "<html><title>Served by the proxy</title></html>")
 
-  test "should throw for bad server value", %{browser_type: browser_type} do
+  test "PR-001 should throw for bad server value", %{browser_type: browser_type} do
     # @ts-expect-error server must be a string
     {:error, error} = BrowserType.launch(browser_type, proxy: %{server: 123})
     assert error.message =~ "proxy.server: expected string, got number"
   end
 
-  test "should use proxy @smoke", %{browser_type: browser_type, server: server} do
+  test "PR-002 should use proxy @smoke", %{browser_type: browser_type, server: server} do
     TestServer.set_route(server, "/target.html", &served_by_the_proxy/1)
     browser = BrowserType.launch!(browser_type, proxy: %{server: server.host})
     page = Browser.new_page!(browser)
@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "should use proxy for second page", %{browser_type: browser_type, server: server} do
+  test "PR-003 should use proxy for second page", %{browser_type: browser_type, server: server} do
     TestServer.set_route(server, "/target.html", &served_by_the_proxy/1)
     browser = BrowserType.launch!(browser_type, proxy: %{server: "localhost:#{server.port}"})
 
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "should work with IP:PORT notion", %{browser_type: browser_type, server: server} do
+  test "PR-004 should work with IP:PORT notion", %{browser_type: browser_type, server: server} do
     TestServer.set_route(server, "/target.html", &served_by_the_proxy/1)
     browser = BrowserType.launch!(browser_type, proxy: %{server: "127.0.0.1:#{server.port}"})
     page = Browser.new_page!(browser)
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
                   true ->
                     "env: Mac webkit (macOS 26) bypasses the proxy for localhost and 127.0.0.1 (upstream client too)"
                 end)
-        test "#{description}", %{
+        test "PR-005 #{description}", %{
           browser_type: browser_type,
           server: server,
           proxy_server: proxy_server,
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
 
   for host <- ["localhost", "127.0.0.1"] do
     @host host
-    test "should allow bypassing #{host} requests", %{
+    test "PR-006 should allow bypassing #{host} requests", %{
       browser_type: browser_type,
       server: server,
       proxy_server: proxy_server
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     end
   end
 
-  test "should authenticate", %{browser_type: browser_type, server: server} do
+  test "PR-007 should authenticate", %{browser_type: browser_type, server: server} do
     TestServer.set_route(server, "/target.html", fn conn ->
       case Plug.Conn.get_req_header(conn, "proxy-authorization") do
         [] ->
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "should reconnect with credentials after CONNECT 407 closes the socket",
+  test "PR-008 should reconnect with credentials after CONNECT 407 closes the socket",
        %{browser_type: browser_type, https_server: https_server, proxy_server: proxy_server} do
     # Some HTTP proxies send 407 and close the socket on the first CONNECT, expecting
     # the client to reconnect on a new TCP connection with Proxy-Authorization.
@@ -201,7 +201,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "should work with authenticate followed by redirect", %{browser_type: browser_type, server: server} do
+  test "PR-009 should work with authenticate followed by redirect", %{browser_type: browser_type, server: server} do
     has_auth = fn conn ->
       case Plug.Conn.get_req_header(conn, "proxy-authorization") do
         [] ->
@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "should exclude patterns", %{browser_type: browser_type, server: server} do
+  test "PR-010 should exclude patterns", %{browser_type: browser_type, server: server} do
     # it.skip(channel?.startsWith('msedge'), 'times out while loading the page');  -- no channel
     TestServer.set_route(server, "/target.html", &served_by_the_proxy/1)
     # FYI: using long and weird domain names to avoid ATT DNS hijacking
@@ -285,7 +285,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
 
   for host <- ["localhost", "127.0.0.1"] do
     @host host
-    test "should bypass proxy for #{host} when #{host} is in bypass list",
+    test "PR-011 should bypass proxy for #{host} when #{host} is in bypass list",
          %{browser_type: browser_type, server: server, proxy_server: proxy_server} do
       host = @host
       TestProxy.forward_to(proxy_server, server.port, remove_prefix: "/proxied")
@@ -303,7 +303,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     end
   end
 
-  test "should use socks proxy", %{browser_type: browser_type, socks_port: socks_port} do
+  test "PR-012 should use socks proxy", %{browser_type: browser_type, socks_port: socks_port} do
     browser = BrowserType.launch!(browser_type, proxy: %{server: "socks5://localhost:#{socks_port}"})
     page = Browser.new_page!(browser)
     Page.goto!(page, "http://non-existent.com")
@@ -311,7 +311,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "should use socks proxy in second page", %{browser_type: browser_type, socks_port: socks_port} do
+  test "PR-013 should use socks proxy in second page", %{browser_type: browser_type, socks_port: socks_port} do
     browser = BrowserType.launch!(browser_type, proxy: %{server: "socks5://localhost:#{socks_port}"})
 
     page = Browser.new_page!(browser)
@@ -325,15 +325,15 @@ defmodule PlaywrightEx.Library.ProxyTest do
     Browser.close!(browser)
   end
 
-  test "does launch without a port", %{browser_type: browser_type} do
+  test "PR-014 does launch without a port", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type, proxy: %{server: "http://localhost"})
     Browser.close!(browser)
   end
 
   @tag skip: "upstream fixme: Non-emulated user agent is used in proxy CONNECT"
-  test "should use proxy with emulated user agent"
+  test "PR-015 should use proxy with emulated user agent"
 
-  test "should use SOCKS proxy for websocket requests", %{browser_type: browser_type, server: server} do
+  test "PR-016 should use SOCKS proxy for websocket requests", %{browser_type: browser_type, server: server} do
     %{proxy_server_addr: proxy_server_addr, close_proxy_server: close_proxy_server} =
       TestProxy.setup_socks_forwarding_server(port: 0, forward_port: server.port, allowed_target_port: 1337)
 
@@ -368,7 +368,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
          if(match?({:unix, :darwin}, :os.type()) and match?({22, _, _}, :os.version()),
            do: "upstream skip: Times out on Mac 13"
          )
-  test "should use http proxy for websocket requests",
+  test "PR-017 should use http proxy for websocket requests",
        %{browser_name: browser_name, browser_type: browser_type, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port, allow_connect_requests: true)
     browser = BrowserType.launch!(browser_type, proxy: %{server: "localhost:#{proxy_server.port}"})

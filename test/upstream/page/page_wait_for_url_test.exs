@@ -9,20 +9,20 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
 
   @moduletag :page
 
-  test "should work", %{page: page, server: server} do
+  test "WA-110 should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "url => window.location.href = url", server.prefix <> "/grid.html")
     Page.wait_for_url!(page, "**/grid.html")
   end
 
-  test "should respect timeout", %{page: page, server: server} do
+  test "WA-111 should respect timeout", %{page: page, server: server} do
     promise = Runtime.Promise.async(fn -> Page.wait_for_url(page, "**/frame.html", timeout: 2500) end)
     Page.goto!(page, server.empty_page)
     {:error, error} = Runtime.Promise.await(promise)
     assert Exception.message(error) =~ "page.waitForURL: Timeout 2500ms exceeded."
   end
 
-  test "should work with both domcontentloaded and load", %{page: page, server: server} do
+  test "WA-112 should work with both domcontentloaded and load", %{page: page, server: server} do
     test = self()
 
     TestServer.set_route(server, "/one-style.css", fn conn ->
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     Runtime.Promise.await(navigation_promise)
   end
 
-  test "should work with commit", %{page: page, server: server} do
+  test "WA-113 should work with commit", %{page: page, server: server} do
     TestServer.set_route(server, "/script.js", fn _conn -> Process.sleep(:infinity) end)
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -66,18 +66,18 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     assert Page.title!(page) == "Hello"
   end
 
-  test "should work with commit and about:blank", %{page: page} do
+  test "WA-114 should work with commit and about:blank", %{page: page} do
     Page.wait_for_url!(page, "about:blank", wait_until: :commit)
   end
 
-  test "should work with clicking on anchor links", %{page: page, server: server} do
+  test "WA-115 should work with clicking on anchor links", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<a href='#foobar'>foobar</a>")
     Page.click!(page, "a")
     Page.wait_for_url!(page, "**/*#foobar")
   end
 
-  test "should work with history.pushState()", %{page: page, server: server} do
+  test "WA-116 should work with history.pushState()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     assert Page.url(page) == server.prefix <> "/wow.html"
   end
 
-  test "should work with history.replaceState()", %{page: page, server: server} do
+  test "WA-117 should work with history.replaceState()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     assert Page.url(page) == server.prefix <> "/replaced.html"
   end
 
-  test "should work with DOM history.back()/history.forward()", %{page: page, server: server} do
+  test "WA-118 should work with DOM history.back()/history.forward()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     assert Page.url(page) == server.prefix <> "/second.html"
   end
 
-  test "should work with url match for same document navigations", %{page: page, server: server} do
+  test "WA-119 should work with url match for same document navigations", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     wait_promise = Runtime.Promise.async(fn -> Page.wait_for_url!(page, ~r/third\.html/) end, shared: true)
     refute Runtime.Promise.settled?(wait_promise)
@@ -144,7 +144,7 @@ defmodule PlaywrightEx.Page.PageWaitForUrlTest do
     assert Runtime.Promise.await(wait_promise) == :ok
   end
 
-  test "should work on frame", %{page: page, server: server} do
+  test "WA-120 should work on frame", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = Enum.at(Page.frames(page), 1)
     Frame.evaluate!(frame, "url => window.location.href = url", server.prefix <> "/grid.html")

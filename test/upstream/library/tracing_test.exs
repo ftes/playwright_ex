@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   defp host(server), do: URI.parse(server.prefix).authority
 
   @tag :tmp_dir
-  test "should collect trace with resources, but no js", %{
+  test "TR-001 should collect trace with resources, but no js", %{
     context: context,
     page: page,
     server: server,
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should use the correct title for event driven callbacks", %{
+  test "TR-002 should use the correct title for event driven callbacks", %{
     context: context,
     page: page,
     server: server,
@@ -139,7 +139,12 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should not collect snapshots by default", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-004 should not collect snapshots by default", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     Tracing.start!(tracing(context))
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<button>Click</button>")
@@ -153,7 +158,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should not collect action screenshots and aria snapshots by default", %{
+  test "TR-005 should not collect action screenshots and aria snapshots by default", %{
     context: context,
     page: page,
     server: server,
@@ -170,7 +175,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should collect action screenshots", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-006 should collect action screenshots", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), snapshots: %{screen: true})
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
@@ -191,7 +196,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should collect aria snapshots", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-007 should collect aria snapshots", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), snapshots: %{aria: true})
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
@@ -217,7 +222,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "can call tracing.group/groupEnd at any time and auto-close", %{
+  test "TR-008 can call tracing.group/groupEnd at any time and auto-close", %{
     context: context,
     page: page,
     server: server,
@@ -245,7 +250,12 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should not include buffers in the trace", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-009 should not include buffers in the trace", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     Tracing.start!(tracing(context), snapshots: true)
     Page.goto!(page, server.prefix <> "/empty.html")
     Page.screenshot!(page)
@@ -264,7 +274,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should exclude internal pages", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-010 should exclude internal pages", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Page.goto!(page, server.empty_page)
 
     Tracing.start!(tracing(context))
@@ -284,7 +294,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should record context API request trace independently", %{
+  test "TR-011 should record context API request trace independently", %{
     context: context,
     page: page,
     server: server,
@@ -333,7 +343,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should collect two traces", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-012 should collect two traces", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<button>Click</button>")
@@ -355,7 +365,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should respect tracesDir and name", %{browser_type: browser_type, server: server, tmp_dir: tmp_dir} do
+  test "TR-013 should respect tracesDir and name", %{browser_type: browser_type, server: server, tmp_dir: tmp_dir} do
     traces_dir = Path.join(tmp_dir, "traces")
     browser = BrowserType.launch!(browser_type, traces_dir: traces_dir)
     context = Browser.new_context!(browser)
@@ -407,7 +417,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should not include trace resources from the previous chunks", %{
+  test "TR-014 should not include trace resources from the previous chunks", %{
     context: context,
     page: page,
     server: server,
@@ -458,7 +468,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should overwrite existing file", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-015 should overwrite existing file", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true, sources: true)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<button>Click</button>")
@@ -477,7 +487,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should collect sources", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-016 should collect sources", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), sources: true)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<button>Click</button>")
@@ -495,7 +505,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should record network failures", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-017 should record network failures", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), snapshots: true)
     Page.route!(page, "**/*", fn route -> Route.abort(route, "connectionaborted") end)
     Page.goto(page, server.empty_page)
@@ -512,7 +522,12 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should recover tracing after a failed stop", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-018 should recover tracing after a failed stop", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     Tracing.start!(tracing(context))
     # Saving fails: a parent of the destination is a file, not a directory.
     blocker = Path.join(tmp_dir, "blocker")
@@ -532,7 +547,10 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should release the stack session when saving the trace fails", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+  test "TR-019 should release the stack session when saving the trace fails", %{
+    browser_type: browser_type,
+    tmp_dir: tmp_dir
+  } do
     # Override the test runner's tracesDir, so that the stack session owns a temporary directory.
     browser = BrowserType.launch!(browser_type, traces_dir: nil)
 
@@ -553,7 +571,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should not crash when browser closes mid-trace", %{browser_type: browser_type, server: server} do
+  test "TR-020 should not crash when browser closes mid-trace", %{browser_type: browser_type, server: server} do
     browser = BrowserType.launch!(browser_type)
     page = Browser.new_page!(browser)
     Tracing.start!(tracing(Page.context(page)), snapshots: true, screenshots: true)
@@ -563,7 +581,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     Process.sleep(1000)
   end
 
-  test "should survive browser.close with auto-created traces dir", %{browser_type: browser_type} do
+  test "TR-021 should survive browser.close with auto-created traces dir", %{browser_type: browser_type} do
     # (browserType as any)._playwright._defaultTracesDir = undefined;  -- a no-op upstream too (no
     # `_defaultTracesDir` in 1.64.1): the launch keeps the runner's tracesDir, as there
     browser = BrowserType.launch!(browser_type)
@@ -592,7 +610,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     Task.shutdown(go, :brutal_kill)
   end
 
-  test "should not stall on dialogs", %{page: page, context: context, server: server} do
+  test "TR-022 should not stall on dialogs", %{page: page, context: context, server: server} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     Page.goto!(page, server.empty_page)
 
@@ -627,7 +645,7 @@ defmodule PlaywrightEx.Library.TracingTest do
                 false
             end)
     @tag :tmp_dir
-    test "should produce screencast frames #{id}", %{context_factory: context_factory, tmp_dir: tmp_dir} do
+    test "TR-023 should produce screencast frames #{id}", %{context_factory: context_factory, tmp_dir: tmp_dir} do
       params = @params
       scale = Enum.min([800 / params.width, 800 / params.height, 1])
       preview_width = round(params.width * scale)
@@ -718,7 +736,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should include interrupted actions", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-024 should include interrupted actions", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<button>Click</button>")
@@ -730,24 +748,24 @@ defmodule PlaywrightEx.Library.TracingTest do
     assert ~s{Click locator('text="ClickNoButton"')} in actions
   end
 
-  test "should throw when starting with different options", %{context: context} do
+  test "TR-025 should throw when starting with different options", %{context: context} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     {:error, error} = Tracing.start(tracing(context), screenshots: false, snapshots: false)
     assert error.message =~ "Tracing has been already started"
   end
 
   @tag :tmp_dir
-  test "should throw when stopping without start", %{context: context, tmp_dir: tmp_dir} do
+  test "TR-026 should throw when stopping without start", %{context: context, tmp_dir: tmp_dir} do
     {:error, error} = Tracing.stop(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
     assert error.message =~ "Must start tracing before stopping"
   end
 
-  test "should not throw when stopping without start but not exporting", %{context: context} do
+  test "TR-027 should not throw when stopping without start but not exporting", %{context: context} do
     Tracing.stop!(tracing(context))
   end
 
   @tag :tmp_dir
-  test "start should return a disposable that discards the trace", %{
+  test "TR-028 start should return a disposable that discards the trace", %{
     context: context,
     page: page,
     server: server,
@@ -761,7 +779,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "startChunk should return a disposable that discards the chunk", %{
+  test "TR-029 startChunk should return a disposable that discards the chunk", %{
     context: context,
     page: page,
     server: server,
@@ -776,7 +794,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should work with multiple chunks", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-030 should work with multiple chunks", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     Page.goto!(page, server.prefix <> "/frames/frame.html")
 
@@ -825,7 +843,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should export trace concurrently to second navigation", %{
+  test "TR-031 should export trace concurrently to second navigation", %{
     context: context,
     page: page,
     server: server,
@@ -844,7 +862,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     end
   end
 
-  test "should not hang for clicks that open dialogs", %{context: context, page: page} do
+  test "TR-032 should not hang for clicks that open dialogs", %{context: context, page: page} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     dialog_promise = Page.wait_for_event(page, :dialog)
     Page.set_content!(page, "<div onclick='window.alert(123)'>Click me</div>")
@@ -855,7 +873,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should ignore iframes in head", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
+  test "TR-033 should ignore iframes in head", %{context: context, page: page, server: server, tmp_dir: tmp_dir} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """
@@ -884,7 +902,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should hide internal stack frames", %{context: context, page: page, tmp_dir: tmp_dir} do
+  test "TR-034 should hide internal stack frames", %{context: context, page: page, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     test = self()
 
@@ -909,7 +927,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should hide internal stack frames in expect", %{context: context, page: page, tmp_dir: tmp_dir} do
+  test "TR-035 should hide internal stack frames in expect", %{context: context, page: page, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     test = self()
 
@@ -936,7 +954,12 @@ defmodule PlaywrightEx.Library.TracingTest do
 
   @tag :request
   @tag :tmp_dir
-  test "should record global request trace", %{request: request, context: context, server: server, tmp_dir: tmp_dir} do
+  test "TR-036 should record global request trace", %{
+    request: request,
+    context: context,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     Tracing.start!(APIRequestContext.tracing(request), snapshots: true)
     url = server.prefix <> "/simple.json"
     APIRequestContext.get!(request, url)
@@ -955,7 +978,7 @@ defmodule PlaywrightEx.Library.TracingTest do
 
   @tag :request
   @tag :tmp_dir
-  test "should store global request traces separately", %{
+  test "TR-037 should store global request traces separately", %{
     request: request,
     server: server,
     playwright: playwright,
@@ -1005,7 +1028,7 @@ defmodule PlaywrightEx.Library.TracingTest do
 
   @tag :request
   @tag :tmp_dir
-  test "should store postData for global request", %{
+  test "TR-038 should store postData for global request", %{
     request: request,
     server: server,
     playwright: playwright,
@@ -1029,7 +1052,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   # gives the browser): the test launches a browser with a `traces_dir` of its own (as
   # playwright-python).
   @tag :tmp_dir
-  test "should not flush console events", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+  test "TR-039 should not flush console events", %{browser_type: browser_type, tmp_dir: tmp_dir} do
     dir = Path.join(tmp_dir, "traces")
     browser = BrowserType.launch!(browser_type, traces_dir: dir)
     context = Browser.new_context!(browser)
@@ -1084,7 +1107,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should flush console events on tracing stop", %{context: context, page: page, tmp_dir: tmp_dir} do
+  test "TR-040 should flush console events on tracing stop", %{context: context, page: page, tmp_dir: tmp_dir} do
     Tracing.start!(tracing(context))
     test = self()
     {:ok, counter} = Agent.start_link(fn -> 0 end)
@@ -1111,7 +1134,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should not emit after w/o before", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+  test "TR-041 should not emit after w/o before", %{browser_type: browser_type, tmp_dir: tmp_dir} do
     traces_dir = Path.join(tmp_dir, "traces")
     browser = BrowserType.launch!(browser_type, traces_dir: traces_dir)
     context = Browser.new_context!(browser)
@@ -1184,7 +1207,7 @@ defmodule PlaywrightEx.Library.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should save trace while a WebSocket keeps streaming frames", %{
+  test "TR-042 should save trace while a WebSocket keeps streaming frames", %{
     context: context,
     page: page,
     server: server,

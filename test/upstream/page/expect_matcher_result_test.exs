@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
   # JS `Error.prototype.toString()`
   defp to_string_js(e), do: "Error: " <> e.message
 
-  test "toMatchText-based assertions should have matcher result", %{page: page} do
+  test "EX-176 toMatchText-based assertions should have matcher result", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
     locator = Page.locator(page, "#node")
 
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
            """
   end
 
-  test "toBeTruthy-based assertions should have matcher result", %{page: page} do
+  test "EX-177 toBeTruthy-based assertions should have matcher result", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
 
     {:error, e} = Expect.to_be_visible(Page.locator(page, "#node2"), timeout: 1)
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
            """
   end
 
-  test "toEqual-based assertions should have matcher result", %{page: page} do
+  test "EX-178 toEqual-based assertions should have matcher result", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
 
     {:error, e} = Expect.to_have_count(Page.locator(page, "#node2"), 1, timeout: 1)
@@ -194,7 +194,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
            """
   end
 
-  test "toBeChecked({ checked }) should have expected", %{page: page} do
+  test "EX-179 toBeChecked({ checked }) should have expected", %{page: page} do
     Page.set_content!(page, """
         <input id=checked type=checkbox checked></input>
         <input id=unchecked type=checkbox></input>
@@ -311,7 +311,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
   end
 
   @tag :tmp_dir
-  test "toHaveScreenshot should populate matcherResult",
+  test "EX-180 toHaveScreenshot should populate matcherResult",
        %{page: page, server: server, browser_name: browser_name, tmp_dir: tmp_dir} do
     # test.skip(isAndroid);
     Page.set_viewport_size!(page, %{width: 500, height: 500})

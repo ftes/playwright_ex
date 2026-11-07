@@ -13,38 +13,38 @@ defmodule PlaywrightEx.Library.HeapTest do
   # for (let i = 0; i < 3; ++i) test(`test #${i} to request page and context`)  -- names built at runtime
   for i <- 0..2 do
     @tag :page
-    test "test ##{i} to request page and context", %{page: _page, context: _context} do
+    test "LE-005 test ##{i} to request page and context", %{page: _page, context: _context} do
       # This test is here to create page instance
     end
   end
 
   @tag :page
-  test "test to request page and context", %{page: _page, context: _context} do
+  test "LE-006 test to request page and context", %{page: _page, context: _context} do
     # This test is here to create page instance
   end
 
-  test "should not leak fixtures w/ page"
+  test "LE-007 should not leak fixtures w/ page"
 
-  test "should not leak fixtures w/o page"
+  test "LE-008 should not leak fixtures w/o page"
 
-  test "should not leak server-side objects"
+  test "LE-009 should not leak server-side objects"
 
-  test "should not leak dispatchers after closing page"
+  test "LE-010 should not leak dispatchers after closing page"
 
-  test "should not leak workers"
+  test "LE-011 should not leak workers"
 
   # test.describe(() => { ... })
   # test.beforeEach/afterEach: coreServer.setMaxDispatchersForTest(100 / null)  -- not ported:
   # in-process server internals (the driver runs with its default limit)
 
-  test "should collect stale handles"
+  test "LE-012 should collect stale handles"
 
   # deviation: without setMaxDispatchersForTest(100) the driver keeps its default limit, so no
   # frame is collected; this checks 310 frameattached events with a page call each, not the GC path.
   @tag :page
   # test.slow()
   @tag timeout: @slow_timeout
-  test "should collect frames", %{page: page, server: server} do
+  test "LE-013 should collect frames", %{page: page, server: server} do
     k_frame_count = 310
 
     Page.goto!(page, server.empty_page)
@@ -82,7 +82,7 @@ defmodule PlaywrightEx.Library.HeapTest do
   # test.slow()
   @tag timeout: @slow_timeout
   @tag :page
-  test "cycle handles", %{page: page, server: server} do
+  test "LE-014 cycle handles", %{page: page, server: server} do
     # test.skip(trace === 'on')  -- tracing is off
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, String.duplicate("<div><span>hi</span></div>", 2000))

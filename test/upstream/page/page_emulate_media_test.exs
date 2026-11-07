@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
   defp refute_matches_media(page, media_query),
     do: refute(matches_media?(page, media_query), ~s|Expected "#{media_query}" not to match, but it did|)
 
-  test "should emulate type @smoke", %{page: page} do
+  test "EM-001 should emulate type @smoke", %{page: page} do
     assert Page.evaluate!(page, "() => matchMedia('screen').matches") == true
     assert Page.evaluate!(page, "() => matchMedia('print').matches") == false
     Page.emulate_media!(page, media: :print)
@@ -38,13 +38,13 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert Page.evaluate!(page, "() => matchMedia('print').matches") == false
   end
 
-  test "should throw in case of bad media argument", %{page: page} do
+  test "EM-002 should throw in case of bad media argument", %{page: page} do
     # @ts-expect-error 'bad' is not a valid media type: passed as the wire string.
     {:error, error} = Page.emulate_media(page, media: "bad")
     assert Exception.message(error) =~ "media: expected one of (screen|print|no-override)"
   end
 
-  test "should emulate colorScheme should work @smoke", %{page: page} do
+  test "EM-003 should emulate colorScheme should work @smoke", %{page: page} do
     Page.emulate_media!(page, color_scheme: :light)
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false
@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
          if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
            do: "env: WebKit on macOS follows the system appearance for colorScheme null (fails on dark hosts)"
          )
-  test "should default to light", %{page: page} do
+  test "EM-004 should default to light", %{page: page} do
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == false
 
@@ -72,13 +72,13 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: light)').matches") == true
   end
 
-  test "should throw in case of bad colorScheme argument", %{page: page} do
+  test "EM-005 should throw in case of bad colorScheme argument", %{page: page} do
     # @ts-expect-error 'bad' is not a valid media type: passed as the wire string.
     {:error, error} = Page.emulate_media(page, color_scheme: "bad")
     assert Exception.message(error) =~ "colorScheme: expected one of (dark|light|no-preference|no-override)"
   end
 
-  test "should work during navigation", %{page: page, server: server} do
+  test "EM-006 should work during navigation", %{page: page, server: server} do
     Page.emulate_media!(page, color_scheme: :light)
     navigated = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
 
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert Page.evaluate!(page, "() => matchMedia('(prefers-color-scheme: dark)').matches") == true
   end
 
-  test "should change the actual colors in css", %{page: page} do
+  test "EM-007 should change the actual colors in css", %{page: page} do
     Page.set_content!(page, """
       <style>
         @media (prefers-color-scheme: dark) {
@@ -128,7 +128,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert get_background_color.() == "rgb(255, 255, 255)"
   end
 
-  test "should emulate reduced motion", %{page: page} do
+  test "EM-008 should emulate reduced motion", %{page: page} do
     assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: no-preference)').matches") == true
     Page.emulate_media!(page, reduced_motion: :reduce)
     assert Page.evaluate!(page, "() => matchMedia('(prefers-reduced-motion: reduce)').matches") == true
@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     Page.emulate_media!(page, reduced_motion: :null)
   end
 
-  test "should keep reduced motion and color emulation after reload", %{page: page, server: server} do
+  test "EM-009 should keep reduced motion and color emulation after reload", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/31328' })
 
     # Pre-conditions
@@ -169,7 +169,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert Page.evaluate!(page, "() => matchMedia('(forced-colors: active)').matches") == true
   end
 
-  test "should emulate forcedColors ", %{page: page} do
+  test "EM-010 should emulate forcedColors ", %{page: page} do
     assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == true
     Page.emulate_media!(page, forced_colors: :none)
     assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == true
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert Page.evaluate!(page, "() => matchMedia('(forced-colors: none)').matches") == true
   end
 
-  test "should emulate contrast ", %{page: page} do
+  test "EM-011 should emulate contrast ", %{page: page} do
     assert_matches_media(page, "(prefers-contrast: no-preference)")
     Page.emulate_media!(page, contrast: :no_preference)
     assert_matches_media(page, "(prefers-contrast: no-preference)")
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Page.PageEmulateMediaTest do
     assert_matches_media(page, "(prefers-contrast: no-preference)")
   end
 
-  test "should report hover and fine pointer for desktop", %{page: page} do
+  test "EM-012 should report hover and fine pointer for desktop", %{page: page} do
     assert_matches_media(page, "(hover: hover)")
     assert_matches_media(page, "(pointer: fine)")
   end

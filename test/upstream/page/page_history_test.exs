@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
 
   defp file_url(path), do: "file://" <> path
 
-  test "page.goBack should work @smoke", %{page: page, server: server} do
+  test "NA-071 page.goBack should work @smoke", %{page: page, server: server} do
     assert Page.go_back!(page) == nil
 
     Page.goto!(page, server.empty_page)
@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     assert response == nil
   end
 
-  test "page.goBack should work with HistoryAPI", %{page: page, server: server} do
+  test "NA-072 page.goBack should work with HistoryAPI", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.evaluate!(page, """
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     assert Page.url(page) == server.prefix <> "/first.html"
   end
 
-  test "page.goBack should work for file urls", %{page: page, server: server, asset: asset} do
+  test "NA-073 page.goBack should work for file urls", %{page: page, server: server, asset: asset} do
     url1 = file_url(asset.("consolelog.html"))
     url2 = server.prefix <> "/consolelog.html"
     message = console_text(page, "here:" <> url1)
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Page.screenshot!(page)
   end
 
-  test "goBack/goForward should work with bfcache-able pages", %{page: page, server: server} do
+  test "NA-074 goBack/goForward should work with bfcache-able pages", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/cached/bfcached.html")
     Page.set_content!(page, "<a href=#{JSON.encode!(server.prefix <> "/cached/bfcached.html?foo")}>click me</a>")
     Page.click!(page, "a")
@@ -110,14 +110,14 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     assert Response.url(response) == server.prefix <> "/cached/bfcached.html?foo"
   end
 
-  test "page.reload should work", %{page: page, server: server} do
+  test "NA-075 page.reload should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "() => window['_foo'] = 10")
     Page.reload!(page)
     assert Page.evaluate!(page, "() => window['_foo']") == nil
   end
 
-  test "page.reload should work with data url", %{page: page} do
+  test "NA-076 page.reload should work with data url", %{page: page} do
     Page.goto!(page, "data:text/html,hello")
     assert Page.content!(page) =~ "hello"
     assert Page.reload!(page) == nil
@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Runtime.Promise.await(click_promise)
   end
 
-  test "page.reload during renderer-initiated navigation", %{page: page, server: server} do
+  test "NA-077 page.reload during renderer-initiated navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/one-style.html")
     Page.set_content!(page, "<form method='POST' action='/post'>Form is here<input type='submit'></form>")
     TestServer.set_route(server, "/post", &hang/1)
@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Page.wait_for_selector!(page, "text=hello")
   end
 
-  test "page.reload should not resolve with same-document navigation", %{page: page, server: server} do
+  test "NA-078 page.reload should not resolve with same-document navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # 1. Make sure execution contexts are ready for fast evaluate.
     Page.evaluate!(page, "1")
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     assert Response.text!(got_response) == "hello"
   end
 
-  test "page.reload should work with same origin redirect", %{page: page, server: server} do
+  test "NA-079 page.reload should work with same origin redirect", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/16147' });
     Page.goto!(page, server.empty_page)
     TestServer.set_redirect(server, "/empty.html", server.prefix <> "/title.html")
@@ -199,7 +199,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Expect.to_have_url!(page, server.prefix <> "/title.html")
   end
 
-  test "page.reload should work with cross-origin redirect", %{page: page, server: server} do
+  test "NA-080 page.reload should work with cross-origin redirect", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/16147' });
     Page.goto!(page, server.empty_page)
     TestServer.set_redirect(server, "/empty.html", server.cross_process_prefix <> "/title.html")
@@ -207,21 +207,21 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Expect.to_have_url!(page, server.cross_process_prefix <> "/title.html")
   end
 
-  test "page.reload should work on a page with a hash", %{page: page, server: server} do
+  test "NA-081 page.reload should work on a page with a hash", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/21145' });
     Page.goto!(page, server.empty_page <> "#hash")
     Page.reload!(page)
     Expect.to_have_url!(page, server.empty_page <> "#hash")
   end
 
-  test "page.reload should work on a page with a hash at the end", %{page: page, server: server} do
+  test "NA-082 page.reload should work on a page with a hash at the end", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/21430' });
     Page.goto!(page, server.empty_page <> "#")
     Page.reload!(page)
     Expect.to_have_url!(page, server.empty_page <> "#")
   end
 
-  test "page.goBack during renderer-initiated navigation", %{page: page, server: server} do
+  test "NA-083 page.goBack during renderer-initiated navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/one-style.html")
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<form method='POST' action='/post'>Form is here<input type='submit'></form>")
@@ -234,7 +234,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Page.wait_for_selector!(page, "text=hello")
   end
 
-  test "page.goForward during renderer-initiated navigation", %{page: page, server: server} do
+  test "NA-084 page.goForward during renderer-initiated navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.goto!(page, server.prefix <> "/one-style.html")
     Page.go_back!(page)
@@ -249,7 +249,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     Page.wait_for_selector!(page, "text=hello")
   end
 
-  test "regression test for issue 20791", %{page: page, server: server} do
+  test "NA-085 regression test for issue 20791", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/20791' });
     # it.skip(process.env.PW_CLOCK === 'frozen');
     TestServer.set_route(server, "/iframe.html", fn conn ->
@@ -281,7 +281,7 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     to_pass(fn -> assert Agent.get(messages, & &1) == ["foo", "foo"] end)
   end
 
-  test "should reload proper page", %{page: page, server: server} do
+  test "NA-086 should reload proper page", %{page: page, server: server} do
     counter = :counters.new(2, [])
 
     TestServer.set_route(server, "/main.html", fn conn ->

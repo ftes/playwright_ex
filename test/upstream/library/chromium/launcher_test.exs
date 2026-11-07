@@ -12,21 +12,21 @@ defmodule PlaywrightEx.Library.Chromium.LauncherTest do
   # `browserType.launchServer(options)` is the `launch_server` fixture (the driver's
   # `launch-server` command); it.skip(mode !== 'default')  -- always default mode.
 
-  test "should throw with remote-debugging-pipe argument", %{launch_server: launch_server} do
+  test "CR-033 should throw with remote-debugging-pipe argument", %{launch_server: launch_server} do
     options = %{}
     options = Map.put(options, :args, ["--remote-debugging-pipe"] ++ (options[:args] || []))
     {:error, error} = launch_server.(options)
     assert error =~ "Playwright manages remote debugging connection itself"
   end
 
-  test "should not throw with remote-debugging-port argument", %{launch_server: launch_server} do
+  test "CR-034 should not throw with remote-debugging-port argument", %{launch_server: launch_server} do
     options = %{}
     options = Map.put(options, :args, ["--remote-debugging-port=0"] ++ (options[:args] || []))
     {:ok, browser} = launch_server.(options)
     LaunchServer.close(browser)
   end
 
-  test "should not create pages automatically", %{browser_type: browser_type} do
+  test "CR-035 should not create pages automatically", %{browser_type: browser_type} do
     test = self()
     browser = BrowserType.launch!(browser_type)
     browser_session = Browser.new_browser_cdp_session!(browser)

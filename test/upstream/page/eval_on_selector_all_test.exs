@@ -6,31 +6,31 @@ defmodule PlaywrightEx.Page.EvalOnSelectorAllTest do
 
   @moduletag :page
 
-  test "should work with css selector", %{page: page} do
+  test "ES-027 should work with css selector", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div>beautiful</div><div>world!</div>")
     divs_count = Page.eval_on_selector_all!(page, "css=div", "divs => divs.length")
     assert divs_count == 3
   end
 
-  test "should work with text selector", %{page: page} do
+  test "ES-028 should work with text selector", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div>beautiful</div><div>beautiful</div><div>world!</div>")
     divs_count = Page.eval_on_selector_all!(page, ~s(text="beautiful"), "divs => divs.length")
     assert divs_count == 2
   end
 
-  test "should work with xpath selector", %{page: page} do
+  test "ES-029 should work with xpath selector", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div>beautiful</div><div>world!</div>")
     divs_count = Page.eval_on_selector_all!(page, "xpath=/html/body/div", "divs => divs.length")
     assert divs_count == 3
   end
 
-  test "should auto-detect css selector", %{page: page} do
+  test "ES-030 should auto-detect css selector", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div>beautiful</div><div>world!</div>")
     divs_count = Page.eval_on_selector_all!(page, "div", "divs => divs.length")
     assert divs_count == 3
   end
 
-  test "should support >> syntax", %{page: page} do
+  test "ES-031 should support >> syntax", %{page: page} do
     Page.set_content!(
       page,
       "<div><span>hello</span></div><div>beautiful</div><div><span>wo</span><span>rld!</span></div><span>Not this one</span>"
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.EvalOnSelectorAllTest do
     assert spans_count == 3
   end
 
-  test "should support * capture", %{page: page} do
+  test "ES-032 should support * capture", %{page: page} do
     Page.set_content!(
       page,
       "<section><div><span>a</span></div></section><section><div><span>b</span></div></section>"
@@ -63,20 +63,20 @@ defmodule PlaywrightEx.Page.EvalOnSelectorAllTest do
     assert Page.eval_on_selector_all!(page, ~s(section >> *css=div >> "a"), "els => els.length") == 1
   end
 
-  test "should support * capture when multiple paths match", %{page: page} do
+  test "ES-033 should support * capture when multiple paths match", %{page: page} do
     Page.set_content!(page, "<div><div><span></span></div></div><div></div>")
     assert Page.eval_on_selector_all!(page, "*css=div >> span", "els => els.length") == 2
     Page.set_content!(page, "<div><div><span></span></div><span></span><span></span></div><div></div>")
     assert Page.eval_on_selector_all!(page, "*css=div >> span", "els => els.length") == 2
   end
 
-  test "should return complex values", %{page: page} do
+  test "ES-034 should return complex values", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div>beautiful</div><div>world!</div>")
     texts = Page.eval_on_selector_all!(page, "css=div", "divs => divs.map(div => div.textContent)")
     assert texts == ["hello", "beautiful", "world!"]
   end
 
-  test "should work with bogus Array.from", %{page: page} do
+  test "ES-035 should work with bogus Array.from", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div>beautiful</div><div>world!</div>")
 
     Page.evaluate!(page, """

@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Page.PageTransitionTest do
          if(@browser_name == "webkit",
            do: "upstream fixme: Web process crashes on the compositor thread when a filter transitions to none"
          )
-  test "should not crash when filter transition completes", %{page: page} do
+  test "PA-038 should not crash when filter transition completes", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42637' }
     # it.fixme(browserName === 'webkit', 'Web process crashes on the compositor thread when a filter transitions to none')
     Page.set_content!(page, """

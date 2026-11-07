@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
-  test "should have url", %{browser: browser, server: server} do
+  test "BC-062 should have url", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should have url after domcontentloaded", %{browser: browser, server: server} do
+  test "BC-063 should have url after domcontentloaded", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should have about:blank url with domcontentloaded", %{browser: browser} do
+  test "BC-064 should have about:blank url with domcontentloaded", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should have about:blank for empty url with domcontentloaded", %{browser: browser} do
+  test "BC-065 should have about:blank for empty url with domcontentloaded", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should report when a new page is created and closed", %{browser: browser, server: server} do
+  test "BC-066 should report when a new page is created and closed", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should report initialized pages", %{browser: browser} do
+  test "BC-067 should report initialized pages", %{browser: browser} do
     context = Browser.new_context!(browser)
     page_promise = BrowserContext.wait_for_event(context, :page)
     # void context.newPage()
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should not crash while redirecting of original request was missed", %{browser: browser, server: server} do
+  test "BC-068 should not crash while redirecting of original request was missed", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     test_pid = self()
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should have an opener", %{browser: browser, server: server} do
+  test "BC-069 should have an opener", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should fire page lifecycle events", %{browser: browser, server: server} do
+  test "BC-070 should fire page lifecycle events", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     {:ok, events} = Agent.start_link(fn -> [] end)
 
@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with Shift-clicking", %{browser: browser, server: server} do
+  test "BC-071 should work with Shift-clicking", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -197,7 +197,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with Ctrl-clicking", %{browser: browser, server: server, browser_name: browser_name} do
+  test "BC-072 should work with Ctrl-clicking", %{browser: browser, server: server, browser_name: browser_name} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)

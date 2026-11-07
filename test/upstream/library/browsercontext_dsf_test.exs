@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDsfTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
 
-  test "should fetch lodpi assets @smoke", %{context_factory: context_factory, server: server} do
+  test "DV-009 should fetch lodpi assets @smoke", %{context_factory: context_factory, server: server} do
     context = context_factory.(device_scale_factor: 1)
     page = BrowserContext.new_page!(context)
     request = Page.wait_for_request(page, "**/image*")
@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDsfTest do
     assert Request.url(request) =~ "image1x"
   end
 
-  test "should fetch hidpi assets", %{context_factory: context_factory, server: server} do
+  test "DV-010 should fetch hidpi assets", %{context_factory: context_factory, server: server} do
     context = context_factory.(device_scale_factor: 2)
     page = BrowserContext.new_page!(context)
     request = Page.wait_for_request(page, "**/image*")

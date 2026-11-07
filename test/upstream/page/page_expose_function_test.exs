@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
 
   @moduletag :page
 
-  test "exposeBinding should work @smoke", %{page: page} do
+  test "EF-001 exposeBinding should work @smoke", %{page: page} do
     test = self()
 
     Page.expose_binding!(page, "add", fn source, a, b ->
@@ -26,13 +26,13 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert result == 11
   end
 
-  test "should work", %{page: page} do
+  test "EF-002 should work", %{page: page} do
     Page.expose_function!(page, "compute", fn a, b -> a * b end)
     result = Page.evaluate!(page, "async () => await window['compute'](9, 4)")
     assert result == 36
   end
 
-  test "should dispose", %{page: page} do
+  test "EF-003 should dispose", %{page: page} do
     binding = Page.expose_function!(page, "compute", fn a, b -> a * b end)
     result = Page.evaluate!(page, "async () => await window['compute'](9, 4)")
     assert result == 36
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert e.message =~ "is not a function"
   end
 
-  test "should work with handles and complex objects", %{page: page} do
+  test "EF-004 should work with handles and complex objects", %{page: page} do
     foo_handle =
       Page.evaluate_handle!(page, """
       () => {
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert equals == true
   end
 
-  test "should throw exception in page context", %{page: page} do
+  test "EF-005 should throw exception in page context", %{page: page} do
     Page.expose_function!(page, "woof", fn -> raise "WOOF WOOF" end)
 
     %{"message" => message, "stack" => stack} =
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert is_binary(stack)
   end
 
-  test "should support throwing \"null\"", %{page: page} do
+  test "EF-006 should support throwing \"null\"", %{page: page} do
     # `throw null` is an Elixir throw.
     Page.expose_function!(page, "woof", fn -> throw(:null) end)
 
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert thrown == :null
   end
 
-  test "should be callable from-inside addInitScript", %{page: page} do
+  test "EF-007 should be callable from-inside addInitScript", %{page: page} do
     test = self()
     Page.expose_function!(page, "woof", fn -> send(test, :called) end)
     Page.add_init_script!(page, "window['woof']()")
@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert_receive :called, 5000
   end
 
-  test "should survive navigation", %{page: page, server: server} do
+  test "EF-008 should survive navigation", %{page: page, server: server} do
     Page.expose_function!(page, "compute", fn a, b -> a * b end)
 
     Page.goto!(page, server.empty_page)
@@ -119,7 +119,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert result == 36
   end
 
-  test "should await returned promise", %{page: page} do
+  test "EF-009 should await returned promise", %{page: page} do
     # Promise.resolve(a * b): a returned promise is awaited.
     Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
 
@@ -127,7 +127,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert result == 15
   end
 
-  test "should work on frames", %{page: page, server: server} do
+  test "EF-010 should work on frames", %{page: page, server: server} do
     Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
 
     Page.goto!(page, server.prefix <> "/frames/nested-frames.html")
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert result == 15
   end
 
-  test "should work on frames before navigation", %{page: page, server: server} do
+  test "EF-011 should work on frames before navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/nested-frames.html")
     Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
 
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert result == 15
   end
 
-  test "should work after cross origin navigation", %{page: page, server: server} do
+  test "EF-012 should work after cross origin navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.expose_function!(page, "compute", fn a, b -> a * b end)
 
@@ -154,25 +154,25 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert result == 36
   end
 
-  test "should work with complex objects", %{page: page} do
+  test "EF-013 should work with complex objects", %{page: page} do
     Page.expose_function!(page, "complexObject", fn a, b -> %{x: a["x"] + b["x"]} end)
     result = Page.evaluate!(page, "async () => window['complexObject']({ x: 5 }, { x: 2 })")
     assert result["x"] == 7
   end
 
-  test "should throw for duplicate registrations", %{page: page} do
+  test "EF-014 should throw for duplicate registrations", %{page: page} do
     Page.expose_function!(page, "foo", fn -> nil end)
     {:error, error} = Page.expose_function(page, "foo", fn -> nil end)
     assert error.message =~ ~s(page.exposeFunction: Function "foo" has been already registered)
   end
 
-  test "should work with setContent", %{page: page} do
+  test "EF-015 should work with setContent", %{page: page} do
     Page.expose_function!(page, "compute", fn a, b -> Runtime.Promise.resolved(a * b) end)
     Page.set_content!(page, "<script>window.result = compute(3, 2)</script>")
     assert Page.evaluate!(page, "window.result") == 6
   end
 
-  test "should alias Window, Document and Node", %{page: page} do
+  test "EF-016 should alias Window, Document and Node", %{page: page} do
     test = self()
     # object = obj (the assignment's value is returned to the page)
     Page.expose_binding!(page, "log", fn _source, obj ->
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert object == ["ref: <Window>", "ref: <Document>", "ref: <Node>"]
   end
 
-  test "should serialize cycles", %{page: page} do
+  test "EF-017 should serialize cycles", %{page: page} do
     test = self()
     # object = obj (the assignment's value is returned to the page)
     Page.expose_binding!(page, "log", fn _source, obj ->
@@ -199,14 +199,14 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert object == %{"b" => :circular}
   end
 
-  test "should work with overridden console object", %{page: page} do
+  test "EF-018 should work with overridden console object", %{page: page} do
     Page.evaluate!(page, "() => window.console = null")
     assert Page.evaluate!(page, "() => window.console === null")
     Page.expose_function!(page, "add", fn a, b -> a + b end)
     assert Page.evaluate!(page, "add(5, 6)") == 11
   end
 
-  test "should work with busted Array.prototype.map/push", %{page: page, server: server} do
+  test "EF-019 should work with busted Array.prototype.map/push", %{page: page, server: server} do
     TestServer.set_route(server, "/test", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -223,7 +223,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert Page.evaluate!(page, "add(5, 6)") == 11
   end
 
-  test "should fail with busted Array.prototype.toJSON", %{page: page} do
+  test "EF-020 should fail with busted Array.prototype.toJSON", %{page: page} do
     Page.evaluate_handle!(page, ~s|() => Array.prototype.toJSON = () => '"[]"'|)
 
     Page.expose_function!(page, "add", fn a, b -> a + b end)
@@ -235,7 +235,7 @@ defmodule PlaywrightEx.Page.PageExposeFunctionTest do
     assert Page.evaluate!(page, "() => ([]).toJSON()") == ~s("[]")
   end
 
-  test "exposeBinding should work in parallel", %{page: page} do
+  test "EF-021 exposeBinding should work in parallel", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/37712' }
     [{:ok, _}, {:ok, _}] =
       [

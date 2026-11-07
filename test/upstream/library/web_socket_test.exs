@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     end
   end
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "WS-001 should work @smoke", %{page: page, server: server} do
     TestServer.send_on_web_socket_connection(server, "incoming")
 
     value =
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert value == "incoming"
   end
 
-  test "should emit close events", %{page: page, server: server} do
+  test "WS-002 should emit close events", %{page: page, server: server} do
     me = self()
 
     Page.on(page, :web_socket, fn ws ->
@@ -82,7 +82,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert WebSocket.is_closed(web_socket)
   end
 
-  test "should emit frame events", %{page: page, server: server} do
+  test "WS-003 should emit frame events", %{page: page, server: server} do
     TestServer.once_web_socket_connection(server, fn ws ->
       TestServer.WebSocket.on(ws, :message, fn -> TestServer.WebSocket.send(ws, "incoming") end)
     end)
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert log() == ["open", "sent<outgoing>", "received<incoming>", "close"]
   end
 
-  test "should filter out the close events when the server closes with a message", %{page: page, server: server} do
+  test "WS-004 should filter out the close events when the server closes with a message", %{page: page, server: server} do
     TestServer.once_web_socket_connection(server, fn ws ->
       TestServer.WebSocket.send(ws, "incoming")
 
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert log() == ["open", "received<incoming>", "sent<outgoing>", "close"]
   end
 
-  test "should pass self as argument to close event", %{page: page, server: server} do
+  test "WS-005 should pass self as argument to close event", %{page: page, server: server} do
     me = self()
 
     Page.on(page, :web_socket, fn ws ->
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert event_arg == web_socket
   end
 
-  test "should emit binary frame events", %{page: page, server: server} do
+  test "WS-006 should emit binary frame events", %{page: page, server: server} do
     me = self()
 
     Page.on(page, :web_socket, fn ws ->
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     for i <- 0..4, do: assert(:binary.at(bytes, i) == i)
   end
 
-  test "should emit error", %{page: page, server: server} do
+  test "WS-007 should emit error", %{page: page, server: server} do
     me = self()
     Page.on(page, :web_socket, fn ws -> WebSocket.on(ws, :socket_error, &send(me, {:socket_error, &1})) end)
 
@@ -232,7 +232,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert message =~ ": 400"
   end
 
-  test "should not have stray error events", %{page: page, server: server} do
+  test "WS-008 should not have stray error events", %{page: page, server: server} do
     TestServer.send_on_web_socket_connection(server, "incoming")
     me = self()
     Page.on(page, :web_socket, fn ws -> WebSocket.on(ws, :socket_error, &send(me, {:error, &1})) end)
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     refute_received {:error, _}
   end
 
-  test "should reject waitForEvent on socket close", %{page: page, server: server} do
+  test "WS-009 should reject waitForEvent on socket close", %{page: page, server: server} do
     TestServer.send_on_web_socket_connection(server, "incoming")
     ws = wait_for_web_socket_frame_received(page)
 
@@ -274,7 +274,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert Exception.message(error) =~ "Socket closed"
   end
 
-  test "should reject waitForEvent on page close", %{page: page, server: server} do
+  test "WS-010 should reject waitForEvent on page close", %{page: page, server: server} do
     TestServer.send_on_web_socket_connection(server, "incoming")
     ws = wait_for_web_socket_frame_received(page)
 
@@ -296,7 +296,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
     assert Exception.message(error) =~ "Target page, context or browser has been closed"
   end
 
-  test "should not tear down the page when a WebSocket is opened inside a worker", %{page: page, server: server} do
+  test "WS-011 should not tear down the page when a WebSocket is opened inside a worker", %{page: page, server: server} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41742' }
     TestServer.send_on_web_socket_connection(server, "incoming")
     Page.goto!(page, server.empty_page)
@@ -323,13 +323,13 @@ defmodule PlaywrightEx.Library.WebSocketTest do
   end
 
   @tag skip: "upstream fixme: it.fixme() (no reason given)"
-  test "should turn off when offline"
+  test "WS-012 should turn off when offline"
 
   @tag skip:
          if(@browser_name == "chromium" and @browser_major_version < 151,
            do: "upstream fixme: Chromium before 151 does not send extra HTTP headers on WebSocket handshake"
          )
-  test "should send extra HTTP headers on WebSocket handshake", %{
+  test "WS-013 should send extra HTTP headers on WebSocket handshake", %{
     page: page,
     server: server
   } do
@@ -346,7 +346,7 @@ defmodule PlaywrightEx.Library.WebSocketTest do
          if(@browser_name == "chromium" and @browser_major_version < 151,
            do: "upstream fixme: Chromium before 151 does not send extra HTTP headers on WebSocket handshake"
          )
-  test "should send extra HTTP headers on WebSocket handshake from a worker", %{
+  test "WS-014 should send extra HTTP headers on WebSocket handshake from a worker", %{
     page: page,
     server: server
   } do

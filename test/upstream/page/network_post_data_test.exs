@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.NetworkPostDataTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  test "should return correct postData buffer for utf-8 body", %{page: page, server: server} do
+  test "NE-108 should return correct postData buffer for utf-8 body", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     value = "baẞ"
     request = Page.wait_for_request(page, "**")
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Page.NetworkPostDataTest do
     assert Request.post_data_json(request) == value
   end
 
-  test "should return post data w/o content-type @smoke", %{page: page, server: server} do
+  test "NE-109 should return post data w/o content-type @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request = Page.wait_for_request(page, "**")
 
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Page.NetworkPostDataTest do
     assert Request.post_data_json(request) == %{"value" => 42}
   end
 
-  test "should throw on invalid JSON in post data", %{page: page, server: server} do
+  test "NE-110 should throw on invalid JSON in post data", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request = Page.wait_for_request(page, "**")
 
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.NetworkPostDataTest do
     assert Exception.message(error) =~ "POST data is not a valid JSON object: <not a json>"
   end
 
-  test "should return post data for PUT requests", %{page: page, server: server} do
+  test "NE-111 should return post data for PUT requests", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request = Page.wait_for_request(page, "**")
 
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Page.NetworkPostDataTest do
     assert Request.post_data_json(request) == %{"value" => 42}
   end
 
-  test "should get post data for file/blob", %{page: page, server: server} do
+  test "NE-112 should get post data for file/blob", %{page: page, server: server} do
     # it.fail(browserName === 'webkit' || browserName === 'chromium')
     expected_failure(@browser_name in ["webkit", "chromium"], fn ->
       Page.goto!(page, server.empty_page)
@@ -128,7 +128,7 @@ defmodule PlaywrightEx.Page.NetworkPostDataTest do
     end)
   end
 
-  test "should get post data for navigator.sendBeacon api calls", %{page: page, server: server} do
+  test "NE-113 should get post data for navigator.sendBeacon api calls", %{page: page, server: server} do
     # it.fail(chromium); it.fail(webkit): postData is empty
     expected_failure(@browser_name in ["chromium", "webkit"], fn ->
       # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/12231' });

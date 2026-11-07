@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  test "should not hit scroll bar", %{page: page} do
+  test "CL-094 should not hit scroll bar", %{page: page} do
     Page.set_content!(page, """
     <style>
       .categories { width: 180px; display: flex; overflow-x: scroll; }
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
          if(@browser_name == "chromium" and @browser_major_version < 105,
            do: "upstream skip: Needs https://chromium-review.googlesource.com/c/chromium/src/+/3758670"
          )
-  test "should scroll into view display:contents", %{page: page} do
+  test "CL-095 should scroll into view display:contents", %{page: page} do
     Page.set_content!(page, """
     <div style="background:red;height:2000px">filler</div>
     <div>
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
          if(@browser_name == "chromium" and @browser_major_version < 105,
            do: "upstream skip: Needs https://chromium-review.googlesource.com/c/chromium/src/+/3758670"
          )
-  test "should scroll into view display:contents with a child",
+  test "CL-096 should scroll into view display:contents with a child",
        %{page: page} do
     Page.set_content!(page, """
     <div style="background:red;height:2000px">filler</div>
@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
 
   # it.fixme(browserName === 'chromium', 'DOM.getBoxModel does not work for display:contents');
   @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
-  test "should scroll into view display:contents with position", %{page: page} do
+  test "CL-097 should scroll into view display:contents with position", %{page: page} do
     Page.set_content!(page, """
     <div style="background:red;height:2000px">filler</div>
     <div>
@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/18183
-  test "should not crash when force-clicking hidden input", %{page: page} do
+  test "CL-098 should not crash when force-clicking hidden input", %{page: page} do
     Page.set_content!(page, "<input type=hidden>")
     {:error, error} = page |> Page.locator("input") |> Locator.click(force: true, timeout: 2000)
     assert Exception.message(error) =~ "Element is not visible"
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
 
   # issue: https://github.com/microsoft/playwright/issues/20165
   # it.fixme(isAndroid);  -- not Android
-  test "should scroll into view span element", %{page: page} do
+  test "CL-099 should scroll into view span element", %{page: page} do
     Page.set_content!(page, """
     <div id=big style="height: 10000px;"></div>
     <span id=small>foo</span>
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
 
   # issue: https://github.com/microsoft/playwright/issues/27196
   # it.fixme(isAndroid);  -- not Android
-  test "should scroll into view element in iframe", %{page: page, server: server} do
+  test "CL-100 should scroll into view element in iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/41421
-  test "should not scroll the page when scroll is \"none\"", %{page: page} do
+  test "CL-101 should not scroll the page when scroll is \"none\"", %{page: page} do
     Page.set_content!(page, """
     <div style="height: 2000px;"></div>
     <button onclick="window._clicked=true">click me</button>
@@ -124,7 +124,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
     assert Page.evaluate!(page, "() => window.scrollY") == 0
   end
 
-  test "should click in-viewport element when scroll is \"none\"", %{page: page} do
+  test "CL-102 should click in-viewport element when scroll is \"none\"", %{page: page} do
     Page.set_content!(page, """
     <button onclick="window._clicked=true">click me</button>
     <div style="height: 2000px;"></div>
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/41421
-  test "should not scroll nested container when scroll is \"none\"", %{page: page} do
+  test "CL-103 should not scroll nested container when scroll is \"none\"", %{page: page} do
     Page.set_content!(page, """
     <div style="height: 100px; width: 100px; overflow-y: scroll;">
       <div style="height: 50px;">A</div>
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should not scroll on hover when scroll is \"none\"", %{page: page} do
+  test "CL-104 should not scroll on hover when scroll is \"none\"", %{page: page} do
     Page.set_content!(page, """
     <div style="height: 2000px;"></div>
     <div onmouseover="window._hovered=true" style="width: 50px; height: 50px;">hover me</div>
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.Page.PageClickScrollTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/42625
-  test "should scroll instantly on retry when scroll-behavior is smooth", %{page: page} do
+  test "CL-105 should scroll instantly on retry when scroll-behavior is smooth", %{page: page} do
     # The fixed header covers everything but the bottom strip of the viewport.
     # The first attempt centers the button under the header, so the click is
     # retried with a different scroll alignment using the native scrollIntoView().

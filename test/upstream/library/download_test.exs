@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
              do:
                "upstream skip: old chromium throws net::ERR_ABORTED, depends on https://chromium-review.googlesource.com/c/chromium/src/+/6696011"
            )
-    test "should report download when navigation turns into download @smoke", %{
+    test "DO-001 should report download when navigation turns into download @smoke", %{
       browser: browser,
       server: server,
       browser_name: browser_name
@@ -101,7 +101,11 @@ defmodule PlaywrightEx.Library.DownloadTest do
              do:
                "upstream skip: old chromium throws net::ERR_ABORTED, depends on https://chromium-review.googlesource.com/c/chromium/src/+/6696011"
            )
-    test "should work with Cross-Origin-Opener-Policy", %{browser: browser, server: server, browser_name: browser_name} do
+    test "DO-002 should work with Cross-Origin-Opener-Policy", %{
+      browser: browser,
+      server: server,
+      browser_name: browser_name
+    } do
       page = Browser.new_page!(browser)
       download = Page.wait_for_event(page, :download)
       response_or_error = Page.goto(page, server.prefix <> "/downloadWithCOOP")
@@ -117,7 +121,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report downloads with acceptDownloads: false", %{browser: browser, server: server} do
+    test "DO-003 should report downloads with acceptDownloads: false", %{browser: browser, server: server} do
       page = Browser.new_page!(browser, accept_downloads: false)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/downloadWithFilename">download</a>))
       download = click_download(page)
@@ -130,7 +134,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report downloads with acceptDownloads: true", %{browser: browser, server: server} do
+    test "DO-004 should report downloads with acceptDownloads: true", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -140,7 +144,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report proper download url when download is from download attribute", %{
+    test "DO-005 should report proper download url when download is from download attribute", %{
       browser: browser,
       server: server
     } do
@@ -152,7 +156,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report downloads for download attribute", %{browser: browser, server: server} do
+    test "DO-006 should report downloads for download attribute", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.goto!(page, server.prefix <> "/empty.html")
       Page.set_content!(page, ~s(<a href="#{server.prefix}/chromium-linux.zip" download="foo.zip">download</a>))
@@ -164,7 +168,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should save to user-specified path without updating original path", %{
+    test "DO-007 should save to user-specified path without updating original path", %{
       browser: browser,
       server: server,
       tmp_dir: tmp_dir
@@ -184,7 +188,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should save to two different paths with multiple saveAs calls", %{
+    test "DO-008 should save to two different paths with multiple saveAs calls", %{
       browser: browser,
       server: server,
       tmp_dir: tmp_dir
@@ -205,7 +209,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should save to overwritten filepath", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "DO-009 should save to overwritten filepath", %{browser: browser, server: server, tmp_dir: tmp_dir} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -221,7 +225,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should create subdirectories when saving to non-existent user-specified path", %{
+    test "DO-010 should create subdirectories when saving to non-existent user-specified path", %{
       browser: browser,
       server: server,
       tmp_dir: tmp_dir
@@ -237,7 +241,11 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should error when saving with downloads disabled", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "DO-011 should error when saving with downloads disabled", %{
+      browser: browser,
+      server: server,
+      tmp_dir: tmp_dir
+    } do
       page = Browser.new_page!(browser, accept_downloads: false)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -248,7 +256,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should error when saving after deletion", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "DO-012 should error when saving after deletion", %{browser: browser, server: server, tmp_dir: tmp_dir} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -259,7 +267,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report non-navigation downloads", %{browser: browser, server: server} do
+    test "DO-013 should report non-navigation downloads", %{browser: browser, server: server} do
       # Mac WebKit embedder does not download in this case, although Safari does.
       TestServer.set_route(server, "/download", fn conn ->
         conn
@@ -278,7 +286,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report download path within page.on('download', …) handler for Files", %{
+    test "DO-014 should report download path within page.on('download', …) handler for Files", %{
       browser: browser,
       server: server
     } do
@@ -292,7 +300,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report download path within page.on('download', …) handler for Blobs", %{
+    test "DO-015 should report download path within page.on('download', …) handler for Blobs", %{
       browser: browser,
       server: server
     } do
@@ -307,7 +315,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: Firefox does not download on alt-click.")
-    test "should report alt-click downloads", %{browser: browser, server: server} do
+    test "DO-016 should report alt-click downloads", %{browser: browser, server: server} do
       # it.skip(browserName === 'firefox', 'Firefox does not download on alt-click.');
       TestServer.set_route(server, "/download", fn conn ->
         conn
@@ -325,7 +333,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report new window downloads", %{browser: browser, server: server} do
+    test "DO-017 should report new window downloads", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a target=_blank href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -334,7 +342,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should delete file", %{browser: browser, server: server} do
+    test "DO-018 should delete file", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -345,7 +353,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should expose stream", %{browser: browser, server: server} do
+    test "DO-019 should expose stream", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download = click_download(page)
@@ -355,7 +363,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should delete downloads on context destruction", %{browser: browser, server: server} do
+    test "DO-020 should delete downloads on context destruction", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
       download1 = click_download(page)
@@ -369,7 +377,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       refute File.exists?(path2)
     end
 
-    test "should delete downloads on browser gone", %{server: server, browser_type: browser_type} do
+    test "DO-021 should delete downloads on browser gone", %{server: server, browser_type: browser_type} do
       browser = BrowserType.launch!(browser_type, artifacts_dir: nil)
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
@@ -386,7 +394,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should save downloads to artifactsDir", %{server: server, browser_type: browser_type, tmp_dir: tmp_dir} do
+    test "DO-022 should save downloads to artifactsDir", %{server: server, browser_type: browser_type, tmp_dir: tmp_dir} do
       # it.skip(isFrozenWebkit, 'needs recent webkit');  -- we run a current WebKit
       artifacts_dir = Path.join(tmp_dir, "artifacts")
       browser = BrowserType.launch!(browser_type, artifacts_dir: artifacts_dir)
@@ -403,7 +411,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
 
     @tag :tmp_dir
     @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium downloads on alt-click")
-    test "should close the context without awaiting the failed download", %{
+    test "DO-023 should close the context without awaiting the failed download", %{
       browser: browser,
       server: server,
       https_server: https_server,
@@ -443,7 +451,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
            if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
              do: "upstream skip: WebKit on linux does not convert to the download immediately upon receiving headers"
            )
-    test "should close the context without awaiting the download", %{
+    test "DO-024 should close the context without awaiting the download", %{
       browser: browser,
       server: server,
       tmp_dir: tmp_dir
@@ -479,7 +487,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
            if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
              do: "upstream skip: WebKit on linux does not convert to the download immediately upon receiving headers"
            )
-    test "should throw if browser dies", %{server: server, browser_type: browser_type, tmp_dir: tmp_dir} do
+    test "DO-025 should throw if browser dies", %{server: server, browser_type: browser_type, tmp_dir: tmp_dir} do
       TestServer.set_route(server, "/downloadStall", &stall(&1, ["Hello world"]))
       browser = BrowserType.launch!(browser_type)
       page = Browser.new_page!(browser)
@@ -501,7 +509,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should download large binary.zip", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+    test "DO-026 should download large binary.zip", %{browser: browser, server: server, tmp_dir: tmp_dir} do
       zip_file = Path.join(tmp_dir, "binary.zip")
       content = :crypto.strong_rand_bytes(Bitwise.bsl(1, 20))
       File.write!(zip_file, content)
@@ -523,7 +531,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should be able to cancel pending downloads", %{browser: browser, server: server} do
+    test "DO-027 should be able to cancel pending downloads", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/downloadWithDelay">download</a>))
       download = click_download(page)
@@ -533,7 +541,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should not fail explicitly to cancel a download even if that is already finished", %{
+    test "DO-028 should not fail explicitly to cancel a download even if that is already finished", %{
       browser: browser,
       server: server
     } do
@@ -549,7 +557,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
       Page.close!(page)
     end
 
-    test "should report downloads with interception", %{browser: browser, server: server} do
+    test "DO-029 should report downloads with interception", %{browser: browser, server: server} do
       page = Browser.new_page!(browser)
       Page.route!(page, ~r/.*/, fn r -> Route.continue(r) end)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
@@ -561,7 +569,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
 
     @tag :tmp_dir
-    test "should emit download event from nested iframes", %{server: server, browser: browser, tmp_dir: tmp_dir} do
+    test "DO-030 should emit download event from nested iframes", %{server: server, browser: browser, tmp_dir: tmp_dir} do
       page = Browser.new_page!(browser)
 
       for {from, body} <- [
@@ -589,7 +597,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     end
   end
 
-  test "should be able to download a PDF file", %{browser: browser, server: server, asset: asset} do
+  test "DO-031 should be able to download a PDF file", %{browser: browser, server: server, asset: asset} do
     page = Browser.new_page!(browser)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(\n    <a href="/empty.pdf" download>download</a>\n  ))
@@ -599,7 +607,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit")
-  test "should be able to download a inline PDF file via response interception", %{
+  test "DO-032 should be able to download a inline PDF file via response interception", %{
     browser: browser,
     server: server,
     asset: asset
@@ -623,7 +631,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     Page.close!(page)
   end
 
-  test "should be able to download a inline PDF file via navigation", %{
+  test "DO-033 should be able to download a inline PDF file via navigation", %{
     browser: browser,
     server: server,
     asset: asset
@@ -638,7 +646,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
   end
 
   @tag :tmp_dir
-  test "should save to user-specified path", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "DO-034 should save to user-specified path", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     TestServer.set_route(server, "/download", &send_attachment(&1, "Hello world"))
 
     page = Browser.new_page!(browser)
@@ -651,7 +659,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     Page.close!(page)
   end
 
-  test "should download even if there is no \"attachment\" value", %{browser: browser, server: server} do
+  test "DO-035 should download even if there is no \"attachment\" value", %{browser: browser, server: server} do
     # Do not set the "attachment" value.
     TestServer.set_route(server, "/download", &send_attachment(&1, "Hello world", "filename=foo.txt"))
 
@@ -661,7 +669,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     Page.close!(page)
   end
 
-  test "should convert navigation to a resource with unsupported mime type into download", %{
+  test "DO-036 should convert navigation to a resource with unsupported mime type into download", %{
     browser: browser,
     server: server
   } do
@@ -677,7 +685,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
   end
 
   @tag :page
-  test "should download links with data url", %{page: page} do
+  test "DO-037 should download links with data url", %{page: page} do
     Page.set_content!(
       page,
       ~s(<a download="SomeFile.txt" href="data:text/plain;charset=utf8;,hello world">Download!</a>)
@@ -689,7 +697,7 @@ defmodule PlaywrightEx.Library.DownloadTest do
     assert Download.suggested_filename(download) == "SomeFile.txt"
   end
 
-  test "should download successfully when routing", %{browser: browser, server: server} do
+  test "DO-038 should download successfully when routing", %{browser: browser, server: server} do
     page = Browser.new_page!(browser)
     BrowserContext.route!(Page.context(page), "**/*", fn route -> Route.continue(route) end)
     Page.goto!(page, server.prefix <> "/empty.html")

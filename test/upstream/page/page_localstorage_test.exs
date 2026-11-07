@@ -9,17 +9,17 @@ defmodule PlaywrightEx.Page.PageLocalstorageTest do
 
   # it.skip(({ isElectron }) => !!isElectron, 'Electron shares a single context between tests');
 
-  test "localStorage.items returns empty array on fresh origin", %{page: page, server: server} do
+  test "ST-023 localStorage.items returns empty array on fresh origin", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert WebStorage.items!(Page.local_storage(page)) == []
   end
 
-  test "localStorage.getItem returns null for missing key", %{page: page, server: server} do
+  test "ST-024 localStorage.getItem returns null for missing key", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert WebStorage.get_item!(Page.local_storage(page), "absent") == nil
   end
 
-  test "localStorage.setItem persists and surfaces in items()/getItem()", %{page: page, server: server} do
+  test "ST-025 localStorage.setItem persists and surfaces in items()/getItem()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     WebStorage.set_item!(Page.local_storage(page), "alpha", "1")
     WebStorage.set_item!(Page.local_storage(page), "beta", "2")
@@ -31,14 +31,14 @@ defmodule PlaywrightEx.Page.PageLocalstorageTest do
     assert Page.evaluate!(page, "() => localStorage.getItem('alpha')") == "1"
   end
 
-  test "localStorage.setItem overwrites existing value", %{page: page, server: server} do
+  test "ST-026 localStorage.setItem overwrites existing value", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     WebStorage.set_item!(Page.local_storage(page), "k", "first")
     WebStorage.set_item!(Page.local_storage(page), "k", "second")
     assert WebStorage.get_item!(Page.local_storage(page), "k") == "second"
   end
 
-  test "localStorage.removeItem removes a single item", %{page: page, server: server} do
+  test "ST-027 localStorage.removeItem removes a single item", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     WebStorage.set_item!(Page.local_storage(page), "a", "1")
     WebStorage.set_item!(Page.local_storage(page), "b", "2")
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Page.PageLocalstorageTest do
     assert WebStorage.items!(Page.local_storage(page)) == [%{name: "b", value: "2"}]
   end
 
-  test "localStorage.clear empties storage", %{page: page, server: server} do
+  test "ST-028 localStorage.clear empties storage", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     WebStorage.set_item!(Page.local_storage(page), "a", "1")
     WebStorage.set_item!(Page.local_storage(page), "b", "2")
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Page.PageLocalstorageTest do
     assert WebStorage.items!(Page.local_storage(page)) == []
   end
 
-  test "sessionStorage round-trip", %{page: page, server: server} do
+  test "ST-029 sessionStorage round-trip", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert WebStorage.items!(Page.session_storage(page)) == []
 
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Page.PageLocalstorageTest do
     assert WebStorage.items!(Page.session_storage(page)) == []
   end
 
-  test "localStorage and sessionStorage are independent", %{page: page, server: server} do
+  test "ST-030 localStorage and sessionStorage are independent", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     WebStorage.set_item!(Page.local_storage(page), "shared", "local")
     WebStorage.set_item!(Page.session_storage(page), "shared", "session")
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Page.PageLocalstorageTest do
     assert WebStorage.get_item!(Page.session_storage(page), "shared") == "session"
   end
 
-  test "storage methods are scoped to the current origin", %{page: page, server: server} do
+  test "ST-031 storage methods are scoped to the current origin", %{page: page, server: server} do
     # it.skip(isAndroid, 'these are same origins on Android due to our test server limitation');
     Page.goto!(page, server.prefix <> "/empty.html")
     WebStorage.set_item!(Page.local_storage(page), "k", "origin-1")

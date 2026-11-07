@@ -4,5 +4,5 @@ defmodule PlaywrightEx.Library.PlaywrightClientTest do
 
   # it.skip(({ mode }) => mode !== 'default');
 
-  test "should connect from a page and drive the same browser"
+  test "PC-001 should connect from a page and drive the same browser"
 end

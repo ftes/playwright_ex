@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
 
   for method <- ~w(fetch delete get head patch post put) do
     @method method
-    test "#{method} should work @smoke", %{playwright: playwright, server: server} do
+    test "FE-001 #{method} should work @smoke", %{playwright: playwright, server: server} do
       request = new_context(playwright)
       response = apply(APIRequestContext, :"#{@method}!", [request, server.prefix <> "/simple.json"])
       assert APIResponse.url(response) == server.prefix <> "/simple.json"
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     end
   end
 
-  test "should dispose global request", %{playwright: playwright, server: server} do
+  test "FE-002 should dispose global request", %{playwright: playwright, server: server} do
     request = new_context(playwright)
     response = APIRequestContext.get!(request, server.prefix <> "/simple.json")
     assert APIResponse.json!(response) == %{"foo" => "bar"}
@@ -91,7 +91,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support global userAgent option", %{playwright: playwright, server: server} do
+  test "FE-003 should support global userAgent option", %{playwright: playwright, server: server} do
     request = new_context(playwright, user_agent: "My Agent")
     task = TestServer.wait_for_request(server, "/empty.html")
     response = APIRequestContext.get!(request, server.empty_page)
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support global timeout option", %{playwright: playwright, server: server} do
+  test "FE-004 should support global timeout option", %{playwright: playwright, server: server} do
     request = new_context(playwright, timeout: 100)
     TestServer.set_route(server, "/empty.html", &hang/1)
     {:error, error} = APIRequestContext.get(request, server.empty_page)
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should propagate extra http headers with redirects", %{playwright: playwright, server: server} do
+  test "FE-005 should propagate extra http headers with redirects", %{playwright: playwright, server: server} do
     TestServer.set_redirect(server, "/a/redirect1", "/b/c/redirect2")
     TestServer.set_redirect(server, "/b/c/redirect2", "/simple.json")
     request = new_context(playwright, extra_http_headers: %{"My-Secret" => "Value"})
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should preserve authorization on same-origin redirect but strip on cross-origin",
+  test "FE-006 should preserve authorization on same-origin redirect but strip on cross-origin",
        %{playwright: playwright, server: server} do
     TestServer.set_redirect(server, "/same/redirect", "/same/dest")
     TestServer.set_redirect(server, "/cross/redirect", server.cross_process_prefix <> "/cross/dest")
@@ -144,7 +144,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support global httpCredentials option", %{playwright: playwright, server: server} do
+  test "FE-007 should support global httpCredentials option", %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     request1 = new_context(playwright)
     response1 = APIRequestContext.get!(request1, server.empty_page)
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request2)
   end
 
-  test "should return error with wrong credentials", %{playwright: playwright, server: server} do
+  test "FE-008 should return error with wrong credentials", %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     request = new_context(playwright, http_credentials: %{username: "user", password: "wrong"})
     response = APIRequestContext.get!(request, server.empty_page)
@@ -165,7 +165,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should work with correct credentials and matching origin", %{playwright: playwright, server: server} do
+  test "FE-009 should work with correct credentials and matching origin", %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     request = new_context(playwright, http_credentials: %{username: "user", password: "pass", origin: server.prefix})
     response = APIRequestContext.get!(request, server.empty_page)
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should work with correct credentials and matching origin case insensitive",
+  test "FE-010 should work with correct credentials and matching origin case insensitive",
        %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
 
@@ -187,7 +187,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return error with correct credentials and mismatching scheme",
+  test "FE-011 should return error with correct credentials and mismatching scheme",
        %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
 
@@ -205,7 +205,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return error with correct credentials and mismatching hostname",
+  test "FE-012 should return error with correct credentials and mismatching hostname",
        %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     hostname = URI.parse(server.prefix).host
@@ -216,7 +216,10 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return error with correct credentials and mismatching port", %{playwright: playwright, server: server} do
+  test "FE-013 should return error with correct credentials and mismatching port", %{
+    playwright: playwright,
+    server: server
+  } do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     origin = String.replace(server.prefix, to_string(server.port), to_string(server.port + 1), global: false)
     request = new_context(playwright, http_credentials: %{username: "user", password: "pass", origin: origin})
@@ -225,7 +228,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support WWW-Authenticate: Basic", %{playwright: playwright, server: server} do
+  test "FE-014 should support WWW-Authenticate: Basic", %{playwright: playwright, server: server} do
     test_pid = self()
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -253,7 +256,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/30534' }
-  test "should support HTTPCredentials.send", %{playwright: playwright, server: server} do
+  test "FE-015 should support HTTPCredentials.send", %{playwright: playwright, server: server} do
     request =
       new_context(playwright,
         http_credentials: %{username: "user", password: "pass", origin: String.upcase(server.prefix), send: "always"}
@@ -275,7 +278,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support multiple httpCredentials", %{playwright: playwright, server: server} do
+  test "FE-016 should support multiple httpCredentials", %{playwright: playwright, server: server} do
     TestServer.set_auth(server, "/empty.html", "user1", "pass1")
 
     request =
@@ -294,7 +297,10 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support HTTPCredentials.send with multiple httpCredentials", %{playwright: playwright, server: server} do
+  test "FE-017 should support HTTPCredentials.send with multiple httpCredentials", %{
+    playwright: playwright,
+    server: server
+  } do
     request =
       new_context(playwright,
         http_credentials: [
@@ -319,14 +325,14 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should support global ignoreHTTPSErrors option", %{playwright: playwright, https_server: https_server} do
+  test "FE-018 should support global ignoreHTTPSErrors option", %{playwright: playwright, https_server: https_server} do
     request = new_context(playwright, ignore_https_errors: true)
     response = APIRequestContext.get!(request, https_server.empty_page)
     assert APIResponse.status(response) == 200
     APIRequestContext.dispose!(request)
   end
 
-  test "should propagate ignoreHTTPSErrors on redirects", %{playwright: playwright, https_server: https_server} do
+  test "FE-019 should propagate ignoreHTTPSErrors on redirects", %{playwright: playwright, https_server: https_server} do
     TestServer.set_redirect(https_server, "/redir", "/empty.html")
     request = new_context(playwright)
     response = APIRequestContext.get!(request, https_server.prefix <> "/redir", ignore_https_errors: true)
@@ -334,7 +340,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return server address from response", %{playwright: playwright, server: server} do
+  test "FE-020 should return server address from response", %{playwright: playwright, server: server} do
     request = new_context(playwright)
     # The second request reuses the keep-alive socket and should report the address as well.
     for _ <- 1..2 do
@@ -355,7 +361,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     validTo: 2_007_068_270
   }
 
-  test "should return security details from response", %{playwright: playwright, https_server: https_server} do
+  test "FE-021 should return security details from response", %{playwright: playwright, https_server: https_server} do
     request = new_context(playwright, ignore_https_errors: true)
     # The second request reuses the keep-alive socket and should report the details as well.
     for _ <- 1..2 do
@@ -366,7 +372,10 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return security details for a resumed TLS session", %{playwright: playwright, https_server: https_server} do
+  test "FE-022 should return security details for a resumed TLS session", %{
+    playwright: playwright,
+    https_server: https_server
+  } do
     expected = @security_details
     request = new_context(playwright, ignore_https_errors: true)
     # 'Connection: close' drops the socket, so the next request opens a new one and resumes
@@ -378,7 +387,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return null security details for http response", %{playwright: playwright, server: server} do
+  test "FE-023 should return null security details for http response", %{playwright: playwright, server: server} do
     request = new_context(playwright)
     response = APIRequestContext.get!(request, server.empty_page)
     assert APIResponse.security_details!(response) == nil
@@ -386,7 +395,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41815' }
-  test "should return security details for certificate with multiple CN attributes",
+  test "FE-024 should return security details for certificate with multiple CN attributes",
        %{playwright: playwright, asset: asset} do
     # utils.createHttpsServer(...); server.listen(0, '127.0.0.1')  -- a TestServer with that certificate
     ssl_options = [
@@ -414,21 +423,21 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should resolve url relative to global baseURL option", %{playwright: playwright, server: server} do
+  test "FE-025 should resolve url relative to global baseURL option", %{playwright: playwright, server: server} do
     request = new_context(playwright, base_url: server.prefix)
     response = APIRequestContext.get!(request, "/empty.html")
     assert APIResponse.url(response) == server.empty_page
     APIRequestContext.dispose!(request)
   end
 
-  test "should fallback to given URL if baseURL is bogus", %{playwright: playwright, server: server} do
+  test "FE-026 should fallback to given URL if baseURL is bogus", %{playwright: playwright, server: server} do
     request = new_context(playwright, base_url: "bogus")
     response = APIRequestContext.get!(request, server.prefix <> "/empty.html")
     assert APIResponse.url(response) == server.empty_page
     APIRequestContext.dispose!(request)
   end
 
-  test "should set playwright as user-agent", %{playwright: playwright, server: server} do
+  test "FE-027 should set playwright as user-agent", %{playwright: playwright, server: server} do
     request = new_context(playwright)
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(request, server.empty_page)
@@ -463,9 +472,9 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should be able to construct with context options"
+  test "FE-028 should be able to construct with context options"
 
-  test "should return empty body", %{playwright: playwright, server: server} do
+  test "FE-029 should return empty body", %{playwright: playwright, server: server} do
     request = new_context(playwright)
     response = APIRequestContext.get!(request, server.empty_page)
     body = APIResponse.body!(response)
@@ -474,7 +483,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should abort requests when context is disposed", %{playwright: playwright, server: server} do
+  test "FE-030 should abort requests when context is disposed", %{playwright: playwright, server: server} do
     test_pid = self()
     TestServer.set_route(server, "/empty.html", &notify_on_close(&1, test_pid))
     request = new_context(playwright)
@@ -498,7 +507,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should abort redirected requests when context is disposed", %{playwright: playwright, server: server} do
+  test "FE-031 should abort redirected requests when context is disposed", %{playwright: playwright, server: server} do
     TestServer.set_redirect(server, "/redirect", "/test")
     test_pid = self()
     TestServer.set_route(server, "/test", &notify_on_close(&1, test_pid))
@@ -513,7 +522,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should remove content-length from redirected post requests", %{playwright: playwright, server: server} do
+  test "FE-032 should remove content-length from redirected post requests", %{playwright: playwright, server: server} do
     TestServer.set_redirect(server, "/redirect", "/empty.html")
     request = new_context(playwright)
     task1 = TestServer.wait_for_request(server, "/redirect")
@@ -544,7 +553,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     @value value
     # JSON.stringify(value)
     @stringified_value if(value == :null, do: "null", else: JSON.encode!(value))
-    test "should json stringify #{type} body when content-type is application/json",
+    test "FE-033 should json stringify #{type} body when content-type is application/json",
          %{playwright: playwright, server: server} do
       request = new_context(playwright)
       task = TestServer.wait_for_request(server, "/empty.html")
@@ -560,7 +569,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "should not double stringify #{type} body when content-type is application/json",
+    test "FE-034 should not double stringify #{type} body when content-type is application/json",
          %{playwright: playwright, server: server} do
       request = new_context(playwright)
       task = TestServer.wait_for_request(server, "/empty.html")
@@ -577,7 +586,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     end
   end
 
-  test "should accept already serialized data as Buffer when content-type is application/json",
+  test "FE-035 should accept already serialized data as Buffer when content-type is application/json",
        %{playwright: playwright, server: server} do
     request = new_context(playwright)
     value = JSON.encode!(JSON.encode!(%{"foo" => "bar"}))
@@ -594,7 +603,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should have nice toString", %{playwright: playwright, server: server} do
+  test "FE-036 should have nice toString", %{playwright: playwright, server: server} do
     request = new_context(playwright)
 
     response =
@@ -609,7 +618,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should not fail on empty body with encoding", %{playwright: playwright, server: server} do
+  test "FE-037 should not fail on empty body with encoding", %{playwright: playwright, server: server} do
     request = new_context(playwright)
 
     for method <- ["head", "put"], encoding <- ["br", "gzip", "deflate"] do
@@ -629,7 +638,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should return body for failing requests", %{playwright: playwright, server: server} do
+  test "FE-038 should return body for failing requests", %{playwright: playwright, server: server} do
     request = new_context(playwright)
 
     for method <- ["head", "put", "trace"] do
@@ -656,7 +665,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     for [from, to] <- Enum.chunk_every(paths, 2, 1, :discard), do: TestServer.set_redirect(server, from, to)
   end
 
-  test "should throw an error when maxRedirects is exceeded", %{playwright: playwright, server: server} do
+  test "FE-039 should throw an error when maxRedirects is exceeded", %{playwright: playwright, server: server} do
     set_redirects(server, 4)
 
     request = new_context(playwright)
@@ -671,7 +680,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should not follow redirects when maxRedirects is set to 0", %{playwright: playwright, server: server} do
+  test "FE-040 should not follow redirects when maxRedirects is set to 0", %{playwright: playwright, server: server} do
     set_redirects(server, 2)
 
     request = new_context(playwright)
@@ -685,7 +694,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should throw an error when maxRedirects is less than 0", %{playwright: playwright, server: server} do
+  test "FE-041 should throw an error when maxRedirects is less than 0", %{playwright: playwright, server: server} do
     set_redirects(server, 2)
 
     request = new_context(playwright)
@@ -700,7 +709,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should not follow redirects when maxRedirects is set to 0 in newContext",
+  test "FE-042 should not follow redirects when maxRedirects is set to 0 in newContext",
        %{playwright: playwright, server: server} do
     set_redirects(server, 2)
 
@@ -715,7 +724,10 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should follow redirects up to maxRedirects limit set in newContext", %{playwright: playwright, server: server} do
+  test "FE-043 should follow redirects up to maxRedirects limit set in newContext", %{
+    playwright: playwright,
+    server: server
+  } do
     set_redirects(server, 4)
 
     for max_redirects <- [1, 2, 3, 4] do
@@ -735,7 +747,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     end
   end
 
-  test "should use maxRedirects from fetch when provided, overriding newContext",
+  test "FE-044 should use maxRedirects from fetch when provided, overriding newContext",
        %{playwright: playwright, server: server} do
     set_redirects(server, 4)
 
@@ -749,7 +761,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should keep headers capitalization", %{playwright: playwright} do
+  test "FE-045 should keep headers capitalization", %{playwright: playwright} do
     # serverRequest.rawHeaders  -- Plug lowercases header names: a raw server reads them.
     test_pid = self()
 
@@ -772,10 +784,10 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should serialize post data on the client"
+  test "FE-046 should serialize post data on the client"
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/27822' }
-  test "should throw after dispose", %{playwright: playwright, server: server} do
+  test "FE-047 should throw after dispose", %{playwright: playwright, server: server} do
     request = new_context(playwright)
     APIRequestContext.dispose!(request)
     {:error, error} = APIRequestContext.get(request, server.empty_page)
@@ -783,7 +795,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/30978' }
-  test "should retry ECONNRESET", %{playwright: playwright} do
+  test "FE-048 should retry ECONNRESET", %{playwright: playwright} do
     request = new_context(playwright)
     request_count = :counters.new(1, [])
 
@@ -808,7 +820,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42532' }
-  test "should expose node error code on network errors", %{playwright: playwright} do
+  test "FE-049 should expose node error code on network errors", %{playwright: playwright} do
     # Reset the connection so that node reports a system error instead of a plain 'socket hang up'.
     # req.socket.resetAndDestroy()  -- linger 0 makes close send a RST
     port =
@@ -827,7 +839,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42532' }
-  test "should append node error code to the message", %{playwright: playwright} do
+  test "FE-050 should append node error code to the message", %{playwright: playwright} do
     # Node reports this one as a plain 'socket hang up' that does not mention the code.
     port = raw_server(fn socket, _head -> :gen_tcp.close(socket) end)
     request = new_context(playwright)
@@ -838,7 +850,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42074' }
-  test "should not crash when server refuses body before reading it", %{playwright: playwright} do
+  test "FE-051 should not crash when server refuses body before reading it", %{playwright: playwright} do
     # Respond without reading the body, then reset. Node emits a late write
     # EPIPE/ECONNRESET on the request socket; without a listener that becomes an
     # unhandled 'error' and kills the process.
@@ -878,7 +890,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/34204' }
-  test "should throw when failOnStatusCode is set to true inside APIRequest context options",
+  test "FE-052 should throw when failOnStatusCode is set to true inside APIRequest context options",
        %{playwright: playwright, server: server} do
     request = new_context(playwright, fail_on_status_code: true)
 
@@ -894,7 +906,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/34204' }
-  test "should not throw when failOnStatusCode is set to false inside APIRequest context options",
+  test "FE-053 should not throw when failOnStatusCode is set to false inside APIRequest context options",
        %{playwright: playwright, server: server} do
     request = new_context(playwright, fail_on_status_code: false)
 

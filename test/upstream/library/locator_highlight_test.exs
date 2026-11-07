@@ -20,7 +20,11 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
   })
   """
 
-  test "highlight should accept a CSS string style", %{browser: browser, server: server, browser_name: browser_name} do
+  test "LO-193 highlight should accept a CSS string style", %{
+    browser: browser,
+    server: server,
+    browser_name: browser_name
+  } do
     # test.skip(isFrozenWebkit);  -- we run a current browser
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -43,7 +47,7 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
     BrowserContext.close!(context)
   end
 
-  test "highlight should accept an object style (JS only)", %{
+  test "LO-194 highlight should accept an object style (JS only)", %{
     browser: browser,
     server: server,
     browser_name: browser_name
@@ -70,7 +74,7 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
     BrowserContext.close!(context)
   end
 
-  test "hideHighlight removes a styled highlight", %{browser: browser, server: server} do
+  test "LO-195 hideHighlight removes a styled highlight", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/input/button.html")
@@ -85,7 +89,7 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
     BrowserContext.close!(context)
   end
 
-  test "highlight should survive navigation", %{browser: browser, server: server} do
+  test "LO-196 highlight should survive navigation", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, ~s[<button onclick="console.log(1)">Clicker</button>])
@@ -103,7 +107,7 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
     BrowserContext.close!(context)
   end
 
-  test "Page.hideHighlight clears all locator highlights", %{browser: browser} do
+  test "LO-197 Page.hideHighlight clears all locator highlights", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<button>One</button><button>Two</button>")
@@ -118,7 +122,7 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
     BrowserContext.close!(context)
   end
 
-  test "highlight should work with a custom selector engine that runs in the main world", %{
+  test "LO-198 highlight should work with a custom selector engine that runs in the main world", %{
     playwright: playwright,
     browser: browser
   } do
@@ -157,7 +161,7 @@ defmodule PlaywrightEx.Library.LocatorHighlightTest do
     BrowserContext.close!(context)
   end
 
-  test "highlight should resolve relative to the frame of the locator", %{browser: browser} do
+  test "LO-199 highlight should resolve relative to the frame of the locator", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, ~s(<iframe name="frame" srcdoc="<button>foo</button>"></iframe><button>bar</button>))

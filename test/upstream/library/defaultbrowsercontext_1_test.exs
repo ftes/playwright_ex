@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
 
   defp windows?, do: match?({:win32, _}, :os.type())
 
-  test "context.cookies() should work @smoke", %{
+  test "DC-001 context.cookies() should work @smoke", %{
     server: server,
     launch_persistent: launch_persistent,
     browser_name: browser_name
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
            ]
   end
 
-  test "context.addCookies() should work", %{
+  test "DC-002 context.addCookies() should work", %{
     server: server,
     launch_persistent: launch_persistent,
     browser_name: browser_name
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
            ]
   end
 
-  test "context.clearCookies() should work", %{server: server, launch_persistent: launch_persistent} do
+  test "DC-003 context.clearCookies() should work", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.([])
     Page.goto!(page, server.empty_page)
 
@@ -91,19 +91,19 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
     assert Page.evaluate!(page, "document.cookie") == ""
   end
 
-  test "should support viewport option", %{launch_persistent: launch_persistent} do
+  test "DC-004 should support viewport option", %{launch_persistent: launch_persistent} do
     %{page: page, context: context} = launch_persistent.(viewport: %{width: 456, height: 789})
     verify_viewport(page, 456, 789)
     page2 = BrowserContext.new_page!(context)
     verify_viewport(page2, 456, 789)
   end
 
-  test "should support deviceScaleFactor option", %{launch_persistent: launch_persistent} do
+  test "DC-005 should support deviceScaleFactor option", %{launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(device_scale_factor: 3)
     assert Page.evaluate!(page, "window.devicePixelRatio") == 3
   end
 
-  test "should support userAgent option", %{server: server, launch_persistent: launch_persistent} do
+  test "DC-006 should support userAgent option", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(user_agent: "foobar")
     assert Page.evaluate!(page, "() => navigator.userAgent") == "foobar"
     request = TestServer.wait_for_request(server, "/empty.html")
@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
     assert header(Task.await(request, :infinity), "user-agent") == "foobar"
   end
 
-  test "should support bypassCSP option", %{server: server, launch_persistent: launch_persistent} do
+  test "DC-007 should support bypassCSP option", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(bypass_csp: true)
     Page.goto!(page, server.prefix <> "/csp.html")
     Page.add_script_tag!(page, content: ~s|window["__injected"] = 42;|)
@@ -119,7 +119,10 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
     assert Page.evaluate!(page, ~s|window["__inlineScriptValue"]|) == 42
   end
 
-  test "should support javascriptEnabled option", %{launch_persistent: launch_persistent, browser_name: browser_name} do
+  test "DC-008 should support javascriptEnabled option", %{
+    launch_persistent: launch_persistent,
+    browser_name: browser_name
+  } do
     %{page: page} = launch_persistent.(java_script_enabled: false)
     Page.goto!(page, ~s|data:text/html, <script>var something = "forbidden"</script>|)
     {:error, error} = Page.evaluate(page, "something")
@@ -129,20 +132,20 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
       else: assert(Exception.message(error) =~ "something is not defined")
   end
 
-  test "should support httpCredentials option", %{server: server, launch_persistent: launch_persistent} do
+  test "DC-009 should support httpCredentials option", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(http_credentials: %{username: "user", password: "pass"})
     TestServer.set_auth(server, "/playground.html", "user", "pass")
     response = Page.goto!(page, server.prefix <> "/playground.html")
     assert Response.status(response) == 200
   end
 
-  test "should support offline option", %{server: server, launch_persistent: launch_persistent} do
+  test "DC-010 should support offline option", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(offline: true)
     assert {:error, error} = Page.goto(page, server.empty_page)
     assert error
   end
 
-  test "should support acceptDownloads option", %{server: server, launch_persistent: launch_persistent} do
+  test "DC-011 should support acceptDownloads option", %{server: server, launch_persistent: launch_persistent} do
     # it.skip(mode !== 'default', 'download.path() is not available in remote mode');  -- always default mode
     %{page: page} = launch_persistent.([])
 

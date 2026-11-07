@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
 
   defp message({:error, e}), do: Exception.message(e)
 
-  test "should close page with active dialog", %{page: page} do
+  test "PA-039 should close page with active dialog", %{page: page} do
     Page.evaluate!(page, ~s("trigger builtins.setTimeout"))
     Page.set_content!(page, ~s|<button onclick="builtins.setTimeout(() => alert(1))">alert</button>|)
     Runtime.Promise.void(fn -> Page.click(page, "button") end)
@@ -33,7 +33,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     Page.close!(page)
   end
 
-  test "expect should not print timed out error message when page closes", %{page: page} do
+  test "PA-040 expect should not print timed out error message when page closes", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
 
     [error, _] =
@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     refute strip_ansi(message(error)) =~ "Timed out"
   end
 
-  test "addLocatorHandler should throw when page closes", %{page: page, server: server} do
+  test "PA-041 addLocatorHandler should throw when page closes", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
 
     Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     assert message(error) =~ "custom reason"
   end
 
-  test "should reject all promises when page is closed", %{page: page} do
+  test "PA-042 should reject all promises when page is closed", %{page: page} do
     [error, _] =
       Task.await_many(
         [
@@ -82,20 +82,20 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     assert message(error) =~ @k_target_closed_error_message
   end
 
-  test "should set the page close state", %{page: page} do
+  test "PA-043 should set the page close state", %{page: page} do
     assert Page.is_closed(page) == false
     Page.close!(page)
     assert Page.is_closed(page) == true
   end
 
-  test "should pass page to close event", %{page: page} do
+  test "PA-044 should pass page to close event", %{page: page} do
     closed_promise = Page.wait_for_event(page, :close)
     Page.close!(page)
     closed_page = Promise.await!(closed_promise)
     assert closed_page == page
   end
 
-  test "should terminate network waiters", %{page: page, server: server} do
+  test "PA-045 should terminate network waiters", %{page: page, server: server} do
     request_promise = Page.wait_for_request(page, server.empty_page)
     response_promise = Page.wait_for_response(page, server.empty_page)
     Page.close!(page)
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     end
   end
 
-  test "should be callable twice", %{page: page} do
+  test "PA-046 should be callable twice", %{page: page} do
     Task.await_many(
       [
         Task.async(fn -> Page.close!(page) end),
@@ -120,21 +120,21 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     Page.close!(page)
   end
 
-  test "should return null if parent page has been closed", %{page: page} do
+  test "PA-047 should return null if parent page has been closed", %{page: page} do
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => window.open('about:blank')") end)
     Page.close!(page)
     opener = Page.opener!(popup)
     assert opener == nil
   end
 
-  test "should fail with error upon disconnect", %{page: page} do
+  test "PA-048 should fail with error upon disconnect", %{page: page} do
     wait_for_promise = Page.wait_for_event(page, :download)
     Page.close!(page)
     error = Promise.await(wait_for_promise)
     assert message(error) =~ @k_target_closed_error_message
   end
 
-  test "page.close should work with window.close", %{page: page} do
+  test "PA-049 page.close should work with window.close", %{page: page} do
     me = self()
     Page.on(page, :close, fn x -> send(me, {:closed, x}) end)
     Page.close!(page)
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
          if(@browser_name == "firefox" and match?({:win32, _}, :os.type()),
            do: "upstream fixme: makes the next test to always timeout"
          )
-  test "should not throw UnhandledPromiseRejection when page closes", %{page: page} do
+  test "PA-050 should not throw UnhandledPromiseRejection when page closes", %{page: page} do
     Task.await_many(
       [
         Task.async(fn -> Page.close(page) end),
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     )
   end
 
-  test "interrupt request.response() and request.allHeaders() on page.close",
+  test "PA-051 interrupt request.response() and request.allHeaders() on page.close",
        %{page: page, server: server, browser_name: browser_name} do
     # issue: https://github.com/microsoft/playwright/issues/27227
     # res.setHeader without res.end(): the response never comes.
@@ -176,7 +176,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     end
   end
 
-  test "should not treat navigations as new popups", %{page: page, server: server} do
+  test "PA-052 should not treat navigations as new popups", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<a target=_blank rel=noopener href=\"/one-style.html\">yo</a>")
     popup = Page.expect_popup!(page, fn -> Page.click!(page, "a") end)
@@ -187,7 +187,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     refute_received :bad_second_popup
   end
 
-  test "should not result in unhandled rejection", %{page: page} do
+  test "PA-053 should not result in unhandled rejection", %{page: page} do
     closed_promise = Page.wait_for_event(page, :close)
     Page.expose_function!(page, "foo", fn -> Page.close!(page) end)
 
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     assert {:error, %{}} = Page.evaluate(page, "1 + 1")
   end
 
-  test "should reject response.finished if page closes", %{page: page, server: server} do
+  test "PA-054 should reject response.finished if page closes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     TestServer.set_route(server, "/get", fn conn ->
@@ -228,7 +228,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     assert message(error) =~ "closed"
   end
 
-  test "should not throw when continuing while page is closing", %{page: page, server: server} do
+  test "PA-055 should not throw when continuing while page is closing", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/*", fn route ->
@@ -245,7 +245,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     assert_receive {:done, :ok}, 5000
   end
 
-  test "should not throw when continuing after page is closed", %{page: page, server: server} do
+  test "PA-056 should not throw when continuing after page is closed", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/*", fn route ->

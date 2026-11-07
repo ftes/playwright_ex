@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.ElementhandleContentFrameTest do
 
   @moduletag :page
 
-  test "should work", %{page: page, server: server} do
+  test "EH-019 should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     element_handle = Page.query_selector!(page, "#frame1")
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Page.ElementhandleContentFrameTest do
     assert frame == Enum.at(Page.frames(page), 1)
   end
 
-  test "should work for cross-process iframes", %{page: page, server: server} do
+  test "EH-020 should work for cross-process iframes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.cross_process_prefix <> "/empty.html")
     element_handle = Page.query_selector!(page, "#frame1")
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.ElementhandleContentFrameTest do
     assert frame == Enum.at(Page.frames(page), 1)
   end
 
-  test "should work for cross-frame evaluations", %{page: page, server: server} do
+  test "EH-021 should work for cross-frame evaluations", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.ElementhandleContentFrameTest do
     assert ElementHandle.content_frame!(element_handle) == frame
   end
 
-  test "should return null for non-iframes", %{page: page, server: server} do
+  test "EH-022 should return null for non-iframes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.ElementhandleContentFrameTest do
     assert ElementHandle.content_frame!(element_handle) == nil
   end
 
-  test "should return null for document.documentElement", %{page: page, server: server} do
+  test "EH-023 should return null for document.documentElement", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)

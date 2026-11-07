@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Library.BrowsercontextTimezoneIdTest do
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Page
 
-  test "should work @smoke", %{browser: browser, browser_name: browser_name} do
+  test "TZ-001 should work @smoke", %{browser: browser, browser_name: browser_name} do
     # Note: timezone names are rendered differently between browsers and platforms,
     # so we only check the GMT offset.
     # expect.soft: the first failure ends the test here.
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Library.BrowsercontextTimezoneIdTest do
     BrowserContext.close!(context)
   end
 
-  test "should throw for invalid timezone IDs when creating pages", %{browser: browser} do
+  test "TZ-002 should throw for invalid timezone IDs when creating pages", %{browser: browser} do
     # isBidi: browser.newContext({ timezoneId }) rejects with a browser-specific message.
     for timezone_id <- ["Foo/Bar", "Baz/Qux"] do
       {context, error} =
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Library.BrowsercontextTimezoneIdTest do
     end
   end
 
-  test "should work for multiple pages sharing same process", %{browser: browser, server: server} do
+  test "TZ-003 should work for multiple pages sharing same process", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, timezone_id: "Europe/Moscow")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Library.BrowsercontextTimezoneIdTest do
     BrowserContext.close!(context)
   end
 
-  test "should not change default timezone in another context", %{browser: browser} do
+  test "TZ-004 should not change default timezone in another context", %{browser: browser} do
     get_context_timezone = fn context ->
       page = BrowserContext.new_page!(context)
       Page.evaluate!(page, "() => Intl.DateTimeFormat().resolvedOptions().timeZone")
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Library.BrowsercontextTimezoneIdTest do
     BrowserContext.close!(context)
   end
 
-  test "should affect Intl.DateTimeFormat().resolvedOptions().timeZone", %{browser: browser, server: server} do
+  test "TZ-005 should affect Intl.DateTimeFormat().resolvedOptions().timeZone", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, timezone_id: "America/Jamaica")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Library.BrowsercontextTimezoneIdTest do
     BrowserContext.close!(context)
   end
 
-  test "should propagate timezone to workers", %{browser: browser, server: server} do
+  test "TZ-006 should propagate timezone to workers", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, timezone_id: "America/Jamaica")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)

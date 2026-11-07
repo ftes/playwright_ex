@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     Process.sleep(1000)
   end
 
-  test "should connect two clients", %{connect: connect, remote_server: remote_server, server: server} do
+  test "MC-001 should connect two clients", %{connect: connect, remote_server: remote_server, server: server} do
     browser_a = connect.(LaunchServer.ws_endpoint(remote_server))
     assert Browser.contexts(browser_a) == []
     context_a1 = Browser.new_context!(browser_a)
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     Expect.to_have_url!(page_b2, server.prefix <> "/frames/frame.html")
   end
 
-  test "should fire context event on remote newContext", %{connect: connect, remote_server: remote_server} do
+  test "MC-002 should fire context event on remote newContext", %{connect: connect, remote_server: remote_server} do
     browser_a = connect.(LaunchServer.ws_endpoint(remote_server))
     {:ok, events} = Agent.start_link(fn -> [] end)
     Browser.on(browser_a, :context, fn ctx -> Agent.update(events, &(&1 ++ [ctx])) end)
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should have separate default timeouts", %{page_a: page_a, page_b: page_b} do
+  test "MC-003 should have separate default timeouts", %{page_a: page_a, page_b: page_b} do
     Page.set_default_timeout(page_a, 500)
     Page.set_default_timeout(page_b, 600)
 
@@ -144,7 +144,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should receive viewport size changes", %{page_a: page_a, page_b: page_b} do
+  test "MC-004 should receive viewport size changes", %{page_a: page_a, page_b: page_b} do
     Page.set_viewport_size!(page_a, %{width: 567, height: 456})
     assert Page.viewport_size(page_a) == %{width: 567, height: 456}
     poll(fn -> Page.viewport_size(page_b) end, &assert(&1 == %{width: 567, height: 456}))
@@ -156,7 +156,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   @tag :two_pages
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: Chromium only")
-  test "should not allow parallel js coverage and cleanup upon disconnect", %{page_a: page_a, page_b: page_b} do
+  test "MC-005 should not allow parallel js coverage and cleanup upon disconnect", %{page_a: page_a, page_b: page_b} do
     Coverage.start_js_coverage!(Page.coverage(page_a))
     {:error, error} = Coverage.start_js_coverage(Page.coverage(page_b))
     assert Exception.message(error) =~ "JSCoverage is already enabled"
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   @tag :two_pages
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: Chromium only")
-  test "should not allow parallel css coverage", %{page_a: page_a, page_b: page_b} do
+  test "MC-006 should not allow parallel css coverage", %{page_a: page_a, page_b: page_b} do
     Coverage.start_css_coverage!(Page.coverage(page_a))
     {:error, error} = Coverage.start_css_coverage(Page.coverage(page_b))
     assert Exception.message(error) =~ "CSSCoverage is already enabled"
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should unpause clock", %{page_a: page_a, page_b: page_b} do
+  test "MC-007 should unpause clock", %{page_a: page_a, page_b: page_b} do
     Clock.install!(Page.clock(page_a), time: 1000)
     Clock.pause_at!(Page.clock(page_a), 2000)
     promise = Runtime.Promise.async(fn -> Page.evaluate!(page_b, "() => new Promise(f => setTimeout(f, 1000))") end)
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "last emulateMedia wins", %{page_a: page_a, page_b: page_b} do
+  test "MC-008 last emulateMedia wins", %{page_a: page_a, page_b: page_b} do
     Page.emulate_media!(page_a, media: :print)
     assert Page.evaluate!(page_b, "() => window.matchMedia('screen').matches") == false
     assert Page.evaluate!(page_a, "() => window.matchMedia('print').matches") == true
@@ -198,7 +198,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should chain routes", %{page_a: page_a, page_b: page_b, server: server} do
+  test "MC-009 should chain routes", %{page_a: page_a, page_b: page_b, server: server} do
     html = fn body ->
       fn conn ->
         conn |> Plug.Conn.put_resp_header("content-type", "text/html") |> Plug.Conn.send_resp(200, body)
@@ -256,10 +256,10 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag skip: "upstream fixme: test.fixme (no reason given)"
-  test "should chain routes with changed url"
+  test "MC-010 should chain routes with changed url"
 
   @tag :two_pages
-  test "should remove exposed bindings upon disconnect", %{page_a: page_a, page_b: page_b} do
+  test "MC-011 should remove exposed bindings upon disconnect", %{page_a: page_a, page_b: page_b} do
     Page.expose_binding!(page_a, "pageBindingA", fn _source -> "pageBindingAResult" end)
     Page.evaluate!(page_a, "() => { window.pageBindingACopy = window.pageBindingA; }")
     assert Page.evaluate!(page_b, "() => window.pageBindingA()") == "pageBindingAResult"
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should unroute websockets", %{page_a: page_a, page_b: page_b, server: server} do
+  test "MC-012 should unroute websockets", %{page_a: page_a, page_b: page_b, server: server} do
     Page.goto!(page_a, server.empty_page)
     Page.route_web_socket!(page_a, ~r/.*/, fn _ -> nil end)
     Page.route_web_socket!(page_a, ~r/.*/, fn _ -> nil end)
@@ -304,7 +304,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   # Function scripts are JS source: `() => window.pageValueA = 'pageValueA'` is called.
   @tag :two_pages
-  test "should remove init scripts upon disconnect", %{page_a: page_a, page_b: page_b, server: server} do
+  test "MC-013 should remove init scripts upon disconnect", %{page_a: page_a, page_b: page_b, server: server} do
     Page.add_init_script!(page_a, "(() => window.pageValueA = 'pageValueA')()")
     BrowserContext.add_init_script!(Page.context(page_a), "(() => window.contextValueA = 'contextValueA')()")
     Page.goto!(page_b, server.empty_page)
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should remove locator handlers upon disconnect", %{page_a: page_a, page_b: page_b, server: server} do
+  test "MC-014 should remove locator handlers upon disconnect", %{page_a: page_a, page_b: page_b, server: server} do
     Page.goto!(page_a, server.prefix <> "/input/handle-locator.html")
 
     test = self()
@@ -371,7 +371,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag remote_server: false
-  test "should launch persistent", %{browser_type: browser_type, launch_server: launch_server} do
+  test "MC-015 should launch persistent", %{browser_type: browser_type, launch_server: launch_server} do
     {:ok, browser_server} = launch_server.(%{_userDataDir: "", _sharedBrowser: true})
     browser = BrowserType.connect!(browser_type, LaunchServer.ws_endpoint(browser_server))
     assert length(Browser.contexts(browser)) == 1
@@ -380,7 +380,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   end
 
   @tag :two_pages
-  test "should avoid side effects upon disconnect", %{page_a: page_a, page_b: page_b} do
+  test "MC-016 should avoid side effects upon disconnect", %{page_a: page_a, page_b: page_b} do
     {:ok, counter} = Agent.start_link(fn -> 0 end)
     Page.on(page_b, :console, fn _ -> Agent.update(counter, &(&1 + 1)) end)
 
@@ -413,7 +413,11 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   # test.skip(trace === 'on' / video === 'on')  -- never on
   @tag :two_pages
-  test "screencast should deliver cached last frame to a new client", %{page_a: page_a, page_b: page_b, server: server} do
+  test "MC-017 screencast should deliver cached last frame to a new client", %{
+    page_a: page_a,
+    page_b: page_b,
+    server: server
+  } do
     Page.goto!(page_a, server.empty_page)
     Page.evaluate!(page_a, "() => document.body.style.backgroundColor = 'red'")
 
@@ -444,7 +448,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
   # test.skip(trace === 'on')  -- never on
   @tag :two_pages
-  test "should stop tracing upon disconnect", %{page_a: page_a, page_b: page_b} do
+  test "MC-018 should stop tracing upon disconnect", %{page_a: page_a, page_b: page_b} do
     Tracing.start!(BrowserContext.tracing(Page.context(page_a)))
     {:error, error} = Tracing.start(BrowserContext.tracing(Page.context(page_b)))
     assert Exception.message(error) =~ "Tracing has been already started"

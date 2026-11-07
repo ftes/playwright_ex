@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     end
   end
 
-  test "should drop functions without the exposeFunctions option", %{page: page, server: server} do
+  test "IS-012 should drop functions without the exposeFunctions option", %{page: page, server: server} do
     Page.add_init_script!(
       page,
       """
@@ -36,12 +36,12 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert Page.evaluate!(page, "() => window.cbType") == "undefined"
   end
 
-  test "should throw when the script is not a function", %{page: page} do
+  test "IS-013 should throw when the script is not a function", %{page: page} do
     {:error, e} = Page.add_init_script(page, %{content: "window.foo = 1;"}, nil, expose_functions: true)
     assert e.message =~ "Passing functions requires the init script to be a function"
   end
 
-  test "should call a function passed as an argument", %{page: page, server: server} do
+  test "IS-014 should call a function passed as an argument", %{page: page, server: server} do
     test = self()
 
     Page.add_init_script!(
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     refute_received {:received, _}
   end
 
-  test "should accept a function as the whole argument", %{page: page, server: server} do
+  test "IS-015 should accept a function as the whole argument", %{page: page, server: server} do
     Page.add_init_script!(
       page,
       """
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert poll(page, "() => window.result") == "ab"
   end
 
-  test "should pass arguments to the callback", %{page: page, server: server} do
+  test "IS-016 should pass arguments to the callback", %{page: page, server: server} do
     test = self()
 
     cb = fn a, b, c, d ->
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert args == [1, "two", %{"three" => 3}, [4]]
   end
 
-  test "should return the callback result to the page", %{page: page, server: server} do
+  test "IS-017 should return the callback result to the page", %{page: page, server: server} do
     Page.add_init_script!(
       page,
       """
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert poll(page, "() => window.result") == 42
   end
 
-  test "should propagate callback errors to the page", %{page: page, server: server} do
+  test "IS-018 should propagate callback errors to the page", %{page: page, server: server} do
     Page.add_init_script!(
       page,
       """
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert poll(page, "() => window.result") =~ "boom"
   end
 
-  test "should support multiple callbacks", %{page: page, server: server} do
+  test "IS-019 should support multiple callbacks", %{page: page, server: server} do
     Page.add_init_script!(
       page,
       """
@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert poll(page, "() => window.result") == 11
   end
 
-  test "should survive a navigation and keep working", %{page: page, server: server} do
+  test "IS-020 should survive a navigation and keep working", %{page: page, server: server} do
     test = self()
 
     Page.add_init_script!(
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     refute_received {:received, _}
   end
 
-  test "should work in a child frame", %{page: page, server: server} do
+  test "IS-021 should work in a child frame", %{page: page, server: server} do
     test = self()
 
     Page.add_init_script!(
@@ -208,7 +208,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     refute_received {:received, _}
   end
 
-  test "should not register the callback on the global object", %{page: page, server: server} do
+  test "IS-022 should not register the callback on the global object", %{page: page, server: server} do
     Page.add_init_script!(
       page,
       """
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     assert poll(page, "() => window.result") == []
   end
 
-  test "should remove exposed functions after dispose", %{page: page, server: server} do
+  test "IS-023 should remove exposed functions after dispose", %{page: page, server: server} do
     test = self()
 
     disposable =

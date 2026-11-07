@@ -12,13 +12,13 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
 
   @moduletag :page
 
-  test "should press @smoke", %{page: page} do
+  test "LO-140 should press @smoke", %{page: page} do
     Page.set_content!(page, "<input type='text' />")
     Locator.press!(Page.locator(page, "input"), "h")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "h"
   end
 
-  test "should scroll into view", %{page: page, server: server} do
+  test "LO-141 should scroll into view", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/offscreenbuttons.html")
 
     for i <- 0..10 do
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     end
   end
 
-  test "should scroll zero-sized element into view", %{page: page} do
+  test "LO-142 should scroll zero-sized element into view", %{page: page} do
     Page.set_content!(page, """
       <style>
         html,body { margin: 0; padding: 0; }
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     assert Locator.bounding_box!(Page.locator(page, "#lazyload")) == %{x: 0, y: 720, width: 1280, height: 20}
   end
 
-  test "should select textarea", %{page: page, server: server} do
+  test "LO-143 should select textarea", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.locator(page, "textarea")
     Locator.evaluate!(textarea, "textarea => textarea.value = 'some value'")
@@ -76,19 +76,19 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "some value"
   end
 
-  test "should type", %{page: page} do
+  test "LO-144 should type", %{page: page} do
     Page.set_content!(page, "<input type='text' />")
     Locator.type!(Page.locator(page, "input"), "hello")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "hello"
   end
 
-  test "should pressSequentially", %{page: page} do
+  test "LO-145 should pressSequentially", %{page: page} do
     Page.set_content!(page, "<input type='text' />")
     Locator.press_sequentially!(Page.locator(page, "input"), "hello")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "hello"
   end
 
-  test "should take screenshot", %{page: page, server: server} do
+  test "LO-146 should take screenshot", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     # it.skip(isAndroid)  -- not Android
     Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -99,7 +99,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
   end
 
-  test "should return bounding box", %{page: page, server: server} do
+  test "LO-147 should return bounding box", %{page: page, server: server} do
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.prefix <> "/grid.html")
     element = Page.locator(page, ".box:nth-of-type(13)")
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     assert box == %{x: 100, y: 50, width: 50, height: 50}
   end
 
-  test "should waitFor", %{page: page} do
+  test "LO-148 should waitFor", %{page: page} do
     Page.set_content!(page, "<div></div>")
     locator = Page.locator(page, "span")
     promise = Runtime.Promise.async(fn -> Locator.wait_for!(locator) end)
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     Expect.to_have_text!(locator, "target")
   end
 
-  test "should waitFor hidden", %{page: page} do
+  test "LO-149 should waitFor hidden", %{page: page} do
     Page.set_content!(page, "<div><span>target</span></div>")
     locator = Page.locator(page, "span")
     promise = Runtime.Promise.async(fn -> Locator.wait_for!(locator, state: :hidden) end)
@@ -124,7 +124,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     Runtime.Promise.await(promise)
   end
 
-  test "should combine visible with other selectors", %{page: page} do
+  test "LO-150 should combine visible with other selectors", %{page: page} do
     Page.set_content!(page, """
     <div>
     <div class="item" style="display: none">Hidden data0</div>
@@ -152,7 +152,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     </div>
   """
 
-  test "should support filter(visible)", %{page: page} do
+  test "LO-151 should support filter(visible)", %{page: page} do
     Page.set_content!(page, @items)
     locator = page |> Page.locator(".item") |> Locator.filter(visible: true) |> Locator.nth(1)
     Expect.to_have_text!(locator, "visible data2")
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     )
   end
 
-  test "should support visible()", %{page: page} do
+  test "LO-152 should support visible()", %{page: page} do
     Page.set_content!(page, @items)
     locator = page |> Page.locator(".item") |> Locator.visible() |> Locator.nth(1)
     Expect.to_have_text!(locator, "visible data2")
@@ -181,14 +181,14 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     Expect.to_have_count!(page |> Page.locator(".item") |> Locator.visible(), 3)
   end
 
-  test "locator.count should work with deleted Map in main world", %{page: page} do
+  test "LO-153 locator.count should work with deleted Map in main world", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/11254' });
     Page.evaluate!(page, "Map = 1")
     Locator.count!(Page.locator(page, "#searchResultTableDiv .x-grid3-row"))
     Expect.to_have_count!(Page.locator(page, "#searchResultTableDiv .x-grid3-row"), 0)
   end
 
-  test "Locator.locator() and FrameLocator.locator() should accept locator", %{page: page} do
+  test "LO-154 Locator.locator() and FrameLocator.locator() should accept locator", %{page: page} do
     Page.set_content!(page, """
       <div><input value=outer></div>
       <iframe srcdoc="<div><input value=inner></div>"></iframe>
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
            |> Locator.input_value!() == "inner"
   end
 
-  test "should fill programmatically enabled textarea", %{page: page} do
+  test "LO-155 should fill programmatically enabled textarea", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36307' }
     Page.set_content!(page, """
       <button>Enable</button>
@@ -236,7 +236,7 @@ defmodule PlaywrightEx.Page.LocatorMisc2Test do
     Expect.to_have_value!(Page.locator(page, "#text"), "Hello")
   end
 
-  test "press should throw on unknown keys", %{page: page} do
+  test "LO-156 press should throw on unknown keys", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36697' }
     Page.set_content!(page, "<input type='text' value='hello' />")
     locator = Page.get_by_role(page, "textbox")

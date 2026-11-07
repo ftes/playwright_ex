@@ -12,25 +12,25 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
   # Function scripts are JS source; without an `arg` a string is the script itself
   # (`function() { window.injected = 123; }` becomes `window['injected'] = 123`).
 
-  test "should evaluate before anything else on the page", %{page: page, server: server} do
+  test "IS-001 should evaluate before anything else on the page", %{page: page, server: server} do
     Page.add_init_script!(page, "window['injected'] = 123;")
     Page.goto!(page, server.prefix <> "/tamperable.html")
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should work with a path", %{page: page, server: server, asset: asset} do
+  test "IS-002 should work with a path", %{page: page, server: server, asset: asset} do
     Page.add_init_script!(page, %{path: asset.("injectedfile.js")})
     Page.goto!(page, server.prefix <> "/tamperable.html")
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should work with content @smoke", %{page: page, server: server} do
+  test "IS-003 should work with content @smoke", %{page: page, server: server} do
     Page.add_init_script!(page, %{content: ~s|window["injected"] = 123|})
     Page.goto!(page, server.prefix <> "/tamperable.html")
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should throw without path and content", %{page: page} do
+  test "IS-004 should throw without path and content", %{page: page} do
     # @ts-expect-error foo is not a real option of addInitScript: the facade rejects it, so the
     # client's check runs on an empty script object.
     assert_raise ArgumentError, ~r/unknown field :foo/, fn -> Page.add_init_script(page, %{foo: "bar"}) end
@@ -38,14 +38,14 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
     assert error.message =~ "Either path or content property must be present"
   end
 
-  test "should work with trailing comments", %{page: page} do
+  test "IS-005 should work with trailing comments", %{page: page} do
     Page.add_init_script!(page, %{content: "// comment"})
     Page.add_init_script!(page, %{content: "window.secret = 42;"})
     Page.goto!(page, "data:text/html,<html></html>")
     assert Page.evaluate!(page, "secret") == 42
   end
 
-  test "should support multiple scripts", %{page: page, server: server} do
+  test "IS-006 should support multiple scripts", %{page: page, server: server} do
     Page.add_init_script!(page, "window['script1'] = 1;")
     Page.add_init_script!(page, "window['script2'] = 2;")
     Page.goto!(page, server.prefix <> "/tamperable.html")
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['script2']") == 2
   end
 
-  test "should work with CSP", %{page: page, server: server} do
+  test "IS-007 should work with CSP", %{page: page, server: server} do
     TestServer.set_csp(server, "/empty.html", "script-src " <> server.prefix)
     Page.add_init_script!(page, "window['injected'] = 123;")
     Page.goto!(page, server.prefix <> "/empty.html")
@@ -64,14 +64,14 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['e']") == nil
   end
 
-  test "should work after a cross origin navigation", %{page: page, server: server} do
+  test "IS-008 should work after a cross origin navigation", %{page: page, server: server} do
     Page.goto!(page, server.cross_process_prefix)
     Page.add_init_script!(page, "window['injected'] = 123;")
     Page.goto!(page, server.prefix <> "/tamperable.html")
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should remove init script after dispose", %{page: page, server: server} do
+  test "IS-009 should remove init script after dispose", %{page: page, server: server} do
     disposable = Page.add_init_script!(page, "window['injected'] = 123;")
     Page.goto!(page, server.prefix <> "/tamperable.html")
     assert Page.evaluate!(page, "() => window['result']") == 123
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['result']") == nil
   end
 
-  test "should remove one of multiple init scripts after dispose", %{page: page, server: server} do
+  test "IS-010 should remove one of multiple init scripts after dispose", %{page: page, server: server} do
     disposable1 = Page.add_init_script!(page, "window['script1'] = 1;")
     Page.add_init_script!(page, "window['script2'] = 2;")
     Page.goto!(page, server.prefix <> "/tamperable.html")
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['script2']") == 2
   end
 
-  test "init script should run only once in iframe", %{page: page, server: server, browser_name: browser_name} do
+  test "IS-011 init script should run only once in iframe", %{page: page, server: server, browser_name: browser_name} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/26992' });
     test = self()
 

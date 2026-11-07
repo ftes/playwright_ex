@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.PageRequestGcTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  test "should work", %{page: page} do
+  test "RO-149 should work", %{page: page} do
     Page.evaluate!(page, """
     () => {
       globalThis.objectToDestroy = { hello: 'world' };
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Page.PageRequestGcTest do
             _ ->
               false
           end)
-  test "should collect element retained by locator hit-target interceptor after detach", %{page: page} do
+  test "RO-150 should collect element retained by locator hit-target interceptor after detach", %{page: page} do
     Page.set_content!(page, ~s|<button id="btn">click me</button>|)
     Locator.click!(Page.locator(page, "#btn"))
 

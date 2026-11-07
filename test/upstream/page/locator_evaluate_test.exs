@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.LocatorEvaluateTest do
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page} do
+  test "LO-084 should work @smoke", %{page: page} do
     Page.set_content!(
       page,
       ~s(<html><body><div class="tweet"><div class="like">100</div><div class="retweets">10</div></div></body></html>)
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Page.LocatorEvaluateTest do
     assert content == "100"
   end
 
-  test "should retrieve content from subtree", %{page: page} do
+  test "LO-085 should retrieve content from subtree", %{page: page} do
     html_content = ~s(<div class="a">not-a-child-div</div><div id="myId"><div class="a">a-child-div</div></div>)
     Page.set_content!(page, html_content)
     element_handle = Page.locator(page, "#myId .a")
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.LocatorEvaluateTest do
     assert content == "a-child-div"
   end
 
-  test "should work for all", %{page: page} do
+  test "LO-086 should work for all", %{page: page} do
     Page.set_content!(
       page,
       ~s(<html><body><div class="tweet"><div class="like">100</div><div class="like">10</div></div></body></html>)
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Page.LocatorEvaluateTest do
     assert content == ["100", "10"]
   end
 
-  test "should retrieve content from subtree for all", %{page: page} do
+  test "LO-087 should retrieve content from subtree for all", %{page: page} do
     html_content =
       ~s(<div class="a">not-a-child-div</div><div id="myId"><div class="a">a1-child-div</div><div class="a">a2-child-div</div></div>)
 
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Page.LocatorEvaluateTest do
     assert content == ["a1-child-div", "a2-child-div"]
   end
 
-  test "should not throw in case of missing selector for all", %{page: page} do
+  test "LO-088 should not throw in case of missing selector for all", %{page: page} do
     html_content = ~s(<div class="a">not-a-child-div</div><div id="myId"></div>)
     Page.set_content!(page, html_content)
     element = Page.locator(page, "#myId .a")

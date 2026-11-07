@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     end
   end
 
-  test "should create new context @smoke", %{browser: browser} do
+  test "BC-001 should create new context @smoke", %{browser: browser} do
     assert Browser.contexts(browser) == []
     context = Browser.new_context!(browser)
     assert Browser.contexts(browser) == [context]
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context2)
   end
 
-  test "should be able to click across browser contexts", %{browser: browser} do
+  test "BC-002 should be able to click across browser contexts", %{browser: browser} do
     assert Browser.contexts(browser) == []
 
     create_page = fn ->
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     Page.close!(page2)
   end
 
-  test "should be able to hover across browser contexts in parallel", %{browser: browser} do
+  test "BC-003 should be able to hover across browser contexts in parallel", %{browser: browser} do
     # it.fixme(browserName === 'firefox' && !headless, 'Hover is flaky in headed Firefox');
     html = """
     <style>
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     |> Task.await_many(:infinity)
   end
 
-  test "window.open should use parent tab context", %{browser: browser, server: server} do
+  test "BC-004 window.open should use parent tab context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -140,7 +140,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "should isolate localStorage and cookies @smoke", %{browser: browser, server: server} do
+  test "BC-005 should isolate localStorage and cookies @smoke", %{browser: browser, server: server} do
     # Create two incognito contexts.
     context1 = Browser.new_context!(browser)
     context2 = Browser.new_context!(browser)
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert Browser.contexts(browser) == []
   end
 
-  test "should propagate default viewport to the page", %{browser: browser} do
+  test "BC-006 should propagate default viewport to the page", %{browser: browser} do
     context = Browser.new_context!(browser, viewport: %{width: 456, height: 789})
     page = BrowserContext.new_page!(context)
     verify_viewport(page, 456, 789)
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   end
 
   # Elixir maps are immutable: `viewport.width = 567` rebinds a copy.
-  test "should make a copy of default viewport", %{browser: browser} do
+  test "BC-007 should make a copy of default viewport", %{browser: browser} do
     viewport = %{width: 456, height: 789}
     context = Browser.new_context!(browser, viewport: viewport)
     _viewport = %{viewport | width: 567}
@@ -212,29 +212,29 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "should respect deviceScaleFactor", %{browser: browser} do
+  test "BC-008 should respect deviceScaleFactor", %{browser: browser} do
     context = Browser.new_context!(browser, device_scale_factor: 3)
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "window.devicePixelRatio") == 3
     BrowserContext.close!(context)
   end
 
-  test "should not allow deviceScaleFactor with null viewport", %{browser: browser} do
+  test "BC-009 should not allow deviceScaleFactor with null viewport", %{browser: browser} do
     {:error, error} = Browser.new_context(browser, viewport: :null, device_scale_factor: 1)
     assert Exception.message(error) =~ ~s("deviceScaleFactor" option is not supported with null "viewport")
   end
 
-  test "should not allow isMobile with null viewport", %{browser: browser} do
+  test "BC-010 should not allow isMobile with null viewport", %{browser: browser} do
     {:error, error} = Browser.new_context(browser, viewport: :null, is_mobile: true)
     assert Exception.message(error) =~ ~s("isMobile" option is not supported with null "viewport")
   end
 
-  test "close() should work for empty context", %{browser: browser} do
+  test "BC-011 close() should work for empty context", %{browser: browser} do
     context = Browser.new_context!(browser)
     BrowserContext.close!(context)
   end
 
-  test "close() should abort waitForEvent", %{browser: browser} do
+  test "BC-012 close() should abort waitForEvent", %{browser: browser} do
     context = Browser.new_context!(browser)
     promise = BrowserContext.wait_for_event(context, :page)
     BrowserContext.close!(context)
@@ -242,19 +242,19 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert Exception.message(error) =~ "Target page, context or browser has been closed"
   end
 
-  test "close() should be callable twice", %{browser: browser} do
+  test "BC-013 close() should be callable twice", %{browser: browser} do
     context = Browser.new_context!(browser)
     BrowserContext.close!(context)
     BrowserContext.close!(context)
   end
 
-  test "should pass self to close event", %{browser: browser} do
+  test "BC-014 should pass self to close event", %{browser: browser} do
     new_context = Browser.new_context!(browser)
     closed_context = BrowserContext.expect_event!(new_context, :close, fn -> BrowserContext.close!(new_context) end)
     assert closed_context == new_context
   end
 
-  test "should not report frameless pages on error", %{browser: browser, server: server} do
+  test "BC-015 should not report frameless pages on error", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -282,7 +282,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     end
   end
 
-  test "should return all of the pages", %{browser: browser} do
+  test "BC-016 should return all of the pages", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     second = BrowserContext.new_page!(context)
@@ -293,7 +293,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "should close all belonging pages once closing context", %{browser: browser} do
+  test "BC-017 should close all belonging pages once closing context", %{browser: browser} do
     context = Browser.new_context!(browser)
     BrowserContext.new_page!(context)
     assert length(BrowserContext.pages(context)) == 1
@@ -302,7 +302,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert BrowserContext.pages(context) == []
   end
 
-  test "should disable javascript", %{browser: browser, browser_name: browser_name} do
+  test "BC-018 should disable javascript", %{browser: browser, browser_name: browser_name} do
     context = Browser.new_context!(browser, java_script_enabled: false)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, ~s(data:text/html, <script>var something = "forbidden"</script>))
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "should be able to navigate after disabling javascript", %{browser: browser, server: server} do
+  test "BC-019 should be able to navigate after disabling javascript", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, java_script_enabled: false)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -329,21 +329,21 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox (non-BiDi)")
-  test "should not hang on promises after disabling javascript", %{context_factory: context_factory} do
+  test "BC-020 should not hang on promises after disabling javascript", %{context_factory: context_factory} do
     context = context_factory.(java_script_enabled: false)
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "() => 1") == 1
     assert Page.evaluate!(page, "async () => 2") == 2
   end
 
-  test "setContent should work after disabling javascript", %{context_factory: context_factory} do
+  test "BC-021 setContent should work after disabling javascript", %{context_factory: context_factory} do
     context = context_factory.(java_script_enabled: false)
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<h1>Hello</h1>")
     Expect.to_have_text!(Page.locator(page, "h1"), "Hello")
   end
 
-  test "should retry click after disabling javascript", %{context_factory: context_factory} do
+  test "BC-022 should retry click after disabling javascript", %{context_factory: context_factory} do
     context = context_factory.(java_script_enabled: false)
     page = BrowserContext.new_page!(context)
 
@@ -362,7 +362,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     Expect.to_have_attribute!(Page.locator(page, "details"), "open", "")
   end
 
-  test "should work with offline option", %{browser: browser, server: server, browser_name: browser_name} do
+  test "BC-023 should work with offline option", %{browser: browser, server: server, browser_name: browser_name} do
     context = Browser.new_context!(browser, offline: true)
     page = BrowserContext.new_page!(context)
 
@@ -383,7 +383,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "fetch with keepalive should throw when offline", %{context_factory: context_factory, server: server} do
+  test "BC-024 fetch with keepalive should throw when offline", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -426,7 +426,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert offline_response == "error"
   end
 
-  test "should emulate navigator.onLine", %{browser: browser} do
+  test "BC-025 should emulate navigator.onLine", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "() => window.navigator.onLine") == true
@@ -441,7 +441,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
          if(@browser_name == "chromium" and @browser_major_version < 155,
            do: "upstream skip: does not survive cross-process navgiation"
          )
-  test "should emulate navigator.onLine across navigations", %{
+  test "BC-026 should emulate navigator.onLine across navigations", %{
     browser: browser,
     server: server,
     browser_name: browser_name
@@ -470,7 +470,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "should emulate offline event", %{browser: browser} do
+  test "BC-027 should emulate offline event", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
 
@@ -492,7 +492,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     BrowserContext.close!(context)
   end
 
-  test "should emulate media in popup", %{browser: browser, server: server} do
+  test "BC-028 should emulate media in popup", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, color_scheme: :dark)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -519,7 +519,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     Page.close!(page)
   end
 
-  test "should emulate media in cross-process iframe", %{browser: browser, server: server} do
+  test "BC-029 should emulate media in cross-process iframe", %{browser: browser, server: server} do
     page = Browser.new_page!(browser, color_scheme: :dark)
     Page.goto!(page, server.empty_page)
     Utils.attach_frame(page, "frame1", server.cross_process_prefix <> "/empty.html")
@@ -530,7 +530,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
 
   # `(browser as any)._channel.defaultUserAgentForTest()`: the client's channel call.
   @tag :page
-  test "default user agent", %{browser: browser, page: page} do
+  test "BC-030 default user agent", %{browser: browser, page: page} do
     %{userAgent: user_agent} =
       PlaywrightEx.Runtime.Api.call(nil, browser, fn ->
         ChannelOwner.channel_call(browser, :defaultUserAgentForTest, %{})
@@ -539,7 +539,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     assert Page.evaluate!(page, "() => navigator.userAgent") == user_agent
   end
 
-  test "should create two pages in parallel in various contexts", %{browser: browser} do
+  test "BC-031 should create two pages in parallel in various contexts", %{browser: browser} do
     context1 = Browser.new_context!(browser)
     context2 = Browser.new_context!(browser)
 

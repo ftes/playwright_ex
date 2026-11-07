@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     end
   end
 
-  test "should work when passing the proxy only on the context level",
+  test "PR-018 should work when passing the proxy only on the context level",
        %{browser_type: browser_type, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     # proxy: undefined
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
 
   for launch_proxy <- ["per-context", "http://per-context"] do
     @tag launch_proxy: launch_proxy
-    test "should ignore legacy '#{launch_proxy}' launch proxy", %{
+    test "PR-019 should ignore legacy '#{launch_proxy}' launch proxy", %{
       browser_type: browser_type,
       server: server,
       proxy_server: proxy_server,
@@ -98,13 +98,13 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     end
   end
 
-  test "should throw for bad server value", %{browser: browser} do
+  test "PR-020 should throw for bad server value", %{browser: browser} do
     # contextFactory(options).catch(e => e)
     {:error, error} = Browser.new_context(browser, proxy: %{server: 123})
     assert error.message =~ "proxy.server: expected string, got number"
   end
 
-  test "should use proxy", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
+  test "PR-021 should use proxy", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: proxy_server.host})
     page = BrowserContext.new_page!(context)
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should send secure cookies to subdomain.localhost", %{
+  test "PR-022 should send secure cookies to subdomain.localhost", %{
     context_factory: context_factory,
     browser_name: browser_name,
     server: server,
@@ -170,7 +170,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
   # it.fixme(browserName === 'webkit' && (isLinux || channel === 'webkit-wsl'));
   @tag skip:
          if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()), do: "upstream fixme: webkit on Linux")
-  test "should set cookie for top-level domain",
+  test "PR-023 should set cookie for top-level domain",
        %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port, allow_connect_requests: true)
     context = context_factory.(proxy: %{server: proxy_server.host})
@@ -207,7 +207,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
                   true ->
                     "env: Mac webkit (macOS 26) bypasses the proxy for localhost and 127.0.0.1 (upstream client too)"
                 end)
-        test "#{description}", %{
+        test "PR-024 #{description}", %{
           context_factory: context_factory,
           server: server,
           proxy_server: proxy_server,
@@ -250,7 +250,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
   end
 
   # it.fail(channel === 'webkit-wsl', ...)  -- no channel
-  test "should use ipv6 proxy", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
+  test "PR-025 should use ipv6 proxy", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     # it.fail(browserName === 'firefox' && !isBidi, 'page.goto: NS_ERROR_UNKNOWN_HOST')
     expected_failure(@browser_name == "firefox", fn ->
       TestProxy.forward_to(proxy_server, server.port)
@@ -263,7 +263,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     end)
   end
 
-  test "should use proxy twice", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
+  test "PR-026 should use proxy twice", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: proxy_server.host})
     page = BrowserContext.new_page!(context)
@@ -275,7 +275,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should use proxy for second page",
+  test "PR-027 should use proxy for second page",
        %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: proxy_server.host})
@@ -294,7 +294,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should use proxy for https urls",
+  test "PR-028 should use proxy for https urls",
        %{context_factory: context_factory, https_server: https_server, proxy_server: proxy_server} do
     TestServer.set_route(https_server, "/target.html", fn conn ->
       Plug.Conn.send_resp(conn, 200, "<html><title>Served by https server via proxy</title></html>")
@@ -309,7 +309,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with IP:PORT notion", %{
+  test "PR-029 should work with IP:PORT notion", %{
     context_factory: context_factory,
     server: server,
     proxy_server: proxy_server
@@ -323,21 +323,21 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should throw for socks5 authentication", %{browser: browser} do
+  test "PR-030 should throw for socks5 authentication", %{browser: browser} do
     {:error, error} =
       Browser.new_context(browser, proxy: %{server: "socks5://localhost:1234", username: "user", password: "secret"})
 
     assert error.message =~ "Browser does not support socks5 proxy authentication"
   end
 
-  test "should throw for socks4 authentication", %{browser: browser} do
+  test "PR-031 should throw for socks4 authentication", %{browser: browser} do
     {:error, error} =
       Browser.new_context(browser, proxy: %{server: "socks4://localhost:1234", username: "user", password: "secret"})
 
     assert error.message =~ "Socks4 proxy protocol does not support authentication"
   end
 
-  test "should authenticate", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
+  test "PR-032 should authenticate", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     record_auth(proxy_server)
     context = context_factory.(proxy: %{server: proxy_server.host, username: "user", password: "secret"})
@@ -349,7 +349,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should authenticate with empty password",
+  test "PR-033 should authenticate with empty password",
        %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     record_auth(proxy_server)
@@ -361,7 +361,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should isolate proxy credentials between contexts",
+  test "PR-034 should isolate proxy credentials between contexts",
        %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     record_auth(proxy_server)
@@ -384,7 +384,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should exclude patterns", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
+  test "PR-035 should exclude patterns", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port)
     # FYI: using long and weird domain names to avoid ATT DNS hijacking
     # that resolves everything to some weird search results page.
@@ -432,7 +432,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should use socks proxy", %{context_factory: context_factory, socks_port: socks_port} do
+  test "PR-036 should use socks proxy", %{context_factory: context_factory, socks_port: socks_port} do
     context = context_factory.(proxy: %{server: "socks5://localhost:#{socks_port}"})
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "http://non-existent.com")
@@ -440,7 +440,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "should use socks proxy in second page", %{context_factory: context_factory, socks_port: socks_port} do
+  test "PR-037 should use socks proxy in second page", %{context_factory: context_factory, socks_port: socks_port} do
     context = context_factory.(proxy: %{server: "socks5://localhost:#{socks_port}"})
 
     page = BrowserContext.new_page!(context)
@@ -454,13 +454,13 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     BrowserContext.close!(context)
   end
 
-  test "does launch without a port", %{context_factory: context_factory} do
+  test "PR-038 does launch without a port", %{context_factory: context_factory} do
     context = context_factory.(proxy: %{server: "http://localhost"})
     BrowserContext.close!(context)
   end
 
   # annotation: https://github.com/microsoft/playwright/issues/31525
-  test "should isolate proxy credentials between contexts on navigation", %{
+  test "PR-039 should isolate proxy credentials between contexts on navigation", %{
     context_factory: context_factory,
     server: server
   } do

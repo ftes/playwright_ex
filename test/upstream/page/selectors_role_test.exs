@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
   # `locator.evaluateAll(els => els.map(e => e.outerHTML))`
   defp outer_html(locator), do: Locator.evaluate_all!(locator, "els => els.map(e => e.outerHTML)")
 
-  test "should detect roles", %{page: page} do
+  test "SE-050 should detect roles", %{page: page} do
     Page.set_content!(page, """
     <button>Hello</button>
     <select multiple="" size="2"></select>
@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
     assert outer_html(Page.get_by_role(page, :menuitem)) == []
   end
 
-  test "should support selected", %{page: page} do
+  test "SE-051 should support selected", %{page: page} do
     Page.set_content!(page, """
     <select>
       <option>Hi</option>
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support checked", %{page: page} do
+  test "SE-052 should support checked", %{page: page} do
     Page.set_content!(page, """
     <input type=checkbox>
     <input type=checkbox checked>
@@ -122,7 +122,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support pressed", %{page: page} do
+  test "SE-053 should support pressed", %{page: page} do
     Page.set_content!(page, """
     <button>Hi</button>
     <button aria-pressed="true">Hello</button>
@@ -162,7 +162,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support expanded", %{page: page} do
+  test "SE-054 should support expanded", %{page: page} do
     Page.set_content!(page, """
     <div role="treeitem">Hi</div>
     <div role="treeitem" aria-expanded="true">Hello</div>
@@ -207,7 +207,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support disabled", %{page: page} do
+  test "SE-055 should support disabled", %{page: page} do
     Page.set_content!(page, """
     <button>Hi</button>
     <button disabled>Bye</button>
@@ -269,7 +269,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should inherit disabled from the ancestor", %{page: page} do
+  test "SE-056 should inherit disabled from the ancestor", %{page: page} do
     Page.set_content!(page, """
     <span aria-disabled="true">
       <button>Click me!</button>
@@ -287,7 +287,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
     Expect.not_to_be_disabled!(Page.locator(page, "h1"))
   end
 
-  test "should support disabled fieldset", %{page: page} do
+  test "SE-057 should support disabled fieldset", %{page: page} do
     Page.set_content!(page, """
     <fieldset disabled>
       <input></input>
@@ -330,7 +330,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
     Expect.to_be_disabled!(Page.get_by_test_id(page, "deep-button"))
   end
 
-  test "should support level", %{page: page} do
+  test "SE-058 should support level", %{page: page} do
     Page.set_content!(page, """
     <h1>Hello</h1>
     <h3>Hi</h3>
@@ -347,7 +347,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should filter hidden, unless explicitly asked for", %{page: page} do
+  test "SE-059 should filter hidden, unless explicitly asked for", %{page: page} do
     Page.set_content!(page, """
     <button>Hi</button>
     <button hidden>Hello</button>
@@ -439,7 +439,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support name", %{page: page} do
+  test "SE-060 should support name", %{page: page} do
     Page.set_content!(page, """
     <div role="button" aria-label=" Hello "></div>
     <div role="button" aria-label="Hallo"></div>
@@ -512,7 +512,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support option name with html whitespace", %{page: page} do
+  test "SE-061 should support option name with html whitespace", %{page: page} do
     Page.set_content!(page, """
     <select>
       <option value="html">&nbsp;HTML</option>
@@ -522,7 +522,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
     Expect.to_have_count!(Page.get_by_role(page, :option, name: "HTML"), 1)
   end
 
-  test "errors", %{page: page} do
+  test "SE-062 errors", %{page: page} do
     {:error, e0} = Page.query_selector(page, "role=[bar]")
     assert e0.message =~ "Role must not be empty"
 
@@ -553,7 +553,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
     assert e8.message =~ ~s("expanded" must be one of true, false)
   end
 
-  test "hidden with shadow dom slots", %{page: page} do
+  test "SE-063 hidden with shadow dom slots", %{page: page} do
     Page.set_content!(page, """
     <div make-hidden>
       <button>hidden1</button>
@@ -588,12 +588,12 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
            ]
   end
 
-  test "should support output accessible name", %{page: page} do
+  test "SE-064 should support output accessible name", %{page: page} do
     Page.set_content!(page, "<label>Output1<output>output</output></label>")
     Expect.to_be_visible!(Page.get_by_role(page, :status, name: "Output1"))
   end
 
-  test "should not match scope by default", %{page: page} do
+  test "SE-065 should not match scope by default", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li aria-label="Parent list">

@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     Api.call(nil, owner, fn -> ChannelOwner.channel_call(owner, method, params) end)
   end
 
-  test "reverse engineer locators", %{page: page} do
+  test "GN-001 reverse engineer locators", %{page: page} do
     assert generate(Page.get_by_test_id(page, "Hello")) == %{
              "javascript" => "getByTestId('Hello')",
              "python" => "get_by_test_id(\"Hello\")",
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer getByRole", %{page: page} do
+  test "GN-002 reverse engineer getByRole", %{page: page} do
     assert generate(Page.get_by_role(page, :button)) == %{
              "javascript" => "getByRole('button')",
              "python" => "get_by_role(\"button\")",
@@ -277,7 +277,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "refuses to translate internal:role with conflicting name/description exactness" do
+  test "GN-003 refuses to translate internal:role with conflicting name/description exactness" do
     conflicting = "internal:role=row[name=\"abc\"i][description=\"d\"s]"
     conflicting_reversed = "internal:role=row[name=\"abc\"s][description=\"d\"i]"
 
@@ -287,7 +287,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     end
   end
 
-  test "reverse engineer internal:role with regex and string name/description" do
+  test "GN-004 reverse engineer internal:role with regex and string name/description" do
     assert generate_for_selector("internal:role=alert[name=/Upload/][description=\"doc.pdf\"i]") == %{
              "javascript" => "getByRole('alert', { name: /Upload/, description: 'doc.pdf' })",
              "python" => "get_by_role(\"alert\", name=re.compile(r\"Upload\"), description=\"doc.pdf\")",
@@ -307,7 +307,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer ignore-case locators", %{page: page} do
+  test "GN-005 reverse engineer ignore-case locators", %{page: page} do
     assert generate(Page.get_by_text(page, "hello my\nwo\"rld")) == %{
              "csharp" => "GetByText(\"hello my\\nwo\\\"rld\")",
              "java" => "getByText(\"hello my\\nwo\\\"rld\")",
@@ -330,7 +330,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer ordered locators", %{page: page} do
+  test "GN-006 reverse engineer ordered locators", %{page: page} do
     assert generate(page |> Page.locator("div") |> Locator.nth(3) |> Locator.first() |> Locator.last()) == %{
              "csharp" => "Locator(\"div\").Nth(3).First.Last",
              "java" => "locator(\"div\").nth(3).first().last()",
@@ -339,7 +339,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer locators with regex", %{page: page} do
+  test "GN-007 reverse engineer locators with regex", %{page: page} do
     assert generate(Page.get_by_text(page, ~r/he\/\sl\nlo/)) == %{
              "csharp" => "GetByText(new Regex(\"he\\\\/\\\\sl\\\\nlo\"))",
              "java" => "getByText(Pattern.compile(\"he\\\\/\\\\sl\\\\nlo\"))",
@@ -369,7 +369,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer hasText", %{page: page} do
+  test "GN-008 reverse engineer hasText", %{page: page} do
     assert generate(page |> Page.get_by_text("Hello") |> Locator.filter(has_text: "wo\"rld\n")) == %{
              "csharp" => "GetByText(\"Hello\").Filter(new() { HasText = \"wo\\\"rld\\n\" })",
              "java" => "getByText(\"Hello\").filter(new Locator.FilterOptions().setHasText(\"wo\\\"rld\\n\"))",
@@ -394,7 +394,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer hasNotText", %{page: page} do
+  test "GN-009 reverse engineer hasNotText", %{page: page} do
     assert generate(page |> Page.get_by_text("Hello") |> Locator.filter(has_not_text: "wo\"rld\n")) == %{
              "csharp" => "GetByText(\"Hello\").Filter(new() { HasNotText = \"wo\\\"rld\\n\" })",
              "java" => "getByText(\"Hello\").filter(new Locator.FilterOptions().setHasNotText(\"wo\\\"rld\\n\"))",
@@ -403,7 +403,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer visible", %{page: page} do
+  test "GN-010 reverse engineer visible", %{page: page} do
     assert generate(page |> Page.get_by_text("Hello") |> Locator.visible() |> Locator.locator("div")) == %{
              "csharp" => "GetByText(\"Hello\").Visible.Locator(\"div\")",
              "java" => "getByText(\"Hello\").visible().locator(\"div\")",
@@ -419,7 +419,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer has", %{page: page} do
+  test "GN-011 reverse engineer has", %{page: page} do
     assert generate(
              page
              |> Page.get_by_text("Hello")
@@ -451,7 +451,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer hasNot", %{page: page} do
+  test "GN-012 reverse engineer hasNot", %{page: page} do
     assert generate(
              page
              |> Page.get_by_text("Hello")
@@ -483,7 +483,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer has + hasText", %{page: page} do
+  test "GN-013 reverse engineer has + hasText", %{page: page} do
     locator =
       page
       |> Page.locator("section")
@@ -501,7 +501,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "reverse engineer frameLocator", %{page: page} do
+  test "GN-014 reverse engineer frameLocator", %{page: page} do
     locator =
       page
       |> Page.frame_locator("iframe")
@@ -531,7 +531,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            ]
   end
 
-  test "reverse engineer frameLocator without a selector", %{page: page} do
+  test "GN-015 reverse engineer frameLocator without a selector", %{page: page} do
     assert generate(page |> Page.frame_locator() |> FrameLocator.get_by_text("foo") |> Locator.locator("span")) == %{
              "csharp" => "FrameLocator().GetByText(\"foo\").Locator(\"span\")",
              "java" => "frameLocator().getByText(\"foo\").locator(\"span\")",
@@ -545,7 +545,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     assert as_locator("csharp", "internal:control=any-frame") == "FrameLocator()"
   end
 
-  test "generate multiple locators", %{page: page} do
+  test "GN-016 generate multiple locators", %{page: page} do
     selector =
       page
       |> Page.locator("div", has_text: "foo")
@@ -632,7 +632,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
   end
 
   # it.describe(() => { it.beforeEach(...) }): the beforeEach runs at the top of its one test.
-  test "reverse engineer internal:has-text locators", %{context: context, page: page} do
+  test "GN-017 reverse engineer internal:has-text locators", %{context: context, page: page} do
     Api.call(nil, context, fn -> BrowserContext._show_recorder(context, %{language: "javascript"}) end)
 
     Page.set_content!(page, """
@@ -655,7 +655,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
              "locator('div').locator('internal:has-not-text=\"foo\"s')"
   end
 
-  test "asLocator internal:and" do
+  test "GN-018 asLocator internal:and" do
     assert as_locator("javascript", "div >> internal:and=\"span >> article\"") ==
              "locator('div').and(locator('span').locator('article'))"
 
@@ -669,7 +669,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
              "Locator(\"div\").And(Locator(\"span\").Locator(\"article\"))"
   end
 
-  test "asLocator internal:or" do
+  test "GN-019 asLocator internal:or" do
     assert as_locator("javascript", "div >> internal:or=\"span >> article\"") ==
              "locator('div').or(locator('span').locator('article'))"
 
@@ -683,7 +683,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
              "Locator(\"div\").Or(Locator(\"span\").Locator(\"article\"))"
   end
 
-  test "asLocator internal:chain" do
+  test "GN-020 asLocator internal:chain" do
     assert as_locator("javascript", "div >> internal:chain=\"span >> article\"") ==
              "locator('div').locator(locator('span').locator('article'))"
 
@@ -697,7 +697,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
              "Locator(\"div\").Locator(Locator(\"span\").Locator(\"article\"))"
   end
 
-  test "reverse engineer nested locators", %{page: page} do
+  test "GN-021 reverse engineer nested locators", %{page: page} do
     assert generate(
              page
              |> Page.get_by_role(:row)
@@ -726,7 +726,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "asLocator xpath" do
+  test "GN-022 asLocator xpath" do
     selector = "//*[contains(normalizer-text(), 'foo']"
     assert as_locator("javascript", selector) == "locator('//*[contains(normalizer-text(), \\'foo\\']')"
     assert as_locator("python", selector) == "locator(\"//*[contains(normalizer-text(), 'foo']\")"
@@ -734,7 +734,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     assert as_locator("csharp", selector) == "Locator(\"//*[contains(normalizer-text(), 'foo']\")"
   end
 
-  test "reverse engineer regex flags" do
+  test "GN-023 reverse engineer regex flags" do
     assert generate_for_selector("internal:text=/a.b/ims") == %{
              "csharp" =>
                "GetByText(new Regex(\"a.b\", RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline))",
@@ -754,7 +754,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
            }
   end
 
-  test "should not oom in locator parser", %{page: page} do
+  test "GN-024 should not oom in locator parser", %{page: page} do
     l = &Page.locator(page, &1)
 
     frame = fn text ->
@@ -786,7 +786,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
     assert error.message =~ "Frame locators are not allowed inside composite locators"
   end
 
-  test "asLocatorDescription invalid input" do
+  test "GN-025 asLocatorDescription invalid input" do
     assert as_locator_description("javascript", "body >> internal:describe=\"desc\"") == "desc"
     assert as_locator_description("javascript", "body >> internal:describe=12") == "locator('body')"
     # Deviation: parseCSS is not ported, so invalid CSS is rendered instead of returned as is.
@@ -796,7 +796,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
              "locator('body').locator('div')"
   end
 
-  test "resolveSelector returns locatorCode for sdkLanguage", %{page: page} do
+  test "GN-026 resolveSelector returns locatorCode for sdkLanguage", %{page: page} do
     Page.set_content!(page, "<button id=\"submit\">Submit</button>")
     assert Page.aria_snapshot!(page, mode: :ai) =~ "button \"Submit\" [ref=e2]"
     frame = Page.main_frame(page)
@@ -819,7 +819,7 @@ defmodule PlaywrightEx.Library.LocatorGeneratorTest do
              "GetByRole(AriaRole.Button, new() { Name = \"Submit\" })"
   end
 
-  test "asLocatorDescription via LocalUtils", %{page: page} do
+  test "GN-027 asLocatorDescription via LocalUtils", %{page: page} do
     channel = Connection.local_utils(Heap.get(page, :_connection))
     selector = "internal:role=button[name=\"Submit\"i]"
 

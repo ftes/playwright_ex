@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     %{context: context_factory.([])}
   end
 
-  test "should work with browser context scripts @smoke", %{context: context, server: server} do
+  test "IS-024 should work with browser context scripts @smoke", %{context: context, server: server} do
     BrowserContext.add_init_script!(context, "window['temp'] = 123")
     page = BrowserContext.new_page!(context)
     Page.add_init_script!(page, "window['injected'] = window['temp']")
@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should work without navigation, after all bindings", %{context: context} do
+  test "IS-025 should work without navigation, after all bindings", %{context: context} do
     test = self()
 
     BrowserContext.expose_function!(context, "woof", fn arg ->
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert_receive {:callback, "hey"}, 5000
   end
 
-  test "should work without navigation in popup", %{context: context} do
+  test "IS-026 should work without navigation in popup", %{context: context} do
     BrowserContext.add_init_script!(context, "window['temp'] = 123")
     page = BrowserContext.new_page!(context)
 
@@ -49,14 +49,14 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(popup, "() => window['temp']") == 123
   end
 
-  test "should work with browser context scripts with a path", %{context: context, server: server, asset: asset} do
+  test "IS-027 should work with browser context scripts with a path", %{context: context, server: server, asset: asset} do
     BrowserContext.add_init_script!(context, %{path: asset.("injectedfile.js")})
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/tamperable.html")
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should work with browser context scripts for already created pages", %{context: context, server: server} do
+  test "IS-028 should work with browser context scripts for already created pages", %{context: context, server: server} do
     page = BrowserContext.new_page!(context)
     BrowserContext.add_init_script!(context, "window['temp'] = 123")
     Page.add_init_script!(page, "window['injected'] = window['temp']")
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['result']") == 123
   end
 
-  test "should remove context init script after dispose", %{context: context, server: server} do
+  test "IS-029 should remove context init script after dispose", %{context: context, server: server} do
     disposable = BrowserContext.add_init_script!(context, "window['temp'] = 123")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/tamperable.html")
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['temp']") == nil
   end
 
-  test "should remove context init script and keep working in new pages", %{context: context, server: server} do
+  test "IS-030 should remove context init script and keep working in new pages", %{context: context, server: server} do
     disposable = BrowserContext.add_init_script!(context, "window['temp'] = 123")
     Disposable.dispose!(disposable)
     page = BrowserContext.new_page!(context)
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(page, "() => window['temp']") == nil
   end
 
-  test "should expose functions passed as arguments", %{context: context, server: server} do
+  test "IS-031 should expose functions passed as arguments", %{context: context, server: server} do
     test = self()
 
     BrowserContext.add_init_script!(
@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert_receive {:received, ^empty_page}, 5000
   end
 
-  test "should expose functions that survive navigation", %{context: context, server: server} do
+  test "IS-032 should expose functions that survive navigation", %{context: context, server: server} do
     test = self()
 
     BrowserContext.add_init_script!(
@@ -138,7 +138,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     refute_received {:received, _}
   end
 
-  test "should expose functions in popups", %{context: context, server: server} do
+  test "IS-033 should expose functions in popups", %{context: context, server: server} do
     BrowserContext.add_init_script!(
       context,
       """
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(popup, "() => window.mul(6, 7)") == 42
   end
 
-  test "should remove exposed functions after dispose", %{context: context, server: server} do
+  test "IS-034 should remove exposed functions after dispose", %{context: context, server: server} do
     disposable =
       BrowserContext.add_init_script!(
         context,
@@ -180,7 +180,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
     assert Page.evaluate!(page, "() => typeof window.cb") == "undefined"
   end
 
-  test "init script should run only once in popup", %{context: context} do
+  test "IS-035 init script should run only once in popup", %{context: context} do
     BrowserContext.add_init_script!(context, "window['callCount'] = (window['callCount'] || 0) + 1;")
     page = BrowserContext.new_page!(context)
 

@@ -17,21 +17,21 @@ defmodule PlaywrightEx.Page.PageWaitForResponseTest do
   }
   """
 
-  test "should work", %{page: page, server: server} do
+  test "WA-129 should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     promise = Page.wait_for_response(page, server.prefix <> "/digits/2.png")
     Page.evaluate!(page, @fetch_digits)
     assert Response.url(Promise.await!(promise)) == server.prefix <> "/digits/2.png"
   end
 
-  test "should respect timeout", %{page: page} do
+  test "WA-130 should respect timeout", %{page: page} do
     {:error, error} =
       page |> Page.wait_for_event(:response, predicate: fn _ -> false end, timeout: 1) |> Promise.await()
 
     assert %TimeoutError{} = error
   end
 
-  test "should respect default timeout", %{page: page} do
+  test "WA-131 should respect default timeout", %{page: page} do
     Page.set_default_timeout(page, 1)
 
     {error, stacktrace} =
@@ -47,14 +47,14 @@ defmodule PlaywrightEx.Page.PageWaitForResponseTest do
     assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
   end
 
-  test "should log the url", %{page: page} do
+  test "WA-132 should log the url", %{page: page} do
     {:error, error1} = page |> Page.wait_for_response("foo.css", timeout: 1000) |> Promise.await()
     assert Exception.message(error1) =~ ~s(waiting for response "foo.css")
     {:error, error2} = page |> Page.wait_for_response(~r/foo.css/i, timeout: 1000) |> Promise.await()
     assert Exception.message(error2) =~ "waiting for response /foo.css/i"
   end
 
-  test "should work with predicate", %{page: page, server: server} do
+  test "WA-133 should work with predicate", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     response =
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Page.PageWaitForResponseTest do
     assert Response.url(response) == server.prefix <> "/digits/2.png"
   end
 
-  test "should work with async predicate", %{page: page, server: server} do
+  test "WA-134 should work with async predicate", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     promise1 =
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Page.PageWaitForResponseTest do
     assert Response.url(Promise.await!(promise2)) == server.prefix <> "/simple.json"
   end
 
-  test "sync predicate should be only called once", %{page: page, server: server} do
+  test "WA-135 sync predicate should be only called once", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     {:ok, counter} = Agent.start_link(fn -> 0 end)
 
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Page.PageWaitForResponseTest do
     assert Agent.get(counter, & &1) == 1
   end
 
-  test "should work with no timeout", %{page: page, server: server} do
+  test "WA-136 should work with no timeout", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     response =

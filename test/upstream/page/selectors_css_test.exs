@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
 
   @node_names "els => els.map(e => e.nodeName).join(',')"
 
-  test "should work with large DOM @smoke", %{page: page} do
+  test "SE-001 should work with large DOM @smoke", %{page: page} do
     Page.evaluate!(page, """
     () => {
       let id = 0;
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     end
   end
 
-  test "should work for open shadow roots", %{page: page, server: server} do
+  test "SE-002 should work for open shadow roots", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector!(page, "css=span", "e => e.textContent") == "Hello from root1"
     assert Page.eval_on_selector!(page, ~S{css=[attr="value\ space"]}, "e => e.textContent") == "Hello from root3 #2"
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert ElementHandle.query_selector!(root3, ~s{css:light=[attr*="value"]}) == nil
   end
 
-  test "should work with > combinator and spaces", %{page: page} do
+  test "SE-003 should work with > combinator and spaces", %{page: page} do
     Page.set_content!(page, ~s{<div foo="bar" bar="baz"><span></span></div>})
     assert Page.eval_on_selector!(page, ~s{div[foo="bar"] > span}, "e => e.outerHTML") == "<span></span>"
     assert Page.eval_on_selector!(page, ~s{div[foo="bar"]> span}, "e => e.outerHTML") == "<span></span>"
@@ -124,7 +124,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector!(page, ~s{div[foo="bar"][bar="baz"]     >span}, "e => e.outerHTML") == "<span></span>"
   end
 
-  test "should work with comma separated list", %{page: page, server: server} do
+  test "SE-004 should work with comma separated list", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, "css=span,section #root1", "els => els.length") == 5
     assert Page.eval_on_selector_all!(page, "css=section #root1, div span", "els => els.length") == 5
@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
            ) == 4
   end
 
-  test "should keep dom order with comma separated list", %{page: page} do
+  test "SE-005 should keep dom order with comma separated list", %{page: page} do
     Page.set_content!(page, "<section><span><div><x></x><y></y></div></span></section>")
     assert Page.eval_on_selector_all!(page, "css=span,div", @node_names) == "SPAN,DIV"
     assert Page.eval_on_selector_all!(page, "css=div,span", @node_names) == "SPAN,DIV"
@@ -158,17 +158,17 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "css=section >> *css=div,span >> css=y", @node_names) == "SPAN,DIV"
   end
 
-  test "should return multiple captures for the same node", %{page: page} do
+  test "SE-006 should return multiple captures for the same node", %{page: page} do
     Page.set_content!(page, "<div><div><div><span></span></div></div></div>")
     assert Page.eval_on_selector_all!(page, "*css=div >> span", @node_names) == "DIV,DIV,DIV"
   end
 
-  test "should return multiple captures when going up the hierarchy", %{page: page} do
+  test "SE-007 should return multiple captures when going up the hierarchy", %{page: page} do
     Page.set_content!(page, "<section>Hello<ul><li></li><li></li></ul></section>")
     assert Page.eval_on_selector_all!(page, "*css=li >> ../.. >> text=Hello", @node_names) == "LI,LI"
   end
 
-  test "should work with comma separated list in various positions", %{page: page} do
+  test "SE-008 should work with comma separated list in various positions", %{page: page} do
     Page.set_content!(page, "<section><span><div><x></x><y></y></div></span></section>")
     assert Page.eval_on_selector_all!(page, "css=span,div >> css=x,y", @node_names) == "X,Y"
     assert Page.eval_on_selector_all!(page, "css=span,div >> css=x", @node_names) == "X"
@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "css=section >> css=span >> css=x,y", @node_names) == "X,Y"
   end
 
-  test "should work with comma inside text", %{page: page} do
+  test "SE-009 should work with comma inside text", %{page: page} do
     Page.set_content!(page, ~s{<span></span><div attr="hello,world!"></div>})
 
     assert Page.eval_on_selector!(page, ~s{css=div[attr="hello,world!"]}, "e => e.outerHTML") ==
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector!(page, ~s{css=div[attr="hello,world!"],span}, "e => e.outerHTML") == "<span></span>"
   end
 
-  test "should work with attribute selectors", %{page: page} do
+  test "SE-010 should work with attribute selectors", %{page: page} do
     Page.set_content!(page, ~s{<div attr="hello world" attr2="hello-''>>foo=bar[]" attr3="] span"><span></span></div>})
     Page.evaluate!(page, "() => window['div'] = document.querySelector('div')")
 
@@ -228,19 +228,19 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector!(page, ~s{[attr3="] span"] >> span}, "e => e.parentNode === window['div']") == true
   end
 
-  test "should not match root after >>", %{page: page} do
+  test "SE-011 should not match root after >>", %{page: page} do
     Page.set_content!(page, "<section><div>test</div></section>")
     element = Page.query_selector!(page, "css=section >> css=section")
     assert element == nil
   end
 
-  test "should work with numerical id", %{page: page} do
+  test "SE-012 should work with numerical id", %{page: page} do
     Page.set_content!(page, ~s{<section id="123"></section>})
     element = Page.query_selector!(page, ~S{#\31\32\33})
     assert element
   end
 
-  test "should work with wrong-case id", %{page: page} do
+  test "SE-013 should work with wrong-case id", %{page: page} do
     Page.set_content!(page, ~s{<section id="Hello"></section>})
     assert Page.eval_on_selector!(page, "#Hello", "e => e.tagName") == "SECTION"
     assert Page.eval_on_selector!(page, "#hello", "e => e.tagName") == "SECTION"
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector!(page, "#helLO", "e => e.tagName") == "SECTION"
   end
 
-  test "should work with *", %{page: page} do
+  test "SE-014 should work with *", %{page: page} do
     Page.set_content!(page, "<div id=div1></div><div id=div2><span><span></span></span></div>")
     # Includes html, head and body.
     assert Page.eval_on_selector_all!(page, "*", "els => els.length") == 7
@@ -287,7 +287,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert ElementHandle.eval_on_selector_all!(body, "* *:not(span)", "els => els.length") == 0
   end
 
-  test "should work with :nth-child", %{page: page, server: server} do
+  test "SE-015 should work with :nth-child", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, "css=span:nth-child(odd)", "els => els.length") == 3
     assert Page.eval_on_selector_all!(page, "css=span:nth-child(even)", "els => els.length") == 1
@@ -305,7 +305,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
          if(@browser_name == "chromium" and @browser_major_version < 111,
            do: "upstream skip: https://caniuse.com/css-nth-child-of"
          )
-  test "should work with :nth-child(of) notation with nested functions", %{
+  test "SE-016 should work with :nth-child(of) notation with nested functions", %{
     page: page
   } do
     Page.set_content!(page, """
@@ -331,14 +331,14 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "css=span:nth-child(1 of .foo:nth-child(6))", texts) == []
   end
 
-  test "should work with :not", %{page: page, server: server} do
+  test "SE-017 should work with :not", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, "css=div:not(#root1)", "els => els.length") == 2
     assert Page.eval_on_selector_all!(page, "css=body :not(span)", "els => els.length") == 4
     assert Page.eval_on_selector_all!(page, "css=div > :not(span):not(div)", "els => els.length") == 0
   end
 
-  test "should work with ~", %{page: page} do
+  test "SE-018 should work with ~", %{page: page} do
     Page.set_content!(page, """
       <div id=div1></div>
       <div id=div2></div>
@@ -364,7 +364,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "css=#div3 ~ #div4 ~ #div5", "els => els.length") == 1
   end
 
-  test "should work with +", %{page: page} do
+  test "SE-019 should work with +", %{page: page} do
     Page.set_content!(page, """
       <section>
         <div id=div1></div>
@@ -398,7 +398,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector!(page, "css=div:has(:scope + #div5)", "e => e.id") == "div4"
   end
 
-  test "should work with spaces in :nth-child and :not", %{page: page, server: server} do
+  test "SE-020 should work with spaces in :nth-child and :not", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, "css=span:nth-child(23n +2)", "els => els.length") == 1
     assert Page.eval_on_selector_all!(page, "css=span:nth-child(23n+ 2)", "els => els.length") == 1
@@ -412,7 +412,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "span:nth-child(23n+ 2) >> xpath=.", "els => els.length") == 1
   end
 
-  test "should work with :is", %{page: page, server: server} do
+  test "SE-021 should work with :is", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, "css=div:is(#root1)", "els => els.length") == 1
     assert Page.eval_on_selector_all!(page, "css=div:is(#root1, #target)", "els => els.length") == 1
@@ -426,7 +426,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "css=#root1:has(:is(:scope, #root1))", "els => els.length") == 1
   end
 
-  test "should work with :has", %{page: page, server: server} do
+  test "SE-022 should work with :has", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, "css=div:has(#target)", "els => els.length") == 2
     assert Page.eval_on_selector_all!(page, "css=div:has([data-testid=foo])", "els => els.length") == 3
@@ -440,7 +440,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector_all!(page, "section:has(span, br, div)", "els => els.length") == 2
   end
 
-  test "should work with :scope", %{page: page, server: server} do
+  test "SE-023 should work with :scope", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     # 'is' does not change the scope, so it remains 'html'.
     assert Page.eval_on_selector_all!(page, "css=div:is(:scope#root1)", "els => els.length") == 0
@@ -480,7 +480,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     # expect(await page.$$eval(`#span1 >> span:is(:scope,#inner)`, els => els.map(e => e.id))).toEqual(['span1', 'inner']);
   end
 
-  test "should work with :scope and class", %{page: page} do
+  test "SE-024 should work with :scope and class", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/17824' });
     Page.set_content!(page, """
     <div class="apple"></div>
@@ -492,7 +492,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     Expect.to_have_count!(selected_apples, 1)
   end
 
-  test "should absolutize relative selectors", %{page: page} do
+  test "SE-025 should absolutize relative selectors", %{page: page} do
     Page.set_content!(page, "<div><span>Hi</span></div>")
     assert Page.eval_on_selector!(page, "div >> >span", "e => e.textContent") == "Hi"
     assert Locator.text_content!(Locator.locator(Page.locator(page, "div"), ">span")) == "Hi"
@@ -500,7 +500,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.query_selector!(page, "div:has(> div)") == nil
   end
 
-  test "css on the handle should be relative", %{page: page} do
+  test "SE-026 css on the handle should be relative", %{page: page} do
     Page.set_content!(page, """
       <span class="find-me" id=target1>1</span>
       <div>
@@ -515,7 +515,7 @@ defmodule PlaywrightEx.Page.SelectorsCssTest do
     assert Page.eval_on_selector!(page, "div >> .find-me", "e => e.id") == "target2"
   end
 
-  test "should use light DOM structure for child combinator with slotted content", %{page: page} do
+  test "SE-027 should use light DOM structure for child combinator with slotted content", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/37768' }
     Page.set_content!(page, """
       <my-button>

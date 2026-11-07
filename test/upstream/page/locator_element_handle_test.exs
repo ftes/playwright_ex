@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.LocatorElementHandleTest do
 
   @moduletag :page
 
-  test "should query existing element @smoke", %{page: page, server: server} do
+  test "LO-079 should query existing element @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/playground.html")
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">A</div></div></body></html>))
     html = Page.locator(page, "html")
@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Page.LocatorElementHandleTest do
     assert content == "A"
   end
 
-  test "should query existing elements", %{page: page} do
+  test "LO-080 should query existing elements", %{page: page} do
     Page.set_content!(page, "<html><body><div>A</div><br/><div>B</div></body></html>")
     html = Page.locator(page, "html")
     elements = Locator.element_handles!(Locator.locator(html, "div"))
@@ -29,14 +29,14 @@ defmodule PlaywrightEx.Page.LocatorElementHandleTest do
     assert Task.await_many(tasks, :infinity) == ["A", "B"]
   end
 
-  test "should return empty array for non-existing elements", %{page: page} do
+  test "LO-081 should return empty array for non-existing elements", %{page: page} do
     Page.set_content!(page, "<html><body><span>A</span><br/><span>B</span></body></html>")
     html = Page.locator(page, "html")
     elements = Locator.element_handles!(Locator.locator(html, "div"))
     assert elements == []
   end
 
-  test "xpath should query existing element", %{page: page, server: server} do
+  test "LO-082 xpath should query existing element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/playground.html")
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">A</div></div></body></html>))
     html = Page.locator(page, "html")
@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Page.LocatorElementHandleTest do
     assert content == "A"
   end
 
-  test "xpath should return null for non-existing element", %{page: page} do
+  test "LO-083 xpath should return null for non-existing element", %{page: page} do
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">B</div></div></body></html>))
     html = Page.locator(page, "html")
     second = Locator.element_handles!(Locator.locator(html, "xpath=/div[contains(@class, 'third')]"))

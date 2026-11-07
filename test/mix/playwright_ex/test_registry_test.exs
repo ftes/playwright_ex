@@ -38,12 +38,13 @@ defmodule Mix.PlaywrightEx.TestRegistryTest do
     %{rows: rows, subsystems: subsystems, rules: rules, problems: problems}
   end
 
-  test "read_registry/1: rows with their variants, subsystems", %{rows: rows, subsystems: subsystems} do
+  test "read_registry/1: rows, subsystems", %{rows: rows, subsystems: subsystems} do
     assert subsystems == [{"CC", "Client certificates"}]
     assert Enum.map(rows, & &1.id) == ~w(CC-001 CC-013 CC-040 CC-041 BC-073)
     assert Enum.at(rows, 3).title == "should escape `a`"
-    assert %{file: "library/browsercontext-reuse", copies: 2} = reuse = List.last(rows)
-    assert reuse.variants == [{["reuse launch"], "should reset"}, {["reuse connect"], "should reset"}]
+
+    assert %{file: "library/browsercontext-reuse", copies: 2, title: "reuse {launch, connect} › should reset"} =
+             List.last(rows)
   end
 
   test "read_rules/1: selector and reason per line, a rule without a reason is a problem", %{rules: rules} = ctx do
@@ -58,15 +59,20 @@ defmodule Mix.PlaywrightEx.TestRegistryTest do
     assert TestRegistry.matches?(%{selector: "CC"}, hd(rows))
   end
 
-  test "match/3: by title, then by describe", %{rows: rows} do
+  test "match/2: by identifier, in the rows of the file", %{rows: rows} do
     cc = Enum.filter(rows, &(&1.file == "library/client-certificates"))
-    assert {:ok, %{id: "CC-013"}} = TestRegistry.match(cc, "browser", "validate input")
-    assert {:ok, %{id: "CC-040"}} = TestRegistry.match(cc, "browser persistentContext", "validate input")
-    assert {:ok, %{id: "CC-040"}} = TestRegistry.match(cc, "persistentContext", "validate input")
-    assert {:ambiguous, [_, _, _]} = TestRegistry.match(cc, :dynamic, "validate input")
-    assert {:ok, %{id: "CC-041"}} = TestRegistry.match(cc, :dynamic, "should escape `a`")
-    assert :none = TestRegistry.match(cc, nil, "gone")
-    assert {:pattern, [%{id: "CC-041"}]} = TestRegistry.match(cc, nil, ~r/^should escape .*$/)
+    assert {:ok, %{id: "CC-040"}} = TestRegistry.match(cc, "CC-040")
+    assert :none = TestRegistry.match(cc, "BC-073")
+    assert :none = TestRegistry.match(cc, nil)
+  end
+
+  test "id/1: the identifier a name starts with, also of a name built at runtime" do
+    assert TestRegistry.id("CC-040 validate input") == "CC-040"
+    assert TestRegistry.id("CL-PY-001 a") == "CL-PY-001"
+    assert TestRegistry.id(Code.string_to_quoted!(~S'"PR-005 #{description}"')) == "PR-005"
+    assert TestRegistry.id(Code.string_to_quoted!(~S'"PR-005 " <> description')) == "PR-005"
+    assert TestRegistry.id("validate input") == nil
+    assert TestRegistry.id("CC-040") == nil
   end
 
   test "test_modules/1: tests with describe, body and static skip reasons" do
@@ -75,25 +81,33 @@ defmodule Mix.PlaywrightEx.TestRegistryTest do
       @upstream "tests/page/x.spec.ts"
       @moduletag skip: "upstream skip: " <> "all"
       @tag skip: "not ported: a"
-      test "a"
+      test "XX-001 a"
       describe "d" do
         @tag skip: if(true, do: "env: x")
-        test "b", %{} do
+        test "XX-002 b", %{} do
         end
       end
       for x <- [1, 2] do
         describe "loop #{x}" do
-          test "c #{x}"
+          test "XX-003 c #{x}"
         end
       end
     end
     '''
 
     assert [{"tests/page/x.spec.ts", [a, b, c]}] = TestRegistry.test_modules(source)
-    assert %{name: "a", describe: nil, body?: false, skips: ["not ported: a", "upstream skip: all"]} = a
-    assert %{name: "b", describe: "d", body?: true, skips: ["upstream skip: all"]} = b
-    assert %{describe: :dynamic, body?: false} = c
-    assert Regex.match?(c.name, "c 1")
+
+    assert %{
+             name: "XX-001 a",
+             id: "XX-001",
+             describe: nil,
+             body?: false,
+             skips: ["not ported: a", "upstream skip: all"]
+           } = a
+
+    assert %{name: "XX-002 b", id: "XX-002", describe: "d", body?: true, skips: ["upstream skip: all"]} = b
+    assert %{id: "XX-003", describe: :dynamic, body?: false} = c
+    assert Regex.match?(c.name, "XX-003 c 1")
   end
 
   test "test_modules/1: slow? from a timeout tag using @slow_timeout" do

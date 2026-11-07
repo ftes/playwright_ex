@@ -18,25 +18,25 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
   # Promise.all([...])
   defp all(funs), do: funs |> Enum.map(&Task.async/1) |> Task.await_many(:infinity)
 
-  test "should think that it is focused by default", %{page: page} do
+  test "EM-013 should think that it is focused by default", %{page: page} do
     assert Page.evaluate!(page, "document.hasFocus()") == true
   end
 
-  test "should think that all pages are focused @smoke", %{page: page} do
+  test "EM-014 should think that all pages are focused @smoke", %{page: page} do
     page2 = BrowserContext.new_page!(Page.context(page))
     assert Page.evaluate!(page, "document.hasFocus()") == true
     assert Page.evaluate!(page2, "document.hasFocus()") == true
     Page.close!(page2)
   end
 
-  test "should focus popups by default", %{page: page, server: server} do
+  test "EM-015 should focus popups by default", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "url => { window.open(url); }", server.empty_page) end)
     assert Page.evaluate!(popup, "document.hasFocus()") == true
     assert Page.evaluate!(page, "document.hasFocus()") == true
   end
 
-  test "should provide target for keyboard events", %{page: page, server: server} do
+  test "EM-016 should provide target for keyboard events", %{page: page, server: server} do
     page2 = BrowserContext.new_page!(Page.context(page))
 
     all([
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert results == [text, text2]
   end
 
-  test "should not affect mouse event target page", %{page: page} do
+  test "EM-017 should not affect mouse event target page", %{page: page} do
     page2 = BrowserContext.new_page!(Page.context(page))
 
     click_counter = """
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert counters == [1, 1]
   end
 
-  test "should change document.activeElement", %{page: page, server: server} do
+  test "EM-018 should change document.activeElement", %{page: page, server: server} do
     page2 = BrowserContext.new_page!(Page.context(page))
 
     all([
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert active == ["INPUT", "TEXTAREA"]
   end
 
-  test "should not affect screenshots", %{page: page, server: server} do
+  test "EM-019 should not affect screenshots", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && isWindows && !headless)  -- headless here
     # it.skip(browserName === 'webkit' && isLinux && !headless)  -- headless here
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-0.png")
   end
 
-  test "should change focused iframe", %{page: page, server: server} do
+  test "EM-020 should change focused iframe", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && !headless, 'Headed FF might lose focus'): we run headless
     Page.goto!(page, server.empty_page)
 
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
   end
 
   # @see https://github.com/microsoft/playwright/issues/3476
-  test "should focus with more than one page/context", %{context_factory: context_factory} do
+  test "EM-021 should focus with more than one page/context", %{context_factory: context_factory} do
     page1 = BrowserContext.new_page!(context_factory.([]))
     page2 = BrowserContext.new_page!(context_factory.([]))
     Page.set_content!(page1, ~s(<button id="foo" onfocus="window.gotFocus=true">foo</button>))
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert Page.evaluate!(page2, "() => !!window['gotFocus']") == true
   end
 
-  test "should not fire blur events when interacting with more than one page/context", %{
+  test "EM-022 should not fire blur events when interacting with more than one page/context", %{
     context_factory: context_factory
   } do
     # annotation: https://github.com/microsoft/playwright/issues/30399
@@ -199,7 +199,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert Page.evaluate!(page2, "() => !!window['gotBlur']") == false
   end
 
-  test "should not blur iframe when interacting with another page/context", %{context_factory: context_factory} do
+  test "EM-023 should not blur iframe when interacting with another page/context", %{context_factory: context_factory} do
     # annotation: https://github.com/microsoft/playwright/issues/42933
     page1 = BrowserContext.new_page!(context_factory.([]))
     page2 = BrowserContext.new_page!(context_factory.([]))
@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert Frame.evaluate!(frame2, "() => document.hasFocus()") == false
   end
 
-  test "should trigger hover state concurrently", %{browser_type: browser_type} do
+  test "EM-024 should trigger hover state concurrently", %{browser_type: browser_type} do
     # annotation: https://github.com/microsoft/playwright/issues/27969
     # browserTest.skip(!headless, 'headed messes up with hover'): we run headless
     browser1 = BrowserType.launch!(browser_type)

@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
       else: assert(Response.status(response_or_error) == 401)
   end
 
-  test "should fail without credentials", %{browser: browser, server: server, fails_on_401: fails_on_401} do
+  test "AU-001 should fail without credentials", %{browser: browser, server: server, fails_on_401: fails_on_401} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     assert_fails_on_401(response_or_error, fails_on_401)
   end
 
-  test "should work with setHTTPCredentials", %{browser: browser, server: server, fails_on_401: fails_on_401} do
+  test "AU-002 should work with setHTTPCredentials", %{browser: browser, server: server, fails_on_401: fails_on_401} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with setHTTPCredentials and multiple credentials", %{browser: browser, server: server} do
+  test "AU-003 should work with setHTTPCredentials and multiple credentials", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user1", "pass1")
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with correct credentials @smoke", %{browser: browser, server: server} do
+  test "AU-004 should work with correct credentials @smoke", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     context = Browser.new_context!(browser, http_credentials: %{username: "user", password: "pass"})
     page = BrowserContext.new_page!(context)
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should fail with wrong credentials", %{browser: browser, server: server} do
+  test "AU-005 should fail with wrong credentials", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     context = Browser.new_context!(browser, http_credentials: %{username: "foo", password: "bar"})
     page = BrowserContext.new_page!(context)
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should return resource body", %{browser: browser, server: server} do
+  test "AU-006 should return resource body", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/playground.html", "user", "pass")
     context = Browser.new_context!(browser, http_credentials: %{username: "user", password: "pass"})
     page = BrowserContext.new_page!(context)
@@ -97,7 +97,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with a single credential in an array", %{browser: browser, server: server} do
+  test "AU-007 should work with a single credential in an array", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     context = Browser.new_context!(browser, http_credentials: [%{username: "user", password: "pass"}])
     page = BrowserContext.new_page!(context)
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with multiple credentials for different origins", %{browser: browser, server: server} do
+  test "AU-008 should work with multiple credentials for different origins", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user1", "pass1")
 
     context =
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should fall back to credentials without origin", %{browser: browser, server: server} do
+  test "AU-009 should fall back to credentials without origin", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
 
     context =
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should use the first matching credential", %{browser: browser, server: server} do
+  test "AU-010 should use the first matching credential", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
 
     context =
@@ -163,7 +163,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with correct credentials and matching origin", %{browser: browser, server: server} do
+  test "AU-011 should work with correct credentials and matching origin", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
 
     context =
@@ -175,7 +175,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with correct credentials and matching origin case insensitive", %{
+  test "AU-012 should work with correct credentials and matching origin case insensitive", %{
     browser: browser,
     server: server
   } do
@@ -192,7 +192,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should fail with correct credentials and mismatching scheme", %{
+  test "AU-013 should fail with correct credentials and mismatching scheme", %{
     browser: browser,
     server: server,
     fails_on_401: fails_on_401
@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should fail with correct credentials and mismatching hostname", %{
+  test "AU-014 should fail with correct credentials and mismatching hostname", %{
     browser: browser,
     server: server,
     fails_on_401: fails_on_401
@@ -232,7 +232,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should fail with correct credentials and mismatching port", %{
+  test "AU-015 should fail with correct credentials and mismatching port", %{
     browser: browser,
     server: server,
     fails_on_401: fails_on_401
@@ -249,7 +249,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
     BrowserContext.close!(context)
   end
 
-  test "should not override Authorization header set by the page", %{browser: browser, server: server} do
+  test "AU-016 should not override Authorization header set by the page", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
 
     TestServer.set_route(server, "/echo-auth", fn conn ->

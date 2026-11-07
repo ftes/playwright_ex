@@ -1,6 +1,4 @@
-<!-- Copy of tests/upstream_registry.md in microsoft/playwright-python at df2bf0bf04d7 (Playwright 1.66.0-next, 0ea3691032),
-     itself a copy of tests/registry.md in microsoft/playwright. Newer than our pin: rows of tests
-     that are not at the pin are ignored (`mix playwright_ex.parity`). Update it with the pin. -->
+<!-- Copy of tests/registry.md in microsoft/playwright at v1.65.0. Update it with the pin. -->
 
 # Test registry
 

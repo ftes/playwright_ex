@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Library.Chromium.DisableWebSecurityTest do
     end)
   end
 
-  test "test utility world in popup w/ --disable-web-security", %{page: page, server: server} do
+  test "CR-045 test utility world in popup w/ --disable-web-security", %{page: page, server: server} do
     set_routes(server)
 
     Page.goto!(page, server.prefix <> "/main.html")
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Library.Chromium.DisableWebSecurityTest do
     Expect.to_have_url!(page1, ~r/target/)
   end
 
-  test "test init script w/ --disable-web-security", %{page: page, server: server} do
+  test "CR-046 test init script w/ --disable-web-security", %{page: page, server: server} do
     set_routes(server)
 
     BrowserContext.add_init_script!(Page.context(page), "window.injected = 123")

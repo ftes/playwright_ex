@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Library.TapTest do
     %{page: BrowserContext.new_page!(context)}
   end
 
-  test "should send all of the correct events @smoke", %{page: page} do
+  test "TA-001 should send all of the correct events @smoke", %{page: page} do
     Page.set_content!(page, """
       <div id="a" style="background: lightblue; width: 50px; height: 50px">a</div>
       <div id="b" style="background: pink; width: 50px; height: 50px">b</div>
@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Library.TapTest do
            ]
   end
 
-  test "trial run should not tap", %{page: page} do
+  test "TA-002 trial run should not tap", %{page: page} do
     Page.set_content!(page, """
         <div id="a" style="background: lightblue; width: 50px; height: 50px">a</div>
         <div id="b" style="background: pink; width: 50px; height: 50px">b</div>
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Library.TapTest do
     assert JSHandle.json_value!(events_handle) == expected
   end
 
-  test "should not send mouse events touchstart is canceled", %{page: page} do
+  test "TA-003 should not send mouse events touchstart is canceled", %{page: page} do
     Page.set_content!(page, ~s(<div style="width: 50px; height: 50px; background: red">))
 
     Page.evaluate!(page, """
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.TapTest do
            ]
   end
 
-  test "should not send mouse events when touchend is canceled", %{page: page} do
+  test "TA-004 should not send mouse events when touchend is canceled", %{page: page} do
     Page.set_content!(page, ~s(<div style="width: 50px; height: 50px; background: red">))
 
     Page.evaluate!(page, """
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.TapTest do
            ]
   end
 
-  test "should not wait for a navigation caused by a tap", %{page: page, server: server} do
+  test "TA-005 should not wait for a navigation caused by a tap", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<a href="/intercept-this.html">link</a>;))
     me = self()
@@ -124,7 +124,7 @@ defmodule PlaywrightEx.Library.TapTest do
 
   # Deviation: `page.evaluate(() => new Promise(...))` started without `await` is an evaluate of
   # `{ p: new Promise(...) }` (the listener is installed before the next call), awaited later.
-  test "should work with modifiers", %{page: page} do
+  test "TA-006 should work with modifiers", %{page: page} do
     Page.set_content!(page, "hello world")
 
     alt_key_promise =
@@ -144,7 +144,7 @@ defmodule PlaywrightEx.Library.TapTest do
 
   # Deviation: the two un-awaited `page.evaluate(() => new Promise(...))` calls are one evaluate of
   # both promises (listeners installed before the tap), awaited later.
-  test "should send well formed touch points", %{page: page} do
+  test "TA-007 should send well formed touch points", %{page: page} do
     promises =
       Page.evaluate_handle!(page, """
       () => [
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Library.TapTest do
     assert touchend == []
   end
 
-  test "should wait until an element is visible to tap it", %{page: page} do
+  test "TA-008 should wait until an element is visible to tap it", %{page: page} do
     div =
       page
       |> Page.evaluate_handle!("""
@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Library.TapTest do
   end
 
   describe "locators" do
-    test "should send all of the correct events", %{page: page} do
+    test "TA-009 should send all of the correct events", %{page: page} do
       Page.set_content!(page, """
         <div id="a" style="background: lightblue; width: 50px; height: 50px">a</div>
         <div id="b" style="background: pink; width: 50px; height: 50px">b</div>

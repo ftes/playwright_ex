@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
 
   @moduletag :page
 
-  test "console event should work @smoke", %{page: page} do
+  test "BC-032 console event should work @smoke", %{page: page} do
     message_promise = BrowserContext.wait_for_event(Page.context(page), :console)
     Page.evaluate!(page, "() => console.log('hello')")
     message = Promise.await!(message_promise)
@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert ConsoleMessage.page(message) == page
   end
 
-  test "console event should work with element handles", %{page: page} do
+  test "BC-033 console event should work with element handles", %{page: page} do
     Page.set_content!(page, "<body>hello</body>")
 
     message =
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     ElementHandle.click!(JSHandle.as_element(body))
   end
 
-  test "console event should work in popup", %{page: page} do
+  test "BC-034 console event should work in popup", %{page: page} do
     message_promise = BrowserContext.wait_for_event(Page.context(page), :console)
     popup_promise = Page.wait_for_event(page, :popup)
 
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
          if(@browser_name == "firefox",
            do: "upstream fixme: console message from javascript: url is not reported at all"
          )
-  test "console event should work in popup 2", %{page: page} do
+  test "BC-035 console event should work in popup 2", %{page: page} do
     message_promise =
       BrowserContext.wait_for_event(Page.context(page), :console,
         predicate: fn msg -> ConsoleMessage.type(msg) == "log" end
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: console message is not reported at all")
-  test "console event should work in immediately closed popup", %{page: page} do
+  test "BC-036 console event should work in immediately closed popup", %{page: page} do
     message_promise = BrowserContext.wait_for_event(Page.context(page), :console)
     popup_promise = Page.wait_for_event(page, :popup)
 
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert ConsoleMessage.page(message) == popup
   end
 
-  test "dialog event should work @smoke", %{page: page} do
+  test "BC-037 dialog event should work @smoke", %{page: page} do
     dialog1_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
     dialog2_promise = Page.wait_for_event(page, :dialog)
     task = Runtime.Promise.async(fn -> Page.evaluate!(page, "() => prompt('hey?')") end)
@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Runtime.Promise.await(task) == "hello"
   end
 
-  test "dialogclosed event should work", %{page: page} do
+  test "BC-038 dialogclosed event should work", %{page: page} do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
     task = Runtime.Promise.async(fn -> Page.evaluate!(page, "() => prompt('hey?')") end)
     dialog = Promise.await!(dialog_promise)
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Runtime.Promise.await(task) == "hello"
   end
 
-  test "dialog event should work in popup", %{page: page} do
+  test "BC-039 dialog event should work in popup", %{page: page} do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
     popup_promise = Page.wait_for_event(page, :popup)
 
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: dialog from javascript: url is not reported at all")
-  test "dialog event should work in popup 2", %{page: page} do
+  test "BC-040 dialog event should work in popup 2", %{page: page} do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
 
     task =
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     Runtime.Promise.await(task)
   end
 
-  test "dialog event should work in immediately closed popup", %{page: page} do
+  test "BC-041 dialog event should work in immediately closed popup", %{page: page} do
     dialog_promise = BrowserContext.wait_for_event(Page.context(page), :dialog)
     popup_promise = Page.wait_for_event(page, :popup)
 
@@ -204,7 +204,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Runtime.Promise.await(task) == "hello"
   end
 
-  test "dialog event should work with inline script tag", %{page: page, server: server} do
+  test "BC-042 dialog event should work with inline script tag", %{page: page, server: server} do
     TestServer.set_route(server, "/popup.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -227,7 +227,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     Utils.poll(fn -> Page.evaluate!(popup, "window.result") end, &assert(&1 == "hello"))
   end
 
-  test "weberror event should work", %{page: page} do
+  test "BC-043 weberror event should work", %{page: page} do
     web_error =
       BrowserContext.expect_event!(Page.context(page), :web_error, fn ->
         Page.set_content!(page, "<script>throw new Error(\"boom\")</script>")
@@ -237,7 +237,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert WebError.error(web_error).stack =~ "boom"
   end
 
-  test "weberror event should include location", %{page: page, server: server} do
+  test "BC-044 weberror event should include location", %{page: page, server: server} do
     TestServer.set_route(server, "/error.js", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "application/javascript")
@@ -268,14 +268,14 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert location.column > 0
   end
 
-  test "pageload event should work @smoke", %{page: page, server: server} do
+  test "BC-045 pageload event should work @smoke", %{page: page, server: server} do
     event_page =
       BrowserContext.expect_event!(Page.context(page), :page_load, fn -> Page.goto!(page, server.empty_page) end)
 
     assert event_page == page
   end
 
-  test "framenavigated event should work @smoke", %{page: page, server: server} do
+  test "BC-046 framenavigated event should work @smoke", %{page: page, server: server} do
     frame =
       BrowserContext.expect_event!(Page.context(page), :frame_navigated, fn -> Page.goto!(page, server.empty_page) end)
 
@@ -283,13 +283,13 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Frame.url(frame) == server.empty_page
   end
 
-  test "pageclose event should work @smoke", %{context: context} do
+  test "BC-047 pageclose event should work @smoke", %{context: context} do
     page = BrowserContext.new_page!(context)
     closed = BrowserContext.expect_event!(context, :page_close, fn -> Page.close!(page) end)
     assert closed == page
   end
 
-  test "frameattached event should work @smoke", %{page: page, server: server} do
+  test "BC-048 frameattached event should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     frame =
@@ -306,7 +306,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Frame.parent_frame(frame) == Page.main_frame(page)
   end
 
-  test "framedetached event should work @smoke", %{page: page, server: server} do
+  test "BC-049 framedetached event should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.evaluate!(page, """
@@ -328,7 +328,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Frame.parent_frame(frame) == Page.main_frame(page)
   end
 
-  test "download event should work @smoke", %{page: page, server: server} do
+  test "BC-050 download event should work @smoke", %{page: page, server: server} do
     TestServer.set_route(server, "/download", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "application/octet-stream")

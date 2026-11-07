@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag request: false, lookup: true
-  test "should store cookie from Set-Cookie header", %{request: request, server: server} do
+  test "FE-054 should store cookie from Set-Cookie header", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, [
         "a=b",
@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "c=d"
   end
 
-  test "addCookies should add cookies to the cookie jar", %{request: request, server: server} do
+  test "FE-055 addCookies should add cookies to the cookie jar", %{request: request, server: server} do
     APIRequestContext.add_cookies!(request, [
       %{name: "a", value: "b", url: server.empty_page},
       %{name: "c", value: "d", domain: "localhost", path: "/input", httpOnly: true, sameSite: "Strict"},
@@ -117,12 +117,12 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
            ]
   end
 
-  test "addCookies should validate cookies", %{request: request} do
+  test "FE-056 addCookies should validate cookies", %{request: request} do
     {:error, error} = APIRequestContext.add_cookies(request, [%{name: "a", value: "b"}])
     assert Exception.message(error) =~ "Cookie should have a url or a domain/path pair"
   end
 
-  test "cookies should return cookies filtered by urls", %{request: request, server: server} do
+  test "FE-057 cookies should return cookies filtered by urls", %{request: request, server: server} do
     APIRequestContext.add_cookies!(request, [
       %{name: "a", value: "b", domain: "localhost", path: "/"},
       %{name: "c", value: "d", domain: "localhost", path: "/input"},
@@ -138,7 +138,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert APIRequestContext.cookies!(request, "http://other.com/") == []
   end
 
-  test "cookies should include cookies from Set-Cookie header", %{request: request, server: server} do
+  test "FE-060 cookies should include cookies from Set-Cookie header", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=b; HttpOnly; SameSite=Strict", "c=d; path=/input"])
     end)
@@ -169,7 +169,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
            ]
   end
 
-  test "clearCookies should remove all cookies", %{request: request, server: server} do
+  test "FE-061 clearCookies should remove all cookies", %{request: request, server: server} do
     APIRequestContext.add_cookies!(request, [
       %{name: "a", value: "b", url: server.empty_page},
       %{name: "c", value: "d", domain: "one.com", path: "/"}
@@ -183,7 +183,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == nil
   end
 
-  test "clearCookies should filter by name, domain and path", %{request: request} do
+  test "FE-062 clearCookies should filter by name, domain and path", %{request: request} do
     APIRequestContext.add_cookies!(request, [
       %{name: "session", value: "1", domain: "one.com", path: "/"},
       %{name: "session", value: "2", domain: "two.com", path: "/"},
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert values.() == []
   end
 
-  test "clearCookies should remove nameless cookies by empty name", %{request: request} do
+  test "FE-063 clearCookies should remove nameless cookies by empty name", %{request: request} do
     APIRequestContext.add_cookies!(request, [
       %{name: "", value: "nameless", domain: "one.com", path: "/"},
       %{name: "session", value: "secret", domain: "one.com", path: "/"}
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert names(APIRequestContext.cookies!(request)) == ["session"]
   end
 
-  test "should filter outgoing cookies by path", %{request: request, server: server} do
+  test "FE-066 should filter outgoing cookies by path", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v; path=/input/subfolder", "b=v; path=/input", "c=v;"])
     end)
@@ -226,7 +226,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag request: false, lookup: true
-  test "should filter outgoing cookies by domain", %{request: request, server: server} do
+  test "FE-067 should filter outgoing cookies by domain", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v; domain=one.com", "b=v; domain=.b.one.com", "c=v; domain=other.com"])
     end)
@@ -244,7 +244,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag request: false, lookup: true
-  test "should do case-insensitive match of cookie domain", %{request: request, server: server} do
+  test "FE-068 should do case-insensitive match of cookie domain", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v; domain=One.com", "b=v; domain=.B.oNe.com"])
     end)
@@ -257,7 +257,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag request: false, lookup: true
-  test "should do case-insensitive match of request domain", %{request: request, server: server} do
+  test "FE-069 should do case-insensitive match of request domain", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v; domain=one.com", "b=v; domain=.b.one.com"])
     end)
@@ -269,7 +269,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
-  test "should send secure cookie over https", %{request: request, server: server, https_server: https_server} do
+  test "FE-070 should send secure cookie over https", %{request: request, server: server, https_server: https_server} do
     TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; secure", "b=v"]) end)
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(https_server, "/empty.html")
@@ -278,7 +278,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
-  test "should send secure cookie over http for localhost", %{request: request, server: server} do
+  test "FE-071 should send secure cookie over http for localhost", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; secure", "b=v"]) end)
     APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
     task = TestServer.wait_for_request(server, "/empty.html")
@@ -287,7 +287,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
-  test "should send secure cookie over http for subdomains of localhost", %{request: request, server: server} do
+  test "FE-072 should send secure cookie over http for subdomains of localhost", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; secure", "b=v"]) end)
     prefix = "http://a.b.localhost:#{server.port}"
     # { __testHookLookup } as any  -- not ported: in-process test hook; *.localhost resolves to loopback anyway
@@ -300,7 +300,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
   for host <- ["127.0.0.1", "[::1]"] do
     @tag host: host
-    test "should send secure cookie over http for #{host}", %{request: request, server: server, host: host} do
+    test "FE-073 should send secure cookie over http for #{host}", %{request: request, server: server, host: host} do
       TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; secure", "b=v"]) end)
       prefix = "http://#{host}:#{server.port}"
       APIRequestContext.get!(request, "#{prefix}/setcookie.html")
@@ -312,7 +312,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     end
   end
 
-  test "should send not expired cookies", %{request: request, server: server} do
+  test "FE-074 should send not expired cookies", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       tomorrow = DateTime.add(DateTime.utc_now(), 1, :day)
       set_cookie(conn, ["a=v", "b=v; expires=#{to_utc_string(tomorrow)}"])
@@ -325,7 +325,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
-  test "should remove expired cookies", %{request: request, server: server} do
+  test "FE-075 should remove expired cookies", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v", "b=v; expires=#{to_utc_string(DateTime.utc_now())}"])
     end)
@@ -337,7 +337,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "a=v"
   end
 
-  test "should remove cookie with negative max-age", %{request: request, server: server} do
+  test "FE-076 should remove cookie with negative max-age", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v; max-age=100000", "b=v; max-age=100000", "c=v"])
     end)
@@ -355,7 +355,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "c=v"
   end
 
-  test "should prefer max-age over expires regardless of the order", %{request: request, server: server} do
+  test "FE-077 should prefer max-age over expires regardless of the order", %{request: request, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43077' });
     past = "Thu, 01 Jan 1970 00:00:00 GMT"
     future = to_utc_string(DateTime.add(DateTime.utc_now(), 3600, :second))
@@ -376,7 +376,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert cookie_header(server_request) == "a=v; b=v"
   end
 
-  test "should ignore max-age that is not a number", %{request: request, server: server} do
+  test "FE-078 should ignore max-age that is not a number", %{request: request, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43077' });
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       set_cookie(conn, ["a=v; max-age=-1abc", "b=v; max-age=3600abc", "c=v; max-age="])
@@ -391,7 +391,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert Enum.map(cookies, & &1.expires) == [-1, -1, -1]
   end
 
-  test "should remove cookie with expires far in the past", %{request: request, server: server} do
+  test "FE-079 should remove cookie with expires far in the past", %{request: request, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["a=v; max-age=1000000"]) end)
 
     TestServer.set_route(server, "/removecookie.html", fn conn ->
@@ -407,7 +407,10 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag request: false, lookup: true
-  test "should store cookie from Set-Cookie header even if it contains equal signs", %{request: request, server: server} do
+  test "FE-080 should store cookie from Set-Cookie header even if it contains equal signs", %{
+    request: request,
+    server: server
+  } do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/11612' });
 
     TestServer.set_route(server, "/setcookie.html", fn conn ->
@@ -434,7 +437,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
            }
   end
 
-  test "should override cookie from Set-Cookie header", %{request: request, server: server} do
+  test "FE-081 should override cookie from Set-Cookie header", %{request: request, server: server} do
     tomorrow = DateTime.add(DateTime.utc_now(), 1, :day)
 
     TestServer.set_route(server, "/setcookie.html", fn conn ->
@@ -459,7 +462,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert hd(state.cookies).expires == day_after_tomorrow_in_seconds
   end
 
-  test "should override cookie from Set-Cookie header even if it expired", %{request: request, server: server} do
+  test "FE-082 should override cookie from Set-Cookie header even if it expired", %{request: request, server: server} do
     tomorrow = DateTime.add(DateTime.utc_now(), 1, :day)
 
     TestServer.set_route(server, "/setcookie.html", fn conn ->
@@ -483,7 +486,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag request: false, lookup: true
-  test "should export cookies to storage state", %{request: request, server: server} do
+  test "FE-083 should export cookies to storage state", %{request: request, server: server} do
     # new Date('12/31/2100 PST')
     expires = ~U[2100-12-31 08:00:00Z]
 
@@ -535,7 +538,10 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
            }
   end
 
-  test "should preserve origin storage on import/export of storage state", %{playwright: playwright, server: server} do
+  test "FE-084 should preserve origin storage on import/export of storage state", %{
+    playwright: playwright,
+    server: server
+  } do
     storage_state = %{
       cookies: [
         %{
@@ -584,7 +590,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should send cookies from storage state", %{playwright: playwright, server: server} do
+  test "FE-085 should send cookies from storage state", %{playwright: playwright, server: server} do
     # new Date('12/31/2099 PST')
     expires = ~U[2099-12-31 08:00:00Z]
 
@@ -638,7 +644,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag :tmp_dir
-  test "storage state should round-trip through file", %{playwright: playwright, tmp_dir: tmp_dir} do
+  test "FE-086 storage state should round-trip through file", %{playwright: playwright, tmp_dir: tmp_dir} do
     storage_state = %{
       cookies: [
         %{
@@ -687,7 +693,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
   end
 
   @tag :tmp_dir
-  test "should work with empty storage state", %{playwright: playwright, server: server, tmp_dir: tmp_dir} do
+  test "FE-087 should work with empty storage state", %{playwright: playwright, server: server, tmp_dir: tmp_dir} do
     storage_state = Path.join(tmp_dir, "storage-state.json")
     File.write!(storage_state, "{}")
     request1 = APIRequest.new_context!(Playwright.request(playwright), storage_state: storage_state)

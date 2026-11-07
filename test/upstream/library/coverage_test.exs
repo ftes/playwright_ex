@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
 
   defp tracing(context), do: BrowserContext.tracing(context)
 
-  test "should collect istanbul coverage into the trace", %{browser: browser, tmp_dir: tmp_dir} do
+  test "CV-018 should collect istanbul coverage into the trace", %{browser: browser, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
 
@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert data["b.js"]["s"]["0"] == 2
   end
 
-  test "should collect coverage per trace chunk", %{browser: browser, tmp_dir: tmp_dir} do
+  test "CV-019 should collect coverage per trace chunk", %{browser: browser, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert data2["a.js"] == nil
   end
 
-  test "should report maps once and counters incrementally", %{browser: browser, server: server} do
+  test "CV-020 should report maps once and counters incrementally", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -127,7 +127,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     BrowserContext.close!(context)
   end
 
-  test "should accumulate counters across pulls and keep never hit files", %{browser: browser, tmp_dir: tmp_dir} do
+  test "CV-021 should accumulate counters across pulls and keep never hit files", %{browser: browser, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     popup
   end
 
-  test "should collect coverage of a page closed by in-page script", %{
+  test "CV-022 should collect coverage of a page closed by in-page script", %{
     browser: browser,
     server: server,
     tmp_dir: tmp_dir
@@ -184,7 +184,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert data["popup.js"]["s"]["0"] == 5
   end
 
-  test "should not double count a stash picked up twice", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "CV-023 should not double count a stash picked up twice", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert data["stashed.js"]["s"]["0"] == 4
   end
 
-  test "should discard stashes of other sessions", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "CV-024 should discard stashes of other sessions", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -242,7 +242,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert parse_trace_coverage(trace_file, browser) == nil
   end
 
-  test "should collect coverage of an origin left without a page", %{
+  test "CV-025 should collect coverage of an origin left without a page", %{
     browser: browser,
     server: server,
     tmp_dir: tmp_dir
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert data["popup.js"]["s"]["0"] == 5
   end
 
-  test "should pull counters as the actions go", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "CV-026 should pull counters as the actions go", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -300,7 +300,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert data["a.js"]["s"]["0"] == 3
   end
 
-  test "should not collect coverage without the option", %{browser: browser, tmp_dir: tmp_dir} do
+  test "CV-027 should not collect coverage without the option", %{browser: browser, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     Tracing.start!(tracing(context))
     page = BrowserContext.new_page!(context)
@@ -313,7 +313,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert parse_trace_coverage(trace_file, browser) == nil
   end
 
-  test "should count only the hits after start", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "CV-028 should count only the hits after start", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -335,7 +335,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     assert Map.keys(data["a.js"]["statementMap"]) == ["0"]
   end
 
-  test "should stop collecting when tracing stops", %{browser: browser, server: server} do
+  test "CV-029 should stop collecting when tracing stops", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)
@@ -361,7 +361,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
     BrowserContext.close!(context)
   end
 
-  test "should surface a failure to stash the coverage", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "CV-030 should surface a failure to stash the coverage", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     start_coverage(context)
     page = BrowserContext.new_page!(context)

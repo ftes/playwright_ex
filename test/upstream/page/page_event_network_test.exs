@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     end
   end
 
-  test "Page.Events.Request @smoke", %{page: page, server: server} do
+  test "NE-084 Page.Events.Request @smoke", %{page: page, server: server} do
     test = self()
     Page.on(page, :request, fn request -> send(test, {:request, request}) end)
     Page.goto!(page, server.empty_page)
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert Frame.url(Request.frame(request)) == server.empty_page
   end
 
-  test "Page.Events.Response @smoke", %{page: page, server: server} do
+  test "NE-085 Page.Events.Response @smoke", %{page: page, server: server} do
     test = self()
     Page.on(page, :response, fn response -> send(test, {:response, response}) end)
     Page.goto!(page, server.empty_page)
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert Response.request(response)
   end
 
-  test "Page.Events.RequestFailed @smoke", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-086 Page.Events.RequestFailed @smoke", %{page: page, server: server, browser_name: browser_name} do
     test = self()
 
     # res.connection.destroy(): kill the connection's handler process.
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert Request.frame(failed_request)
   end
 
-  test "Page.Events.RequestFinished @smoke", %{page: page, server: server} do
+  test "NE-087 Page.Events.RequestFinished @smoke", %{page: page, server: server} do
     request_finished = Page.wait_for_event(page, :request_finished)
     response = Page.goto!(page, server.empty_page)
     Promise.await!(request_finished)
@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert Request.failure(request) == nil
   end
 
-  test "should fire events in proper order", %{page: page, server: server} do
+  test "NE-088 should fire events in proper order", %{page: page, server: server} do
     test = self()
     Page.on(page, :request, fn _request -> send(test, {:event, "request"}) end)
     Page.on(page, :response, fn _response -> send(test, {:event, "response"}) end)
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Page.PageEventNetworkTest do
     assert received(:event) == ["request", "response", "requestfinished"]
   end
 
-  test "should support redirects", %{page: page, server: server} do
+  test "NE-089 should support redirects", %{page: page, server: server} do
     test = self()
     foo_url = server.prefix <> "/foo.html"
     Page.on(page, :request, fn request -> send(test, {:event, {Request.url(request), Request.method(request)}}) end)

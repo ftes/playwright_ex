@@ -183,7 +183,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     describe kind do
       @describetag kind: kind
 
-      test "should connect over wss", %{
+      test "BT-034 should connect over wss", %{
         start_remote_server: start_remote_server,
         https_server: https_server,
         kind: kind
@@ -236,13 +236,13 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert_receive :ws_closed, 5000
       end
 
-      test "should print HTTP error", %{browser_type: browser_type, server: server} do
+      test "BT-035 should print HTTP error", %{browser_type: browser_type, server: server} do
         {:error, error} = connect(browser_type, "ws://localhost:#{server.port}/ws-401")
         assert Exception.message(error) =~ "401"
         assert Exception.message(error) =~ "Unauthorized body"
       end
 
-      test "should print ws error", %{browser_type: browser_type} do
+      test "BT-036 should print ws error", %{browser_type: browser_type} do
         {:error, error} = connect(browser_type, "ws://does-not-exist.problem-domain:10987?secret=MYSECRET")
         assert Exception.message(error) =~ "<ws connecting> ws://does-not-exist.problem-domain:10987/"
         assert Exception.message(error) =~ "<ws error>"
@@ -250,7 +250,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         refute Exception.message(error) =~ "secret=MYSECRET"
       end
 
-      test "should print custom ws close error", %{browser_type: browser_type, server: server} do
+      test "BT-037 should print custom ws close error", %{browser_type: browser_type, server: server} do
         TestServer.once_web_socket_connection(server, fn ws, _request ->
           TestServer.WebSocket.on(ws, :message, fn _message ->
             TestServer.WebSocket.close(ws, 4123, "Oh my!")
@@ -261,7 +261,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ "browserType.connect: Oh my!"
       end
 
-      test "should be able to reconnect to a browser", %{
+      test "BT-038 should be able to reconnect to a browser", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Browser.close!(browser)
       end
 
-      test "should not crash on malformed json frame", %{
+      test "BT-039 should not crash on malformed json frame", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -305,7 +305,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Browser.close!(browser)
       end
 
-      test "should be able to visit ipv6", %{
+      test "BT-040 should be able to visit ipv6", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         do: @tag(skip: "headed: no X server (upstream runs headed tests under xvfb)")
 
       @tag :headed
-      test "should ignore page.pause when headed", %{
+      test "BT-041 should ignore page.pause when headed", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -349,7 +349,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Heap.put(playwright, :_defaultLaunchOptions, default_launch_options)
       end
 
-      test "should be able to visit ipv6 through localhost", %{
+      test "BT-042 should be able to visit ipv6 through localhost", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -367,7 +367,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         end)
       end
 
-      test "should be able to connect two browsers at the same time", %{
+      test "BT-043 should be able to connect two browsers at the same time", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -394,17 +394,17 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Browser.close!(browser2)
       end
 
-      test "should timeout in socket while connecting", %{browser_type: browser_type, server: server} do
+      test "BT-044 should timeout in socket while connecting", %{browser_type: browser_type, server: server} do
         {:error, e} = connect(browser_type, "ws://localhost:#{server.port}/ws-slow", timeout: 1000)
         assert Exception.message(e) =~ "browserType.connect: Timeout 1000ms exceeded"
       end
 
-      test "should timeout in connect while connecting", %{browser_type: browser_type, server: server} do
+      test "BT-045 should timeout in connect while connecting", %{browser_type: browser_type, server: server} do
         {:error, e} = connect(browser_type, "ws://localhost:#{server.port}/ws", timeout: 100)
         assert Exception.message(e) =~ "browserType.connect: Timeout 100ms exceeded"
       end
 
-      test "should send extra headers with connect request", %{browser_type: browser_type, server: server} do
+      test "BT-046 should send extra headers with connect request", %{browser_type: browser_type, server: server} do
         request = TestServer.wait_for_web_socket_connection_request(server)
 
         connect(browser_type, "ws://localhost:#{server.port}/ws",
@@ -417,7 +417,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert header(request, "foo") == "bar"
       end
 
-      test "should send extra headers with connect request in object form", %{
+      test "BT-047 should send extra headers with connect request in object form", %{
         browser_type: browser_type,
         server: server
       } do
@@ -438,7 +438,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert header(request, "foo") == "bar"
       end
 
-      test "should send default User-Agent and X-Playwright-Browser headers with connect request", %{
+      test "BT-048 should send default User-Agent and X-Playwright-Browser headers with connect request", %{
         browser_type: browser_type,
         browser_name: browser_name,
         server: server
@@ -452,7 +452,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert header(request, "foo") == "bar"
       end
 
-      test "should support slowmo option", %{
+      test "BT-049 should support slowmo option", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -466,7 +466,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert System.monotonic_time(:millisecond) - start > 199
       end
 
-      test "disconnected event should be emitted when browser is closed or server is closed", %{
+      test "BT-050 disconnected event should be emitted when browser is closed or server is closed", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -496,7 +496,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert_received :disconnected2
       end
 
-      test "disconnected event should have browser as argument", %{
+      test "BT-051 disconnected event should have browser as argument", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -509,7 +509,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert disconnected == browser
       end
 
-      test "should handle exceptions during connect", %{
+      test "BT-052 should handle exceptions during connect", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -525,7 +525,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ "Dummy"
       end
 
-      test "should set the browser connected state", %{
+      test "BT-053 should set the browser connected state", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -537,7 +537,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Browser.is_connected(remote) == false
       end
 
-      test "should throw when used after isConnected returns false", %{
+      test "BT-054 should throw when used after isConnected returns false", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -553,7 +553,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ "closed"
       end
 
-      test "should throw when calling waitForNavigation after disconnect", %{
+      test "BT-055 should throw when calling waitForNavigation after disconnect", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -569,7 +569,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ @k_target_closed_error_message
       end
 
-      test "should reject navigation when browser closes", %{
+      test "BT-056 should reject navigation when browser closes", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -595,7 +595,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ "has been closed"
       end
 
-      test "should reject waitForSelector when browser closes", %{
+      test "BT-057 should reject waitForSelector when browser closes", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -622,7 +622,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ "has been closed"
       end
 
-      test "should emit close events on pages and contexts", %{
+      test "BT-058 should emit close events on pages and contexts", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -639,7 +639,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert_received :page_closed
       end
 
-      test "should terminate network waiters", %{
+      test "BT-059 should terminate network waiters", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -660,7 +660,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         end
       end
 
-      test "should reject waitForEvent before browser.close finishes", %{
+      test "BT-060 should reject waitForEvent before browser.close finishes", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -674,7 +674,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert {:error, _} = Task.await(Task.async(fn -> Promise.await(promise) end), 100)
       end
 
-      test "should reject waitForEvent before browser.onDisconnect fires", %{
+      test "BT-061 should reject waitForEvent before browser.onDisconnect fires", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -703,7 +703,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert [first, second] == ["rejected", "disconnected"]
       end
 
-      test "should respect selectors", %{
+      test "BT-062 should respect selectors", %{
         playwright: playwright,
         browser_type: browser_type,
         start_remote_server: start_remote_server,
@@ -757,7 +757,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         Browser.close!(browser1)
       end
 
-      test "should not throw on close after disconnect", %{
+      test "BT-063 should not throw on close after disconnect", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -772,7 +772,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should saveAs videos from remote browser", %{
+      test "BT-064 should saveAs videos from remote browser", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind,
@@ -800,7 +800,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should save videos to artifactsDir", %{
+      test "BT-065 should save videos to artifactsDir", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind,
@@ -828,7 +828,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should name video file after page guid when connecting to remote browser with artifactsDir", %{
+      test "BT-066 should name video file after page guid when connecting to remote browser with artifactsDir", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind,
@@ -850,7 +850,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
       if !match?({:unix, :linux}, :os.type()), do: @tag(skip: "upstream skip: Testing non-platform specific code")
       # `process.on('warning')`: no Node warnings to listen for here.
-      test "should be able to connect 20 times to a single server without warnings", %{
+      test "BT-067 should be able to connect 20 times to a single server without warnings", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -861,7 +861,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should save download", %{
+      test "BT-068 should save download", %{
         server: server,
         browser_type: browser_type,
         start_remote_server: start_remote_server,
@@ -890,7 +890,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should error when saving download after deletion", %{
+      test "BT-069 should error when saving download after deletion", %{
         server: server,
         browser_type: browser_type,
         start_remote_server: start_remote_server,
@@ -914,7 +914,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       # `(browser as any)._connection.close()`: the client's connection.
-      test "should properly disconnect when connection closes from the client side", %{
+      test "BT-070 should properly disconnect when connection closes from the client side", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -954,7 +954,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert Exception.message(error) =~ @k_target_closed_error_message
       end
 
-      test "should be able to connect when the wsEndpoint is passed as an option", %{
+      test "BT-071 should be able to connect when the wsEndpoint is passed as an option", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -972,7 +972,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should save har", %{
+      test "BT-072 should save har", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -997,7 +997,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
       # `_playwright._defaultTracesDir` is no client field (any more): setting it changes nothing.
       @tag :tmp_dir
-      test "should filter launch options", %{
+      test "BT-073 should filter launch options", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -1018,7 +1018,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag :tmp_dir
-      test "should record trace with sources", %{
+      test "BT-074 should record trace with sources", %{
         playwright: playwright,
         browser_type: browser_type,
         start_remote_server: start_remote_server,
@@ -1048,7 +1048,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         assert source_file == this_file
       end
 
-      test "should fulfill with global fetch result", %{
+      test "BT-075 should fulfill with global fetch result", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         playwright: playwright,
@@ -1074,7 +1074,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       @tag :tmp_dir
       # if (isMac) test.setTimeout(test.info().timeout * 3)
       @tag timeout: if(match?({:unix, :darwin}, :os.type()), do: 3 * @slow_timeout, else: @slow_timeout)
-      test "should upload large file", %{
+      test "BT-076 should upload large file", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -1121,7 +1121,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       # test.slow()
       @tag timeout: @slow_timeout
       @tag :tmp_dir
-      test "should upload a folder", %{
+      test "BT-077 should upload a folder", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -1168,7 +1168,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         end
       end
 
-      test "setInputFiles should preserve lastModified timestamp", %{
+      test "BT-078 setInputFiles should preserve lastModified timestamp", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         asset: asset,
@@ -1193,7 +1193,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
             do: assert(abs(timestamp - expected) <= 1000)
       end
 
-      test "should connect over http", %{
+      test "BT-079 should connect over http", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         kind: kind
@@ -1209,7 +1209,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       # test.describe('socks proxy'): ExUnit has no nested describe.
 
       @tag skip: if(kind == "launchServer", do: "upstream skip: not supported yet")
-      test "should forward non-forwarded requests", %{
+      test "BT-080 should forward non-forwarded requests", %{
         server: server,
         start_remote_server: start_remote_server,
         browser_type: browser_type,
@@ -1235,7 +1235,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
                 true ->
                   nil
               end)
-      test "should proxy localhost requests @smoke", %{
+      test "BT-081 should proxy localhost requests @smoke", %{
         start_remote_server: start_remote_server,
         server: server,
         browser_type: browser_type,
@@ -1278,7 +1278,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
                 true ->
                   nil
               end)
-      test "should proxy ipv6 localhost requests @smoke", %{
+      test "BT-082 should proxy ipv6 localhost requests @smoke", %{
         start_remote_server: start_remote_server,
         server: server,
         browser_type: browser_type,
@@ -1320,7 +1320,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
                 true ->
                   nil
               end)
-      test "should proxy requests from fetch api", %{
+      test "BT-083 should proxy requests from fetch api", %{
         start_remote_server: start_remote_server,
         server: server,
         browser_type: browser_type,
@@ -1363,7 +1363,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
                 true ->
                   nil
               end)
-      test "should proxy requests from fetch api over ipv6", %{
+      test "BT-084 should proxy requests from fetch api over ipv6", %{
         start_remote_server: start_remote_server,
         server: server,
         browser_type: browser_type,
@@ -1396,7 +1396,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag skip: if(kind == "launchServer", do: "upstream skip: not supported yet")
-      test "should proxy local.playwright requests", %{
+      test "BT-085 should proxy local.playwright requests", %{
         browser_type: browser_type,
         server: server,
         start_remote_server: start_remote_server,
@@ -1419,7 +1419,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag skip: if(kind == "launchServer", do: "upstream skip: not supported yet")
-      test "should lead to the error page for forwarded requests when the connection is refused", %{
+      test "BT-086 should lead to the error page for forwarded requests when the connection is refused", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         browser_name: browser_name,
@@ -1456,7 +1456,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
                 true ->
                   nil
               end)
-      test "should proxy based on the pattern", %{
+      test "BT-087 should proxy based on the pattern", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -1489,7 +1489,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
 
       @tag skip: if(kind == "launchServer", do: "upstream skip: not supported yet")
-      test "should check proxy pattern on the client", %{
+      test "BT-088 should check proxy pattern on the client", %{
         browser_type: browser_type,
         start_remote_server: start_remote_server,
         server: server,
@@ -1517,14 +1517,14 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   end
 
   describe "launchServer only" do
-    test "should work with cluster", %{browser_type: browser_type, start_remote_server: start_remote_server} do
+    test "BT-089 should work with cluster", %{browser_type: browser_type, start_remote_server: start_remote_server} do
       remote_server = start_remote_server.("launchServer", %{inCluster: true})
       browser = connect!(browser_type, RemoteServer.ws_endpoint(remote_server))
       page = Browser.new_page!(browser)
       assert Page.evaluate!(page, "1 + 2") == 3
     end
 
-    test "should properly disconnect when connection closes from the server side", %{
+    test "BT-090 should properly disconnect when connection closes from the server side", %{
       browser_type: browser_type,
       start_remote_server: start_remote_server,
       server: server
@@ -1563,7 +1563,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
     # test.slow()
     @tag timeout: @slow_timeout
-    test "should be able to reconnect to a browser 12 times without warnings", %{
+    test "BT-091 should be able to reconnect to a browser 12 times without warnings", %{
       browser_type: browser_type,
       start_remote_server: start_remote_server,
       server: server
@@ -1582,7 +1582,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       end
     end
 
-    test "cannot launch another browser", %{browser_type: browser_type, start_remote_server: start_remote_server} do
+    test "BT-092 cannot launch another browser", %{browser_type: browser_type, start_remote_server: start_remote_server} do
       remote_server = start_remote_server.("launchServer", %{})
       browser = connect!(browser_type, RemoteServer.ws_endpoint(remote_server))
       # `browser._parent`: the remote BrowserType.
@@ -1592,7 +1592,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     end
   end
 
-  test "should refuse connecting when versions do not match", %{browser_type: browser_type} do
+  test "BT-093 should refuse connecting when versions do not match", %{browser_type: browser_type} do
     server = RunServer.start(%{mode: "default", env: %{"PW_VERSION_OVERRIDE" => "1.2.3"}})
     {:error, error} = connect(browser_type, RunServer.ws_endpoint(server))
     RunServer.close(server)
@@ -1604,7 +1604,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
   # https://github.com/microsoft/playwright/issues/42394
   @tag :tmp_dir
-  test "should filter local paths from unsafe launch options", %{
+  test "BT-094 should filter local paths from unsafe launch options", %{
     playwright: playwright,
     browser_type: browser_type,
     start_remote_server: start_remote_server,
@@ -1640,7 +1640,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     assert "Set content" in actions
   end
 
-  test "should timeout after redirect when connecting over http", %{browser_type: browser_type, server: server} do
+  test "BT-095 should timeout after redirect when connecting over http", %{browser_type: browser_type, server: server} do
     TestServer.set_redirect(server, "/connect/json", "/connect/slow")
     test = self()
 

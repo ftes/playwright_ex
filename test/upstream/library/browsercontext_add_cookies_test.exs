@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
   # `(browserName === 'webkit' && isWindows && channel !== 'webkit-wsl') ? 'None' : x` (no channel here).
   defp same_site(browser_name, value), do: if(browser_name == "webkit" and windows?(), do: "None", else: value)
 
-  test "should work @smoke", %{context: context, page: page, server: server} do
+  test "CO-019 should work @smoke", %{context: context, page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     BrowserContext.add_cookies!(context, [
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert Page.evaluate!(page, "() => document.cookie") == "password=123456"
   end
 
-  test "should work with expires=-1", %{context: context, page: page} do
+  test "CO-020 should work with expires=-1", %{context: context, page: page} do
     BrowserContext.add_cookies!(context, [
       %{
         name: "username",
@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert Page.evaluate!(page, "() => document.cookie") == "username=John Doe"
   end
 
-  test "should add cookies with empty value", %{context: context, page: page} do
+  test "CO-021 should add cookies with empty value", %{context: context, page: page} do
     BrowserContext.add_cookies!(context, [
       %{
         name: "marker",
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert Page.evaluate!(page, "() => document.cookie") == "marker="
   end
 
-  test "should set cookies with SameSite attribute and no secure attribute", %{
+  test "CO-022 should set cookies with SameSite attribute and no secure attribute", %{
     context: context,
     browser_name: browser_name
   } do
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert sort_by_name(cookies) == sort_by_name(expected)
   end
 
-  test "should roundtrip cookie", %{context: context, page: page, server: server} do
+  test "CO-023 should roundtrip cookie", %{context: context, page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # @see https://en.wikipedia.org/wiki/Year_2038_problem
     # `+(new Date('1/1/2038'))` (local time there, UTC here: any date past 2038 does).
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert normalized_expires.(BrowserContext.cookies!(context)) == normalized_expires.(cookies)
   end
 
-  test "should send cookie header", %{server: server, context: context} do
+  test "CO-024 should send cookie header", %{server: server, context: context} do
     me = self()
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert_received {:cookie, "cookie=value"}
   end
 
-  test "should isolate cookies in browser contexts", %{context: context, server: server, browser: browser} do
+  test "CO-025 should isolate cookies in browser contexts", %{context: context, server: server, browser: browser} do
     another_context = Browser.new_context!(browser)
     BrowserContext.add_cookies!(context, [%{url: server.empty_page, name: "isolatecookie", value: "page1value"}])
 
@@ -234,7 +234,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     BrowserContext.close!(another_context)
   end
 
-  test "should isolate session cookies", %{context: context, server: server, browser: browser} do
+  test "CO-026 should isolate session cookies", %{context: context, server: server, browser: browser} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("set-cookie", "session=value")
@@ -258,7 +258,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     BrowserContext.close!(context2)
   end
 
-  test "should isolate persistent cookies", %{context: context, server: server, browser: browser} do
+  test "CO-027 should isolate persistent cookies", %{context: context, server: server, browser: browser} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("set-cookie", "persistent=persistent-value; max-age=3600")
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     BrowserContext.close!(context2)
   end
 
-  test "should isolate send cookie header", %{server: server, context: context, browser: browser} do
+  test "CO-028 should isolate send cookie header", %{server: server, context: context, browser: browser} do
     me = self()
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -306,7 +306,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
 
   # playwrightTest.slow()
   @tag timeout: @slow_timeout
-  test "should isolate cookies between launches", %{browser_type: browser_type, server: server} do
+  test "CO-029 should isolate cookies between launches", %{browser_type: browser_type, server: server} do
     browser1 = BrowserType.launch!(browser_type)
     context1 = Browser.new_context!(browser1)
 
@@ -328,7 +328,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     Browser.close!(browser2)
   end
 
-  test "should set multiple cookies", %{context: context, page: page, server: server} do
+  test "CO-030 should set multiple cookies", %{context: context, page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     BrowserContext.add_cookies!(context, [
@@ -355,7 +355,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
            ]
   end
 
-  test "should have |expires| set to |-1| for session cookies", %{context: context, server: server} do
+  test "CO-031 should have |expires| set to |-1| for session cookies", %{context: context, server: server} do
     BrowserContext.add_cookies!(context, [
       %{
         url: server.empty_page,
@@ -368,7 +368,11 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert hd(cookies).expires == -1
   end
 
-  test "should set cookie with reasonable defaults", %{context: context, server: server, browser_name: browser_name} do
+  test "CO-032 should set cookie with reasonable defaults", %{
+    context: context,
+    server: server,
+    browser_name: browser_name
+  } do
     BrowserContext.add_cookies!(context, [
       %{
         url: server.empty_page,
@@ -393,7 +397,12 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
            ]
   end
 
-  test "should set a cookie with a path", %{context: context, page: page, server: server, browser_name: browser_name} do
+  test "CO-033 should set a cookie with a path", %{
+    context: context,
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
     Page.goto!(page, server.prefix <> "/grid.html")
 
     BrowserContext.add_cookies!(context, [
@@ -426,7 +435,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "gridcookie=GRID"
   end
 
-  test "should not set a cookie with blank page URL", %{context: context, server: server} do
+  test "CO-034 should not set a cookie with blank page URL", %{context: context, server: server} do
     {:error, error} =
       BrowserContext.add_cookies(context, [
         %{url: server.empty_page, name: "example-cookie", value: "best"},
@@ -436,14 +445,18 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert Exception.message(error) =~ ~s(Blank page can not have cookie "example-cookie-blank")
   end
 
-  test "should not set a cookie on a data URL page", %{context: context} do
+  test "CO-035 should not set a cookie on a data URL page", %{context: context} do
     {:error, error} =
       BrowserContext.add_cookies(context, [%{url: "data:,Hello%2C%20World!", name: "example-cookie", value: "best"}])
 
     assert Exception.message(error) =~ ~s(Data URL page can not have cookie "example-cookie")
   end
 
-  test "should default to setting secure cookie for HTTPS websites", %{context: context, page: page, server: server} do
+  test "CO-036 should default to setting secure cookie for HTTPS websites", %{
+    context: context,
+    page: page,
+    server: server
+  } do
     Page.goto!(page, server.empty_page)
     secure_url = "https://example.com"
 
@@ -459,7 +472,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert cookie.secure == true
   end
 
-  test "should be able to set unsecure cookie for HTTP website", %{context: context, page: page, server: server} do
+  test "CO-037 should be able to set unsecure cookie for HTTP website", %{context: context, page: page, server: server} do
     Page.goto!(page, server.empty_page)
     http_url = "http://example.com"
 
@@ -475,7 +488,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert cookie.secure == false
   end
 
-  test "should set a cookie on a different domain", %{
+  test "CO-038 should set a cookie on a different domain", %{
     context: context,
     page: page,
     server: server,
@@ -508,7 +521,7 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
            ]
   end
 
-  test "should set cookies for a frame", %{context: context, page: page, server: server} do
+  test "CO-039 should set cookies for a frame", %{context: context, page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     BrowserContext.add_cookies!(context, [
@@ -534,7 +547,12 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
     assert page |> Page.frames() |> Enum.at(1) |> Frame.evaluate!("document.cookie") == "frame-cookie=value"
   end
 
-  test "should allow unnamed cookies", %{page: page, context: context, server: server, browser_name: browser_name} do
+  test "CO-040 should allow unnamed cookies", %{
+    page: page,
+    context: context,
+    server: server,
+    browser_name: browser_name
+  } do
     TestServer.set_route(server, "/cookies", fn conn ->
       Plug.Conn.send_resp(conn, 200, header(conn, "cookie") || "undefined-on-server")
     end)
@@ -569,7 +587,10 @@ defmodule PlaywrightEx.Library.BrowsercontextAddCookiesTest do
       else: assert(Page.evaluate!(page, "document.cookie") == "unnamed-via-js")
   end
 
-  test "should set secure cookies on secure WebSocket", %{context_factory: context_factory, https_server: https_server} do
+  test "CO-041 should set secure cookies on secure WebSocket", %{
+    context_factory: context_factory,
+    https_server: https_server
+  } do
     me = self()
 
     TestServer.once_web_socket_connection(https_server, fn _ws, conn ->

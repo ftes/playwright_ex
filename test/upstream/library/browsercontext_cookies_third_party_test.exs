@@ -202,7 +202,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
       else: "Received cookie: frame=value; top-level=value"
   end
 
-  test "third party non-partitioned cookies", %{
+  test "CO-052 third party non-partitioned cookies", %{
     page: page,
     browser_name: browser_name,
     https_server: https_server,
@@ -211,7 +211,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     run_non_partitioned_test(page, https_server, browser_name, urls)
   end
 
-  test "save/load third party non-partitioned cookies", %{
+  test "CO-053 save/load third party non-partitioned cookies", %{
     page: page,
     browser_name: browser_name,
     https_server: https_server,
@@ -316,7 +316,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
   end
 
   @tag skip: @firefox_partitioned_skip
-  test "third party 'Partitioned;' cookies", %{
+  test "CO-054 third party 'Partitioned;' cookies", %{
     page: page,
     browser_name: browser_name,
     https_server: https_server,
@@ -337,7 +337,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
             true ->
               false
           end)
-  test "save/load third party 'Partitioned;' cookies", %{
+  test "CO-055 save/load third party 'Partitioned;' cookies", %{
     page: page,
     browser_name: browser_name,
     https_server: https_server,
@@ -427,7 +427,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     check_cookies.(BrowserContext.new_page!(context3))
   end
 
-  test "add 'Partitioned;' cookie via API", %{
+  test "CO-056 add 'Partitioned;' cookie via API", %{
     page: page,
     context: context,
     browser_name: browser_name,
@@ -557,7 +557,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     check_cookies.(page)
   end
 
-  test "same origin third party 'Partitioned;' cookie with different origin intermediate iframe", %{
+  test "CO-057 same origin third party 'Partitioned;' cookie with different origin intermediate iframe", %{
     page: page,
     https_server: https_server,
     context_factory: context_factory,
@@ -595,7 +595,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
 
   @tag skip: @firefox_partitioned_skip
   @tag :tmp_dir
-  test "top level 'Partitioned;' cookie and same origin iframe", %{
+  test "CO-058 top level 'Partitioned;' cookie and same origin iframe", %{
     page: page,
     browser_name: browser_name,
     https_server: https_server,
@@ -654,7 +654,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
          if(System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()),
            do: "upstream fixme: webkit on mac"
          )
-  test "should be able to send third party cookies via an iframe", %{
+  test "CO-059 should be able to send third party cookies via an iframe", %{
     browser: browser,
     https_server: https_server
   } do
@@ -689,7 +689,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     end
   end
 
-  test "should(not) block third party cookies - persistent context", %{
+  test "CO-060 should(not) block third party cookies - persistent context", %{
     https_server: https_server,
     launch_persistent: launch_persistent,
     browser_name: browser_name
@@ -699,7 +699,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
     test_third_party_cookies_are_blocked(page, context, https_server, browser_name)
   end
 
-  test "should(not) block third party cookies - ephemeral context", %{
+  test "CO-061 should(not) block third party cookies - ephemeral context", %{
     page: page,
     context: context,
     https_server: https_server,
@@ -759,7 +759,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesThirdPartyTest do
   end
 
   @tag skip: if(System.get_env("BROWSER") == "webkit", do: "upstream skip: No third party cookies in WebKit")
-  test "should not block third party SameSite=None cookies", %{
+  test "CO-062 should not block third party SameSite=None cookies", %{
     context_factory: context_factory,
     https_server: https_server
   } do

@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
   }
   """
 
-  test "should work", %{page: page, server: server} do
+  test "WA-121 should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     request =
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
     assert Request.url(request) == server.prefix <> "/digits/2.png"
   end
 
-  test "should work with predicate", %{page: page, server: server} do
+  test "WA-122 should work with predicate", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     promise = Page.wait_for_event(page, :request, &(Request.url(&1) == server.prefix <> "/digits/2.png"))
     Page.evaluate!(page, @fetch_digits)
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
     assert Request.url(request) == server.prefix <> "/digits/2.png"
   end
 
-  test "should respect timeout", %{page: page} do
+  test "WA-123 should respect timeout", %{page: page} do
     {error, stacktrace} =
       try do
         page |> Page.wait_for_event(:request, predicate: fn _ -> false end, timeout: 1) |> Promise.await!()
@@ -49,14 +49,14 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
     assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
   end
 
-  test "should respect default timeout", %{page: page} do
+  test "WA-124 should respect default timeout", %{page: page} do
     Page.set_default_timeout(page, 1)
     # `waitForEvent('request', () => false)`: the predicate is an option.
     {:error, error} = page |> Page.wait_for_event(:request, fn _ -> false end) |> Promise.await()
     assert %TimeoutError{} = error
   end
 
-  test "should log the url", %{page: page} do
+  test "WA-125 should log the url", %{page: page} do
     {:error, error} =
       page
       |> Page.wait_for_request(
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
     assert Exception.message(error) =~ ~s(waiting for request "long-long-long-long-long-long-long-long-long-long…")
   end
 
-  test "should work with no timeout", %{page: page, server: server} do
+  test "WA-126 should work with no timeout", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     request =
@@ -90,7 +90,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
     assert Request.url(request) == server.prefix <> "/digits/2.png"
   end
 
-  test "should work with url match", %{page: page, server: server} do
+  test "WA-127 should work with url match", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     promise = Page.wait_for_request(page, ~r/digits\/\d\.png/)
     Page.evaluate!(page, "() => { void fetch('/digits/1.png'); }")
@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Page.PageWaitForRequestTest do
   end
 
   # `vm.runInContext('new RegExp(...)')`: a regex compiled at runtime.
-  test "should work with url match regular expression from a different context", %{page: page, server: server} do
+  test "WA-128 should work with url match regular expression from a different context", %{page: page, server: server} do
     regexp = Regex.compile!("digits\\/\\d\\.png")
     Page.goto!(page, server.empty_page)
     promise = Page.wait_for_request(page, regexp)

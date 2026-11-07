@@ -275,24 +275,24 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
     end
 
     write.("up/tests/page/a.spec.ts", """
-    it('ported', async () => {});
-    it('ported and ruled out', async () => {});
-    it('bodiless', async () => {});
-    it('upstream skipped', async () => {});
+    it('AA-001 ported', async () => {});
+    it('AA-002 ported and ruled out', async () => {});
+    it('AA-003 bodiless', async () => {});
+    it('AA-004 upstream skipped', async () => {});
     """)
 
-    write.("up/tests/page/b.spec.ts", "it('unmirrored', async () => {});\n")
-    write.("up/tests/page/c.spec.ts", "it('ruled out file', async () => {});\n")
-    write.("up/tests/page/d.spec.ts", "it('not in the registry', async () => {});\n")
+    write.("up/tests/page/b.spec.ts", "it('BB-001 unmirrored', async () => {});\n")
+    write.("up/tests/page/c.spec.ts", "it(`CC-001 ruled out ${'file'}`, async () => {});\n")
+    write.("up/tests/page/d.spec.ts", "it('DD-001 not in the registry', async () => {});\n")
 
     write.("a_test.exs", """
     defmodule ATest do
       @upstream "tests/page/a.spec.ts"
-      test "ported", do: :ok
-      test "ported and ruled out", do: :ok
-      test "bodiless"
+      test "AA-001 ported", do: :ok
+      test "AA-002 ported and ruled out", do: :ok
+      test "AA-003 bodiless"
       @tag skip: "upstream fixme: x"
-      test "upstream skipped"
+      test "AA-004 upstream skipped"
       test "not upstream", do: :ok
     end
     """)

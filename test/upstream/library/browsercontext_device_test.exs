@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
     # it.skip(({ browserName, isBidi }) => browserName === 'firefox' && !isBidi): we run Juggler Firefox.
     @describetag skip: if(System.get_env("BROWSER") == "firefox", do: "upstream skip: firefox (non-BiDi)")
 
-    test "should work @smoke", %{playwright: playwright, browser: browser, server: server} do
+    test "DV-001 should work @smoke", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
       BrowserContext.close!(context)
     end
 
-    test "should support clicking", %{playwright: playwright, browser: browser, server: server} do
+    test "DV-002 should support clicking", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
       BrowserContext.close!(context)
     end
 
-    test "should scroll to click", %{browser: browser, server: server} do
+    test "DV-003 should scroll to click", %{browser: browser, server: server} do
       context =
         Browser.new_context!(browser,
           viewport: %{width: 400, height: 400},
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
       BrowserContext.close!(context)
     end
 
-    test "should scroll twice when emulated", %{context_factory: context_factory, playwright: playwright} do
+    test "DV-004 should scroll twice when emulated", %{context_factory: context_factory, playwright: playwright} do
       device = Playwright.devices(playwright)["iPhone 6"]
       context = context_factory.(device)
       page = BrowserContext.new_page!(context)
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
     end
 
     @tag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
-    test "should reset scroll top after a navigation", %{
+    test "DV-005 should reset scroll top after a navigation", %{
       server: server,
       context_factory: context_factory,
       playwright: playwright
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
     end
 
     @tag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
-    test "should scroll to a precise position with mobile scale", %{
+    test "DV-006 should scroll to a precise position with mobile scale", %{
       server: server,
       context_factory: context_factory,
       playwright: playwright
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
       BrowserContext.close!(context)
     end
 
-    test "should emulate viewport and screen size", %{context_factory: context_factory, playwright: playwright} do
+    test "DV-007 should emulate viewport and screen size", %{context_factory: context_factory, playwright: playwright} do
       device = Playwright.devices(playwright)["iPhone 12"]
       context = context_factory.(device)
       page = BrowserContext.new_page!(context)
@@ -130,7 +130,10 @@ defmodule PlaywrightEx.Library.BrowsercontextDeviceTest do
       BrowserContext.close!(context)
     end
 
-    test "should emulate viewport without screen size", %{context_factory: context_factory, playwright: playwright} do
+    test "DV-008 should emulate viewport without screen size", %{
+      context_factory: context_factory,
+      playwright: playwright
+    } do
       device = Playwright.devices(playwright)["iPhone 6"]
       context = context_factory.(device)
       page = BrowserContext.new_page!(context)

@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
     Selectors.register!(Playwright.selectors(playwright), name, "(#{create_dummy_selector})()")
   end
 
-  test "textContent should be atomic", %{playwright: playwright, page: page} do
+  test "SE-154 textContent should be atomic", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     () => ({
       query(root, selector) {
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').textContent") == "modified"
   end
 
-  test "innerText should be atomic", %{playwright: playwright, page: page} do
+  test "SE-155 innerText should be atomic", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     () => ({
       query(root, selector) {
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').innerText") == "modified"
   end
 
-  test "innerHTML should be atomic", %{playwright: playwright, page: page} do
+  test "SE-156 innerHTML should be atomic", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     () => ({
       query(root, selector) {
@@ -90,7 +90,7 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').innerHTML") == "modified"
   end
 
-  test "getAttribute should be atomic", %{playwright: playwright, page: page} do
+  test "SE-157 getAttribute should be atomic", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     () => ({
       query(root, selector) {
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').getAttribute('foo')") == "modified"
   end
 
-  test "isVisible should be atomic", %{playwright: playwright, page: page} do
+  test "SE-158 isVisible should be atomic", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     () => ({
       query(root, selector) {
@@ -140,7 +140,7 @@ defmodule PlaywrightEx.Page.SelectorsRegisterTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').style.display") == "none"
   end
 
-  test "should take java-style string", %{playwright: playwright, page: page} do
+  test "SE-159 should take java-style string", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     {
       query(root, selector) {

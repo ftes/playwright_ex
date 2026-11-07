@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
 
   defp header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 
-  test "should affect accept-language header @smoke", %{browser: browser, server: server} do
+  test "LC-001 should affect accept-language header @smoke", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, locale: "fr-CH")
     page = BrowserContext.new_page!(context)
     request = TestServer.wait_for_request(server, "/empty.html")
@@ -20,14 +20,14 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should affect navigator.language", %{browser: browser} do
+  test "LC-002 should affect navigator.language", %{browser: browser} do
     context = Browser.new_context!(browser, locale: "fr-FR")
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "() => navigator.language") == "fr-FR"
     BrowserContext.close!(context)
   end
 
-  test "should format number", %{browser: browser, server: server} do
+  test "LC-003 should format number", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, locale: "en-US")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should format date", %{browser: browser, server: server} do
+  test "LC-004 should format date", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, locale: "en-US", timezone_id: "America/Los_Angeles")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should format number in popups", %{browser: browser, server: server} do
+  test "LC-005 should format number in popups", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, locale: "fr-FR")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should affect navigator.language in popups", %{browser: browser, server: server} do
+  test "LC-006 should affect navigator.language in popups", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, locale: "fr-FR")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -89,7 +89,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should work for multiple pages sharing same process", %{browser: browser, server: server} do
+  test "LC-007 should work for multiple pages sharing same process", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, locale: "ru-RU")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -108,7 +108,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
 
   # it.slow()
   @tag timeout: @slow_timeout
-  test "should be isolated between contexts", %{browser: browser} do
+  test "LC-008 should be isolated between contexts", %{browser: browser} do
     context1 = Browser.new_context!(browser, locale: "en-US")
     # By default firefox limits number of child web processes to 8.
     1..8
@@ -134,7 +134,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     |> Task.await_many(60_000)
   end
 
-  test "should not change default locale in another context", %{browser: browser} do
+  test "LC-009 should not change default locale in another context", %{browser: browser} do
     get_context_locale = fn context ->
       page = BrowserContext.new_page!(context)
       Page.evaluate!(page, "() => (new Intl.NumberFormat()).resolvedOptions().locale")
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should propagate locale to workers", %{browser: browser, browser_name: browser_name, server: server} do
+  test "LC-010 should propagate locale to workers", %{browser: browser, browser_name: browser_name, server: server} do
     context = Browser.new_context!(browser, locale: "ru-RU")
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -179,7 +179,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should affect Intl.DateTimeFormat().resolvedOptions().locale", %{browser: browser, server: server} do
+  test "LC-011 should affect Intl.DateTimeFormat().resolvedOptions().locale", %{browser: browser, server: server} do
     # https://github.com/microsoft/playwright/issues/27802
     context = Browser.new_context!(browser, locale: "en-GB")
     page = BrowserContext.new_page!(context)
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should send user Accept-Language header", %{browser: browser, server: server} do
+  test "LC-012 should send user Accept-Language header", %{browser: browser, server: server} do
     # https://github.com/microsoft/playwright/issues/23732
     context = Browser.new_context!(browser, locale: "en-GB")
     page = BrowserContext.new_page!(context)
@@ -235,7 +235,7 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should send Accept-Language header on WebSocket handshake", %{browser: browser, server: server} do
+  test "LC-013 should send Accept-Language header on WebSocket handshake", %{browser: browser, server: server} do
     # https://github.com/microsoft/playwright/issues/23732
     # it.fixme(browserName === 'chromium' && browserMajorVersion < 151, ...)  -- the pinned Chromium is newer
     context = Browser.new_context!(browser, locale: "en-GB")
@@ -248,7 +248,10 @@ defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
     BrowserContext.close!(context)
   end
 
-  test "should send Accept-Language header on WebSocket handshake from a worker", %{browser: browser, server: server} do
+  test "LC-014 should send Accept-Language header on WebSocket handshake from a worker", %{
+    browser: browser,
+    server: server
+  } do
     # https://github.com/microsoft/playwright/issues/13919
     # it.fixme(browserName === 'chromium' && browserMajorVersion < 151, ...)  -- the pinned Chromium is newer
     context = Browser.new_context!(browser, locale: "en-GB")

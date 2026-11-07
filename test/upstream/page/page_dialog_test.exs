@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
 
   @moduletag :page
 
-  test "should fire", %{page: page} do
+  test "DI-001 should fire", %{page: page} do
     test = self()
 
     Page.on(page, :dialog, fn dialog ->
@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert_received {:dialog, "alert", "", "yo"}
   end
 
-  test "should fire dialogclosed when dialog is accepted", %{page: page} do
+  test "DI-002 should fire dialogclosed when dialog is accepted", %{page: page} do
     {:ok, closed} = Agent.start_link(fn -> [] end)
     Page.on(page, :dialog_closed, fn dialog -> Agent.update(closed, &(&1 ++ [dialog])) end)
     test = self()
@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert length(Agent.get(closed, & &1)) == 1
   end
 
-  test "should fire dialogclosed when dialog is dismissed", %{page: page} do
+  test "DI-003 should fire dialogclosed when dialog is dismissed", %{page: page} do
     closed_promise = Page.wait_for_event(page, :dialog_closed)
     Page.on(page, :dialog, fn dialog -> Dialog.dismiss(dialog) end)
     Page.evaluate!(page, "() => confirm('boolean?')")
@@ -50,14 +50,14 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert Dialog.message(dialog) == "boolean?"
   end
 
-  test "should fire dialogclosed for auto-dismissed dialogs", %{page: page} do
+  test "DI-004 should fire dialogclosed for auto-dismissed dialogs", %{page: page} do
     closed_promise = Page.wait_for_event(page, :dialog_closed)
     Page.evaluate!(page, "() => alert('yo')")
     dialog = Promise.await!(closed_promise)
     assert Dialog.message(dialog) == "yo"
   end
 
-  test "should allow accepting prompts @smoke", %{page: page} do
+  test "DI-005 should allow accepting prompts @smoke", %{page: page} do
     test = self()
 
     Page.on(page, :dialog, fn dialog ->
@@ -70,13 +70,13 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert result == "answer!"
   end
 
-  test "should dismiss the prompt", %{page: page} do
+  test "DI-006 should dismiss the prompt", %{page: page} do
     Page.on(page, :dialog, fn dialog -> Dialog.dismiss(dialog) end)
     result = Page.evaluate!(page, "() => prompt('question?')")
     assert result == :null
   end
 
-  test "should accept the confirm prompt", %{page: page} do
+  test "DI-007 should accept the confirm prompt", %{page: page} do
     Page.on(page, :dialog, fn dialog ->
       Dialog.accept(dialog)
     end)
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert result == true
   end
 
-  test "should dismiss the confirm prompt", %{page: page} do
+  test "DI-008 should dismiss the confirm prompt", %{page: page} do
     Page.on(page, :dialog, fn dialog ->
       Dialog.dismiss(dialog)
     end)
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert result == false
   end
 
-  test "should be able to close context with open alert", %{page: page} do
+  test "DI-009 should be able to close context with open alert", %{page: page} do
     alert_promise = Page.wait_for_event(page, :dialog)
 
     Page.evaluate!(page, """
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     Promise.await!(alert_promise)
   end
 
-  test "should handle multiple alerts", %{page: page} do
+  test "DI-010 should handle multiple alerts", %{page: page} do
     Page.on(page, :dialog, fn dialog ->
       Dialog.accept(dialog)
     end)
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert Page.text_content!(page, "p") == "Hello World"
   end
 
-  test "should handle multiple confirms", %{page: page} do
+  test "DI-011 should handle multiple confirms", %{page: page} do
     Page.on(page, :dialog, fn dialog ->
       Dialog.accept(dialog)
     end)
@@ -140,12 +140,12 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     assert Page.text_content!(page, "p") == "Hello World"
   end
 
-  test "should auto-dismiss the prompt without listeners", %{page: page} do
+  test "DI-012 should auto-dismiss the prompt without listeners", %{page: page} do
     result = Page.evaluate!(page, "() => prompt('question?')")
     assert result == :null
   end
 
-  test "should auto-dismiss the alert without listeners", %{page: page} do
+  test "DI-013 should auto-dismiss the alert without listeners", %{page: page} do
     Page.set_content!(page, ~s[<div onclick="window.alert(123); window._clicked=true">Click me</div>])
     Page.click!(page, "div")
     assert Page.evaluate!(page, "window._clicked") == true

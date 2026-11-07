@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Library.SharedWorkerTest do
 
   @moduletag :page
 
-  test "should survive shared worker restart", %{context: context, server: server} do
+  test "WO-026 should survive shared worker restart", %{context: context, server: server} do
     page1 = BrowserContext.new_page!(context)
     Page.goto!(page1, server.prefix <> "/shared-worker/shared-worker.html")
     assert Page.evaluate!(page1, "window.sharedWorkerResponsePromise") == "echo:hello"

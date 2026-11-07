@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   }
   """
 
-  test "should upload the file", %{page: page, server: server, asset: asset} do
+  test "IF-001 should upload the file", %{page: page, server: server, asset: asset} do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     file_path = Path.relative_to_cwd(asset.("file-to-upload.txt"))
     input = Page.query_selector!(page, "input")
@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
-  test "should upload a folder", %{page: page, server: server, tmp_dir: tmp_dir} do
+  test "IF-002 should upload a folder", %{page: page, server: server, tmp_dir: tmp_dir} do
     # test.skip(isAndroid);  -- not Android
     # test.skip(isFrozenWebkit);  -- we run a current browser
     Page.goto!(page, server.prefix <> "/input/folderupload.html")
@@ -68,7 +68,11 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
-  test "should upload a folder and throw for multiple directories", %{page: page, server: server, tmp_dir: tmp_dir} do
+  test "IF-004 should upload a folder and throw for multiple directories", %{
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     # test.skip(isAndroid);  -- not Android
     # test.skip(isFrozenWebkit);  -- we run a current browser
     Page.goto!(page, server.prefix <> "/input/folderupload.html")
@@ -84,7 +88,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
-  test "should throw if a directory and files are passed", %{page: page, server: server, tmp_dir: tmp_dir} do
+  test "IF-005 should throw if a directory and files are passed", %{page: page, server: server, tmp_dir: tmp_dir} do
     # test.skip(isAndroid);  -- not Android
     # test.skip(isFrozenWebkit);  -- we run a current browser
     Page.goto!(page, server.prefix <> "/input/folderupload.html")
@@ -100,7 +104,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
-  test "should throw when uploading a folder in a normal file upload input", %{
+  test "IF-006 should throw when uploading a folder in a normal file upload input", %{
     page: page,
     server: server,
     tmp_dir: tmp_dir
@@ -116,7 +120,11 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert Exception.message(error) =~ "File input does not support directories, pass individual files instead"
   end
 
-  test "should throw when uploading a file in a directory upload input", %{page: page, server: server, asset: asset} do
+  test "IF-007 should throw when uploading a file in a directory upload input", %{
+    page: page,
+    server: server,
+    asset: asset
+  } do
     # test.skip(isAndroid);  -- not Android
     # test.skip(isFrozenWebkit);  -- we run a current browser
     Page.goto!(page, server.prefix <> "/input/folderupload.html")
@@ -125,7 +133,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert Exception.message(error) =~ "[webkitdirectory] input requires passing a path to a directory"
   end
 
-  test "should upload a file after popup", %{page: page, server: server, asset: asset} do
+  test "IF-008 should upload a file after popup", %{page: page, server: server, asset: asset} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/29923' }
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
 
@@ -145,7 +153,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   @tag :tmp_dir
   # test.slow()
   @tag timeout: @slow_timeout
-  test "should upload large file", %{page: page, server: server, tmp_dir: tmp_dir} do
+  test "IF-009 should upload large file", %{page: page, server: server, tmp_dir: tmp_dir} do
     # test.skip(isAndroid);  -- not Android
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     upload_file = Path.join(tmp_dir, "200MB.zip")
@@ -169,7 +177,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     File.rm!(upload_file)
   end
 
-  test "should throw an error if the file does not exist", %{page: page, server: server} do
+  test "IF-010 should throw an error if the file does not exist", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     input = Page.query_selector!(page, "input")
     # deviation: Elixir's File error, not Node's text.
@@ -180,7 +188,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   @tag :tmp_dir
   # test.slow()
   @tag timeout: @slow_timeout
-  test "should upload large file with relative path", %{page: page, server: server, tmp_dir: tmp_dir} do
+  test "IF-011 should upload large file with relative path", %{page: page, server: server, tmp_dir: tmp_dir} do
     # test.skip(isAndroid);  -- not Android
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     upload_file = Path.join(tmp_dir, "200MB.zip")
@@ -206,7 +214,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     File.rm!(upload_file)
   end
 
-  test "should upload the file with spaces in name", %{page: page, server: server, asset: asset} do
+  test "IF-012 should upload the file with spaces in name", %{page: page, server: server, asset: asset} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/17451' }
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     file_path = Path.relative_to_cwd(asset.("file to upload.txt"))
@@ -216,21 +224,21 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert Page.evaluate!(page, @read_first_file, input) == "contents of the file"
   end
 
-  test "should work @smoke", %{page: page, asset: asset} do
+  test "IF-013 should work @smoke", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file>")
     Page.set_input_files!(page, "input", asset.("file-to-upload.txt"))
     assert Page.eval_on_selector!(page, "input", "input => input.files.length") == 1
     assert Page.eval_on_selector!(page, "input", "input => input.files[0].name") == "file-to-upload.txt"
   end
 
-  test "should set from memory", %{page: page} do
+  test "IF-014 should set from memory", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     Page.set_input_files!(page, "input", %{name: "test.txt", mimeType: "text/plain", buffer: "this is a test"})
     assert Page.eval_on_selector!(page, "input", "input => input.files.length") == 1
     assert Page.eval_on_selector!(page, "input", "input => input.files[0].name") == "test.txt"
   end
 
-  test "should work with CSP", %{page: page, server: server, asset: asset} do
+  test "IF-015 should work with CSP", %{page: page, server: server, asset: asset} do
     TestServer.set_csp(server, "/empty.html", ~s(default-src "none"))
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<input type=file>")
@@ -239,7 +247,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert Page.eval_on_selector!(page, "input", "input => input.files[0].name") == "file-to-upload.txt"
   end
 
-  test "should detect mime type", %{page: page, server: server, asset: asset} do
+  test "IF-016 should detect mime type", %{page: page, server: server, asset: asset} do
     test_pid = self()
 
     TestServer.set_route(server, "/upload", fn conn ->
@@ -272,7 +280,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   # @see https://github.com/microsoft/playwright/issues/4704
-  test "should not trim big uploaded files", %{page: page, server: server} do
+  test "IF-017 should not trim big uploaded files", %{page: page, server: server} do
     test_pid = self()
 
     TestServer.set_route(server, "/upload", fn conn ->
@@ -302,7 +310,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert file.size == data_size
   end
 
-  test "should emit input and change events", %{page: page, asset: asset} do
+  test "IF-018 should emit input and change events", %{page: page, asset: asset} do
     test = self()
 
     Page.expose_function!(page, "eventHandled", fn e ->
@@ -327,7 +335,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert second["type"] == "change"
   end
 
-  test "input event.composed should be true and cross shadow dom boundary", %{page: page, server: server} do
+  test "IF-019 input event.composed should be true and cross shadow dom boundary", %{page: page, server: server} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/28726' }
     Page.goto!(page, server.empty_page)
 
@@ -374,7 +382,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert Page.evaluate!(page, "() => window['firedBodyEvents']") == ["input:true"]
   end
 
-  test "input should trigger events when files changed second time", %{page: page, asset: asset} do
+  test "IF-020 input should trigger events when files changed second time", %{page: page, asset: asset} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/20079' }
     Page.set_content!(page, "<input type=file multiple=true/>")
 
@@ -392,7 +400,7 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
     assert JSHandle.evaluate!(events, "e => e") == ["input", "change"]
   end
 
-  test "should preserve lastModified timestamp", %{page: page, asset: asset} do
+  test "IF-021 should preserve lastModified timestamp", %{page: page, asset: asset} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/27452' }
     Page.set_content!(page, "<input type=file multiple=true/>")
     input = Page.locator(page, "input")

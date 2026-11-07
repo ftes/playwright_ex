@@ -4,9 +4,9 @@ defmodule PlaywrightEx.Page.PageEvaluateNoStallTest do
 
   @moduletag :page
 
-  test "should work"
+  test "EV-135 should work"
 
-  test "should throw while pending navigation"
+  test "EV-136 should throw while pending navigation"
 
-  test "should throw when no main execution context"
+  test "EV-137 should throw when no main execution context"
 end

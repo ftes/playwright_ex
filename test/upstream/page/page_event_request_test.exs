@@ -32,20 +32,20 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     "#{conn.method} #{conn.request_path}#{if conn.query_string != "", do: "?" <> conn.query_string}"
   end
 
-  test "should fire for navigation requests", %{page: page, server: server} do
+  test "NE-091 should fire for navigation requests", %{page: page, server: server} do
     on_request(page)
     Page.goto!(page, server.empty_page)
     assert length(received()) == 1
   end
 
-  test "should fire for iframes", %{page: page, server: server} do
+  test "NE-092 should fire for iframes", %{page: page, server: server} do
     on_request(page)
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     assert length(received()) == 2
   end
 
-  test "should fire for fetches", %{page: page, server: server} do
+  test "NE-093 should fire for fetches", %{page: page, server: server} do
     on_request(page)
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "() => fetch('/empty.html')")
@@ -53,14 +53,14 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
   end
 
   # https://github.com/microsoft/playwright/issues/34497
-  test "should fire for fetches with keepalive: true", %{page: page, server: server} do
+  test "NE-094 should fire for fetches with keepalive: true", %{page: page, server: server} do
     on_request(page)
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "() => fetch('/empty.html', { keepalive: true })")
     assert length(received()) == 2
   end
 
-  test "should report requests and responses handled by service worker", %{
+  test "NE-095 should report requests and responses handled by service worker", %{
     page: page,
     server: server
   } do
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     assert Request.response!(failed_request) == nil
   end
 
-  test "should report requests and responses handled by service worker with routing",
+  test "NE-096 should report requests and responses handled by service worker with routing",
        %{page: page, server: server, browser_name: browser_name} do
     # it.fixme(isAndroid); it.fixme(isElectron);  -- neither
     me = self()
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     assert received() == expected_urls
   end
 
-  test "should report navigation requests and responses handled by service worker",
+  test "NE-097 should report navigation requests and responses handled by service worker",
        %{page: page, server: server, browser_name: browser_name} do
     # it.fixme(isAndroid);  -- not Android
     Page.goto!(page, server.prefix <> "/serviceworkers/stub/sw.html")
@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     end
   end
 
-  test "should report navigation requests and responses handled by service worker with routing",
+  test "NE-098 should report navigation requests and responses handled by service worker with routing",
        %{page: page, server: server, browser_name: browser_name} do
     # it.fixme(isAndroid);  -- not Android
     Page.route!(page, "**/*", &Route.continue/1)
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     end
   end
 
-  test "should return response body when Cross-Origin-Opener-Policy is set", %{
+  test "NE-099 should return response body when Cross-Origin-Opener-Policy is set", %{
     page: page,
     server: server
   } do
@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: This test is specifically testing Chromium race")
-  test "should fire requestfailed when intercepting race", %{
+  test "NE-100 should fire requestfailed when intercepting race", %{
     page: page,
     server: server
   } do
@@ -265,7 +265,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
   end
 
   # https://github.com/microsoft/playwright/issues/22812
-  test "main resource xhr should have type xhr", %{page: page, server: server} do
+  test "NE-101 main resource xhr should have type xhr", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request_promise = Page.wait_for_event(page, :request)
 
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
 
   # https://github.com/microsoft/playwright/issues/32752
   # https://github.com/microsoft/playwright/issues/42786
-  test "should finish 204 request", %{page: page, server: server} do
+  test "NE-102 should finish 204 request", %{page: page, server: server} do
     TestServer.set_route(server, "/204", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/plain")
@@ -310,7 +310,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
   end
 
   # https://github.com/microsoft/playwright/issues/33148
-  test "<picture> resource should have type image", %{page: page} do
+  test "NE-104 <picture> resource should have type image", %{page: page} do
     request_promise = Page.wait_for_event(page, :request)
 
     Page.set_content!(page, """
@@ -329,7 +329,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
   # WebKit: no requestWillBeSent event in the protocol for OPTIONS (at least on Mac).
   # Firefox: OPTIONS request can be dispatched.
   # https://github.com/microsoft/playwright/issues/36311
-  test "should not expose preflight OPTIONS request", %{page: page, server: server} do
+  test "NE-105 should not expose preflight OPTIONS request", %{page: page, server: server} do
     me = self()
 
     TestServer.set_route(server, "/cors", fn conn ->
@@ -381,7 +381,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
   end
 
   # https://github.com/microsoft/playwright/issues/36311
-  test "should not expose preflight OPTIONS request with network interception",
+  test "NE-106 should not expose preflight OPTIONS request with network interception",
        %{page: page, server: server, browser_name: browser_name} do
     me = self()
 
@@ -438,7 +438,7 @@ defmodule PlaywrightEx.Page.PageEventRequestTest do
     assert received() == ["POST #{server.cross_process_prefix}/cors"]
   end
 
-  test "should return last requests", %{page: page, server: server} do
+  test "NE-107 should return last requests", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/title.html")
 
     for i <- 0..199//1 do

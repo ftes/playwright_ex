@@ -14,7 +14,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
 
   @moduletag :page
 
-  test "should close browser with beforeunload page", %{server: server, browser_type: browser_type} do
+  test "BU-001 should close browser with beforeunload page", %{server: server, browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
     page = Browser.new_page!(browser)
     Page.goto!(page, server.prefix <> "/beforeunload.html")
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Browser.close!(browser)
   end
 
-  test "should close browsercontext with beforeunload page", %{server: server, page: page, context: context} do
+  test "BU-002 should close browsercontext with beforeunload page", %{server: server, page: page, context: context} do
     Page.goto!(page, server.prefix <> "/beforeunload.html")
     # We have to interact with a page so that 'beforeunload' handlers
     # fire.
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     BrowserContext.close!(context)
   end
 
-  test "should be able to navigate away from page with beforeunload", %{server: server, page: page} do
+  test "BU-003 should be able to navigate away from page with beforeunload", %{server: server, page: page} do
     Page.goto!(page, server.prefix <> "/beforeunload.html")
     # We have to interact with a page so that 'beforeunload' handlers
     # fire.
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Page.goto!(page, server.empty_page)
   end
 
-  test "should close page with beforeunload listener", %{context: context, server: server} do
+  test "BU-004 should close page with beforeunload listener", %{context: context, server: server} do
     new_page = BrowserContext.new_page!(context)
     Page.goto!(new_page, server.prefix <> "/beforeunload.html")
     # We have to interact with a page so that 'beforeunload' handlers
@@ -49,7 +49,11 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Page.close!(new_page)
   end
 
-  test "should run beforeunload if asked for @smoke", %{context: context, server: server, browser_name: browser_name} do
+  test "BU-005 should run beforeunload if asked for @smoke", %{
+    context: context,
+    server: server,
+    browser_name: browser_name
+  } do
     new_page = BrowserContext.new_page!(context)
     Page.goto!(new_page, server.prefix <> "/beforeunload.html")
     # We have to interact with a page so that 'beforeunload' handlers
@@ -72,7 +76,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Promise.await!(close_promise)
   end
 
-  test "should access page after beforeunload", %{page: page, server: server} do
+  test "BU-006 should access page after beforeunload", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/beforeunload.html")
     # We have to interact with a page so that 'beforeunload' handlers
     # fire.
@@ -84,7 +88,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Page.evaluate!(page, "() => document.title")
   end
 
-  test "should not stall on evaluate when dismissing beforeunload", %{page: page, server: server} do
+  test "BU-007 should not stall on evaluate when dismissing beforeunload", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/23141' });
 
     Page.goto!(page, server.prefix <> "/beforeunload.html")
@@ -104,7 +108,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Task.await(dismissed, :infinity)
   end
 
-  test "should not stall on click when dismissing beforeunload", %{page: page, server: server} do
+  test "BU-008 should not stall on click when dismissing beforeunload", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/33806' });
 
     Page.goto!(page, server.empty_page)
@@ -133,7 +137,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Expect.to_have_url!(page, server.prefix <> "/frames/one-frame.html")
   end
 
-  test "should support dismissing the dialog multiple times", %{page: page, server: server} do
+  test "BU-009 should support dismissing the dialog multiple times", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/beforeunload.html")
 
     # We have to interact with a page so that 'beforeunload' handlers
@@ -153,7 +157,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     Dialog.dismiss!(dialog2)
   end
 
-  test "should support closing the page after a previous dismiss", %{page: page, server: server} do
+  test "BU-010 should support closing the page after a previous dismiss", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/beforeunload.html")
 
     # We have to interact with a page so that 'beforeunload' handlers
@@ -170,7 +174,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
     assert Page.is_closed(page) == true
   end
 
-  test "should support closing the page via a subsequent onbeforeunload dialog", %{page: page, server: server} do
+  test "BU-011 should support closing the page via a subsequent onbeforeunload dialog", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/beforeunload.html")
 
     # We have to interact with a page so that 'beforeunload' handlers
@@ -191,7 +195,7 @@ defmodule PlaywrightEx.Library.BeforeunloadTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/38731' }
-  test "does not get stalled by beforeUnload", %{page: page, server: server} do
+  test "BU-012 does not get stalled by beforeUnload", %{page: page, server: server} do
     Page.goto!(page, server.hello_world)
 
     Page.evaluate!(page, """

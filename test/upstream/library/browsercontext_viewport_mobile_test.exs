@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
     # it.skip(({ browserName, isBidi }) => browserName === 'firefox' && !isBidi)
     if System.get_env("BROWSER", "chromium") == "firefox", do: @describetag(skip: "upstream skip: firefox (non-BiDi)")
 
-    test "should support mobile emulation", %{playwright: playwright, browser: browser, server: server} do
+    test "DV-011 should support mobile emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should support touch emulation", %{playwright: playwright, browser: browser, server: server} do
+    test "DV-012 should support touch emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should be detectable", %{playwright: playwright, browser: browser} do
+    test "DV-013 should be detectable", %{playwright: playwright, browser: browser} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       context = Browser.new_context!(browser, iphone)
       page = BrowserContext.new_page!(context)
@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should detect touch when applying viewport with touches", %{browser: browser, server: server} do
+    test "DV-014 should detect touch when applying viewport with touches", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 800, height: 600}, has_touch: true)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.empty_page)
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should support landscape emulation", %{playwright: playwright, browser: browser, server: server} do
+    test "DV-015 should support landscape emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       iphone_landscape = Playwright.devices(playwright)["iPhone 6 landscape"]
       context1 = Browser.new_context!(browser, iphone)
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context2)
     end
 
-    test "should support window.orientation emulation", %{browser: browser, server: server} do
+    test "DV-016 should support window.orientation emulation", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 300, height: 400}, is_mobile: true)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/mobile.html")
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should preserve window.orientation override after navigation", %{browser: browser, server: server} do
+    test "DV-017 should preserve window.orientation override after navigation", %{browser: browser, server: server} do
       # it.skip(isFrozenWebkit)  -- no frozen WebKit
       context = Browser.new_context!(browser, viewport: %{width: 400, height: 300}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -104,7 +104,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should preserve screen.orientation.type override after navigation", %{browser: browser, server: server} do
+    test "DV-018 should preserve screen.orientation.type override after navigation", %{browser: browser, server: server} do
       # it.skip(isFrozenWebkit)  -- no frozen WebKit
       context = Browser.new_context!(browser, viewport: %{width: 300, height: 400}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should fire orientationchange event", %{browser: browser, server: server} do
+    test "DV-019 should fire orientationchange event", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 300, height: 400}, is_mobile: true)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/mobile.html")
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "default mobile viewports to 980 width", %{browser: browser, server: server} do
+    test "DV-020 default mobile viewports to 980 width", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/empty.html")
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "respect meta viewport tag", %{browser: browser, server: server} do
+    test "DV-021 respect meta viewport tag", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/mobile.html")
@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should emulate the hover media feature", %{playwright: playwright, browser: browser} do
+    test "DV-022 should emulate the hover media feature", %{playwright: playwright, browser: browser} do
       iphone = Playwright.devices(playwright)["iPhone 6"]
       mobilepage = Browser.new_page!(browser, iphone)
       assert Page.evaluate!(mobilepage, "() => matchMedia('(hover: hover)').matches") == false
@@ -178,7 +178,10 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       Page.close!(desktop_page)
     end
 
-    test "mouse should work with mobile viewports and cross process navigations", %{browser: browser, server: server} do
+    test "DV-023 mouse should work with mobile viewports and cross process navigations", %{
+      browser: browser,
+      server: server
+    } do
       # @see https://crbug.com/929806
       context = Browser.new_context!(browser, viewport: %{width: 360, height: 640}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -199,7 +202,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should scroll when emulating a mobile viewport", %{
+    test "DV-024 should scroll when emulating a mobile viewport", %{
       browser: browser,
       server: server,
       browser_name: browser_name
@@ -220,7 +223,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "should scroll mobile page with background-attachment: fixed", %{
+    test "DV-025 should scroll mobile page with background-attachment: fixed", %{
       playwright: playwright,
       browser: browser,
       server: server
@@ -234,7 +237,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportMobileTest do
       BrowserContext.close!(context)
     end
 
-    test "view scale should reset after navigation", %{browser: browser} do
+    test "DV-026 view scale should reset after navigation", %{browser: browser} do
       context = Browser.new_context!(browser, viewport: %{width: 390, height: 664}, is_mobile: true)
       page = BrowserContext.new_page!(context)
 

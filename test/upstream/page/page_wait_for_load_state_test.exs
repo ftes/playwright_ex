@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
   # `promise.then(() => resolved = true)`: whether the task has finished, without waiting.
   defp resolved?(promise), do: Runtime.Promise.settled?(promise)
 
-  test "should pick up ongoing navigation", %{page: page, server: server} do
+  test "WA-077 should pick up ongoing navigation", %{page: page, server: server} do
     stall_route(server, "/one-style.css")
     request = TestServer.wait_for_request(server, "/one-style.css")
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     Runtime.Promise.await(wait_promise)
   end
 
-  test "should respect timeout", %{page: page, server: server} do
+  test "WA-078 should respect timeout", %{page: page, server: server} do
     TestServer.set_route(server, "/one-style.css", &hang/1)
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
 
@@ -58,12 +58,12 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
   end
 
-  test "should resolve immediately if loaded", %{page: page, server: server} do
+  test "WA-079 should resolve immediately if loaded", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/one-style.html")
     Page.wait_for_load_state!(page)
   end
 
-  test "should throw for bad state", %{page: page, server: server} do
+  test "WA-080 should throw for bad state", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/one-style.html")
     # Deviation: the facade rejects the invalid state before the call (upstream: the client's
     # verifyLoadState).
@@ -71,14 +71,14 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Exception.message(error) =~ "expected one of :domcontentloaded, :load, :networkidle"
   end
 
-  test "should resolve immediately if load state matches", %{page: page, server: server} do
+  test "WA-081 should resolve immediately if load state matches", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/one-style.css", &hang/1)
     Page.goto!(page, server.prefix <> "/one-style.html", wait_until: :domcontentloaded)
     Page.wait_for_load_state!(page, :domcontentloaded)
   end
 
-  test "should work with pages that have loaded before being connected to", %{page: page, server: server} do
+  test "WA-082 should work with pages that have loaded before being connected to", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     popup =
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.url(popup) == server.empty_page
   end
 
-  test "should wait for load state of empty url popup", %{page: page} do
+  test "WA-083 should wait for load state of empty url popup", %{page: page} do
     popup_promise = Page.wait_for_event(page, :popup)
 
     ready_state =
@@ -110,13 +110,13 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.evaluate!(popup, "() => document.readyState") == "complete"
   end
 
-  test "should wait for load state of about:blank popup ", %{page: page} do
+  test "WA-084 should wait for load state of about:blank popup ", %{page: page} do
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => window.open('about:blank') && 1") end)
     Page.wait_for_load_state!(popup)
     assert Page.evaluate!(popup, "() => document.readyState") == "complete"
   end
 
-  test "should wait for load state of about:blank popup with noopener ", %{page: page} do
+  test "WA-085 should wait for load state of about:blank popup with noopener ", %{page: page} do
     popup =
       Page.expect_popup!(page, fn ->
         Page.evaluate!(page, "() => window.open('about:blank', null, 'noopener') && 1")
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.evaluate!(popup, "() => document.readyState") == "complete"
   end
 
-  test "should wait for load state of popup with network url ", %{page: page, server: server} do
+  test "WA-086 should wait for load state of popup with network url ", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     popup =
@@ -138,7 +138,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.evaluate!(popup, "() => document.readyState") == "complete"
   end
 
-  test "should wait for load state of popup with network url and noopener ", %{page: page, server: server} do
+  test "WA-087 should wait for load state of popup with network url and noopener ", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     popup =
@@ -150,7 +150,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.evaluate!(popup, "() => document.readyState") == "complete"
   end
 
-  test "should work with clicking target=_blank", %{page: page, server: server} do
+  test "WA-088 should work with clicking target=_blank", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<a target=_blank rel="opener" href="/one-style.html">yo</a>))
     popup = Page.expect_popup!(page, fn -> Page.click!(page, "a") end)
@@ -158,14 +158,14 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.evaluate!(popup, "() => document.readyState") == "complete"
   end
 
-  test "should wait for load state of newPage", %{page: page} do
+  test "WA-089 should wait for load state of newPage", %{page: page} do
     context = Page.context(page)
     new_page = BrowserContext.expect_page!(context, fn -> BrowserContext.new_page!(context) end)
     Page.wait_for_load_state!(new_page)
     assert Page.evaluate!(new_page, "() => document.readyState") == "complete"
   end
 
-  test "should resolve after popup load", %{page: page, server: server} do
+  test "WA-090 should resolve after popup load", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # Stall the 'load' by delaying css.
     stall_route(server, "/one-style.css")
@@ -187,7 +187,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     assert Page.url(popup) == server.prefix <> "/one-style.html"
   end
 
-  test "should work for frame", %{page: page, server: server} do
+  test "WA-091 should work for frame", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = Enum.at(Page.frames(page), 1)
 
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     Runtime.Promise.await(load_promise)
   end
 
-  test "should work with javascript: iframe", %{page: page, server: server} do
+  test "WA-092 should work with javascript: iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<iframe src="javascript:false"></iframe>), wait_until: :commit)
     Page.wait_for_load_state!(page, :domcontentloaded)
@@ -211,7 +211,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     Page.wait_for_load_state!(page, :networkidle)
   end
 
-  test "should work with broken data-url iframe", %{page: page, server: server} do
+  test "WA-093 should work with broken data-url iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<iframe src="data:text/html"></iframe>), wait_until: :commit)
     Page.wait_for_load_state!(page, :domcontentloaded)
@@ -219,7 +219,7 @@ defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
     Page.wait_for_load_state!(page, :networkidle)
   end
 
-  test "should work with broken blob-url iframe", %{page: page, server: server} do
+  test "WA-094 should work with broken blob-url iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<iframe src="blob:"></iframe>), wait_until: :commit)
     Page.wait_for_load_state!(page, :domcontentloaded)

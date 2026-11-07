@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     %{context: context_factory.([])}
   end
 
-  test "expose binding should work", %{context: context} do
+  test "EF-022 expose binding should work", %{context: context} do
     test = self()
 
     BrowserContext.expose_binding!(context, "add", fn source, a, b ->
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     assert result == 11
   end
 
-  test "should work", %{context: context} do
+  test "EF-023 should work", %{context: context} do
     BrowserContext.expose_function!(context, "add", fn a, b -> a + b end)
     page = BrowserContext.new_page!(context)
     Page.expose_function!(page, "mul", fn a, b -> a * b end)
@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     assert result == %{"mul" => 36, "add" => 13, "sub" => 5, "addHandle" => 11}
   end
 
-  test "should dispose", %{context: context} do
+  test "EF-024 should dispose", %{context: context} do
     binding = BrowserContext.expose_function!(context, "compute", fn a, b -> a * b end)
     page = BrowserContext.new_page!(context)
     result = Page.evaluate!(page, "async () => await window['compute'](9, 4)")
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     assert e.message =~ "is not a function"
   end
 
-  test "should throw for duplicate registrations", %{context: context} do
+  test "EF-025 should throw for duplicate registrations", %{context: context} do
     BrowserContext.expose_function!(context, "foo", fn -> nil end)
     BrowserContext.expose_function!(context, "bar", fn -> nil end)
     {:error, error} = BrowserContext.expose_function(context, "foo", fn -> nil end)
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     assert error.message =~ ~s(Function "baz" has been already registered in one of the pages)
   end
 
-  test "should be callable from-inside addInitScript", %{context: context} do
+  test "EF-026 should be callable from-inside addInitScript", %{context: context} do
     test = self()
     BrowserContext.expose_function!(context, "woof", fn arg -> send(test, {:arg, arg}) end)
     BrowserContext.add_init_script!(context, ~s|window["woof"]("context")|)
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
     refute_received {:arg, _}
   end
 
-  test "should work with CSP", %{context: context, server: server} do
+  test "EF-027 should work with CSP", %{context: context, server: server} do
     page = BrowserContext.new_page!(context)
     TestServer.set_csp(server, "/empty.html", ~s(default-src "self"))
     Page.goto!(page, server.empty_page)
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
          if(@browser_name == "chromium",
            do: "upstream fixme: Chromium drops CDP events from the old document after the frame host swap"
          )
-  test "should call binding from pagehide handler when navigating away", %{
+  test "EF-028 should call binding from pagehide handler when navigating away", %{
     context: context,
     server: server
   } do

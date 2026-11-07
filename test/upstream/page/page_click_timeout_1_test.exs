@@ -7,9 +7,9 @@ defmodule PlaywrightEx.Page.PageClickTimeout1Test do
   @moduletag :page
 
   # it.skip(mode !== 'default'): __testHookBeforePointerAction is an in-process JS function.
-  test "should avoid side effects after timeout"
+  test "CL-110 should avoid side effects after timeout"
 
-  test "should timeout waiting for button to be enabled", %{page: page} do
+  test "CL-111 should timeout waiting for button to be enabled", %{page: page} do
     Page.set_content!(
       page,
       ~s(<button onclick="javascript:window.__CLICKED=true;" disabled><span>Click target</span></button>)

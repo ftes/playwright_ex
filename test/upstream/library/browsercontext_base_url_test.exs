@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
 
-  test "should construct a new URL when a baseURL in browser.newContext is passed to page.goto @smoke",
+  test "NA-089 should construct a new URL when a baseURL in browser.newContext is passed to page.goto @smoke",
        %{
          browser: browser,
          server: server
@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     BrowserContext.close!(context)
   end
 
-  test "should construct a new URL when a baseURL in browser.newPage is passed to page.goto", %{
+  test "NA-090 should construct a new URL when a baseURL in browser.newPage is passed to page.goto", %{
     browser: browser,
     server: server
   } do
@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     Page.close!(page)
   end
 
-  test "should construct a new URL when a baseURL in browserType.launchPersistentContext is passed to page.goto",
+  test "NA-091 should construct a new URL when a baseURL in browserType.launchPersistentContext is passed to page.goto",
        %{
          browser_type: browser_type,
          server: server,
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     BrowserContext.close!(context)
   end
 
-  test "should construct the URLs correctly when a baseURL without a trailing slash in browser.newPage is passed to page.goto",
+  test "NA-092 should construct the URLs correctly when a baseURL without a trailing slash in browser.newPage is passed to page.goto",
        %{browser: browser, server: server} do
     page = Browser.new_page!(browser, base_url: server.prefix <> "/url-construction")
     assert Response.url(Page.goto!(page, "mypage.html")) == server.prefix <> "/mypage.html"
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     Page.close!(page)
   end
 
-  test "should construct the URLs correctly when a baseURL with a trailing slash in browser.newPage is passed to page.goto",
+  test "NA-093 should construct the URLs correctly when a baseURL with a trailing slash in browser.newPage is passed to page.goto",
        %{browser: browser, server: server} do
     page = Browser.new_page!(browser, base_url: server.prefix <> "/url-construction/")
 
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     Page.close!(page)
   end
 
-  test "should not construct a new URL when valid URLs are passed", %{
+  test "NA-094 should not construct a new URL when valid URLs are passed", %{
     browser: browser,
     server: server
   } do
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     Page.close!(page)
   end
 
-  test "should be able to match a URL relative to its given URL with urlMatcher", %{
+  test "NA-095 should be able to match a URL relative to its given URL with urlMatcher", %{
     browser: browser,
     server: server
   } do
@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
     Page.close!(page)
   end
 
-  test "should not construct a new URL with baseURL when a glob was used", %{
+  test "NA-096 should not construct a new URL with baseURL when a glob was used", %{
     browser: browser,
     server: server
   } do

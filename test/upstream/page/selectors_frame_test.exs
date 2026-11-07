@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     end)
   end
 
-  test "should work for iframe @smoke", %{page: page, server: server} do
+  test "SE-098 should work for iframe @smoke", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = Page.locator(page, "iframe >> internal:control=enter-frame >> button")
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Locator.click!(button)
   end
 
-  test "should work for iframe (handle)", %{page: page, server: server} do
+  test "SE-099 should work for iframe (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     ElementHandle.click!(button)
   end
 
-  test "should work for nested iframe", %{page: page, server: server} do
+  test "SE-100 should work for nested iframe", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Locator.click!(button)
   end
 
-  test "should work for nested iframe (handle)", %{page: page, server: server} do
+  test "SE-101 should work for nested iframe (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     ElementHandle.click!(button)
   end
 
-  test "should work for $ and $$", %{page: page, server: server} do
+  test "SE-102 should work for $ and $$", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     element = Page.query_selector!(page, "iframe >> internal:control=enter-frame >> button")
@@ -103,21 +103,21 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert length(elements) == 2
   end
 
-  test "$ should not wait for frame", %{page: page, server: server} do
+  test "SE-103 $ should not wait for frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     refute Page.query_selector!(page, "iframe >> internal:control=enter-frame >> canvas")
     body = Page.query_selector!(page, "body")
     refute ElementHandle.query_selector!(body, "iframe >> internal:control=enter-frame >> canvas")
   end
 
-  test "$$ should not wait for frame", %{page: page, server: server} do
+  test "SE-104 $$ should not wait for frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert Page.query_selector_all!(page, "iframe >> internal:control=enter-frame >> canvas") == []
     body = Page.query_selector!(page, "body")
     assert ElementHandle.query_selector_all!(body, "iframe >> internal:control=enter-frame >> canvas") == []
   end
 
-  test "$eval should throw for missing frame", %{page: page, server: server} do
+  test "SE-105 $eval should throw for missing frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     {:error, error} = Page.eval_on_selector(page, "iframe >> internal:control=enter-frame >> canvas", "e => 1")
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert error.message =~ "elementHandle.$eval: Failed to find element matching selector"
   end
 
-  test "$$eval should not throw for missing frame", %{page: page, server: server} do
+  test "SE-106 $$eval should not throw for missing frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     assert Page.eval_on_selector_all!(page, "iframe >> internal:control=enter-frame >> canvas", "e => e.length") ==
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
            ) == 0
   end
 
-  test "should work for $ and $$ (handle)", %{page: page, server: server} do
+  test "SE-107 should work for $ and $$ (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -156,14 +156,14 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert length(elements) == 2
   end
 
-  test "should work for $eval", %{page: page, server: server} do
+  test "SE-108 should work for $eval", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     value = Page.eval_on_selector!(page, "iframe >> internal:control=enter-frame >> button", "b => b.nodeName")
     assert value == "BUTTON"
   end
 
-  test "should work for $eval (handle)", %{page: page, server: server} do
+  test "SE-109 should work for $eval (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert value == "BUTTON"
   end
 
-  test "should work for $$eval", %{page: page, server: server} do
+  test "SE-110 should work for $$eval", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert value == ["1", "2"]
   end
 
-  test "should work for $$eval (handle)", %{page: page, server: server} do
+  test "SE-111 should work for $$eval (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert value == ["1", "2"]
   end
 
-  test "should not allow dangling enter-frame", %{page: page, server: server} do
+  test "SE-112 should not allow dangling enter-frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = Page.locator(page, "iframe >> internal:control=enter-frame")
@@ -212,14 +212,14 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert error.message =~ "iframe >> internal:control=enter-frame"
   end
 
-  test "should not allow leading enter-frame", %{page: page, server: server} do
+  test "SE-113 should not allow leading enter-frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     {:error, error} = Page.wait_for_selector(page, "internal:control=enter-frame >> button")
     assert error.message =~ "Selector cannot start with"
   end
 
-  test "should not allow capturing before enter-frame", %{page: page, server: server} do
+  test "SE-114 should not allow capturing before enter-frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = Page.locator(page, "*css=iframe >> internal:control=enter-frame >> div")
@@ -227,14 +227,14 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert error.message =~ "Can not capture the selector before diving into the frame"
   end
 
-  test "should capture after the enter-frame", %{page: page, server: server} do
+  test "SE-115 should capture after the enter-frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     div = Page.locator(page, "iframe >> internal:control=enter-frame >> *css=div >> button")
     assert Locator.inner_html!(div) =~ "<button>"
   end
 
-  test "should click in lazy iframe", %{page: page, server: server} do
+  test "SE-116 should click in lazy iframe", %{page: page, server: server} do
     Page.route!(page, "**/iframe.html", fn route ->
       Route.fulfill(route, body: "<html><button>Hello iframe</button></html>", content_type: "text/html")
     end)
@@ -276,7 +276,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert text == "Hello iframe"
   end
 
-  test "waitFor should survive frame reattach", %{page: page, server: server} do
+  test "SE-117 waitFor should survive frame reattach", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -297,7 +297,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "waitForSelector should survive frame reattach (handle)", %{page: page, server: server} do
+  test "SE-118 waitForSelector should survive frame reattach (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -323,7 +323,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "waitForSelector should survive iframe navigation (handle)", %{page: page, server: server} do
+  test "SE-119 waitForSelector should survive iframe navigation (handle)", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     body = Page.query_selector!(page, "body")
@@ -340,7 +340,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "click should survive frame reattach", %{page: page, server: server} do
+  test "SE-120 click should survive frame reattach", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -361,7 +361,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "click should survive iframe navigation", %{page: page, server: server} do
+  test "SE-121 click should survive iframe navigation", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -373,7 +373,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "click should survive navigation", %{page: page, server: server} do
+  test "SE-122 click should survive navigation", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.prefix <> "/iframe.html")
     promise = Runtime.Promise.async(fn -> Page.click!(page, ~s|button:has-text("Hello nested iframe")|) end)
@@ -382,7 +382,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "should non work for non-frame", %{page: page} do
+  test "SE-123 should non work for non-frame", %{page: page} do
     route_iframe(page)
     Page.set_content!(page, "<div></div>")
     button = Page.locator(page, "div >> internal:control=enter-frame >> button")
@@ -391,7 +391,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert error.message =~ "<iframe> was expected"
   end
 
-  test "should match in a descendant frame", %{page: page, server: server} do
+  test "SE-124 should match in a descendant frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     # The main frame has no <div>; only the iframe.html child frame does.
@@ -401,7 +401,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert Locator.inner_html!(div) =~ "<button>Hello iframe</button>"
   end
 
-  test "should match in a deeply nested frame", %{page: page, server: server} do
+  test "SE-125 should match in a deeply nested frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     # The main frame has no <div>; only the iframe.html child frame does.
@@ -411,7 +411,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert Locator.text_content!(button) == "Hello nested iframe"
   end
 
-  test "should not match a chain across frames", %{page: page, server: server} do
+  test "SE-126 should not match a chain across frames", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     # The <div> lives in the iframe.html frame, while the button lives in the frame nested below it.
@@ -419,7 +419,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     Expect.to_have_text!(Page.locator(page, "internal:control=any-frame >> div >> button"), "Hello iframe")
   end
 
-  test "should match multiple elements", %{page: page, server: server} do
+  test "SE-127 should match multiple elements", %{page: page, server: server} do
     Page.route!(page, "**/empty.html", fn route ->
       Route.fulfill(route,
         body: ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>),
@@ -443,7 +443,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert texts == ["two", "three"]
   end
 
-  test "should throw when matching elements in multiple frames", %{page: page, server: server} do
+  test "SE-128 should throw when matching elements in multiple frames", %{page: page, server: server} do
     Page.route!(page, "**/empty.html", fn route ->
       Route.fulfill(route,
         body: ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>),
@@ -473,14 +473,14 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert error.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should not allow any-frame in the middle of a selector", %{page: page, server: server} do
+  test "SE-129 should not allow any-frame in the middle of a selector", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     {:error, error} = Locator.wait_for(Page.locator(page, "iframe >> internal:control=any-frame >> div"))
     assert error.message =~ ~s("any-frame" is only allowed as the first selector token)
   end
 
-  test "should allow entering frames from any frame", %{page: page, server: server} do
+  test "SE-130 should allow entering frames from any frame", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -494,7 +494,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert Locator.inner_text!(button) == "Hello nested iframe"
   end
 
-  test "should not allow any-frame after entering a frame", %{page: page} do
+  test "SE-131 should not allow any-frame after entering a frame", %{page: page} do
     {:error, error} =
       Locator.count(
         Page.locator(page, "iframe >> internal:control=enter-frame >> internal:control=any-frame >> button")
@@ -503,7 +503,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
     assert error.message =~ ~s("any-frame" is only allowed as the first selector token)
   end
 
-  test "should not allow dangling enter-frame after any-frame", %{page: page} do
+  test "SE-132 should not allow dangling enter-frame after any-frame", %{page: page} do
     {:error, error} =
       Locator.count(Page.locator(page, "internal:control=any-frame >> iframe >> internal:control=enter-frame"))
 

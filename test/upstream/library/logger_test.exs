@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Library.LoggerTest do
     }
   end
 
-  test "should log @smoke", %{browser_type: browser_type} do
+  test "LG-001 should log @smoke", %{browser_type: browser_type} do
     log = start_supervised!({Agent, fn -> [] end})
     browser = BrowserType.launch!(browser_type, logger: logger(log))
     Browser.new_context!(browser)
@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Library.LoggerTest do
     assert Enum.find(log, &String.contains?(&1.message, "browser.newContext succeeded"))
   end
 
-  test "should log context-level", %{browser_type: browser_type} do
+  test "LG-002 should log context-level", %{browser_type: browser_type} do
     log = start_supervised!({Agent, fn -> [] end})
     browser = BrowserType.launch!(browser_type)
     context = Browser.new_context!(browser, logger: logger(log))

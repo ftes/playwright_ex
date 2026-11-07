@@ -6,17 +6,17 @@ defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
 
   alias PlaywrightEx.BrowserType
 
-  test "browserType.executablePath should work", %{browser_type: browser_type} do
+  test "BT-001 browserType.executablePath should work", %{browser_type: browser_type} do
     executable_path = BrowserType.executable_path(browser_type)
     assert File.exists?(executable_path)
   end
 
-  test "browserType.name should work", %{browser_type: browser_type, browser_name: browser_name} do
+  test "BT-002 browserType.name should work", %{browser_type: browser_type, browser_name: browser_name} do
     assert BrowserType.name(browser_type) == browser_name
   end
 
   @tag skip: if(@browser_name in ["chromium", "webkit"], do: "upstream skip: chromium or webkit")
-  test "should throw when trying to connect with not-chromium", %{
+  test "BT-003 should throw when trying to connect with not-chromium", %{
     browser_type: browser_type
   } do
     # deviation: `connectOverCDP({ endpointURL: 'ws://foo' })`, the options overload: the facade has

@@ -4,9 +4,9 @@ defmodule PlaywrightEx.Library.NetworkTimeoutTest do
 
   # test.skip(({ mode }) => mode !== 'default');
 
-  test "httpRequest should honor socketTimeout while connecting"
+  test "NE-128 httpRequest should honor socketTimeout while connecting"
 
-  test "httpRequest should honor socketTimeout for stalled responses"
+  test "NE-129 httpRequest should honor socketTimeout for stalled responses"
 
-  test "httpRequest should honor ipv4first result order"
+  test "NE-130 httpRequest should honor ipv4first result order"
 end

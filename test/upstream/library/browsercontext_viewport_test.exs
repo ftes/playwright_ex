@@ -15,17 +15,17 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
 
   @moduletag :page
 
-  test "should get the proper default viewport size", %{page: page} do
+  test "VP-001 should get the proper default viewport size", %{page: page} do
     verify_viewport(page, 1280, 720)
   end
 
-  test "should set the proper viewport size", %{page: page} do
+  test "VP-002 should set the proper viewport size", %{page: page} do
     verify_viewport(page, 1280, 720)
     Page.set_viewport_size!(page, %{width: 345, height: 456})
     verify_viewport(page, 345, 456)
   end
 
-  test "should return correct outerWidth and outerHeight", %{page: page} do
+  test "VP-003 should return correct outerWidth and outerHeight", %{page: page} do
     Page.set_viewport_size!(page, %{width: 410, height: 420})
 
     size =
@@ -47,14 +47,14 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
   end
 
   # deviceDescriptors (server-side registry): the same descriptors as `playwright.devices`.
-  test "landscape viewport should have width larger than height", %{playwright: playwright} do
+  test "VP-004 landscape viewport should have width larger than height", %{playwright: playwright} do
     for {device, configuration} <- Playwright.devices(playwright) do
       if String.contains?(device, "landscape") or String.contains?(device, "Landscape"),
         do: assert(configuration.viewport.width > configuration.viewport.height)
     end
   end
 
-  test "should emulate device width", %{page: page} do
+  test "VP-005 should emulate device width", %{page: page} do
     assert Page.viewport_size(page) == %{width: 1280, height: 720}
     Page.set_viewport_size!(page, %{width: 300, height: 300})
     assert Page.evaluate!(page, "() => window.screen.width") == 300
@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     assert Page.evaluate!(page, "() => matchMedia('(device-width: 500px)').matches") == true
   end
 
-  test "should emulate device height", %{page: page} do
+  test "VP-006 should emulate device height", %{page: page} do
     assert Page.viewport_size(page) == %{width: 1280, height: 720}
     Page.set_viewport_size!(page, %{width: 300, height: 300})
     assert Page.evaluate!(page, "() => window.screen.height") == 300
@@ -94,18 +94,18 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     assert Page.evaluate!(page, "() => matchMedia('(device-height: 500px)').matches") == true
   end
 
-  test "should emulate availWidth and availHeight", %{page: page} do
+  test "VP-007 should emulate availWidth and availHeight", %{page: page} do
     Page.set_viewport_size!(page, %{width: 500, height: 600})
     assert Page.evaluate!(page, "() => window.screen.availWidth") == 500
     assert Page.evaluate!(page, "() => window.screen.availHeight") == 600
   end
 
-  test "should not have touch by default", %{page: page, server: server} do
+  test "VP-008 should not have touch by default", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/mobile.html")
     assert Page.evaluate!(page, "() => 'ontouchstart' in window") == false
   end
 
-  test "should throw on tap if hasTouch is not enabled", %{page: page} do
+  test "VP-009 should throw on tap if hasTouch is not enabled", %{page: page} do
     Page.set_content!(page, "<div>a</div>")
 
     {:error, error} = Page.tap(page, "div")
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     assert Exception.message(error) =~ "The page does not support tap"
   end
 
-  test "should support touch with null viewport", %{browser: browser, server: server} do
+  test "VP-010 should support touch with null viewport", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: :null, has_touch: true)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/mobile.html")
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     BrowserContext.close!(context)
   end
 
-  test "should keep touch emulation after screenshot beyond viewport", %{browser: browser, server: server} do
+  test "VP-011 should keep touch emulation after screenshot beyond viewport", %{browser: browser, server: server} do
     # browserTest.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42607' });
     context = Browser.new_context!(browser, viewport: %{width: 393, height: 727}, has_touch: true)
     page = BrowserContext.new_page!(context)
@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     BrowserContext.close!(context)
   end
 
-  test "should set both screen and viewport options", %{context_factory: context_factory} do
+  test "VP-012 should set both screen and viewport options", %{context_factory: context_factory} do
     context =
       context_factory.(
         screen: %{width: 1280, height: 720},
@@ -167,14 +167,14 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     assert inner == %{"w" => 1000, "h" => 600}
   end
 
-  test "should report null viewportSize when given null viewport", %{browser: browser} do
+  test "VP-013 should report null viewportSize when given null viewport", %{browser: browser} do
     context = Browser.new_context!(browser, viewport: :null)
     page = BrowserContext.new_page!(context)
     assert Page.viewport_size(page) == nil
     BrowserContext.close!(context)
   end
 
-  test "should drag with high dpi", %{browser: browser, server: server} do
+  test "VP-014 should drag with high dpi", %{browser: browser, server: server} do
     # browserTest.skip(!headless, 'Stray mouse events mess up the test');  -- we run headless
 
     page = Browser.new_page!(browser, device_scale_factor: 2)
@@ -196,7 +196,10 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
          if(@browser_name != "webkit" or PlaywrightEx.TestBrowser.headless() or !match?({:win32, _}, :os.type()),
            do: "upstream skip: Not relevant for this browser (webkit headed on Windows only)"
          )
-  test "WebKit Windows headed should have a minimal viewport", %{browser: browser, context_factory: context_factory} do
+  test "VP-015 WebKit Windows headed should have a minimal viewport", %{
+    browser: browser,
+    context_factory: context_factory
+  } do
     {:error, error} = Browser.new_context(browser, viewport: %{width: 100, height: 100})
     assert error.message =~ "WebKit on Windows has a minimal viewport of 250x240."
 
@@ -208,7 +211,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: Desktop webkit dont support orientation API")
-  test "should be able to get correct orientation angle on non-mobile devices", %{
+  test "VP-016 should be able to get correct orientation angle on non-mobile devices", %{
     browser: browser,
     server: server
   } do
@@ -222,7 +225,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
     BrowserContext.close!(context)
   end
 
-  test "should set window.screen.orientation.type for mobile devices", %{
+  test "VP-017 should set window.screen.orientation.type for mobile devices", %{
     context_factory: context_factory,
     server: server,
     playwright: playwright

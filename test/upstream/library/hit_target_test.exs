@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
 
   @moduletag :page
 
-  test "should block all events when hit target is wrong", %{page: page, server: server} do
+  test "HT-001 should block all events when hit target is wrong", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert all_events == []
   end
 
-  test "should block click when mousedown fails", %{page: page, server: server} do
+  test "HT-002 should block click when mousedown fails", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.eval_on_selector!(page, "button", """
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
            ]
   end
 
-  test "should click when element detaches in mousedown", %{page: page, server: server} do
+  test "HT-003 should click when element detaches in mousedown", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.eval_on_selector!(page, "button", """
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "result") == "Mousedown"
   end
 
-  test "should block all events when hit target is wrong and element detaches", %{page: page, server: server} do
+  test "HT-004 should block all events when hit target is wrong and element detaches", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.eval_on_selector!(page, "button", """
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert all_events == []
   end
 
-  test "should not block programmatic events", %{page: page, server: server} do
+  test "HT-005 should not block programmatic events", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.eval_on_selector!(page, "button", """
@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert all_events == ["click", "click"]
   end
 
-  test "should click the button again after document.write", %{page: page, server: server} do
+  test "HT-006 should click the button again after document.write", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
     assert Page.evaluate!(page, "result") == "Clicked"
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "result2") == true
   end
 
-  test "should work with mui select", %{page: page, server: server} do
+  test "HT-007 should work with mui select", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/mui.html")
 
     Page.evaluate!(page, """
@@ -193,13 +193,13 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     Expect.to_be_visible!(Page.locator(page, "text=Thirty"))
   end
 
-  test "should work with drag and drop that moves the element under cursor", %{page: page, server: server} do
+  test "HT-008 should work with drag and drop that moves the element under cursor", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/drag-n-drop-manual.html")
     Page.drag_and_drop!(page, "#from", "#to")
     Expect.to_have_text!(Page.locator(page, "#to"), "Dropped")
   end
 
-  test "should work with block inside inline", %{page: page, server: server} do
+  test "HT-009 should work with block inside inline", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should work with block-block-block inside inline-inline", %{page: page, server: server} do
+  test "HT-010 should work with block-block-block inside inline-inline", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -241,7 +241,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     Expect.to_have_url!(page, server.empty_page <> "#yay")
   end
 
-  test "should work with block inside inline in shadow dom", %{page: page, server: server} do
+  test "HT-011 should work with block inside inline in shadow dom", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -264,7 +264,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should not click iframe overlaying the target", %{page: page, server: server} do
+  test "HT-012 should not click iframe overlaying the target", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
              ~s[<iframe srcdoc="<body onclick='window.top._clicked=2' style='background-color:red;height:40px;'></body>"></iframe> from <div>…</div> subtree intercepts pointer events]
   end
 
-  test "should not click an element overlaying iframe with the target", %{page: page, server: server} do
+  test "HT-013 should not click an element overlaying iframe with the target", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -310,7 +310,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window._clicked") == 3
   end
 
-  test "should click into frame inside closed shadow root", %{page: page, server: server} do
+  test "HT-014 should click into frame inside closed shadow root", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -331,7 +331,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click an element inside closed shadow root", %{page: page, server: server} do
+  test "HT-015 should click an element inside closed shadow root", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -353,7 +353,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should detect overlay from another shadow root", %{page: page, server: server} do
+  test "HT-016 should detect overlay from another shadow root", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -401,7 +401,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Exception.message(error) =~ ~s[<div id="container2"></div> intercepts pointer events]
   end
 
-  test "should detect overlaid element in a transformed iframe", %{page: page} do
+  test "HT-017 should detect overlaid element in a transformed iframe", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; }
@@ -434,7 +434,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Exception.message(error) =~ "<section>Overlay</section> intercepts pointer events"
   end
 
-  test "should click in iframe with padding", %{page: page} do
+  test "HT-018 should click in iframe with padding", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; box-sizing: border-box; }
@@ -459,7 +459,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should click in iframe with padding 2", %{page: page} do
+  test "HT-019 should click in iframe with padding 2", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; box-sizing: content-box; }
@@ -484,7 +484,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should click in custom element", %{page: page} do
+  test "HT-020 should click in custom element", %{page: page} do
     Page.set_content!(page, """
       <html>
         <body>
@@ -508,7 +508,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43118' }
-  test "should click in nested custom elements", %{page: page} do
+  test "HT-021 should click in nested custom elements", %{page: page} do
     Page.set_content!(page, """
       <outer-host></outer-host>
       <script>
@@ -536,7 +536,7 @@ defmodule PlaywrightEx.Library.HitTargetTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43118' }
-  test "should click an element inside nested closed shadow roots", %{page: page} do
+  test "HT-022 should click an element inside nested closed shadow roots", %{page: page} do
     Page.set_content!(page, """
       <div id=container></div>
       <script>

@@ -5,16 +5,15 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
     * `test/upstream_registry.md`: a copy of upstream's `tests/registry.md`, every test in
       `tests/page` and `tests/library` with its identifier (`CH-017`) and its title (describe
-      titles and the test title, joined with " › "; the `{a, b}` variants of a test that a loop
-      declares share one row).
+      titles and the test title without the identifier, joined with " › "; the copies of a test
+      that a loop declares share one row).
     * `test/upstream_not_ported.txt`: one rule per line, a selector then the reason. A selector
       is a test identifier (`CH-017`), a subsystem code (`CG`) or an upstream file glob without
       `.spec.ts` (`library/unit/*`).
 
-  Our mirrored tests carry no identifier: a test matches a row by its upstream file (`@upstream`)
-  and its name, which is the upstream title (the last segment). Several rows with that title in
-  one file are told apart by the test's `describe`: the row's describe titles joined with a
-  space, or one of them. `PlaywrightEx.UpstreamCase` skips the tests a rule matches, and
+  Our mirrored tests are named as upstream's, which start with the identifier
+  (`test "CH-017 should work"`): a test matches the row of its upstream file (`@upstream`) with
+  that identifier. `PlaywrightEx.UpstreamCase` skips the tests a rule matches, and
   `mix playwright_ex.parity` checks the rules against the tests.
   """
 
@@ -24,31 +23,27 @@ defmodule Mix.PlaywrightEx.TestRegistry do
   @row ~r/^\| `(?<id>[A-Z]{2}-(?:[A-Z]{2,3}-)?\d{3})` \| `(?<file>[^`]+)` \| (?<title>.*?)(?: \*\((?<copies>\d+) copies\)\*)?(?: \| \d{4}-\d{2}-\d{2} \| `[0-9a-f]+`)? \|$/
   @subsystem ~r/^\| `(?<code>[A-Z]{2})` \| (?<name>[^|]+?) \|/
   @id ~r/^[A-Z]{2}-(?:[A-Z]{2,3}-)?\d{3}$/
+  @name_id ~r/^([A-Z]{2}-(?:[A-Z]{2,3}-)?\d{3}) /
   @code ~r/^[A-Z]{2}$/
 
   def registry_path, do: @registry
   def rules_path, do: @rules
 
   @doc """
-  Registry rows in file order, `%{id, code, file, title, copies, variants}` (`file` without
-  `tests/` and `.spec.ts`; `variants` the `{describe_titles, title}` of each copy), and the
-  subsystems, `[{code, name}]`.
+  Registry rows in file order, `%{id, code, file, title, copies}` (`file` without `tests/` and
+  `.spec.ts`), and the subsystems, `[{code, name}]`.
   """
   def read_registry(path \\ @registry) do
     lines = path |> File.read!() |> String.split("\n")
 
     rows =
       for line <- lines, row = Regex.named_captures(@row, line) do
-        title = unescape_markdown(row["title"])
-        copies = if row["copies"] == "", do: 1, else: String.to_integer(row["copies"])
-
         %{
           id: row["id"],
           code: binary_part(row["id"], 0, 2),
           file: String.replace_suffix(row["file"], ".spec.ts", ""),
-          title: title,
-          copies: copies,
-          variants: variants(title, copies)
+          title: unescape_markdown(row["title"]),
+          copies: if(row["copies"] == "", do: 1, else: String.to_integer(row["copies"]))
         }
       end
 
@@ -57,31 +52,6 @@ defmodule Mix.PlaywrightEx.TestRegistry do
   end
 
   defp unescape_markdown(text), do: Regex.replace(~r/\\([\\`*_\[\]<>|])/, text, "\\1")
-
-  # A loop's copies share a row whose title spells the variants as `{a, b}`.
-  defp variants(title, copies) do
-    titles = if copies > 1, do: expand(title), else: [title]
-
-    for title <- Enum.uniq(titles) do
-      {describes, [leaf]} = title |> String.split(" › ") |> Enum.split(-1)
-      {describes, leaf}
-    end
-  end
-
-  defp expand(title) do
-    case Regex.run(~r/\{([^{}]*)\}/, title, return: :index) do
-      [{start, length}, {inner_start, inner_length}] ->
-        prefix = binary_part(title, 0, start)
-        suffix = binary_part(title, start + length, byte_size(title) - start - length)
-
-        for alt <- String.split(binary_part(title, inner_start, inner_length), ", "),
-            rest <- expand(suffix),
-            do: prefix <> alt <> rest
-
-      nil ->
-        [title]
-    end
-  end
 
   @doc "Rules in file order, `%{line, selector, reason}`, and the problems of lines that are none."
   def read_rules(path \\ @rules) do
@@ -134,73 +104,41 @@ defmodule Mix.PlaywrightEx.TestRegistry do
   def file_key(upstream), do: upstream |> String.replace_prefix("tests/", "") |> String.replace_suffix(".spec.ts", "")
 
   @doc """
-  The row of a test in `rows` (the rows of its file): `{:ok, row}`, `:none`, or
-  `{:ambiguous, rows}`. `describe` is the test's describe, nil without one, `:dynamic` when
-  it is not known statically. A name pattern (a test declared in a loop) matches
-  `{:pattern, rows}`.
+  The row of a test in `rows` (the rows of its file) with the test's identifier (`id/1`):
+  `{:ok, row}`, or `:none`.
   """
-  def match(rows, _describe, %Regex{} = name) do
-    case Enum.filter(rows, fn row -> Enum.any?(row.variants, &Regex.match?(name, elem(&1, 1))) end) do
-      [] -> :none
-      rows -> {:pattern, rows}
+  def match(rows, id) do
+    case id && Enum.find(rows, &(&1.id == id)) do
+      nil -> :none
+      row -> {:ok, row}
     end
-  end
-
-  def match(rows, describe, name) do
-    case Enum.filter(rows, fn row -> Enum.any?(row.variants, &(elem(&1, 1) == name)) end) do
-      [] ->
-        :none
-
-      [row] ->
-        {:ok, row}
-
-      candidates ->
-        by_describe(candidates, describe, name)
-    end
-  end
-
-  # The describe titles joined, else one of them.
-  defp by_describe(candidates, describe, name) do
-    exact = Enum.filter(candidates, &describe_matches?(&1, describe, name, :exact))
-
-    case if(exact == [], do: Enum.filter(candidates, &describe_matches?(&1, describe, name, :any)), else: exact) do
-      [row] -> {:ok, row}
-      _ -> {:ambiguous, candidates}
-    end
-  end
-
-  defp describe_matches?(_row, :dynamic, _name, _how), do: false
-
-  defp describe_matches?(row, describe, name, how) do
-    Enum.any?(row.variants, fn {describes, leaf} ->
-      leaf == name and
-        cond do
-          describe in [nil, ""] -> describes == []
-          how == :exact -> describe == Enum.join(describes, " ")
-          true -> describe in describes
-        end
-    end)
   end
 
   @doc """
-  The reason a rule gives for not porting the test (`upstream` spec path, `describe`, `name`),
-  or nil. Reads the registry and the rules once per VM (`root` holds `test/`).
+  The identifier a test name starts with (`"CH-017 should work"`), or nil. `name` is a string,
+  or the AST of a name built at runtime (its literal start).
   """
-  def not_ported_reason(root, upstream, describe, name) do
+  def id(name) when is_binary(name) do
+    case Regex.run(@name_id, name, capture: :all_but_first) do
+      [id] -> id
+      nil -> nil
+    end
+  end
+
+  def id({:<<>>, _, [first | _]}), do: id(first)
+  def id({:<>, _, [left, _]}), do: id(left)
+  def id(_), do: nil
+
+  @doc """
+  The reason a rule gives for not porting the test (`upstream` spec path, `name`), or nil.
+  Reads the registry and the rules once per VM (`root` holds `test/`).
+  """
+  def not_ported_reason(root, upstream, name) do
     {rows_by_file, rules} = cached(root)
-    rows = Map.get(rows_by_file, file_key(upstream), [])
 
-    candidates =
-      case match(rows, describe, name) do
-        {:ok, row} -> [row]
-        # All candidates under one rule (a file or subsystem rule): no matter which.
-        {:ambiguous, candidates} -> candidates
-        _ -> []
-      end
-
-    case Enum.uniq_by(candidates, &rule_for(&1, rules)) do
-      [row] -> if rule = rule_for(row, rules), do: rule.reason
-      _ -> nil
+    case match(Map.get(rows_by_file, file_key(upstream), []), id(name)) do
+      {:ok, row} -> if rule = rule_for(row, rules), do: rule.reason
+      :none -> nil
     end
   end
 
@@ -222,8 +160,9 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
   @doc """
   The test modules in a source that declare `@upstream`: `[{upstream, tests}]`, the tests in
-  order, each `%{name, describe, body?, line, skips, tag_skips, slow?}`. `name` is a string, or a regex for a
-  name built at runtime; `describe` as in `match/3`; `skips` the static `skip:` reasons of
+  order, each `%{name, id, describe, body?, line, skips, tag_skips, slow?}`. `name` is a string, or a regex for a
+  name built at runtime; `id` its identifier (`id/1`); `describe` the title of its `describe`, nil
+  without one, `:dynamic` when it is not known statically; `skips` the static `skip:` reasons of
   the test's `@tag`s, its `@describetag`s and the module's `@moduletag`s (those that are
   string literals, also joined with `<>`; conditional ones are not static); `tag_skips` those
   of its own `@tag`s; `slow?` whether a `timeout:` of its `@tag`s, `@describetag`s or the module's
@@ -278,6 +217,7 @@ defmodule Mix.PlaywrightEx.TestRegistry do
   defp walk_expr({:test, meta, [name | rest]}, scope, tests, tags) do
     test = %{
       name: name(name),
+      id: id(name),
       describe: scope.describe,
       body?: rest != [],
       line: meta[:line],

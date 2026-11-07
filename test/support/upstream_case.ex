@@ -244,16 +244,9 @@ defmodule PlaywrightEx.UpstreamCase do
   # Tags the next test `skip: "not ported: <reason>"` when a rule rules it out. The last `@tag`
   # wins, so the rule wins over the test's own skip tags.
   def __not_ported__(module, name) do
-    # ExUnit keeps the current describe in `@ex_unit_describe` ({line, name, counter}).
-    describe =
-      case Module.get_attribute(module, :ex_unit_describe) do
-        {_line, describe, _counter} -> describe
-        _ -> nil
-      end
-
     # Modules with no `@upstream` (our own tests on this case) have no registry tests.
     upstream = Module.get_attribute(module, :upstream)
-    reason = upstream && TestRegistry.not_ported_reason(@root, upstream, describe, name)
+    reason = upstream && TestRegistry.not_ported_reason(@root, upstream, name)
     if reason, do: Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
   end
 

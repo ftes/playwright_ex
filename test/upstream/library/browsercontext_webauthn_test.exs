@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
   }
   """
 
-  test "should not intercept navigator.credentials without install()", %{
+  test "AU-017 should not intercept navigator.credentials without install()", %{
     context_factory: context_factory,
     server: server
   } do
@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert intercepted == false
   end
 
-  test "should seed a known credential and authenticate", %{context_factory: context_factory, server: server} do
+  test "AU-018 should seed a known credential and authenticate", %{context_factory: context_factory, server: server} do
     # This is the easiest way to create credentials. In practice, this
     # probably comes from environment.
     source = context_factory.([])
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert error == "NotAllowedError"
   end
 
-  test "should capture a page-created credential and reuse it in another context", %{
+  test "AU-019 should capture a page-created credential and reuse it in another context", %{
     context_factory: context_factory,
     server: server
   } do
@@ -190,7 +190,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert got_id == created_id
   end
 
-  test "should reuse a page-created credential via the storageState option", %{
+  test "AU-020 should reuse a page-created credential via the storageState option", %{
     context_factory: context_factory,
     server: server
   } do
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert got_id == created_id
   end
 
-  test "should seed and report signCount", %{context_factory: context_factory, server: server} do
+  test "AU-021 should seed and report signCount", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     fresh = Credentials.create!(BrowserContext.credentials(context), "fresh.example.com")
     assert fresh.signCount == 0
@@ -243,14 +243,17 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert assert_and_get_sign_count(page2, server.hostname) == 44
   end
 
-  test "should reject invalid signCount", %{context_factory: context_factory} do
+  test "AU-022 should reject invalid signCount", %{context_factory: context_factory} do
     context = context_factory.([])
     {:error, error} = Credentials.create(BrowserContext.credentials(context), "example.com", sign_count: -1)
     assert Exception.message(error) =~ "signCount must be between 0 and 4294967295, got -1"
     assert Credentials.get!(BrowserContext.credentials(context)) == []
   end
 
-  test "should preserve signCount via the storageState option", %{context_factory: context_factory, server: server} do
+  test "AU-023 should preserve signCount via the storageState option", %{
+    context_factory: context_factory,
+    server: server
+  } do
     setup_context = context_factory.([])
     Credentials.create!(BrowserContext.credentials(setup_context), server.hostname)
     Credentials.install!(BrowserContext.credentials(setup_context))
@@ -277,7 +280,7 @@ defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
     assert assert_and_get_sign_count(legacy_page, server.hostname) == 1
   end
 
-  test "should serialize credentials with toJSON", %{context_factory: context_factory, server: server} do
+  test "AU-024 should serialize credentials with toJSON", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     Credentials.install!(BrowserContext.credentials(context))
     page = BrowserContext.new_page!(context)

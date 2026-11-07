@@ -37,14 +37,14 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     # it.skip(isAndroid)  -- not Android
 
-    test "should work @smoke", %{page: page, server: server} do
+    test "SS-001 should work @smoke", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       screenshot = Page.screenshot!(page)
       to_match_snapshot(screenshot, "screenshot-sanity.png")
     end
 
-    test "should not capture blinking caret by default", %{page: page, server: server} do
+    test "SS-002 should not capture blinking caret by default", %{page: page, server: server} do
       Page.set_content!(page, String.replace(@caret_content, "CROSS_PROCESS_PREFIX", server.cross_process_prefix))
       div = Page.locator(page, "div")
       Locator.type!(div, "foo bar")
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
            if(@browser_name == "firefox",
              do: "upstream skip: browser-level screenshot API in firefox does not capture caret"
            )
-    test "should capture blinking caret if explicitly asked for",
+    test "SS-003 should capture blinking caret if explicitly asked for",
          %{page: page, server: server} do
       # it.skip(browserName === 'firefox', 'browser-level screenshot API in firefox does not capture caret')
       Page.set_content!(page, String.replace(@caret_content, "CROSS_PROCESS_PREFIX", server.cross_process_prefix))
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert has_different_screenshots
     end
 
-    test "should capture blinking caret in shadow dom", %{page: page} do
+    test "SS-004 should capture blinking caret in shadow dom", %{page: page} do
       Page.add_script_tag!(page,
         content: """
         class CustomElementContainer extends HTMLElement {
@@ -131,14 +131,14 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       refute has_different_screenshots
     end
 
-    test "should clip rect", %{page: page, server: server} do
+    test "SS-005 should clip rect", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       screenshot = Page.screenshot!(page, clip: %{x: 50, y: 100, width: 150, height: 100})
       to_match_snapshot(screenshot, "screenshot-clip-rect.png")
     end
 
-    test "should clip rect with fullPage", %{page: page, server: server} do
+    test "SS-006 should clip rect with fullPage", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       Page.evaluate!(page, "() => window.scrollBy(150, 200)")
@@ -146,28 +146,28 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-clip-rect.png")
     end
 
-    test "should clip elements to the viewport", %{page: page, server: server} do
+    test "SS-007 should clip elements to the viewport", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       screenshot = Page.screenshot!(page, clip: %{x: 50, y: 450, width: 1000, height: 100})
       to_match_snapshot(screenshot, "screenshot-offscreen-clip.png")
     end
 
-    test "should throw on clip outside the viewport", %{page: page, server: server} do
+    test "SS-008 should throw on clip outside the viewport", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       {:error, screenshot_error} = Page.screenshot(page, clip: %{x: 50, y: 650, width: 100, height: 100})
       assert Exception.message(screenshot_error) =~ "Clipped area is either empty or outside the resulting image"
     end
 
-    test "should throw on a negative clip size", %{page: page, server: server} do
+    test "SS-009 should throw on a negative clip size", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       {:error, screenshot_error} = Page.screenshot(page, clip: %{x: 50, y: 50, width: -100, height: 100})
       assert Exception.message(screenshot_error) =~ "Expected options.clip.width to be greater than 0"
     end
 
-    test "should run in parallel", %{page: page, server: server} do
+    test "SS-010 should run in parallel", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -180,14 +180,14 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-1.png")
     end
 
-    test "should take fullPage screenshots", %{page: page, server: server} do
+    test "SS-011 should take fullPage screenshots", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       screenshot = Page.screenshot!(page, full_page: true)
       to_match_snapshot(screenshot, "screenshot-grid-fullpage.png")
     end
 
-    test "should take fullPage screenshots and mask elements outside of it", %{page: page, server: server} do
+    test "SS-012 should take fullPage screenshots and mask elements outside of it", %{page: page, server: server} do
       # annotation: issue https://github.com/microsoft/playwright/issues/30770
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-grid-fullpage-mask-outside-viewport.png")
     end
 
-    test "should restore viewport after fullPage screenshot", %{page: page, server: server} do
+    test "SS-013 should restore viewport after fullPage screenshot", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       screenshot = Page.screenshot!(page, full_page: true)
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       verify_viewport(page, 500, 500)
     end
 
-    test "should allow transparency", %{page: page} do
+    test "SS-014 should allow transparency", %{page: page} do
       expected_failure(@browser_name == "firefox", fn ->
         # it.fail(browserName === 'firefox' || isBidi)  -- see the tag; isBidi is false here
         Page.set_viewport_size!(page, %{width: 300, height: 300})
@@ -224,14 +224,14 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end)
     end
 
-    test "should render white background on jpeg file", %{page: page, server: server} do
+    test "SS-015 should render white background on jpeg file", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 300, height: 300})
       Page.goto!(page, server.empty_page)
       screenshot = Page.screenshot!(page, omit_background: true, type: :jpeg)
       to_match_snapshot(screenshot, "white.jpg")
     end
 
-    test "should produce a valid webp screenshot", %{page: page, server: server} do
+    test "SS-016 should produce a valid webp screenshot", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 300, height: 300})
       Page.goto!(page, server.empty_page)
       Page.evaluate!(page, "() => (document.body.style.background = 'rgb(255, 0, 0)')")
@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     end
 
     @tag :tmp_dir
-    test "path option should detect webp", %{page: page, server: server, tmp_dir: tmp_dir} do
+    test "SS-017 path option should detect webp", %{page: page, server: server, tmp_dir: tmp_dir} do
       Page.set_viewport_size!(page, %{width: 300, height: 300})
       Page.goto!(page, server.empty_page)
       Page.evaluate!(page, "() => (document.body.style.background = 'rgb(255, 0, 0)')")
@@ -250,20 +250,20 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "red.webp")
     end
 
-    test "quality option should work for webp", %{page: page, server: server} do
+    test "SS-018 quality option should work for webp", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/grid.html")
       low_quality = Page.screenshot!(page, type: :webp, quality: 0)
       high_quality = Page.screenshot!(page, type: :webp, quality: 100)
       assert byte_size(low_quality) < byte_size(high_quality)
     end
 
-    test "webp screenshots should be lossless by default", %{page: page, server: server} do
+    test "SS-019 webp screenshots should be lossless by default", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/grid.html")
       assert lossless_webp?(Page.screenshot!(page, type: :webp)) == true
       assert lossless_webp?(Page.screenshot!(page, type: :webp, quality: 80)) == false
     end
 
-    test "should allow transparency with webp", %{page: page} do
+    test "SS-020 should allow transparency with webp", %{page: page} do
       expected_failure(@browser_name == "firefox", fn ->
         # it.skip(isBidi)  -- isBidi is false here
         # it.fail(browserName === 'firefox')  -- see the tag
@@ -290,18 +290,18 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end)
     end
 
-    test "quality option should throw for webp when out of range", %{page: page} do
+    test "SS-021 quality option should throw for webp when out of range", %{page: page} do
       {:error, error} = Page.screenshot(page, type: :webp, quality: 101)
       assert Exception.message(error) =~ "Expected options.quality to be between 0 and 100"
     end
 
-    test "should work with odd clip size on Retina displays", %{page: page} do
+    test "SS-022 should work with odd clip size on Retina displays", %{page: page} do
       # it.skip(isElectron)  -- not Electron
       screenshot = Page.screenshot!(page, clip: %{x: 0, y: 0, width: 11, height: 11})
       to_match_snapshot(screenshot, "screenshot-clip-odd-size.png")
     end
 
-    test "should work for canvas", %{page: page, server: server} do
+    test "SS-023 should work for canvas", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/screenshots/canvas.html")
       screenshot = Page.screenshot!(page)
@@ -309,7 +309,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-canvas.png", %{maxDiffPixels: 4})
     end
 
-    test "should capture canvas changes", %{page: page} do
+    test "SS-024 should capture canvas changes", %{page: page} do
       # it.skip(isElectron)  -- not Electron
       Page.goto!(page, "data:text/html,<canvas></canvas>")
 
@@ -361,7 +361,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
               true ->
                 nil
             end)
-    test "should work for webgl", %{page: page, server: server} do
+    test "SS-025 should work for webgl", %{page: page, server: server} do
       # it.skip(isElectron)  -- not Electron
       Page.set_viewport_size!(page, %{width: 640, height: 480})
       Page.goto!(page, server.prefix <> "/screenshots/webgl.html")
@@ -369,14 +369,14 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-webgl.png")
     end
 
-    test "should work for translateZ", %{page: page, server: server} do
+    test "SS-026 should work for translateZ", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/screenshots/translateZ.html")
       screenshot = Page.screenshot!(page)
       to_match_snapshot(screenshot, "screenshot-translateZ.png")
     end
 
-    test "should work while navigating", %{page: page, server: server} do
+    test "SS-027 should work while navigating", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/redirectloop1.html")
 
@@ -397,14 +397,14 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    test "should work with iframe in shadow", %{page: page, server: server} do
+    test "SS-028 should work with iframe in shadow", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid-iframe-in-shadow.html")
       to_match_snapshot(Page.screenshot!(page), "screenshot-iframe.png")
     end
 
     @tag :tmp_dir
-    test "path option should work", %{page: page, server: server, tmp_dir: tmp_dir} do
+    test "SS-029 path option should work", %{page: page, server: server, tmp_dir: tmp_dir} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       output_path = Path.join(tmp_dir, "screenshot.png")
@@ -413,7 +413,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     end
 
     @tag :tmp_dir
-    test "path option should create subdirectories", %{page: page, server: server, tmp_dir: tmp_dir} do
+    test "SS-030 path option should create subdirectories", %{page: page, server: server, tmp_dir: tmp_dir} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       output_path = Path.join([tmp_dir, "these", "are", "directories", "screenshot.png"])
@@ -422,7 +422,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     end
 
     @tag :tmp_dir
-    test "path option should detect jpeg", %{page: page, server: server, tmp_dir: tmp_dir} do
+    test "SS-031 path option should detect jpeg", %{page: page, server: server, tmp_dir: tmp_dir} do
       Page.set_viewport_size!(page, %{width: 300, height: 300})
       Page.goto!(page, server.empty_page)
       output_path = Path.join(tmp_dir, "screenshot.jpg")
@@ -431,22 +431,22 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(screenshot, "white.jpg")
     end
 
-    test "path option should throw for unsupported mime type", %{page: page} do
+    test "SS-032 path option should throw for unsupported mime type", %{page: page} do
       {:error, error} = Page.screenshot(page, path: "file.txt")
       assert Exception.message(error) =~ ~s(path: unsupported mime type "text/plain")
     end
 
-    test "quality option should throw for png", %{page: page} do
+    test "SS-033 quality option should throw for png", %{page: page} do
       {:error, error} = Page.screenshot(page, quality: 10)
       assert Exception.message(error) =~ "options.quality is unsupported for the png"
     end
 
-    test "zero quality option should throw for png", %{page: page} do
+    test "SS-034 zero quality option should throw for png", %{page: page} do
       {:error, error} = Page.screenshot(page, quality: 0, type: :png)
       assert Exception.message(error) =~ "options.quality is unsupported for the png"
     end
 
-    test "quality option should work for jpeg", %{page: page, server: server} do
+    test "SS-035 quality option should work for jpeg", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/grid.html")
       zero_quality = Page.screenshot!(page, type: :jpeg, quality: 0)
       high_quality = Page.screenshot!(page, type: :jpeg, quality: 100)
@@ -454,13 +454,13 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     end
 
     @tag :tmp_dir
-    test "should prefer type over extension", %{page: page, tmp_dir: tmp_dir} do
+    test "SS-036 should prefer type over extension", %{page: page, tmp_dir: tmp_dir} do
       output_path = Path.join(tmp_dir, "file.png")
       buffer = Page.screenshot!(page, path: output_path, type: :jpeg)
       assert binary_part(buffer, 0, 3) == <<0xFF, 0xD8, 0xFF>>
     end
 
-    test "should not issue resize event", %{page: page, server: server} do
+    test "SS-037 should not issue resize event", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/grid.html")
       test = self()
 
@@ -474,7 +474,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       refute_received :resize_triggered
     end
 
-    test "should work with Array deleted", %{page: page, server: server} do
+    test "SS-038 should work with Array deleted", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       Page.evaluate!(page, "() => delete window.Array")
@@ -484,7 +484,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
     # it.slow()
     @tag timeout: @slow_timeout
-    test "should take fullPage screenshots during navigation", %{page: page, server: server} do
+    test "SS-039 should take fullPage screenshots during navigation", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       reload_several_times = Task.async(fn -> for _ <- 1..5, do: Page.reload!(page) end)
@@ -495,7 +495,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
   # Nested upstream: describe('page screenshot') > describe('mask option').
   describe "page screenshot mask option" do
-    test "should work", %{page: page, server: server} do
+    test "SS-040 should work", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -505,7 +505,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       )
     end
 
-    test "should work with locator", %{page: page, server: server} do
+    test "SS-041 should work with locator", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       body_locator = Page.locator(page, "body")
@@ -516,7 +516,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       )
     end
 
-    test "should work with elementhandle", %{page: page, server: server} do
+    test "SS-042 should work with elementhandle", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       body_handle = Page.query_selector!(page, "body")
@@ -527,7 +527,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       )
     end
 
-    test "should mask multiple elements", %{page: page, server: server} do
+    test "SS-043 should mask multiple elements", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -542,7 +542,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       )
     end
 
-    test "should mask inside iframe", %{page: page, server: server} do
+    test "SS-044 should mask inside iframe", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       attach_frame(page, "frame1", server.prefix <> "/grid.html")
@@ -559,7 +559,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       )
     end
 
-    test "should mask in parallel", %{page: page, server: server} do
+    test "SS-045 should mask in parallel", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       attach_frame(page, "frame1", server.prefix <> "/grid.html")
       attach_frame(page, "frame2", server.prefix <> "/grid.html")
@@ -586,7 +586,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       to_match_snapshot(Enum.at(screenshots, 1), "should-mask-in-parallel-2.png")
     end
 
-    test "should remove mask after screenshot", %{page: page, server: server} do
+    test "SS-046 should remove mask after screenshot", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       screenshot1 = Page.screenshot!(page)
@@ -595,7 +595,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert screenshot1 == screenshot2
     end
 
-    test "should work when subframe has stalled navigation", %{page: page, server: server} do
+    test "SS-047 should work when subframe has stalled navigation", %{page: page, server: server} do
       test = self()
       # Stalling subframe.
       Page.route!(page, "**/subframe.html", fn route -> send(test, {:route, route}) end)
@@ -609,7 +609,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       Runtime.Promise.await(done)
     end
 
-    test "should work when subframe used document.open after a weird url", %{page: page, server: server} do
+    test "SS-048 should work when subframe used document.open after a weird url", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
 
       Page.evaluate!(page, """
@@ -626,7 +626,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       Page.screenshot!(page, mask: [Page.locator(page, "non-existent")])
     end
 
-    test "should work when mask color is not pink #F0F", %{page: page, server: server} do
+    test "SS-049 should work when mask color is not pink #F0F", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -636,7 +636,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       )
     end
 
-    test "should hide elements based on attr", %{page: page, server: server} do
+    test "SS-050 should hide elements based on attr", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -662,7 +662,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert visibility == ""
     end
 
-    test "should remove elements based on attr", %{page: page, server: server} do
+    test "SS-051 should remove elements based on attr", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -688,7 +688,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   end
 
   describe "page screenshot animations" do
-    test "should not capture infinite css animation", %{page: page, server: server} do
+    test "SS-052 should not capture infinite css animation", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/rotate-z.html")
       div = Page.locator(page, "div")
       screenshot = Locator.screenshot!(div, animations: :disabled)
@@ -700,7 +700,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    test "should not capture pseudo element css animation", %{page: page, server: server} do
+    test "SS-053 should not capture pseudo element css animation", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/rotate-pseudo.html")
       div = Page.locator(page, "div")
       screenshot = Locator.screenshot!(div, animations: :disabled)
@@ -712,7 +712,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    test "should not capture css animations in shadow DOM", %{page: page, server: server} do
+    test "SS-054 should not capture css animations in shadow DOM", %{page: page, server: server} do
       # it.skip(isAndroid, 'Different viewport')
       Page.goto!(page, server.prefix <> "/rotate-z-shadow-dom.html")
       screenshot = Page.screenshot!(page, animations: :disabled)
@@ -724,9 +724,9 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       end
     end
 
-    test "should stop animations that happen right before screenshot"
+    test "SS-055 should stop animations that happen right before screenshot"
 
-    test "should resume infinite animations", %{page: page, server: server} do
+    test "SS-056 should resume infinite animations", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/rotate-z.html")
       Page.screenshot!(page, animations: :disabled)
       buffer1 = Page.screenshot!(page)
@@ -735,7 +735,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert compare_pngs(buffer1, buffer2, %{maxDiffPixels: 50}) != nil
     end
 
-    test "should not capture infinite web animations", %{page: page, server: server} do
+    test "SS-057 should not capture infinite web animations", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/web-animation.html")
       div = Page.locator(page, "div")
       screenshot = Locator.screenshot!(div, animations: :disabled)
@@ -753,7 +753,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert compare_pngs(buffer1, buffer2, %{maxDiffPixels: 50}) != nil
     end
 
-    test "should fire transitionend for finite transitions", %{page: page, server: server} do
+    test "SS-058 should fire transitionend for finite transitions", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/css-transition.html")
       div = Page.locator(page, "div")
 
@@ -779,7 +779,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Page.evaluate!(page, "() => window['__TRANSITION_END']") == true
     end
 
-    test "should capture screenshots after layoutchanges in transitionend event", %{page: page, server: server} do
+    test "SS-059 should capture screenshots after layoutchanges in transitionend event", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/css-transition.html")
       div = Page.locator(page, "div")
 
@@ -817,7 +817,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert screenshot1 == screenshot2
     end
 
-    test "should not change animation with playbackRate equal to 0", %{page: page, server: server} do
+    test "SS-060 should not change animation with playbackRate equal to 0", %{page: page, server: server} do
       # it.skip(isAndroid, 'Different viewport')
       Page.goto!(page, server.prefix <> "/rotate-z.html")
 
@@ -844,7 +844,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
              """) == %{"playbackRate" => 0, "currentTime" => 500}
     end
 
-    test "should trigger particular events for css transitions", %{page: page, server: server} do
+    test "SS-061 should trigger particular events for css transitions", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/css-transition.html")
       div = Page.locator(page, "div")
 
@@ -869,7 +869,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "transitionend"]
     end
 
-    test "should trigger particular events for INfinite css animation", %{page: page, server: server} do
+    test "SS-062 should trigger particular events for INfinite css animation", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/rotate-z.html")
       div = Page.locator(page, "div")
 
@@ -894,7 +894,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Page.evaluate!(page, "() => window._EVENTS") == ["oncancel", "animationcancel"]
     end
 
-    test "should trigger particular events for finite css animation", %{page: page, server: server} do
+    test "SS-063 should trigger particular events for finite css animation", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/rotate-z.html")
       div = Page.locator(page, "div")
 
@@ -927,7 +927,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "animationend"]
     end
 
-    test "should wait for fonts to load", %{page: page, server: server, asset: asset} do
+    test "SS-064 should wait for fonts to load", %{page: page, server: server, asset: asset} do
       # it.fixme(isWindows)  -- not Windows
       # it.skip(isAndroid)  -- not Android
       Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -957,7 +957,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
     end
   end
 
-  test "should throw if screenshot size is too large", %{page: page, browser_name: browser_name} do
+  test "SS-065 should throw if screenshot size is too large", %{page: page, browser_name: browser_name} do
     # isBidi is false here: no WebDriver BiDi
     is_mac = match?({:unix, :darwin}, :os.type())
     max_size = 32_767
@@ -985,7 +985,11 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
   @tag :tmp_dir
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit")
-  test "page screenshot should capture css transform", %{page: page, browser_name: browser_name, tmp_dir: tmp_dir} do
+  test "SS-066 page screenshot should capture css transform", %{
+    page: page,
+    browser_name: browser_name,
+    tmp_dir: tmp_dir
+  } do
     # it.fixme(browserName === 'webkit')
     # it.skip(isElectron || isAndroid, 'Returns screenshot of a different size.')
     Page.set_content!(page, """
@@ -1031,7 +1035,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
   end
 
   @tag :tmp_dir
-  test "should capture css box-shadow", %{page: page, browser_name: browser_name, tmp_dir: tmp_dir} do
+  test "SS-067 should capture css box-shadow", %{page: page, browser_name: browser_name, tmp_dir: tmp_dir} do
     # it.skip(isElectron || isAndroid, 'Returns screenshot of a different size.')
     Page.set_content!(page, ~s(<div style="box-shadow: red 10px 10px 10px; width: 50px; height: 50px;"></div>))
     Expect.to_have_screenshot!(page, path: upstream_snapshot(tmp_dir, "should-capture-css-box-shadow-1", browser_name))

@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     end)
   end
 
-  test "should work for iframe @smoke", %{page: page, server: server} do
+  test "LO-089 should work for iframe @smoke", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator("button")
@@ -71,7 +71,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Locator.click!(button)
   end
 
-  test "should work for nested iframe", %{page: page, server: server} do
+  test "LO-090 should work for nested iframe", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
 
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Locator.click!(button)
   end
 
-  test "should work for $ and $$", %{page: page, server: server} do
+  test "LO-091 should work for $ and $$", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     locator = page |> Page.frame_locator("iframe") |> FrameLocator.locator("button")
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Expect.to_have_count!(spans, 2)
   end
 
-  test "should wait for frame", %{page: page, server: server} do
+  test "LO-092 should wait for frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     {:error, error} =
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     assert error.message =~ "waiting for locator('body').locator('iframe').contentFrame()"
   end
 
-  test "should wait for frame 2", %{page: page, server: server} do
+  test "LO-093 should wait for frame 2", %{page: page, server: server} do
     route_iframe(page)
 
     Task.start(fn ->
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     page |> Page.frame_locator("iframe") |> FrameLocator.locator("button") |> Locator.click!()
   end
 
-  test "should wait for frame to go", %{page: page, server: server} do
+  test "LO-094 should wait for frame to go", %{page: page, server: server} do
     # it.fixme(isAndroid);
 
     route_iframe(page)
@@ -131,22 +131,22 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Expect.to_be_hidden!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("button"))
   end
 
-  test "should not wait for frame", %{page: page, server: server} do
+  test "LO-095 should not wait for frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Expect.to_be_hidden!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("span"))
   end
 
-  test "should not wait for frame 2", %{page: page, server: server} do
+  test "LO-096 should not wait for frame 2", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Expect.not_to_be_visible!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("span"))
   end
 
-  test "should not wait for frame 3", %{page: page, server: server} do
+  test "LO-097 should not wait for frame 3", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Expect.to_have_count!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("span"), 0)
   end
 
-  test "should click in lazy iframe", %{page: page, server: server} do
+  test "LO-098 should click in lazy iframe", %{page: page, server: server} do
     Page.route!(page, "**/iframe.html", fn route ->
       Route.fulfill(route, body: "<html><button>Hello iframe</button></html>", content_type: "text/html")
     end)
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     assert text == "Hello iframe"
   end
 
-  test "waitFor should survive frame reattach", %{page: page, server: server} do
+  test "LO-099 waitFor should survive frame reattach", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
@@ -206,7 +206,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "click should survive frame reattach", %{page: page, server: server} do
+  test "LO-100 click should survive frame reattach", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
@@ -224,7 +224,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "click should survive iframe navigation", %{page: page, server: server} do
+  test "LO-101 click should survive iframe navigation", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.locator(~s|button:has-text("Hello nested iframe")|)
@@ -233,7 +233,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Runtime.Promise.await(promise)
   end
 
-  test "should non work for non-frame", %{page: page} do
+  test "LO-102 should non work for non-frame", %{page: page} do
     route_iframe(page)
     Page.set_content!(page, "<div></div>")
     button = page |> Page.frame_locator("div") |> FrameLocator.locator("button")
@@ -242,7 +242,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     assert error.message =~ "<iframe> was expected"
   end
 
-  test "locator.frameLocator should work for iframe", %{page: page, server: server} do
+  test "LO-103 locator.frameLocator should work for iframe", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.locator("body") |> Locator.frame_locator("iframe") |> FrameLocator.locator("button")
@@ -252,7 +252,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Locator.click!(button)
   end
 
-  test "locator.frameLocator should throw on ambiguity", %{page: page, server: server} do
+  test "LO-104 locator.frameLocator should throw on ambiguity", %{page: page, server: server} do
     route_ambiguous(page)
     Page.goto!(page, server.empty_page)
     button = page |> Page.locator("body") |> Locator.frame_locator("iframe") |> FrameLocator.locator("button")
@@ -262,7 +262,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
              "Error: strict mode violation: locator('body').locator('iframe') resolved to 3 elements"
   end
 
-  test "locator.frameLocator should not throw on first/last/nth", %{page: page, server: server} do
+  test "LO-105 locator.frameLocator should not throw on first/last/nth", %{page: page, server: server} do
     route_ambiguous(page)
     Page.goto!(page, server.empty_page)
 
@@ -294,7 +294,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Expect.to_have_text!(button3, "Hello from iframe-3.html")
   end
 
-  test "getBy coverage", %{page: page, server: server} do
+  test "LO-106 getBy coverage", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     button1 = page |> Page.frame_locator("iframe") |> FrameLocator.get_by_role(:button)
@@ -314,7 +314,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   end
 
   # https://github.com/microsoft/playwright/issues/21879
-  test "wait for hidden should succeed when frame is not in dom", %{page: page} do
+  test "LO-107 wait for hidden should succeed when frame is not in dom", %{page: page} do
     Page.goto!(page, "about:blank")
     button = page |> Page.frame_locator("iframe1") |> FrameLocator.locator("button")
     assert Locator.is_hidden!(button)
@@ -326,7 +326,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
 
   # https://github.com/microsoft/playwright/issues/28082
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
-  test "should work with COEP/COOP/CORP isolated iframe", %{page: page, server: server} do
+  test "LO-108 should work with COEP/COOP/CORP isolated iframe", %{page: page, server: server} do
     # it.fixme(browserName === 'firefox');
     headers = %{
       "cross-origin-embedder-policy" => "require-corp",
@@ -356,7 +356,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     assert page |> Page.frames() |> Enum.at(1) |> Frame.evaluate!("() => window['__clicked']") == true
   end
 
-  test "locator.contentFrame should work", %{page: page, server: server} do
+  test "LO-109 locator.contentFrame should work", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     locator = Page.locator(page, "iframe")
@@ -367,7 +367,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
     Locator.click!(button)
   end
 
-  test "frameLocator.owner should work", %{page: page, server: server} do
+  test "LO-110 frameLocator.owner should work", %{page: page, server: server} do
     route_iframe(page)
     Page.goto!(page, server.empty_page)
     frame_locator = Page.frame_locator(page, "iframe")
@@ -377,7 +377,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   end
 
   # https://github.com/microsoft/playwright/issues/42719
-  test "should treat elements inside hidden iframe as hidden", %{page: page} do
+  test "LO-111 should treat elements inside hidden iframe as hidden", %{page: page} do
     Page.set_content!(page, """
       <iframe name="hidden" style="visibility: hidden" srcdoc="<button>Hidden</button>"></iframe>
       <div style="visibility: hidden">
@@ -410,7 +410,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   end
 
   # https://github.com/microsoft/playwright/issues/42719
-  test "should wait for hidden iframe to become visible", %{page: page} do
+  test "LO-112 should wait for hidden iframe to become visible", %{page: page} do
     Page.set_content!(
       page,
       ~s|<iframe name="frame" style="visibility: hidden" srcdoc="<button onclick='window.__clicked = true'>Button</button>"></iframe>|
@@ -435,7 +435,7 @@ defmodule PlaywrightEx.Page.LocatorFrameTest do
   end
 
   # https://github.com/microsoft/playwright/issues/42719
-  test "should treat elements inside hidden cross-origin iframe as hidden", %{page: page, server: server} do
+  test "LO-113 should treat elements inside hidden cross-origin iframe as hidden", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(

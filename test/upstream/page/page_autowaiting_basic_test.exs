@@ -48,19 +48,19 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     Promise.await!(navigated)
   end
 
-  test "should await navigation when clicking anchor", %{page: page, server: server} do
+  test "AW-001 should await navigation when clicking anchor", %{page: page, server: server} do
     init_server(server)
     Page.set_content!(page, ~s(<a id="anchor" href="#{server.empty_page}">empty.html</a>))
     click_and_wait_for_navigated(page, "a")
     assert messages() == "route|navigated|click"
   end
 
-  test "should not stall on JS navigation link", %{page: page} do
+  test "AW-002 should not stall on JS navigation link", %{page: page} do
     Page.set_content!(page, ~s[<a href="javascript:console.log(1)">console.log</a>])
     Page.click!(page, "a")
   end
 
-  test "should await cross-process navigation when clicking anchor", %{page: page, server: server} do
+  test "AW-003 should await cross-process navigation when clicking anchor", %{page: page, server: server} do
     init_server(server)
     Page.set_content!(page, ~s(<a href="#{server.cross_process_prefix <> "/empty.html"}">empty.html</a>))
 
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     assert messages() == "route|navigated|click"
   end
 
-  test "should await form-get on click", %{page: page, server: server} do
+  test "AW-004 should await form-get on click", %{page: page, server: server} do
     test = self()
 
     TestServer.set_route(server, "/empty.html?foo=bar", fn conn ->
@@ -90,7 +90,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     assert messages() == "route|navigated|click"
   end
 
-  test "should await form-post on click", %{page: page, server: server} do
+  test "AW-005 should await form-post on click", %{page: page, server: server} do
     init_server(server)
 
     Page.set_content!(page, """
@@ -104,13 +104,13 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     assert messages() == "route|navigated|click"
   end
 
-  test "should work with noWaitAfter: true", %{page: page, server: server} do
+  test "AW-006 should work with noWaitAfter: true", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", &hang/1)
     Page.set_content!(page, ~s(<a id="anchor" href="#{server.empty_page}">empty.html</a>))
     Page.click!(page, "a", no_wait_after: true)
   end
 
-  test "should work with dblclick without noWaitAfter when navigation is stalled", %{page: page, server: server} do
+  test "AW-007 should work with dblclick without noWaitAfter when navigation is stalled", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", &hang/1)
     Page.set_content!(page, ~s(<a id="anchor" href="#{server.empty_page}">empty.html</a>))
     Page.dblclick!(page, "a")
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
   # of the event that resolves waitForLoadState, before the 'clickload' continuation; here it runs
   # in its own process, so `removeAllListeners` with `behavior: 'wait'` (the fired `once` left no
   # listener to remove) awaits it before 'clickload' is pushed.
-  test "should work with waitForLoadState(load)", %{page: page, server: server} do
+  test "AW-008 should work with waitForLoadState(load)", %{page: page, server: server} do
     init_server(server)
     Page.set_content!(page, ~s(<a id="anchor" href="#{server.empty_page}">empty.html</a>))
     test = self()
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     assert messages() == "route|load|clickload"
   end
 
-  test "should work with goto following click", %{page: page, server: server} do
+  test "AW-009 should work with goto following click", %{page: page, server: server} do
     TestServer.set_route(server, "/login.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -154,9 +154,9 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     Page.goto!(page, server.empty_page)
   end
 
-  test "should report navigation in the log when clicking anchor"
+  test "AW-010 should report navigation in the log when clicking anchor"
 
-  test "should report and collapse log in action", %{page: page} do
+  test "AW-011 should report and collapse log in action", %{page: page} do
     Page.set_content!(page, ~s(<input id='checkbox' type='checkbox' style="visibility: hidden"></input>))
     {:error, error} = Locator.click(Page.locator(page, "input"), timeout: 5000)
     message = Exception.message(error)
@@ -167,7 +167,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
     assert length(log_lines) < 30
   end
 
-  test "should report and collapse log in expect", %{page: page} do
+  test "AW-012 should report and collapse log in expect", %{page: page} do
     Page.set_content!(page, ~s(<input id='checkbox' type='checkbox' style="visibility: hidden"></input>))
     {:error, error} = Expect.to_be_visible(Page.locator(page, "input"), timeout: 5000)
     message = Exception.message(error)

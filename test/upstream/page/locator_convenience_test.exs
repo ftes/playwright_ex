@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
 
   @moduletag :page
 
-  test "should have a nice preview", %{page: page, server: server} do
+  test "LO-057 should have a nice preview", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
     outer = Page.locator(page, "#outer")
     inner = Locator.locator(outer, "#inner")
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert to_string(check) == ~s'Page.locator(page, "#check")'
   end
 
-  test "getAttribute should work", %{page: page, server: server} do
+  test "LO-058 getAttribute should work", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
     locator = Page.locator(page, "#outer")
     assert Locator.get_attribute!(locator, "name") == "value"
@@ -33,7 +33,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Page.get_attribute!(page, "#outer", "foo") == nil
   end
 
-  test "inputValue should work", %{page: page, server: server} do
+  test "LO-059 inputValue should work", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
 
     Page.select_option!(page, "#select", "foo")
@@ -54,21 +54,21 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Exception.message(e) =~ "Node is not an <input>, <textarea> or <select> element"
   end
 
-  test "innerHTML should work", %{page: page, server: server} do
+  test "LO-060 innerHTML should work", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
     locator = Page.locator(page, "#outer")
     assert Locator.inner_html!(locator) == "<div id=\"inner\">Text,\nmore text</div>"
     assert Page.inner_html!(page, "#outer") == "<div id=\"inner\">Text,\nmore text</div>"
   end
 
-  test "innerText should work", %{page: page, server: server} do
+  test "LO-061 innerText should work", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
     locator = Page.locator(page, "#inner")
     assert Locator.inner_text!(locator) == "Text, more text"
     assert Page.inner_text!(page, "#inner") == "Text, more text"
   end
 
-  test "innerText should throw", %{page: page} do
+  test "LO-062 innerText should throw", %{page: page} do
     Page.set_content!(page, "<svg>text</svg>")
     {:error, error1} = Page.inner_text(page, "svg")
     assert Exception.message(error1) =~ "Node is not an HTMLElement"
@@ -77,21 +77,21 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Exception.message(error2) =~ "Node is not an HTMLElement"
   end
 
-  test "innerText should produce log", %{page: page} do
+  test "LO-063 innerText should produce log", %{page: page} do
     Page.set_content!(page, "<div>Hello</div>")
     locator = Page.locator(page, "span")
     {:error, error} = Locator.inner_text(locator, timeout: 1000)
     assert Exception.message(error) =~ "waiting for locator('span')"
   end
 
-  test "textContent should work", %{page: page, server: server} do
+  test "LO-064 textContent should work", %{page: page, server: server} do
     Page.goto!(page, "#{server.prefix}/dom.html")
     locator = Page.locator(page, "#inner")
     assert Locator.text_content!(locator) == "Text,\nmore text"
     assert Page.text_content!(page, "#inner") == "Text,\nmore text"
   end
 
-  test "isEnabled and isDisabled should work", %{page: page} do
+  test "LO-065 isEnabled and isDisabled should work", %{page: page} do
     Page.set_content!(page, """
       <button disabled>button1</button>
       <button>button2</button>
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Page.is_disabled!(page, ~s|:text("button2")|) == false
   end
 
-  test "isEditable should work", %{page: page} do
+  test "LO-066 isEditable should work", %{page: page} do
     Page.set_content!(page, """
       <input id=input1 disabled>
       <textarea></textarea>
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
              "Element is not an <input>, <textarea>, <select> or [contenteditable] and does not have a role allowing [aria-readonly]"
   end
 
-  test "isChecked should work", %{page: page} do
+  test "LO-067 isChecked should work", %{page: page} do
     Page.set_content!(page, "<input type='checkbox' checked><div>Not a checkbox</div>")
     element = Page.locator(page, "input")
     assert Locator.is_checked!(element) == true
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Exception.message(error) =~ "Not a checkbox or radio button"
   end
 
-  test "isChecked should work for indeterminate input", %{page: page} do
+  test "LO-068 isChecked should work for indeterminate input", %{page: page} do
     Page.set_content!(page, ~s(<input type="checkbox" checked>))
     Locator.evaluate!(Page.locator(page, "input"), "e => e.indeterminate = true")
 
@@ -170,17 +170,17 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     Expect.not_to_be_checked!(Page.locator(page, "input"))
   end
 
-  test "allTextContents should work", %{page: page} do
+  test "LO-069 allTextContents should work", %{page: page} do
     Page.set_content!(page, "<div>A</div><div>B</div><div>C</div>")
     assert Locator.all_text_contents!(Page.locator(page, "div")) == ["A", "B", "C"]
   end
 
-  test "allInnerTexts should work", %{page: page} do
+  test "LO-070 allInnerTexts should work", %{page: page} do
     Page.set_content!(page, "<div>A</div><div>B</div><div>C</div>")
     assert Locator.all_inner_texts!(Page.locator(page, "div")) == ["A", "B", "C"]
   end
 
-  test "should return page", %{page: page, server: server} do
+  test "LO-071 should return page", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/two-frames.html")
     outer = Page.locator(page, "#outer")
     assert Locator.page(outer) == page
@@ -192,27 +192,27 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Locator.page(in_frame) == page
   end
 
-  test "description should return null for locator without description", %{page: page} do
+  test "LO-072 description should return null for locator without description", %{page: page} do
     locator = Page.locator(page, "button")
     assert Locator.description(locator) == nil
   end
 
-  test "description should return description for locator with simple description", %{page: page} do
+  test "LO-073 description should return description for locator with simple description", %{page: page} do
     locator = page |> Page.locator("button") |> Locator.describe("Submit button")
     assert Locator.description(locator) == "Submit button"
   end
 
-  test "description should return description with special characters", %{page: page} do
+  test "LO-074 description should return description with special characters", %{page: page} do
     locator = page |> Page.locator("div") |> Locator.describe(~s|Button with "quotes" and 'apostrophes'|)
     assert Locator.description(locator) == ~s|Button with "quotes" and 'apostrophes'|
   end
 
-  test "description should return description for chained locators", %{page: page} do
+  test "LO-075 description should return description for chained locators", %{page: page} do
     locator = page |> Page.locator("form") |> Locator.locator("input") |> Locator.describe("Form input field")
     assert Locator.description(locator) == "Form input field"
   end
 
-  test "description should return description for locator with multiple describe calls", %{page: page} do
+  test "LO-076 description should return description for locator with multiple describe calls", %{page: page} do
     locator1 = page |> Page.locator("foo") |> Locator.describe("First description")
     assert Locator.description(locator1) == "First description"
     locator2 = locator1 |> Locator.locator("button") |> Locator.describe("Second description")
@@ -221,14 +221,14 @@ defmodule PlaywrightEx.Page.LocatorConvenienceTest do
     assert Locator.description(locator3) == nil
   end
 
-  test "toString() returns formatted locator", %{page: page} do
+  test "LO-077 toString() returns formatted locator", %{page: page} do
     locator = Page.get_by_role(page, "button", name: "Submit")
     # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert Locator.to_string(locator) == ~s'Page.get_by_role(page, :button, name: "Submit")'
     assert Locator.description(locator) == nil
   end
 
-  test "toString() prefers description", %{page: page} do
+  test "LO-078 toString() prefers description", %{page: page} do
     locator = page |> Page.get_by_role("button", name: "Submit") |> Locator.describe("Submit button")
     assert Locator.to_string(locator) == "Submit button"
     assert Locator.to_string(locator) == Locator.description(locator)

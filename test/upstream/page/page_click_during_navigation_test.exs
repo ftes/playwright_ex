@@ -4,5 +4,5 @@ defmodule PlaywrightEx.Page.PageClickDuringNavigationTest do
 
   @moduletag :page
 
-  test "should not fail with internal error upon navigation"
+  test "CL-109 should not fail with internal error upon navigation"
 end

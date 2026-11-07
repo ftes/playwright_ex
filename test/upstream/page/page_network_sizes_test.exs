@@ -14,7 +14,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  test "should set bodySize and headersSize", %{page: page, server: server} do
+  test "NE-058 should set bodySize and headersSize", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request = Page.wait_for_event(page, :request)
     Page.evaluate!(page, "() => fetch('./get', { method: 'POST', body: '12345' }).then(r => r.text())")
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     assert sizes.requestHeadersSize >= 250
   end
 
-  test "should set bodySize to 0 if there was no body", %{page: page, server: server} do
+  test "NE-059 should set bodySize to 0 if there was no body", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request = Page.wait_for_event(page, :request)
     Page.evaluate!(page, "() => fetch('./get').then(r => r.text())")
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     assert sizes.requestHeadersSize >= 190
   end
 
-  test "should set bodySize, headersSize, and transferSize", %{page: page, server: server} do
+  test "NE-060 should set bodySize, headersSize, and transferSize", %{page: page, server: server} do
     TestServer.set_route(server, "/get", fn conn ->
       # In Firefox, |fetch| will be hanging until it receives |Content-Type| header
       # from server.
@@ -54,14 +54,14 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     assert sizes.responseHeadersSize >= 100
   end
 
-  test "should set bodySize to 0 when there was no response body", %{page: page, server: server} do
+  test "NE-061 should set bodySize to 0 when there was no response body", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)
     sizes = Request.sizes!(Response.request(response))
     assert sizes.responseBodySize == 0
     assert sizes.responseHeadersSize >= 150
   end
 
-  test "should have the correct responseBodySize", %{page: page, server: server, asset: asset} do
+  test "NE-062 should have the correct responseBodySize", %{page: page, server: server, asset: asset} do
     response = Page.goto!(page, server.prefix <> "/simplezip.json")
     sizes = Request.sizes!(Response.request(response))
     assert sizes.responseBodySize == File.stat!(asset.("simplezip.json")).size
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
             true ->
               nil
           end)
-  test "should have the correct responseBodySize for chunked request", %{
+  test "NE-063 should have the correct responseBodySize for chunked request", %{
     page: page,
     server: server,
     asset: asset,
@@ -113,7 +113,11 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     end
   end
 
-  test "should have the correct responseBodySize with gzip compression", %{page: page, server: server, asset: asset} do
+  test "NE-064 should have the correct responseBodySize with gzip compression", %{
+    page: page,
+    server: server,
+    asset: asset
+  } do
     TestServer.enable_gzip(server, "/simplezip.json")
     Page.goto!(page, server.empty_page)
     response = Page.wait_for_event(page, :response)
@@ -124,7 +128,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     assert sizes.responseBodySize == byte_size(:zlib.gzip(File.read!(asset.("simplezip.json"))))
   end
 
-  test "should handle redirects", %{page: page, server: server} do
+  test "NE-065 should handle redirects", %{page: page, server: server} do
     TestServer.set_redirect(server, "/foo", "/bar")
     TestServer.set_route(server, "/bar", &Plug.Conn.send_resp(&1, 200, "bar"))
     Page.goto!(page, server.empty_page)
@@ -143,7 +147,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
     assert Request.sizes!(new_request).responseBodySize == 3
   end
 
-  test "should throw for failed requests", %{page: page, server: server} do
+  test "NE-066 should throw for failed requests", %{page: page, server: server} do
     # res.connection.destroy(): kill the connection's handler process.
     TestServer.set_route(server, "/one-style.css", fn _conn -> Process.exit(self(), :kill) end)
     Page.goto!(page, server.empty_page)
@@ -156,7 +160,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
 
   for status_code <- [200, 401, 404, 500] do
     @status_code status_code
-    test "should work with #{status_code} status code", %{page: page, server: server} do
+    test "NE-067 should work with #{status_code} status code", %{page: page, server: server} do
       status_code = @status_code
 
       TestServer.set_route(server, "/foo", fn conn ->
@@ -185,7 +189,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
   end
 
   @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
-  test "should have correct responseBodySize for 404 with content", %{page: page, server: server} do
+  test "NE-068 should have correct responseBodySize for 404 with content", %{page: page, server: server} do
     TestServer.set_route(
       server,
       "/broken-image.png",
@@ -213,7 +217,7 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
   end
 
   @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
-  test "should return sizes without hanging", %{page: page, server: server} do
+  test "NE-069 should return sizes without hanging", %{page: page, server: server} do
     TestServer.set_route(server, "/has-abandoned-fetch", fn conn ->
       Plug.Conn.send_resp(conn, 200, """
       <!DOCTYPE html>

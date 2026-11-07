@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
   @moduletag :page
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
-  test "should work @smoke", %{page: page} do
+  test "FO-001 should work @smoke", %{page: page} do
     # it.skip(browserName === 'firefox' && !isBidi);  -- isBidi: we run the default protocols
     Page.set_content!(page, "<div id=d1 tabIndex=0></div>")
     assert Page.evaluate!(page, "() => document.activeElement.nodeName") == "BODY"
@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
   end
 
   # `focused = true` / `blurred = true`: messages to the test process.
-  test "should emit focus event", %{page: page} do
+  test "FO-002 should emit focus event", %{page: page} do
     Page.set_content!(page, "<div id=d1 tabIndex=0></div>")
     test = self()
     Page.expose_function!(page, "focusEvent", fn -> send(test, :focused) end)
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
     assert_receive :focused
   end
 
-  test "should emit blur event", %{page: page} do
+  test "FO-003 should emit blur event", %{page: page} do
     Page.set_content!(page, "<div id=d1 tabIndex=0>DIV1</div><div id=d2 tabIndex=0>DIV2</div>")
     Page.focus!(page, "#d1")
     test = self()
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
     assert_receive :blurred
   end
 
-  test "should traverse focus", %{page: page} do
+  test "FO-004 should traverse focus", %{page: page} do
     Page.set_content!(page, ~s|<input id="i1"><input id="i2">|)
     test = self()
     Page.expose_function!(page, "focusEvent", fn -> send(test, :focused) end)
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
     assert Page.eval_on_selector!(page, "#i2", "e => e.value") == "Last"
   end
 
-  test "should traverse focus in all directions", %{page: page} do
+  test "FO-005 should traverse focus in all directions", %{page: page} do
     Page.set_content!(page, ~s|<input value="1"><input value="2"><input value="3">|)
     keyboard = Page.keyboard(page)
     Keyboard.press!(keyboard, "Tab")
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
            do:
              "upstream skip: Chromium and WebKit both have settings for tab traversing all links, but it is only on by default in WebKit."
          )
-  test "should traverse only form elements", %{page: page} do
+  test "FO-006 should traverse only form elements", %{page: page} do
     # it.skip(platform !== 'darwin' || browserName !== 'webkit',
     #     'Chromium and WebKit both have settings for tab traversing all links, but it is only on by default in WebKit.');
     Page.set_content!(page, """
@@ -128,7 +128,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: Safari does not focus on click")
-  test "clicking checkbox should activate it", %{page: page} do
+  test "FO-007 clicking checkbox should activate it", %{page: page} do
     # it.skip(browserName === 'webkit', 'Safari does not focus on click');
     Page.set_content!(page, "<input type=checkbox></input>")
     Page.click!(page, "input")
@@ -138,7 +138,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
 
   # https://github.com/microsoft/playwright/issues/32339
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
-  test "tab should cycle between single input and browser", %{
+  test "FO-008 tab should cycle between single input and browser", %{
     page: page
   } do
     # it.skip(browserName === 'chromium' && !isHeadlessShell, 'Chromium keeps input focused.');
@@ -172,7 +172,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
 
   # https://github.com/microsoft/playwright/issues/32339
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: firefox")
-  test "tab should cycle between document elements and browser", %{
+  test "FO-009 tab should cycle between document elements and browser", %{
     page: page
   } do
     # it.skip(browserName === 'chromium' && !isHeadlessShell, 'Chromium keeps last input focused.');
@@ -227,7 +227,7 @@ defmodule PlaywrightEx.Page.PageFocusTest do
   end
 
   # https://github.com/microsoft/playwright/issues/14254
-  test "keeps focus on element when attempting to focus a non-focusable element", %{page: page} do
+  test "FO-010 keeps focus on element when attempting to focus a non-focusable element", %{page: page} do
     Page.set_content!(page, """
     <div id="focusable" tabindex="0">focusable</div>
     <div id="non-focusable">not focusable</div>

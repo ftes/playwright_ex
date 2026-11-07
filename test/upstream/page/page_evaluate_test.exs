@@ -23,63 +23,63 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     %JSError{name: "foobar", message: "error message", stack: Exception.format_stacktrace(stacktrace)}
   end
 
-  test "should work @smoke", %{page: page} do
+  test "EV-001 should work @smoke", %{page: page} do
     result = Page.evaluate!(page, "() => 7 * 3")
     assert result == 21
   end
 
-  test "should transfer NaN", %{page: page} do
+  test "EV-002 should transfer NaN", %{page: page} do
     result = Page.evaluate!(page, "a => a", :nan)
     assert result === :nan
   end
 
-  test "should transfer -0", %{page: page} do
+  test "EV-003 should transfer -0", %{page: page} do
     result = Page.evaluate!(page, "a => a", -0.0)
     assert result === -0.0
   end
 
-  test "should transfer Infinity", %{page: page} do
+  test "EV-004 should transfer Infinity", %{page: page} do
     result = Page.evaluate!(page, "a => a", :infinity)
     assert result === :infinity
   end
 
-  test "should transfer -Infinity", %{page: page} do
+  test "EV-005 should transfer -Infinity", %{page: page} do
     result = Page.evaluate!(page, "a => a", :neg_infinity)
     assert result === :neg_infinity
   end
 
-  test "should roundtrip unserializable values", %{page: page} do
+  test "EV-006 should roundtrip unserializable values", %{page: page} do
     value = %{"infinity" => :infinity, "nInfinity" => :neg_infinity, "nZero" => -0.0, "nan" => :nan}
     result = Page.evaluate!(page, "value => value", value)
     assert result === value
   end
 
-  test "should roundtrip promise to value", %{page: page} do
+  test "EV-007 should roundtrip promise to value", %{page: page} do
     assert Page.evaluate!(page, "value => Promise.resolve(value)", :null) === :null
     assert Page.evaluate!(page, "value => Promise.resolve(value)", :infinity) === :infinity
     assert Page.evaluate!(page, "value => Promise.resolve(value)", -0.0) === -0.0
     assert Page.evaluate!(page, "value => Promise.resolve(value)", nil) === nil
   end
 
-  test "should roundtrip promise to unserializable values", %{page: page} do
+  test "EV-008 should roundtrip promise to unserializable values", %{page: page} do
     value = %{"infinity" => :infinity, "nInfinity" => :neg_infinity, "nZero" => -0.0, "nan" => :nan}
     result = Page.evaluate!(page, "value => Promise.resolve(value)", value)
     assert result === value
   end
 
-  test "should transfer arrays", %{page: page} do
+  test "EV-009 should transfer arrays", %{page: page} do
     result = Page.evaluate!(page, "a => a", [1, 2, 3])
     assert result == [1, 2, 3]
   end
 
-  test "should transfer arrays as arrays, not objects", %{page: page} do
+  test "EV-010 should transfer arrays as arrays, not objects", %{page: page} do
     result = Page.evaluate!(page, "a => Array.isArray(a)", [1, 2, 3])
     assert result == true
   end
 
   # Elixir has no typed arrays to pass (`page.evaluate(a => a, typedArray)`): the page makes them,
   # and they parse to lists (as in playwright-python).
-  test "should transfer typed arrays", %{page: page} do
+  test "EV-011 should transfer typed arrays", %{page: page} do
     test_cases = [
       {"new Int8Array([1, 2, 3])", [1, 2, 3]},
       {"new Uint8Array([1, 2, 3])", [1, 2, 3]},
@@ -103,34 +103,34 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   # The numbers a Float32Array holds.
   defp float32(numbers), do: for(n <- numbers, <<f::float-32>> = <<n::float-32>>, do: f)
 
-  test "should transfer bigint", %{page: page} do
+  test "EV-012 should transfer bigint", %{page: page} do
     # A bigint parses to an integer. An integer travels as a bigint beyond
     # Number.MAX_SAFE_INTEGER (17 would be a number): 17n is 2^53 + 17 here.
     assert Page.evaluate!(page, "() => 42n") == 42
     assert Page.evaluate!(page, "a => a", Integer.pow(2, 53) + 17) == Integer.pow(2, 53) + 17
   end
 
-  test "should transfer maps as empty objects", %{page: page} do
+  test "EV-013 should transfer maps as empty objects", %{page: page} do
     # `page.evaluate(a => ..., { x: new Map([[1, 2]]) })`  -- not ported: an Elixir map is an object
     assert Page.evaluate!(page, "() => new Map([[1, 2]])") == %{}
   end
 
-  test "should transfer sets as empty objects", %{page: page} do
+  test "EV-014 should transfer sets as empty objects", %{page: page} do
     # `page.evaluate(a => ..., { x: new Set([1, 2]) })`  -- not ported: no Elixir value serializes as a Set
     assert Page.evaluate!(page, "() => new Set([1, 2])") == %{}
   end
 
-  test "should modify global environment", %{page: page} do
+  test "EV-015 should modify global environment", %{page: page} do
     Page.evaluate!(page, "() => window['globalVar'] = 123")
     assert Page.evaluate!(page, "globalVar") == 123
   end
 
-  test "should evaluate in the page context", %{page: page, server: server} do
+  test "EV-016 should evaluate in the page context", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/global-var.html")
     assert Page.evaluate!(page, "globalVar") == 123
   end
 
-  test "should return undefined for objects with symbols", %{page: page} do
+  test "EV-017 should return undefined for objects with symbols", %{page: page} do
     assert Page.evaluate!(page, "() => [Symbol('foo4')]") == [nil]
 
     assert Page.evaluate!(page, """
@@ -148,25 +148,25 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
            """) == %{"foo" => [%{"a" => nil}]}
   end
 
-  test "should work with function shorthands"
+  test "EV-018 should work with function shorthands"
 
-  test "should work with unicode chars", %{page: page} do
+  test "EV-019 should work with unicode chars", %{page: page} do
     result = Page.evaluate!(page, "a => a['中文字符']", %{"中文字符" => 42})
     assert result == 42
   end
 
-  test "should work with large strings", %{page: page} do
+  test "EV-020 should work with large strings", %{page: page} do
     expected = String.duplicate("x", 40_000)
     assert Page.evaluate!(page, "data => data", expected) == expected
   end
 
-  test "should work with large unicode strings", %{page: page} do
+  test "EV-021 should work with large unicode strings", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/16367
     expected = String.duplicate("🎭", 10_000)
     assert Page.evaluate!(page, "data => data", expected) == expected
   end
 
-  test "should throw when evaluation triggers reload", %{page: page} do
+  test "EV-022 should throw when evaluation triggers reload", %{page: page} do
     error =
       Page.evaluate(page, """
       () => {
@@ -178,12 +178,12 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ "navigation"
   end
 
-  test "should await promise", %{page: page} do
+  test "EV-023 should await promise", %{page: page} do
     result = Page.evaluate!(page, "() => Promise.resolve(8 * 7)")
     assert result == 56
   end
 
-  test "should work right after framenavigated", %{page: page, server: server} do
+  test "EV-024 should work right after framenavigated", %{page: page, server: server} do
     me = self()
     Page.on(page, :frame_navigated, fn frame -> send(me, {:frame_evaluation, Frame.evaluate(frame, "() => 6 * 7")}) end)
     Page.goto!(page, server.empty_page)
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert_receive {:frame_evaluation, {:ok, 42}}, 30_000
   end
 
-  test "should work right after a cross-origin navigation", %{page: page, server: server} do
+  test "EV-025 should work right after a cross-origin navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     me = self()
     Page.on(page, :frame_navigated, fn frame -> send(me, {:frame_evaluation, Frame.evaluate(frame, "() => 6 * 7")}) end)
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert_receive {:frame_evaluation, {:ok, 42}}, 30_000
   end
 
-  test "should work from-inside an exposed function", %{page: page} do
+  test "EV-026 should work from-inside an exposed function", %{page: page} do
     # Setup inpage callback, which calls Page.evaluate
     Page.expose_function!(page, "callController", fn a, b ->
       Page.evaluate!(page, "({ a, b }) => a * b", %{a: a, b: b})
@@ -216,25 +216,25 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == 27
   end
 
-  test "should reject promise with exception", %{page: page} do
+  test "EV-027 should reject promise with exception", %{page: page} do
     error = Page.evaluate(page, "() => not_existing_object.property")
     assert {:error, _} = error
     assert message(error) =~ "not_existing_object"
   end
 
-  test "should support thrown strings as error messages", %{page: page} do
+  test "EV-028 should support thrown strings as error messages", %{page: page} do
     error = Page.evaluate(page, "() => { throw 'qwerty'; }")
     assert {:error, _} = error
     assert message(error) =~ "qwerty"
   end
 
-  test "should support thrown numbers as error messages", %{page: page} do
+  test "EV-029 should support thrown numbers as error messages", %{page: page} do
     error = Page.evaluate(page, "() => { throw 100500; }")
     assert {:error, _} = error
     assert message(error) =~ "100500"
   end
 
-  test "should reject when a falsy value is thrown", %{page: page} do
+  test "EV-030 should reject when a falsy value is thrown", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/42661
     for value <- ["null", "undefined", "0", "''", "false", "NaN", "-0", "0n"] do
       assert {:error, error} = Page.evaluate(page, "(() => { throw #{value}; })()"), "throw #{value}"
@@ -244,7 +244,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     end
   end
 
-  test "should include a non-error rejection value in the error message", %{page: page} do
+  test "EV-031 should include a non-error rejection value in the error message", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/42661
     error = Page.evaluate(page, "() => Promise.reject(7)")
     assert message(error) =~ "7"
@@ -252,34 +252,34 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(null_error) =~ "null"
   end
 
-  test "should return complex objects", %{page: page} do
+  test "EV-032 should return complex objects", %{page: page} do
     object = %{"foo" => "bar!"}
     result = Page.evaluate!(page, "a => a", object)
     # expect(result).not.toBe(object)  -- not ported: Elixir terms have no identity
     assert result == object
   end
 
-  test "should return NaN", %{page: page} do
+  test "EV-033 should return NaN", %{page: page} do
     result = Page.evaluate!(page, "() => NaN")
     assert result === :nan
   end
 
-  test "should return -0", %{page: page} do
+  test "EV-034 should return -0", %{page: page} do
     result = Page.evaluate!(page, "() => -0")
     assert result === -0.0
   end
 
-  test "should return Infinity", %{page: page} do
+  test "EV-035 should return Infinity", %{page: page} do
     result = Page.evaluate!(page, "() => Infinity")
     assert result === :infinity
   end
 
-  test "should return -Infinity", %{page: page} do
+  test "EV-036 should return -Infinity", %{page: page} do
     result = Page.evaluate!(page, "() => -Infinity")
     assert result === :neg_infinity
   end
 
-  test "should work with overwritten Promise", %{page: page} do
+  test "EV-037 should work with overwritten Promise", %{page: page} do
     Page.evaluate!(page, """
     () => {
       const originalPromise = window.Promise;
@@ -328,7 +328,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert Page.evaluate!(page, "() => Promise.resolve(42)") == 42
   end
 
-  test "should throw when passed more than one parameter", %{page: page} do
+  test "EV-038 should throw when passed more than one parameter", %{page: page} do
     expect_throw = fn f ->
       {:error, error} = f.()
       assert Exception.message(error) =~ "Too many arguments"
@@ -362,34 +362,34 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     expect_throw.(fn -> Frame.evaluate(frame, "(a, b) => false", 1, 2) end)
   end
 
-  test "should accept \"undefined\" as one of multiple parameters", %{page: page} do
+  test "EV-039 should accept \"undefined\" as one of multiple parameters", %{page: page} do
     result = Page.evaluate!(page, "({ a, b }) => Object.is(a, undefined) && Object.is(b, 'foo')", %{a: nil, b: "foo"})
     assert result == true
   end
 
   # `toEqual({})` ignores properties that are `undefined` (`nil`).
-  test "should properly serialize undefined arguments", %{page: page} do
+  test "EV-040 should properly serialize undefined arguments", %{page: page} do
     assert Page.evaluate!(page, "x => ({ a: x })", nil) == %{"a" => nil}
   end
 
-  test "should properly serialize undefined fields", %{page: page} do
+  test "EV-041 should properly serialize undefined fields", %{page: page} do
     assert Page.evaluate!(page, "() => ({ a: undefined })") == %{"a" => nil}
   end
 
-  test "should return undefined properties", %{page: page} do
+  test "EV-042 should return undefined properties", %{page: page} do
     value = Page.evaluate!(page, "() => ({ a: undefined })")
     assert Map.has_key?(value, "a")
   end
 
-  test "should properly serialize null arguments", %{page: page} do
+  test "EV-043 should properly serialize null arguments", %{page: page} do
     assert Page.evaluate!(page, "x => x", :null) == :null
   end
 
-  test "should properly serialize null fields", %{page: page} do
+  test "EV-044 should properly serialize null fields", %{page: page} do
     assert Page.evaluate!(page, "() => ({ a: null })") == %{"a" => :null}
   end
 
-  test "should properly serialize PerformanceMeasure object", %{page: page} do
+  test "EV-045 should properly serialize PerformanceMeasure object", %{page: page} do
     assert [%{"duration" => duration, "entryType" => "measure", "name" => "my-measure", "startTime" => start_time}] =
              Page.evaluate!(page, """
              () => {
@@ -405,7 +405,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   end
 
   @tag skip: if(System.get_env("PW_CLOCK"), do: "upstream skip: PW_CLOCK")
-  test "should properly serialize window.performance object", %{page: page} do
+  test "EV-046 should properly serialize window.performance object", %{page: page} do
     assert %{
              "navigation" => %{"redirectCount" => 0, "type" => type},
              "timeOrigin" => time_origin,
@@ -425,7 +425,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert Enum.all?(Map.values(timing), &is_number/1)
   end
 
-  test "should return undefined for non-serializable objects", %{page: page} do
+  test "EV-047 should return undefined for non-serializable objects", %{page: page} do
     assert Page.evaluate!(page, "() => function() {}") == nil
   end
 
@@ -433,7 +433,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
          if(@browser_name == "firefox",
            do: "upstream fixme: Firefox Juggler -> Playwright serialiser does not throw for deep references."
          )
-  test "should throw for too deep reference chain", %{page: page} do
+  test "EV-048 should throw for too deep reference chain", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/33997
     # it.fixme(browserName === 'firefox' && !isBidi, 'Firefox Juggler -> Playwright serialiser does not throw for deep references.')
     error =
@@ -457,7 +457,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: this is a chromium-only limitation")
-  test "should throw for too deep reference chain 2", %{page: page} do
+  test "EV-049 should throw for too deep reference chain 2", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/40940
     # it.skip(browserName !== 'chromium', 'this is a chromium-only limitation');
     error =
@@ -478,34 +478,34 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   end
 
   # `String(fn)` is `inspect(fn)` here.
-  test "should throw usable message for unserializable shallow function", %{page: page} do
+  test "EV-050 should throw usable message for unserializable shallow function", %{page: page} do
     error = Page.evaluate(page, "arg => arg", fn -> nil end)
     assert message(error) =~ ~r/Attempting to serialize unexpected value: #Function</
   end
 
-  test "should throw usable message for unserializable object one deep function", %{page: page} do
+  test "EV-051 should throw usable message for unserializable object one deep function", %{page: page} do
     error = Page.evaluate(page, "arg => arg", %{aProperty: fn -> nil end})
     assert message(error) =~ ~r/Attempting to serialize unexpected value at position "aProperty": #Function</
   end
 
-  test "should throw usable message for unserializable object nested function", %{page: page} do
+  test "EV-052 should throw usable message for unserializable object nested function", %{page: page} do
     error = Page.evaluate(page, "arg => arg", %{a: %{inner: %{property: fn -> nil end}}})
     assert message(error) =~ ~r/Attempting to serialize unexpected value at position "a\.inner\.property": #Function</
   end
 
-  test "should throw usable message for unserializable array nested function", %{page: page} do
+  test "EV-053 should throw usable message for unserializable array nested function", %{page: page} do
     error = Page.evaluate(page, "arg => arg", %{a: %{inner: ["firstValue", %{property: fn -> nil end}]}})
 
     assert message(error) =~
              ~r/Attempting to serialize unexpected value at position "a\.inner\[1\]\.property": #Function</
   end
 
-  test "should alias Window, Document and Node", %{page: page} do
+  test "EV-054 should alias Window, Document and Node", %{page: page} do
     object = Page.evaluate!(page, "[window, document, document.body]")
     assert object == ["ref: <Window>", "ref: <Document>", "ref: <Node>"]
   end
 
-  test "should work for circular object", %{page: page} do
+  test "EV-055 should work for circular object", %{page: page} do
     result =
       Page.evaluate!(page, """
       () => {
@@ -519,7 +519,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == %{"b" => :circular}
   end
 
-  test "should be able to throw a tricky error", %{page: page} do
+  test "EV-056 should be able to throw a tricky error", %{page: page} do
     window_handle = Page.evaluate_handle!(page, "() => window")
 
     error_text =
@@ -532,29 +532,29 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ error_text
   end
 
-  test "should accept a string", %{page: page} do
+  test "EV-057 should accept a string", %{page: page} do
     result = Page.evaluate!(page, "1 + 2")
     assert result == 3
   end
 
-  test "should accept a string with semi colons", %{page: page} do
+  test "EV-058 should accept a string with semi colons", %{page: page} do
     result = Page.evaluate!(page, "1 + 5;")
     assert result == 6
   end
 
-  test "should accept a string with comments", %{page: page} do
+  test "EV-059 should accept a string with comments", %{page: page} do
     result = Page.evaluate!(page, "2 + 5;\n// do some math!")
     assert result == 7
   end
 
-  test "should accept element handle as an argument", %{page: page} do
+  test "EV-060 should accept element handle as an argument", %{page: page} do
     Page.set_content!(page, "<section>42</section>")
     element = Page.query_selector!(page, "section")
     text = Page.evaluate!(page, "e => e.textContent", element)
     assert text == "42"
   end
 
-  test "should throw if underlying element was disposed", %{page: page} do
+  test "EV-061 should throw if underlying element was disposed", %{page: page} do
     Page.set_content!(page, "<section>39</section>")
     element = Page.query_selector!(page, "section")
     assert element
@@ -563,7 +563,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ "no object with guid"
   end
 
-  test "should simulate a user gesture", %{page: page} do
+  test "EV-062 should simulate a user gesture", %{page: page} do
     result =
       Page.evaluate!(page, """
       () => {
@@ -576,7 +576,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == true
   end
 
-  test "should throw a nice error after a navigation", %{page: page} do
+  test "EV-063 should throw a nice error after a navigation", %{page: page} do
     error_promise =
       Runtime.Promise.async(fn -> Page.evaluate(page, "() => new Promise(f => window['__resolve'] = f)") end)
 
@@ -593,7 +593,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ "navigation"
   end
 
-  test "should not throw an error when evaluation does a navigation", %{page: page, server: server} do
+  test "EV-064 should not throw an error when evaluation does a navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/one-style.html")
 
     result =
@@ -607,7 +607,9 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == [42]
   end
 
-  test "should not throw an error when evaluation does a synchronous navigation and returns an object", %{page: page} do
+  test "EV-065 should not throw an error when evaluation does a synchronous navigation and returns an object", %{
+    page: page
+  } do
     # It is important to be on about:blank for sync reload.
     result =
       Page.evaluate!(page, """
@@ -620,7 +622,9 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == %{"a" => 42}
   end
 
-  test "should not throw an error when evaluation does a synchronous navigation and returns undefined", %{page: page} do
+  test "EV-066 should not throw an error when evaluation does a synchronous navigation and returns undefined", %{
+    page: page
+  } do
     # It is important to be on about:blank for sync reload.
     result =
       Page.evaluate!(page, """
@@ -633,7 +637,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == nil
   end
 
-  test "should transfer 100Mb of data from page to node.js", %{page: page} do
+  test "EV-067 should transfer 100Mb of data from page to node.js", %{page: page} do
     # it.skip(mode !== 'default')  -- always default mode
 
     # This is too slow with wire.
@@ -641,7 +645,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert byte_size(a) == 100 * 1024 * 1024
   end
 
-  test "should throw error with detailed information on exception inside promise ", %{page: page} do
+  test "EV-068 should throw error with detailed information on exception inside promise ", %{page: page} do
     error =
       Page.evaluate(page, """
       () => new Promise(() => {
@@ -652,13 +656,13 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ "Error in promise"
   end
 
-  test "should work even when JSON is set to null", %{page: page} do
+  test "EV-069 should work even when JSON is set to null", %{page: page} do
     Page.evaluate!(page, "() => { window.JSON.stringify = null; window.JSON = null; }")
     result = Page.evaluate!(page, "() => ({ abc: 123 })")
     assert result == %{"abc" => 123}
   end
 
-  test "should await promise from popup", %{page: page, server: server} do
+  test "EV-070 should await promise from popup", %{page: page, server: server} do
     # Something is wrong about the way Firefox waits for the chained promise
     Page.goto!(page, server.empty_page)
 
@@ -673,13 +677,13 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == 42
   end
 
-  test "should work with new Function() and CSP", %{page: page, server: server} do
+  test "EV-071 should work with new Function() and CSP", %{page: page, server: server} do
     TestServer.set_csp(server, "/empty.html", "script-src " <> server.prefix)
     Page.goto!(page, server.prefix <> "/empty.html")
     assert Page.evaluate!(page, "() => new Function('return true')()") == true
   end
 
-  test "should work with non-strict expressions", %{page: page} do
+  test "EV-072 should work with non-strict expressions", %{page: page} do
     assert Page.evaluate!(page, """
            () => {
              y = 3.14;
@@ -688,7 +692,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
            """) == 3.14
   end
 
-  test "should respect use strict expression", %{page: page} do
+  test "EV-073 should respect use strict expression", %{page: page} do
     error =
       Page.evaluate(page, """
       () => {
@@ -701,22 +705,22 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ "variableY"
   end
 
-  test "should not leak utility script", %{page: page} do
+  test "EV-074 should not leak utility script", %{page: page} do
     assert Page.evaluate!(page, "this === window") == true
   end
 
-  test "should not leak handles", %{page: page} do
+  test "EV-075 should not leak handles", %{page: page} do
     error = Page.evaluate(page, "handles.length")
     assert message(error) =~ " handles"
   end
 
-  test "should work with CSP", %{page: page, server: server} do
+  test "EV-076 should work with CSP", %{page: page, server: server} do
     TestServer.set_csp(server, "/empty.html", "script-src 'self'")
     Page.goto!(page, server.empty_page)
     assert Page.evaluate!(page, "() => 2 + 2") == 4
   end
 
-  test "should evaluate exception with a function on the stack", %{page: page} do
+  test "EV-077 should evaluate exception with a function on the stack", %{page: page} do
     error =
       Page.evaluate!(page, """
       () => {
@@ -730,7 +734,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert error.stack =~ "functionOnStack"
   end
 
-  test "should evaluate exception", %{page: page} do
+  test "EV-078 should evaluate exception", %{page: page} do
     error =
       Page.evaluate!(page, """
       () => {
@@ -749,7 +753,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert error.stack =~ "innerFunction"
   end
 
-  test "should pass exception argument", %{page: page} do
+  test "EV-079 should pass exception argument", %{page: page} do
     received =
       Page.evaluate!(
         page,
@@ -766,52 +770,52 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert received["stack"] =~ "inner_function"
   end
 
-  test "should evaluate date", %{page: page} do
+  test "EV-080 should evaluate date", %{page: page} do
     result = Page.evaluate!(page, "() => ({ date: new Date('2020-05-27T01:31:38.506Z') })")
     assert result == %{"date" => ~U[2020-05-27 01:31:38.506Z]}
   end
 
-  test "should roundtrip date", %{page: page} do
+  test "EV-081 should roundtrip date", %{page: page} do
     date = ~U[2020-05-27 01:31:38.506Z]
     result = Page.evaluate!(page, "date => date", date)
     assert DateTime.compare(result, date) == :eq
   end
 
-  test "should roundtrip regex", %{page: page} do
+  test "EV-082 should roundtrip regex", %{page: page} do
     regex = ~r/hello/im
     result = Page.evaluate!(page, "regex => regex", regex)
     # expect(result.toString()).toBe(String(regex)): a JS regex comes back as a PlaywrightEx.RegExp
     assert to_string(result) == "/hello/im"
   end
 
-  test "should jsonValue() date", %{page: page} do
+  test "EV-083 should jsonValue() date", %{page: page} do
     result_handle = Page.evaluate_handle!(page, "() => ({ date: new Date('2020-05-27T01:31:38.506Z') })")
     assert JSHandle.json_value!(result_handle) == %{"date" => ~U[2020-05-27 01:31:38.506Z]}
   end
 
   # `new URL('https://example.com')` normalizes the path to "/"; `URI.parse/1` does not.
-  test "should evaluate url", %{page: page} do
+  test "EV-084 should evaluate url", %{page: page} do
     result = Page.evaluate!(page, "() => ({ url: new URL('https://example.com') })")
     assert result == %{"url" => URI.parse("https://example.com/")}
   end
 
-  test "should roundtrip url", %{page: page} do
+  test "EV-085 should roundtrip url", %{page: page} do
     url = URI.parse("https://example.com/")
     result = Page.evaluate!(page, "url => url", url)
     assert URI.to_string(result) == URI.to_string(url)
   end
 
-  test "should jsonValue() url", %{page: page} do
+  test "EV-086 should jsonValue() url", %{page: page} do
     result_handle = Page.evaluate_handle!(page, "() => ({ url: new URL('https://example.com') })")
     assert JSHandle.json_value!(result_handle) == %{"url" => URI.parse("https://example.com/")}
   end
 
-  test "should not use toJSON when evaluating", %{page: page} do
+  test "EV-087 should not use toJSON when evaluating", %{page: page} do
     result = Page.evaluate!(page, "() => ({ toJSON: () => 'string', data: 'data' })")
     assert result == %{"data" => "data", "toJSON" => %{}}
   end
 
-  test "should not use Array.prototype.toJSON when evaluating", %{page: page} do
+  test "EV-088 should not use Array.prototype.toJSON when evaluating", %{page: page} do
     result =
       Page.evaluate!(page, """
       () => {
@@ -823,18 +827,18 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == [1, 2, 3]
   end
 
-  test "should not add a toJSON property to newly created Arrays after evaluation", %{page: page} do
+  test "EV-089 should not add a toJSON property to newly created Arrays after evaluation", %{page: page} do
     Page.evaluate!(page, "() => []")
     has_to_json_property = Page.evaluate!(page, "() => 'toJSON' in []")
     assert has_to_json_property == false
   end
 
-  test "should not use toJSON in jsonValue", %{page: page} do
+  test "EV-090 should not use toJSON in jsonValue", %{page: page} do
     result_handle = Page.evaluate_handle!(page, "() => ({ toJSON: () => 'string', data: 'data' })")
     assert JSHandle.json_value!(result_handle) == %{"data" => "data", "toJSON" => %{}}
   end
 
-  test "should ignore buggy toJSON", %{page: page} do
+  test "EV-091 should ignore buggy toJSON", %{page: page} do
     result =
       Page.evaluate!(page, """
       () => {
@@ -855,11 +859,11 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert result == %{"foo" => %{}, "bar" => %{}}
   end
 
-  test "should not expose the injected script export", %{page: page} do
+  test "EV-092 should not expose the injected script export", %{page: page} do
     assert Page.evaluate!(page, ~s(typeof pwExport === "undefined")) == true
   end
 
-  test "should throw when frame is detached", %{page: page, server: server} do
+  test "EV-093 should throw when frame is detached", %{page: page, server: server} do
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
     promise = Runtime.Promise.async(fn -> Frame.evaluate(frame, "() => new Promise(() => {})") end)
@@ -869,7 +873,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert message(error) =~ ~r/frame.evaluate: (Frame was detached|Execution context was destroyed)/
   end
 
-  test "should work with overridden Object.defineProperty", %{page: page, server: server} do
+  test "EV-094 should work with overridden Object.defineProperty", %{page: page, server: server} do
     TestServer.set_route(server, "/test", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -889,7 +893,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert Page.evaluate!(page, "1+2") == 3
   end
 
-  test "should work with busted Array.prototype.map/push", %{page: page, server: server} do
+  test "EV-095 should work with busted Array.prototype.map/push", %{page: page, server: server} do
     TestServer.set_route(server, "/test", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -906,7 +910,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert JSHandle.json_value!(Page.evaluate_handle!(page, "1+2")) == 3
   end
 
-  test "should work with overridden globalThis.Window/Document/Node", %{page: page, server: server} do
+  test "EV-096 should work with overridden globalThis.Window/Document/Node", %{page: page, server: server} do
     test_cases = [
       "() => globalThis.Window = {}",
       "() => globalThis.Document = {}",
@@ -925,7 +929,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     end
   end
 
-  test "should work with overridden URL/Date/RegExp", %{page: page, server: server} do
+  test "EV-097 should work with overridden URL/Date/RegExp", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/21109
     test_cases = [
       "() => globalThis.URL = 'foo'",
@@ -942,7 +946,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     end
   end
 
-  test "should work with Array.from/map", %{page: page} do
+  test "EV-098 should work with Array.from/map", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/28520
     assert Page.evaluate!(page, """
            () => {
@@ -953,7 +957,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit does not support using declarations")
-  test "should work with a using declaration", %{page: page} do
+  test "EV-099 should work with a using declaration", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/41511
     # it.skip(nodeVersion.major < 24, ...)  -- n/a: the page function is JS source, not lowered
     # it.skip(browserName === 'chromium' && browserMajorVersion < 134, ...)  -- we run a recent chromium
@@ -972,7 +976,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
     assert disposed == true
   end
 
-  test "should ignore dangerous object keys", %{page: page} do
+  test "EV-100 should ignore dangerous object keys", %{page: page} do
     input = %{"__proto__" => %{polluted: true}, "safeKey" => "safeValue"}
     result = Page.evaluate!(page, "arg => arg", input)
     assert result == %{"safeKey" => "safeValue"}

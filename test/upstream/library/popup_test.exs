@@ -14,7 +14,7 @@ defmodule PlaywrightEx.Library.PopupTest do
 
   defp req_header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 
-  test "should inherit user agent from browser context @smoke", %{browser: browser, server: server} do
+  test "PO-014 should inherit user agent from browser context @smoke", %{browser: browser, server: server} do
     # it.skip(isFrozenWebkit)
     context = Browser.new_context!(browser, user_agent: "hey")
     page = BrowserContext.new_page!(context)
@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert req_header(request, "user-agent") == "hey"
   end
 
-  test "should respect routes from browser context", %{browser: browser, server: server} do
+  test "PO-015 should respect routes from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert_received :intercepted
   end
 
-  test "should inherit extra headers from browser context", %{browser: browser, server: server} do
+  test "PO-016 should inherit extra headers from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, extra_http_headers: %{"foo" => "bar"})
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert req_header(request, "foo") == "bar"
   end
 
-  test "should inherit offline from browser context", %{browser: browser, server: server} do
+  test "PO-017 should inherit offline from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert online == false
   end
 
-  test "should inherit http credentials from browser context", %{browser: browser, server: server} do
+  test "PO-018 should inherit http credentials from browser context", %{browser: browser, server: server} do
     TestServer.set_auth(server, "/title.html", "user", "pass")
     context = Browser.new_context!(browser, http_credentials: %{username: "user", password: "pass"})
     page = BrowserContext.new_page!(context)
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     BrowserContext.close!(context)
   end
 
-  test "should inherit touch support from browser context", %{browser: browser, server: server} do
+  test "PO-019 should inherit touch support from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 400, height: 500}, has_touch: true)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert has_touch == true
   end
 
-  test "should inherit viewport size from browser context", %{browser: browser, server: server} do
+  test "PO-020 should inherit viewport size from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 400, height: 500})
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert size == %{"width" => 400, "height" => 500}
   end
 
-  test "should use viewport size from window features", %{browser: browser, server: server} do
+  test "PO-021 should use viewport size from window features", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 700, height: 700})
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert resized == %{"width" => 500, "height" => 400}
   end
 
-  test "should respect routes from browser context when using window.open", %{browser: browser, server: server} do
+  test "PO-022 should respect routes from browser context when using window.open", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -180,7 +180,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     BrowserContext.close!(context)
   end
 
-  test "BrowserContext.addInitScript should apply to an in-process popup", %{browser: browser, server: server} do
+  test "PO-023 BrowserContext.addInitScript should apply to an in-process popup", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     BrowserContext.add_init_script!(context, "window['injected'] = 123")
     page = BrowserContext.new_page!(context)
@@ -198,7 +198,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert injected == 123
   end
 
-  test "BrowserContext.addInitScript should apply to a cross-process popup", %{browser: browser, server: server} do
+  test "PO-024 BrowserContext.addInitScript should apply to a cross-process popup", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     BrowserContext.add_init_script!(context, "window['injected'] = 123")
     page = BrowserContext.new_page!(context)
@@ -215,7 +215,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     BrowserContext.close!(context)
   end
 
-  test "should expose function from browser context", %{browser: browser, server: server} do
+  test "PO-025 should expose function from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     test = self()
 
@@ -243,7 +243,7 @@ defmodule PlaywrightEx.Library.PopupTest do
     assert Enum.join([first, second], "|") == "page|binding"
   end
 
-  test "should not dispatch binding on a closed page", %{browser: browser, server: server} do
+  test "PO-026 should not dispatch binding on a closed page", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     test = self()
 
@@ -272,7 +272,7 @@ defmodule PlaywrightEx.Library.PopupTest do
   end
 
   @tag :page
-  test "should not throttle rAF in the opener page", %{page: page, server: server} do
+  test "PO-027 should not throttle rAF in the opener page", %{page: page, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/14557
     Page.goto!(page, server.empty_page)
     popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => { window.open('about:blank'); }") end)
@@ -292,7 +292,7 @@ defmodule PlaywrightEx.Library.PopupTest do
          if(@browser_name == "firefox",
            do: "upstream fixme: locator.click: Target page, context or browser has been closed"
          )
-  test "should not throw when click closes popup", %{browser_name: browser_name, page: page, server: server} do
+  test "PO-028 should not throw when click closes popup", %{browser_name: browser_name, page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     popup =

@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
   # testInfo.outputPath(...) is a path in the test's tmp_dir.
 
   @tag :tmp_dir
-  test "should output a trace", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "TR-043 should output a trace", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     # process.on('warning', ...): Node process warnings of the client, there are none here.
     page = Browser.new_page!(browser)
     output_trace_file = Path.join(tmp_dir, "trace.json")
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should create directories as needed", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "TR-044 should create directories as needed", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     page = Browser.new_page!(browser)
     file_path = Path.join([tmp_dir, "these", "are", "directories", "trace.json"])
     Browser.start_tracing!(browser, page, screenshots: true, path: file_path)
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should run with custom categories if provided", %{browser: browser, tmp_dir: tmp_dir} do
+  test "TR-045 should run with custom categories if provided", %{browser: browser, tmp_dir: tmp_dir} do
     page = Browser.new_page!(browser)
     output_trace_file = Path.join(tmp_dir, "trace.json")
     Browser.start_tracing!(browser, page, path: output_trace_file, categories: ["disabled-by-default-cc.debug"])
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should throw if tracing on two pages", %{browser: browser, tmp_dir: tmp_dir} do
+  test "TR-046 should throw if tracing on two pages", %{browser: browser, tmp_dir: tmp_dir} do
     page = Browser.new_page!(browser)
     output_trace_file = Path.join(tmp_dir, "trace.json")
     Browser.start_tracing!(browser, page, path: output_trace_file)
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
   end
 
   @tag :tmp_dir
-  test "should return a buffer", %{browser: browser, server: server, tmp_dir: tmp_dir} do
+  test "TR-047 should return a buffer", %{browser: browser, server: server, tmp_dir: tmp_dir} do
     page = Browser.new_page!(browser)
     output_trace_file = Path.join(tmp_dir, "trace.json")
     Browser.start_tracing!(browser, page, screenshots: true, path: output_trace_file)
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
     Page.close!(page)
   end
 
-  test "should work without options", %{browser: browser, server: server} do
+  test "TR-048 should work without options", %{browser: browser, server: server} do
     page = Browser.new_page!(browser)
     Browser.start_tracing!(browser, page)
     Page.goto!(page, server.prefix <> "/grid.html")
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Library.Chromium.TracingTest do
     Page.close!(page)
   end
 
-  test "should support a buffer without a path", %{browser: browser, server: server} do
+  test "TR-049 should support a buffer without a path", %{browser: browser, server: server} do
     page = Browser.new_page!(browser)
     Browser.start_tracing!(browser, page, screenshots: true)
     Page.goto!(page, server.prefix <> "/grid.html")

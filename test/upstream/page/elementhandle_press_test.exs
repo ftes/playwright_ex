@@ -8,19 +8,19 @@ defmodule PlaywrightEx.Page.ElementhandlePressTest do
 
   @moduletag :page
 
-  test "should work", %{page: page} do
+  test "EH-062 should work", %{page: page} do
     Page.set_content!(page, "<input type='text' />")
     Page.press!(page, "input", "h")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "h"
   end
 
-  test "should not select existing value", %{page: page} do
+  test "EH-063 should not select existing value", %{page: page} do
     Page.set_content!(page, "<input type='text' value='hello' />")
     Page.press!(page, "input", "w")
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "whello"
   end
 
-  test "should reset selection when not focused", %{page: page} do
+  test "EH-064 should reset selection when not focused", %{page: page} do
     Page.set_content!(page, "<input type='text' value='hello' /><div tabIndex=2>text</div>")
 
     Page.eval_on_selector!(page, "input", """
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Page.ElementhandlePressTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "whello"
   end
 
-  test "should not modify selection when focused", %{page: page} do
+  test "EH-065 should not modify selection when focused", %{page: page} do
     Page.set_content!(page, "<input type='text' value='hello' />")
 
     Page.eval_on_selector!(page, "input", """
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.ElementhandlePressTest do
     assert Page.eval_on_selector!(page, "input", "input => input.value") == "hewo"
   end
 
-  test "should work with number input", %{page: page} do
+  test "EH-066 should work with number input", %{page: page} do
     expected_failure(@browser_name == "webkit", fn ->
       # it.fail(browserName === 'webkit')
       Page.set_content!(page, "<input type='number' value=2 />")

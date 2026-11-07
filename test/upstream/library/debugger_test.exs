@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     end
   end
 
-  test "should pause at next and resume", %{context: context} do
+  test "DB-001 should pause at next and resume", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<div>click me</div>")
     dbg = BrowserContext.debugger(context)
@@ -89,7 +89,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert Debugger.paused_details(dbg) == nil
   end
 
-  test "should pause at pause call", %{context: context} do
+  test "DB-002 should pause at pause call", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<div>click me</div>")
     dbg = BrowserContext.debugger(context)
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Runtime.Promise.await(pause_promise)
   end
 
-  test "should run to location", %{context: context} do
+  test "DB-003 should run to location", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<div>click me</div>")
     dbg = BrowserContext.debugger(context)
@@ -133,7 +133,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert title =~ "Click"
   end
 
-  test "should stream api calls via _enable", %{context: context} do
+  test "DB-004 should stream api calls via _enable", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<button>click me</button>")
     dbg = BrowserContext.debugger(context)
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert List.last(call.statusHistory) == "success"
   end
 
-  test "should report error status for failed api calls", %{context: context} do
+  test "DB-005 should report error status for failed api calls", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<div>no button here</div>")
     dbg = BrowserContext.debugger(context)
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Utils.assert_truthy(click_call.().error)
   end
 
-  test "should not stream internal api calls", %{context: context} do
+  test "DB-006 should not stream internal api calls", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<button>click me</button>")
     dbg = BrowserContext.debugger(context)
@@ -212,7 +212,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert length(click_ids) == 1
   end
 
-  test "should not pause at internal api calls", %{context: context} do
+  test "DB-007 should not pause at internal api calls", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<button>click me</button>")
     dbg = BrowserContext.debugger(context)
@@ -234,7 +234,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Runtime.Promise.await(click_promise)
   end
 
-  test "should expose the action point while paused on an input action", %{context: context} do
+  test "DB-008 should expose the action point while paused on an input action", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, ~s(<button style="position:absolute; left:40px; top:60px">click me</button>))
     dbg = BrowserContext.debugger(context)
@@ -267,7 +267,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     Runtime.Promise.await(click_promise)
   end
 
-  test "should replay ongoing calls when enabled late", %{context: context} do
+  test "DB-009 should replay ongoing calls when enabled late", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<button>click me</button>")
     dbg = BrowserContext.debugger(context)
@@ -300,7 +300,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     assert click_call.location.file =~ "debugger_test"
   end
 
-  test "should keep pause working when api calls are enabled", %{context: context} do
+  test "DB-010 should keep pause working when api calls are enabled", %{context: context} do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<div>click me</div>")
     dbg = BrowserContext.debugger(context)

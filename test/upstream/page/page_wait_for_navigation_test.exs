@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     end
   end
 
-  test "should work", %{page: page, server: server} do
+  test "WA-095 should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     response =
@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Response.url(response) =~ "grid.html"
   end
 
-  test "should respect timeout", %{page: page, server: server} do
+  test "WA-096 should respect timeout", %{page: page, server: server} do
     promise = Page.wait_for_navigation(page, url: "**/frame.html", timeout: 5000)
     Page.goto!(page, server.empty_page)
     {:error, error} = Promise.await(promise)
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Exception.message(error) =~ ~s(navigated to "#{server.empty_page}")
   end
 
-  test "should work with both domcontentloaded and load", %{page: page, server: server} do
+  test "WA-097 should work with both domcontentloaded and load", %{page: page, server: server} do
     test = self()
 
     TestServer.set_route(server, "/one-style.css", fn conn ->
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     Runtime.Promise.await(navigation_promise)
   end
 
-  test "should work with commit", %{page: page, server: server} do
+  test "WA-098 should work with commit", %{page: page, server: server} do
     TestServer.set_route(server, "/script.js", &hang/1)
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Page.title!(page) == "Hello"
   end
 
-  test "should work with clicking on anchor links", %{page: page, server: server} do
+  test "WA-099 should work with clicking on anchor links", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<a href='#foobar'>foobar</a>")
     response = Page.expect_navigation!(page, fn -> Page.click!(page, "a") end)
@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Page.url(page) == server.empty_page <> "#foobar"
   end
 
-  test "should work with clicking on links which do not commit navigation",
+  test "WA-100 should work with clicking on links which do not commit navigation",
        %{page: page, server: server, https_server: https_server, browser_name: browser_name} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<a href='#{https_server.empty_page}'>foobar</a>")
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Exception.message(error) =~ Utils.expected_ssl_error(browser_name)
   end
 
-  test "should work with history.pushState()", %{page: page, server: server} do
+  test "WA-101 should work with history.pushState()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Page.url(page) == server.prefix <> "/wow.html"
   end
 
-  test "should work with history.replaceState()", %{page: page, server: server} do
+  test "WA-102 should work with history.replaceState()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Page.url(page) == server.prefix <> "/replaced.html"
   end
 
-  test "should work with DOM history.back()/history.forward()", %{page: page, server: server} do
+  test "WA-103 should work with DOM history.back()/history.forward()", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -171,7 +171,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: WebKit issues load event in some cases, but not always")
-  test "should work when subframe issues window.stop()", %{page: page, server: server} do
+  test "WA-104 should work when subframe issues window.stop()", %{page: page, server: server} do
     # it.fixme(browserName === 'webkit', 'WebKit issues load event in some cases, but not always');
     test = self()
     TestServer.set_route(server, "/frames/style.css", &hang/1)
@@ -186,7 +186,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert {:ok, _} = Runtime.Promise.await(done)
   end
 
-  test "should work with url match", %{page: page, server: server} do
+  test "WA-105 should work with url match", %{page: page, server: server} do
     response1_promise = Page.wait_for_navigation(page, url: ~r/one-style\.html/)
     response2_promise = Page.wait_for_navigation(page, url: ~r/\/frame.html/)
 
@@ -221,7 +221,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Response.url(response3) == server.prefix <> "/frame.html?foo=bar"
   end
 
-  test "should work with url match for same document navigations", %{page: page, server: server} do
+  test "WA-106 should work with url match for same document navigations", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     wait_promise = Page.wait_for_navigation(page, url: ~r/third\.html/)
     resolved = then_resolved(wait_promise)
@@ -235,7 +235,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert_receive {:resolved, ^resolved, {:ok, nil}}
   end
 
-  test "should work for cross-process navigations", %{page: page, server: server} do
+  test "WA-107 should work for cross-process navigations", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     wait_promise = Page.wait_for_navigation(page, wait_until: :domcontentloaded)
     url = server.cross_process_prefix <> "/empty.html"
@@ -247,7 +247,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     Runtime.Promise.await(goto_promise)
   end
 
-  test "should work on frame", %{page: page, server: server} do
+  test "WA-108 should work on frame", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = Enum.at(Page.frames(page), 1)
 
@@ -262,7 +262,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert Page.url(page) =~ "/frames/one-frame.html"
   end
 
-  test "should fail when frame detaches", %{page: page, server: server} do
+  test "WA-109 should fail when frame detaches", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = Enum.at(Page.frames(page), 1)
     TestServer.set_route(server, "/empty.html", &hang/1)

@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     |> Plug.Conn.send_resp(200, body)
   end
 
-  test "SharedArrayBuffer should work @smoke", %{context_factory: context_factory, https_server: https_server} do
+  test "CA-001 SharedArrayBuffer should work @smoke", %{context_factory: context_factory, https_server: https_server} do
     context = context_factory.(ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
 
@@ -65,12 +65,12 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert Page.evaluate!(page, "() => typeof SharedArrayBuffer") == "function"
   end
 
-  test "Web Assembly should work @smoke", %{page: page, server: server} do
+  test "CA-002 Web Assembly should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/wasm/table2.html")
     assert Page.evaluate!(page, "loadTable()") == "42, 83"
   end
 
-  test "WebSocket should work @smoke", %{page: page, server: server} do
+  test "CA-003 WebSocket should work @smoke", %{page: page, server: server} do
     TestServer.send_on_web_socket_connection(server, "incoming")
 
     value =
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert value == "incoming"
   end
 
-  test "should respect CSP @smoke", %{page: page, server: server} do
+  test "CA-004 should respect CSP @smoke", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-security-policy", "script-src 'unsafe-inline';")
@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
            do:
              "upstream skip: passes locally but fails on GitHub Action bot, apparently due to a Media Pack issue in the Windows Server"
          )
-  test "should play video @smoke", %{page: page, asset: asset, browser_name: browser_name} do
+  test "CA-005 should play video @smoke", %{page: page, asset: asset, browser_name: browser_name} do
     # Safari only plays mp4 so we test WebKit with an .mp4 clip.
     file_name = if browser_name == "webkit", do: "video_mp4.html", else: "video.html"
     absolute_path = asset.(file_name)
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   end
 
   @tag skip: if(@is_windows and @browser_name == "webkit", do: "upstream skip: not supported")
-  test "should play webm video @smoke", %{page: page, asset: asset} do
+  test "CA-006 should play webm video @smoke", %{page: page, asset: asset} do
     absolute_path = asset.("video_webm.html")
     # Our test server doesn't support range requests required to play on Mac,
     # so we load the page using a file url.
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
             true ->
               nil
           end)
-  test "should play audio @smoke", %{page: page, server: server} do
+  test "CA-007 should play audio @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<audio src="#{server.prefix}/example.mp3"></audio>))
     Page.eval_on_selector!(page, "audio", "e => e.play()")
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   end
 
   @tag skip: @no_firefox_webgl
-  test "should support webgl @smoke", %{page: page} do
+  test "CA-008 should support webgl @smoke", %{page: page} do
     has_web_gl =
       Page.evaluate!(page, """
       () => {
@@ -169,7 +169,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
 
   @tag skip:
          if(@is_windows and @browser_name == "firefox", do: "upstream fixme: firefox on Windows") || @no_firefox_webgl
-  test "should support webgl 2 @smoke", %{page: page} do
+  test "CA-009 should support webgl 2 @smoke", %{page: page} do
     has_web_gl2 =
       Page.evaluate!(page, """
       () => {
@@ -185,13 +185,13 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
          if(@is_windows and @browser_name == "webkit",
            do: "upstream fixme: https://github.com/microsoft/playwright/issues/11009, times out in setContent"
          )
-  test "should not crash on page with mp4 @smoke", %{page: page, server: server} do
+  test "CA-010 should not crash on page with mp4 @smoke", %{page: page, server: server} do
     Page.set_content!(page, ~s(<video><source src="#{server.prefix}/movie.mp4"/></video>))
     Page.wait_for_timeout!(page, 1000)
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: showDirectoryPicker is only available in Chromium")
-  test "should not crash on showDirectoryPicker", %{page: page, server: server} do
+  test "CA-011 should not crash on showDirectoryPicker", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/7339
     Page.goto!(page, server.empty_page)
     # "User activation is required to show a file picker." - so we click first.
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     end
   end
 
-  test "should not crash on storage.getDirectory()", %{page: page, server: server, browser_name: browser_name} do
+  test "CA-012 should not crash on storage.getDirectory()", %{page: page, server: server, browser_name: browser_name} do
     # annotation: issue https://github.com/microsoft/playwright/issues/18235
     Page.goto!(page, server.empty_page)
 
@@ -245,13 +245,13 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
       else: refute(error)
   end
 
-  test "navigator.clipboard should be present", %{page: page, server: server} do
+  test "CA-013 navigator.clipboard should be present", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/18901
     Page.goto!(page, server.empty_page)
     Utils.assert_truthy(Page.evaluate!(page, "() => navigator.clipboard"))
   end
 
-  test "should set CloseEvent.wasClean to false when the server terminates a WebSocket connection",
+  test "CA-014 should set CloseEvent.wasClean to false when the server terminates a WebSocket connection",
        %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/12353
     TestServer.once_web_socket_connection(server, fn socket ->
@@ -273,7 +273,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert was_clean == false
   end
 
-  test "serviceWorker should intercept document request", %{page: page, server: server} do
+  test "CA-015 serviceWorker should intercept document request", %{page: page, server: server} do
     TestServer.set_route(server, "/sw.js", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "application/javascript")
@@ -301,7 +301,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   end
 
   @tag skip: if(@browser_name != "webkit", do: "upstream skip: not webkit")
-  test "webkit should define window.safari", %{page: page, server: server} do
+  test "CA-016 webkit should define window.safari", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/21037
     # issue: https://github.com/microsoft/playwright/issues/29032
     Page.goto!(page, server.empty_page)
@@ -313,7 +313,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
              "[object SafariRemoteNotification]"
   end
 
-  test "make sure that XMLHttpRequest upload events are emitted correctly", %{page: page, server: server} do
+  test "CA-017 make sure that XMLHttpRequest upload events are emitted correctly", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/21489
     Page.goto!(page, server.empty_page)
 
@@ -336,14 +336,14 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert events == ["loadstart", "progress", "load", "loadend"]
   end
 
-  test "loading in HTMLImageElement.prototype", %{page: page, server: server} do
+  test "CA-018 loading in HTMLImageElement.prototype", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/22738
     Page.goto!(page, server.empty_page)
     defined = Page.evaluate!(page, "() => 'loading' in HTMLImageElement.prototype")
     Utils.assert_truthy(defined)
   end
 
-  test "window.GestureEvent in WebKit", %{page: page, server: server, browser_name: browser_name} do
+  test "CA-019 window.GestureEvent in WebKit", %{page: page, server: server, browser_name: browser_name} do
     # issue: https://github.com/microsoft/playwright/issues/22735
     Page.goto!(page, server.empty_page)
     defined = Page.evaluate!(page, "() => 'GestureEvent' in window")
@@ -353,7 +353,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   end
 
   # it.fixme(firefox && !headless)  -- not honored: we run headless
-  test "requestFullscreen", %{page: page, server: server} do
+  test "CA-020 requestFullscreen", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/22832
     Page.goto!(page, server.empty_page)
 
@@ -378,7 +378,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Utils.assert_falsy(Page.evaluate!(page, "() => !!document.fullscreenElement"))
   end
 
-  test "should send no Content-Length header for GET requests with a Content-Type", %{page: page, server: server} do
+  test "CA-021 should send no Content-Length header for GET requests with a Content-Type", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/22569
     Page.goto!(page, server.empty_page)
     request_task = TestServer.wait_for_request(server, "/empty.html")
@@ -394,7 +394,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert Plug.Conn.get_req_header(request, "content-length") == []
   end
 
-  test "Intl.ListFormat should work", %{page: page, server: server} do
+  test "CA-022 Intl.ListFormat should work", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/23978
     Page.goto!(page, server.empty_page)
 
@@ -413,7 +413,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert formatted == "first, second, or third"
   end
 
-  test "service worker should cover the iframe", %{page: page, server: server} do
+  test "CA-023 service worker should cover the iframe", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/29267
     TestServer.set_route(server, "/sw.html", fn conn ->
       html(conn, """
@@ -462,7 +462,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Expect.to_have_text!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("div"), "from the service worker")
   end
 
-  test "service worker should register in an iframe", %{page: page, server: server} do
+  test "CA-024 service worker should register in an iframe", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/29267
     TestServer.set_route(server, "/main.html", &html(&1, "<iframe src='/dir/iframe.html'></iframe>"))
 
@@ -514,7 +514,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
 
   # it.skip(isFrozenWebkit)  -- not honored: frozen WebKit builds
   @tag skip: if(@is_windows and @browser_name == "webkit", do: "upstream skip: webkit on Windows")
-  test "should be able to render avif images", %{page: page, server: server} do
+  test "CA-025 should be able to render avif images", %{page: page, server: server} do
     # annotation: issue https://github.com/microsoft/playwright/issues/32673
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<img src="#{server.prefix}/rgb.avif" onerror="window.error = true">))
@@ -527,7 +527,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert Page.evaluate!(page, "() => window.error") == nil
   end
 
-  test "should not crash when clicking a label with a <input type=\"file\"/>", %{page: page} do
+  test "CA-026 should not crash when clicking a label with a <input type=\"file\"/>", %{page: page} do
     # annotation: issue https://github.com/microsoft/playwright/issues/33257
     Page.set_content!(page, """
       <form>
@@ -544,7 +544,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     assert FileChooser.page(file_chooser) == page
   end
 
-  test "should not crash when clicking a color input", %{page: page} do
+  test "CA-027 should not crash when clicking a color input", %{page: page} do
     # annotation: issue https://github.com/microsoft/playwright/issues/33864
     Page.set_content!(page, ~s(<input type="color">))
     input = Page.locator(page, "input")
@@ -560,7 +560,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
             System.get_env("PW_CLOCK") == "frozen" -> "upstream skip: no way to inject real setTimeout"
             true -> nil
           end)
-  test "should not auto play audio", %{page: page, browser_name: browser_name} do
+  test "CA-028 should not auto play audio", %{page: page, browser_name: browser_name} do
     # annotation: issue https://github.com/microsoft/playwright/issues/33590
     Page.route!(page, "**/*", fn route ->
       Route.fulfill!(route,
@@ -595,7 +595,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
       else: Expect.to_have_text!(Page.locator(page, "#log"), "State: suspended")
   end
 
-  test "should not crash on feature detection for PublicKeyCredential", %{page: page, server: server} do
+  test "CA-029 should not crash on feature detection for PublicKeyCredential", %{page: page, server: server} do
     # annotation: issue https://github.com/microsoft/playwright/issues/35433
     Page.goto!(page, server.empty_page)
 

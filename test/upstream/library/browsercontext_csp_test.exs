@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
 
   import PlaywrightEx.Utils, only: [attach_frame: 3]
 
-  test "should bypass CSP meta tag @smoke", %{browser: browser, server: server} do
+  test "CS-001 should bypass CSP meta tag @smoke", %{browser: browser, server: server} do
     # Make sure CSP prohibits addScriptTag.
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
     BrowserContext.close!(context)
   end
 
-  test "should bypass CSP header", %{browser: browser, server: server} do
+  test "CS-002 should bypass CSP header", %{browser: browser, server: server} do
     # Make sure CSP prohibits addScriptTag.
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
     BrowserContext.close!(context)
   end
 
-  test "should bypass after cross-process navigation", %{browser: browser, server: server} do
+  test "CS-003 should bypass after cross-process navigation", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, bypass_csp: true)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/csp.html")
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
     BrowserContext.close!(context)
   end
 
-  test "should bypass CSP in iframes as well", %{browser: browser, server: server} do
+  test "CS-004 should bypass CSP in iframes as well", %{browser: browser, server: server} do
     # Make sure CSP prohibits addScriptTag in an iframe.
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)

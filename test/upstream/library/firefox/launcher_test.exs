@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.Firefox.LauncherTest do
     "network.proxy.ssl_port" => 3333
   }
 
-  test "should pass firefox user preferences", %{browser_type: browser_type} do
+  test "FF-001 should pass firefox user preferences", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type, firefox_user_prefs: @proxy_prefs)
     page = Browser.new_page!(browser)
     {:error, error} = Page.goto(page, "https://example.com")
@@ -24,14 +24,14 @@ defmodule PlaywrightEx.Library.Firefox.LauncherTest do
     Browser.close!(browser)
   end
 
-  test "should pass firefox user preferences in persistent", %{launch_persistent: launch_persistent} do
+  test "FF-002 should pass firefox user preferences in persistent", %{launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(firefox_user_prefs: @proxy_prefs)
     {:error, error} = Page.goto(page, "https://example.com")
     assert Exception.message(error) =~ "NS_ERROR_PROXY_CONNECTION_REFUSED"
   end
 
   @tag :tmp_dir
-  test "should support custom firefox policies", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
+  test "FF-003 should support custom firefox policies", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
     policies = %{
       "policies" => %{
         "Certificates" => %{

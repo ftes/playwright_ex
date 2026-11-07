@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
 
   defp hang(_conn), do: Process.sleep(:infinity)
 
-  test "should navigate subframes @smoke", %{page: page, server: server} do
+  test "FR-020 should navigate subframes @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     assert Frame.url(Enum.at(Page.frames(page), 0)) =~ "/frames/one-frame.html"
     assert Frame.url(Enum.at(Page.frames(page), 1)) =~ "/frames/frame.html"
@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
     assert Response.frame(response) == Enum.at(Page.frames(page), 1)
   end
 
-  test "should reject when frame detaches", %{page: page, server: server, browser_name: browser_name} do
+  test "FR-021 should reject when frame detaches", %{page: page, server: server, browser_name: browser_name} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
 
     TestServer.set_route(server, "/one-style.css", &hang/1)
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
 
   @tag skip:
          if(@browser_name == "firefox", do: "upstream fixme: script.js is requested before navigationCommitted arrives")
-  test "should continue after client redirect", %{page: page, server: server} do
+  test "FR-022 should continue after client redirect", %{page: page, server: server} do
     # it.fixme(browserName === 'firefox' && !isBidi, 'script.js is requested before navigationCommitted arrives');
     TestServer.set_route(server, "/frames/script.js", &hang/1)
     url = server.prefix <> "/frames/child-redirect.html"
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Page.FrameGotoTest do
     assert Exception.message(error) =~ ~s(navigating to "#{url}", waiting until "networkidle")
   end
 
-  test "should return matching responses", %{page: page, server: server} do
+  test "FR-023 should return matching responses", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # Attach three frames.
     frames = [

@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
     page |> Page.wait_for_function!("() => window.__dropInfo") |> JSHandle.json_value!()
   end
 
-  test "should drop a file payload", %{page: page} do
+  test "DD-021 should drop a file payload", %{page: page} do
     setup_dropzone(page)
 
     Locator.drop!(Page.locator(page, "#dropzone"), %{
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
            }
   end
 
-  test "should drop multiple file payloads", %{page: page} do
+  test "DD-022 should drop multiple file payloads", %{page: page} do
     setup_dropzone(page)
 
     Locator.drop!(Page.locator(page, "#dropzone"), %{
@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
   end
 
   @tag :tmp_dir
-  test "should drop a file by local path", %{page: page, tmp_dir: tmp_dir} do
+  test "DD-023 should drop a file by local path", %{page: page, tmp_dir: tmp_dir} do
     setup_dropzone(page)
     file_path = Path.join(tmp_dir, "hello.txt")
     File.write!(file_path, "path-content")
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
     assert hd(info["files"])["text"] == "path-content"
   end
 
-  test "should drop clipboard-like data", %{page: page} do
+  test "DD-024 should drop clipboard-like data", %{page: page} do
     setup_dropzone(page)
 
     Locator.drop!(Page.locator(page, "#dropzone"), %{
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
     assert info["data"]["text/uri-list"] == "https://example.com"
   end
 
-  test "should drop files and data together", %{page: page} do
+  test "DD-025 should drop files and data together", %{page: page} do
     setup_dropzone(page)
 
     Locator.drop!(Page.locator(page, "#dropzone"), %{
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
     assert info["data"]["text/plain"] == "label"
   end
 
-  test "should throw when target does not accept drop", %{page: page} do
+  test "DD-026 should throw when target does not accept drop", %{page: page} do
     # Dropzone without preventDefault on dragover.
     Page.set_content!(page, """
       <div id="dropzone" style="width: 200px; height: 100px;"></div>
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Page.PageDropTest do
     assert Exception.message(error) =~ ~r/drop target did not accept the drop/i
   end
 
-  test "should throw when neither files nor data provided", %{page: page} do
+  test "DD-027 should throw when neither files nor data provided", %{page: page} do
     setup_dropzone(page)
     assert {:error, error} = Locator.drop(Page.locator(page, "#dropzone"), %{})
     assert Exception.message(error) =~ ~r/At least one of "files" or "data"/

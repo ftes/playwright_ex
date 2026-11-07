@@ -26,13 +26,13 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     end
   end
 
-  test "should throw without the exposeFunctions option", %{page: page} do
+  test "EV-112 should throw without the exposeFunctions option", %{page: page} do
     {:error, e} = Page.evaluate(page, "({ cb }) => cb()", %{cb: fn -> nil end})
     # Deviation: the function renders as an Elixir term, not `() => {}`.
     assert e.message =~ ~r/Attempting to serialize unexpected value at position "cb": #Function</
   end
 
-  test "should call a function passed as an argument", %{page: page} do
+  test "EV-113 should call a function passed as an argument", %{page: page} do
     Page.evaluate!(
       page,
       """
@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert received() == [1, 2]
   end
 
-  test "should accept a function as the whole argument", %{page: page} do
+  test "EV-114 should accept a function as the whole argument", %{page: page} do
     Page.evaluate!(
       page,
       """
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert received() == ["a", "b"]
   end
 
-  test "should pass arguments to the callback", %{page: page} do
+  test "EV-115 should pass arguments to the callback", %{page: page} do
     test = self()
 
     Page.evaluate(
@@ -83,12 +83,12 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert args == [1, "two", %{"three" => 3}, [4]]
   end
 
-  test "should return the callback result to the page", %{page: page} do
+  test "EV-116 should return the callback result to the page", %{page: page} do
     doubled = Page.evaluate!(page, "async ({ cb }) => await cb(21)", %{cb: fn n -> n * 2 end}, expose_functions: true)
     assert doubled == 42
   end
 
-  test "should support handle as a callback result", %{page: page} do
+  test "EV-117 should support handle as a callback result", %{page: page} do
     result =
       Page.evaluate!(
         page,
@@ -105,7 +105,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert result == 101
   end
 
-  test "should support nested handles in the callback result", %{page: page} do
+  test "EV-118 should support nested handles in the callback result", %{page: page} do
     result =
       Page.evaluate!(
         page,
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert result == 227
   end
 
-  test "should await an async callback result", %{page: page} do
+  test "EV-119 should await an async callback result", %{page: page} do
     value =
       Page.evaluate!(
         page,
@@ -143,7 +143,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert value == 21
   end
 
-  test "should propagate callback errors to the page", %{page: page} do
+  test "EV-120 should propagate callback errors to the page", %{page: page} do
     message =
       Page.evaluate!(
         page,
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert message =~ "boom"
   end
 
-  test "should work with a fire-and-forget setTimeout callback", %{page: page} do
+  test "EV-121 should work with a fire-and-forget setTimeout callback", %{page: page} do
     test = self()
 
     Page.evaluate(
@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert_receive {:value, 5}, 5000
   end
 
-  test "should support multiple callbacks", %{page: page} do
+  test "EV-122 should support multiple callbacks", %{page: page} do
     result =
       Page.evaluate!(
         page,
@@ -198,7 +198,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert result == 11
   end
 
-  test "should work with evaluateHandle", %{page: page} do
+  test "EV-123 should work with evaluateHandle", %{page: page} do
     handle =
       Page.evaluate_handle!(
         page,
@@ -216,14 +216,14 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert received() == [7]
   end
 
-  test "should work in a child frame", %{page: page, server: server} do
+  test "EV-124 should work in a child frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Utils.attach_frame(page, "frame1", server.empty_page)
     Frame.evaluate!(frame, "async ({ cb }) => { await cb(42); }", %{cb: push(self())}, expose_functions: true)
     assert received() == [42]
   end
 
-  test "should route callbacks back to the calling frame", %{page: page, server: server} do
+  test "EV-125 should route callbacks back to the calling frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Utils.attach_frame(page, "frame1", server.empty_page)
     greet = fn where -> "hello #{where}" end
@@ -245,7 +245,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert from_child == "hello child"
   end
 
-  test "should work with jsHandle.evaluate", %{page: page} do
+  test "EV-126 should work with jsHandle.evaluate", %{page: page} do
     handle = Page.evaluate_handle!(page, "() => window")
 
     JSHandle.evaluate!(handle, "async (win, { cb }) => { await cb(99); }", %{cb: push(self())}, expose_functions: true)
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert received() == [99]
   end
 
-  test "should work with locator.evaluate", %{page: page} do
+  test "EV-127 should work with locator.evaluate", %{page: page} do
     Page.set_content!(page, "<div id=target>hello</div>")
 
     Locator.evaluate!(
@@ -266,7 +266,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert received() == ["target"]
   end
 
-  test "should return the callback result with locator.evaluate", %{page: page} do
+  test "EV-128 should return the callback result with locator.evaluate", %{page: page} do
     Page.set_content!(page, "<div id=target>7</div>")
 
     result =
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert result == 14
   end
 
-  test "should propagate callback errors with locator.evaluate", %{page: page} do
+  test "EV-129 should propagate callback errors with locator.evaluate", %{page: page} do
     Page.set_content!(page, "<div id=target></div>")
 
     message =
@@ -307,7 +307,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert message =~ "boom"
   end
 
-  test "should work with locator.evaluateHandle", %{page: page} do
+  test "EV-130 should work with locator.evaluateHandle", %{page: page} do
     Page.set_content!(page, "<div id=target>hello</div>")
 
     handle =
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert JSHandle.evaluate!(handle, "element => element.id") == "target"
   end
 
-  test "should work with locator.evaluate inside an iframe", %{page: page, server: server} do
+  test "EV-131 should work with locator.evaluate inside an iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Utils.attach_frame(page, "frame1", server.empty_page)
     Frame.evaluate!(frame, "() => { document.body.innerHTML = '<div id=target>in-frame</div>'; }")
@@ -341,14 +341,14 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert received() == ["in-frame"]
   end
 
-  test "should survive a navigation and keep working", %{page: page, server: server} do
+  test "EV-132 should survive a navigation and keep working", %{page: page, server: server} do
     Page.evaluate!(page, "async ({ cb }) => { await cb(1); }", %{cb: push(self())}, expose_functions: true)
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "async ({ cb }) => { await cb(2); }", %{cb: push(self())}, expose_functions: true)
     assert received() == [1, 2]
   end
 
-  test "should not register the callback on the global object", %{page: page} do
+  test "EV-133 should not register the callback on the global object", %{page: page} do
     result =
       Page.evaluate!(
         page,
@@ -365,7 +365,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     assert result == []
   end
 
-  test "should scope the page-side callback to the execution context", %{page: page, server: server} do
+  test "EV-134 should scope the page-side callback to the execution context", %{page: page, server: server} do
     Page.evaluate!(page, "({ cb }) => { window.__cb = cb; }", %{cb: fn -> nil end}, expose_functions: true)
     assert Page.evaluate!(page, "() => typeof window.__cb") == "function"
     Page.goto!(page, server.empty_page)

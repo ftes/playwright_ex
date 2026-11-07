@@ -8,9 +8,9 @@ defmodule PlaywrightEx.Page.PageClickTimeout3Test do
   @moduletag :page
 
   # it.skip(mode !== 'default'): __testHookBeforeHitTarget is an in-process JS function.
-  test "should fail when element jumps during hit testing"
+  test "CL-116 should fail when element jumps during hit testing"
 
-  test "should timeout waiting for hit target", %{page: page, server: server} do
+  test "CL-117 should timeout waiting for hit target", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Page.PageClickTimeout3Test do
     assert Exception.message(error) =~ "waiting 500ms"
   end
 
-  test "should still click when force but hit target is obscured", %{page: page, server: server} do
+  test "CL-118 should still click when force but hit target is obscured", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Page.PageClickTimeout3Test do
     ElementHandle.click!(button, force: true)
   end
 
-  test "should report wrong hit target subtree", %{page: page, server: server} do
+  test "CL-119 should report wrong hit target subtree", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 

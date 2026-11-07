@@ -33,14 +33,14 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   # `HEADED=1 mix test --only headed`.
   @moduletag :headed
 
-  test "should have default url when launching browser @smoke", %{launch_persistent: launch_persistent} do
+  test "HE-001 should have default url when launching browser @smoke", %{launch_persistent: launch_persistent} do
     %{context: context} = launch_persistent.([])
     urls = Enum.map(BrowserContext.pages(context), &Page.url/1)
     assert urls == ["about:blank"]
   end
 
   @tag timeout: @slow_timeout
-  test "should close browser with beforeunload page", %{launch_persistent: launch_persistent, server: server} do
+  test "HE-002 should close browser with beforeunload page", %{launch_persistent: launch_persistent, server: server} do
     %{context: context} = launch_persistent.([])
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/beforeunload.html")
@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   end
 
   @tag :page
-  test "should close browsercontext with pending beforeunload dialog", %{server: server, context: context} do
+  test "HE-003 should close browsercontext with pending beforeunload dialog", %{server: server, context: context} do
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/beforeunload.html")
     # We have to interact with a page so that 'beforeunload' handlers
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
     BrowserContext.close!(context)
   end
 
-  test "should not crash when creating second context", %{browser: browser} do
+  test "HE-004 should not crash when creating second context", %{browser: browser} do
     browser_context = Browser.new_context!(browser)
     BrowserContext.new_page!(browser_context)
     BrowserContext.close!(browser_context)
@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   end
 
   @tag :page
-  test "should click when viewport size is larger than screen", %{page: page} do
+  test "HE-005 should click when viewport size is larger than screen", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22082' });
     Page.set_viewport_size!(page, %{
       width: 3000,
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   end
 
   @tag :page
-  test "should dispatch click events to oversized viewports", %{page: page} do
+  test "HE-006 should dispatch click events to oversized viewports", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22082' });
     # Some prime numbers for width/height.
     width = 2971
@@ -124,13 +124,13 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   end
 
   @tag :page
-  test "should click background tab", %{page: page, server: server} do
+  test "HE-007 should click background tab", %{page: page, server: server} do
     Page.set_content!(page, ~s(<button>Hello</button><a target=_blank href="#{server.empty_page}">empty.html</a>))
     Page.click!(page, "a")
     Page.click!(page, "button")
   end
 
-  test "should close browser after context menu was triggered", %{browser_type: browser_type, server: server} do
+  test "HE-008 should close browser after context menu was triggered", %{browser_type: browser_type, server: server} do
     browser = BrowserType.launch!(browser_type)
     page = Browser.new_page!(browser)
     Page.goto!(page, server.prefix <> "/grid.html")
@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   end
 
   @tag :page
-  test "should(not) block third party cookies", %{page: page, server: server, browser_name: browser_name} do
+  test "HE-009 should(not) block third party cookies", %{page: page, server: server, browser_name: browser_name} do
     allows_third_party = allows_third_party(browser_name)
     Page.goto!(page, server.empty_page)
 
@@ -190,7 +190,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   end
 
   @tag skip: @headless_skip || if(@browser_name == "webkit", do: "upstream skip: No third party cookies in WebKit")
-  test "should not block third party SameSite=None cookies", %{https_server: https_server, browser: browser} do
+  test "HE-010 should not block third party SameSite=None cookies", %{https_server: https_server, browser: browser} do
     # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     page = Browser.new_page!(browser, ignore_https_errors: true)
 
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   @tag skip:
          @headless_skip ||
            if(@browser_name == "webkit", do: "upstream skip: Our WebKit embedder does not respect window features")
-  test "should not override viewport size when passed null", %{server: server, browser: browser} do
+  test "HE-011 should not override viewport size when passed null", %{server: server, browser: browser} do
     context = Browser.new_context!(browser, viewport: :null)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -244,7 +244,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
     BrowserContext.close!(context)
   end
 
-  test "Page.bringToFront should work", %{browser: browser} do
+  test "HE-012 Page.bringToFront should work", %{browser: browser} do
     page1 = Browser.new_page!(browser)
     Page.set_content!(page1, "Page1")
     page2 = Browser.new_page!(browser)
@@ -264,7 +264,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
     Page.close!(page2)
   end
 
-  test "should click in OOPIF", %{launch_persistent: launch_persistent, server: server} do
+  test "HE-013 should click in OOPIF", %{launch_persistent: launch_persistent, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       html(conn, ~s(<iframe src="#{server.cross_process_prefix}/iframe.html"></iframe>))
     end)
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
     assert "ok" in Agent.get(console_log, & &1)
   end
 
-  test "should click bottom row w/ infobar in OOPIF", %{
+  test "HE-014 should click bottom row w/ infobar in OOPIF", %{
     browser_name: browser_name,
     launch_persistent: launch_persistent,
     server: server
@@ -333,7 +333,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
   @tag skip:
          @macos_chromium_skip || @headless_skip ||
            if(@browser_name == "firefox", do: "upstream skip: Text is misaligned in headed vs headless")
-  test "headless and headful should use same default fonts", %{page: page, browser_type: browser_type} do
+  test "HE-015 headless and headful should use same default fonts", %{page: page, browser_type: browser_type} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/11177' });
     generic_font_families = [
       "standard",
@@ -376,7 +376,7 @@ defmodule PlaywrightEx.Library.HeadfulTest do
 
   @tag :page
   @tag skip: @macos_chromium_skip || @headless_skip
-  test "should have the same hyphen rendering on headless and headed", %{
+  test "HE-016 should have the same hyphen rendering on headless and headed", %{
     browser_type: browser_type,
     page: page,
     headless: headless,

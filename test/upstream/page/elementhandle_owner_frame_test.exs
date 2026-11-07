@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
 
   @moduletag :page
 
-  test "should work", %{page: page, server: server} do
+  test "EH-055 should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(element_handle) == frame
   end
 
-  test "should work for cross-process iframes", %{page: page, server: server} do
+  test "EH-056 should work for cross-process iframes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.cross_process_prefix <> "/empty.html")
     frame = Enum.at(Page.frames(page), 1)
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(element_handle) == frame
   end
 
-  test "should work for document", %{page: page, server: server} do
+  test "EH-057 should work for document", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(element_handle) == frame
   end
 
-  test "should work for iframe elements", %{page: page, server: server} do
+  test "EH-058 should work for iframe elements", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Page.main_frame(page)
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(element_handle) == frame
   end
 
-  test "should work for cross-frame evaluations", %{page: page, server: server} do
+  test "EH-059 should work for cross-frame evaluations", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     frame = Page.main_frame(page)
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(element_handle) == hd(Frame.child_frames(frame))
   end
 
-  test "should work for detached elements", %{page: page, server: server} do
+  test "EH-060 should work for detached elements", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     div_handle =
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
     assert ElementHandle.owner_frame!(div_handle) == Page.main_frame(page)
   end
 
-  test "should work for adopted elements", %{page: page, server: server} do
+  test "EH-061 should work for adopted elements", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     popup =

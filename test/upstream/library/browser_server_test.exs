@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Library.BrowserServerTest do
     %{browser_type: browser_type, browser: browser, registry_dir: registry_dir}
   end
 
-  test "should start and stop pipe server", %{browser_type: browser_type, browser: browser} do
+  test "BR-008 should start and stop pipe server", %{browser_type: browser_type, browser: browser} do
     server_info = Browser.bind!(browser, "default")
     assert server_info.endpoint =~ ~r/browser-/
 
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Library.BrowserServerTest do
     Browser.unbind!(browser)
   end
 
-  test "should write descriptor on start and remove on stop", %{browser: browser, registry_dir: registry_dir} do
+  test "BR-009 should write descriptor on start and remove on stop", %{browser: browser, registry_dir: registry_dir} do
     # `{ wsPath: 'test' } as any`: not a startServer param, the client's validator drops it.
     server_info = Browser.bind!(browser, "my-title")
 
@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Library.BrowserServerTest do
     refute File.exists?(server_info.endpoint)
   end
 
-  test "should start ws server with host/port and produce well-formed endpoint", %{
+  test "BR-010 should start ws server with host/port and produce well-formed endpoint", %{
     browser_type: browser_type,
     browser: browser
   } do

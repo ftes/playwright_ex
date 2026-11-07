@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
 
   @moduletag :page
 
-  test "isVisible and isHidden should work", %{page: page} do
+  test "LO-115 isVisible and isHidden should work", %{page: page} do
     Page.set_content!(page, "<div>Hi</div><span></span>")
 
     div = Page.locator(page, "div")
@@ -27,17 +27,17 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     assert Page.is_hidden!(page, "no-such-element") == true
   end
 
-  test "isVisible should be true for opacity:0", %{page: page} do
+  test "LO-116 isVisible should be true for opacity:0", %{page: page} do
     Page.set_content!(page, ~s|<div style="opacity:0">Hi</div>|)
     Expect.to_be_visible!(Page.locator(page, "div"))
   end
 
-  test "isVisible should be true for element outside view", %{page: page} do
+  test "LO-117 isVisible should be true for element outside view", %{page: page} do
     Page.set_content!(page, ~s|<div style="position: absolute; left: -1000px">Hi</div>|)
     Expect.to_be_visible!(Page.locator(page, "div"))
   end
 
-  test "isVisible and isHidden should work with details", %{page: page} do
+  test "LO-118 isVisible and isHidden should work with details", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/10674' });
     Page.set_content!(page, """
     <details>
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     Expect.to_be_hidden!(Page.locator(page, "ul"))
   end
 
-  test "isVisible and isHidden should work with nested details", %{page: page} do
+  test "LO-119 isVisible and isHidden should work with nested details", %{page: page} do
     Page.set_content!(page, """
     <details>
         <summary>outer</summary>
@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     Expect.to_have_count!(Page.get_by_role(page, :button), 0)
   end
 
-  test "isVisible and isHidden should work with unslotted content", %{page: page} do
+  test "LO-120 isVisible and isHidden should work with unslotted content", %{page: page} do
     Page.set_content!(page, """
       <div id=unslotted><span>hidden 1</span><div><span>hidden 2</span></div></div>
       <div id=slotted><span>visible</span></div>
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     Expect.to_be_visible!(Page.locator(page, "span", has_text: "visible"))
   end
 
-  test "isVisible and isHidden should work with list box options", %{page: page} do
+  test "LO-121 isVisible and isHidden should work with list box options", %{page: page} do
     # it.skip(isAndroid, ...)  -- Android is not supported
     Page.set_content!(page, """
       <select multiple>
@@ -105,7 +105,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
         do: Expect.to_be_hidden!(Page.locator(page, "option", has_text: text))
   end
 
-  test "isVisible inside a button", %{page: page} do
+  test "LO-122 isVisible inside a button", %{page: page} do
     Page.set_content!(page, "<button><span></span>a button</button>")
     span = Page.locator(page, "span")
     assert Locator.is_visible!(span) == false
@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     Locator.wait_for!(Page.locator(page, "button"), state: :visible)
   end
 
-  test "isVisible inside a role=button", %{page: page} do
+  test "LO-123 isVisible inside a role=button", %{page: page} do
     Page.set_content!(page, "<div role=button><span></span>a button</div>")
     span = Page.locator(page, "span")
     assert Locator.is_visible!(span) == false
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     Locator.wait_for!(Page.locator(page, "[role=button]"), state: :visible)
   end
 
-  test "isVisible during navigation should not throw", %{page: page, server: server} do
+  test "LO-124 isVisible during navigation should not throw", %{page: page, server: server} do
     for _i <- 0..19 do
       # Avoid page.setContent throwing because of scheduled navigation.
       Page.set_content(page, """
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Page.LocatorIsVisibleTest do
     end
   end
 
-  test "isVisible with invalid selector should throw", %{page: page} do
+  test "LO-125 isVisible with invalid selector should throw", %{page: page} do
     {:error, error} = Locator.is_visible(Page.locator(page, "hey=what"))
     assert Exception.message(error) =~ ~s|Unknown engine "hey" while parsing selector hey=what|
   end

@@ -25,63 +25,63 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
   }
   """
 
-  test "should select single option @smoke", %{page: page, server: server} do
+  test "SO-001 should select single option @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", "blue")
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["blue"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  test "should select single option by value", %{page: page, server: server} do
+  test "SO-002 should select single option by value", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", %{value: "blue"})
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["blue"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  test "should fall back to selecting by label", %{page: page, server: server} do
+  test "SO-003 should fall back to selecting by label", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", "Blue")
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["blue"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  test "should select single option by label", %{page: page, server: server} do
+  test "SO-004 should select single option by label", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", %{label: "Indigo"})
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["indigo"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["indigo"]
   end
 
-  test "should select single option by label with html whitespace", %{page: page, server: server} do
+  test "SO-005 should select single option by label with html whitespace", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", %{label: "HTML"})
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["html"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["html"]
   end
 
-  test "should select single option by handle", %{page: page, server: server} do
+  test "SO-006 should select single option by handle", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", Page.query_selector!(page, "[id=whiteOption]"))
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["white"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["white"]
   end
 
-  test "should select single option by index", %{page: page, server: server} do
+  test "SO-007 should select single option by index", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", %{index: 2})
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["brown"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["brown"]
   end
 
-  test "should select single option by multiple attributes", %{page: page, server: server} do
+  test "SO-008 should select single option by multiple attributes", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", %{value: "green", label: "Green"})
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["green"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["green"]
   end
 
-  test "should not select single option when some attributes do not match", %{page: page, server: server} do
+  test "SO-009 should not select single option when some attributes do not match", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.eval_on_selector!(page, "select", "s => s.value = undefined")
 
@@ -93,14 +93,14 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => document.querySelector('select').value") == ""
   end
 
-  test "should select only first option", %{page: page, server: server} do
+  test "SO-010 should select only first option", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", ["blue", "green", "red"])
     assert Page.evaluate!(page, "() => window['result'].onInput") == ["blue"]
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  test "should not throw when select causes navigation", %{page: page, server: server} do
+  test "SO-011 should not throw when select causes navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
 
     Page.eval_on_selector!(
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.url(page) =~ "empty.html"
   end
 
-  test "should select multiple options", %{page: page, server: server} do
+  test "SO-012 should select multiple options", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
     Page.select_option!(page, "select", ["blue", "green", "red"])
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue", "green", "red"]
   end
 
-  test "should select multiple options with attributes", %{page: page, server: server} do
+  test "SO-013 should select multiple options with attributes", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
     Page.select_option!(page, "select", [%{value: "blue"}, %{label: "Green"}, %{index: 4}])
@@ -131,52 +131,52 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue", "gray", "green"]
   end
 
-  test "should respect event bubbling", %{page: page, server: server} do
+  test "SO-014 should respect event bubbling", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.select_option!(page, "select", "blue")
     assert Page.evaluate!(page, "() => window['result'].onBubblingInput") == ["blue"]
     assert Page.evaluate!(page, "() => window['result'].onBubblingChange") == ["blue"]
   end
 
-  test "should throw when element is not a <select>", %{page: page, server: server} do
+  test "SO-015 should throw when element is not a <select>", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     {:error, error} = Page.select_option(page, "body", "")
     assert Exception.message(error) =~ "Element is not a <select> element"
   end
 
-  test "should return [] on no matched values", %{page: page, server: server} do
+  test "SO-016 should return [] on no matched values", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     result = Page.select_option!(page, "select", [])
     assert result == []
   end
 
-  test "should return an array of matched values", %{page: page, server: server} do
+  test "SO-017 should return an array of matched values", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
     result = Page.select_option!(page, "select", ["blue", "black", "magenta"])
     assert Enum.all?(result, &(&1 in ["blue", "black", "magenta"]))
   end
 
-  test "should return an array of one element when multiple is not set", %{page: page, server: server} do
+  test "SO-018 should return an array of one element when multiple is not set", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     result = Page.select_option!(page, "select", ["42", "blue", "black", "magenta"])
     assert length(result) == 1
   end
 
-  test "should return [] on no values", %{page: page, server: server} do
+  test "SO-019 should return [] on no values", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     result = Page.select_option!(page, "select", [])
     assert result == []
   end
 
-  test "should not allow null items", %{page: page, server: server} do
+  test "SO-020 should not allow null items", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
     {:error, error} = Page.select_option(page, "select", ["blue", :null, "black", "magenta"])
     assert Exception.message(error) =~ "options[1]: expected object, got null"
   end
 
-  test "should unselect with null", %{page: page, server: server} do
+  test "SO-021 should unselect with null", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
     result = Page.select_option!(page, "select", ["blue", "black", "magenta"])
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert all_unselected(page) == true
   end
 
-  test "should deselect all options when passed no values for a multiple select", %{page: page, server: server} do
+  test "SO-022 should deselect all options when passed no values for a multiple select", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
     Page.select_option!(page, "select", ["blue", "black", "magenta"])
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert all_unselected(page) == true
   end
 
-  test "should deselect all options when passed no values for a select without multiple", %{
+  test "SO-023 should deselect all options when passed no values for a select without multiple", %{
     page: page,
     server: server
   } do
@@ -203,7 +203,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert all_unselected(page) == true
   end
 
-  test "should throw if passed wrong types", %{page: page} do
+  test "SO-024 should throw if passed wrong types", %{page: page} do
     Page.set_content!(page, ~s(<select><option value="12"/></select>))
 
     # @ts-expect-error cannot select numbers
@@ -224,7 +224,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
   end
 
   # @see https://github.com/GoogleChrome/puppeteer/issues/3327
-  test "should work when re-defining top-level Event class", %{page: page, server: server} do
+  test "SO-025 should work when re-defining top-level Event class", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window.Event = null")
     Page.select_option!(page, "select", "blue")
@@ -232,7 +232,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  test "should wait for option to be present", %{page: page, server: server} do
+  test "SO-026 should wait for option to be present", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     select_promise = Runtime.Promise.async(fn -> Page.select_option!(page, "select", "scarlet") end, shared: true)
     give_it_a_chance_to_resolve(page)
@@ -242,7 +242,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert items == ["scarlet"]
   end
 
-  test "should wait for option index to be present", %{page: page, server: server} do
+  test "SO-027 should wait for option index to be present", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     len = Page.eval_on_selector!(page, "select", "select => select.options.length")
     select_promise = Runtime.Promise.async(fn -> Page.select_option!(page, "select", %{index: len}) end, shared: true)
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert items == ["scarlet"]
   end
 
-  test "should wait for multiple options to be present", %{page: page, server: server} do
+  test "SO-028 should wait for multiple options to be present", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     Page.evaluate!(page, "() => window['makeMultiple']()")
 
@@ -267,7 +267,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert items == ["green", "scarlet"]
   end
 
-  test "input event.composed should be true and cross shadow dom boundary", %{page: page, server: server} do
+  test "SO-029 input event.composed should be true and cross shadow dom boundary", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -309,7 +309,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     assert Page.evaluate!(page, "() => window['firedBodyEvents']") == ["input:true"]
   end
 
-  test "should wait for select to be enabled", %{page: page} do
+  test "SO-030 should wait for select to be enabled", %{page: page} do
     Page.set_content!(page, """
     <select disabled>
       <option>one</option>
@@ -335,7 +335,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
 
-  test "should wait for option to be enabled", %{page: page} do
+  test "SO-031 should wait for option to be enabled", %{page: page} do
     Page.set_content!(page, """
     <select>
       <option>one</option>
@@ -365,7 +365,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
 
-  test "should wait for optgroup to be enabled", %{page: page} do
+  test "SO-032 should wait for optgroup to be enabled", %{page: page} do
     Page.set_content!(page, """
     <select>
       <option>one</option>
@@ -397,7 +397,7 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     Expect.to_have_value!(Page.locator(page, "select"), "two")
   end
 
-  test "should wait for select to be swapped", %{page: page} do
+  test "SO-033 should wait for select to be swapped", %{page: page} do
     Page.set_content!(page, """
     <select disabled>
       <option>one</option>

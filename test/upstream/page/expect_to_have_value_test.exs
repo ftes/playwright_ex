@@ -8,27 +8,27 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
 
   @moduletag :page
 
-  test "should work", %{page: page} do
+  test "EX-302 should work", %{page: page} do
     Page.set_content!(page, "<input id=node></input>")
     locator = Page.locator(page, "#node")
     Locator.fill!(locator, "Text content")
     Expect.to_have_value!(locator, "Text content")
   end
 
-  test "should work with label", %{page: page} do
+  test "EX-303 should work with label", %{page: page} do
     Page.set_content!(page, "<label><input></input></label>")
     Locator.fill!(Page.locator(page, "label input"), "Text content")
     Expect.to_have_value!(Page.locator(page, "label"), "Text content")
   end
 
-  test "should work with regex", %{page: page} do
+  test "EX-304 should work with regex", %{page: page} do
     Page.set_content!(page, "<input id=node></input>")
     locator = Page.locator(page, "#node")
     Locator.fill!(locator, "Text content")
     Expect.to_have_value!(locator, ~r/Text/)
   end
 
-  test "should support failure", %{page: page} do
+  test "EX-305 should support failure", %{page: page} do
     Page.set_content!(page, "<input id=node></input>")
     locator = Page.locator(page, "#node")
     Locator.fill!(locator, "Text content")
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
   end
 
   describe "toHaveValues with multi-select" do
-    test "works with text", %{page: page} do
+    test "EX-306 works with text", %{page: page} do
       Page.set_content!(page, """
       <select multiple>
         <option value="R">Red</option>
@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
       Expect.to_have_values!(locator, ["R", "G"])
     end
 
-    test "follows labels", %{page: page} do
+    test "EX-307 follows labels", %{page: page} do
       Page.set_content!(page, """
       <label for="colors">Pick a Color</label>
       <select id="colors" multiple>
@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
       Expect.to_have_values!(locator, ["R", "G"])
     end
 
-    test "exact match with text failure", %{page: page} do
+    test "EX-308 exact match with text failure", %{page: page} do
       Page.set_content!(page, """
       <select multiple>
         <option value="RR">Red</option>
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
       assert error.message =~ "+   \"RR\""
     end
 
-    test "works with regex", %{page: page} do
+    test "EX-309 works with regex", %{page: page} do
       Page.set_content!(page, """
       <select multiple>
         <option value="R">Red</option>
@@ -95,7 +95,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
       Expect.to_have_values!(locator, [~r/R/, ~r/G/])
     end
 
-    test "fails when items not selected", %{page: page} do
+    test "EX-310 fails when items not selected", %{page: page} do
       Page.set_content!(page, """
       <select multiple>
         <option value="R">Red</option>
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
       assert error.message =~ "+   \"B\""
     end
 
-    test "fails when multiple not specified", %{page: page} do
+    test "EX-311 fails when multiple not specified", %{page: page} do
       Page.set_content!(page, """
       <select>
         <option value="R">Red</option>
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveValueTest do
       assert Exception.message(error) =~ "Not a select element with a multiple attribute"
     end
 
-    test "fails when not a select element", %{page: page} do
+    test "EX-312 fails when not a select element", %{page: page} do
       Page.set_content!(page, """
       <input value="foo" />
       """)

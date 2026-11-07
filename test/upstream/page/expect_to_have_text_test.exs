@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   # "Locator:" lines are Elixir syntax, call logs JS (architecture: Driver language and rendering).
 
   describe "toHaveText with regex" do
-    test "pass", %{page: page} do
+    test "EX-274 pass", %{page: page} do
       Page.set_content!(page, "<div id=node>Text   content</div>")
       locator = Page.locator(page, "#node")
       Expect.to_have_text!(locator, ~r/Text/)
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.not_to_have_text!(locator, ~r/text   content/i, ignore_case: false)
     end
 
-    test "fail", %{page: page} do
+    test "EX-275 fail", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       {:error, error} = Expect.to_have_text(locator, ~r/Text 2/, timeout: 1000)
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   end
 
   describe "toContainText with regex" do
-    test "pass", %{page: page} do
+    test "EX-276 pass", %{page: page} do
       Page.set_content!(page, "<div id=node>Text   content</div>")
       locator = Page.locator(page, "#node")
       Expect.to_contain_text!(locator, ~r/ex/)
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.to_contain_text!(locator, ~r/ext   cont/)
     end
 
-    test "fail", %{page: page} do
+    test "EX-277 fail", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       {:error, error} = Expect.to_contain_text(locator, ~r/ex2/, timeout: 1000)
@@ -62,13 +62,13 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   end
 
   describe "toContainText with string" do
-    test "pass", %{page: page} do
+    test "EX-278 pass", %{page: page} do
       Page.set_content!(page, "<div id=node>Text   content</div>")
       locator = Page.locator(page, "#node")
       Expect.to_contain_text!(locator, "content")
     end
 
-    test "fail", %{page: page} do
+    test "EX-279 fail", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       {:error, error} = Expect.to_contain_text(locator, "foo", timeout: 1000)
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   end
 
   describe "toHaveText with text" do
-    test "pass", %{page: page} do
+    test "EX-280 pass", %{page: page} do
       Page.set_content!(page, "<div id=node><span></span>Text \ncontent&nbsp;    </div>")
       locator = Page.locator(page, "#node")
       # Should normalize whitespace.
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.to_have_text!(locator, "T\u{AD}e\u{AD}xt content")
     end
 
-    test "pass contain", %{page: page} do
+    test "EX-281 pass contain", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       Expect.to_contain_text!(locator, "Text")
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.not_to_contain_text!(locator, "TEXT", ignore_case: false)
     end
 
-    test "fail", %{page: page} do
+    test "EX-282 fail", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       {:error, error} = Expect.to_have_text(locator, "Text", timeout: 1000)
@@ -122,7 +122,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ "Received: \"Text content\""
     end
 
-    test "pass eventually", %{page: page} do
+    test "EX-283 pass eventually", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
 
@@ -137,13 +137,13 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Task.await_many(tasks, :infinity)
     end
 
-    test "with userInnerText", %{page: page} do
+    test "EX-284 with userInnerText", %{page: page} do
       Page.set_content!(page, "<div id=node>Text <span hidden>garbage</span> content</div>")
       locator = Page.locator(page, "#node")
       Expect.to_have_text!(locator, "Text content", use_inner_text: true)
     end
 
-    test "in shadow dom", %{page: page} do
+    test "EX-285 in shadow dom", %{page: page} do
       Page.set_content!(page, """
         <div></div>
         <script>
@@ -165,7 +165,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.not_to_contain_text!(Page.locator(page, "div"), "text", use_inner_text: true)
     end
 
-    test "fail with impossible timeout", %{page: page} do
+    test "EX-286 fail with impossible timeout", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       {:error, error} = Expect.to_have_text(Page.locator(page, "#node"), "Text", timeout: 1)
       assert error.message =~ "Expected: \"Text\""
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
     end
 
     @tag skip: if(System.get_env("PW_CLOCK") == "frozen", do: "upstream skip: The element is attached after 1 second.")
-    test "do not show \"element(s) not found\" when the real failure is a string mismatch", %{page: page} do
+    test "EX-287 do not show \"element(s) not found\" when the real failure is a string mismatch", %{page: page} do
       Page.set_content!(page, """
         <div>Initial</div>
         <script>
@@ -193,7 +193,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   end
 
   describe "not.toHaveText" do
-    test "pass", %{page: page} do
+    test "EX-288 pass", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       Expect.not_to_have_text!(locator, "Text2")
@@ -201,7 +201,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.not_to_have_text!(locator, "TEXT")
     end
 
-    test "fail", %{page: page} do
+    test "EX-289 fail", %{page: page} do
       Page.set_content!(page, "<div id=node>Text content</div>")
       locator = Page.locator(page, "#node")
       {:error, error} = Expect.not_to_have_text(locator, "Text content", timeout: 1000)
@@ -209,7 +209,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ "Received: \"Text content"
     end
 
-    test "should work when selector does not match", %{page: page} do
+    test "EX-290 should work when selector does not match", %{page: page} do
       Page.set_content!(page, "<div>hello</div>")
       {:error, error} = Expect.not_to_have_text(Page.locator(page, "span"), "hello", timeout: 1000)
       assert error.message =~ "Expected: not \"hello\""
@@ -219,7 +219,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   end
 
   describe "toHaveText with array" do
-    test "pass", %{page: page} do
+    test "EX-291 pass", %{page: page} do
       Page.set_content!(page, "<div>Text    \n1</div><div>Text   2a</div>")
       locator = Page.locator(page, "div")
       # Should only normalize whitespace in the first item.
@@ -228,7 +228,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.to_have_text!(locator, ["tEXT 1", "TExt 2A"], ignore_case: true)
     end
 
-    test "pass lazy", %{page: page} do
+    test "EX-292 pass lazy", %{page: page} do
       Page.set_content!(page, "<div id=div></div>")
       locator = Page.locator(page, "p")
 
@@ -245,25 +245,25 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.to_have_text!(locator, ["Text 1", "Text 2"])
     end
 
-    test "pass empty", %{page: page} do
+    test "EX-293 pass empty", %{page: page} do
       Page.set_content!(page, "<div></div>")
       locator = Page.locator(page, "p")
       Expect.to_have_text!(locator, [])
     end
 
-    test "pass not empty", %{page: page} do
+    test "EX-294 pass not empty", %{page: page} do
       Page.set_content!(page, "<div><p>Test</p></div>")
       locator = Page.locator(page, "p")
       Expect.not_to_have_text!(locator, [])
     end
 
-    test "pass on empty", %{page: page} do
+    test "EX-295 pass on empty", %{page: page} do
       Page.set_content!(page, "<div></div>")
       locator = Page.locator(page, "p")
       Expect.not_to_have_text!(locator, ["Test"])
     end
 
-    test "fail on not+empty", %{page: page} do
+    test "EX-296 fail on not+empty", %{page: page} do
       Page.set_content!(page, "<div></div>")
       locator = Page.locator(page, "p")
       {:error, error} = Expect.not_to_have_text(locator, [], timeout: 1000)
@@ -272,7 +272,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ "- Expect \"not toHaveText\" locator('p') with timeout 1000ms"
     end
 
-    test "pass eventually empty", %{page: page} do
+    test "EX-297 pass eventually empty", %{page: page} do
       Page.set_content!(page, "<div id=div><p>Text</p></div>")
       locator = Page.locator(page, "p")
 
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.not_to_have_text!(locator, [])
     end
 
-    test "fail", %{page: page} do
+    test "EX-298 fail", %{page: page} do
       Page.set_content!(page, "<div>Text 1</div><div>Text 3</div>")
       locator = Page.locator(page, "div")
       {:error, error} = Expect.to_have_text(locator, ["Text 1", ~r/Text \d/, "Extra"], timeout: 1000)
@@ -311,7 +311,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       assert error.message =~ "locator resolved to 2 elements"
     end
 
-    test "fail on repeating array matchers", %{page: page} do
+    test "EX-299 fail on repeating array matchers", %{page: page} do
       Page.set_content!(page, "<div>KekFoo</div>")
       locator = Page.locator(page, "div")
       {:error, error} = Expect.to_contain_text(locator, ["KekFoo", "KekFoo", "KekFoo"], timeout: 1000)
@@ -320,7 +320,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
   end
 
   describe "toContainText with array" do
-    test "pass", %{page: page} do
+    test "EX-300 pass", %{page: page} do
       Page.set_content!(page, "<div>Text \n1</div><div>Text2</div><div>Text3</div>")
       locator = Page.locator(page, "div")
       Expect.to_contain_text!(locator, ["ext     1", ~r/ext3/])
@@ -328,7 +328,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
       Expect.to_contain_text!(locator, ["EXT 1", "eXt3"], ignore_case: true)
     end
 
-    test "fail", %{page: page} do
+    test "EX-301 fail", %{page: page} do
       Page.set_content!(page, "<div>Text 1</div><div>Text 3</div>")
       locator = Page.locator(page, "div")
       {:error, error} = Expect.to_contain_text(locator, ["Text 2"], timeout: 1000)

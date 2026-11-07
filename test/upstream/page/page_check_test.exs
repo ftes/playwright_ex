@@ -9,31 +9,31 @@ defmodule PlaywrightEx.Page.PageCheckTest do
 
   @roles ["checkbox", "menuitemcheckbox", "option", "radio", "switch", "menuitemradio", "treeitem"]
 
-  test "should check the box @smoke", %{page: page} do
+  test "CH-001 should check the box @smoke", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")
     Page.check!(page, "input")
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == true
   end
 
-  test "should not check the checked box", %{page: page} do
+  test "CH-002 should not check the checked box", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox' checked></input>")
     Page.check!(page, "input")
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == true
   end
 
-  test "should uncheck the box", %{page: page} do
+  test "CH-003 should uncheck the box", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox' checked></input>")
     Page.uncheck!(page, "input")
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == false
   end
 
-  test "should not uncheck the unchecked box", %{page: page} do
+  test "CH-004 should not uncheck the unchecked box", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")
     Page.uncheck!(page, "input")
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == false
   end
 
-  test "should check radio", %{page: page} do
+  test "CH-005 should check radio", %{page: page} do
     Page.set_content!(page, """
     <input type='radio'>one</input>
     <input id='two' type='radio'>two</input>
@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert Page.evaluate!(page, "() => window['two'].checked") == true
   end
 
-  test "should check radio by aria role", %{page: page} do
+  test "CH-006 should check radio by aria role", %{page: page} do
     Page.set_content!(page, """
     <div role='radio' id='checkbox'>CHECKBOX</div>
     <script>
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert Page.evaluate!(page, "() => window['checkbox'].getAttribute('aria-checked')") == "true"
   end
 
-  test "should uncheck radio by aria role", %{page: page} do
+  test "CH-007 should uncheck radio by aria role", %{page: page} do
     Page.set_content!(page, """
     <div role='radio' id='checkbox' aria-checked="true">CHECKBOX</div>
     <script>
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert Page.evaluate!(page, "() => window['checkbox'].getAttribute('aria-checked')") == "false"
   end
 
-  test "should check the box by aria role", %{page: page} do
+  test "CH-008 should check the box by aria role", %{page: page} do
     for role <- @roles do
       # it.step(`role=${role}`)
       Page.set_content!(page, """
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     end
   end
 
-  test "should uncheck the box by aria role", %{page: page} do
+  test "CH-009 should uncheck the box by aria role", %{page: page} do
     for role <- @roles do
       # it.step(`role=${role}`)
       Page.set_content!(page, """
@@ -102,19 +102,19 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     end
   end
 
-  test "should throw when not a checkbox", %{page: page} do
+  test "CH-010 should throw when not a checkbox", %{page: page} do
     Page.set_content!(page, "<div>Check me</div>")
     {:error, error} = Page.check(page, "div")
     assert Exception.message(error) =~ "Not a checkbox or radio button"
   end
 
-  test "should throw when not a checkbox 2", %{page: page} do
+  test "CH-011 should throw when not a checkbox 2", %{page: page} do
     Page.set_content!(page, "<div role=button>Check me</div>")
     {:error, error} = Page.check(page, "div")
     assert Exception.message(error) =~ "Not a checkbox or radio button"
   end
 
-  test "should check the box inside a button", %{page: page} do
+  test "CH-012 should check the box inside a button", %{page: page} do
     Page.set_content!(page, "<div role='button'><input type='checkbox'></div>")
     Page.check!(page, "input")
     assert Page.eval_on_selector!(page, "input", "input => input.checked") == true
@@ -122,7 +122,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert ElementHandle.is_checked!(Page.query_selector!(page, "input")) == true
   end
 
-  test "should check the label with position", %{page: page, server: server} do
+  test "CH-013 should check the label with position", %{page: page, server: server} do
     Page.set_content!(page, """
     <input id='checkbox' type='checkbox' style='width: 5px; height: 5px;'>
     <label for='checkbox'>
@@ -136,19 +136,19 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert Page.eval_on_selector!(page, "input", "input => input.checked") == true
   end
 
-  test "trial run should not check", %{page: page} do
+  test "CH-014 trial run should not check", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")
     Page.check!(page, "input", trial: true)
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == false
   end
 
-  test "trial run should not uncheck", %{page: page} do
+  test "CH-015 trial run should not uncheck", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox' checked></input>")
     Page.uncheck!(page, "input", trial: true)
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == true
   end
 
-  test "should check the box using setChecked", %{page: page} do
+  test "CH-016 should check the box using setChecked", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")
     Page.set_checked!(page, "input", true)
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == true
@@ -156,7 +156,7 @@ defmodule PlaywrightEx.Page.PageCheckTest do
     assert Page.evaluate!(page, "() => window['checkbox'].checked") == false
   end
 
-  test "should throw when trying to uncheck radio button", %{page: page} do
+  test "CH-017 should throw when trying to uncheck radio button", %{page: page} do
     Page.set_content!(page, "<input type='radio' name='test' checked id='radio'>")
     {:error, error} = Page.uncheck(page, "#radio")
     assert Exception.message(error) =~ "Cannot uncheck radio button"

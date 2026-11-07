@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
 
   @moduletag :page
 
-  test "should work", %{page: page} do
+  test "EH-039 should work", %{page: page} do
     Page.set_content!(
       page,
       ~s(<html><body><div class="tweet"><div class="like">100</div><div class="retweets">10</div></div></body></html>)
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
     assert content == "100"
   end
 
-  test "should retrieve content from subtree", %{page: page} do
+  test "EH-040 should retrieve content from subtree", %{page: page} do
     html_content = ~s(<div class="a">not-a-child-div</div><div id="myId"><div class="a">a-child-div</div></div>)
     Page.set_content!(page, html_content)
     element_handle = Page.query_selector!(page, "#myId")
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
     assert content == "a-child-div"
   end
 
-  test "should throw in case of missing selector", %{page: page} do
+  test "EH-041 should throw in case of missing selector", %{page: page} do
     html_content = ~s(<div class="a">not-a-child-div</div><div id="myId"></div>)
     Page.set_content!(page, html_content)
     element_handle = Page.query_selector!(page, "#myId")
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
     assert Exception.message(error) =~ ~s(elementHandle.$eval: Failed to find element matching selector ".a")
   end
 
-  test "should work for all", %{page: page} do
+  test "EH-042 should work for all", %{page: page} do
     Page.set_content!(
       page,
       ~s(<html><body><div class="tweet"><div class="like">100</div><div class="like">10</div></div></body></html>)
@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
     assert content == ["100", "10"]
   end
 
-  test "should retrieve content from subtree for all", %{page: page} do
+  test "EH-043 should retrieve content from subtree for all", %{page: page} do
     html_content =
       ~s(<div class="a">not-a-child-div</div><div id="myId"><div class="a">a1-child-div</div><div class="a">a2-child-div</div></div>)
 
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
     assert content == ["a1-child-div", "a2-child-div"]
   end
 
-  test "should not throw in case of missing selector for all", %{page: page} do
+  test "EH-044 should not throw in case of missing selector for all", %{page: page} do
     html_content = ~s(<div class="a">not-a-child-div</div><div id="myId"></div>)
     Page.set_content!(page, html_content)
     element_handle = Page.query_selector!(page, "#myId")

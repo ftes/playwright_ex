@@ -33,7 +33,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     |> Plug.Conn.send_resp(200, body)
   end
 
-  test "should capture local storage", %{context_factory: context_factory} do
+  test "ST-001 should capture local storage", %{context_factory: context_factory} do
     context = context_factory.([])
     page1 = BrowserContext.new_page!(context)
     fulfill_html(page1)
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   # it.fixme(channel?.startsWith('msedge'))  -- not honored: we run the bundled chromium
-  test "should set local storage", %{context_factory: context_factory} do
+  test "ST-002 should set local storage", %{context_factory: context_factory} do
     context =
       context_factory.(
         storage_state: %{
@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     BrowserContext.close!(context)
   end
 
-  test "should report good error if the url is not valid", %{browser: browser} do
+  test "ST-003 should report good error if the url is not valid", %{browser: browser} do
     # contextFactory(...).catch(e => e)
     {:error, error} =
       Browser.new_context(browser,
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
 
   # it.fixme(channel?.startsWith('msedge'))  -- not honored: we run the bundled chromium
   @tag :tmp_dir
-  test "should round-trip through the file", %{context_factory: context_factory, tmp_dir: tmp_dir} do
+  test "ST-004 should round-trip through the file", %{context_factory: context_factory, tmp_dir: tmp_dir} do
     context = context_factory.([])
     page1 = BrowserContext.new_page!(context)
     fulfill_html(page1)
@@ -179,7 +179,12 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   @tag :page
   @tag :tmp_dir
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: OPFS is unavailable in non-persistent WebKit contexts")
-  test "should round-trip OPFS", %{context_factory: context_factory, page: page, server: server, tmp_dir: tmp_dir} do
+  test "ST-005 should round-trip OPFS", %{
+    context_factory: context_factory,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     # annotation: issue https://github.com/microsoft/playwright/issues/41400
     Page.goto!(page, server.empty_page)
 
@@ -267,7 +272,12 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :page
-  test "should capture cookies", %{server: server, context: context, page: page, context_factory: context_factory} do
+  test "ST-006 should capture cookies", %{
+    server: server,
+    context: context,
+    page: page,
+    context_factory: context_factory
+  } do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn
       |> Plug.Conn.prepend_resp_headers([{"set-cookie", "a=b"}, {"set-cookie", "empty="}])
@@ -300,7 +310,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
            """) == ["a=b", "empty="]
   end
 
-  test "should not emit events about internal page", %{context_factory: context_factory} do
+  test "ST-007 should not emit events about internal page", %{context_factory: context_factory} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     Page.route!(page, "**/*", &Route.fulfill(&1, body: "<html></html>"))
@@ -318,7 +328,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     refute_received {:event, _}
   end
 
-  test "should not restore localStorage twice", %{context_factory: context_factory} do
+  test "ST-008 should not restore localStorage twice", %{context_factory: context_factory} do
     context =
       context_factory.(
         storage_state: %{
@@ -343,7 +353,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :tmp_dir
-  test "should handle missing file", %{browser: browser, tmp_dir: tmp_dir} do
+  test "ST-009 should handle missing file", %{browser: browser, tmp_dir: tmp_dir} do
     file = Path.join(tmp_dir, "does-not-exist.json")
     {:error, error} = Browser.new_context(browser, storage_state: file)
     # deviation: Elixir's File error text, not Node's ENOENT.
@@ -352,7 +362,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :tmp_dir
-  test "should handle malformed file", %{browser: browser, tmp_dir: tmp_dir} do
+  test "ST-010 should handle malformed file", %{browser: browser, tmp_dir: tmp_dir} do
     file = Path.join(tmp_dir, "state.json")
     File.write!(file, "not-json")
     {:error, error} = Browser.new_context(browser, storage_state: file)
@@ -362,7 +372,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :page
-  test "should serialize storageState with lone surrogates", %{page: page, context: context, server: server} do
+  test "ST-011 should serialize storageState with lone surrogates", %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright-dotnet/issues/2819
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "() => window.localStorage.setItem('foo', String.fromCharCode(55934))")
@@ -374,7 +384,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
 
   # it.skip(isAndroid), it.skip(isElectron && ...)  -- not honored: no Android/Electron
   @tag :page
-  test "should work when service worker is intefering", %{page: page, context: context, server: server} do
+  test "ST-012 should work when service worker is intefering", %{page: page, context: context, server: server} do
     TestServer.set_route(server, "/", fn conn ->
       html(conn, """
         <script>
@@ -424,7 +434,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
 
   # it.skip(isAndroid), it.skip(isElectron && ...)  -- not honored: no Android/Electron
   @tag :page
-  test "should work when service worker is intefering and the origin is not open",
+  test "ST-013 should work when service worker is intefering and the origin is not open",
        %{page: page, context: context, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/42656
     TestServer.set_route(server, "/", fn conn ->
@@ -469,7 +479,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     assert hd(storage_state.origins).localStorage == [%{name: "foo", value: "bar"}]
   end
 
-  test "should set local storage in third-party context", %{context_factory: context_factory, server: server} do
+  test "ST-014 should set local storage in third-party context", %{context_factory: context_factory, server: server} do
     context =
       context_factory.(
         storage_state: %{
@@ -488,7 +498,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :page
-  test "should roundtrip local storage in third-party context",
+  test "ST-015 should roundtrip local storage in third-party context",
        %{page: page, context_factory: context_factory, server: server} do
     Page.goto!(page, server.empty_page)
     frame = attach_frame(page, "frame1", server.cross_process_prefix <> "/empty.html")
@@ -506,7 +516,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :page
-  test "should support IndexedDB", %{page: page, server: server, context_factory: context_factory} do
+  test "ST-016 should support IndexedDB", %{page: page, server: server, context_factory: context_factory} do
     Page.goto!(page, server.prefix <> "/to-do-notifications/index.html")
 
     Expect.to_match_aria_snapshot!(Page.locator(page, "#notifications"), """
@@ -650,7 +660,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :page
-  test "should support empty indexedDB", %{page: page, server: server, context_factory: context_factory} do
+  test "ST-018 should support empty indexedDB", %{page: page, server: server, context_factory: context_factory} do
     # annotation: issue https://github.com/microsoft/playwright/issues/35760
     Page.goto!(page, server.empty_page)
 
@@ -672,7 +682,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     assert BrowserContext.storage_state!(context, indexed_db: true) == storage_state
   end
 
-  test "should not leave IndexedDB connections open", %{context_factory: context_factory, server: server} do
+  test "ST-019 should not leave IndexedDB connections open", %{context_factory: context_factory, server: server} do
     # annotation: issue https://github.com/microsoft/playwright/issues/42258
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
@@ -713,7 +723,10 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     assert BrowserContext.storage_state!(context, indexed_db: true) == state
   end
 
-  test "should round-trip WebAuthn credentials with storageState", %{context_factory: context_factory, server: server} do
+  test "ST-020 should round-trip WebAuthn credentials with storageState", %{
+    context_factory: context_factory,
+    server: server
+  } do
     context = context_factory.([])
     credential = Credentials.create!(BrowserContext.credentials(context), server.hostname)
 
@@ -729,7 +742,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     assert BrowserContext.storage_state!(context2, credentials: true) == storage_state
   end
 
-  test "setStorageState should replace credentials", %{context_factory: context_factory} do
+  test "ST-021 setStorageState should replace credentials", %{context_factory: context_factory} do
     ctx_a = context_factory.([])
     cred_a = Credentials.create!(BrowserContext.credentials(ctx_a), "a.example.com")
     state_a = BrowserContext.storage_state!(ctx_a, credentials: true)
@@ -755,7 +768,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
   end
 
   @tag :tmp_dir
-  test "setStorageState should handle missing file", %{context_factory: context_factory, tmp_dir: tmp_dir} do
+  test "ST-022 setStorageState should handle missing file", %{context_factory: context_factory, tmp_dir: tmp_dir} do
     context = context_factory.([])
     file = Path.join(tmp_dir, "does-not-exist.json")
     {:error, error} = BrowserContext.set_storage_state(context, file)

@@ -28,11 +28,11 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     end)
   end
 
-  test "should return no cookies in pristine browser context", %{context: context} do
+  test "CO-001 should return no cookies in pristine browser context", %{context: context} do
     assert BrowserContext.cookies!(context) == []
   end
 
-  test "should get a cookie @smoke", %{
+  test "CO-002 should get a cookie @smoke", %{
     context: context,
     page: page,
     server: server,
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
            ]
   end
 
-  test "should get a non-session cookie", %{
+  test "CO-003 should get a non-session cookie", %{
     context: context,
     page: page,
     server: server,
@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
              (System.system_time(:millisecond) + four_hundred_days - five_minutes) / 1000
   end
 
-  test "should allow adding cookies with >400 days expiration", %{
+  test "CO-004 should allow adding cookies with >400 days expiration", %{
     context: context,
     server: server
   } do
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     assert hd(cookies).expires <= expire
   end
 
-  test "should properly report httpOnly cookie", %{context: context, page: page, server: server} do
+  test "CO-005 should properly report httpOnly cookie", %{context: context, page: page, server: server} do
     set_cookie_route(server, "/empty.html", "name=value;HttpOnly; Path=/")
     Page.goto!(page, server.empty_page)
     cookies = BrowserContext.cookies!(context)
@@ -156,7 +156,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     assert hd(cookies).httpOnly == true
   end
 
-  test "should properly report \"Strict\" sameSite cookie", %{
+  test "CO-006 should properly report \"Strict\" sameSite cookie", %{
     context: context,
     page: page,
     server: server,
@@ -172,7 +172,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     end)
   end
 
-  test "should properly report \"Lax\" sameSite cookie", %{
+  test "CO-007 should properly report \"Lax\" sameSite cookie", %{
     context: context,
     page: page,
     server: server,
@@ -188,7 +188,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     end)
   end
 
-  test "should get multiple cookies", %{
+  test "CO-008 should get multiple cookies", %{
     context: context,
     page: page,
     server: server,
@@ -233,7 +233,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
              ])
   end
 
-  test "should get cookies from multiple urls", %{context: context, browser_name: browser_name} do
+  test "CO-009 should get cookies from multiple urls", %{context: context, browser_name: browser_name} do
     BrowserContext.add_cookies!(context, [
       %{url: "https://foo.com", name: "doggo", value: "woofs", sameSite: "None"},
       %{url: "https://bar.com", name: "catto", value: "purrs", sameSite: "Lax"},
@@ -267,7 +267,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
              ])
   end
 
-  test "should work with subdomain cookie", %{context: context, browser_name: browser_name} do
+  test "CO-010 should work with subdomain cookie", %{context: context, browser_name: browser_name} do
     BrowserContext.add_cookies!(context, [
       %{
         domain: ".foo.com",
@@ -296,14 +296,14 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     assert BrowserContext.cookies!(context, "https://sub.foo.com") == expected
   end
 
-  test "should return cookies with empty value", %{context: context, page: page, server: server} do
+  test "CO-012 should return cookies with empty value", %{context: context, page: page, server: server} do
     set_cookie_route(server, "/empty.html", "name=;Path=/")
     Page.goto!(page, server.empty_page)
     cookies = BrowserContext.cookies!(context)
     assert [%{name: "name", value: ""}] = cookies
   end
 
-  test "should return secure cookies based on HTTP(S) protocol", %{
+  test "CO-013 should return secure cookies based on HTTP(S) protocol", %{
     context: context,
     browser_name: browser_name
   } do
@@ -345,7 +345,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
 
   for host <- ["127.0.0.1", "[::1]"] do
     @host host
-    test "should return secure cookies for http #{host}", %{context: context} do
+    test "CO-014 should return secure cookies for http #{host}", %{context: context} do
       host = @host
 
       BrowserContext.add_cookies!(context, [
@@ -356,7 +356,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     end
   end
 
-  test "should add cookies with an expiration", %{context: context} do
+  test "CO-015 should add cookies with an expiration", %{context: context} do
     expires = floor(System.system_time(:millisecond) / 1000) + 3600
 
     BrowserContext.add_cookies!(context, [
@@ -423,7 +423,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
          if(System.get_env("BROWSER", "chromium") == "chromium",
            do: "upstream skip: requestStorageAccess API is not available in Chromium"
          )
-  test "should support requestStorageAccess", %{
+  test "CO-016 should support requestStorageAccess", %{
     page: page,
     server: server,
     browser_name: browser_name
@@ -468,7 +468,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     end
   end
 
-  test "should parse cookie with large Max-Age correctly", %{
+  test "CO-017 should parse cookie with large Max-Age correctly", %{
     server: server,
     page: page,
     browser_name: browser_name
@@ -503,7 +503,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
            ]
   end
 
-  test "iframe should inherit cookies from parent", %{page: page} do
+  test "CO-018 iframe should inherit cookies from parent", %{page: page} do
     Page.route!(page, "**/*", fn route, request ->
       if String.contains?(Request.url(request), "sub.example.test") do
         Route.fulfill!(route,

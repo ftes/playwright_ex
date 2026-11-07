@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.TestServer
 
-  test "should work @smoke", %{context_factory: context_factory, server: server} do
+  test "NE-131 should work @smoke", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     request = Page.wait_for_event(page, :request_finished)
@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
          if(System.get_env("BROWSER") == "webkit" and match?({:win32, _}, :os.type()),
            do: "upstream fixme: responseStart is wrong due upstream webkit/libcurl bug"
          )
-  test "should work for subresource", %{context_factory: context_factory, server: server} do
+  test "NE-132 should work for subresource", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     test = self()
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
     BrowserContext.close!(context)
   end
 
-  test "should work for SSL", %{browser: browser, https_server: https_server} do
+  test "NE-133 should work for SSL", %{browser: browser, https_server: https_server} do
     page = Browser.new_page!(browser, ignore_https_errors: true)
     request = Page.wait_for_event(page, :request_finished)
     Page.goto!(page, https_server.empty_page)
@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
          if(System.get_env("BROWSER") == "webkit",
            do: "upstream fixme: In WebKit, redirects don't carry the timing info"
          )
-  test "should work for redirect", %{context_factory: context_factory, server: server} do
+  test "NE-134 should work for redirect", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     TestServer.set_redirect(server, "/foo.html", "/empty.html")
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Library.ResourceTimingTest do
   end
 
   @tag skip: if(System.get_env("BROWSER") == "firefox", do: "upstream fixme: Response event is not fired in Firefox")
-  test "should work when serving from memory cache", %{
+  test "NE-135 should work when serving from memory cache", %{
     context_factory: context_factory,
     server: server
   } do

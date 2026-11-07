@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     end
   end
 
-  test "should add and remove overlay", %{browser: browser, server: server} do
+  test "SC-028 should add and remove overlay", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should add multiple overlays", %{browser: browser, server: server} do
+  test "SC-029 should add multiple overlays", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -122,7 +122,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should hide and show overlays", %{browser: browser, server: server} do
+  test "SC-030 should hide and show overlays", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -140,7 +140,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should survive navigation", %{browser: browser, server: server} do
+  test "SC-031 should survive navigation", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should remove overlay and not restore after navigation", %{browser: browser, server: server} do
+  test "SC-032 should remove overlay and not restore after navigation", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should sanitize scripts from overlay html", %{browser: browser, server: server} do
+  test "SC-033 should sanitize scripts from overlay html", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -190,7 +190,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should strip event handlers from overlay html", %{browser: browser, server: server} do
+  test "SC-034 should strip event handlers from overlay html", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -207,7 +207,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should auto-remove overlay after timeout", %{browser: browser, server: server} do
+  test "SC-035 should auto-remove overlay after timeout", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -218,7 +218,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     BrowserContext.close!(context)
   end
 
-  test "should allow styles in overlay html", %{browser: browser, server: server} do
+  test "SC-036 should allow styles in overlay html", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.empty_page)
@@ -251,7 +251,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     @content content
 
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42629' }
-    test "should show overlay above #{kind} opened before it", %{browser: browser} do
+    test "SC-037 should show overlay above #{kind} opened before it", %{browser: browser} do
       context = Browser.new_context!(browser)
       page = BrowserContext.new_page!(context)
       Page.set_content!(page, @content)
@@ -268,7 +268,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
     end
 
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42629' }
-    test "should keep overlay above #{kind} opened after it", %{browser: browser} do
+    test "SC-038 should keep overlay above #{kind} opened after it", %{browser: browser} do
       context = Browser.new_context!(browser)
       page = BrowserContext.new_page!(context)
       Page.set_content!(page, @content)

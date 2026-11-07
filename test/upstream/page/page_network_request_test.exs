@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end)
   end
 
-  test "should work for main frame navigation request", %{page: page, server: server} do
+  test "NE-001 should work for main frame navigation request", %{page: page, server: server} do
     on_request(page)
     Page.goto!(page, server.empty_page)
     requests = received()
@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.frame(Enum.at(requests, 0)) == Page.main_frame(page)
   end
 
-  test "should work for subframe navigation request", %{page: page, server: server} do
+  test "NE-002 should work for subframe navigation request", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     on_request(page)
     Utils.attach_frame(page, "frame1", server.empty_page)
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.frame(Enum.at(requests, 0)) == Enum.at(Page.frames(page), 1)
   end
 
-  test "should work for fetch requests @smoke", %{page: page, server: server} do
+  test "NE-003 should work for fetch requests @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     on_request(page)
     Page.evaluate!(page, "() => fetch('/digits/1.png')")
@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.frame(Enum.at(requests, 0)) == Page.main_frame(page)
   end
 
-  test "should work for a redirect", %{page: page, server: server} do
+  test "NE-004 should work for a redirect", %{page: page, server: server} do
     TestServer.set_redirect(server, "/foo.html", "/empty.html")
     on_request(page)
     Page.goto!(page, server.prefix <> "/foo.html")
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   end
 
   # https://github.com/microsoft/playwright/issues/3993
-  test "should not work for a redirect and interception", %{page: page, server: server} do
+  test "NE-005 should not work for a redirect and interception", %{page: page, server: server} do
     TestServer.set_redirect(server, "/foo.html", "/empty.html")
     me = self()
 
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.url(Enum.at(requests, 0)) == server.prefix <> "/foo.html"
   end
 
-  test "should return headers", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-006 should return headers", %{page: page, server: server, browser_name: browser_name} do
     response = Page.goto!(page, server.empty_page)
 
     case browser_name do
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end
   end
 
-  test "should get the same headers as the server", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-007 should get the same headers as the server", %{page: page, server: server, browser_name: browser_name} do
     # it.fail(webkit && win32 && channel !== 'webkit-wsl'): Curl does not show accept-encoding and accept-language
     expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
       me = self()
@@ -123,7 +123,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end)
   end
 
-  test "should not return allHeaders() until they are available",
+  test "NE-008 should not return allHeaders() until they are available",
        %{page: page, server: server, browser_name: browser_name} do
     # it.fail(webkit && win32 && channel !== 'webkit-wsl'): Curl does not show accept-encoding and accept-language
     expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
@@ -155,7 +155,11 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end)
   end
 
-  test "should get the same headers as the server CORS", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-009 should get the same headers as the server CORS", %{
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
     # it.fail(webkit && win32 && channel !== 'webkit-wsl'): Curl does not show accept-encoding and accept-language
     expected_failure(@browser_name == "webkit" and match?({:win32, _}, :os.type()), fn ->
       Page.goto!(page, server.prefix <> "/empty.html")
@@ -188,7 +192,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     end)
   end
 
-  test "should not get preflight CORS requests when intercepting", %{
+  test "NE-010 should not get preflight CORS requests when intercepting", %{
     page: page,
     server: server,
     browser_name: browser_name
@@ -245,7 +249,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
       else: assert(received() == ["DELETE"])
   end
 
-  test "should return postData", %{page: page, server: server} do
+  test "NE-011 should return postData", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, ""))
     on_request(page)
@@ -255,7 +259,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.post_data(request) == ~s({"foo":"bar"})
   end
 
-  test "should work with binary post data", %{page: page, server: server} do
+  test "NE-012 should work with binary post data", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, ""))
     on_request(page)
@@ -273,7 +277,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     for i <- 0..255, do: assert(:binary.at(buffer, i) == i)
   end
 
-  test "should work with binary post data and interception", %{page: page, server: server} do
+  test "NE-013 should work with binary post data and interception", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, ""))
     Page.route!(page, "/post", &Route.continue/1)
@@ -292,7 +296,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     for i <- 0..255, do: assert(:binary.at(buffer, i) == i)
   end
 
-  test "should override post data content type", %{page: page, server: server} do
+  test "NE-014 should override post data content type", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     me = self()
 
@@ -317,12 +321,12 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Plug.Conn.get_req_header(request, "content-type") == ["application/x-www-form-urlencoded; charset=UTF-8"]
   end
 
-  test "should get |undefined| with postData() when there is no post data", %{page: page, server: server} do
+  test "NE-015 should get |undefined| with postData() when there is no post data", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)
     assert Request.post_data(Response.request(response)) == nil
   end
 
-  test "should parse the json post data", %{page: page, server: server} do
+  test "NE-016 should parse the json post data", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, ""))
     on_request(page)
@@ -332,7 +336,10 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.post_data_json(request) == %{"foo" => "bar"}
   end
 
-  test "should parse the data if content-type is application/x-www-form-urlencoded", %{page: page, server: server} do
+  test "NE-017 should parse the data if content-type is application/x-www-form-urlencoded", %{
+    page: page,
+    server: server
+  } do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, ""))
     on_request(page)
@@ -348,7 +355,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.post_data_json(request) == %{"foo" => "bar", "baz" => "123"}
   end
 
-  test "should parse the data if content-type is application/x-www-form-urlencoded; charset=UTF-8",
+  test "NE-018 should parse the data if content-type is application/x-www-form-urlencoded; charset=UTF-8",
        %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/29872
     Page.goto!(page, server.empty_page)
@@ -367,13 +374,13 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.post_data_json(PlaywrightEx.Promise.await!(request_promise)) == %{"foo" => "bar", "baz" => "123"}
   end
 
-  test "should get |undefined| with postDataJSON() when there is no post data", %{page: page, server: server} do
+  test "NE-019 should get |undefined| with postDataJSON() when there is no post data", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)
     assert Request.post_data_json(Response.request(response)) == nil
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: File content is missing in WebKit")
-  test "should return multipart/form-data", %{page: page, server: server} do
+  test "NE-020 should return multipart/form-data", %{page: page, server: server} do
     # it.fixme(browserName === 'webkit'), it.skip(chromium < 126)  -- we run a recent chromium
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/post", &Plug.Conn.send_resp(&1, 200, ""))
@@ -403,7 +410,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.post_data_buffer(request) == expected
   end
 
-  test "should return event source", %{page: page, server: server} do
+  test "NE-021 should return event source", %{page: page, server: server} do
     sse_message = %{"foo" => "bar"}
     # 1. Setup server-sent events on server that immediately sends a message to the client.
     TestServer.set_route(server, "/sse", fn conn ->
@@ -436,7 +443,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.resource_type(Enum.at(received(), 0)) == "eventsource"
   end
 
-  test "should return navigation bit", %{page: page, server: server} do
+  test "NE-022 should return navigation bit", %{page: page, server: server} do
     on_request(page)
     TestServer.set_redirect(server, "/rrredirect", "/frames/one-frame.html")
     Page.goto!(page, server.prefix <> "/rrredirect")
@@ -448,13 +455,13 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert Request.is_navigation_request(requests["style.css"]) == false
   end
 
-  test "should return navigation bit when navigating to image", %{page: page, server: server} do
+  test "NE-023 should return navigation bit when navigating to image", %{page: page, server: server} do
     on_request(page)
     Page.goto!(page, server.prefix <> "/pptr.png")
     assert Request.is_navigation_request(Enum.at(received(), 0)) == true
   end
 
-  test "should report raw headers", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-024 should report raw headers", %{page: page, server: server, browser_name: browser_name} do
     me = self()
 
     TestServer.set_route(server, "/headers", fn conn ->
@@ -496,7 +503,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: WebKit won't give us raw headers for redirects")
-  test "should report raw response headers in redirects", %{page: page, server: server} do
+  test "NE-025 should report raw response headers in redirects", %{page: page, server: server} do
     TestServer.set_extra_headers(server, "/redirect/1.html", %{"sec-test-header" => "1.html"})
     TestServer.set_extra_headers(server, "/redirect/2.html", %{"sec-test-header" => "2.html"})
     TestServer.set_extra_headers(server, "/empty.html", %{"sec-test-header" => "empty.html"})
@@ -525,7 +532,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert headers_chain == expected_headers
   end
 
-  test "should report all cookies in one header", %{page: page, server: server} do
+  test "NE-026 should report all cookies in one header", %{page: page, server: server} do
     TestServer.set_route(server, "/headers", &Plug.Conn.send_resp(&1, 200, ""))
 
     Page.goto!(page, server.empty_page)
@@ -542,7 +549,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     assert cookie == "myCookie=myValue; myOtherCookie=myOtherValue"
   end
 
-  test "should not allow to access frame on popup main request", %{page: page, server: server} do
+  test "NE-027 should not allow to access frame on popup main request", %{page: page, server: server} do
     Page.set_content!(page, ~s(<a target=_blank href="#{server.empty_page}">click me</a>))
     request_promise = BrowserContext.wait_for_event(Page.context(page), :request)
     popup_promise = BrowserContext.wait_for_event(Page.context(page), :page)
@@ -568,7 +575,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: Does not send second request")
-  test "page.reload return 304 status code", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-028 page.reload return 304 status code", %{page: page, server: server, browser_name: browser_name} do
     # issue: https://github.com/microsoft/playwright/issues/28779
     # issue: https://github.com/microsoft/playwright/issues/29441
     {:ok, request_number} = Agent.start_link(fn -> 0 end)
@@ -608,7 +615,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
          if(@browser_name != "chromium",
            do: "upstream skip: FF and WK actually succeed with the request, and block afterwards"
          )
-  test "should handle mixed-content blocked requests", %{page: page, asset: asset} do
+  test "NE-029 should handle mixed-content blocked requests", %{page: page, asset: asset} do
     # issue: https://github.com/microsoft/playwright/issues/29833
     Page.route!(page, "**/mixedcontent.html", fn route ->
       Route.fulfill(route,

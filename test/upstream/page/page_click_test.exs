@@ -45,13 +45,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     fn -> Agent.get(agent, & &1) end
   end
 
-  test "should click the button @smoke", %{page: page, server: server} do
+  test "CL-001 should click the button @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click button inside frameset", %{page: page, server: server} do
+  test "CL-002 should click button inside frameset", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/frameset.html")
     frame_element = Page.query_selector!(page, "frame")
     JSHandle.evaluate!(frame_element, "frame => frame.src = '/input/button.html'")
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Frame.evaluate!(frame, "result") == "Clicked"
   end
 
-  test "should issue clicks in parallel in page and popup", %{page: page, server: server} do
+  test "CL-003 should issue clicks in parallel in page and popup", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/counter.html")
     popup = Page.wait_for_event(page, :popup)
     Page.evaluate!(page, "() => window.open('/counter.html')")
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(popup, "() => window['count']") == 7
   end
 
-  test "should click svg", %{page: page} do
+  test "CL-004 should click svg", %{page: page} do
     Page.set_content!(page, """
       <svg height="100" width="100">
         <circle onclick="window.__CLICKED=42" cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == 42
   end
 
-  test "should click the button if window.Node is removed", %{page: page, server: server} do
+  test "CL-005 should click the button if window.Node is removed", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.evaluate!(page, "() => delete window.Node")
     Page.click!(page, "button")
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   end
 
   # @see https://github.com/GoogleChrome/puppeteer/issues/4281
-  test "should click on a span with an inline element inside", %{page: page} do
+  test "CL-006 should click on a span with an inline element inside", %{page: page} do
     Page.set_content!(page, """
       <style>
       span::before {
@@ -110,13 +110,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "CLICKED") == 42
   end
 
-  test "should click the aligned 1x1 div", %{page: page} do
+  test "CL-007 should click the aligned 1x1 div", %{page: page} do
     Page.set_content!(page, ~s(<div style="width: 1px; height: 1px;" onclick="window.__clicked = true"></div>))
     Page.click!(page, "div")
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click the half-aligned 1x1 div", %{page: page} do
+  test "CL-008 should click the half-aligned 1x1 div", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div style="margin-left: 20.5px; margin-top: 11.5px; width: 1px; height: 1px;" onclick="window.__clicked = true"></div>)
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click the unaligned 1x1 div v1", %{page: page} do
+  test "CL-009 should click the unaligned 1x1 div v1", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div style="margin-left: 20.23px; margin-top: 11.65px; width: 1px; height: 1px;" onclick="window.__clicked = true"></div>)
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click the unaligned 1x1 div v2", %{page: page} do
+  test "CL-010 should click the unaligned 1x1 div v2", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div style="margin-left: 20.68px; margin-top: 11.13px; width: 1px; height: 1px;" onclick="window.__clicked = true"></div>)
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click the unaligned 1x1 div v3", %{page: page} do
+  test "CL-011 should click the unaligned 1x1 div v3", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div style="margin-left: 20.68px; margin-top: 11.52px; width: 1px; height: 1px;" onclick="window.__clicked = true"></div>)
@@ -156,7 +156,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click the unaligned 1x1 div v4", %{page: page} do
+  test "CL-012 should click the unaligned 1x1 div v4", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div style="margin-left: 20.15px; margin-top: 11.24px; width: 1px; height: 1px;" onclick="window.__clicked = true"></div>)
@@ -166,7 +166,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should click the button after navigation ", %{page: page, server: server} do
+  test "CL-013 should click the button after navigation ", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
     Page.goto!(page, server.prefix <> "/input/button.html")
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click the button after a cross origin navigation ", %{page: page, server: server} do
+  test "CL-014 should click the button after a cross origin navigation ", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
     Page.goto!(page, server.cross_process_prefix <> "/input/button.html")
@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click when one of inline box children is outside of viewport", %{page: page} do
+  test "CL-015 should click when one of inline box children is outside of viewport", %{page: page} do
     Page.set_content!(page, """
       <style>
       i {
@@ -197,7 +197,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "CLICKED") == 42
   end
 
-  test "should select the text by triple clicking", %{page: page, server: server} do
+  test "CL-016 should select the text by triple clicking", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     text = "This is the text that we are going to try to select. Let's see how it goes."
     Page.fill!(page, "textarea", text)
@@ -211,7 +211,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
            """) == text
   end
 
-  test "should click offscreen buttons", %{page: page, server: server} do
+  test "CL-017 should click offscreen buttons", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/offscreenbuttons.html")
     messages = collect_console(page)
 
@@ -224,13 +224,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert messages.() == for(i <- 0..10, do: "button ##{i} clicked")
   end
 
-  test "should waitFor visible when already visible", %{page: page, server: server} do
+  test "CL-018 should waitFor visible when already visible", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button")
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should not wait with force", %{page: page, server: server} do
+  test "CL-019 should not wait with force", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.display = 'none'")
     {:error, error} = Page.click(page, "button", force: true)
@@ -238,7 +238,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Was not clicked"
   end
 
-  test "should waitFor display:none to be gone", %{page: page, server: server} do
+  test "CL-020 should waitFor display:none to be gone", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.display = 'none'")
     clicked = Runtime.Promise.async(fn -> Page.click!(page, "button", timeout: 0) end, shared: true)
@@ -250,7 +250,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should waitFor visibility:hidden to be gone", %{page: page, server: server} do
+  test "CL-021 should waitFor visibility:hidden to be gone", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.visibility = 'hidden'")
     clicked = Runtime.Promise.async(fn -> Page.click!(page, "button", timeout: 0) end, shared: true)
@@ -262,7 +262,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should waitFor visible when parent is hidden", %{page: page, server: server} do
+  test "CL-022 should waitFor visible when parent is hidden", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.parentElement.style.display = 'none'")
     clicked = Runtime.Promise.async(fn -> Page.click!(page, "button", timeout: 0) end, shared: true)
@@ -273,13 +273,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click wrapped links", %{page: page, server: server} do
+  test "CL-023 should click wrapped links", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/wrappedlink.html")
     Page.click!(page, "a")
     assert Page.evaluate!(page, "__clicked") == true
   end
 
-  test "should click on checkbox input and toggle", %{page: page, server: server} do
+  test "CL-024 should click on checkbox input and toggle", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/checkbox.html")
     assert Page.evaluate!(page, "() => window['result'].check") == :null
     Page.click!(page, "input#agree")
@@ -300,7 +300,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result'].check") == false
   end
 
-  test "should click on checkbox label and toggle", %{page: page, server: server} do
+  test "CL-025 should click on checkbox label and toggle", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/checkbox.html")
     assert Page.evaluate!(page, "() => window['result'].check") == :null
     Page.click!(page, ~s(label[for="agree"]))
@@ -310,7 +310,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result'].check") == false
   end
 
-  test "should scroll and click the button", %{page: page, server: server} do
+  test "CL-026 should scroll and click the button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.click!(page, "#button-5")
     assert Page.evaluate!(page, "() => document.querySelector('#button-5').textContent") == "clicked"
@@ -318,7 +318,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => document.querySelector('#button-80').textContent") == "clicked"
   end
 
-  test "should scroll and click the button with smooth scroll behavior", %{page: page, server: server} do
+  test "CL-027 should scroll and click the button with smooth scroll behavior", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/12370' });
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.add_style_tag!(page, content: "html { scroll-behavior: smooth; }")
@@ -331,7 +331,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     end
   end
 
-  test "should double click the button", %{page: page, server: server} do
+  test "CL-028 should double click the button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """
@@ -349,7 +349,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click a partially obscured button", %{page: page, server: server} do
+  test "CL-029 should click a partially obscured button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """
@@ -365,26 +365,26 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should click a rotated button", %{page: page, server: server} do
+  test "CL-030 should click a rotated button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/rotatedButton.html")
     Page.click!(page, "button")
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should fire contextmenu event on right click", %{page: page, server: server} do
+  test "CL-031 should fire contextmenu event on right click", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.click!(page, "#button-8", button: :right)
     assert Page.evaluate!(page, "() => document.querySelector('#button-8').textContent") == "context menu"
   end
 
-  test "should click links which cause navigation", %{page: page, server: server} do
+  test "CL-032 should click links which cause navigation", %{page: page, server: server} do
     # @see https://github.com/GoogleChrome/puppeteer/issues/206
     Page.set_content!(page, ~s(<a href="#{server.empty_page}">empty.html</a>))
     # This await should not hang.
     Page.click!(page, "a")
   end
 
-  test "should click the button inside an iframe", %{page: page, server: server} do
+  test "CL-034 should click the button inside an iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<div style="width:100px;height:100px">spacer</div>))
     attach_frame(page, "button-test", server.prefix <> "/input/button.html")
@@ -395,7 +395,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   end
 
   @tag skip: if(@browser_name == "chromium", do: "upstream fixme: chromium")
-  test "should click the button with fixed position inside an iframe",
+  test "CL-035 should click the button with fixed position inside an iframe",
        %{page: page, server: server} do
     # it.fixme(browserName === 'chromium');
     # @see https://github.com/GoogleChrome/puppeteer/issues/4110
@@ -411,7 +411,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Frame.evaluate!(frame, "() => window['result']") == "Clicked"
   end
 
-  test "should click the button behind sticky header", %{page: page} do
+  test "CL-036 should click the button behind sticky header", %{page: page} do
     Page.set_viewport_size!(page, %{width: 500, height: 240})
 
     Page.set_content!(page, """
@@ -450,7 +450,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['__clicked']") == true
   end
 
-  test "should click the button behind position:absolute header", %{page: page} do
+  test "CL-037 should click the button behind position:absolute header", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36339' }
     Page.set_viewport_size!(page, %{width: 500, height: 240})
 
@@ -502,7 +502,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['__clicked']") == true
   end
 
-  test "should click the button with px border with offset", %{page: page, server: server} do
+  test "CL-038 should click the button with px border with offset", %{page: page, server: server} do
     # it.skip(isFrozenWebkit, 'needs recent webkit');
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "button => button.style.borderWidth = '8px'")
@@ -513,7 +513,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "offsetY") == 10
   end
 
-  test "should click the button with em border with offset", %{page: page, server: server} do
+  test "CL-039 should click the button with em border with offset", %{page: page, server: server} do
     # it.skip(isFrozenWebkit, 'needs recent webkit');
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "button => button.style.borderWidth = '2em'")
@@ -525,7 +525,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "offsetY") == 10
   end
 
-  test "should click a very large button with offset", %{page: page, server: server} do
+  test "CL-040 should click a very large button with offset", %{page: page, server: server} do
     # it.fixme(isAndroid, ...), it.skip(isFrozenWebkit, 'needs recent webkit');
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "button => button.style.borderWidth = '8px'")
@@ -537,7 +537,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "offsetY") == 1910
   end
 
-  test "should click a button in scrolling container with offset", %{page: page, server: server} do
+  test "CL-041 should click a button in scrolling container with offset", %{page: page, server: server} do
     # it.fixme(isAndroid, ...), it.skip(isFrozenWebkit, 'needs recent webkit');
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -562,7 +562,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "offsetY") == 1910
   end
 
-  test "should wait for stable position", %{page: page, server: server} do
+  test "CL-042 should wait for stable position", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.eval_on_selector!(page, "button", """
@@ -606,7 +606,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
   }
   """
 
-  test "should wait for becoming hit target", %{page: page, server: server} do
+  test "CL-043 should wait for becoming hit target", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", @fly_over)
     click_promise = Runtime.Promise.async(fn -> Page.click!(page, "button") end, shared: true)
@@ -621,7 +621,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should wait for becoming hit target with trial run", %{page: page, server: server} do
+  test "CL-044 should wait for becoming hit target with trial run", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", @fly_over)
     click_promise = Runtime.Promise.async(fn -> Page.click!(page, "button", trial: true) end, shared: true)
@@ -638,7 +638,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Was not clicked"
   end
 
-  test "trial run should work with short timeout", %{page: page, server: server} do
+  test "CL-045 trial run should work with short timeout", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "button => button.disabled = true")
     {:error, error} = Page.click(page, "button", trial: true, timeout: 2000)
@@ -646,13 +646,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Was not clicked"
   end
 
-  test "trial run should not click", %{page: page, server: server} do
+  test "CL-046 trial run should not click", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button", trial: true)
     assert Page.evaluate!(page, "() => window['result']") == "Was not clicked"
   end
 
-  test "trial run should not double click", %{page: page, server: server} do
+  test "CL-047 trial run should not double click", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """
@@ -670,7 +670,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == "Was not clicked"
   end
 
-  test "should fail when obscured and not waiting for hit target", %{page: page, server: server} do
+  test "CL-048 should fail when obscured and not waiting for hit target", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 
@@ -691,7 +691,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Was not clicked"
   end
 
-  test "should wait for button to be enabled", %{page: page} do
+  test "CL-049 should wait for button to be enabled", %{page: page} do
     Page.set_content!(page, ~s(<button onclick="window.__CLICKED=true;" disabled><span>Click target</span></button>))
     click_promise = Runtime.Promise.async(fn -> Page.click!(page, "text=Click target") end, shared: true)
     give_it_a_chance_to_click(page)
@@ -702,7 +702,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should wait for input to be enabled", %{page: page} do
+  test "CL-052 should wait for input to be enabled", %{page: page} do
     Page.set_content!(page, ~s(<input onclick="window.__CLICKED=true;" disabled>))
     click_promise = Runtime.Promise.async(fn -> Page.click!(page, "input") end, shared: true)
     give_it_a_chance_to_click(page)
@@ -713,7 +713,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should wait for select to be enabled", %{page: page} do
+  test "CL-053 should wait for select to be enabled", %{page: page} do
     Page.set_content!(page, """
       <select disabled><option selected>Hello</option></select>
       <script>
@@ -733,13 +733,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should click disabled div", %{page: page} do
+  test "CL-054 should click disabled div", %{page: page} do
     Page.set_content!(page, ~s(<div onclick="window.__CLICKED=true" disabled>Click target</div>))
     Page.click!(page, "text=Click target")
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should wait for BUTTON to be clickable when it has pointer-events:none", %{page: page} do
+  test "CL-055 should wait for BUTTON to be clickable when it has pointer-events:none", %{page: page} do
     Page.set_content!(
       page,
       ~s(<button onclick="window.__CLICKED=true" style="pointer-events:none"><span>Click target</span></button>)
@@ -754,7 +754,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should wait for LABEL to be clickable when it has pointer-events:none", %{page: page} do
+  test "CL-056 should wait for LABEL to be clickable when it has pointer-events:none", %{page: page} do
     Page.set_content!(
       page,
       ~s(<label onclick="window.__CLICKED=true" style="pointer-events:none"><span>Click target</span></label>)
@@ -769,7 +769,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should update modifiers correctly", %{page: page, server: server} do
+  test "CL-057 should update modifiers correctly", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.click!(page, "button", modifiers: [:shift])
     assert Page.evaluate!(page, "shiftKey") == true
@@ -786,7 +786,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "shiftKey") == false
   end
 
-  test "should click an offscreen element when scroll-behavior is smooth", %{page: page} do
+  test "CL-058 should click an offscreen element when scroll-behavior is smooth", %{page: page} do
     Page.set_content!(page, """
       <div style="border: 1px solid black; height: 500px; overflow: auto; width: 500px; scroll-behavior: smooth">
       <button style="margin-top: 2000px" onClick="window.clicked = true">hi</button>
@@ -797,7 +797,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.clicked") == true
   end
 
-  test "should report nice error when element is detached and force-clicked", %{page: page, server: server} do
+  test "CL-059 should report nice error when element is detached and force-clicked", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/animating-button.html")
     Page.evaluate!(page, "addButton()")
     handle = Page.query_selector!(page, "button")
@@ -807,7 +807,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
-  test "should fail when element detaches after animation", %{page: page, server: server} do
+  test "CL-060 should fail when element detaches after animation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/animating-button.html")
     Page.evaluate!(page, "addButton()")
     handle = Page.query_selector!(page, "button")
@@ -818,7 +818,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
-  test "should retry when element detaches after animation", %{page: page, server: server} do
+  test "CL-061 should retry when element detaches after animation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/animating-button.html")
     Page.evaluate!(page, "addButton()")
     promise = Runtime.Promise.async(fn -> Page.click!(page, "button") end, shared: true)
@@ -859,7 +859,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     </div>
   """
 
-  test "should retry when element is animating from outside the viewport", %{page: page} do
+  test "CL-062 should retry when element is animating from outside the viewport", %{page: page} do
     Page.set_content!(page, @animating_from_outside)
     handle = Page.query_selector!(page, "button")
     promise = Runtime.Promise.async(fn -> ElementHandle.click!(handle) end)
@@ -868,7 +868,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "clicked") == true
   end
 
-  test "should fail when element is animating from outside the viewport with force", %{page: page} do
+  test "CL-063 should fail when element is animating from outside the viewport with force", %{page: page} do
     Page.set_content!(page, @animating_from_outside)
     handle = Page.query_selector!(page, "button")
     promise = Runtime.Promise.async(fn -> ElementHandle.click(handle, force: true) end)
@@ -878,7 +878,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Exception.message(error) =~ "Element is outside of the viewport"
   end
 
-  test "should dispatch microtasks in order", %{page: page} do
+  test "CL-064 should dispatch microtasks in order", %{page: page} do
     Page.set_content!(page, """
       <button id=button>Click me</button>
       <script>
@@ -902,14 +902,14 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "() => window['result']") == 1
   end
 
-  test "should click the button when window.innerWidth is corrupted", %{page: page, server: server} do
+  test "CL-065 should click the button when window.innerWidth is corrupted", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.evaluate!(page, "() => Object.defineProperty(window, 'innerWidth', { value: 0 })")
     Page.click!(page, "button")
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click zero-sized input by label", %{page: page} do
+  test "CL-066 should click zero-sized input by label", %{page: page} do
     Page.set_content!(page, """
       <label>
         Click me
@@ -921,13 +921,13 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__clicked") == true
   end
 
-  test "should not throw protocol error when navigating during the click"
+  test "CL-067 should not throw protocol error when navigating during the click"
 
-  test "should retry when navigating during the click"
+  test "CL-068 should retry when navigating during the click"
 
-  test "should not hang when frame is detached"
+  test "CL-069 should not hang when frame is detached"
 
-  test "should climb dom for inner label with pointer-events:none", %{page: page} do
+  test "CL-070 should climb dom for inner label with pointer-events:none", %{page: page} do
     Page.set_content!(
       page,
       ~s(<button onclick="window.__CLICKED=true;"><label style="pointer-events:none">Click target</label></button>)
@@ -937,7 +937,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should climb up to [role=button]", %{page: page} do
+  test "CL-071 should climb up to [role=button]", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div role=button onclick="window.__CLICKED=true;"><div style="pointer-events:none"><span><div>Click target</div></span></div>)
@@ -947,7 +947,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should climb up to a anchor", %{page: page} do
+  test "CL-072 should climb up to a anchor", %{page: page} do
     # For Firefox its not allowed to return anything: https://bugzilla.mozilla.org/show_bug.cgi?id=1392046
     # Note the intermediate div - it is necessary, otherwise <a><non-clickable/></a> is not recognized as a clickable link.
     Page.set_content!(
@@ -959,7 +959,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "__CLICKED") == true
   end
 
-  test "should climb up to a [role=link]", %{page: page} do
+  test "CL-073 should climb up to a [role=link]", %{page: page} do
     Page.set_content!(
       page,
       ~s(<div role=link onclick="window.__CLICKED=true" id="outer"><div id="inner" style="pointer-events: none">Inner</div></div>)
@@ -980,7 +980,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     </script>
   """
 
-  test "should click in an iframe with border", %{page: page} do
+  test "CL-074 should click in an iframe with border", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; box-sizing: border-box; }
@@ -994,7 +994,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should click in an iframe with border 2", %{page: page} do
+  test "CL-075 should click in an iframe with border 2", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; }
@@ -1008,7 +1008,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should not retain removed iframe after clicking inside it", %{page: page} do
+  test "CL-076 should not retain removed iframe after clicking inside it", %{page: page} do
     # it.skip(isAndroid, 'requesting gc is not enough');
     Page.set_content!(page, ~s|<iframe srcdoc="<button>Click</button>"></iframe>|)
     button = page |> Page.frame_locator("iframe") |> FrameLocator.get_by_role(:button)
@@ -1029,7 +1029,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert retained == false
   end
 
-  test "should click in a transformed iframe", %{page: page} do
+  test "CL-077 should click in a transformed iframe", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; }
@@ -1051,7 +1051,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should click a button that is overlaid by a permission popup", %{page: page, server: server} do
+  test "CL-078 should click a button that is overlaid by a permission popup", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/23280' });
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.empty_page)
@@ -1080,7 +1080,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     for i <- 0..29, do: Page.click!(page, "text=#{i}")
   end
 
-  test "should click in a transformed iframe with force", %{page: page} do
+  test "CL-079 should click in a transformed iframe with force", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; border: none; }
@@ -1094,7 +1094,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should click in a nested transformed iframe", %{page: page} do
+  test "CL-080 should click in a nested transformed iframe", %{page: page} do
     Page.set_content!(page, """
       <style>
         body, html, iframe { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1122,7 +1122,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "ensure events are dispatched in the individual tasks", %{page: page} do
+  test "CL-081 ensure events are dispatched in the individual tasks", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/19685' });
     Page.set_content!(page, """
       <div id="outer" style="background: #d4d4d4; width: 60px; height: 60px;">
@@ -1159,7 +1159,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert poll(messages, expected) == expected
   end
 
-  test "should click if opened select covers the button", %{page: page} do
+  test "CL-082 should click if opened select covers the button", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/23618' });
     Page.set_content!(page, """
       <div>
@@ -1182,7 +1182,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "window.__CLICKED") == 42
   end
 
-  test "should fire contextmenu event on right click in correct order",
+  test "CL-083 should fire contextmenu event on right click in correct order",
        %{page: page, server: server, browser_name: browser_name} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/26515' });
     Page.goto!(page, server.empty_page)
@@ -1211,7 +1211,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert poll(entries, expected) == expected
   end
 
-  test "should click after a right click", %{page: page} do
+  test "CL-084 should click after a right click", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/39246' }
     Page.set_content!(page, """
       <button>Click me</button>
@@ -1226,7 +1226,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     Expect.to_have_text!(Page.get_by_role(page, "button"), "Clicked!")
   end
 
-  test "should set PointerEvent.pressure on pointerdown", %{page: page} do
+  test "CL-085 should set PointerEvent.pressure on pointerdown", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/35844' });
     Page.set_content!(page, """
       <button id="target">Click me</button>
@@ -1243,7 +1243,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     for entry <- [["pointerdown", 0.5], ["pointerup", 0]], do: assert(entry in pressures)
   end
 
-  test "should set PointerEvent.pressure on pointermove", %{page: page} do
+  test "CL-086 should set PointerEvent.pressure on pointermove", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/35844' });
     # it.fixme(isAndroid, 'Android coordinates seem to have rounding issues.');
     Page.set_content!(page, """
@@ -1268,7 +1268,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     for entry <- [[0, 250, 250], [0, 10, 10], [0.5, 250, 250], [0, 50, 50]], do: assert(entry in pressures)
   end
 
-  test "should click into shadow root with slotted div", %{page: page} do
+  test "CL-087 should click into shadow root with slotted div", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/37768' }
     Page.set_content!(page, """
       <my-button>
@@ -1282,7 +1282,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     page |> Page.get_by_role("button", name: "Foo") |> Locator.click!()
   end
 
-  test "should click shadow root button", %{page: page} do
+  test "CL-088 should click shadow root button", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/37768' }
     Page.set_content!(page, """
       <my-button>
@@ -1296,7 +1296,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     page |> Page.locator("my-button") |> Locator.click!()
   end
 
-  test "should click with tweened mouse movement", %{page: page, browser_name: browser_name} do
+  test "CL-089 should click with tweened mouse movement", %{page: page, browser_name: browser_name} do
     # it.skip(isAndroid, 'Bad rounding'); it.skip(!headless, 'System cursor tends to interfere with this test');
     Page.set_content!(page, """
       <body style="margin: 0; padding: 0; height: 500px; width: 500px;">
@@ -1322,7 +1322,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert Page.evaluate!(page, "result") == [[120, 140], [140, 180], [160, 220], [180, 260], [200, 300]]
   end
 
-  test "should abort via signal", %{page: page} do
+  test "CL-090 should abort via signal", %{page: page} do
     Page.set_content!(page, ~s|<button style="display:none">click me</button>|)
     controller = AbortController.new()
 
@@ -1343,7 +1343,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert error.cause == reason
   end
 
-  test "should throw an Error when aborted in-flight with a string reason", %{page: page} do
+  test "CL-091 should throw an Error when aborted in-flight with a string reason", %{page: page} do
     Page.set_content!(page, ~s|<button style="display:none">click me</button>|)
     controller = AbortController.new()
 
@@ -1360,7 +1360,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert error.cause == "aborted by user"
   end
 
-  test "should abort via already-aborted signal", %{page: page} do
+  test "CL-092 should abort via already-aborted signal", %{page: page} do
     Page.set_content!(page, "<button>click me</button>")
     controller = AbortController.new()
     reason = %RuntimeError{message: "Already aborted"}
@@ -1374,7 +1374,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     assert error.cause == reason
   end
 
-  test "should throw an Error when aborted via an already-aborted signal with a string reason", %{page: page} do
+  test "CL-093 should throw an Error when aborted via an already-aborted signal with a string reason", %{page: page} do
     Page.set_content!(page, "<button>click me</button>")
     controller = AbortController.new()
     AbortController.abort(controller, "already aborted")
