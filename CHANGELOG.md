@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+Drives [Playwright 1.65](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
+
+### Added
+- `CDPSession.send/4` takes `:timeout` and `:signal`.
+
+### Changed
+- JSON-typed values from the driver (`CDPSession.send` results and events, ...) keep JSON
+  `null` as `:null`, as `JSON.parse` does, instead of `nil`.
+- Argument checks of a method run inside its API call, as upstream's `@apiCall` decorators do:
+  their errors carry the API name (`browserType.launch: ...`).
+- An error raised by a listener is emitted as `"error"` on its emitter when that has an error
+  listener.
+- Upstream's breaking changes in 1.65: actions wait for the element to be not inert, cookie
+  matching follows RFC 6265, proxy credentials only answer proxy challenges, text the browser
+  does not render is no longer part of accessible names and aria snapshots, and string `params`
+  are appended to the URL's query.
+
+### Fixed
+- A request body is JSON for `content-type: application/json; charset=utf-8` too.
+- HAR and trace paths ending in `.ZIP` are zip files.
+
 ## [0.17.0-rc.1] 2026-11-07
 
 ### Added
