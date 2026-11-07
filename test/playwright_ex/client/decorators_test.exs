@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Client.DecoratorsTest do
     %{this: %Receiver{test: self()}}
   end
 
-  test "@api_call wraps the whole function, default arguments included", %{this: this} do
+  test "@api_call wraps the whole body, JS default parameters (applied in the body) included", %{this: this} do
     assert Receiver.defaults(this) == {:defaults, %{in_wrap: true}}
     assert_received {:wrap, %{title: "Defaults"}}
     assert Receiver.defaults(this, %{x: 1}) == {:defaults, %{x: 1}}

@@ -8,8 +8,10 @@ defmodule PlaywrightEx.Client.Decorators do
   #
   # The function is replaced (`defoverridable`) by one that runs the original (`super`, the
   # decorated `method`) through `ChannelOwner.wrap_api_call_decorator/1`, as the JS decorator
-  # replaces the method: the whole body, default arguments included, runs in the api zone. The
-  # first argument is the receiver (`this`).
+  # replaces the method: the whole body runs in the api zone, so do JS default parameters, which
+  # are applied in the body (PORTING: `nil` defaults, `x = if x == nil, do: default, else: x`).
+  # Only the full arity is wrapped: a `\\` default is evaluated outside the zone, so keep those
+  # literals. The first argument is the receiver (`this`).
 
   defmacro __using__(_opts) do
     quote do
