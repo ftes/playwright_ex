@@ -112,10 +112,12 @@ defmodule PlaywrightEx.OutOfProcess do
       {:ok, Connection.initialize_playwright(connection)}
     rescue
       TargetClosedError ->
-        # The pipe sends its close before it exits.
+        # The pipe sends its close before it exits. A connection process that exits rejects the
+        # call too.
         receive do
           {:transport_closed, status} -> {:error, {:shutdown, {:driver_closed, status}}}
           {:EXIT, ^transport, reason} -> {:error, {:shutdown, {:transport_exit, reason}}}
+          {:EXIT, ^conn, reason} -> {:error, {:shutdown, {:connection_exit, reason}}}
         after
           @close_emulation_timeout -> {:error, {:shutdown, :driver_closed}}
         end
