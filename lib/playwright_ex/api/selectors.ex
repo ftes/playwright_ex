@@ -73,4 +73,20 @@ defmodule PlaywrightEx.Selectors do
     PlaywrightEx.Client.Selectors.set_test_id_attribute(selectors, attribute_name)
     :ok
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:register) do
+    [
+      content_script: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to run this selector engine in isolated JavaScript environment. This environment has access to the same DOM, but not any JavaScript objects from the frame's scripts. Defaults to `false`. Note that running as a content script is not guaranteed when this engine is used together with other registered engines.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
 end

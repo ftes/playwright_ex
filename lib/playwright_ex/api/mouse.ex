@@ -247,4 +247,94 @@ defmodule PlaywrightEx.Mouse do
   def wheel!(mouse, delta_x, delta_y) do
     Facade.async_void!("mouse.wheel", mouse, fn -> PlaywrightEx.Client.Mouse.wheel(mouse, delta_x, delta_y) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:click) do
+    [
+      button: %{
+        type_doc: "`:left` | `:right` | `:middle`",
+        doc: "Defaults to `:left`.",
+        since: nil,
+        spec: quote(do: :left | :right | :middle)
+      },
+      click_count: %{
+        type_doc: "`t:integer/0`",
+        doc: "defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).",
+        since: nil,
+        spec: quote(do: integer())
+      },
+      delay: %{
+        type_doc: "`t:number/0`",
+        doc: "Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.",
+        since: nil,
+        spec: quote(do: number())
+      }
+    ]
+  end
+
+  def __options__(:dblclick) do
+    [
+      button: %{
+        type_doc: "`:left` | `:right` | `:middle`",
+        doc: "Defaults to `:left`.",
+        since: nil,
+        spec: quote(do: :left | :right | :middle)
+      },
+      delay: %{
+        type_doc: "`t:number/0`",
+        doc: "Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.",
+        since: nil,
+        spec: quote(do: number())
+      }
+    ]
+  end
+
+  def __options__(:down) do
+    [
+      button: %{
+        type_doc: "`:left` | `:right` | `:middle`",
+        doc: "Defaults to `:left`.",
+        since: nil,
+        spec: quote(do: :left | :right | :middle)
+      },
+      click_count: %{
+        type_doc: "`t:integer/0`",
+        doc: "defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).",
+        since: nil,
+        spec: quote(do: integer())
+      }
+    ]
+  end
+
+  def __options__(:move) do
+    [
+      steps: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Defaults to 1. Sends `n` interpolated `mousemove` events to represent travel between Playwright's current cursor position and the provided destination. When set to 1, emits a single `mousemove` event at the destination location.",
+        since: nil,
+        spec: quote(do: integer())
+      }
+    ]
+  end
+
+  def __options__(:up) do
+    [
+      button: %{
+        type_doc: "`:left` | `:right` | `:middle`",
+        doc: "Defaults to `:left`.",
+        since: nil,
+        spec: quote(do: :left | :right | :middle)
+      },
+      click_count: %{
+        type_doc: "`t:integer/0`",
+        doc: "defaults to 1. See [`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail).",
+        since: nil,
+        spec: quote(do: integer())
+      }
+    ]
+  end
 end

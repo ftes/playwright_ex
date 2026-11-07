@@ -228,4 +228,32 @@ defmodule PlaywrightEx.JSHandle do
   def json_value!(js_handle) do
     Facade.async!("jsHandle.jsonValue", js_handle, fn -> PlaywrightEx.Client.JSHandle.json_value(js_handle) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:evaluate) do
+    [
+      expose_functions: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one fails.",
+        since: "1.62",
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:evaluate_handle) do
+    [
+      expose_functions: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the page function. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Exposed functions are cleared upon the top-level navigation. Defaults to `false`, in which case functions are not serializable and passing one fails.",
+        since: "1.62",
+        spec: quote(do: boolean())
+      }
+    ]
+  end
 end

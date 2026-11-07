@@ -235,4 +235,19 @@ defmodule PlaywrightEx.Clock do
   def set_system_time!(clock, time) do
     Facade.async_void!("clock.setSystemTime", clock, fn -> PlaywrightEx.Client.Clock.set_system_time(clock, time) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:install) do
+    [
+      time: %{
+        type_doc: "`t:integer/0` | `t:String.t/0` | `t:DateTime.t/0`",
+        doc: "Time to initialize with, current system time by default.",
+        since: nil,
+        spec: quote(do: integer() | String.t() | DateTime.t())
+      }
+    ]
+  end
 end

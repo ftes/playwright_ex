@@ -293,4 +293,61 @@ defmodule PlaywrightEx.Credentials do
     options = Facade.options!(options, @get_options, "credentials.get")
     Facade.async!("credentials.get", credentials, fn -> PlaywrightEx.Client.Credentials.get(credentials, options) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:create) do
+    [
+      id: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Base64url-encoded credential id. Auto-generated if omitted.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      private_key: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Base64url-encoded PKCS#8 (DER) private key. Auto-generated if omitted.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      public_key: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Base64url-encoded SPKI (DER) public key. Auto-generated if omitted.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      sign_count: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Initial value of the [signature counter](https://www.w3.org/TR/webauthn-2/#signature-counter). The counter is incremented by one on every successful `navigator.credentials.get()` assertion, so the first assertion reports `signCount + 1`. Defaults to `0`.",
+        since: "1.64",
+        spec: quote(do: integer())
+      },
+      user_handle: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Base64url-encoded user handle. Auto-generated if omitted.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:get) do
+    [
+      id: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Only return the credential with this base64url-encoded id.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      rp_id: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Only return credentials for this relying party id.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
 end

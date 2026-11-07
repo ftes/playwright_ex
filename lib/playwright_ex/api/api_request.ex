@@ -295,4 +295,153 @@ defmodule PlaywrightEx.APIRequest do
       PlaywrightEx.Client.APIRequest.new_context(api_request, options)
     end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:new_context) do
+    [
+      base_url: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Methods like `PlaywrightEx.APIRequestContext.get/3` take the base URL into consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Examples:",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      client_certificates: %{
+        type_doc: "list of `t:map/0`",
+        doc: "TLS Client Authentication allows the server to request a client certificate and verify it.",
+        since: "1.46",
+        spec:
+          quote(
+            do: [
+              %{
+                required(:origin) => String.t(),
+                optional(:certPath) => String.t(),
+                optional(:cert) => binary(),
+                optional(:keyPath) => String.t(),
+                optional(:key) => binary(),
+                optional(:pfxPath) => String.t(),
+                optional(:pfx) => binary(),
+                optional(:passphrase) => String.t()
+              }
+            ]
+          )
+      },
+      extra_http_headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "An object containing additional HTTP headers to be sent with every request. Defaults to none.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: "1.51",
+        spec: quote(do: boolean())
+      },
+      http_credentials: %{
+        type_doc: "`t:map/0` | list of `t:map/0`",
+        doc:
+          "Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no origin is specified, the username and password are sent to any servers upon unauthorized responses.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              %{
+                required(:username) => String.t(),
+                required(:password) => String.t(),
+                optional(:origin) => String.t(),
+                optional(:send) => String.t()
+              }
+              | [
+                  %{
+                    required(:username) => String.t(),
+                    required(:password) => String.t(),
+                    optional(:origin) => String.t(),
+                    optional(:send) => String.t()
+                  }
+                ]
+          )
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects. This can be overwritten for each request individually.",
+        since: "1.52",
+        spec: quote(do: integer())
+      },
+      proxy: %{
+        type_doc: "`t:map/0`",
+        doc: "Network proxy settings.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              required(:server) => String.t(),
+              optional(:bypass) => String.t(),
+              optional(:username) => String.t(),
+              optional(:password) => String.t()
+            }
+          )
+      },
+      storage_state: %{
+        type_doc: "`t:String.t/0` | `t:map/0`",
+        doc:
+          "Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `PlaywrightEx.BrowserContext.storage_state/2` or `PlaywrightEx.APIRequestContext.storage_state/2`. Either a path to the file with saved storage, or the value returned by one of `PlaywrightEx.BrowserContext.storage_state/2` or `PlaywrightEx.APIRequestContext.storage_state/2` methods.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              String.t()
+              | %{
+                  required(:cookies) => [
+                    %{
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      required(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      required(:sameSite) => String.t(),
+                      optional(atom()) => term()
+                    }
+                  ],
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      required(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                      ],
+                      optional(atom()) => term()
+                    }
+                  ],
+                  optional(atom()) => term()
+                }
+          )
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time in milliseconds to wait for the response. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      user_agent: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Specific user agent to use in this context.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
 end
