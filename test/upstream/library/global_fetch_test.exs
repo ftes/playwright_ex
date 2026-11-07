@@ -554,7 +554,6 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
     # JSON.stringify(value)
     @stringified_value if(value == :null, do: "null", else: JSON.encode!(value))
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43388' }
-    @tag skip: if(is_binary(value), do: "pending: client port")
     test "FE-033 should json stringify #{type} body when content-type is application/json",
          %{playwright: playwright, server: server} do
       request = new_context(playwright)

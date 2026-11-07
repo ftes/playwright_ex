@@ -221,11 +221,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   @tag :page
   # A test's `skip: nil` would override the `@moduletag skip:`.
-  @tag skip:
-         @chromium_only ||
-           if(match?({:unix, :darwin}, :os.type()),
-             do: "env: golden rendered on Linux; on macOS the OOPIF screenshot is blank (upstream's JS client too)"
-           )
+  @tag skip: @chromium_only
   test "OO-012 should take screenshot", %{page: page, browser: browser, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43584' });
     Page.set_viewport_size!(page, %{width: 500, height: 500})
@@ -394,11 +390,6 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     end)
   end
 
-  # macOS headless Chromium drops the click right after the OOPIF's goto 2-5 times in 10, for the
-  # driver's JS client too: both send the same CDP sequence with the same ~57 ms goto-to-click gap,
-  # and a 50 ms sleep after the goto makes ours pass 20 in 20. In a full module run (random order,
-  # warm browser) it fails more often than alone.
-  @tag skip: if(match?({:unix, :darwin}, :os.type()), do: "env: macOS Chromium OOPIF click races the frame's goto")
   @tag :page
   test "OO-020 should click", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")

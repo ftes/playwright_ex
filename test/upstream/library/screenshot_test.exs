@@ -585,7 +585,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       File.cp!(
         Path.join(
           PlaywrightEx.Upstream.dir(),
-          "tests/library/screenshot.spec.ts-snapshots/element-screenshot-page-screenshot-should-capture-css-transform-with-device-pixels-1-#{browser_name}.png"
+          "tests/library/screenshot.spec.ts-snapshots/element-screenshot-SS-094-page-screenshot-should-capture-css-transform-with-device-pixels-1-#{browser_name}.png"
         ),
         path
       )

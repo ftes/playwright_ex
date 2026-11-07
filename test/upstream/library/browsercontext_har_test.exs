@@ -283,7 +283,6 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
   #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43503' },
   #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43669' },
   # ]
-  @tag skip: "pending: client port"
   test "HA-085 should round-trip har.zip", %{context_factory: context_factory, server: server, output_path: output_path} do
     har_path = output_path.("har.ZIP")
     context1 = context_factory.(record_har: %{mode: "minimal", path: har_path})

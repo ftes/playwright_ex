@@ -690,9 +690,6 @@ defmodule PlaywrightEx.Library.TracingTest do
               id == "fit" and @browser_name == "webkit" and match?({:unix, :linux}, :os.type()) ->
                 "upstream fixme: Image size is flaky"
 
-              @browser_name == "webkit" and match?({:unix, :darwin}, :os.type()) ->
-                "env: Mac WebKit (macOS 26) screencast frames have the wrong size (as video_test)"
-
               true ->
                 false
             end)
