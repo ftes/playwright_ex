@@ -1045,11 +1045,15 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     Page.set_content!(page, """
     <input type="text" aria-label="Bio" aria-invalid="grammar">
     <input type="text" aria-label="Note" aria-invalid="spelling">
+    <input type="text" aria-label="Mixed-case grammar" aria-invalid="Grammar">
+    <input type="text" aria-label="Mixed-case spelling" aria-invalid="Spelling">
     """)
 
     Expect.to_match_aria_snapshot!(page, """
     - textbox "Bio" [invalid=grammar]
     - textbox "Note" [invalid=spelling]
+    - textbox "Mixed-case grammar" [invalid=grammar]
+    - textbox "Mixed-case spelling" [invalid=spelling]
     """)
 
     # A `grammar` value is distinct from a plain `true` invalid state.

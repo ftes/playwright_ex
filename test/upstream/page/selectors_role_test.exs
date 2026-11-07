@@ -70,6 +70,7 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
   end
 
   test "SE-052 should support checked", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43662' }
     Page.set_content!(page, """
     <input type=checkbox>
     <input type=checkbox checked>
@@ -120,6 +121,42 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
              ~s(<div role="checkbox" aria-checked="false">Hello</div>),
              ~s(<div role="checkbox">Unknown</div>)
            ]
+
+    Page.set_content!(page, """
+    <div role="checkbox" aria-checked="True" aria-readonly="True"
+      onclick="this.setAttribute('aria-checked', String(this.getAttribute('aria-checked').toLowerCase() !== 'true'))">Remember me</div>
+    <button aria-pressed="True">Bold</button>
+    <button aria-expanded="True">Menu</button>
+    <div role="Button" tabindex="0">Save</div>
+    """)
+
+    checkbox = Page.get_by_role(page, :checkbox)
+    assert Locator.count!(Page.get_by_role(page, :checkbox, checked: true)) == 1
+    assert Locator.count!(Page.get_by_role(page, :button, pressed: true)) == 1
+    assert Locator.count!(Page.get_by_role(page, :button, expanded: true)) == 1
+    assert Locator.count!(Page.get_by_role(page, :button, name: "Save")) == 1
+    Expect.to_be_checked!(checkbox)
+    Expect.not_to_be_editable!(checkbox)
+
+    Expect.to_match_aria_snapshot!(Page.locator(page, "body"), """
+    - checkbox "Remember me" [checked]
+    - button "Bold" [pressed]
+    - button "Menu" [expanded]
+    - button "Save"
+    """)
+
+    Locator.check!(checkbox)
+    Expect.to_have_attribute!(checkbox, "aria-checked", "True")
+
+    Locator.evaluate!(checkbox, "element => element.setAttribute('aria-checked', 'Mixed')")
+
+    Locator.evaluate!(
+      Page.get_by_role(page, :button, name: "Bold"),
+      "element => element.setAttribute('aria-pressed', 'Mixed')"
+    )
+
+    assert Locator.count!(Page.locator(page, "role=checkbox[checked=mixed]")) == 1
+    assert Locator.count!(Page.locator(page, "role=button[pressed=mixed]")) == 1
   end
 
   test "SE-053 should support pressed", %{page: page} do
@@ -440,13 +477,20 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
   end
 
   test "SE-060 should support name", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43549' }
     Page.set_content!(page, """
     <div role="button" aria-label=" Hello "></div>
     <div role="button" aria-label="Hallo"></div>
     <div role="button" aria-label="Hello" aria-hidden="true"></div>
     <div role="button" aria-label="123" aria-hidden="true"></div>
     <div role="button" aria-label='foo"bar' aria-hidden="true"></div>
+
+    <span id="title">Chosen name</span>
+    <div role="group" aria-labelledby="title"></div>
     """)
+
+    group = Page.get_by_role(page, :group)
+    Expect.to_have_accessible_name!(group, "Chosen name")
 
     assert outer_html(Page.locator(page, ~s(role=button[name="Hello"]))) == [
              ~s(<div role="button" aria-label=" Hello "></div>)
@@ -509,6 +553,18 @@ defmodule PlaywrightEx.Page.SelectorsRoleTest do
 
     assert outer_html(Page.get_by_role(page, :button, name: "123", include_hidden: true)) == [
              ~s(<div role="button" aria-label="123" aria-hidden="true"></div>)
+           ]
+
+    # Old electron/android do not have this API.
+    # isMissingAriaLabelledByElements (chromium < 135): the pinned browsers are newer.
+    Locator.evaluate!(group, """
+    element => {
+      element.ariaLabelledByElements = [document.querySelector('#title')];
+    }
+    """)
+
+    assert outer_html(Page.get_by_role(page, :group, name: "Chosen name", exact: true)) == [
+             ~s(<div role="group" aria-labelledby=""></div>)
            ]
   end
 

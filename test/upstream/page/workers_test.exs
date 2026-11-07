@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
@@ -55,6 +56,27 @@ defmodule PlaywrightEx.Page.WorkersTest do
     {:error, error} = JSHandle.get_property(worker_this_obj, "self")
     assert Exception.message(error) =~ "jsHandle.getProperty"
     assert Exception.message(error) =~ @k_target_closed_error_message
+  end
+
+  test "WO-003 should reject in-flight evaluate and emit close when page closes", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43204' }
+    Page.goto!(page, server.empty_page)
+
+    worker =
+      Page.expect_event!(page, :worker, fn ->
+        Page.evaluate!(
+          page,
+          "() => new Worker(URL.createObjectURL(new Blob(['1'], { type: 'application/javascript' })))"
+        )
+      end)
+
+    test = self()
+    Worker.once(worker, :close, fn closed -> send(test, {:close, closed}) end)
+    eval_promise = Runtime.Promise.async(fn -> Worker.evaluate(worker, "() => new Promise(() => {})") end)
+    Page.close!(page)
+    {:error, error} = Runtime.Promise.await(eval_promise)
+    assert Exception.message(error) =~ "worker.evaluate"
+    assert_receive {:close, ^worker}
   end
 
   test "WO-004 should report console logs", %{page: page} do
