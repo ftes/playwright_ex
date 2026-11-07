@@ -9,15 +9,15 @@ defmodule PlaywrightEx.Library.ChannelsTest do
 
   # expectScopeState compares the client's and the server's (toImplInWorkerScope) object trees.
 
-  test "should scope context handles"
+  test "CN-001 should scope context handles"
 
-  test "should scope CDPSession handles"
+  test "CN-002 should scope CDPSession handles"
 
-  test "should scope browser handles"
+  test "CN-003 should scope browser handles"
 
-  test "should not generate dispatchers for subresources w/o listeners"
+  test "CN-004 should not generate dispatchers for subresources w/o listeners"
 
-  test "should work with the domain module", %{browser_type: browser_type, server: server} do
+  test "CN-005 should work with the domain module", %{browser_type: browser_type, server: server} do
     # Node's `domain` module (catching stray 'error' events) is JS-only: the rest is ported.
     browser = BrowserType.launch!(browser_type)
     page = Browser.new_page!(browser)
@@ -46,5 +46,5 @@ defmodule PlaywrightEx.Library.ChannelsTest do
     Browser.close!(browser)
   end
 
-  test "exposeFunction should not leak"
+  test "CN-006 exposeFunction should not leak"
 end

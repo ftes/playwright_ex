@@ -10,8 +10,9 @@ defmodule PlaywrightEx.Transport.Pipe do
     * JSON encoding and decoding happen in this process, off the connection (upstream:
       `JSON.stringify`/`JSON.parse` on the JS thread). `send_message/2` takes a term,
       `on_message` receives one. Like `JSON.stringify`, `nil` (`undefined`) properties are
-      dropped and `:null` is sent as `null`. Object keys of incoming messages stay strings:
-      the protocol validators turn known keys into atoms.
+      dropped and `:null` is sent as `null`; like `JSON.parse`, an incoming `null` is `:null`.
+      Object keys of incoming messages stay strings: the protocol validators turn known keys
+      into atoms.
     * Frames are accumulated as iodata, so a large message costs one copy instead of one
       concatenation per chunk.
     * The connection process (`PlaywrightEx.Runtime.Conn`) hands over the messages of one of its
@@ -127,7 +128,7 @@ defmodule PlaywrightEx.Transport.Pipe do
     case data do
       <<part::binary-size(^need), rest::binary>> ->
         message = IO.iodata_to_binary(Enum.reverse([part | state.chunks]))
-        state.on_message.(JSON.decode!(message))
+        state.on_message.(PlaywrightEx.Client.ClientHelper.json_parse(message))
         _dispatch(%{state | bytes_left: 0, chunks: [], size: 0}, rest)
 
       _ when data == "" ->

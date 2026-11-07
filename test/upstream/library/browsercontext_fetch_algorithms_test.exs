@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
     describe "algorithms #{type} decompression" do
       @describetag type: to_string(type), zipped: zipped
 
-      test "should support decompression", %{context: context, server: server, type: type, zipped: zipped} do
+      test "FE-180 should support decompression", %{context: context, server: server, type: type, zipped: zipped} do
         TestServer.set_route(server, "/compressed", fn conn ->
           conn |> Plug.Conn.put_resp_header("content-encoding", type) |> send_body(zipped)
         end)
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
         assert APIResponse.text!(response) == @response_body
       end
 
-      test "should not fail if response content-length header is missing (#{type})",
+      test "FE-181 should not fail if response content-length header is missing (#{type})",
            %{context: context, server: server, type: type, zipped: zipped} do
         TestServer.set_route(server, "/compressed", fn conn ->
           conn |> Plug.Conn.put_resp_header("content-encoding", type) |> send_chunked(zipped)
@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
         assert APIResponse.text!(response) == @response_body
       end
 
-      test "should not fail with chunked responses (without Content-Length header)",
+      test "FE-182 should not fail with chunked responses (without Content-Length header)",
            %{context: context, server: server, type: type, zipped: zipped} do
         TestServer.set_route(server, "/compressed", fn conn ->
           conn |> Plug.Conn.put_resp_header("content-encoding", type) |> send_chunked(zipped)
@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
         assert APIResponse.text!(response) == @response_body
       end
 
-      test "should not fail with an empty response without content-length header (Z_BUF_ERROR)",
+      test "FE-183 should not fail with an empty response without content-length header (Z_BUF_ERROR)",
            %{context: context, server: server, type: type} do
         TestServer.set_route(server, "/compressed", fn conn ->
           conn |> Plug.Conn.put_resp_header("content-encoding", type) |> send_chunked("")
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
         assert APIResponse.text!(response) == ""
       end
 
-      test "should not fail with an empty response with content-length header (Z_BUF_ERROR)",
+      test "FE-184 should not fail with an empty response with content-length header (Z_BUF_ERROR)",
            %{context: context, server: server, type: type} do
         TestServer.set_route(server, "/compressed", fn conn ->
           conn |> Plug.Conn.put_resp_header("content-encoding", type) |> send_body("")

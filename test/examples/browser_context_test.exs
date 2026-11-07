@@ -273,13 +273,13 @@ defmodule PlaywrightEx.Examples.BrowserContextTest do
   # have; this is the same handler with `connect_to_server/1` and `on_message/2`.
   example "BrowserContext.routeWebSocket",
     js: ~S"""
-    await context.routeWebSocket('/ws', async ws => {
-      ws.routeSend(message => {
+    await context.routeWebSocket('/ws', ws => {
+      const server = ws.connectToServer();
+      ws.onMessage(message => {
         if (message === 'to-be-blocked')
           return;
-        ws.send(message);
+        server.send(message);
       });
-      await ws.connect();
     });
     """ do
     BrowserContext.route_web_socket!(context, "/ws", fn ws ->

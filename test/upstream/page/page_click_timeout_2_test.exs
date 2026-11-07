@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Page.PageClickTimeout2Test do
 
   @moduletag :page
 
-  test "should timeout waiting for display:none to be gone", %{page: page, server: server} do
+  test "CL-114 should timeout waiting for display:none to be gone", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.display = 'none'")
     {:error, error} = Page.click(page, "button", timeout: 5000)
@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Page.PageClickTimeout2Test do
     assert Exception.message(error) =~ "retrying click action"
   end
 
-  test "should timeout waiting for visibility:hidden to be gone", %{page: page, server: server} do
+  test "CL-115 should timeout waiting for visibility:hidden to be gone", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.eval_on_selector!(page, "button", "b => b.style.visibility = 'hidden'")
     {:error, error} = Page.click(page, "button", timeout: 5000)

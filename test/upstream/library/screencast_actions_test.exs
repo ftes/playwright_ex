@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
 
   defp close_to?(a, b), do: abs(a - b) < 0.5
 
-  test "should show annotation on click", %{browser: browser, server: server} do
+  test "SC-016 should show annotation on click", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "should render annotation styles", %{browser: browser, server: server} do
+  test "SC-017 should render annotation styles", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
       ] do
     @option option
     @expected expected
-    test "should position title at #{position}", %{browser: browser, server: server} do
+    test "SC-018 should position title at #{position}", %{browser: browser, server: server} do
       {context, page} = new_page(browser)
       Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     end
   end
 
-  test "should clear annotation after duration", %{browser: browser, server: server} do
+  test "SC-019 should clear annotation after duration", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -150,7 +150,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "should annotate fill action", %{browser: browser, server: server} do
+  test "SC-020 should annotate fill action", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/textarea.html")
 
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "should stop showing actions after dispose", %{browser: browser, server: server} do
+  test "SC-021 should stop showing actions after dispose", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -180,7 +180,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "should stop showing actions after hideActions", %{browser: browser, server: server} do
+  test "SC-022 should stop showing actions after hideActions", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -196,7 +196,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "should render an action cursor that animates to the click point", %{browser: browser, server: server} do
+  test "SC-023 should render an action cursor that animates to the click point", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -213,7 +213,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "cursor moves between two pointer actions", %{browser: browser} do
+  test "SC-024 cursor moves between two pointer actions", %{browser: browser} do
     {context, page} = new_page(browser)
 
     Page.set_content!(page, """
@@ -238,7 +238,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "cursor: \"none\" suppresses the action cursor decoration", %{browser: browser, server: server} do
+  test "SC-025 cursor: \"none\" suppresses the action cursor decoration", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -252,7 +252,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "cursor stays at the last action point until hideActions", %{browser: browser, server: server} do
+  test "SC-026 cursor stays at the last action point until hideActions", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 
@@ -273,7 +273,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
     BrowserContext.close!(context)
   end
 
-  test "should survive navigation", %{browser: browser, server: server} do
+  test "SC-027 should survive navigation", %{browser: browser, server: server} do
     {context, page} = new_page(browser)
     Page.goto!(page, server.prefix <> "/input/button.html")
 

@@ -23,7 +23,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
   }
   """
 
-  test "should work @smoke", %{browser: browser, https_server: https_server} do
+  test "NE-136 should work @smoke", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser, ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
     {:ok, response} = Page.goto(page, https_server.empty_page)
@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
     BrowserContext.close!(context)
   end
 
-  test "should isolate contexts", %{browser: browser, https_server: https_server} do
+  test "NE-137 should isolate contexts", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser, ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
     {:ok, response} = Page.goto(page, https_server.empty_page)
@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
          if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
            do: "upstream fixme: See https://bugs.webkit.org/show_bug.cgi?id=293148"
          )
-  test "should isolated contexts that share network process", %{browser: browser, https_server: https_server} do
+  test "NE-138 should isolated contexts that share network process", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser, ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
     response = Page.goto!(page, https_server.empty_page)
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with mixed content", %{browser: browser, server: server, https_server: https_server} do
+  test "NE-139 should work with mixed content", %{browser: browser, server: server, https_server: https_server} do
     TestServer.set_route(https_server, "/mixedcontent.html", fn conn ->
       Plug.Conn.send_resp(conn, 200, "<iframe src=#{server.empty_page}></iframe>")
     end)
@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with WebSocket", %{browser: browser, https_server: https_server} do
+  test "NE-140 should work with WebSocket", %{browser: browser, https_server: https_server} do
     TestServer.send_on_web_socket_connection(https_server, "incoming")
     context = Browser.new_context!(browser, ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
     BrowserContext.close!(context)
   end
 
-  test "should fail with WebSocket if not ignored", %{browser: browser, https_server: https_server} do
+  test "NE-141 should fail with WebSocket if not ignored", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     value = Page.evaluate!(page, @ws_evaluate, String.replace(https_server.prefix, "https", "wss") <> "/ws")
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Library.IgnorehttpserrorsTest do
            do:
              "upstream fixme: Failed to register a ServiceWorker: An SSL certificate error occurred when fetching the script."
          )
-  test "serviceWorker should intercept document request", %{browser: browser, https_server: https_server} do
+  test "NE-142 serviceWorker should intercept document request", %{browser: browser, https_server: https_server} do
     context = Browser.new_context!(browser, ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
     BrowserContext.route!(context, "**/*", fn route -> Route.continue!(route) end)

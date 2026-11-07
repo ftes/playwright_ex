@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
@@ -25,7 +26,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   }
   """
 
-  test "Page.workers @smoke", %{page: page, server: server} do
+  test "WO-001 Page.workers @smoke", %{page: page, server: server} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     Page.expect_event!(page, :worker, fn -> Page.goto!(page, server.prefix <> "/worker/worker.html") end)
     [worker] = Page.workers(page)
@@ -37,7 +38,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert Page.workers(page) == []
   end
 
-  test "should emit created and destroyed events", %{page: page} do
+  test "WO-002 should emit created and destroyed events", %{page: page} do
     worker_created_promise = Page.wait_for_event(page, :worker)
 
     worker_obj =
@@ -57,7 +58,28 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert Exception.message(error) =~ @k_target_closed_error_message
   end
 
-  test "should report console logs", %{page: page} do
+  test "WO-003 should reject in-flight evaluate and emit close when page closes", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43204' }
+    Page.goto!(page, server.empty_page)
+
+    worker =
+      Page.expect_event!(page, :worker, fn ->
+        Page.evaluate!(
+          page,
+          "() => new Worker(URL.createObjectURL(new Blob(['1'], { type: 'application/javascript' })))"
+        )
+      end)
+
+    test = self()
+    Worker.once(worker, :close, fn closed -> send(test, {:close, closed}) end)
+    eval_promise = Runtime.Promise.async(fn -> Worker.evaluate(worker, "() => new Promise(() => {})") end)
+    Page.close!(page)
+    {:error, error} = Runtime.Promise.await(eval_promise)
+    assert Exception.message(error) =~ "worker.evaluate"
+    assert_receive {:close, ^worker}
+  end
+
+  test "WO-004 should report console logs", %{page: page} do
     message =
       Page.expect_event!(page, :console, fn ->
         Page.evaluate!(
@@ -71,7 +93,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     refute Page.url(page) =~ "blob"
   end
 
-  test "should have timestamp on worker console messages", %{page: page} do
+  test "WO-005 should have timestamp on worker console messages", %{page: page} do
     # it.skip(isAndroid, ...), it.skip(channel === 'webkit-wsl', ...)
     # Account for the rounding of fractional timestamps.
     before = System.system_time(:millisecond) - 1
@@ -91,7 +113,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert ConsoleMessage.timestamp(message) <= after_
   end
 
-  test "should not report console logs from workers twice", %{page: page} do
+  test "WO-006 should not report console logs from workers twice", %{page: page} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:message, ConsoleMessage.text(msg)}) end)
     one = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "1"))
@@ -112,7 +134,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     refute Page.url(page) =~ "blob"
   end
 
-  test "should have JSHandles for console logs", %{page: page, browser_name: browser_name} do
+  test "WO-007 should have JSHandles for console logs", %{page: page, browser_name: browser_name} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:log, msg}) end)
 
@@ -133,7 +155,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
              "null"
   end
 
-  test "should evaluate", %{page: page} do
+  test "WO-008 should evaluate", %{page: page} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     worker_created_promise = Page.wait_for_event(page, :worker)
 
@@ -146,7 +168,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert Worker.evaluate!(worker, "1+1") == 2
   end
 
-  test "should report console event on the worker", %{page: page} do
+  test "WO-009 should report console event on the worker", %{page: page} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     worker =
       Page.expect_event!(page, :worker, fn ->
@@ -166,7 +188,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert message1 == message3
   end
 
-  test "should report console event on the worker when not listening on page or context", %{page: page} do
+  test "WO-010 should report console event on the worker when not listening on page or context", %{page: page} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     worker =
       Page.expect_event!(page, :worker, fn ->
@@ -181,7 +203,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert ConsoleMessage.text(message) == "hello from worker"
   end
 
-  test "should report errors", %{page: page} do
+  test "WO-011 should report errors", %{page: page} do
     test = self()
     Page.on(page, :page_error, fn error -> send(test, {:pageerror, error}) end)
 
@@ -199,7 +221,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert error_log.message =~ "this is my error"
   end
 
-  test "should clear upon navigation", %{server: server, page: page} do
+  test "WO-012 should clear upon navigation", %{server: server, page: page} do
     Page.goto!(page, server.empty_page)
     worker_created_promise = Page.wait_for_event(page, :worker)
 
@@ -217,7 +239,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert Page.workers(page) == []
   end
 
-  test "should clear upon cross-process navigation", %{server: server, page: page} do
+  test "WO-013 should clear upon cross-process navigation", %{server: server, page: page} do
     Page.goto!(page, server.empty_page)
     worker_created_promise = Page.wait_for_event(page, :worker)
 
@@ -243,7 +265,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
                "in a 2-CPU Linux container, this client ~3% (before and after the OTP Phase 1 changes). " <>
                "Upstream: https://github.com/microsoft/playwright/issues/43922"
          )
-  test "should attribute network activity for worker inside iframe to the iframe", %{page: page, server: server} do
+  test "WO-014 should attribute network activity for worker inside iframe to the iframe", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && browserMajorVersion < 114, ...)  -- the pinned browsers are newer
     # it.skip(browserName === 'chromium' && browserMajorVersion < 149, ...)  -- the pinned browsers are newer
     Page.goto!(page, server.prefix <> "/empty.html")
@@ -261,7 +283,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert Request.frame(request) == frame
   end
 
-  test "should report network activity", %{page: page, server: server, asset: asset} do
+  test "WO-015 should report network activity", %{page: page, server: server, asset: asset} do
     # it.skip(browserName === 'firefox' && browserMajorVersion < 114, ...)  -- the pinned browsers are newer
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     worker = Page.expect_event!(page, :worker, fn -> Page.goto!(page, server.prefix <> "/worker/worker.html") end)
@@ -277,7 +299,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert Response.text!(response) == File.read!(asset.("one-style.css"))
   end
 
-  test "should report network activity on worker creation", %{page: page, server: server} do
+  test "WO-016 should report network activity on worker creation", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && browserMajorVersion < 114, ...)  -- the pinned browsers are newer
     Page.goto!(page, server.empty_page)
     url = server.prefix <> "/one-style.css"
@@ -302,7 +324,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   end
 
   # annotation: issues 33107, 35678
-  test "should report worker script as network request", %{page: page, server: server} do
+  test "WO-017 should report worker script as network request", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request1_promise = Page.wait_for_event(page, :request, &(Request.url(&1) =~ "worker.js"))
     request2_promise = Page.wait_for_event(page, :request_finished, &(Request.url(&1) =~ "worker.js"))
@@ -321,7 +343,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
          if(@browser_name == "chromium",
            do: "upstream fixme: Chromium does not report the redirect because it is not plumbed to the worker target"
          )
-  test "should report worker script as network request after redirect", %{page: page, server: server} do
+  test "WO-018 should report worker script as network request after redirect", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_redirect(server, "/worker.js", "/worker2.js")
 
@@ -348,7 +370,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
     assert text =~ "console.log('hello from the worker');"
   end
 
-  test "should dispatch console messages when page has workers", %{page: page, server: server} do
+  test "WO-019 should dispatch console messages when page has workers", %{page: page, server: server} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/15550' })
     Page.goto!(page, server.empty_page)
 
@@ -364,7 +386,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit (#27376)")
-  test "should report and intercept network from nested worker", %{page: page, server: server} do
+  test "WO-020 should report and intercept network from nested worker", %{page: page, server: server} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     Page.route!(page, "**/simple.json", fn route ->
       json = %{foo: "not bar"}
@@ -396,7 +418,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   end
 
   # annotation: issue 31747
-  test "should support extra http headers", %{page: page, server: server} do
+  test "WO-021 should support extra http headers", %{page: page, server: server} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 143, ...)  -- the pinned browsers are newer
     Page.set_extra_http_headers!(page, %{"foo" => "bar"})
     worker_promise = Page.wait_for_event(page, :worker)
@@ -417,7 +439,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
             "firefox" -> "upstream fixme: does not plumb setOffline into WorkerNavigator::OnLine"
             _ -> false
           end)
-  test "should support offline", %{page: page, server: server} do
+  test "WO-022 should support offline", %{page: page, server: server} do
     worker_promise = Page.wait_for_event(page, :worker)
 
     console_promise =
@@ -434,7 +456,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   end
 
   # annotation: issue 39948
-  test "should resolve worker script allHeaders in main frame", %{page: page, server: server} do
+  test "WO-023 should resolve worker script allHeaders in main frame", %{page: page, server: server} do
     request_promise =
       Page.wait_for_event(page, :request_finished,
         predicate: &(Request.url(&1) == server.prefix <> "/worker/worker.js")
@@ -450,7 +472,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   end
 
   # annotation: issue 39948
-  test "should resolve worker script allHeaders in iframe", %{page: page, server: server} do
+  test "WO-024 should resolve worker script allHeaders in iframe", %{page: page, server: server} do
     # it.skip(browserName === 'chromium' && browserMajorVersion < 151, ...)  -- the pinned browsers are newer
     request_promise =
       Page.wait_for_event(page, :request_finished,
@@ -473,7 +495,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
             "firefox" -> "upstream fixme: nested worker script request is not reported at all"
             _ -> false
           end)
-  test "should resolve worker script allHeaders in nested worker inside iframe", %{page: page, server: server} do
+  test "WO-025 should resolve worker script allHeaders in nested worker inside iframe", %{page: page, server: server} do
     url = server.prefix <> "/worker/worker.js"
     worker_promise = Page.wait_for_event(page, :worker)
     finished_promise = Page.wait_for_event(page, :request_finished, &(Request.url(&1) == url))

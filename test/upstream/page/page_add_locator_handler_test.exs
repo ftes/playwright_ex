@@ -6,8 +6,13 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime
 
   @moduletag :page
+
+  # `new ManualPromise()`: a runtime promise (the public API creates none), a latch owned by the
+  # page, so the handler process and the test both use it.
+  defp manual_promise(page), do: Runtime.Promise.new(page)
 
   # Handlers report to the test process: `++called` is `send(test, :called)`.
   defp called(count \\ 0, message \\ :called) do
@@ -18,7 +23,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     end
   end
 
-  test "should work", %{page: page, server: server} do
+  test "LH-001 should work", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
@@ -68,7 +73,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     end
   end
 
-  test "should work with a custom check", %{page: page, server: server} do
+  test "LH-002 should work with a custom check", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
 
     Page.add_locator_handler!(
@@ -102,7 +107,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     end
   end
 
-  test "should work with locator.hover()", %{page: page, server: server} do
+  test "LH-003 should work with locator.hover()", %{page: page, server: server} do
     # test.skip(!headless, 'Stray hovers in headed mode');
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
 
@@ -125,7 +130,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
              "rgb(255, 255, 0)"
   end
 
-  test "should not work with force:true", %{page: page, server: server} do
+  test "LH-004 should not work with force:true", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
 
     Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
@@ -145,14 +150,26 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert Page.evaluate!(page, "window.clicked") == nil
   end
 
-  test "should throw when handler times out", %{page: page, server: server} do
+  test "LH-005 should throw when handler times out", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43607' }
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
+    release_handler = manual_promise(page)
+    handler_finished = manual_promise(page)
+
     Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
       send(test, :called)
-      # Deliberately timeout: await a promise that does not settle while the page is open.
-      PlaywrightEx.Promise.await(Page.wait_for_event(page, :close, timeout: 0))
+      # Deliberately timeout.
+      PlaywrightEx.Promise.await!(release_handler)
+
+      result =
+        case Locator.click(Page.locator(page, "#close"), timeout: 3000) do
+          :ok -> nil
+          {:error, e} -> e
+        end
+
+      Runtime.Promise.resolve(handler_finished, result)
     end)
 
     Locator.hover!(Page.locator(page, "#aside"))
@@ -172,9 +189,12 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
 
     # Should not enter the same handler while it is still running.
     assert called() == 1
+
+    Runtime.Promise.resolve(release_handler, nil)
+    assert PlaywrightEx.Promise.await!(handler_finished) == nil
   end
 
-  test "should work with toBeVisible", %{page: page, server: server} do
+  test "LH-006 should work with toBeVisible", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
@@ -195,7 +215,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert called() == 1
   end
 
-  test "should work with locator.waitFor", %{page: page, server: server} do
+  test "LH-007 should work with locator.waitFor", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
@@ -217,7 +237,12 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
   end
 
   @tag :tmp_dir
-  test "should work with toHaveScreenshot", %{page: page, server: server, browser_name: browser_name, tmp_dir: tmp_dir} do
+  test "LH-008 should work with toHaveScreenshot", %{
+    page: page,
+    server: server,
+    browser_name: browser_name,
+    tmp_dir: tmp_dir
+  } do
     # test.fixme(isAndroid, 'Screenshots are cut off on Android');
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.prefix <> "/grid.html")
@@ -258,7 +283,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     Expect.to_have_screenshot!(page, path: path)
   end
 
-  test "should work when owner frame detaches", %{page: page, server: server} do
+  test "LH-009 should work when owner frame detaches", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.evaluate!(page, """
@@ -290,7 +315,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert Page.evaluate!(page, "window._clicked") == true
   end
 
-  test "should work with times: option", %{page: page, server: server} do
+  test "LH-010 should work with times: option", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
@@ -318,7 +343,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
              ~s(<div>This interstitial covers the button</div> from <div class="visible" id="interstitial">…</div> subtree intercepts pointer events)
   end
 
-  test "should wait for hidden by default", %{page: page, server: server} do
+  test "LH-011 should wait for hidden by default", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
@@ -342,7 +367,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert called() == 1
   end
 
-  test "should wait for hidden by default 2", %{page: page, server: server} do
+  test "LH-012 should wait for hidden by default 2", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 
@@ -368,7 +393,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
              "locator handler has finished, waiting for getByRole('button', { name: 'close' }) to be hidden"
   end
 
-  test "should work with noWaitAfter", %{page: page, server: server} do
+  test "LH-013 should work with noWaitAfter", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
     {:ok, called} = Agent.start_link(fn -> 0 end)
@@ -401,7 +426,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert called() == 2
   end
 
-  test "should removeLocatorHandler", %{page: page, server: server} do
+  test "LH-014 should removeLocatorHandler", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/handle-locator.html")
     test = self()
 

@@ -8,13 +8,13 @@ defmodule PlaywrightEx.Page.JshandlePropertiesTest do
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page} do
+  test "JH-010 should work @smoke", %{page: page} do
     a_handle = Page.evaluate_handle!(page, "() => ({ one: 1, two: 2, three: 3 })")
     two_handle = JSHandle.get_property!(a_handle, "two")
     assert JSHandle.json_value!(two_handle) == 2
   end
 
-  test "should work with undefined, null, and empty", %{page: page} do
+  test "JH-011 should work with undefined, null, and empty", %{page: page} do
     a_handle = Page.evaluate_handle!(page, "() => ({ undefined: undefined, null: null })")
     undefined_handle = JSHandle.get_property!(a_handle, "undefined")
     assert JSHandle.json_value!(undefined_handle) == nil
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Page.JshandlePropertiesTest do
     assert JSHandle.json_value!(emptyhandle) == nil
   end
 
-  test "should work with unserializable values", %{page: page} do
+  test "JH-012 should work with unserializable values", %{page: page} do
     a_handle =
       Page.evaluate_handle!(page, "() => ({ infinity: Infinity, nInfinity: -Infinity, nan: NaN, nzero: -0 })")
 
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Page.JshandlePropertiesTest do
     assert JSHandle.json_value!(nzero_handle) === -0.0
   end
 
-  test "getProperties should work", %{page: page} do
+  test "JH-013 getProperties should work", %{page: page} do
     a_handle = Page.evaluate_handle!(page, "() => ({ foo: 'bar' })")
     properties = JSHandle.get_properties!(a_handle)
     foo = properties["foo"]
@@ -46,13 +46,13 @@ defmodule PlaywrightEx.Page.JshandlePropertiesTest do
     assert JSHandle.json_value!(foo) == "bar"
   end
 
-  test "getProperties should return empty map for non-objects", %{page: page} do
+  test "JH-014 getProperties should return empty map for non-objects", %{page: page} do
     a_handle = Page.evaluate_handle!(page, "() => 123")
     properties = JSHandle.get_properties!(a_handle)
     assert map_size(properties) == 0
   end
 
-  test "getProperties should return properties inhertied from super class", %{page: page} do
+  test "JH-015 getProperties should return properties inhertied from super class", %{page: page} do
     a_handle =
       Page.evaluate_handle!(page, """
       () => {
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Page.JshandlePropertiesTest do
     assert JSHandle.json_value!(properties["b"]) == "2"
   end
 
-  test "getProperties should return own enumerable properties only", %{page: page} do
+  test "JH-016 getProperties should return own enumerable properties only", %{page: page} do
     a_handle =
       Page.evaluate_handle!(page, """
       () => {
@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Page.JshandlePropertiesTest do
     assert Map.keys(JSHandle.get_properties!(collection)) == ["0", "1"]
   end
 
-  test "getProperties should work with elements", %{page: page} do
+  test "JH-017 getProperties should work with elements", %{page: page} do
     Page.set_content!(page, "<div>Hello</div>")
     handle = Page.evaluate_handle!(page, "() => ({ body: document.body })")
     properties = JSHandle.get_properties!(handle)

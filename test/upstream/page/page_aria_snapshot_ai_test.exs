@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     end)
   end
 
-  test "should generate refs", %{page: page} do
+  test "AR-048 should generate refs", %{page: page} do
     Page.set_content!(page, """
       <button>One</button>
       <button>Two</button>
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should list iframes", %{page: page} do
+  test "AR-049 should list iframes", %{page: page} do
     Page.set_content!(page, """
       <h1>Hello</h1>
       <iframe name="foo" src="data:text/html,<h1>World</h1>">
@@ -81,7 +81,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     assert frame_snapshot == ~s(- heading "World" [level=1])
   end
 
-  test "should snapshot a locator inside an iframe", %{page: page} do
+  test "AR-050 should snapshot a locator inside an iframe", %{page: page} do
     Page.set_content!(page, """
       <h1>Main Page</h1>
       <iframe srcdoc="<ul><li>Item 1</li><li>Item 2</li></ul>"></iframe>
@@ -97,7 +97,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should limit depth across iframe boundary", %{page: page} do
+  test "AR-051 should limit depth across iframe boundary", %{page: page} do
     Page.set_content!(page, """
       <nav>
         <iframe srcdoc="<ul><li><button>Deep</button></li></ul>"></iframe>
@@ -116,7 +116,8 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute snapshot =~ "button"
   end
 
-  test "should stitch all frame snapshots", %{page: page, server: server} do
+  test "AR-052 should stitch all frame snapshots", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43628' }
     Page.goto!(page, server.prefix <> "/frames/nested-frames.html")
     snapshot = snapshot_for_ai(page)
 
@@ -158,9 +159,21 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
 
     {:error, error} = Locator.normalize(Page.get_by_ref(page, "e1000"))
     assert Exception.message(error) =~ "No element matching aria-ref=e1000"
+
+    Locator.evaluate_all!(Page.locator(page, "iframe"), """
+    iframes => {
+      for (const iframe of iframes)
+        iframe.textContent = 'Your browser does not support frames';
+    }
+    """)
+
+    assert snapshot_for_ai(page) == snapshot
   end
 
-  test "should re-number refs across navigations but not same-document navigations", %{page: page, server: server} do
+  test "AR-053 should re-number refs across navigations but not same-document navigations", %{
+    page: page,
+    server: server
+  } do
     html_route(server, "/one.html", "<button>One</button>")
     html_route(server, "/two.html", "<button>Two</button>")
 
@@ -184,7 +197,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     Expect.to_have_text!(Page.get_by_ref(page, two_ref), "Two")
   end
 
-  test "should persist iframe references", %{page: page} do
+  test "AR-054 should persist iframe references", %{page: page} do
     Page.set_content!(page, """
       <ul>
         <li><iframe srcdoc="<button>button1</button>"></iframe></li>
@@ -236,7 +249,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     Expect.to_have_text!(Page.get_by_ref(page, "f2e2"), "button2")
   end
 
-  test "should not generate refs for elements with pointer-events:none", %{page: page} do
+  test "AR-055 should not generate refs for elements with pointer-events:none", %{page: page} do
     Page.set_content!(page, """
       <button style="pointer-events: none">no-ref</button>
       <div style="pointer-events: none">
@@ -273,7 +286,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "emit generic roles for nodes w/o roles", %{page: page} do
+  test "AR-056 emit generic roles for nodes w/o roles", %{page: page} do
     Page.set_content!(page, """
       <style>
       input {
@@ -323,7 +336,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should collapse generic nodes", %{page: page} do
+  test "AR-057 should collapse generic nodes", %{page: page} do
     Page.set_content!(page, """
       <div>
         <div>
@@ -341,7 +354,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should include cursor pointer hint", %{page: page} do
+  test "AR-058 should include cursor pointer hint", %{page: page} do
     Page.set_content!(page, """
       <button style="cursor: pointer">Button</button>
     """)
@@ -353,7 +366,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should not nest cursor pointer hints", %{page: page} do
+  test "AR-059 should not nest cursor pointer hints", %{page: page} do
     Page.set_content!(page, """
       <a style="cursor: pointer" href="about:blank">
         Link with a button
@@ -372,21 +385,43 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should omit names that just repeat printed descendant nodes", %{page: page} do
+  test "AR-060 should omit names that just repeat printed descendant nodes", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43809' }
     Page.set_content!(page, """
       <h3><a style="cursor: pointer" href="/issues/1">Clipboard API</a></h3>
+      <dialog open aria-labelledby="title">
+        <h2 id="title">Delete item?</h2>
+        <button>OK</button>
+      </dialog>
+      <nav aria-labelledby="nav-title"><h2 id="nav-title">Account</h2></nav>
+      <table>
+        <caption>Monthly totals</caption>
+        <tr><th scope="col"><button>Price</button></th></tr>
+      </table>
     """)
 
     snapshot = snapshot_for_ai(page)
 
     assert_contain_yaml(snapshot, """
-      - heading [level=3] [ref=e2]:
-        - link "Clipboard API" [ref=e3] [cursor=pointer]:
-          - /url: /issues/1
+      - generic [active] [ref=e1]:
+        - heading [level=3] [ref=e2]:
+          - link "Clipboard API" [ref=e3] [cursor=pointer]:
+            - /url: /issues/1
+        - dialog "Delete item?" [ref=e4]:
+          - heading "Delete item?" [level=2] [ref=e5]
+          - button "OK" [ref=e6]
+        - navigation "Account" [ref=e7]:
+          - heading "Account" [level=2] [ref=e8]
+        - table "Monthly totals" [ref=e9]:
+          - caption [ref=e10]: Monthly totals
+          - rowgroup [ref=e11]:
+            - row [ref=e12]:
+              - columnheader "Price" [ref=e13]:
+                - button "Price" [ref=e14]
     """)
   end
 
-  test "should omit redundant name when a contributing wrapper is collapsed", %{page: page} do
+  test "AR-061 should omit redundant name when a contributing wrapper is collapsed", %{page: page} do
     # The flex span contributes to the heading's name, but is then removed from the tree as a
     # single-child generic wrapper. Its contribution is fully represented by the link, so the
     # heading's name is still redundant.
@@ -403,7 +438,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should omit redundant name when a contributor is a skipped leaf generic", %{page: page} do
+  test "AR-062 should omit redundant name when a contributor is a skipped leaf generic", %{page: page} do
     # The outer span is not collapsed (its child is an element, not text), so it becomes a leaf
     # generic node that contributes to both names. The link's rendered name covers it, which in turn
     # makes the heading's name redundant.
@@ -420,11 +455,14 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should keep the name when the contributing wrapper collapses into repeating text", %{page: page} do
+  test "AR-063 should keep the name when the contributing wrapper collapses into repeating text", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/41985
+    # issue: https://github.com/microsoft/playwright/issues/43315
     # The outer span is marked as represented while it still wraps the icon. Once the nameless
     # image is dropped, the span collapses into a lone text repeating the button's name and removes
     # itself, so the button must keep the name derived from it.
+    # A wrapper that only adds whitespace to the name - a stray text node, or the spacing around an
+    # inline-block icon - is not where the name comes from.
     Page.set_content!(page, """
       <button>
         <span>
@@ -436,16 +474,21 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
           <span>Add New Item</span>
         </span>
       </button>
+      <button><span>\n  <svg aria-hidden="true"></svg></span>New survey</button>
+      <button><span><svg aria-hidden="true" style="width: 1em; height: 1em; display: inline-block"></svg></span>Edit survey</button>
     """)
 
     snapshot = snapshot_for_ai(page)
 
     assert_contain_yaml(snapshot, """
-      - button "Add New Item" [ref=e2]
+      - generic [active] [ref=e1]:
+        - button "Add New Item" [ref=e2]
+        - button "New survey" [ref=e7]
+        - button "Edit survey" [ref=e10]
     """)
   end
 
-  test "should keep names not derived from printed nodes", %{page: page} do
+  test "AR-064 should keep names not derived from printed nodes", %{page: page} do
     Page.set_content!(page, """
       <h3 aria-label="Clipboard API issue"><a style="cursor: pointer" href="/issues/1">Clipboard API</a></h3>
     """)
@@ -459,7 +502,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should omit images without an accessible name", %{page: page} do
+  test "AR-065 should omit images without an accessible name", %{page: page} do
     Page.set_content!(page, """
       <img src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=">
       <img alt="A cat" src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=">
@@ -477,7 +520,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute snapshot =~ "[ref=e2]"
   end
 
-  test "should omit a nameless image nested inside a link", %{page: page} do
+  test "AR-066 should omit a nameless image nested inside a link", %{page: page} do
     # The decorative image has no name, so it is dropped even though it sits inside a clickable link.
     Page.set_content!(page, """
       <a style="cursor: pointer" href="/issue/1">Open issue <img src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA="></a>
@@ -493,7 +536,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute snapshot =~ "img"
   end
 
-  test "should keep icon-only clickable elements", %{page: page} do
+  test "AR-067 should keep icon-only clickable elements", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/42013
     icon = ~s(<svg viewBox="0 0 1024 1024"><use xlink:href="#icon"></use></svg>)
 
@@ -515,7 +558,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should omit leaf generic whose text is already in an ancestor name", %{page: page} do
+  test "AR-068 should omit leaf generic whose text is already in an ancestor name", %{page: page} do
     # The inner element is block so it survives as its own generic node (an inline single-text span
     # would be collapsed into the link instead). It inherits the link's pointer cursor.
     Page.set_content!(page, """
@@ -533,7 +576,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute snapshot =~ "[ref=e3]"
   end
 
-  test "should omit name-repeating generic behind a wrapper", %{page: page} do
+  test "AR-069 should omit name-repeating generic behind a wrapper", %{page: page} do
     # The leaf generic that repeats the link's name sits inside a nameless wrapper. Its text is
     # first inlined into the wrapper, which then faces the link and removes itself.
     Page.set_content!(page, """
@@ -550,7 +593,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     assert length(String.split(snapshot, "P3-collecting-feedback")) == 2
   end
 
-  test "should resolve refs of distilled-away nodes", %{page: page} do
+  test "AR-070 should resolve refs of distilled-away nodes", %{page: page} do
     Page.set_content!(page, """
       <a style="cursor: pointer" href="/issues/15860"><div>[Feature] a dedicated clipboard API</div></a>
     """)
@@ -561,7 +604,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     Expect.to_have_text!(Page.get_by_ref(page, "e3"), "[Feature] a dedicated clipboard API")
   end
 
-  test "should not distill snapshots outside of ai mode", %{page: page} do
+  test "AR-071 should not distill snapshots outside of ai mode", %{page: page} do
     Page.set_content!(page, """
       <h3><a href="/issues/1">Clipboard API</a></h3>
     """)
@@ -574,7 +617,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should truncate data url in link", %{page: page} do
+  test "AR-072 should truncate data url in link", %{page: page} do
     base64 = Base.encode64("<p>hello</p>")
     Page.set_content!(page, ~s(<a href="data:text/html;base64,#{base64}">a link</a>))
     snapshot = snapshot_for_ai(page)
@@ -582,7 +625,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute snapshot =~ base64
   end
 
-  test "should gracefully fallback when child frame cant be captured", %{page: page, server: server} do
+  test "AR-073 should gracefully fallback when child frame cant be captured", %{page: page, server: server} do
     Page.set_content!(
       page,
       """
@@ -601,7 +644,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should auto-wait for navigation", %{page: page, server: server} do
+  test "AR-074 should auto-wait for navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/frame.html")
     reload = Task.async(fn -> Page.evaluate!(page, "() => window.location.reload()") end)
     snapshot = Task.async(fn -> snapshot_for_ai(page) end)
@@ -610,7 +653,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     assert snapshot =~ ~r/- generic \[active\] \[ref=(?:f\d+)?e\d+\]: Hi, I'm frame/
   end
 
-  test "should auto-wait for blocking CSS", %{page: page, server: server} do
+  test "AR-075 should auto-wait for blocking CSS", %{page: page, server: server} do
     TestServer.set_route(server, "/css", fn conn ->
       Process.sleep(1000)
       conn |> Plug.Conn.put_resp_header("content-type", "text/css") |> Plug.Conn.send_resp(200, "body { monospace }")
@@ -628,7 +671,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     assert_contain_yaml(snapshot_for_ai(page), "Hello World")
   end
 
-  test "should show visible children of hidden elements", %{page: page} do
+  test "AR-076 should show visible children of hidden elements", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/36296
     Page.set_content!(page, """
       <div style="visibility: hidden">
@@ -655,7 +698,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
              """)
   end
 
-  test "should include active element information", %{page: page} do
+  test "AR-077 should include active element information", %{page: page} do
     Page.set_content!(page, """
       <button id="btn1">Button 1</button>
       <button id="btn2" autofocus>Button 2</button>
@@ -675,7 +718,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should update active element on focus", %{page: page} do
+  test "AR-078 should update active element on focus", %{page: page} do
     Page.set_content!(page, """
       <input id="input1" placeholder="First input">
       <input id="input2" placeholder="Second input">
@@ -703,7 +746,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should mark iframe as active when it contains focused element", %{page: page} do
+  test "AR-079 should mark iframe as active when it contains focused element", %{page: page} do
     # Create a simple HTML file for the iframe
     Page.set_content!(page, """
       <input id="regular-input" placeholder="Regular input">
@@ -723,7 +766,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "return empty snapshot when iframe is not loaded", %{page: page, server: server} do
+  test "AR-080 return empty snapshot when iframe is not loaded", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/pull/36710
     Page.set_content!(page, """
       <div style="height: 5000px;">Test</div>
@@ -744,7 +787,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should support many properties on iframes", %{page: page} do
+  test "AR-081 should support many properties on iframes", %{page: page} do
     Page.set_content!(page, """
       <input id="regular-input" placeholder="Regular input">
       <iframe style='cursor: pointer' src="data:text/html,<input id='iframe-input' placeholder='Input in iframe'/>" tabindex="0"></iframe>
@@ -762,7 +805,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should snapshot frameset pages", %{page: page, server: server} do
+  test "AR-082 should snapshot frameset pages", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/41784
     html_route(
       server,
@@ -792,7 +835,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     Expect.to_have_text!(Page.get_by_ref(page, "f2e2"), "Button two")
   end
 
-  test "should snapshot a locator inside a frameset frame", %{page: page, server: server} do
+  test "AR-083 should snapshot a locator inside a frameset frame", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/frameset.html")
 
     snapshot = page |> Page.frames() |> Enum.at(1) |> Frame.locator("body") |> Locator.aria_snapshot!(mode: "ai")
@@ -808,7 +851,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
              ~s'Page.locator(page, "frame") |> Locator.first() |> Locator.content_frame() |> FrameLocator.locator("body")'
   end
 
-  test "should stitch iframes inside a frameset frame", %{page: page, server: server} do
+  test "AR-084 should stitch iframes inside a frameset frame", %{page: page, server: server} do
     html_route(server, "/frameset-with-iframe.html", ~s(<frameset><frame src="/frame-with-iframe.html"></frameset>))
 
     html_route(
@@ -837,7 +880,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
              ~s'Page.locator(page, "frame") |> Locator.content_frame() |> FrameLocator.locator("iframe") |> Locator.content_frame() |> FrameLocator.get_by_role(:button, name: "In iframe")'
   end
 
-  test "should stitch nested frameset documents", %{page: page, server: server} do
+  test "AR-085 should stitch nested frameset documents", %{page: page, server: server} do
     html_route(server, "/outer-frameset.html", ~s(<frameset><frame src="/inner-frameset.html"></frameset>))
     html_route(server, "/inner-frameset.html", ~s(<frameset><frameset><frame src="/leaf.html"></frameset></frameset>))
     html_route(server, "/leaf.html", "<button>Leaf button</button>")
@@ -852,7 +895,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     Expect.to_have_text!(Page.get_by_ref(page, "f2e2"), "Leaf button")
   end
 
-  test "should collapse inline generic nodes", %{page: page} do
+  test "AR-086 should collapse inline generic nodes", %{page: page} do
     Page.set_content!(page, """
       <ul>
         <li><b>3</b> <abbr>bds</abbr></li>
@@ -884,7 +927,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should inline single leaf generic child into parent generic", %{page: page} do
+  test "AR-087 should inline single leaf generic child into parent generic", %{page: page} do
     # The nameless images are distilled away, so each wrapper is left with a single leaf generic
     # child, whose text is inlined into the wrapper - recursively for the second one.
     Page.set_content!(page, """
@@ -901,7 +944,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should inline a deeply nested generic", %{page: page} do
+  test "AR-088 should inline a deeply nested generic", %{page: page} do
     # Every wrapper contains a nameless image (distilled away) plus a single generic child, so the
     # text bubbles up the whole chain - all the way into the body.
     img = ~s(<img src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=">)
@@ -919,7 +962,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute snapshot =~ "img"
   end
 
-  test "should not remove generic nodes with title", %{page: page} do
+  test "AR-089 should not remove generic nodes with title", %{page: page} do
     Page.set_content!(page, ~s(<div title="Element title">Element content</div>))
 
     snapshot = snapshot_for_ai(page)
@@ -929,7 +972,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should limit depth", %{page: page} do
+  test "AR-090 should limit depth", %{page: page} do
     Page.set_content!(page, """
       <ul>
         <li>item1</li>
@@ -994,7 +1037,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should annotate aria-hidden elements", %{page: page} do
+  test "AR-091 should annotate aria-hidden elements", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/42223
     Page.set_content!(page, """
       <h2>Visible heading</h2>
@@ -1019,7 +1062,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     refute default_snapshot =~ "Hidden content"
   end
 
-  test "should only annotate the top element in a hidden subtree", %{page: page} do
+  test "AR-092 should only annotate the top element in a hidden subtree", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/42223
     Page.set_content!(page, """
       <div aria-hidden="true">
@@ -1036,7 +1079,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotAiTest do
     """)
   end
 
-  test "should not include hidden iframes", %{page: page} do
+  test "AR-093 should not include hidden iframes", %{page: page} do
     Page.set_content!(page, """
       <iframe name="visible" srcdoc="<button>Visible</button>"></iframe>
       <iframe name="hidden" style="visibility: hidden" srcdoc="<button>Hidden</button>"></iframe>

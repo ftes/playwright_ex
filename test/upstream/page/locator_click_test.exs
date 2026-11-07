@@ -7,14 +7,14 @@ defmodule PlaywrightEx.Page.LocatorClickTest do
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "LO-052 should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.locator(page, "button")
     Locator.click!(button)
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should work with Node removed", %{page: page, server: server} do
+  test "LO-053 should work with Node removed", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.evaluate!(page, "() => delete window['Node']")
     button = Page.locator(page, "button")
@@ -22,7 +22,7 @@ defmodule PlaywrightEx.Page.LocatorClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should double click the button", %{page: page, server: server} do
+  test "LO-054 should double click the button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """
@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Page.LocatorClickTest do
     assert Page.evaluate!(page, "result") == "Clicked"
   end
 
-  test "should click if the target element is removed in pointerup event", %{page: page} do
+  test "LO-055 should click if the target element is removed in pointerup event", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/21995' });
     Page.set_content!(page, "<button id=clickme>Clickable</button>")
 
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Page.LocatorClickTest do
     Locator.click!(Page.locator(page, "#clickme"))
   end
 
-  test "should click if the target element is removed in pointerdown event", %{page: page} do
+  test "LO-056 should click if the target element is removed in pointerdown event", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/21995' });
     Page.set_content!(page, "<button id=clickme>Clickable</button>")
 

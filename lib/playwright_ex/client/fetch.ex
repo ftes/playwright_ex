@@ -59,8 +59,11 @@ defmodule PlaywrightEx.Client.Fetch do
       false
     else
       case Enum.find(headers, fn %{name: name} -> String.downcase(name) == "content-type" end) do
-        %{value: value} -> value == "application/json"
-        nil -> false
+        %{value: value} ->
+          value |> String.split(";") |> hd() |> String.trim() |> String.downcase() == "application/json"
+
+        nil ->
+          false
       end
     end
   end
@@ -115,7 +118,7 @@ defmodule PlaywrightEx.Client.APIRequest do
 
     storage_state =
       if is_binary(options[:storageState]),
-        do: JSON.decode!(File.read!(options.storageState)),
+        do: PlaywrightEx.Client.ClientHelper.json_parse(File.read!(options.storageState)),
         else: options[:storageState]
 
     playwright = get(this, :_playwright)
@@ -246,123 +249,124 @@ defmodule PlaywrightEx.Client.APIRequestContext do
     fetch(this, url, Map.merge(options || %{}, %{method: "PUT"}))
   end
 
+  # @apiCall()
   def fetch(this, url_or_request, options \\ %{}) do
-    url = if is_binary(url_or_request), do: url_or_request
-    request = if !is_binary(url_or_request), do: url_or_request
-    _inner_fetch(this, Map.merge(%{url: url, request: request}, options || %{}))
+    api_call().(this, fn ->
+      url = if is_binary(url_or_request), do: url_or_request
+      request = if !is_binary(url_or_request), do: url_or_request
+      _inner_fetch(this, Map.merge(%{url: url, request: request}, options || %{}))
+    end)
   end
 
   def _inner_fetch(this, options \\ %{}) do
-    _wrap_api_call(this, fn _ ->
-      if ClientHelper.truthy(get(this, :_closeReason)), do: raise(TargetClosedError.new(get(this, :_closeReason)))
-      assert(options[:request] || is_binary(options[:url]), "First argument must be either URL string or Request")
+    if ClientHelper.truthy(get(this, :_closeReason)), do: raise(TargetClosedError.new(get(this, :_closeReason)))
+    assert(options[:request] || is_binary(options[:url]), "First argument must be either URL string or Request")
 
-      assert(
-        if(options[:data] == nil, do: 0, else: 1) + if(options[:form] == nil, do: 0, else: 1) +
-          if(options[:multipart] == nil, do: 0, else: 1) <= 1,
-        "Only one of 'data', 'form' or 'multipart' can be specified"
+    assert(
+      if(options[:data] == nil, do: 0, else: 1) + if(options[:form] == nil, do: 0, else: 1) +
+        if(options[:multipart] == nil, do: 0, else: 1) <= 1,
+      "Only one of 'data', 'form' or 'multipart' can be specified"
+    )
+
+    assert(
+      options[:maxRedirects] == nil or options.maxRedirects >= 0,
+      "'maxRedirects' must be greater than or equal to '0'"
+    )
+
+    assert(
+      options[:maxRetries] == nil or options.maxRetries >= 0,
+      "'maxRetries' must be greater than or equal to '0'"
+    )
+
+    url = if options[:url] != nil, do: options.url, else: Request.url(options.request)
+    method = options[:method] || (options[:request] && Request.method(options.request))
+
+    encoded_params =
+      cond do
+        is_binary(options[:params]) -> options.params
+        # URLSearchParams  -- ported as a keyword list (repeated names allowed)
+        is_list(options[:params]) -> url_search_params_to_string(options.params)
+        true -> nil
+      end
+
+    # Cannot call allHeaders() here as the request may be paused inside route handler.
+    headers_obj = options[:headers] || (options[:request] && Request.headers(options.request))
+    headers = if headers_obj, do: Headers.headers_object_to_array(headers_obj)
+
+    {json_data, form_data, multipart_data, post_data_buffer} =
+      cond do
+        options[:data] != nil ->
+          data = options.data
+
+          cond do
+            is_binary(data) ->
+              if Fetch.is_json_content_type(headers),
+                do:
+                  {if(Fetch.is_json_parsable(data), do: data, else: ClientHelper.json_stringify(data)), nil, nil, nil},
+                else: {nil, nil, nil, data}
+
+            match?({:binary, _}, data) ->
+              {nil, nil, nil, elem(data, 1)}
+
+            # typeof null === 'object'
+            data == :null or is_map(data) or is_list(data) or is_number(data) or is_boolean(data) ->
+              {ClientHelper.json_stringify(data), nil, nil, nil}
+
+            true ->
+              raise "Unexpected 'data' type"
+          end
+
+        options[:form] ->
+          # FormData  -- ported as a keyword list (repeated names allowed): its values are strings or Files
+          if is_list(options.form) do
+            for {name, value} <- options.form,
+                Fetch.is_file_payload(value),
+                do:
+                  raise(
+                    "Expected string for options.form[\"#{name}\"], found File. Please use options.multipart instead."
+                  )
+          end
+
+          {nil, Fetch.object_to_array(options.form), nil, nil}
+
+        options[:multipart] ->
+          # FormData  -- ported as a keyword list (repeated names allowed), handled by toFormField
+          # Convert file-like values to ServerFilePayload structs.
+          {nil, nil, for({name, value} <- options.multipart, do: Fetch.to_form_field(to_string(name), value)), nil}
+
+        true ->
+          {nil, nil, nil, nil}
+      end
+
+    post_data_buffer =
+      if post_data_buffer == nil and json_data == nil and form_data == nil and multipart_data == nil,
+        do: (options[:request] && Request.post_data_buffer(options.request)) || nil,
+        else: post_data_buffer
+
+    # const fixtures = { __testHookLookup: (options as any).__testHookLookup };  -- not ported: in-process test hook
+    result =
+      channel_call(
+        this,
+        :fetch,
+        %{
+          url: url,
+          params: if(is_map(options[:params]), do: Fetch.object_to_array(options.params)),
+          encodedParams: encoded_params,
+          method: method,
+          headers: headers,
+          postData: post_data_buffer,
+          jsonData: json_data,
+          formData: form_data,
+          multipartData: multipart_data,
+          failOnStatusCode: options[:failOnStatusCode],
+          ignoreHTTPSErrors: options[:ignoreHTTPSErrors],
+          maxRedirects: options[:maxRedirects],
+          maxRetries: options[:maxRetries]
+        },
+        TimeoutSettings.timeout(get(this, :_timeoutSettings), options)
       )
 
-      assert(
-        options[:maxRedirects] == nil or options.maxRedirects >= 0,
-        "'maxRedirects' must be greater than or equal to '0'"
-      )
-
-      assert(
-        options[:maxRetries] == nil or options.maxRetries >= 0,
-        "'maxRetries' must be greater than or equal to '0'"
-      )
-
-      url = if options[:url] != nil, do: options.url, else: Request.url(options.request)
-      method = options[:method] || (options[:request] && Request.method(options.request))
-
-      encoded_params =
-        cond do
-          is_binary(options[:params]) -> options.params
-          # URLSearchParams  -- ported as a keyword list (repeated names allowed)
-          is_list(options[:params]) -> url_search_params_to_string(options.params)
-          true -> nil
-        end
-
-      # Cannot call allHeaders() here as the request may be paused inside route handler.
-      headers_obj = options[:headers] || (options[:request] && Request.headers(options.request))
-      headers = if headers_obj, do: Headers.headers_object_to_array(headers_obj)
-
-      {json_data, form_data, multipart_data, post_data_buffer} =
-        cond do
-          options[:data] != nil ->
-            data = options.data
-
-            cond do
-              is_binary(data) ->
-                if Fetch.is_json_content_type(headers),
-                  do:
-                    {if(Fetch.is_json_parsable(data), do: data, else: ClientHelper.json_stringify(data)), nil, nil, nil},
-                  else: {nil, nil, nil, data}
-
-              match?({:binary, _}, data) ->
-                {nil, nil, nil, elem(data, 1)}
-
-              # typeof null === 'object'
-              data == :null or is_map(data) or is_list(data) or is_number(data) or is_boolean(data) ->
-                {ClientHelper.json_stringify(data), nil, nil, nil}
-
-              true ->
-                raise "Unexpected 'data' type"
-            end
-
-          options[:form] ->
-            # FormData  -- ported as a keyword list (repeated names allowed): its values are strings or Files
-            if is_list(options.form) do
-              for {name, value} <- options.form,
-                  Fetch.is_file_payload(value),
-                  do:
-                    raise(
-                      "Expected string for options.form[\"#{name}\"], found File. Please use options.multipart instead."
-                    )
-            end
-
-            {nil, Fetch.object_to_array(options.form), nil, nil}
-
-          options[:multipart] ->
-            # FormData  -- ported as a keyword list (repeated names allowed), handled by toFormField
-            # Convert file-like values to ServerFilePayload structs.
-            {nil, nil, for({name, value} <- options.multipart, do: Fetch.to_form_field(to_string(name), value)), nil}
-
-          true ->
-            {nil, nil, nil, nil}
-        end
-
-      post_data_buffer =
-        if post_data_buffer == nil and json_data == nil and form_data == nil and multipart_data == nil,
-          do: (options[:request] && Request.post_data_buffer(options.request)) || nil,
-          else: post_data_buffer
-
-      # const fixtures = { __testHookLookup: (options as any).__testHookLookup };  -- not ported: in-process test hook
-      result =
-        channel_call(
-          this,
-          :fetch,
-          %{
-            url: url,
-            params: if(is_map(options[:params]), do: Fetch.object_to_array(options.params)),
-            encodedParams: encoded_params,
-            method: method,
-            headers: headers,
-            postData: post_data_buffer,
-            jsonData: json_data,
-            formData: form_data,
-            multipartData: multipart_data,
-            failOnStatusCode: options[:failOnStatusCode],
-            ignoreHTTPSErrors: options[:ignoreHTTPSErrors],
-            maxRedirects: options[:maxRedirects],
-            maxRetries: options[:maxRetries]
-          },
-          TimeoutSettings.timeout(get(this, :_timeoutSettings), options)
-        )
-
-      APIResponse.new(this, result.response)
-    end)
+    APIResponse.new(this, result.response)
   end
 
   def storage_state(this, options \\ %{}) do
@@ -403,7 +407,7 @@ end
 defmodule PlaywrightEx.Client.APIResponse do
   @upstream "packages/playwright-core/src/client/fetch.ts"
   @moduledoc "Port of `APIResponse` in `#{@upstream}`: no mutable state, a plain struct."
-  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4, internal: 0]
 
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.ClientHelper
@@ -427,6 +431,10 @@ defmodule PlaywrightEx.Client.APIResponse do
       _initializer: initializer,
       _headers: RawHeaders.new(initializer.headers)
     }
+  end
+
+  def _wrap_api_call(this, func, options \\ %{}) do
+    ChannelOwner._wrap_api_call(this._request, func, options)
   end
 
   def ok(this) do
@@ -476,31 +484,28 @@ defmodule PlaywrightEx.Client.APIResponse do
     |> Map.put(:responseEnd, this._initializer[:responseEndTiming] || -1)
   end
 
+  # @internal
   def body(this) do
-    ChannelOwner._wrap_api_call(
-      this._request,
-      fn _ ->
-        try do
-          result =
-            channel_call(
-              this._request,
-              :fetchResponseBody,
-              %{fetchUid: _fetch_uid(this)},
-              TimeoutSettings.k_no_timeout()
-            )
+    internal().(this, fn ->
+      try do
+        result =
+          channel_call(
+            this._request,
+            :fetchResponseBody,
+            %{fetchUid: _fetch_uid(this)},
+            TimeoutSettings.k_no_timeout()
+          )
 
-          if result[:binary] == nil, do: raise("Response has been disposed")
-          result.binary
-        rescue
-          e ->
-            if Errors.is_target_closed_error(e),
-              do: reraise(RuntimeError.exception("Response has been disposed"), __STACKTRACE__)
+        if result[:binary] == nil, do: raise("Response has been disposed")
+        result.binary
+      rescue
+        e ->
+          if Errors.is_target_closed_error(e),
+            do: reraise(RuntimeError.exception("Response has been disposed"), __STACKTRACE__)
 
-            reraise e, __STACKTRACE__
-        end
-      end,
-      %{internal: true}
-    )
+          reraise e, __STACKTRACE__
+      end
+    end)
   end
 
   def text(this) do

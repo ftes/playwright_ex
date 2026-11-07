@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Page.FrameFrameElementTest do
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "FR-014 should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame1 = attach_frame(page, "frame1", server.empty_page)
     attach_frame(page, "frame2", server.empty_page)
@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Page.FrameFrameElementTest do
     assert JSHandle.evaluate!(frame1handle1, "(a, b) => a === b", frame3handle1) == false
   end
 
-  test "should work with contentFrame", %{page: page, server: server} do
+  test "FR-015 should work with contentFrame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = attach_frame(page, "frame1", server.empty_page)
     handle = Frame.frame_element!(frame)
@@ -33,7 +33,7 @@ defmodule PlaywrightEx.Page.FrameFrameElementTest do
     assert content_frame == frame
   end
 
-  test "should work with frameset", %{page: page, server: server} do
+  test "FR-016 should work with frameset", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/frameset.html")
     frame_element1 = Page.query_selector!(page, "frame")
     frame = ElementHandle.content_frame!(frame_element1)
@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Page.FrameFrameElementTest do
     assert JSHandle.evaluate!(frame_element1, "(a, b) => a === b", frame_element2) == true
   end
 
-  test "should throw when detached", %{page: page, server: server} do
+  test "FR-017 should throw when detached", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame1 = attach_frame(page, "frame1", server.empty_page)
     Page.eval_on_selector!(page, "#frame1", "e => e.remove()")
@@ -49,7 +49,7 @@ defmodule PlaywrightEx.Page.FrameFrameElementTest do
     assert Exception.message(error) =~ "Frame has been detached."
   end
 
-  test "should work inside closed shadow root", %{page: page, server: server} do
+  test "FR-018 should work inside closed shadow root", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Page.FrameFrameElementTest do
     assert ElementHandle.get_attribute!(element, "name") == "myframe"
   end
 
-  test "should work inside declarative shadow root", %{page: page, server: server} do
+  test "FR-019 should work inside declarative shadow root", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """

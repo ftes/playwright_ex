@@ -30,20 +30,20 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     end
   end
 
-  test "should timeout", %{page: page} do
+  test "WA-001 should timeout", %{page: page} do
     start_time = System.monotonic_time(:millisecond)
     timeout = 42
     Page.wait_for_timeout!(page, timeout)
     refute System.monotonic_time(:millisecond) - start_time < timeout / 2
   end
 
-  test "should accept a string", %{page: page} do
+  test "WA-002 should accept a string", %{page: page} do
     watchdog = Runtime.Promise.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end)
     Page.evaluate!(page, "() => window['__FOO'] = 1")
     Runtime.Promise.await(watchdog)
   end
 
-  test "should work when resolved right before execution context disposal", %{page: page} do
+  test "WA-003 should work when resolved right before execution context disposal", %{page: page} do
     Page.add_init_script!(page, "window['__RELOADED'] = true")
 
     Page.wait_for_function!(page, """
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     """)
   end
 
-  test "should poll on interval", %{page: page} do
+  test "WA-004 should poll on interval", %{page: page} do
     polling = 100
 
     time_delta =
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     refute JSHandle.json_value!(time_delta) < polling
   end
 
-  test "should avoid side effects after timeout", %{page: page} do
+  test "WA-005 should avoid side effects after timeout", %{page: page} do
     {:ok, counter} = Agent.start_link(fn -> 0 end)
     Page.on(page, :console, fn _ -> Agent.update(counter, &(&1 + 1)) end)
 
@@ -103,12 +103,12 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert Agent.get(counter, & &1) == saved_counter
   end
 
-  test "should throw on polling:mutation", %{page: page} do
+  test "WA-006 should throw on polling:mutation", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "() => true", %{}, polling: "mutation")
     assert Exception.message(error) =~ "Unknown polling option: mutation"
   end
 
-  test "should poll on raf", %{page: page} do
+  test "WA-007 should poll on raf", %{page: page} do
     watchdog =
       Runtime.Promise.async(fn ->
         Page.wait_for_function!(page, "() => window['__FOO'] === 'hit'", %{}, polling: :raf)
@@ -118,12 +118,12 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Runtime.Promise.await(watchdog)
   end
 
-  test "should fail with predicate throwing on first call", %{page: page} do
+  test "WA-008 should fail with predicate throwing on first call", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "() => { throw new Error('oh my'); }")
     assert Exception.message(error) =~ "oh my"
   end
 
-  test "should fail with predicate throwing sometimes", %{page: page} do
+  test "WA-009 should fail with predicate throwing sometimes", %{page: page} do
     {:error, error} =
       Page.wait_for_function(page, """
       () => {
@@ -137,12 +137,12 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert Exception.message(error) =~ "Bad counter!"
   end
 
-  test "should fail with ReferenceError on wrong page", %{page: page} do
+  test "WA-010 should fail with ReferenceError on wrong page", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "() => globalVar === 123")
     assert Exception.message(error) =~ "globalVar"
   end
 
-  test "should work with strict CSP policy", %{page: page, server: server} do
+  test "WA-011 should work with strict CSP policy", %{page: page, server: server} do
     PlaywrightEx.TestServer.set_csp(server, "/empty.html", "script-src " <> server.prefix)
     Page.goto!(page, server.empty_page)
 
@@ -156,27 +156,27 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert {:ok, _} = Runtime.Promise.await(p)
   end
 
-  test "should throw on bad polling value", %{page: page} do
+  test "WA-012 should throw on bad polling value", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "() => !!document.body", %{}, polling: "unknown")
     assert error
     assert Exception.message(error) =~ "polling"
   end
 
-  test "should throw negative polling interval", %{page: page} do
+  test "WA-013 should throw negative polling interval", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "() => !!document.body", %{}, polling: -10)
     assert error
     assert Exception.message(error) =~ "Cannot poll with non-positive interval"
   end
 
-  test "should return the success value as a JSHandle", %{page: page} do
+  test "WA-014 should return the success value as a JSHandle", %{page: page} do
     assert JSHandle.json_value!(Page.wait_for_function!(page, "() => 5")) == 5
   end
 
-  test "should return the window as a success value", %{page: page} do
+  test "WA-015 should return the window as a success value", %{page: page} do
     assert Page.wait_for_function!(page, "() => window")
   end
 
-  test "should accept ElementHandle arguments", %{page: page} do
+  test "WA-016 should accept ElementHandle arguments", %{page: page} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
 
@@ -190,21 +190,21 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Runtime.Promise.await(wait_for_function)
   end
 
-  test "should respect timeout", %{page: page} do
+  test "WA-017 should respect timeout", %{page: page} do
     {:error, error} = Page.wait_for_function(page, "false", %{}, timeout: 10)
     assert error
     assert Exception.message(error) =~ "page.waitForFunction: Timeout 10ms exceeded"
     assert %TimeoutError{} = error
   end
 
-  test "should respect default timeout", %{page: page} do
+  test "WA-018 should respect default timeout", %{page: page} do
     Page.set_default_timeout(page, 1)
     {:error, error} = Page.wait_for_function(page, "false")
     assert %TimeoutError{} = error
     assert Exception.message(error) =~ "page.waitForFunction: Timeout 1ms exceeded"
   end
 
-  test "should disable timeout when its set to 0", %{page: page} do
+  test "WA-019 should disable timeout when its set to 0", %{page: page} do
     watchdog =
       Runtime.Promise.async(fn ->
         Page.wait_for_function!(
@@ -226,7 +226,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Runtime.Promise.await(watchdog)
   end
 
-  test "should survive cross-process navigation", %{page: page, server: server} do
+  test "WA-020 should survive cross-process navigation", %{page: page, server: server} do
     wait_for_function =
       Runtime.Promise.async(fn -> Page.wait_for_function!(page, "window.__FOO === 1") end, shared: true)
 
@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert Runtime.Promise.await(wait_for_function)
   end
 
-  test "should survive navigations", %{page: page, server: server} do
+  test "WA-021 should survive navigations", %{page: page, server: server} do
     watchdog = Runtime.Promise.async(fn -> Page.wait_for_function!(page, "() => window['__done']") end)
     Page.goto!(page, server.empty_page)
     Page.goto!(page, server.prefix <> "/consolelog.html")
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     Runtime.Promise.await(watchdog)
   end
 
-  test "should work with multiline body", %{page: page} do
+  test "WA-022 should work with multiline body", %{page: page} do
     result =
       Page.wait_for_function!(page, """
 
@@ -258,11 +258,11 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert JSHandle.json_value!(result) == true
   end
 
-  test "should wait for predicate with arguments", %{page: page} do
+  test "WA-023 should wait for predicate with arguments", %{page: page} do
     Page.wait_for_function!(page, "({ arg1, arg2 }) => arg1 + arg2 === 3", %{arg1: 1, arg2: 2})
   end
 
-  test "should not be called after finishing successfully", %{page: page, server: server} do
+  test "WA-024 should not be called after finishing successfully", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     on_wait_for_function_message(page)
 
@@ -294,7 +294,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert Enum.join(messages(), "|") == "waitForFunction1|waitForFunction2|waitForFunction3"
   end
 
-  test "should not be called after finishing unsuccessfully", %{page: page, server: server} do
+  test "WA-025 should not be called after finishing unsuccessfully", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     on_wait_for_function_message(page)
 
@@ -326,7 +326,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
     assert Enum.join(messages(), "|") == "waitForFunction1|waitForFunction2|waitForFunction3"
   end
 
-  test "should throw when frame is detached", %{page: page, server: server} do
+  test "WA-026 should throw when frame is detached", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
     promise = Runtime.Promise.async(fn -> Frame.wait_for_function(frame, "() => false") end)

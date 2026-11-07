@@ -244,9 +244,9 @@ defmodule PlaywrightEx.Driver do
     end
   end
 
-  # PW_LANG_NAME: not "node" (the driver then replaces lone surrogates, `toWellFormed`); not in
-  # the driver's embedder list either, so APIRequestContext's default User-Agent ends in
-  # "unknown/unknown" (upstream JS: "node/<version>").
+  # PW_LANG_NAME: not "node", and not in the driver's embedder list, so APIRequestContext's
+  # default User-Agent ends in "unknown/unknown" (upstream JS: "node/<version>"). (Lone surrogates:
+  # `supportsLoneSurrogates` in `Connection.Root.initialize/2`.)
   @doc false
   def driver_env, do: [{"PW_LANG_NAME", "elixir"}, {"PW_CLI_DISPLAY_VERSION", @driver_version}]
 

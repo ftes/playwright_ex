@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
     end)
   end
 
-  test "should snapshot roles, names and text", %{page: page} do
+  test "AR-096 should snapshot roles, names and text", %{page: page} do
     Page.set_content!(page, """
       <h1>title</h1>
       <ul aria-label="my list">
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
            ]
   end
 
-  test "should snapshot flags as properties", %{page: page} do
+  test "AR-097 should snapshot flags as properties", %{page: page} do
     Page.set_content!(page, """
       <input type="checkbox" title="Check" checked>
       <button disabled>Click</button>
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
            ]
   end
 
-  test "should snapshot link url and textbox value", %{page: page} do
+  test "AR-098 should snapshot link url and textbox value", %{page: page} do
     Page.set_content!(page, """
       <a href="https://example.com/">Link</a>
       <input title="Input" value="hello">
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
            ]
   end
 
-  test "should snapshot text fragments in children", %{page: page} do
+  test "AR-099 should snapshot text fragments in children", %{page: page} do
     Page.set_content!(page, ~s(<p>Hello <a href="/link">world</a> again</p>))
 
     assert Page.aria_snapshot_json!(page) == [
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
            ]
   end
 
-  test "should snapshot top-level text fragments as text nodes", %{page: page} do
+  test "AR-100 should snapshot top-level text fragments as text nodes", %{page: page} do
     Page.set_content!(page, "Hello <button>One</button> again")
 
     assert Page.aria_snapshot_json!(page) == [
@@ -87,7 +87,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
            ]
   end
 
-  test "should generate refs in ai mode", %{page: page} do
+  test "AR-101 should generate refs in ai mode", %{page: page} do
     Page.set_content!(page, """
       <button>One</button>
       <button>Two</button>
@@ -108,14 +108,14 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
     Expect.to_have_text!(Page.get_by_ref(page, "e2"), "One")
   end
 
-  test "should mark clickable elements with cursor in ai mode", %{page: page} do
+  test "AR-102 should mark clickable elements with cursor in ai mode", %{page: page} do
     Page.set_content!(page, ~s(<button style="cursor: pointer">One</button>))
     json = Page.aria_snapshot_json!(page, mode: "ai")
     button = find_node(json, &(&1["role"] == "button"))
     assert button["cursor"] == "pointer"
   end
 
-  test "should snapshot iframes in ai mode", %{page: page} do
+  test "AR-103 should snapshot iframes in ai mode", %{page: page} do
     Page.set_content!(page, """
       <h1>Hello</h1>
       <iframe srcdoc="<button>In frame</button>"></iframe>
@@ -129,7 +129,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
     assert button["ref"] =~ ~r/^f\d+e\d+$/
   end
 
-  test "should limit depth", %{page: page} do
+  test "AR-104 should limit depth", %{page: page} do
     Page.set_content!(page, "<ul><li><button>One</button></li></ul>")
 
     assert Page.aria_snapshot_json!(page, depth: 1) == [
@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
            ]
   end
 
-  test "should include boxes when requested", %{page: page} do
+  test "AR-105 should include boxes when requested", %{page: page} do
     Page.set_content!(page, "<button>One</button>")
     json = Page.aria_snapshot_json!(page, boxes: true)
     button = find_node(json, &(&1["role"] == "button"))
@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotJsonTest do
     assert height > 0
   end
 
-  test "should snapshot a locator", %{page: page} do
+  test "AR-106 should snapshot a locator", %{page: page} do
     Page.set_content!(page, """
       <h1>title</h1>
       <ul>

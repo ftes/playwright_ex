@@ -255,6 +255,27 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     BrowserContext.close!(other)
   end
 
+  test "storage_state with IndexedDB", %{context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, "/dashboard")
+
+    Page.evaluate!(page, """
+    () => new Promise(resolve => {
+      const open = indexedDB.open('auth', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('tokens');
+      open.onsuccess = () => {
+        const tx = open.result.transaction('tokens', 'readwrite');
+        tx.objectStore('tokens').put('secret', 'id');
+        tx.oncomplete = resolve;
+      };
+    })
+    """)
+
+    assert %{origins: [%{indexedDB: [%{name: "auth"}]}]} = BrowserContext.storage_state!(context, indexed_db: true)
+    assert %{origins: origins} = BrowserContext.storage_state!(context)
+    refute Enum.any?(origins, &Map.has_key?(&1, :indexedDB))
+  end
+
   test "eventually", %{context: context} do
     eventually(fn ->
       response = APIRequestContext.get!(BrowserContext.request(context), "/api/exports/1")

@@ -13,14 +13,14 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
 
   # `handle.toString()` is `to_string(handle)` (String.Chars).
 
-  test "should work for primitives", %{page: page} do
+  test "JH-018 should work for primitives", %{page: page} do
     number_handle = Page.evaluate_handle!(page, "() => 2")
     assert to_string(number_handle) == "2"
     string_handle = Page.evaluate_handle!(page, "() => 'a'")
     assert to_string(string_handle) == "a"
   end
 
-  test "should work for complicated objects", %{page: page, browser_name: browser_name} do
+  test "JH-019 should work for complicated objects", %{page: page, browser_name: browser_name} do
     a_handle = Page.evaluate_handle!(page, "() => window")
 
     if browser_name != "firefox",
@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
       else: assert(to_string(a_handle) == "JSHandle@object")
   end
 
-  test "should beautifully render sparse arrays", %{page: page, browser_name: browser_name} do
+  test "JH-020 should beautifully render sparse arrays", %{page: page, browser_name: browser_name} do
     msg =
       Page.expect_event!(page, :console, fn ->
         Page.evaluate_handle!(page, """
@@ -47,14 +47,14 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
       else: assert(ConsoleMessage.text(msg) == "[empty, 1, empty x 8, 2, empty x 89, 3]")
   end
 
-  test "should work for promises", %{page: page} do
+  test "JH-021 should work for promises", %{page: page} do
     # wrap the promise in an object, otherwise we will await.
     wrapper_handle = Page.evaluate_handle!(page, "() => ({ b: Promise.resolve(123) })")
     b_handle = JSHandle.get_property!(wrapper_handle, "b")
     assert to_string(b_handle) == "Promise"
   end
 
-  test "should work with different subtypes @smoke", %{page: page, browser_name: browser_name} do
+  test "JH-022 should work with different subtypes @smoke", %{page: page, browser_name: browser_name} do
     # Page functions are JS source without `isFunction`: the driver calls a function
     # expression, so return the function from one.
     assert to_string(Page.evaluate_handle!(page, "() => (function(){})")) =~ "function"
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
-  test "should work with previewable subtypes", %{page: page} do
+  test "JH-023 should work with previewable subtypes", %{page: page} do
     assert to_string(Page.evaluate_handle!(page, "/foo/")) == "/foo/"
     assert to_string(Page.evaluate_handle!(page, "new Date(0)")) =~ "GMT"
     assert to_string(Page.evaluate_handle!(page, "new Int32Array()")) =~ "Int32Array"

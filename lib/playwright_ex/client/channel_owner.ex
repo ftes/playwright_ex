@@ -46,7 +46,9 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     quote do
       use PlaywrightEx.Client.EventEmitter
 
-      import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 3, channel_call: 4, channel_call: 5, _channel: 1]
+      import PlaywrightEx.Client.ChannelOwner,
+        only: [channel_call: 3, channel_call: 4, channel_call: 5, _channel: 1, api_call: 0, api_call: 1, internal: 0]
+
       import PlaywrightEx.Runtime.Heap
 
       alias PlaywrightEx.Client.ChannelOwner
@@ -516,6 +518,35 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   def _report(api_zone), do: !api_zone.reported
 
   # toJSON  -- not ported (Inspect shows the handle)
+
+  # export type ApiCallOptions = { title?: string, internal?: boolean };  -- a map, `%{title: ..., internal: ...}`
+
+  @doc false
+  # `@apiCall(options)`. Elixir has no decorators: a decorated method is
+  #
+  #     # @apiCall({ title: 'Create page' })
+  #     def new_page(this, options \\ %{}) do
+  #       api_call(%{title: "Create page"}).(this, fn ->
+  #         ...the method body...
+  #       end)
+  #     end
+  #
+  # (`internal().(this, fn -> ... end)` for `@internal`). Arguments are bound before the body (JS
+  # default parameters too): the decorator wraps everything else.
+  def api_call(options \\ nil), do: wrap_api_call_decorator(options)
+
+  @doc false
+  # `export const internal = wrapApiCallDecorator({ internal: true });`
+  def internal, do: wrap_api_call_decorator(%{internal: true})
+
+  # The decorator is a fun of the receiver and the method body (a 0-arity fun, `method.apply(this,
+  # args)`), which it runs through the receiver's own `_wrapApiCall` (Mouse, Locator, Screencast and
+  # APIResponse delegate theirs).
+  # Object.defineProperty(wrapper, 'name', { value: context.name });  -- not needed: the facade's
+  # `Runtime.Api.call/3` names the call (the decorator's tail calls leave no method frame).
+  defp wrap_api_call_decorator(options) do
+    fn this, method -> impl(this)._wrap_api_call(this, fn _api_zone -> method.() end, options || %{}) end
+  end
 
   # `logger` is the `logger:` option, `%{isEnabled: fun, log: fun}`. JS functions take any number of arguments.
   defp log_api_call(logger, message) do

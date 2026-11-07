@@ -36,7 +36,9 @@ defmodule PlaywrightEx.UpstreamCase do
 
   `test` skips a test that a rule in `test/upstream_not_ported.txt` rules out (`skip: "not
   ported: <reason>"`, over the test's own skip tags), so a bodiless test needs no tag of its own.
-  See `Mix.PlaywrightEx.TestRegistry`.
+  See `Mix.PlaywrightEx.TestRegistry`. With `PW_UNSKIP=env,flaky`, it drops the test's own
+  `@tag skip:` reasons with those prefixes, so the tests they skip run (ExUnit runs no skipped
+  test, `--include skip` neither): `PW_UNSKIP=env,flaky mix test <files>` re-checks them on a bump.
   """
   use ExUnit.CaseTemplate
 
@@ -142,6 +144,7 @@ defmodule PlaywrightEx.UpstreamCase do
   @doc "`ExUnit.Case.test/1`, skipped when a rule rules it out."
   defmacro test(message) do
     quote do
+      PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
       PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
       ExUnit.Case.test(unquote(message))
     end
@@ -150,6 +153,7 @@ defmodule PlaywrightEx.UpstreamCase do
   @doc "`ExUnit.Case.test/3`, skipped when a rule rules it out."
   defmacro test(message, var \\ quote(do: _), contents) do
     quote do
+      PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
       PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
     end
@@ -241,19 +245,38 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   @doc false
+  # Drops the next test's `@tag skip:` reasons that start with a `PW_UNSKIP` prefix (`env,flaky`).
+  def __unskip__(module) do
+    prefixes = for prefix <- String.split(System.get_env("PW_UNSKIP", ""), ",", trim: true), do: prefix <> ":"
+
+    if prefixes != [] do
+      # `@tag` accumulates, newest first.
+      tags = Module.get_attribute(module, :tag) || []
+      Module.delete_attribute(module, :tag)
+
+      for tag <- Enum.reverse(tags),
+          tag = unskip_tag(tag, prefixes),
+          tag != [],
+          do: Module.put_attribute(module, :tag, tag)
+    end
+  end
+
+  defp unskip_tag(tag, prefixes) when is_list(tag) do
+    Enum.reject(tag, fn
+      {:skip, reason} when is_binary(reason) -> String.starts_with?(reason, prefixes)
+      _ -> false
+    end)
+  end
+
+  defp unskip_tag(tag, _prefixes), do: tag
+
+  @doc false
   # Tags the next test `skip: "not ported: <reason>"` when a rule rules it out. The last `@tag`
   # wins, so the rule wins over the test's own skip tags.
   def __not_ported__(module, name) do
-    # ExUnit keeps the current describe in `@ex_unit_describe` ({line, name, counter}).
-    describe =
-      case Module.get_attribute(module, :ex_unit_describe) do
-        {_line, describe, _counter} -> describe
-        _ -> nil
-      end
-
     # Modules with no `@upstream` (our own tests on this case) have no registry tests.
     upstream = Module.get_attribute(module, :upstream)
-    reason = upstream && TestRegistry.not_ported_reason(@root, upstream, describe, name)
+    reason = upstream && TestRegistry.not_ported_reason(@root, upstream, name)
     if reason, do: Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
   end
 

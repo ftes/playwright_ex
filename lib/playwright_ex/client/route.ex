@@ -81,10 +81,11 @@ defmodule PlaywrightEx.Client.Route do
     end)
   end
 
+  # @apiCall()
   def fetch(this, options \\ %{}) do
     options = options || %{}
 
-    _wrap_api_call(this, fn _ ->
+    api_call().(this, fn ->
       APIRequestContext._inner_fetch(
         get(get(this, :_context), :request),
         Map.merge(%{request: request(this), data: options[:postData]}, options)

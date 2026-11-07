@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.PageClickTimeout4Test do
 
   @moduletag :page
 
-  test "should timeout waiting for stable position", %{page: page, server: server} do
+  test "CL-120 should timeout waiting for stable position", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 
@@ -30,9 +30,9 @@ defmodule PlaywrightEx.Page.PageClickTimeout4Test do
     assert Exception.message(error) =~ "retrying click action"
   end
 
-  test "should click for the second time after first timeout"
+  test "CL-121 should click for the second time after first timeout"
 
-  test "should fail to click the button behind a large header after scrolling around", %{page: page} do
+  test "CL-122 should fail to click the button behind a large header after scrolling around", %{page: page} do
     # it.skip(isAndroid, 'Different viewport size');
     Page.set_viewport_size!(page, %{width: 500, height: 240})
 

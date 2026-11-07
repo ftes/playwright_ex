@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
 
   @is_mac match?({:unix, :darwin}, :os.type())
 
-  test "should type into a textarea @smoke", %{page: page} do
+  test "KB-001 should type into a textarea @smoke", %{page: page} do
     Page.evaluate!(page, """
     () => {
       const textarea = document.createElement('textarea');
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == text
   end
 
-  test "should move with the arrow keys", %{page: page, server: server} do
+  test "KB-002 should move with the arrow keys", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.type!(page, "textarea", "Hello World!")
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "Hello World!"
@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "Hello World!"
   end
 
-  test "should send a character with ElementHandle.press", %{page: page, server: server} do
+  test "KB-003 should send a character with ElementHandle.press", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     ElementHandle.press!(textarea, "a")
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "a"
   end
 
-  test "should send a character with insertText", %{page: page, server: server} do
+  test "KB-004 should send a character with insertText", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.focus!(page, "textarea")
     Keyboard.insert_text!(Page.keyboard(page), "嗨")
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('textarea').value") == "嗨a"
   end
 
-  test "should not type text with Alt modifier", %{page: page} do
+  test "KB-005 should not type text with Alt modifier", %{page: page} do
     Page.set_content!(page, "<input><textarea></textarea><div contenteditable></div>")
 
     for locator <- [Page.locator(page, "input"), Page.locator(page, "textarea"), Page.locator(page, "div")] do
@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_text!(Page.locator(page, "div"), "c")
   end
 
-  test "insertText should only emit input event", %{page: page, server: server} do
+  test "KB-006 insertText should only emit input event", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.focus!(page, "textarea")
     # page.on('console', m => console.log(m.text()));  -- debug output, not ported
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert JSHandle.json_value!(events) == ["input"]
   end
 
-  test "should emit keydown, keypress, textInput and input when typing a character", %{page: page} do
+  test "KB-007 should emit keydown, keypress, textInput and input when typing a character", %{page: page} do
     Page.set_content!(page, "<input>")
 
     events =
@@ -129,7 +129,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
          if(System.get_env("BROWSER", "chromium") == "firefox",
            do: "upstream skip: Firefox/Juggler dispatches keydown and keypress in the same task"
          )
-  test "should dispatch key events in separate tasks", %{page: page} do
+  test "KB-008 should dispatch key events in separate tasks", %{page: page} do
     Page.set_content!(page, "<input>")
 
     log =
@@ -150,7 +150,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert JSHandle.json_value!(log) == ["keydown", "microtask-keydown", "keypress", "microtask-keypress"]
   end
 
-  test "should report shiftKey", %{page: page, server: server} do
+  test "KB-009 should report shiftKey", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     keyboard = Page.keyboard(page)
     code_for_key = [{"Shift", 16}, {"Alt", 18}, {"Control", 17}]
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     end
   end
 
-  test "should report multiple modifiers", %{page: page, server: server} do
+  test "KB-010 should report multiple modifiers", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     keyboard = Page.keyboard(page)
     Keyboard.down!(keyboard, "Control")
@@ -198,7 +198,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "getResult()") == "Keyup: Alt AltLeft LEFT []"
   end
 
-  test "should send proper codes while typing", %{page: page, server: server} do
+  test "KB-011 should send proper codes while typing", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.type!(Page.keyboard(page), "!")
 
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should send proper codes while typing with shift", %{page: page, server: server} do
+  test "KB-012 should send proper codes while typing with shift", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     keyboard = Page.keyboard(page)
     Keyboard.down!(keyboard, "Shift")
@@ -237,7 +237,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Keyboard.up!(keyboard, "Shift")
   end
 
-  test "should not type canceled events", %{page: page, server: server} do
+  test "KB-013 should not type canceled events", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.focus!(page, "textarea")
 
@@ -258,7 +258,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == "He Wrd!"
   end
 
-  test "should press plus", %{page: page, server: server} do
+  test "KB-014 should press plus", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "+")
 
@@ -269,7 +269,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should press shift plus", %{page: page, server: server} do
+  test "KB-015 should press shift plus", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "Shift++")
 
@@ -286,7 +286,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should support plus-separated modifiers", %{page: page, server: server} do
+  test "KB-016 should support plus-separated modifiers", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "Shift+~")
 
@@ -303,7 +303,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should support multiple plus-separated modifiers", %{page: page, server: server} do
+  test "KB-017 should support multiple plus-separated modifiers", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "Control+Shift+~")
 
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should shift raw codes", %{page: page, server: server} do
+  test "KB-018 should shift raw codes", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "Shift+Digit3")
 
@@ -338,7 +338,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should specify repeat property", %{page: page, server: server} do
+  test "KB-019 should specify repeat property", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.focus!(page, "textarea")
     last_event = capture_last_keydown(page)
@@ -358,7 +358,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert JSHandle.evaluate!(last_event, "e => e.repeat") == false
   end
 
-  test "should type all kinds of characters", %{page: page, server: server} do
+  test "KB-020 should type all kinds of characters", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.focus!(page, "textarea")
     text = "This text goes onto two lines.\nThis character is 嗨."
@@ -366,7 +366,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.eval_on_selector!(page, "textarea", "t => t.value") == text
   end
 
-  test "should specify location", %{page: page, server: server} do
+  test "KB-021 should specify location", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     last_event = capture_last_keydown(page)
     textarea = Page.query_selector!(page, "textarea")
@@ -392,7 +392,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert JSHandle.evaluate!(last_event, "e => e.code") == "NumpadSubtract"
   end
 
-  test "should specify numpad location on keyup", %{page: page, server: server} do
+  test "KB-022 should specify numpad location on keyup", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "NumpadSubtract")
 
@@ -407,7 +407,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              )
   end
 
-  test "should press NumpadDecimal as Delete", %{page: page} do
+  test "KB-023 should press NumpadDecimal as Delete", %{page: page} do
     Page.set_content!(page, "<textarea></textarea>")
     last_event = capture_last_keydown(page)
     textarea = Page.locator(page, "textarea")
@@ -419,7 +419,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_value!(textarea, "")
   end
 
-  test "should type numpad digits with Shift", %{page: page} do
+  test "KB-024 should type numpad digits with Shift", %{page: page} do
     Page.set_content!(page, "<textarea></textarea>")
     textarea = Page.locator(page, "textarea")
     Locator.press!(textarea, "Shift+Numpad1")
@@ -428,7 +428,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_value!(textarea, "1.9")
   end
 
-  test "should press Enter", %{page: page} do
+  test "KB-025 should press Enter", %{page: page} do
     Page.set_content!(page, "<textarea></textarea>")
     Page.focus!(page, "textarea")
     last_event_handle = capture_last_keydown(page)
@@ -452,7 +452,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     test_enter_key.("\r", "Enter", "Enter")
   end
 
-  test "should press audio and media control keys", %{page: page, browser_name: browser_name} do
+  test "KB-026 should press audio and media control keys", %{page: page, browser_name: browser_name} do
     Page.set_content!(page, "<input autofocus>")
     Page.focus!(page, "input")
     last_event = capture_last_keydown(page)
@@ -474,7 +474,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     end
   end
 
-  test "should throw on unknown keys", %{page: page} do
+  test "KB-027 should throw on unknown keys", %{page: page} do
     {:error, error} = Keyboard.press(Page.keyboard(page), "NotARealKey")
     assert Exception.message(error) =~ ~s(Unknown key: "NotARealKey")
 
@@ -485,13 +485,13 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert error && Exception.message(error) =~ ~s(Unknown key: "😊")
   end
 
-  test "should type emoji", %{page: page, server: server} do
+  test "KB-028 should type emoji", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.type!(page, "textarea", "👹 Tokyo street Japan 🇯🇵")
     assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == "👹 Tokyo street Japan 🇯🇵"
   end
 
-  test "should type emoji into an iframe", %{page: page, server: server} do
+  test "KB-029 should type emoji into an iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Utils.attach_frame(page, "emoji-test", server.prefix <> "/input/textarea.html")
     frame = Enum.at(Page.frames(page), 1)
@@ -500,7 +500,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Frame.eval_on_selector!(frame, "textarea", "textarea => textarea.value") == "👹 Tokyo street Japan 🇯🇵"
   end
 
-  test "should handle selectAll", %{page: page, server: server} do
+  test "KB-030 should handle selectAll", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     ElementHandle.type!(textarea, "some text")
@@ -511,7 +511,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == ""
   end
 
-  test "pressing Meta should not result in any text insertion on any platform", %{page: page} do
+  test "KB-031 pressing Meta should not result in any text insertion on any platform", %{page: page} do
     Page.set_content!(page, ~s(<input type="text" value="hello world">))
     input = Page.locator(page, "input")
     Expect.to_have_value!(input, "hello world")
@@ -520,7 +520,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_value!(input, "hello world")
   end
 
-  test "should be able to prevent selectAll", %{page: page, server: server} do
+  test "KB-032 should be able to prevent selectAll", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     ElementHandle.type!(textarea, "some text")
@@ -552,7 +552,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
             true ->
               nil
           end)
-  test "should support MacOS shortcuts", %{page: page, server: server} do
+  test "KB-033 should support MacOS shortcuts", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     ElementHandle.type!(textarea, "some text")
@@ -562,7 +562,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.eval_on_selector!(page, "textarea", "textarea => textarea.value") == "some "
   end
 
-  test "should press the meta key", %{page: page} do
+  test "KB-034 should press the meta key", %{page: page} do
     last_event = capture_last_keydown(page)
     Keyboard.press!(Page.keyboard(page), "Meta")
     %{"key" => key, "code" => code, "metaKey" => meta_key} = JSHandle.json_value!(last_event)
@@ -571,14 +571,14 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert meta_key == true
   end
 
-  test "should work with keyboard events with empty.html", %{page: page, server: server} do
+  test "KB-035 should work with keyboard events with empty.html", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
     last_event = capture_last_keydown(page)
     Keyboard.press!(Page.keyboard(page), "a")
     assert JSHandle.evaluate!(last_event, "l => l.key") == "a"
   end
 
-  test "should work after a cross origin navigation", %{page: page, server: server} do
+  test "KB-036 should work after a cross origin navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
     Page.goto!(page, server.cross_process_prefix <> "/empty.html")
     last_event = capture_last_keydown(page)
@@ -590,7 +590,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
          if(System.get_env("BROWSER", "chromium") != "webkit",
            do: "upstream skip: event.keyIdentifier has been removed from all browsers except WebKit"
          )
-  test "should expose keyIdentifier in webkit", %{page: page} do
+  test "KB-037 should expose keyIdentifier in webkit", %{page: page} do
     last_event = capture_last_keydown(page)
 
     key_map = [
@@ -612,7 +612,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     end
   end
 
-  test "should scroll with PageDown", %{page: page, server: server} do
+  test "KB-038 should scroll with PageDown", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     # A click is required for WebKit to send the event into the body.
     Page.click!(page, "body")
@@ -621,7 +621,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Page.wait_for_function!(page, "() => scrollY > 0")
   end
 
-  test "should move around the selection in a contenteditable", %{page: page} do
+  test "KB-039 should move around the selection in a contenteditable", %{page: page} do
     Page.set_content!(page, "<div contenteditable></div>")
     Page.focus!(page, "div")
     modifier = if @is_mac, do: "Alt", else: "Control"
@@ -635,7 +635,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
   end
 
   @tag skip: if(!@is_mac, do: "upstream skip: macOS only (!isMac)")
-  test "should move to the start of the document", %{page: page} do
+  test "KB-040 should move to the start of the document", %{page: page} do
     Page.set_content!(page, "<div contenteditable></div>")
     Page.focus!(page, "div")
     Keyboard.type!(Page.keyboard(page), "1\n2\n3\n")
@@ -643,7 +643,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "1\n2\n3\n"
   end
 
-  test "should dispatch a click event on a button when Space gets pressed", %{page: page} do
+  test "KB-041 should dispatch a click event on a button when Space gets pressed", %{page: page} do
     Page.set_content!(page, ~s(<button type="button">a11y</button>))
 
     actual =
@@ -660,7 +660,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert JSHandle.json_value!(actual)["clicked"] == true
   end
 
-  test "should dispatch a click event on a button when Enter gets pressed", %{page: page} do
+  test "KB-042 should dispatch a click event on a button when Enter gets pressed", %{page: page} do
     Page.set_content!(page, ~s(<button type="button">a11y</button>))
 
     actual =
@@ -677,7 +677,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert JSHandle.json_value!(actual)["clicked"] == true
   end
 
-  test "should support simple copy-pasting", %{page: page} do
+  test "KB-043 should support simple copy-pasting", %{page: page} do
     Page.set_content!(page, "<div contenteditable>123</div>")
     Page.focus!(page, "div")
     Keyboard.press!(Page.keyboard(page), "ControlOrMeta+KeyA")
@@ -687,7 +687,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Page.evaluate!(page, "() => document.querySelector('div').textContent") == "123123"
   end
 
-  test "should support simple cut-pasting", %{page: page} do
+  test "KB-044 should support simple cut-pasting", %{page: page} do
     Page.set_content!(page, "<div contenteditable>123</div>")
     Page.focus!(page, "div")
     Keyboard.press!(Page.keyboard(page), "ControlOrMeta+KeyA")
@@ -701,7 +701,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
          if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
            do: "upstream fixme: https://github.com/microsoft/playwright/issues/12000"
          )
-  test "should support undo-redo", %{page: page} do
+  test "KB-045 should support undo-redo", %{page: page} do
     # it.fixme(browserName === 'webkit' && isLinux || channel === 'webkit-wsl', 'https://github.com/microsoft/playwright/issues/12000');
     Page.set_content!(page, "<div contenteditable></div>")
     div = Page.locator(page, "div")
@@ -714,7 +714,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Expect.to_have_text!(div, "123")
   end
 
-  test "should type repeatedly in contenteditable in shadow dom", %{page: page} do
+  test "KB-046 should type repeatedly in contenteditable in shadow dom", %{page: page} do
     Page.set_content!(page, """
       <html>
         <body>
@@ -754,7 +754,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Locator.text_content!(section_editor) == "This is the second box."
   end
 
-  test "should type repeatedly in contenteditable in shadow dom with nested elements", %{page: page} do
+  test "KB-047 should type repeatedly in contenteditable in shadow dom with nested elements", %{page: page} do
     Page.set_content!(page, """
       <html>
         <body>
@@ -794,7 +794,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Locator.text_content!(section_editor) == "This is the second box: world"
   end
 
-  test "should type repeatedly in input in shadow dom", %{page: page} do
+  test "KB-048 should type repeatedly in input in shadow dom", %{page: page} do
     Page.set_content!(page, """
       <html>
         <body>
@@ -834,7 +834,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     assert Locator.input_value!(section_editor) == "This is the second box."
   end
 
-  test "type to non-focusable element should maintain old focus", %{page: page} do
+  test "KB-049 type to non-focusable element should maintain old focus", %{page: page} do
     Page.set_content!(page, """
       <div id="focusable" tabindex="0">focusable div</div>
       <div id="non-focusable-and-non-editable">non-editable, non-focusable</div>
@@ -874,7 +874,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
          if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
            do: "upstream skip: context menu support is best-effort for Linux and MacOS"
          )
-  test "should dispatch insertText after context menu was opened", %{page: page, server: server} do
+  test "KB-050 should dispatch insertText after context menu was opened", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
 
     Page.evaluate!(page, """
@@ -899,7 +899,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
          if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
            do: "upstream skip: context menu support is best-effort for Linux and MacOS"
          )
-  test "should type after context menu was opened", %{page: page} do
+  test "KB-051 should type after context menu was opened", %{page: page} do
     Page.evaluate!(page, """
     () => {
       window['keys'] = [];
@@ -919,7 +919,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Utils.poll(fn -> Page.evaluate!(page, "window.keys") end, &assert(&1 == ["ArrowDown"]))
   end
 
-  test "should have correct Keydown/Keyup order when pressing Escape key", %{page: page, server: server} do
+  test "KB-052 should have correct Keydown/Keyup order when pressing Escape key", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/keyboard.html")
     Keyboard.press!(Page.keyboard(page), "Escape")
 
@@ -930,7 +930,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
              """)
   end
 
-  test "should close dialog on Escape key press in contenteditable", %{page: page} do
+  test "KB-053 should close dialog on Escape key press in contenteditable", %{page: page} do
     # it.skip(isFrozenWebkit);  -- we run a current browser
     Page.set_content!(page, """
       <dialog>

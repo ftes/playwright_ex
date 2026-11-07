@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "EH-093 should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/offscreenbuttons.html")
 
     for i <- 0..10 do
@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
     end
   end
 
-  test "should throw for detached element", %{page: page} do
+  test "EH-094 should throw for detached element", %{page: page} do
     Page.set_content!(page, "<div>Hello</div>")
     div = Page.query_selector!(page, "div")
     JSHandle.evaluate!(div, "div => div.remove()")
@@ -46,12 +46,12 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for display:none to become visible", %{page: page} do
+  test "EH-095 should wait for display:none to become visible", %{page: page} do
     Page.set_content!(page, ~s(<div style="display:none">Hello</div>))
     test_waiting(page, "div => div.style.display = 'block'")
   end
 
-  test "should scroll display:contents into view", %{page: page} do
+  test "EH-096 should scroll display:contents into view", %{page: page} do
     Page.set_content!(page, """
     <style>
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
@@ -73,24 +73,55 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
     assert abs(scroll_top - 350) < 1
   end
 
-  test "should work for visibility:hidden element", %{page: page} do
+  test "EH-124 should scroll nested display:contents into view", %{page: page} do
+    Page.set_content!(page, """
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+      ::-webkit-scrollbar { display: none; }
+      * { scrollbar-width: none; }
+    </style>
+    <div id=container style="width:200px;height:200px;overflow:scroll;border:1px solid black;">
+      <div style="margin-top:500px;background:red;">
+        <div id=outer style="display:contents"><div style="display:contents"><div id=target style="height:50px;width:100px;background:cyan;">Hello</div></div><div style="height:2000px;"></div><div>Sibling</div></div>
+      </div>
+    </div>
+    """)
+
+    div = Page.query_selector!(page, "#outer")
+    ElementHandle.scroll_into_view_if_needed!(div)
+    # The first box in the flattened subtree of #outer is #target, two levels down,
+    # not the tall sibling. No whitespace text nodes inside #outer: in Firefox they
+    # get boxes of their own, which would hide a fallback that only looks one level down.
+    target_is_visible =
+      Page.eval_on_selector!(page, "#target", """
+      target => {
+        const container = document.getElementById('container').getBoundingClientRect();
+        const rect = target.getBoundingClientRect();
+        return rect.top >= container.top && rect.bottom <= container.bottom;
+      }
+      """)
+
+    assert target_is_visible == true
+  end
+
+  test "EH-097 should work for visibility:hidden element", %{page: page} do
     Page.set_content!(page, ~s(<div style="visibility:hidden">Hello</div>))
     div = Page.query_selector!(page, "div")
     ElementHandle.scroll_into_view_if_needed!(div)
   end
 
-  test "should work for zero-sized element", %{page: page} do
+  test "EH-098 should work for zero-sized element", %{page: page} do
     Page.set_content!(page, ~s(<div style="height:0">Hello</div>))
     div = Page.query_selector!(page, "div")
     ElementHandle.scroll_into_view_if_needed!(div)
   end
 
-  test "should wait for nested display:none to become visible", %{page: page} do
+  test "EH-099 should wait for nested display:none to become visible", %{page: page} do
     Page.set_content!(page, ~s(<span style="display:none"><div>Hello</div></span>))
     test_waiting(page, "div => div.parentElement.style.display = 'block'")
   end
 
-  test "should wait for element to stop moving", %{page: page} do
+  test "EH-100 should wait for element to stop moving", %{page: page} do
     Page.set_content!(page, """
     <style>
       @keyframes move {
@@ -107,7 +138,7 @@ defmodule PlaywrightEx.Page.ElementhandleScrollIntoViewTest do
     test_waiting(page, "div => div.classList.remove('animated')")
   end
 
-  test "should timeout waiting for visible", %{page: page} do
+  test "EH-101 should timeout waiting for visible", %{page: page} do
     Page.set_content!(page, ~s(<div style="display:none">Hello</div>))
     div = Page.query_selector!(page, "div")
     {:error, error} = ElementHandle.scroll_into_view_if_needed(div, timeout: 3000)

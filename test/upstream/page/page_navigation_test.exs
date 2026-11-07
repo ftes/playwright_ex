@@ -10,13 +10,13 @@ defmodule PlaywrightEx.Page.PageNavigationTest do
 
   defp html(body), do: fn conn -> Plug.Conn.send_resp(conn, 200, body) end
 
-  test "should work with _blank target", %{page: page, server: server} do
+  test "NA-067 should work with _blank target", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", html(~s(<a href="#{server.empty_page}" target="_blank">Click me</a>)))
     Page.goto!(page, server.empty_page)
     Page.click!(page, ~s("Click me"))
   end
 
-  test "should work with cross-process _blank target", %{page: page, server: server} do
+  test "NA-068 should work with cross-process _blank target", %{page: page, server: server} do
     TestServer.set_route(
       server,
       "/empty.html",
@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Page.PageNavigationTest do
     Page.click!(page, ~s("Click me"))
   end
 
-  test "should work with _blank target in form", %{page: page, server: server} do
+  test "NA-069 should work with _blank target in form", %{page: page, server: server} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/18392' }
     TestServer.set_route(server, "/done.html?", html("Done"))
     TestServer.set_route(server, "/done.html", html("Done"))
@@ -50,7 +50,10 @@ defmodule PlaywrightEx.Page.PageNavigationTest do
     Page.expect_popup!(page, fn -> Page.click!(page, ~s("Click me")) end)
   end
 
-  test "should not throw TargetClosedException on cross-origin redirect after click", %{page: page, server: server} do
+  test "NA-070 should not throw TargetClosedException on cross-origin redirect after click", %{
+    page: page,
+    server: server
+  } do
     TestServer.set_route(server, "/target.html", html("<title>final page</title>"))
     TestServer.set_redirect(server, "/redirect", server.cross_process_prefix <> "/target.html")
     Page.goto!(page, server.prefix <> "/empty.html")

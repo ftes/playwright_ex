@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
     # it.skip(({ browserName, headless }) => browserName === 'firefox' && !headless);  -- we run headless
     # it.skip(({ isAndroid }) => isAndroid, 'Different dpr. Remove after using 1x scale for screenshots.');  -- not Android
 
-    test "should work", %{page: page, server: server} do
+    test "EH-074 should work", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       Page.evaluate!(page, "() => window.scrollBy(50, 100)")
@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
     end
 
-    test "should work with webp", %{page: page, server: server} do
+    test "EH-075 should work with webp", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       assert webp_image.data == png_image.data
     end
 
-    test "should work when main world busts JSON.stringify", %{page: page, server: server} do
+    test "EH-076 should work when main world busts JSON.stringify", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
 
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
     end
 
-    test "should take into account padding and border", %{page: page} do
+    test "EH-077 should take into account padding and border", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
 
       Page.set_content!(page, """
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-padding-border.png")
     end
 
-    test "should capture full element when larger than viewport in parallel", %{page: page} do
+    test "EH-078 should capture full element when larger than viewport in parallel", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
 
       Page.set_content!(page, """
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       verify_viewport(page, 500, 500)
     end
 
-    test "should capture full element when larger than viewport", %{page: page} do
+    test "EH-079 should capture full element when larger than viewport", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
 
       Page.set_content!(page, """
@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       verify_viewport(page, 500, 500)
     end
 
-    test "should scroll element into view", %{page: page} do
+    test "EH-080 should scroll element into view", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
 
       Page.set_content!(page, """
@@ -156,7 +156,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-scrolled-into-view.png")
     end
 
-    test "should scroll 15000px into view", %{page: page} do
+    test "EH-081 should scroll 15000px into view", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
 
       Page.set_content!(page, """
@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-scrolled-into-view.png")
     end
 
-    test "should work with a rotated element", %{page: page} do
+    test "EH-082 should work with a rotated element", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
 
       Page.set_content!(page, """
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-rotate.png")
     end
 
-    test "should fail to screenshot a detached element", %{page: page} do
+    test "EH-083 should fail to screenshot a detached element", %{page: page} do
       Page.set_content!(page, "<h1>remove this</h1>")
       element_handle = Page.query_selector!(page, "h1")
       Page.evaluate!(page, "element => element.remove()", element_handle)
@@ -208,7 +208,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       assert Exception.message(screenshot_error) =~ "Element is not attached to the DOM"
     end
 
-    test "should timeout waiting for visible", %{page: page} do
+    test "EH-084 should timeout waiting for visible", %{page: page} do
       Page.set_content!(page, ~s(<div style="width: 50px; height: 0"></div>))
       div = Page.query_selector!(page, "div")
       {:error, error} = ElementHandle.screenshot(div, timeout: 3000)
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       assert Exception.message(error) =~ "element is not visible"
     end
 
-    test "should wait for visible", %{page: page, server: server} do
+    test "EH-085 should wait for visible", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       Page.evaluate!(page, "() => window.scrollBy(50, 100)")
@@ -231,14 +231,14 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
     end
 
-    test "should work for an element with fractional dimensions", %{page: page} do
+    test "EH-086 should work for an element with fractional dimensions", %{page: page} do
       Page.set_content!(page, ~s(<div style="width:48.51px;height:19.8px;border:1px solid black;"></div>))
       element_handle = Page.query_selector!(page, "div")
       screenshot = ElementHandle.screenshot!(element_handle)
       to_match_snapshot(screenshot, "screenshot-element-fractional.png")
     end
 
-    test "should work for an element with an offset", %{page: page} do
+    test "EH-087 should work for an element with an offset", %{page: page} do
       Page.set_content!(
         page,
         ~s(<div style="position:absolute; top: 10.3px; left: 20.4px;width:50.3px;height:20.2px;border:1px solid black;"></div>)
@@ -249,7 +249,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-fractional-offset.png")
     end
 
-    test "should wait for element to stop moving", %{page: page, server: server} do
+    test "EH-088 should wait for element to stop moving", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       element_handle = Page.query_selector!(page, ".box:nth-of-type(3)")
@@ -259,7 +259,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       to_match_snapshot(screenshot, "screenshot-element-bounding-box.png")
     end
 
-    test "should take screenshot of disabled button", %{page: page} do
+    test "EH-089 should take screenshot of disabled button", %{page: page} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.set_content!(page, "<button disabled>Click me</button>")
       button = Page.query_selector!(page, "button")
@@ -268,7 +268,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
     end
 
     @tag :tmp_dir
-    test "path option should create subdirectories", %{page: page, server: server, tmp_dir: tmp_dir} do
+    test "EH-090 path option should create subdirectories", %{page: page, server: server, tmp_dir: tmp_dir} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       Page.evaluate!(page, "() => window.scrollBy(50, 100)")
@@ -279,7 +279,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
     end
 
     @tag :tmp_dir
-    test "should prefer type over extension", %{page: page, server: server, tmp_dir: tmp_dir} do
+    test "EH-091 should prefer type over extension", %{page: page, server: server, tmp_dir: tmp_dir} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
       Page.evaluate!(page, "() => window.scrollBy(50, 100)")
@@ -289,7 +289,7 @@ defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
       assert binary_part(buffer, 0, 3) == <<0xFF, 0xD8, 0xFF>>
     end
 
-    test "should not issue resize event", %{page: page, server: server} do
+    test "EH-092 should not issue resize event", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/grid.html")
       test = self()
 

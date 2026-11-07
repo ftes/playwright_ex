@@ -91,7 +91,7 @@ defmodule PlaywrightEx.Library.ModernizrTest do
             true ->
               nil
           end)
-  test "Safari Desktop", %{browser: browser, https_server: https_server, asset: asset} do
+  test "CA-030 Safari Desktop", %{browser: browser, https_server: https_server, asset: asset} do
     context = Browser.new_context!(browser, device_scale_factor: 2, ignore_https_errors: true)
     %{actual: actual, expected: expected} = check_features("safari-26", context, https_server, asset)
 
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Library.ModernizrTest do
             true ->
               nil
           end)
-  test "Mobile Safari", %{playwright: playwright, browser: browser, https_server: https_server, asset: asset} do
+  test "CA-031 Mobile Safari", %{playwright: playwright, browser: browser, https_server: https_server, asset: asset} do
     iphone = Playwright.devices(playwright)["iPhone 12"]
     context = Browser.new_context!(browser, Map.to_list(iphone) ++ [ignore_https_errors: true])
     %{actual: actual, expected: expected} = check_features("mobile-safari-26", context, https_server, asset)

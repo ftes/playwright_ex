@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Library.BrowsercontextSetExtraHttpHeadersTest do
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
-  test "should override extra headers from browser context", %{browser: browser, server: server} do
+  test "NE-119 should override extra headers from browser context", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, extra_http_headers: %{"fOo" => "bAr", "baR" => "foO"})
     page = BrowserContext.new_page!(context)
     Page.set_extra_http_headers!(page, %{"Foo" => "Bar"})
@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Library.BrowsercontextSetExtraHttpHeadersTest do
     assert header(request, "bar") == "foO"
   end
 
-  test "should throw for non-string header values", %{browser: browser} do
+  test "NE-120 should throw for non-string header values", %{browser: browser} do
     {:error, error3} = Browser.new_context(browser, extra_http_headers: %{"foo" => :null})
     assert Exception.message(error3) =~ ~s(Expected value of header "foo" to be String, but "object" is found.)
   end

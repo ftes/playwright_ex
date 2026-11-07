@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.JshandleEvaluateTest do
 
   @moduletag :page
 
-  test "should work with function @smoke", %{page: page} do
+  test "JH-005 should work with function @smoke", %{page: page} do
     window_handle =
       Page.evaluate_handle!(page, """
       () => {
@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Page.JshandleEvaluateTest do
     assert JSHandle.evaluate!(window_handle, "w => w['foo']") == [1, 2]
   end
 
-  test "should work with expression", %{page: page} do
+  test "JH-006 should work with expression", %{page: page} do
     window_handle =
       Page.evaluate_handle!(page, """
       () => {

@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.ElementhandleQuerySelectorTest do
 
   @moduletag :page
 
-  test "should query existing element", %{page: page, server: server} do
+  test "EH-067 should query existing element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/playground.html")
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">A</div></div></body></html>))
     html = Page.query_selector!(page, "html")
@@ -17,14 +17,14 @@ defmodule PlaywrightEx.Page.ElementhandleQuerySelectorTest do
     assert content == "A"
   end
 
-  test "should return null for non-existing element", %{page: page} do
+  test "EH-068 should return null for non-existing element", %{page: page} do
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">B</div></div></body></html>))
     html = Page.query_selector!(page, "html")
     second = ElementHandle.query_selector!(html, ".third")
     assert second == nil
   end
 
-  test "should work for adopted elements", %{page: page, server: server} do
+  test "EH-069 should work for adopted elements", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     popup =
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Page.ElementhandleQuerySelectorTest do
     assert ElementHandle.eval_on_selector!(div_handle, "span", "e => e.textContent") == "hello"
   end
 
-  test "should query existing elements", %{page: page} do
+  test "EH-070 should query existing elements", %{page: page} do
     Page.set_content!(page, "<html><body><div>A</div><br/><div>B</div></body></html>")
     html = Page.query_selector!(page, "html")
     elements = ElementHandle.query_selector_all!(html, "div")
@@ -72,14 +72,14 @@ defmodule PlaywrightEx.Page.ElementhandleQuerySelectorTest do
     assert Task.await_many(tasks, :infinity) == ["A", "B"]
   end
 
-  test "should return empty array for non-existing elements", %{page: page} do
+  test "EH-071 should return empty array for non-existing elements", %{page: page} do
     Page.set_content!(page, "<html><body><span>A</span><br/><span>B</span></body></html>")
     html = Page.query_selector!(page, "html")
     elements = ElementHandle.query_selector_all!(html, "div")
     assert elements == []
   end
 
-  test "xpath should query existing element", %{page: page, server: server} do
+  test "EH-072 xpath should query existing element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/playground.html")
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">A</div></div></body></html>))
     html = Page.query_selector!(page, "html")
@@ -89,7 +89,7 @@ defmodule PlaywrightEx.Page.ElementhandleQuerySelectorTest do
     assert content == "A"
   end
 
-  test "xpath should return null for non-existing element", %{page: page} do
+  test "EH-073 xpath should return null for non-existing element", %{page: page} do
     Page.set_content!(page, ~s(<html><body><div class="second"><div class="inner">B</div></div></body></html>))
     html = Page.query_selector!(page, "html")
     second = ElementHandle.query_selector_all!(html, "xpath=/div[contains(@class, 'third')]")

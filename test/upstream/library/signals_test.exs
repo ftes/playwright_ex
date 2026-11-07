@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
     if darwin_major >= 25, do: darwin_major + 1, else: darwin_major - 9
   end
 
-  test "should close the browser when the node process closes", %{
+  test "SI-001 should close the browser when the node process closes", %{
     start_remote_server: start_remote_server,
     server: server
   } do
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
     assert ClientProcess.child_exit_code(remote_server) == 0
   end
 
-  test "should remove temp dir on process.exit", %{start_remote_server: start_remote_server, server: server} do
+  test "SI-002 should remove temp dir on process.exit", %{start_remote_server: start_remote_server, server: server} do
     # test.skip(platform === 'win32', ...)  -- no Windows
     file = Path.join(System.tmp_dir!(), "exit-#{System.unique_integer([:positive])}.file")
     on_exit(fn -> File.rm(file) end)
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
   describe "signals" do
     # test.skip(({ platform }) => platform === 'win32')  -- no Windows
 
-    test "should report browser close signal 2", %{
+    test "SI-003 should report browser close signal 2", %{
       start_remote_server: start_remote_server,
       server: server,
       browser_name: browser_name
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
       ClientProcess.child_exit_code(remote_server)
     end
 
-    test "should close the browser on SIGINT", %{start_remote_server: start_remote_server, server: server} do
+    test "SI-004 should close the browser on SIGINT", %{start_remote_server: start_remote_server, server: server} do
       remote_server = start_remote_server.("launchServer", %{url: server.empty_page})
       ClientProcess.kill(remote_server, "SIGINT")
       assert ClientProcess.out(remote_server, "exitCode") == "0"
@@ -93,7 +93,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
       assert ClientProcess.child_exit_code(remote_server) == 130
     end
 
-    test "should close the browser on SIGTERM", %{start_remote_server: start_remote_server, server: server} do
+    test "SI-005 should close the browser on SIGTERM", %{start_remote_server: start_remote_server, server: server} do
       remote_server = start_remote_server.("launchServer", %{url: server.empty_page})
       ClientProcess.kill(remote_server, "SIGTERM")
       assert ClientProcess.out(remote_server, "exitCode") == "0"
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Library.SignalsTest do
       assert ClientProcess.child_exit_code(remote_server) == 0
     end
 
-    test "should close the browser on SIGHUP", %{start_remote_server: start_remote_server, server: server} do
+    test "SI-006 should close the browser on SIGHUP", %{start_remote_server: start_remote_server, server: server} do
       remote_server = start_remote_server.("launchServer", %{url: server.empty_page})
       ClientProcess.kill(remote_server, "SIGHUP")
       assert ClientProcess.out(remote_server, "exitCode") == "0"
@@ -113,13 +113,15 @@ defmodule PlaywrightEx.Library.SignalsTest do
       assert ClientProcess.child_exit_code(remote_server) == 129
     end
 
-    test "should kill the browser on double SIGINT and remove temp dir"
+    test "SI-007 should kill the browser on double SIGINT and remove temp dir"
 
-    test "should kill the browser on SIGINT + SIGTERM"
+    test "SI-008 should kill the browser on SIGINT + SIGTERM"
 
-    test "should kill the browser on SIGTERM + SIGINT"
+    test "SI-009 should kill the browser on SIGTERM + SIGINT"
 
-    test "should not prevent default SIGTERM handling after browser close", %{start_remote_server: start_remote_server} do
+    test "SI-010 should not prevent default SIGTERM handling after browser close", %{
+      start_remote_server: start_remote_server
+    } do
       remote_server = start_remote_server.("launchServer", %{startStopAndRunHttp: true})
       assert ClientProcess.out(remote_server, "closed") == "success"
       ClientProcess.kill(remote_server, "SIGTERM")

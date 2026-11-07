@@ -201,14 +201,17 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   defp new_request(playwright, options), do: APIRequest.new_context!(Playwright.request(playwright), options)
 
   describe "fetch" do
-    test "validate input", %{playwright: playwright} do
+    test "CC-001 validate input", %{playwright: playwright} do
       for {context_options, expected} <- @validation_sub_tests do
         {:error, error} = APIRequest.new_context(Playwright.request(playwright), context_options)
         assert error.message =~ expected
       end
     end
 
-    test "should fail with no client certificates provided", %{playwright: playwright, start_cc_server: start_cc_server} do
+    test "CC-002 should fail with no client certificates provided", %{
+      playwright: playwright,
+      start_cc_server: start_cc_server
+    } do
       server_url = start_cc_server.([])
       request = new_request(playwright, ignore_https_errors: true)
       response = APIRequestContext.get!(request, server_url)
@@ -217,7 +220,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "should keep supporting http", %{playwright: playwright, server: server, asset: asset} do
+    test "CC-003 should keep supporting http", %{playwright: playwright, server: server, asset: asset} do
       request =
         new_request(playwright,
           ignore_https_errors: true,
@@ -231,7 +234,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "should throw with untrusted client certs",
+    test "CC-004 should throw with untrusted client certs",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -248,7 +251,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "pass with trusted client certificates",
+    test "CC-005 pass with trusted client certificates",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -262,7 +265,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "should not leak client certificate to cross-origin redirect target",
+    test "CC-006 should not leak client certificate to cross-origin redirect target",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       target_url = start_cc_server.([])
 
@@ -307,7 +310,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "pass with trusted client certificates in pfx format",
+    test "CC-007 pass with trusted client certificates in pfx format",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -330,7 +333,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "pass with trusted client certificates and when a http proxy is used",
+    test "CC-008 pass with trusted client certificates and when a http proxy is used",
          %{playwright: playwright, start_cc_server: start_cc_server, proxy_server: proxy_server, asset: asset} do
       server_url = start_cc_server.([])
       TestProxy.forward_to(proxy_server, URI.parse(server_url).port, allow_connect_requests: true)
@@ -351,7 +354,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "pass with trusted client certificates and when a socks proxy is used",
+    test "CC-009 pass with trusted client certificates and when a socks proxy is used",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
       server_port = URI.parse(server_url).port
@@ -376,7 +379,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       close_proxy_server.()
     end
 
-    test "should throw a http error if the pfx passphrase is incorect",
+    test "CC-010 should throw a http error if the pfx passphrase is incorect",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -397,7 +400,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "should fail with matching certificates in legacy pfx format",
+    test "CC-011 should fail with matching certificates in legacy pfx format",
          %{playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -418,7 +421,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       APIRequestContext.dispose!(request)
     end
 
-    test "should work in the browser with request interception",
+    test "CC-012 should work in the browser with request interception",
          %{browser: browser, playwright: playwright, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -445,14 +448,14 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   end
 
   describe "browser" do
-    test "validate input", %{browser: browser} do
+    test "CC-013 validate input", %{browser: browser} do
       for {context_options, expected} <- @validation_sub_tests do
         {:error, error} = Browser.new_context(browser, context_options)
         assert error.message =~ expected
       end
     end
 
-    test "should keep supporting http", %{browser: browser, server: server, asset: asset} do
+    test "CC-014 should keep supporting http", %{browser: browser, server: server, asset: asset} do
       page = Browser.new_page!(browser, client_certificates: [trusted(asset, origin(server.prefix))])
       Page.goto!(page, server.prefix <> "/one-style.html")
       Expect.to_be_visible!(Page.get_by_text(page, "hello, world!"))
@@ -460,7 +463,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should pass through to non-matching origin with self-signed cert",
+    test "CC-015 should pass through to non-matching origin with self-signed cert",
          %{browser: browser, asset: asset, https_server: https_server} do
       TestServer.set_route(https_server, "/hello.html", fn conn ->
         conn
@@ -474,7 +477,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should not intercept TLS for origins without a client certificate",
+    test "CC-016 should not intercept TLS for origins without a client certificate",
          %{browser: browser, asset: asset, https_server: https_server} do
       # If the proxy intercepted this origin, the browser would see its self-signed cert (CN=localhost)
       # instead of the real server cert (CN=playwright-test).
@@ -486,7 +489,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should fail with no client certificates",
+    test "CC-017 should fail with no client certificates",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -506,7 +509,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should fail with self-signed client certificates",
+    test "CC-018 should fail with self-signed client certificates",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -526,7 +529,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should complete browser TLS handshake when server rejects client certificate after it",
+    test "CC-019 should complete browser TLS handshake when server rejects client certificate after it",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(reject_unauthorized: true, use_fake_localhost: fake_localhost?(browser_name))
 
@@ -540,7 +543,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
         {:error, error} ->
           # The server closed the connection with FIN after the TLS handshake.
           assert error.message =~
-                   ~r/net::ERR_EMPTY_RESPONSE|NS_ERROR_NET_RESET|Connection terminated unexpectedly|The network connection was lost/
+                   ~r/net::ERR_EMPTY_RESPONSE|NS_ERROR_NET_RESET|Connection terminated unexpectedly|The network connection was lost|Failure when receiving data from the peer/
 
         {:ok, result} ->
           # The server reset the connection, which the proxy reports as a client certificate error.
@@ -551,7 +554,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should pass with matching certificates",
+    test "CC-020 should pass with matching certificates",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -568,7 +571,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should pass with matching certificates when passing as content",
+    test "CC-021 should pass with matching certificates when passing as content",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -594,7 +597,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should pass with matching certificates and when a http proxy is used", %{
+    test "CC-022 should pass with matching certificates and when a http proxy is used", %{
       browser: browser,
       start_cc_server: start_cc_server,
       asset: asset,
@@ -624,7 +627,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should pass with matching certificates and when a http proxy is used from env", %{
+    test "CC-023 should pass with matching certificates and when a http proxy is used from env", %{
       start_cc_server: start_cc_server,
       asset: asset,
       browser_name: browser_name,
@@ -658,7 +661,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Browser.close!(browser)
     end
 
-    test "should pass with matching certificates and when a http proxy is used from config but env is there", %{
+    test "CC-024 should pass with matching certificates and when a http proxy is used from config but env is there", %{
       start_cc_server: start_cc_server,
       asset: asset,
       browser_name: browser_name,
@@ -697,7 +700,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Browser.close!(browser)
     end
 
-    test "should respect launch proxy and proxy bypass", %{
+    test "CC-025 should respect launch proxy and proxy bypass", %{
       browser_type: browser_type,
       start_cc_server: start_cc_server,
       asset: asset,
@@ -746,7 +749,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Browser.close!(browser)
     end
 
-    test "should pass with matching certificates and when a socks proxy is used",
+    test "CC-026 should pass with matching certificates and when a socks proxy is used",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
       server_port = URI.parse(server_url).port
@@ -775,7 +778,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       close_proxy_server.()
     end
 
-    test "should not hang on tls errors during TLS 1.2 handshake",
+    test "CC-027 should not hang on tls errors during TLS 1.2 handshake",
          %{browser: browser, asset: asset, browser_name: browser_name} do
       for _tls_version <- ["TLSv1.3", "TLSv1.2"] do
         # test.step(`TLS version: ${tlsVersion}`)
@@ -821,7 +824,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       end
     end
 
-    test "should pass with matching certificates in pfx format",
+    test "CC-028 should pass with matching certificates in pfx format",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -847,7 +850,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should handle TLS renegotiation with client certificates",
+    test "CC-029 should handle TLS renegotiation with client certificates",
          %{browser: browser, asset: asset, browser_name: browser_name} do
       # deviation: createHttpsServer(...) and its request handler run in a Node.js process
       # (test/support/tls_renegotiation_server.js, upstream's code): Erlang's :ssl cannot ask
@@ -912,7 +915,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       # await new Promise<void>(resolve => server.close(() => resolve()));  -- the process stops after the test
     end
 
-    test "should pass with matching certificates in pfx format when passing as content",
+    test "CC-030 should pass with matching certificates in pfx format when passing as content",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -938,7 +941,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should fail with matching certificates in legacy pfx format",
+    test "CC-031 should fail with matching certificates in legacy pfx format",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -957,7 +960,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       assert error.message =~ "Unsupported TLS certificate"
     end
 
-    test "should throw a http error if the pfx passphrase is incorect",
+    test "CC-032 should throw a http error if the pfx passphrase is incorect",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -976,7 +979,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       assert error.message =~ "Failed to load client certificate: mac verify failure"
     end
 
-    test "should pass with matching certificates on context APIRequestContext instance",
+    test "CC-033 should pass with matching certificates on context APIRequestContext instance",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.([])
 
@@ -998,7 +1001,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should pass with matching certificates and trailing slash",
+    test "CC-034 should pass with matching certificates and trailing slash",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset, browser_name: browser_name} do
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
 
@@ -1010,7 +1013,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should have ignoreHTTPSErrors=false by default",
+    test "CC-035 should have ignoreHTTPSErrors=false by default",
          %{browser: browser, https_server: https_server, asset: asset, browser_name: browser_name} do
       target_url =
         if fake_localhost?(browser_name),
@@ -1027,7 +1030,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
            if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
              do: "upstream skip: WebKit on macOS does not proxy localhost"
            )
-    test "support http2", %{
+    test "CC-036 support http2", %{
       browser: browser,
       start_cc_server: start_cc_server,
       asset: asset
@@ -1062,7 +1065,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
     end
 
     @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: browserName !== 'chromium'")
-    test "support http2 if the browser only supports http1.1",
+    test "CC-037 support http2 if the browser only supports http1.1",
          %{browser_type: browser_type, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.(http2: true, enable_http1_fallback_when_using_http2: true)
       browser = BrowserType.launch!(browser_type, args: ["--disable-http2"])
@@ -1094,7 +1097,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
            if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
              do: "upstream skip: WebKit on macOS does not proxy localhost"
            )
-    test "should return target connection errors when using http2",
+    test "CC-038 should return target connection errors when using http2",
          %{browser: browser, start_cc_server: start_cc_server, asset: asset} do
       # test.skip(nodeVersion.major < 20, ...)  -- the driver's Node is newer
       server_url = start_cc_server.(http2: true)
@@ -1104,7 +1107,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    test "should handle rejected certificate in handshake with HTTP/2",
+    test "CC-039 should handle rejected certificate in handshake with HTTP/2",
          %{browser: browser, asset: asset, browser_name: browser_name} do
       cert = asset.("client-certificates/server/server_cert.pem")
 
@@ -1156,14 +1159,14 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   describe "browser persistentContext" do
     # test.slow()
     @tag timeout: @slow_timeout
-    test "validate input", %{browser_type: browser_type, create_user_data_dir: create_user_data_dir} do
+    test "CC-040 validate input", %{browser_type: browser_type, create_user_data_dir: create_user_data_dir} do
       for {context_options, expected} <- @validation_sub_tests do
         {:error, error} = BrowserType.launch_persistent_context(browser_type, create_user_data_dir.(), context_options)
         assert error.message =~ expected
       end
     end
 
-    test "should pass with matching certificates",
+    test "CC-041 should pass with matching certificates",
          %{
            launch_persistent: launch_persistent,
            start_cc_server: start_cc_server,

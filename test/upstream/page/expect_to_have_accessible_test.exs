@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
 
   @error_message_text "Error message"
 
-  test "toHaveAccessibleName", %{page: page} do
+  test "EX-259 toHaveAccessibleName", %{page: page} do
     Page.set_content!(page, """
     <div role="button" aria-label="Hello"></div>
     """)
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.to_have_accessible_name!(Page.locator(page, "option"), "HTML")
   end
 
-  test "toHaveAccessibleDescription", %{page: page} do
+  test "EX-260 toHaveAccessibleDescription", %{page: page} do
     Page.set_content!(page, """
     <div role="button" aria-description="Hello"></div>
     """)
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.to_have_accessible_description!(Page.locator(page, "div"), "foo bar baz")
   end
 
-  test "toHaveAccessibleErrorMessage", %{page: page} do
+  test "EX-261 toHaveAccessibleErrorMessage", %{page: page} do
     Page.set_content!(page, """
     <form>
       <input role="textbox" aria-invalid="true" aria-errormessage="error-message" />
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.not_to_have_accessible_error_message!(locator, "This should not be considered.")
   end
 
-  test "toHaveAccessibleErrorMessage should handle multiple aria-errormessage references", %{page: page} do
+  test "EX-262 toHaveAccessibleErrorMessage should handle multiple aria-errormessage references", %{page: page} do
     Page.set_content!(page, """
     <form>
       <input role="textbox" aria-invalid="true" aria-errormessage="error1 error2" />
@@ -105,35 +105,35 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
   end
 
   describe "toHaveAccessibleErrorMessage should handle aria-invalid attribute evaluated in false" do
-    test "no aria-invalid attribute", %{page: page} do
+    test "EX-263 no aria-invalid attribute", %{page: page} do
       locator = setup_page(page, nil)
       Expect.not_to_have_accessible_error_message!(locator, @error_message_text)
     end
 
-    test "aria-invalid=\"false\"", %{page: page} do
+    test "EX-264 aria-invalid=\"false\"", %{page: page} do
       locator = setup_page(page, "false")
       Expect.not_to_have_accessible_error_message!(locator, @error_message_text)
     end
 
-    test "aria-invalid=\"\" (empty string)", %{page: page} do
+    test "EX-265 aria-invalid=\"\" (empty string)", %{page: page} do
       locator = setup_page(page, "")
       Expect.not_to_have_accessible_error_message!(locator, @error_message_text)
     end
   end
 
   describe "toHaveAccessibleErrorMessage should handle aria-invalid attribute evaluated in true" do
-    test "aria-invalid=\"true\"", %{page: page} do
+    test "EX-266 aria-invalid=\"true\"", %{page: page} do
       locator = setup_page(page, "true")
       Expect.to_have_accessible_error_message!(locator, @error_message_text)
     end
 
-    test "aria-invalid=\"foo\" (unrecognized value)", %{page: page} do
+    test "EX-267 aria-invalid=\"foo\" (unrecognized value)", %{page: page} do
       locator = setup_page(page, "foo")
       Expect.to_have_accessible_error_message!(locator, @error_message_text)
     end
   end
 
-  test "should show error message when validity is false and aria-invalid is true", %{page: page} do
+  test "EX-268 should show error message when validity is false and aria-invalid is true", %{page: page} do
     Page.set_content!(page, """
     <form>
       <input id="node" role="textbox" type="number" min="1" max="100" aria-invalid="true" aria-errormessage="error-msg" />
@@ -146,7 +146,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.to_have_accessible_error_message!(locator, @error_message_text)
   end
 
-  test "should show error message when validity is true and aria-invalid is true", %{page: page} do
+  test "EX-269 should show error message when validity is true and aria-invalid is true", %{page: page} do
     Page.set_content!(page, """
     <form>
       <input id="node" role="textbox" type="number" min="1" max="100" aria-invalid="true" aria-errormessage="error-msg" />
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.to_have_accessible_error_message!(locator, @error_message_text)
   end
 
-  test "should show error message when validity is false and aria-invalid is false", %{page: page} do
+  test "EX-270 should show error message when validity is false and aria-invalid is false", %{page: page} do
     Page.set_content!(page, """
     <form>
       <input id="node" role="textbox" type="number" min="1" max="100" aria-invalid="false" aria-errormessage="error-msg" />
@@ -172,7 +172,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.to_have_accessible_error_message!(locator, @error_message_text)
   end
 
-  test "should not show error message when validity is true and aria-invalid is false", %{page: page} do
+  test "EX-271 should not show error message when validity is true and aria-invalid is false", %{page: page} do
     Page.set_content!(page, """
     <form>
       <input id="node" role="textbox" type="number" min="1" max="100" aria-invalid="false" aria-errormessage="error-msg" />
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.not_to_have_accessible_error_message!(locator, @error_message_text)
   end
 
-  test "should show error message for all roles", %{page: page} do
+  test "EX-272 should show error message for all roles", %{page: page} do
     Page.set_content!(page, """
     <label for="file">File input</label>
     <input id="file" aria-invalid="true" aria-errormessage="file-error-id" type="file" />
@@ -196,7 +196,7 @@ defmodule PlaywrightEx.Page.ExpectToHaveAccessibleTest do
     Expect.to_have_accessible_error_message!(locator, "File is incorrect")
   end
 
-  test "toHaveRole", %{page: page} do
+  test "EX-273 toHaveRole", %{page: page} do
     Page.set_content!(page, "<div role=\"button\">Button!</div>")
     Expect.to_have_role!(Page.locator(page, "div"), "button")
     Expect.not_to_have_role!(Page.locator(page, "div"), "checkbox")

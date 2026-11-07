@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
 
   defp hostname(url), do: URI.parse(url).host
 
-  test "should clear cookies", %{context: context, page: page, server: server} do
+  test "CO-042 should clear cookies", %{context: context, page: page, server: server} do
     Page.goto!(page, server.empty_page)
     BrowserContext.add_cookies!(context, [%{url: server.empty_page, name: "cookie1", value: "1"}])
     assert Page.evaluate!(page, "document.cookie") == "cookie1=1"
@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == ""
   end
 
-  test "should isolate cookies when clearing", %{context: context, server: server, browser: browser} do
+  test "CO-043 should isolate cookies when clearing", %{context: context, server: server, browser: browser} do
     another_context = Browser.new_context!(browser)
     BrowserContext.add_cookies!(context, [%{url: server.empty_page, name: "page1cookie", value: "page1value"}])
     BrowserContext.add_cookies!(another_context, [%{url: server.empty_page, name: "page2cookie", value: "page2value"}])
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     BrowserContext.close!(another_context)
   end
 
-  test "should remove cookies by name", %{context: context, page: page, server: server} do
+  test "CO-044 should remove cookies by name", %{context: context, page: page, server: server} do
     BrowserContext.add_cookies!(context, [
       %{name: "cookie1", value: "1", domain: hostname(server.prefix), path: "/"},
       %{name: "cookie2", value: "2", domain: hostname(server.prefix), path: "/"}
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "cookie2=2"
   end
 
-  test "should remove cookies by name regex", %{context: context, page: page, server: server} do
+  test "CO-045 should remove cookies by name regex", %{context: context, page: page, server: server} do
     BrowserContext.add_cookies!(context, [
       %{name: "cookie1", value: "1", domain: hostname(server.prefix), path: "/"},
       %{name: "cookie2", value: "2", domain: hostname(server.prefix), path: "/"}
@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "cookie2=2"
   end
 
-  test "should remove cookies by domain", %{context: context, page: page, server: server} do
+  test "CO-046 should remove cookies by domain", %{context: context, page: page, server: server} do
     BrowserContext.add_cookies!(context, [
       %{name: "cookie1", value: "1", domain: hostname(server.prefix), path: "/"},
       %{name: "cookie2", value: "2", domain: hostname(server.cross_process_prefix), path: "/"}
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "cookie1=1"
   end
 
-  test "should remove cookies by path", %{context: context, page: page, server: server} do
+  test "CO-047 should remove cookies by path", %{context: context, page: page, server: server} do
     BrowserContext.add_cookies!(context, [
       %{name: "cookie1", value: "1", domain: hostname(server.prefix), path: "/api/v1"},
       %{name: "cookie2", value: "2", domain: hostname(server.prefix), path: "/api/v2"},
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     assert Page.evaluate!(page, "document.cookie") == "cookie3=3"
   end
 
-  test "should remove cookies by name and domain", %{context: context, page: page, server: server} do
+  test "CO-048 should remove cookies by name and domain", %{context: context, page: page, server: server} do
     BrowserContext.add_cookies!(context, [
       %{name: "cookie1", value: "1", domain: hostname(server.prefix), path: "/"},
       %{name: "cookie1", value: "1", domain: hostname(server.cross_process_prefix), path: "/"}
@@ -119,7 +119,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
            do:
              "upstream skip: cookieStore change events not supported on WebKit/Windows (curl backend lacks cookie change notifications)"
          )
-  test "should not transiently delete non-matching cookies when filtering", %{
+  test "CO-049 should not transiently delete non-matching cookies when filtering", %{
     context: context,
     page: page,
     server: server
@@ -152,7 +152,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: Partitioned cookies (CHIPS) are Chromium-specific")
-  test "should remove partitioned cookies by name", %{
+  test "CO-050 should remove partitioned cookies by name", %{
     browser: browser,
     https_server: https_server
   } do
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
     BrowserContext.close!(context)
   end
 
-  test "should remove nameless cookies by empty name", %{context: context} do
+  test "CO-051 should remove nameless cookies by empty name", %{context: context} do
     BrowserContext.add_cookies!(context, [
       %{name: "", value: "nameless", domain: "example.com", path: "/"},
       %{name: "session", value: "secret", domain: "example.com", path: "/"}

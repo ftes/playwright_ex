@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
 
   # "Locator:" lines are Elixir syntax, call logs JS (architecture: Driver language and rendering).
 
-  test "should print element not found", %{page: page} do
+  test "EX-244 should print element not found", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
     {:error, error} = Expect.to_have_text(Page.locator(page, "no-such-thing"), "hey", timeout: 1000)
 
@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
            """
   end
 
-  test "should print timed out error message when value does not match", %{page: page} do
+  test "EX-245 should print timed out error message when value does not match", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
     {:error, error} = Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 1000)
 
@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
            """
   end
 
-  test "should print timed out error message with impossible timeout", %{page: page} do
+  test "EX-246 should print timed out error message with impossible timeout", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
     {:error, error} = Expect.to_have_text(Page.locator(page, "no-such-thing"), "hey", timeout: 1)
 
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
            """
   end
 
-  test "should print timed out error message when value does not match with impossible timeout", %{page: page} do
+  test "EX-247 should print timed out error message when value does not match with impossible timeout", %{page: page} do
     Page.set_content!(page, "<div id=node>Text content</div>")
     {:error, error} = Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 1)
 
@@ -76,12 +76,12 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
            """
   end
 
-  test "should have timeout error name", %{page: page} do
+  test "EX-248 should have timeout error name", %{page: page} do
     {:error, error} = Page.wait_for_selector(page, "#not-found", timeout: 1)
     assert %TimeoutError{} = error
   end
 
-  test "should not throw when navigating during one-shot check", %{page: page, server: server} do
+  test "EX-249 should not throw when navigating during one-shot check", %{page: page, server: server} do
     Page.set_content!(page, "<div>hello</div>")
     promise = Runtime.Promise.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
     Page.goto!(page, server.empty_page)
@@ -89,7 +89,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert Runtime.Promise.await(promise) == :ok
   end
 
-  test "should not throw when navigating during first locator handler check", %{page: page, server: server} do
+  test "EX-250 should not throw when navigating during first locator handler check", %{page: page, server: server} do
     Page.add_locator_handler!(page, Page.locator(page, "span"), fn _locator -> :ok end)
     Page.set_content!(page, "<div>hello</div>")
     promise = Runtime.Promise.async(fn -> Expect.to_have_text!(Page.locator(page, "div"), "bye") end)
@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     Runtime.Promise.await(promise)
   end
 
-  test "should timeout during first locator handler check", %{page: page} do
+  test "EX-251 should timeout during first locator handler check", %{page: page} do
     Page.add_locator_handler!(page, Page.locator(page, "div"), fn _locator -> :ok end)
     Page.set_content!(page, "<div>hello</div><span>bye</span>")
     {:error, error} = Expect.to_have_text(Page.locator(page, "span"), "bye", timeout: 3000)
@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ "locator resolved to visible <div>hello</div>"
   end
 
-  test "should not miss element that appears between retries before the deadline", %{page: page} do
+  test "EX-252 should not miss element that appears between retries before the deadline", %{page: page} do
     Page.set_content!(page, ~s|<div id="target" style="display:none">content</div>|)
 
     Page.evaluate!(page, """
@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     Expect.to_be_visible!(Page.locator(page, "#target"), timeout: 1800)
   end
 
-  test "should fail like a timeout when the signal is aborted mid-assertion", %{page: page} do
+  test "EX-253 should fail like a timeout when the signal is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     controller = AbortController.new()
 
@@ -162,7 +162,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ String.trim_trailing(expected)
   end
 
-  test "should fail like a timeout when toHaveText is aborted mid-assertion", %{page: page} do
+  test "EX-254 should fail like a timeout when toHaveText is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     controller = AbortController.new()
 
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ "expect(locator).toHaveText(expected) failed"
   end
 
-  test "should fail like a timeout when toHaveCount is aborted mid-assertion", %{page: page} do
+  test "EX-255 should fail like a timeout when toHaveCount is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     controller = AbortController.new()
 
@@ -197,7 +197,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ "expect(locator).toHaveCount(expected) failed"
   end
 
-  test "should fail like a timeout when toMatchAriaSnapshot is aborted mid-assertion", %{page: page} do
+  test "EX-256 should fail like a timeout when toMatchAriaSnapshot is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     controller = AbortController.new()
 
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ "expect(locator).toMatchAriaSnapshot(expected) failed"
   end
 
-  test "should fail like a timeout when toHaveURL is aborted mid-assertion", %{page: page} do
+  test "EX-257 should fail like a timeout when toHaveURL is aborted mid-assertion", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     controller = AbortController.new()
 
@@ -232,7 +232,7 @@ defmodule PlaywrightEx.Page.ExpectTimeoutTest do
     assert error.message =~ "expect(page).toHaveURL(expected) failed"
   end
 
-  test "should fail the assertion when the signal is already aborted", %{page: page, server: server} do
+  test "EX-258 should fail the assertion when the signal is already aborted", %{page: page, server: server} do
     Page.set_content!(page, "<div>content</div>")
 
     controller = AbortController.new()

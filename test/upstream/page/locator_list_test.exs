@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.LocatorListTest do
 
   @moduletag :page
 
-  test "locator.all should work", %{page: page} do
+  test "LO-126 locator.all should work", %{page: page} do
     Page.set_content!(page, "<div><p>A</p><p>B</p><p>C</p></div>")
     texts = for p <- Locator.all!(Page.locator(page, "div >> p")), do: Locator.text_content!(p)
     assert texts == ["A", "B", "C"]

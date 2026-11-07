@@ -10,11 +10,11 @@ defmodule PlaywrightEx.Library.BrowserTest do
 
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
-  test "should return browserType", %{browser: browser, browser_type: browser_type} do
+  test "BR-001 should return browserType", %{browser: browser, browser_type: browser_type} do
     assert Browser.browser_type(browser) == browser_type
   end
 
-  test "should create new page @smoke", %{browser: browser} do
+  test "BR-002 should create new page @smoke", %{browser: browser} do
     page1 = Browser.new_page!(browser)
     assert length(Browser.contexts(browser)) == 1
 
@@ -28,14 +28,14 @@ defmodule PlaywrightEx.Library.BrowserTest do
     assert Browser.contexts(browser) == []
   end
 
-  test "should throw upon second create new page", %{browser: browser} do
+  test "BR-003 should throw upon second create new page", %{browser: browser} do
     page = Browser.new_page!(browser)
     {:error, error} = page |> Page.context() |> BrowserContext.new_page()
     Page.close!(page)
     assert Exception.message(error) =~ "Please use browser.newContext()"
   end
 
-  test "version should work", %{browser: browser, browser_name: browser_name} do
+  test "BR-004 version should work", %{browser: browser, browser_name: browser_name} do
     version = Browser.version(browser)
 
     if browser_name == "chromium",
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.BrowserTest do
       else: assert(version =~ ~r/^\d+\.\d+/)
   end
 
-  test "should dispatch page.on(close) upon browser.close and reject evaluate", %{browser_type: browser_type} do
+  test "BR-005 should dispatch page.on(close) upon browser.close and reject evaluate", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
     page = Browser.new_page!(browser)
     test = self()
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Library.BrowserTest do
     assert Exception.message(error) =~ @k_target_closed_error_message
   end
 
-  test "should fire context event on newContext", %{browser: browser} do
+  test "BR-006 should fire context event on newContext", %{browser: browser} do
     test = self()
     Browser.on(browser, :context, fn ctx -> send(test, {:context, ctx}) end)
     context = Browser.new_context!(browser)
@@ -64,5 +64,5 @@ defmodule PlaywrightEx.Library.BrowserTest do
     BrowserContext.close!(context)
   end
 
-  test "newContext should not leave a context upon failure"
+  test "BR-007 newContext should not leave a context upon failure"
 end

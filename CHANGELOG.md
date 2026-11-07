@@ -7,6 +7,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+Drives [Playwright 1.65](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
+
+### Added
+- `CDPSession.send/4` takes `:timeout` and `:signal`.
+
+### Changed
+- JSON values from the driver keep JSON `null` as `:null`, as `JSON.parse` does, instead of
+  `nil`: `CDPSession.send/4` results and events, `Locator.aria_snapshot_json/2`, IndexedDB values
+  in `storage_state`. Storage state files are read the same way: a `null` in an optional field
+  (`"sameSite": null`) fails validation, as it does upstream.
+- An error raised by a `CDPSession` listener is emitted as `"error"` when the session has an
+  `"error"` listener.
+- Upstream's breaking changes in 1.65: actions wait for the element to be not inert, cookie
+  matching follows RFC 6265, proxy credentials only answer proxy challenges, text the browser
+  does not render is no longer part of accessible names and aria snapshots, and `params` given
+  as a string or keyword list are appended to the URL's query.
+
+### Fixed
+- A request body is JSON for `content-type: application/json; charset=utf-8` too.
+- HAR paths ending in `.ZIP` are zip files.
+- MIME types are looked up by file extension case-insensitively (`.JPG` screenshots).
+- `Expect.to_have_screenshot/2` raises the driver's error when it fails for another reason than
+  a mismatch.
+
 ## [0.17.0-rc.1] 2026-11-07
 
 ### Added

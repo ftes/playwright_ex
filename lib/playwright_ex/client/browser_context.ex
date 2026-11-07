@@ -183,7 +183,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
 
   def _initialize_har_from_options(this, record_har) do
     if record_har do
-      default_content = if String.ends_with?(record_har.path, ".zip"), do: "attach", else: "embed"
+      default_content = if Regex.match?(~r/\.zip\z/i, record_har.path), do: "attach", else: "embed"
 
       Tracing._record_into_har(get(this, :tracing), record_har.path, nil, %{
         url: record_har[:urlFilter],
@@ -237,7 +237,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
   def _on_route(this, route) do
     put(route, :_context, this)
     page = Request._safe_page(Route.request(route))
-    route_handlers = get(this, :_routes)
+    # Elixir only: `_routesArray` stands for the identity of the `_routes` array (`_unroute_internal`),
+    # read with it in one synchronous section.
+    {route_handlers, routes_array} = atomic(this, fn -> {get(this, :_routes), get(this, :_routesArray)} end)
 
     handled =
       Enum.reduce_while(route_handlers, false, fn route_handler, _ ->
@@ -257,12 +259,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
             if expired, do: update(this, :_routes, &List.delete(&1, route_handler))
             handled = RouteHandler.handle(route_handler, route)
 
-            # deviation: only when this handler expired. JS reads `_routes` right after the handler
-            # settles, before the next message; here later, after a concurrent `unrouteAll` may have
-            # emptied it and sent its own update, which a second identical one could overtake: the
-            # driver answers that one at once, and the `unrouteAll` returns before its barrier.
-            if expired and get(this, :_routes) == [],
-              do: Promise.void(fn -> _update_interception_patterns(this, %{internal: true}) end)
+            # unrouteAll() replaces _routes and updates interception after waiting for handlers.
+            if atomic(this, fn -> get(this, :_routesArray) == routes_array and get(this, :_routes) == [] end),
+              do: Promise.void(fn -> _disable_interception(this) end)
 
             if handled, do: {:halt, true}, else: {:cont, false}
         end
@@ -435,35 +434,41 @@ defmodule PlaywrightEx.Client.BrowserContext do
     DisposableObject.from(result.disposable)
   end
 
+  # @apiCall({ title: 'Route requests' })
   def route(this, url, handler, options \\ %{}) do
     options = options || %{}
 
-    route_handler =
-      RouteHandler.new(
-        Connection.local_utils(get(this, :_connection)),
-        get(this, :_options)[:baseURL],
-        url,
-        handler,
-        options[:times],
-        this
-      )
+    api_call(%{title: "Route requests"}).(this, fn ->
+      route_handler =
+        RouteHandler.new(
+          Connection.local_utils(get(this, :_connection)),
+          get(this, :_options)[:baseURL],
+          url,
+          handler,
+          options[:times],
+          this
+        )
 
-    update(this, :_routes, &[route_handler | &1])
-    _update_interception_patterns(this, %{title: "Route requests"})
-    DisposableStub.new(fn -> unroute(this, url, handler) end)
+      update(this, :_routes, &[route_handler | &1])
+      _update_interception_patterns(this)
+      DisposableStub.new(fn -> unroute(this, url, handler) end)
+    end)
   end
 
+  # @apiCall({ title: 'Route WebSockets' })
   def route_web_socket(this, url, handler) do
-    route_handler =
-      WebSocketRouteHandler.new(
-        Connection.local_utils(get(this, :_connection)),
-        get(this, :_options)[:baseURL],
-        url,
-        handler
-      )
+    api_call(%{title: "Route WebSockets"}).(this, fn ->
+      route_handler =
+        WebSocketRouteHandler.new(
+          Connection.local_utils(get(this, :_connection)),
+          get(this, :_options)[:baseURL],
+          url,
+          handler
+        )
 
-    update(this, :_webSocketRoutes, &[route_handler | &1])
-    _update_web_socket_interception_patterns(this, %{title: "Route WebSockets"})
+      update(this, :_webSocketRoutes, &[route_handler | &1])
+      _update_web_socket_interception_patterns(this)
+    end)
   end
 
   def route_from_har(this, har, options \\ %{}) do
@@ -489,25 +494,35 @@ defmodule PlaywrightEx.Client.BrowserContext do
     update(this, :_harRouters, &(&1 -- routers))
   end
 
+  # @apiCall({ title: 'Unroute requests' })
   def unroute_all(this, options \\ nil) do
-    _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
-    _dispose_har_routers(this)
-    nil
+    api_call(%{title: "Unroute requests"}).(this, fn ->
+      _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
+      _dispose_har_routers(this)
+      nil
+    end)
   end
 
+  # @apiCall({ title: 'Unroute requests' })
   def unroute(this, url, handler \\ nil) do
-    {removed, remaining} =
-      Enum.split_with(get(this, :_routes), fn route ->
-        UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
-      end)
+    api_call(%{title: "Unroute requests"}).(this, fn ->
+      {removed, remaining} =
+        Enum.split_with(get(this, :_routes), fn route ->
+          UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
+        end)
 
-    _unroute_internal(this, removed, remaining, "default")
+      _unroute_internal(this, removed, remaining, "default")
+    end)
   end
 
   defp _unroute_internal(this, removed, _remaining, behavior) do
     # `this._routes = remaining` as `update/3`: an expiring route (`_on_route`) or a `route`
-    # call in another process may have changed `_routes` since the caller read it.
-    update(this, :_routes, &(&1 -- removed))
+    # call in another process may have changed `_routes` since the caller read it. Elixir only:
+    # `_routesArray` (a new ref, in the same step) stands for the new array's identity (`_on_route`).
+    atomic(this, fn ->
+      update(this, :_routes, &(&1 -- removed))
+      put(this, :_routesArray, make_ref())
+    end)
 
     if behavior && behavior != "default" do
       promises =
@@ -516,45 +531,38 @@ defmodule PlaywrightEx.Client.BrowserContext do
       Promise.await(Promise.all(promises))
     end
 
-    _update_interception_patterns(this, %{title: "Unroute requests"})
+    _update_interception_patterns(this)
   end
 
-  defp _update_interception_patterns(this, options) do
+  # @internal
+  defp _disable_interception(this) do
+    internal().(this, fn -> _update_interception_patterns(this) end)
+  end
+
+  defp _update_interception_patterns(this) do
     # deviation: computed when the message is written, in one step with it (`channel_call/5`), so
     # a concurrent `route()` cannot send stale patterns after fresh ones.
     patterns = fn -> RouteHandler.prepare_interception_patterns(get(this, :_routes)) end
 
-    _wrap_api_call(
+    channel_call(
       this,
-      fn _ ->
-        channel_call(
-          this,
-          :setNetworkInterceptionPatterns,
-          fn -> %{patterns: patterns.()} end,
-          TimeoutSettings.k_no_timeout()
-        )
-      end,
-      options
+      :setNetworkInterceptionPatterns,
+      fn -> %{patterns: patterns.()} end,
+      TimeoutSettings.k_no_timeout()
     )
 
     nil
   end
 
-  defp _update_web_socket_interception_patterns(this, options) do
+  defp _update_web_socket_interception_patterns(this) do
     # deviation: computed when the message is written (see `_update_interception_patterns`).
     patterns = fn -> WebSocketRouteHandler.prepare_interception_patterns(get(this, :_webSocketRoutes)) end
 
-    _wrap_api_call(
+    channel_call(
       this,
-      fn _ ->
-        channel_call(
-          this,
-          :setWebSocketInterceptionPatterns,
-          fn -> %{patterns: patterns.()} end,
-          TimeoutSettings.k_no_timeout()
-        )
-      end,
-      options
+      :setWebSocketInterceptionPatterns,
+      fn -> %{patterns: patterns.()} end,
+      TimeoutSettings.k_no_timeout()
     )
 
     nil
@@ -564,10 +572,11 @@ defmodule PlaywrightEx.Client.BrowserContext do
     get(this, :_closeReason) || (get(this, :_browser) && get(get(this, :_browser), :_closeReason))
   end
 
+  # @apiCall()
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
 
-    ChannelOwner._wrap_api_call(this, fn _ ->
+    api_call().(this, fn ->
       timeout_options =
         TimeoutSettings.timeout(
           get(this, :_timeoutSettings),
@@ -719,7 +728,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
       storage_state
     else
       try do
-        JSON.decode!(File.read!(storage_state))
+        ClientHelper.json_parse(File.read!(storage_state))
       rescue
         e ->
           message = "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)

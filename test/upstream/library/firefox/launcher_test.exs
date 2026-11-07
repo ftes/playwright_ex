@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.Firefox.LauncherTest do
     "network.proxy.ssl_port" => 3333
   }
 
-  test "should pass firefox user preferences", %{browser_type: browser_type} do
+  test "FF-001 should pass firefox user preferences", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type, firefox_user_prefs: @proxy_prefs)
     page = Browser.new_page!(browser)
     {:error, error} = Page.goto(page, "https://example.com")
@@ -24,14 +24,14 @@ defmodule PlaywrightEx.Library.Firefox.LauncherTest do
     Browser.close!(browser)
   end
 
-  test "should pass firefox user preferences in persistent", %{launch_persistent: launch_persistent} do
+  test "FF-002 should pass firefox user preferences in persistent", %{launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.(firefox_user_prefs: @proxy_prefs)
     {:error, error} = Page.goto(page, "https://example.com")
     assert Exception.message(error) =~ "NS_ERROR_PROXY_CONNECTION_REFUSED"
   end
 
   @tag :tmp_dir
-  test "should support custom firefox policies", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
+  test "FF-003 should support custom firefox policies", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
     policies = %{
       "policies" => %{
         "Certificates" => %{
@@ -76,5 +76,16 @@ defmodule PlaywrightEx.Library.Firefox.LauncherTest do
     Expect.to_have_text!(Page.locator(page, "body"), "Hi, I'm frame")
     Browser.close!(browser)
     TestServer.stop(server)
+  end
+
+  test "FF-004 should resize viewport with fractional device scale factor", %{browser_type: browser_type} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43028' });
+    # A fractional device scale factor makes the viewport size fractional in CSS pixels,
+    # e.g. 400.27x799.9 instead of 400x800. Web content still sees rounded values.
+    browser = BrowserType.launch!(browser_type, firefox_user_prefs: %{"layout.css.devPixelsPerPx" => "1.1"})
+    page = Browser.new_page!(browser)
+    Page.set_viewport_size!(page, %{width: 400, height: 800})
+    assert Page.evaluate!(page, "() => [window.innerWidth, window.innerHeight]") == [400, 800]
+    Browser.close!(browser)
   end
 end

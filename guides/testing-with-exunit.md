@@ -131,7 +131,9 @@ end
 The case template's `setup` passes `storage_state: ctx[:storage_state]` to `new_context!`
 (see below), so modules that don't log in get an empty context. To share the login between
 modules, `BrowserContext.storage_state!(context, path: "tmp/auth.json")` also writes it to a file,
-and `storage_state:` takes that path. See [Authentication](https://playwright.dev/python/docs/auth).
+and `storage_state:` takes that path. An app that keeps its tokens in IndexedDB (Firebase
+Authentication) needs `storage_state!(context, indexed_db: true)`: IndexedDB is not in the state by
+default. See [Authentication](https://playwright.dev/python/docs/auth).
 
 ## Traces and screenshots of failures
 

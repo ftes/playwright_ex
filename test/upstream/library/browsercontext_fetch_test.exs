@@ -123,9 +123,16 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp fields(parts), do: for(%{filename: nil} = part <- parts, do: {part.name, part.body})
   defp files(parts), do: for(%{filename: filename} = part <- parts, filename != nil, into: %{}, do: {part.name, part})
 
+  # deviation: no undici here. `new Request(..., { body }).formData()`, field name to value: undici's multipart parser
+  # decodes the `%0A`, `%0D` and `%22` escapes in names (`parseMultipartFormDataName`).
+  defp form_data(parts) do
+    decode = &(&1 |> String.replace("%0A", "\n") |> String.replace("%0D", "\r") |> String.replace("%22", "\""))
+    Map.new(parts, &{decode.(&1.name), &1.body})
+  end
+
   # ------------------------------------------------------------------------------
 
-  test "get should work @smoke", %{context: context, server: server} do
+  test "FE-088 get should work @smoke", %{context: context, server: server} do
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json")
     assert APIResponse.url(response) == server.prefix <> "/simple.json"
     assert APIResponse.status(response) == 200
@@ -137,7 +144,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
   end
 
-  test "fetch should work", %{context: context, server: server} do
+  test "FE-089 fetch should work", %{context: context, server: server} do
     response = APIRequestContext.fetch!(BrowserContext.request(context), server.prefix <> "/simple.json")
     assert APIResponse.url(response) == server.prefix <> "/simple.json"
     assert APIResponse.status(response) == 200
@@ -149,7 +156,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.text!(response) == ~s({"foo": "bar"}\n)
   end
 
-  test "should return timing", %{context: context, asset: asset} do
+  test "FE-090 should return timing", %{context: context, asset: asset} do
     # Create a fresh server to guarantee a new connection, because keep-alive
     # sockets from other tests do not have dns/connect timings.
     http_server = TestServer.server(start_supervised!({TestServer, dir_path: asset.("")}, id: :fresh_server))
@@ -169,7 +176,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert timing.responseEnd < 60_000
   end
 
-  test "should return timing for https", %{context: context, asset: asset} do
+  test "FE-091 should return timing for https", %{context: context, asset: asset} do
     # Create a fresh server to guarantee a new connection, because keep-alive
     # sockets from other tests do not have dns/connect timings.
     https_server =
@@ -199,13 +206,13 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert timing.responseEnd >= timing.responseStart
   end
 
-  test "should throw on network error", %{context: context, server: server} do
+  test "FE-092 should throw on network error", %{context: context, server: server} do
     TestServer.set_route(server, "/test", &destroy_socket/1)
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/test")
     assert Exception.message(error) =~ "apiRequestContext.get: socket hang up"
   end
 
-  test "should throw on network error after redirect", %{context: context, server: server} do
+  test "FE-093 should throw on network error after redirect", %{context: context, server: server} do
     TestServer.set_redirect(server, "/redirect", "/test")
     TestServer.set_route(server, "/test", &destroy_socket/1)
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/redirect")
@@ -218,20 +225,20 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     destroy_socket(conn)
   end
 
-  test "should throw on network error when sending body", %{context: context, server: server} do
+  test "FE-094 should throw on network error when sending body", %{context: context, server: server} do
     TestServer.set_route(server, "/test", &send_partial_body_and_destroy/1)
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/test")
     assert Exception.message(error) =~ "apiRequestContext.get: aborted"
   end
 
-  test "should throw on network error when sending body after redirect", %{context: context, server: server} do
+  test "FE-095 should throw on network error when sending body after redirect", %{context: context, server: server} do
     TestServer.set_redirect(server, "/redirect", "/test")
     TestServer.set_route(server, "/test", &send_partial_body_and_destroy/1)
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/redirect")
     assert Exception.message(error) =~ "apiRequestContext.get: aborted"
   end
 
-  test "should add session cookies to request", %{context_factory: context_factory, server: server} do
+  test "FE-096 should add session cookies to request", %{context_factory: context_factory, server: server} do
     # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
     context = lookup_context(context_factory)
 
@@ -254,7 +261,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(req, "cookie") == "username=John Doe"
   end
 
-  test "should filter cookies by domain", %{context_factory: context_factory, server: server} do
+  test "FE-097 should filter cookies by domain", %{context_factory: context_factory, server: server} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36069' }
     # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
     context = lookup_context(context_factory)
@@ -291,7 +298,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   for method <- [:fetch, :delete, :get, :head, :patch, :post, :put] do
     @method method
 
-    test "#{method} should support params passed as object", %{context: context, server: server} do
+    test "FE-098 #{method} should support params passed as object", %{context: context, server: server} do
       # Elixir maps have no insertion order: the query follows the map's order, as the request's.
       params = %{"param1" => "value1", "парам2" => "знач2"}
       task = TestServer.wait_for_request(server, "/empty.html?" <> URI.encode_query(params))
@@ -307,7 +314,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       assert response_params["парам2"] == "знач2"
     end
 
-    test "#{method} should support params passed as URLSearchParams", %{context: context, server: server} do
+    test "FE-099 #{method} should support params passed as URLSearchParams", %{context: context, server: server} do
       # URLSearchParams: a keyword list.
       search_params = [{"param1", "value1"}]
       search_params = search_params ++ [{"param1", "value2"}]
@@ -325,7 +332,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       assert get_all(response_query, "парам2") == ["знач2"]
     end
 
-    test "#{method} should support params passed as string", %{context: context, server: server} do
+    test "FE-100 #{method} should support params passed as string", %{context: context, server: server} do
       params = "?param1=value1&param1=value2&парам2=знач2"
       task = TestServer.wait_for_request(server, "/empty.html" <> URI.encode(params))
       response = request!(@method, BrowserContext.request(context), server.empty_page, params: params)
@@ -339,7 +346,21 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       assert get_all(response_query, "парам2") == ["знач2"]
     end
 
-    test "#{method} should support failOnStatusCode", %{context: context, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43210' }
+    test "FE-101 #{method} should append string and URLSearchParams params to the URL query", %{
+      context: context,
+      server: server
+    } do
+      # URLSearchParams: a keyword list.
+      for params <- ["q=cat", "?q=cat", [{"q", "cat"}]] do
+        task = TestServer.wait_for_request(server, "/empty.html?page=2&q=cat")
+        request!(@method, BrowserContext.request(context), server.empty_page <> "?page=2", params: params)
+        request = Task.await(task, :infinity)
+        assert request.request_path <> "?" <> request.query_string == "/empty.html?page=2&q=cat"
+      end
+    end
+
+    test "FE-102 #{method} should support failOnStatusCode", %{context: context, server: server} do
       {:error, error} =
         request(@method, BrowserContext.request(context), server.prefix <> "/does-not-exist.html",
           fail_on_status_code: true
@@ -349,7 +370,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
       if @method != :head, do: assert(Exception.message(error) =~ "Response text:\nFile not found:")
     end
 
-    test "#{method}should support ignoreHTTPSErrors option", %{context: context, https_server: https_server} do
+    test "FE-103 #{method}should support ignoreHTTPSErrors option", %{context: context, https_server: https_server} do
       response = request!(@method, BrowserContext.request(context), https_server.empty_page, ignore_https_errors: true)
       assert APIResponse.status(response) == 200
     end
@@ -359,7 +380,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   defp request(method, request, url, options), do: apply(APIRequestContext, method, [request, url, options])
   defp request!(method, request, url, options), do: apply(APIRequestContext, :"#{method}!", [request, url, options])
 
-  test "should not add context cookie if cookie header passed as a parameter", %{
+  test "FE-104 should not add context cookie if cookie header passed as a parameter", %{
     context_factory: context_factory,
     server: server
   } do
@@ -389,7 +410,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(req, "cookie") == "foo=bar"
   end
 
-  test "should follow redirects", %{context_factory: context_factory, server: server} do
+  test "FE-105 should follow redirects", %{context_factory: context_factory, server: server} do
     # deviation: lookup_context/1 stands in for { __testHookLookup } on the request below
     context = lookup_context(context_factory)
     TestServer.set_redirect(server, "/redirect1", "/redirect2")
@@ -419,7 +440,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.json!(response) == %{"foo" => "bar"}
   end
 
-  test "should follow redirects correctly when Location header contains UTF-8 characters", %{
+  test "FE-106 should follow redirects correctly when Location header contains UTF-8 characters", %{
     context: context,
     server: server
   } do
@@ -438,7 +459,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.url(response) == server.prefix <> "/empty.html?" <> URI.encode_query(%{message: "マスクПривет"})
   end
 
-  test "should add cookies from Set-Cookie header", %{context: context, page: page, server: server} do
+  test "FE-107 should add cookies from Set-Cookie header", %{context: context, page: page, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["session=value", "foo=bar; max-age=3600"]) |> Plug.Conn.send_resp(200, "")
     end)
@@ -453,7 +474,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert sorted_cookie_pairs(Page.evaluate!(page, "() => document.cookie")) == ["foo=bar", "session=value"]
   end
 
-  test "page.request.addCookies should add cookies to the browser context", %{
+  test "FE-108 page.request.addCookies should add cookies to the browser context", %{
     context: context,
     page: page,
     server: server
@@ -477,7 +498,11 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert sorted_cookie_pairs(Page.evaluate!(page, "() => document.cookie")) == ["a=b", "c=d"]
   end
 
-  test "page.request.cookies should return browser context cookies", %{context: context, page: page, server: server} do
+  test "FE-109 page.request.cookies should return browser context cookies", %{
+    context: context,
+    page: page,
+    server: server
+  } do
     BrowserContext.add_cookies!(context, [
       %{name: "a", value: "b", url: server.empty_page},
       %{name: "c", value: "d", domain: "example.com", path: "/"}
@@ -490,7 +515,11 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
              BrowserContext.cookies!(context, server.empty_page)
   end
 
-  test "page.request.clearCookies should clear browser context cookies", %{context: context, page: page, server: server} do
+  test "FE-110 page.request.clearCookies should clear browser context cookies", %{
+    context: context,
+    page: page,
+    server: server
+  } do
     BrowserContext.add_cookies!(context, [
       %{name: "a", value: "b", url: server.empty_page},
       %{name: "c", value: "d", url: server.empty_page}
@@ -506,7 +535,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(req, "cookie") == nil
   end
 
-  test "should preserve cookie order from Set-Cookie header", %{context: context, page: page, server: server} do
+  test "FE-111 should preserve cookie order from Set-Cookie header", %{context: context, page: page, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/23390
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["cookie.0=foo", "cookie.1=bar"]) |> Plug.Conn.send_resp(200, "")
@@ -528,7 +557,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(request, "cookie") == "cookie.0=foo; cookie.1=bar"
   end
 
-  test "should support cookie with empty value", %{context: context, page: page, server: server} do
+  test "FE-112 should support cookie with empty value", %{context: context, page: page, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["first="]) |> Plug.Conn.send_resp(200, "")
     end)
@@ -540,7 +569,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Enum.map(cookies, &%{name: &1.name, value: &1.value}) == [%{name: "first", value: ""}]
   end
 
-  test "should not lose body while handling Set-Cookie header", %{context: context, server: server} do
+  test "FE-113 should not lose body while handling Set-Cookie header", %{context: context, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["session=value", "foo=bar; max-age=3600"]) |> Plug.Conn.send_resp(200, "text content")
     end)
@@ -549,7 +578,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.text!(response) == "text content"
   end
 
-  test "should remove cookie with negative max-age", %{page: page, server: server} do
+  test "FE-114 should remove cookie with negative max-age", %{page: page, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["a=v; max-age=100000", "b=v; max-age=100000", "c=v"]) |> Plug.Conn.send_resp(200, "")
     end)
@@ -567,7 +596,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(server_request, "cookie") == "c=v"
   end
 
-  test "should remove cookie with expires far in the past", %{page: page, server: server} do
+  test "FE-115 should remove cookie with expires far in the past", %{page: page, server: server} do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["a=v; max-age=1000000"]) |> Plug.Conn.send_resp(200, "")
     end)
@@ -584,7 +613,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     refute request_header(server_request, "cookie")
   end
 
-  test "should handle cookies on redirects", %{context: context, server: server, browser_name: browser_name} do
+  test "FE-116 should handle cookies on redirects", %{context: context, server: server, browser_name: browser_name} do
     TestServer.set_route(server, "/redirect1", fn conn ->
       conn
       |> set_cookies(["r1=v1;SameSite=Lax"])
@@ -644,7 +673,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
              ])
   end
 
-  test "should return raw headers", %{context: context, server: server} do
+  test "FE-117 should return raw headers", %{context: context, server: server} do
     TestServer.set_route(server, "/headers", fn conn ->
       # Plug lowercases header names, so we write directly to the socket.
       socket_write(
@@ -673,7 +702,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.headers(response)["name-b"] == "v4"
   end
 
-  test "should work with http credentials", %{context: context, server: server} do
+  test "FE-118 should work with http credentials", %{context: context, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     task = TestServer.wait_for_request(server, "/empty.html")
 
@@ -687,7 +716,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request.request_path == "/empty.html"
   end
 
-  test "should work with setHTTPCredentials", %{context: context, server: server} do
+  test "FE-119 should work with setHTTPCredentials", %{context: context, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     response1 = APIRequestContext.get!(BrowserContext.request(context), server.empty_page)
     assert APIResponse.status(response1) == 401
@@ -697,14 +726,14 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response2) == 200
   end
 
-  test "should return error with wrong credentials", %{context: context, server: server} do
+  test "FE-120 should return error with wrong credentials", %{context: context, server: server} do
     TestServer.set_auth(server, "/empty.html", "user", "pass")
     BrowserContext.set_http_credentials!(context, %{username: "user", password: "wrong"})
     response2 = APIRequestContext.get!(BrowserContext.request(context), server.empty_page)
     assert APIResponse.status(response2) == 401
   end
 
-  test "should support multiple httpCredentials", %{context_factory: context_factory, server: server} do
+  test "FE-121 should support multiple httpCredentials", %{context_factory: context_factory, server: server} do
     TestServer.set_auth(server, "/empty.html", "user1", "pass1")
 
     context =
@@ -722,7 +751,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response2) == 401
   end
 
-  test "should support HTTPCredentials.send for newContext", %{context_factory: context_factory, server: server} do
+  test "FE-122 should support HTTPCredentials.send for newContext", %{context_factory: context_factory, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/30534
     context =
       context_factory.(
@@ -743,7 +772,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response) == 200
   end
 
-  test "should support HTTPCredentials.send for browser.newPage", %{server: server, browser: browser} do
+  test "FE-123 should support HTTPCredentials.send for browser.newPage", %{server: server, browser: browser} do
     # annotation: https://github.com/microsoft/playwright/issues/30534
     page =
       Browser.new_page!(browser,
@@ -775,31 +804,31 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request.request_path == "/simple.json"
   end
 
-  test "delete should support post data", %{context: context, server: server} do
+  test "FE-124 delete should support post data", %{context: context, server: server} do
     assert_post_data(:delete, "DELETE", context, server)
   end
 
-  test "get should support post data", %{context: context, server: server} do
+  test "FE-125 get should support post data", %{context: context, server: server} do
     assert_post_data(:get, "GET", context, server)
   end
 
-  test "head should support post data", %{context: context, server: server} do
+  test "FE-126 head should support post data", %{context: context, server: server} do
     assert_post_data(:head, "HEAD", context, server)
   end
 
-  test "patch should support post data", %{context: context, server: server} do
+  test "FE-127 patch should support post data", %{context: context, server: server} do
     assert_post_data(:patch, "PATCH", context, server)
   end
 
-  test "post should support post data", %{context: context, server: server} do
+  test "FE-128 post should support post data", %{context: context, server: server} do
     assert_post_data(:post, "POST", context, server)
   end
 
-  test "put should support post data", %{context: context, server: server} do
+  test "FE-129 put should support post data", %{context: context, server: server} do
     assert_post_data(:put, "PUT", context, server)
   end
 
-  test "should add default headers", %{context: context, server: server, page: page} do
+  test "FE-130 should add default headers", %{context: context, server: server, page: page} do
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(BrowserContext.request(context), server.empty_page)
     request = Task.await(task, :infinity)
@@ -809,7 +838,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(request, "accept-encoding") == "gzip,deflate,br"
   end
 
-  test "should send content-length", %{context: context, server: server} do
+  test "FE-131 should send content-length", %{context: context, server: server} do
     bytes = :binary.list_to_bin(Enum.to_list(0..255))
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.post!(BrowserContext.request(context), server.empty_page, data: {:binary, bytes})
@@ -818,7 +847,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(request, "content-type") == "application/octet-stream"
   end
 
-  test "should add default headers to redirects", %{context: context, server: server, page: page} do
+  test "FE-132 should add default headers to redirects", %{context: context, server: server, page: page} do
     TestServer.set_redirect(server, "/redirect", "/empty.html")
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.get!(BrowserContext.request(context), "#{server.prefix}/redirect")
@@ -829,7 +858,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(request, "accept-encoding") == "gzip,deflate,br"
   end
 
-  test "should allow to override default headers", %{context: context, server: server} do
+  test "FE-133 should allow to override default headers", %{context: context, server: server} do
     task = TestServer.wait_for_request(server, "/empty.html")
 
     APIRequestContext.get!(BrowserContext.request(context), server.empty_page,
@@ -842,7 +871,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(request, "accept-encoding") == "br"
   end
 
-  test "should propagate custom headers with redirects", %{context: context, server: server} do
+  test "FE-134 should propagate custom headers with redirects", %{context: context, server: server} do
     TestServer.set_redirect(server, "/a/redirect1", "/b/c/redirect2")
     TestServer.set_redirect(server, "/b/c/redirect2", "/simple.json")
 
@@ -856,7 +885,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(req3, "foo") == "bar"
   end
 
-  test "should propagate extra http headers with redirects", %{context: context, server: server} do
+  test "FE-135 should propagate extra http headers with redirects", %{context: context, server: server} do
     TestServer.set_redirect(server, "/a/redirect1", "/b/c/redirect2")
     TestServer.set_redirect(server, "/b/c/redirect2", "/simple.json")
     BrowserContext.set_extra_http_headers!(context, %{"My-Secret" => "Value"})
@@ -871,7 +900,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(req3, "my-secret") == "Value"
   end
 
-  test "should throw on invalid header value", %{context: context, server: server} do
+  test "FE-136 should throw on invalid header value", %{context: context, server: server} do
     {:error, error} =
       APIRequestContext.get(BrowserContext.request(context), "#{server.prefix}/a/redirect1",
         headers: %{"foo" => "недопустимое значение"}
@@ -880,14 +909,14 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "Invalid character in header content"
   end
 
-  test "should throw on non-http(s) protocol", %{context: context} do
+  test "FE-137 should throw on non-http(s) protocol", %{context: context} do
     {:error, error1} = APIRequestContext.get(BrowserContext.request(context), "data:text/plain,test")
     assert Exception.message(error1) =~ ~s(Protocol "data:" not supported)
     {:error, error2} = APIRequestContext.get(BrowserContext.request(context), "file:///tmp/foo")
     assert Exception.message(error2) =~ ~s(Protocol "file:" not supported)
   end
 
-  test "should support https", %{https_server: https_server, browser_name: browser_name} do
+  test "FE-138 should support https", %{https_server: https_server, browser_name: browser_name} do
     # process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0': the driver is another process, so a
     # driver of its own started with it; NODE_NO_WARNINGS for suppressCertificateWarning()
     playwright =
@@ -910,14 +939,17 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     Browser.close!(browser)
   end
 
-  test "should inherit ignoreHTTPSErrors from context", %{context_factory: context_factory, https_server: https_server} do
+  test "FE-139 should inherit ignoreHTTPSErrors from context", %{
+    context_factory: context_factory,
+    https_server: https_server
+  } do
     # contextOptions is empty here
     context = context_factory.(ignore_https_errors: true)
     response = APIRequestContext.get!(BrowserContext.request(context), https_server.empty_page)
     assert APIResponse.status(response) == 200
   end
 
-  test "should resolve url relative to baseURL", %{server: server, context_factory: context_factory} do
+  test "FE-140 should resolve url relative to baseURL", %{server: server, context_factory: context_factory} do
     context = context_factory.(base_url: server.prefix)
     response = APIRequestContext.get!(BrowserContext.request(context), "/empty.html")
     assert APIResponse.url(response) == server.empty_page
@@ -935,44 +967,44 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     conn
   end
 
-  test "should support gzip compression", %{context: context, server: server} do
+  test "FE-141 should support gzip compression", %{context: context, server: server} do
     TestServer.set_route(server, "/compressed", &send_encoded(&1, "gzip", :zlib.gzip("Hello, world!")))
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/compressed")
     assert APIResponse.text!(response) == "Hello, world!"
   end
 
-  test "should support case-insensitive content-encoding", %{context: context, server: server} do
+  test "FE-142 should support case-insensitive content-encoding", %{context: context, server: server} do
     TestServer.set_route(server, "/compressed-uppercase", &send_encoded(&1, "GZIP", :zlib.gzip("Hello, world!")))
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/compressed-uppercase")
     assert APIResponse.text!(response) == "Hello, world!"
   end
 
-  test "should throw informative error on corrupted gzip body", %{context: context, server: server} do
+  test "FE-143 should throw informative error on corrupted gzip body", %{context: context, server: server} do
     TestServer.set_route(server, "/corrupted", &send_encoded(&1, "gzip", "Hello, world!"))
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/corrupted")
     assert Exception.message(error) =~ "failed to decompress 'gzip' encoding"
   end
 
-  test "should support brotli compression", %{context: context, server: server} do
+  test "FE-144 should support brotli compression", %{context: context, server: server} do
     TestServer.set_route(server, "/compressed", &send_encoded(&1, "br", brotli_compress("Hello, world!")))
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/compressed")
     assert APIResponse.text!(response) == "Hello, world!"
   end
 
-  test "should throw informative error on corrupted brotli body", %{context: context, server: server} do
+  test "FE-145 should throw informative error on corrupted brotli body", %{context: context, server: server} do
     TestServer.set_route(server, "/corrupted", &send_encoded(&1, "br", "Hello, world!"))
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/corrupted")
     assert Exception.message(error) =~ "failed to decompress 'br' encoding"
   end
 
-  test "should support deflate compression", %{context: context, server: server} do
+  test "FE-146 should support deflate compression", %{context: context, server: server} do
     # zlib.createDeflate is the zlib format.
     TestServer.set_route(server, "/compressed", &send_encoded(&1, "deflate", :zlib.compress("Hello, world!")))
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/compressed")
     assert APIResponse.text!(response) == "Hello, world!"
   end
 
-  test "should throw informative error on corrupted deflate body", %{context: context, server: server} do
+  test "FE-147 should throw informative error on corrupted deflate body", %{context: context, server: server} do
     TestServer.set_route(server, "/corrupted", &send_encoded(&1, "deflate", "Hello, world!"))
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/corrupted")
     assert Exception.message(error) =~ "failed to decompress 'deflate' encoding"
@@ -983,13 +1015,13 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     wait_for_close(conn)
   end
 
-  test "should support timeout option", %{context: context, server: server} do
+  test "FE-148 should support timeout option", %{context: context, server: server} do
     TestServer.set_route(server, "/slow", &send_head_and_hang/1)
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.prefix <> "/slow", timeout: 10)
     assert Exception.message(error) =~ "apiRequestContext.get: Timeout 10ms exceeded"
   end
 
-  test "should support a timeout of 0", %{context: context, server: server} do
+  test "FE-149 should support a timeout of 0", %{context: context, server: server} do
     TestServer.set_route(server, "/slow", fn conn ->
       socket_write(conn, raw_head("200 OK", [{"content-length", "4"}, {"content-type", "text/html"}]))
       Process.sleep(50)
@@ -1001,7 +1033,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.text!(response) == "done"
   end
 
-  test "should respect timeout after redirects", %{context: context, server: server} do
+  test "FE-150 should respect timeout after redirects", %{context: context, server: server} do
     TestServer.set_redirect(server, "/redirect", "/slow")
     TestServer.set_route(server, "/slow", &send_head_and_hang/1)
 
@@ -1010,7 +1042,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "apiRequestContext.get: Timeout 100ms exceeded"
   end
 
-  test "should not hang on a brotli encoded Range request", %{context: context, server: server} do
+  test "FE-151 should not hang on a brotli encoded Range request", %{context: context, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/18190
     # it.skip(nodeVersion.major < 18)  -- the driver's Node is recent
     encoded_request_payload = brotli_compress("A")
@@ -1039,7 +1071,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ ~r/Parse Error: Expected HTTP\//
   end
 
-  test "should dispose", %{context: context, server: server} do
+  test "FE-152 should dispose", %{context: context, server: server} do
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json")
     assert APIResponse.json!(response) == %{"foo" => "bar"}
     APIResponse.dispose!(response)
@@ -1047,7 +1079,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "Response has been disposed"
   end
 
-  test "should dispose when context closes", %{context: context, server: server} do
+  test "FE-153 should dispose when context closes", %{context: context, server: server} do
     response = APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json")
     assert APIResponse.json!(response) == %{"foo" => "bar"}
     BrowserContext.close!(context)
@@ -1055,7 +1087,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "Response has been disposed"
   end
 
-  test "should override request parameters", %{context: context, page: page, server: server} do
+  test "FE-154 should override request parameters", %{context: context, page: page, server: server} do
     page_req = Page.expect_request!(page, "**/*", fn -> Page.goto!(page, server.empty_page) end)
     task = TestServer.wait_for_request(server, "/empty.html")
 
@@ -1071,7 +1103,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert req.assigns.post_body == "data"
   end
 
-  test "should support application/x-www-form-urlencoded", %{context: context, server: server} do
+  test "FE-155 should support application/x-www-form-urlencoded", %{context: context, server: server} do
     task = TestServer.wait_for_request(server, "/empty.html")
 
     APIRequestContext.post!(BrowserContext.request(context), server.empty_page,
@@ -1089,7 +1121,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert params["file"] == "f.js"
   end
 
-  test "should support application/x-www-form-urlencoded with param lists", %{context: context, server: server} do
+  test "FE-156 should support application/x-www-form-urlencoded with param lists", %{context: context, server: server} do
     # FormData: a keyword list.
     form = [foo: "1"]
     form = form ++ [foo: "2"]
@@ -1103,7 +1135,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert get_all(body, "foo") == ["1", "2"]
   end
 
-  test "should encode to application/json by default", %{context: context, server: server} do
+  test "FE-157 should encode to application/json by default", %{context: context, server: server} do
     data = %{"firstName" => "John", "lastName" => "Doe", "file" => %{"name" => "f.js"}}
     task = TestServer.wait_for_request(server, "/empty.html")
     APIRequestContext.post!(BrowserContext.request(context), server.empty_page, data: data)
@@ -1115,7 +1147,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert json == data
   end
 
-  test "should support multipart/form-data", %{context: context, server: server} do
+  test "FE-158 should support multipart/form-data", %{context: context, server: server} do
     form_received = TestServer.wait_for_request(server, "/empty.html")
     file = %{name: "f.js", mimeType: "text/javascript", buffer: "var x = 10;\r\n;console.log(x);"}
 
@@ -1139,7 +1171,38 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response) == 200
   end
 
-  test "should support multipart/form-data with ReadStream values", %{context: context, asset: asset, server: server} do
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43422' }
+  test "FE-159 should escape quotes and newlines in multipart field and file names", %{context: context, server: server} do
+    body_received = TestServer.wait_for_request(server, "/empty.html")
+
+    APIRequestContext.post!(BrowserContext.request(context), server.empty_page,
+      # A list of pairs: Elixir maps have no insertion order.
+      multipart: [
+        {"say\"hi\nthere", "v1"},
+        {"file", %{name: "report \"final\"\r\n.txt", mimeType: "text/plain", buffer: "hello"}}
+      ]
+    )
+
+    server_request = Task.await(body_received, :infinity)
+    body = server_request.assigns.post_body
+    headers = body |> String.split("\r\n") |> Enum.filter(&String.starts_with?(&1, "content-disposition"))
+
+    assert headers == [
+             ~s|content-disposition: form-data; name="say%22hi%0D%0Athere"|,
+             ~s|content-disposition: form-data; name="file"; filename="report %22final%22%0D%0A.txt"|
+           ]
+
+    # Node's standard multipart parser expects that escaping.
+    form = form_data(parse_multipart(server_request))
+    assert form["say\"hi\r\nthere"] == "v1"
+    assert form["file"] == "hello"
+  end
+
+  test "FE-160 should support multipart/form-data with ReadStream values", %{
+    context: context,
+    asset: asset,
+    server: server
+  } do
     form_received = TestServer.wait_for_request(server, "/empty.html")
     read_stream = File.stream!(asset.("simplezip.json"))
 
@@ -1163,7 +1226,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response) == 200
   end
 
-  test "should support multipart/form-data and keep the order", %{context: context, server: server} do
+  test "FE-161 should support multipart/form-data and keep the order", %{context: context, server: server} do
     # A keyword list: Elixir maps have no insertion order.
     given = [firstName: "John", lastName: "Doe", age: 27]
     given = given ++ [foo: "bar"]
@@ -1176,7 +1239,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response) == 200
   end
 
-  test "should support repeating names in multipart/form-data", %{context: context, server: server} do
+  test "FE-162 should support repeating names in multipart/form-data", %{context: context, server: server} do
     test_pid = self()
 
     TestServer.set_route(server, "/empty.html", fn req ->
@@ -1215,7 +1278,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert APIResponse.status(response) == 200
   end
 
-  test "should serialize data to json regardless of content-type", %{context: context, server: server} do
+  test "FE-163 should serialize data to json regardless of content-type", %{context: context, server: server} do
     data = %{"firstName" => "John", "lastName" => "Doe"}
     task = TestServer.wait_for_request(server, "/empty.html")
 
@@ -1231,7 +1294,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert body == JSON.encode!(data)
   end
 
-  test "should throw nice error on unsupported data type", %{context: context, server: server} do
+  test "FE-164 should throw nice error on unsupported data type", %{context: context, server: server} do
     {:error, error} =
       APIRequestContext.post(BrowserContext.request(context), server.empty_page,
         headers: %{"content-type" => "application/json"},
@@ -1241,7 +1304,11 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert Exception.message(error) =~ "Unexpected 'data' type"
   end
 
-  test "context request should export same storage state as context", %{context: context, page: page, server: server} do
+  test "FE-165 context request should export same storage state as context", %{
+    context: context,
+    page: page,
+    server: server
+  } do
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["a=b", "c=d"]) |> Plug.Conn.send_resp(200, "")
     end)
@@ -1255,7 +1322,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert page_state == context_state
   end
 
-  test "should send secure cookie over http for localhost", %{page: page, server: server} do
+  test "FE-166 should send secure cookie over http for localhost", %{page: page, server: server} do
     # it.skip(channel === 'webkit-wsl')  -- we run no channel
     TestServer.set_route(server, "/setcookie.html", fn conn ->
       conn |> set_cookies(["a=v; secure"]) |> Plug.Conn.send_resp(200, "")
@@ -1268,7 +1335,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert request_header(server_request, "cookie") == "a=v"
   end
 
-  test "should accept bool and numeric params and filter out undefined", %{page: page, server: server} do
+  test "FE-167 should accept bool and numeric params and filter out undefined", %{page: page, server: server} do
     test_pid = self()
     # Elixir maps have no insertion order: the query follows the map's order, as the request's.
     search = URI.encode_query(%{"str" => "s", "num" => "10", "bool" => "true", "bool2" => "false"})
@@ -1291,7 +1358,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     refute Map.has_key?(params, "none")
   end
 
-  test "should abort requests when browser context closes", %{context_factory: context_factory, server: server} do
+  test "FE-168 should abort requests when browser context closes", %{context_factory: context_factory, server: server} do
     test_pid = self()
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -1314,7 +1381,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium only")
-  test "should work with connectOverCDP", %{browser_type: browser_type, server: server} do
+  test "FE-169 should work with connectOverCDP", %{browser_type: browser_type, server: server} do
     # `9339 + testInfo.workerIndex`: a free port (modules run in parallel).
     {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
     {:ok, port} = :inet.port(socket)
@@ -1333,7 +1400,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     end
   end
 
-  test "should support SameSite cookie attribute over https", %{
+  test "FE-170 should support SameSite cookie attribute over https", %{
     context_factory: context_factory,
     https_server: https_server,
     browser_name: browser_name
@@ -1360,7 +1427,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     end
   end
 
-  test "should set domain=localhost cookie", %{context: context, server: server} do
+  test "FE-171 should set domain=localhost cookie", %{context: context, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn |> set_cookies(["name=val; Domain=#{server.hostname}; Path=/;"]) |> Plug.Conn.send_resp(200, "")
     end)
@@ -1372,7 +1439,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert cookie.value == "val"
   end
 
-  test "fetch should not throw on long set-cookie value", %{context: context, server: server} do
+  test "FE-172 fetch should not throw on long set-cookie value", %{context: context, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/27165
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn |> set_cookies(["foo=#{String.duplicate("a", 4100)}; path=/;", "bar=val"]) |> Plug.Conn.send_resp(200, "")
@@ -1383,7 +1450,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert "bar" in Enum.map(cookies, & &1.name)
   end
 
-  test "should support set-cookie with SameSite and without Secure attribute over HTTP", %{
+  test "FE-173 should support set-cookie with SameSite and without Secure attribute over HTTP", %{
     page: page,
     server: server,
     browser_name: browser_name
@@ -1407,7 +1474,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     end
   end
 
-  test "should update host header on redirect", %{context: context, server: server} do
+  test "FE-174 should update host header on redirect", %{context: context, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/26743
     {:ok, redirect_count} = Agent.start_link(fn -> 0 end)
 
@@ -1440,20 +1507,20 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
              URI.parse(server.cross_process_prefix).authority
   end
 
-  test "should not work after dispose", %{context: context, server: server} do
+  test "FE-175 should not work after dispose", %{context: context, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/27822
     APIRequestContext.dispose!(BrowserContext.request(context))
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.empty_page)
     assert Exception.message(error) =~ @k_target_closed_error_message
   end
 
-  test "should not work after context dispose", %{context: context, server: server} do
+  test "FE-176 should not work after context dispose", %{context: context, server: server} do
     BrowserContext.close!(context, reason: "Test ended.")
     {:error, error} = APIRequestContext.get(BrowserContext.request(context), server.empty_page)
     assert Exception.message(error) =~ "Test ended."
   end
 
-  test "should retry on ECONNRESET", %{context: context, server: server} do
+  test "FE-177 should retry on ECONNRESET", %{context: context, server: server} do
     # annotation: https://github.com/microsoft/playwright/issues/30978
     request_count = :counters.new(1, [])
 
@@ -1473,7 +1540,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert :counters.get(request_count, 1) == 4
   end
 
-  test "should retry ECONNRESET on compressed response", %{context: context, server: server} do
+  test "FE-178 should retry ECONNRESET on compressed response", %{context: context, server: server} do
     request_count = :counters.new(1, [])
 
     TestServer.set_route(server, "/test-gzip", fn conn ->
@@ -1490,7 +1557,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     assert :counters.get(request_count, 1) == 3
   end
 
-  test "should retry ECONNRESET mid-stream during gzip decompression", %{context: context, server: server} do
+  test "FE-179 should retry ECONNRESET mid-stream during gzip decompression", %{context: context, server: server} do
     request_count = :counters.new(1, [])
 
     TestServer.set_route(server, "/test-gzip-midstream", fn conn ->

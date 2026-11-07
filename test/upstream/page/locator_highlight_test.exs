@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Page.LocatorHighlightTest do
 
   # it.skip(({ mode }) => mode !== 'default', ...)  -- always default mode
 
-  test "should highlight locator", %{page: page} do
+  test "LO-114 should highlight locator", %{page: page} do
     Page.set_content!(page, "<input type='text' />")
     Locator.highlight!(Page.locator(page, "input"))
     Expect.to_have_text!(Page.locator(page, "x-pw-tooltip"), "locator('input')")

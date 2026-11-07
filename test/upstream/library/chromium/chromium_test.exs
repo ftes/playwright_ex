@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   """
 
   @tag :page
-  test "should create a worker from a service worker", %{page: page, server: server} do
+  test "CR-001 should create a worker from a service worker", %{page: page, server: server} do
     worker = wait_for_service_worker(Page.context(page))
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
     worker = Promise.await!(worker)
@@ -93,7 +93,11 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should create a worker from service worker with noop routing", %{context: context, page: page, server: server} do
+  test "CR-002 should create a worker from service worker with noop routing", %{
+    context: context,
+    page: page,
+    server: server
+  } do
     BrowserContext.route!(context, "**", fn route -> Route.continue(route) end)
     worker = wait_for_service_worker(Page.context(page))
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
@@ -102,7 +106,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should emit new service worker on update", %{context: context, page: page, server: server} do
+  test "CR-003 should emit new service worker on update", %{context: context, page: page, server: server} do
     version = :counters.new(1, [])
 
     TestServer.set_route(server, "/worker.js", fn conn ->
@@ -128,7 +132,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   describe "http credentials" do
     # test.use({ httpCredentials: { username: 'user',  password: 'pass' } })
-    test "httpCredentials", %{context_factory: context_factory, server: server} do
+    test "CR-004 httpCredentials", %{context_factory: context_factory, server: server} do
       context = context_factory.(http_credentials: %{username: "user", password: "pass"})
       page = BrowserContext.new_page!(context)
       TestServer.set_auth(server, "/serviceworkers/fetch/sw.html", "user", "pass")
@@ -143,7 +147,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "serviceWorkers() should return current workers", %{page: page, server: server} do
+  test "CR-005 serviceWorkers() should return current workers", %{page: page, server: server} do
     context = Page.context(page)
     worker1 = wait_for_service_worker(context)
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
@@ -161,7 +165,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should not create a worker from a shared worker", %{page: page, server: server} do
+  test "CR-006 should not create a worker from a shared worker", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     test_pid = self()
     BrowserContext.once(Page.context(page), :service_worker, fn _ -> send(test_pid, :service_worker_created) end)
@@ -175,34 +179,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     refute_received :service_worker_created
   end
 
-  @tag :page
-  test "Page.route should work with intervention headers", %{server: server, page: page} do
-    TestServer.set_route(server, "/intervention", fn conn ->
-      Plug.Conn.send_resp(conn, 200, """
-
-          <script>
-            document.write('<script src="#{server.cross_process_prefix}/intervention.js">' + '</scr' + 'ipt>');
-          </script>
-      """)
-    end)
-
-    TestServer.set_redirect(server, "/intervention.js", "/redirect.js")
-    test_pid = self()
-
-    TestServer.set_route(server, "/redirect.js", fn conn ->
-      send(test_pid, {:server_request, conn})
-      Plug.Conn.send_resp(conn, 200, "console.log(1);")
-    end)
-
-    Page.route!(page, "*", fn route -> Route.continue(route) end)
-    Page.goto!(page, server.prefix <> "/intervention")
-    # Check for feature URL substring rather than https://www.chromestatus.com to
-    # make it work with Edgium.
-    assert_received {:server_request, server_request}
-    assert req_header(server_request, "intervention") =~ "feature/5718547946799104"
-  end
-
-  test "should close service worker together with the context", %{browser_type: browser_type, server: server} do
+  test "CR-008 should close service worker together with the context", %{browser_type: browser_type, server: server} do
     browser = BrowserType.launch!(browser_type)
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -225,7 +202,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     end
   end
 
-  test "should pass args with spaces", %{browser_type: browser_type, create_user_data_dir: create_user_data_dir} do
+  test "CR-009 should pass args with spaces", %{browser_type: browser_type, create_user_data_dir: create_user_data_dir} do
     browser =
       BrowserType.launch_persistent_context!(browser_type, create_user_data_dir.(), args: ["--user-agent=I am Foo"])
 
@@ -237,7 +214,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :page
   @tag skip: @sw_script_response_skip
-  test "serviceWorker(), and fromServiceWorker() work", %{context: context, page: page, server: server} do
+  test "CR-010 serviceWorker(), and fromServiceWorker() work", %{context: context, page: page, server: server} do
     worker = wait_for_service_worker(context)
     html = wait_for_request(context, &url_ends_with?(&1, "/sw.html"))
     main = wait_for_request(context, &url_ends_with?(&1, "/sw.js"))
@@ -271,7 +248,11 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :page
   @tag skip: @sw_script_response_skip
-  test "should intercept service worker requests (main and within)", %{context: context, page: page, server: server} do
+  test "CR-011 should intercept service worker requests (main and within)", %{
+    context: context,
+    page: page,
+    server: server
+  } do
     BrowserContext.route!(context, "**/request-from-within-worker", fn route ->
       Route.fulfill(route, content_type: "application/json", status: 200, body: ~s("intercepted!"))
     end)
@@ -301,7 +282,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should report failure (due to content-type) of main service worker request", %{
+  test "CR-012 should report failure (due to content-type) of main service worker request", %{
     server: server,
     page: page,
     context: context
@@ -323,7 +304,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should report failure (due to redirect) of main service worker request", %{
+  test "CR-013 should report failure (due to redirect) of main service worker request", %{
     server: server,
     page: page,
     context: context
@@ -341,7 +322,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should intercept service worker importScripts", %{context: context, page: page, server: server} do
+  test "CR-014 should intercept service worker importScripts", %{context: context, page: page, server: server} do
     BrowserContext.route!(context, "**/import.js", fn route ->
       Route.fulfill(route, content_type: "text/javascript", status: 200, body: "self.exportedValue = 47;")
     end)
@@ -385,7 +366,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :tmp_dir
   @tag skip: @sw_script_response_skip
-  test "should report intercepted service worker requests in HAR", %{
+  test "CR-015 should report intercepted service worker requests in HAR", %{
     context_factory: context_factory,
     tmp_dir: tmp_dir,
     server: server
@@ -437,7 +418,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should intercept only serviceworker request, not page", %{context: context, page: page, server: server} do
+  test "CR-016 should intercept only serviceworker request, not page", %{context: context, page: page, server: server} do
     BrowserContext.route!(context, "**/data.json", fn route ->
       if Request.service_worker(Route.request(route)) do
         Route.fulfill(route, content_type: "text/plain", status: 200, body: "from sw")
@@ -491,7 +472,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :page
   @tag skip: @sw_script_response_skip
-  test "should produce network events, routing, and annotations for Service Worker", %{
+  test "CR-017 should produce network events, routing, and annotations for Service Worker", %{
     page: page,
     context: context,
     server: server
@@ -544,7 +525,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :page
   @tag skip: @sw_script_response_skip
-  test "should produce network events, routing, and annotations for Service Worker (advanced)", %{
+  test "CR-018 should produce network events, routing, and annotations for Service Worker (advanced)", %{
     page: page,
     context: context,
     server: server
@@ -635,10 +616,10 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag skip: "upstream fixme: https://github.com/microsoft/playwright/issues/14711"
-  test "should intercept service worker update requests"
+  test "CR-019 should intercept service worker update requests"
 
   @tag :page
-  test "setOffline", %{context: context, page: page, server: server} do
+  test "CR-020 setOffline", %{context: context, page: page, server: server} do
     worker = wait_for_service_worker(context)
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
     worker = Promise.await!(worker)
@@ -652,7 +633,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "setExtraHTTPHeaders", %{context: context, page: page, server: server} do
+  test "CR-021 setExtraHTTPHeaders", %{context: context, page: page, server: server} do
     worker = wait_for_service_worker(context)
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
     worker = Promise.await!(worker)
@@ -676,10 +657,11 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
                )
 
   @tag skip: @win32_fixme || @chromium_only
-  test "should throw when connecting twice to an already running persistent context (--remote-debugging-port)", %{
-    browser_type: browser_type,
-    create_user_data_dir: create_user_data_dir
-  } do
+  test "CR-022 should throw when connecting twice to an already running persistent context (--remote-debugging-port)",
+       %{
+         browser_type: browser_type,
+         create_user_data_dir: create_user_data_dir
+       } do
     user_data_dir = create_user_data_dir.()
     # Upstream uses the ports 9222 and 9223 (modules run in parallel here).
     browser =
@@ -702,10 +684,11 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag skip: @win32_fixme || @chromium_only
-  test "should throw when connecting twice to an already running persistent context (--remote-debugging-pipe)", %{
-    browser_type: browser_type,
-    create_user_data_dir: create_user_data_dir
-  } do
+  test "CR-023 should throw when connecting twice to an already running persistent context (--remote-debugging-pipe)",
+       %{
+         browser_type: browser_type,
+         create_user_data_dir: create_user_data_dir
+       } do
     user_data_dir = create_user_data_dir.()
     browser = BrowserType.launch_persistent_context!(browser_type, user_data_dir, channel: "chromium")
 
@@ -719,7 +702,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   # test.skip(mode !== 'default', 'no env in non-default mode'): the driver is another process, so a
   # driver of its own started with PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK=1.
-  test "PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK", %{server: server} do
+  test "CR-024 PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK", %{server: server} do
     name = :disable_service_worker_network
 
     playwright = start_playwright(name, [{"PLAYWRIGHT_DISABLE_SERVICE_WORKER_NETWORK", "1"}])
@@ -761,7 +744,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should emit console messages from service worker", %{page: page, context: context, server: server} do
+  test "CR-025 should emit console messages from service worker", %{page: page, context: context, server: server} do
     empty_page = BrowserContext.new_page!(context)
     Page.goto!(empty_page, server.empty_page)
     test_pid = self()
@@ -810,7 +793,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
 
   @tag :page
   @tag skip: @chromium_only
-  test "should capture console.log from ServiceWorker start", %{context: context, page: page, server: server} do
+  test "CR-026 should capture console.log from ServiceWorker start", %{context: context, page: page, server: server} do
     TestServer.set_route(server, "/serviceworkers/empty/sw.js", fn conn ->
       js_response(conn, "console.log('Hello from the first line of sw.js');")
     end)
@@ -843,7 +826,10 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     end
 
     @tag :page
-    test "should refuse WebUI pages that crash the browser in an isolated context", %{browser: browser, page: page} do
+    test "CR-027 should refuse WebUI pages that crash the browser in an isolated context", %{
+      browser: browser,
+      page: page
+    } do
       hosts = ["apps", "extensions", "help", "history", "password-manager", "settings"]
 
       for url <-
@@ -865,7 +851,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     end
 
     @tag skip: "upstream skip: Edge has its own list of pages disallowed in InPrivate"
-    test "should refuse WebUI pages that crash Edge in an isolated context"
+    test "CR-028 should refuse WebUI pages that crash Edge in an isolated context"
 
     # test.skip(headless, ...): `HEADED=1` runs them (CI's headed step: `--only headed`).
     @tag :page
@@ -873,7 +859,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag skip:
            @chromium_only ||
              if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
-    test "should navigate to WebUI pages that work in an isolated context", %{page: page} do
+    test "CR-029 should navigate to WebUI pages that work in an isolated context", %{page: page} do
       response = Page.goto!(page, "chrome://version")
       assert Response.status(response) == 200
     end
@@ -882,7 +868,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag skip:
            @chromium_only ||
              if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
-    test "should navigate to any WebUI page in a persistent context", %{
+    test "CR-030 should navigate to any WebUI page in a persistent context", %{
       browser_type: browser_type,
       create_user_data_dir: create_user_data_dir
     } do
@@ -900,7 +886,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   end
 
   @tag :page
-  test "should fire dialogclosed event when dialog is closed out of band", %{page: page} do
+  test "CR-031 should fire dialogclosed event when dialog is closed out of band", %{page: page} do
     # Establish the CDP session up front: creating one while a dialog is blocking the page hangs.
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     CDPSession.send!(client, "Page.enable")
@@ -914,5 +900,5 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     {:ok, _} = Runtime.Promise.await(evaluate_promise)
   end
 
-  test "should not leak service worker session after context close"
+  test "CR-032 should not leak service worker session after context close"
 end

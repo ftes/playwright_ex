@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
 
   @moduletag :page
 
-  test "should respect first() and last() @smoke", %{page: page} do
+  test "LO-157 should respect first() and last() @smoke", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div><p>A</p></div>
@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     assert Locator.count!(Locator.locator(Locator.last(Page.locator(page, "div")), "p")) == 3
   end
 
-  test "should respect nth()", %{page: page} do
+  test "LO-158 should respect nth()", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div><p>A</p></div>
@@ -41,51 +41,51 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     assert Locator.count!(Locator.locator(Locator.nth(Page.locator(page, "div"), 2), "p")) == 3
   end
 
-  test "should throw on capture w/ nth()", %{page: page} do
+  test "LO-159 should throw on capture w/ nth()", %{page: page} do
     Page.set_content!(page, "<section><div><p>A</p></div></section>")
     {:error, e} = Locator.click(Locator.nth(Page.locator(page, "*css=div >> p"), 1))
     assert Exception.message(e) =~ "Can't query n-th element"
   end
 
-  test "should throw on due to strictness", %{page: page} do
+  test "LO-160 should throw on due to strictness", %{page: page} do
     Page.set_content!(page, "<div>A</div><div>B</div>")
     {:error, e} = Locator.is_visible(Page.locator(page, "div"))
     assert Exception.message(e) =~ "strict mode violation"
   end
 
-  test "should throw on due to strictness 2", %{page: page} do
+  test "LO-161 should throw on due to strictness 2", %{page: page} do
     Page.set_content!(page, "<select><option>One</option><option>Two</option></select>")
     {:error, e} = Locator.evaluate(Page.locator(page, "option"), "e => {}")
     assert Exception.message(e) =~ "strict mode violation"
   end
 
-  test "should filter by text", %{page: page} do
+  test "LO-162 should filter by text", %{page: page} do
     Page.set_content!(page, "<div>Foobar</div><div>Bar</div>")
     Expect.to_have_text!(Page.locator(page, "div", has_text: "Foo"), "Foobar")
   end
 
-  test "should filter by text 2", %{page: page} do
+  test "LO-163 should filter by text 2", %{page: page} do
     Page.set_content!(page, "<div>foo <span>hello world</span> bar</div>")
     Expect.to_have_text!(Page.locator(page, "div", has_text: "hello world"), "foo hello world bar")
   end
 
-  test "should filter by regex", %{page: page} do
+  test "LO-164 should filter by regex", %{page: page} do
     Page.set_content!(page, "<div>Foobar</div><div>Bar</div>")
     Expect.to_have_text!(Page.locator(page, "div", has_text: ~r/Foo.*/), "Foobar")
   end
 
-  test "should filter by text with quotes", %{page: page} do
+  test "LO-165 should filter by text with quotes", %{page: page} do
     Page.set_content!(page, ~s|<div>Hello "world"</div><div>Hello world</div>|)
     Expect.to_have_text!(Page.locator(page, "div", has_text: ~s|Hello "world"|), ~s|Hello "world"|)
   end
 
-  test "should filter by regex with quotes", %{page: page} do
+  test "LO-166 should filter by regex with quotes", %{page: page} do
     Page.set_content!(page, ~s|<div>Hello "world"</div><div>Hello world</div>|)
     Expect.to_have_text!(Page.locator(page, "div", has_text: ~r/Hello "world"/), ~s|Hello "world"|)
   end
 
   # expect.soft: the first failure fails the test here.
-  test "should filter by regex with a single quote", %{page: page} do
+  test "LO-167 should filter by regex with a single quote", %{page: page} do
     Page.set_content!(page, "<button>let's let's<span>hello</span></button>")
     by_text = fn re -> Page.locator(page, "button", has_text: re) end
     by_role = fn re -> Page.get_by_role(page, :button, name: re) end
@@ -125,31 +125,31 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_text!(by_role.(~r/let's/iu), "let's hello")
   end
 
-  test "should filter by regex and regexp flags", %{page: page} do
+  test "LO-168 should filter by regex and regexp flags", %{page: page} do
     Page.set_content!(page, ~s|<div>Hello "world"</div><div>Hello world</div>|)
     Expect.to_have_text!(Page.locator(page, "div", has_text: ~r/hElLo "world"/i), ~s|Hello "world"|)
   end
 
-  test "should filter by case-insensitive regex in a child", %{page: page} do
+  test "LO-169 should filter by case-insensitive regex in a child", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/15348' });
     Page.set_content!(page, ~s|<div class="test"><h5>Title Text</h5></div>|)
     Expect.to_have_text!(Page.locator(page, "div", has_text: ~r/^title text$/i), "Title Text")
   end
 
-  test "should filter by case-insensitive regex in multiple children", %{page: page} do
+  test "LO-170 should filter by case-insensitive regex in multiple children", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/15348' });
     Page.set_content!(page, ~s|<div class="test"><h5>Title</h5> <h2><i>Text</i></h2></div>|)
     Expect.to_have_class!(Page.locator(page, "div", has_text: ~r/^title text$/i), "test")
   end
 
-  test "should filter by regex with special symbols", %{page: page} do
+  test "LO-171 should filter by regex with special symbols", %{page: page} do
     # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/15348' });
     Page.set_content!(page, ~s|<div class="test"><h5>First/"and"</h5><h2><i>Second\\</i></h2></div>|)
     Expect.to_have_class!(Page.locator(page, "div", has_text: ~r/^first\/".*"second\\$/si), "test")
   end
 
   # it.skip(trace === 'on')  -- tracing is not on in these tests
-  test "should support has:locator", %{page: page} do
+  test "LO-172 should support has:locator", %{page: page} do
     Page.set_content!(page, "<div><span>hello</span></div><div><span>world</span></div>")
     Expect.to_have_count!(Page.locator(page, "div", has: Page.locator(page, "text=world")), 1)
 
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
   end
 
   # it.skip(trace === 'on')  -- tracing is not on in these tests
-  test "should support locator.filter", %{page: page} do
+  test "LO-173 should support locator.filter", %{page: page} do
     Page.set_content!(page, "<section><div><span>hello</span></div><div><span>world</span></div></section>")
     div = Page.locator(page, "div")
     Expect.to_have_count!(Locator.filter(div, has_text: "hello"), 1)
@@ -192,7 +192,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_count!(Locator.filter(div, has_not_text: "foo"), 2)
   end
 
-  test "should support locator.and", %{page: page} do
+  test "LO-174 should support locator.and", %{page: page} do
     Page.set_content!(page, """
       <div data-testid=foo>hello</div><div data-testid=bar>world</div>
       <span data-testid=foo>hello2</span><span data-testid=bar>world2</span>
@@ -206,7 +206,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_count!(Locator.and_(Page.locator(page, "span"), Page.get_by_test_id(page, ~r/bar|foo/)), 2)
   end
 
-  test "should support locator.or", %{page: page} do
+  test "LO-175 should support locator.or", %{page: page} do
     Page.set_content!(page, "<div>hello</div><span>world</span>")
     loc = &Page.locator(page, &1)
     Expect.to_have_count!(Locator.or_(loc.("div"), loc.("span")), 2)
@@ -219,7 +219,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_text!(Locator.or_(loc.("span"), loc.("article")), "world")
   end
 
-  test "should support locator.locator with and/or", %{page: page} do
+  test "LO-176 should support locator.locator with and/or", %{page: page} do
     Page.set_content!(page, """
       <div>one <span>two</span> <button>three</button> </div>
       <span>four</span>
@@ -239,7 +239,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_text!(Locator.and_(loc.("button"), Page.get_by_role(page, :button)), ["three", "five"])
   end
 
-  test "should support locator.within", %{page: page} do
+  test "LO-177 should support locator.within", %{page: page} do
     Page.set_content!(page, """
       <table>
         <tr><td>a1</td><td>a2</td><td>a3</td></tr>
@@ -260,7 +260,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_text!(Locator.nth(Locator.within(Locator.nth(cell, 1), row), 1), "b2")
   end
 
-  test "should allow some, but not all nested frameLocators", %{page: page} do
+  test "LO-178 should allow some, but not all nested frameLocators", %{page: page} do
     Page.set_content!(page, ~s|<iframe srcdoc="<span id=target>world</span>"></iframe><span>hello</span>|)
     fl = fn selector, inner -> FrameLocator.locator(Page.frame_locator(page, selector), inner) end
 
@@ -278,7 +278,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
              ~s|Frame locators are not allowed inside composite locators, while querying "locator('iframe').contentFrame().locator('div').and(locator('#iframe').contentFrame().locator('span'))|
   end
 
-  test "should keep the capture when removing a common frame prefix", %{page: page} do
+  test "LO-179 should keep the capture when removing a common frame prefix", %{page: page} do
     Page.set_content!(page, ~s|<iframe id=f srcdoc="<section id=target><span>hi</span></section>"></iframe>|)
     inner = FrameLocator.locator(Page.frame_locator(page, "#f"), "*css=section >> span")
 
@@ -296,7 +296,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     assert Exception.message(error) =~ "Can not capture the selector before diving into the frame"
   end
 
-  test "should enforce same frame for has/leftOf/rightOf/above/below/near", %{page: page, server: server} do
+  test "LO-180 should enforce same frame for has/leftOf/rightOf/above/below/near", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/two-frames.html")
     child = Enum.at(Page.frames(page), 1)
 
@@ -313,7 +313,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     end
   end
 
-  test "alias methods coverage", %{page: page} do
+  test "LO-181 alias methods coverage", %{page: page} do
     Page.set_content!(page, "<div><button>Submit</button></div>")
     Expect.to_have_count!(Page.locator(page, "button"), 1)
     Expect.to_have_count!(Locator.locator(Page.locator(page, "div"), "button"), 1)
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Page.LocatorQueryTest do
     Expect.to_have_count!(Frame.locator(Page.main_frame(page), "button"), 1)
   end
 
-  test "count() should not throw during navigation", %{playwright: playwright, page: page, server: server} do
+  test "LO-182 count() should not throw during navigation", %{playwright: playwright, page: page, server: server} do
     create_dummy_selector = """
     (() => ({
       query(root, selector) {

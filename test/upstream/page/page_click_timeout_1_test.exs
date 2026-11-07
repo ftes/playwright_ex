@@ -7,9 +7,9 @@ defmodule PlaywrightEx.Page.PageClickTimeout1Test do
   @moduletag :page
 
   # it.skip(mode !== 'default'): __testHookBeforePointerAction is an in-process JS function.
-  test "should avoid side effects after timeout"
+  test "CL-110 should avoid side effects after timeout"
 
-  test "should timeout waiting for button to be enabled", %{page: page} do
+  test "CL-111 should timeout waiting for button to be enabled", %{page: page} do
     Page.set_content!(
       page,
       ~s(<button onclick="javascript:window.__CLICKED=true;" disabled><span>Click target</span></button>)
@@ -19,6 +19,19 @@ defmodule PlaywrightEx.Page.PageClickTimeout1Test do
     assert Page.evaluate!(page, "window.__CLICKED") == nil
     assert Exception.message(error) =~ "page.click: Timeout 3000ms exceeded."
     assert Exception.message(error) =~ "element is not enabled"
+    assert Exception.message(error) =~ "retrying click action"
+  end
+
+  test "CL-112 should timeout waiting for inert element to become non-inert", %{page: page} do
+    Page.set_content!(
+      page,
+      ~s(<div inert><button onclick="javascript:window.__CLICKED=true;">Click target</button></div>)
+    )
+
+    {:error, error} = Page.click(page, "text=Click target", timeout: 3000)
+    assert Page.evaluate!(page, "window.__CLICKED") == nil
+    assert Exception.message(error) =~ "page.click: Timeout 3000ms exceeded."
+    assert Exception.message(error) =~ "element is inert"
     assert Exception.message(error) =~ "retrying click action"
   end
 end

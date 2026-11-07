@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Page.PageListenersTest do
 
   # This test is mostly for type checking, the actual tests are in the library/events.
 
-  test "should not throw with ignoreErrors", %{page: page} do
+  test "EE-001 should not throw with ignoreErrors", %{page: page} do
     reached_handler = manual_promise(page)
     release_handler = manual_promise(page)
 
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Page.PageListenersTest do
     refute log =~ "Error in console handler"
   end
 
-  test "should wait", %{page: page} do
+  test "EE-002 should wait", %{page: page} do
     reached_handler = manual_promise(page)
     release_handler = manual_promise(page)
     test = self()
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Page.PageListenersTest do
     assert_received {:value, 42}
   end
 
-  test "wait should throw", %{page: page} do
+  test "EE-003 wait should throw", %{page: page} do
     reached_handler = manual_promise(page)
     release_handler = manual_promise(page)
 

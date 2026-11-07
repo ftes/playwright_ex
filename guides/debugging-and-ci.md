@@ -130,8 +130,8 @@ Or run the browsers in Playwright's own image and connect to them. The image's v
 match the driver's (`PlaywrightEx.Driver.version/0`):
 
 ```sh
-docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.64.1-noble \
-  npx -y playwright@1.64.1 run-server --port 3000 --host 0.0.0.0
+docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.65.0-noble \
+  npx -y playwright@1.65.0 run-server --port 3000 --host 0.0.0.0
 ```
 
 ```elixir

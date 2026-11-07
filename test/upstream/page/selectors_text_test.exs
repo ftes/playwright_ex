@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
   defp id(page, selector), do: Page.eval_on_selector!(page, selector, "e => e.id")
   defp count(page, selector), do: Page.eval_on_selector_all!(page, selector, "els => els.length")
 
-  test "should work @smoke", %{page: page} do
+  test "SE-028 should work @smoke", %{page: page} do
     Page.set_content!(page, "<div>yo</div><div>ya</div><div>\nye  </div>")
     assert outer_html(page, "text=ya") == "<div>ya</div>"
     assert outer_html(page, ~s{text="ya"}) == "<div>ya</div>"
@@ -127,7 +127,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert outer_html(page, ~S{text=/let\'s/i >> span}) == "<span>hello</span>"
   end
 
-  test "should work with :text", %{page: page} do
+  test "SE-029 should work with :text", %{page: page} do
     Page.set_content!(page, "<div>yo</div><div>ya</div><div>\nHELLO   \n world  </div>")
     assert outer_html(page, ~s{:text("ya")}) == "<div>ya</div>"
     assert outer_html(page, ~s{:text-is("ya")}) == "<div>ya</div>"
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert Exception.message(error2) =~ ~s{"text" engine expects a single string}
   end
 
-  test "should support empty string", %{page: page} do
+  test "SE-030 should support empty string", %{page: page} do
     Page.set_content!(page, "<div></div><div>ya</div><div>\nHELLO   \n world  </div>")
     assert outer_html(page, ~s{div:text-is("")}) == "<div></div>"
     assert count(page, ~s{div:text-is("")}) == 1
@@ -162,7 +162,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert count(page, ~s{div:text-matches("")}) == 3
   end
 
-  test "should work across nodes", %{page: page} do
+  test "SE-031 should work across nodes", %{page: page} do
     Page.set_content!(page, "<div id=target1>Hello<i>,</i> <span id=target2>world</span><b>!</b></div>")
 
     assert id(page, ~s{:text("Hello, world!")}) == "target1"
@@ -196,14 +196,14 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
   end
 
   # https://github.com/microsoft/playwright/issues/33976
-  test "text-is() should ignore comments", %{page: page} do
+  test "SE-032 text-is() should ignore comments", %{page: page} do
     Page.set_content!(page, "<div id=me>hel<!-- comment -->lo\n  <!-- comment -->\n  world</div>")
     assert id(page, ~s{:text-is("hello world")}) == "me"
     assert Locator.get_attribute!(Page.locator(page, "div", has_text: "hello world"), "id") == "me"
     assert Locator.get_attribute!(Page.get_by_text(page, "hello world", exact: true), "id") == "me"
   end
 
-  test "should work with text nodes in quoted mode", %{page: page} do
+  test "SE-033 should work with text nodes in quoted mode", %{page: page} do
     Page.set_content!(page, "<div id=target1>Hello<span id=target2>wo  rld  </span>  Hi again  </div>")
     assert id(page, ~s{text="Hello"}) == "target1"
     assert id(page, ~s{text="Hi again"}) == "target1"
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert id(page, "text=hi again") == "target1"
   end
 
-  test "should clear caches", %{page: page} do
+  test "SE-034 should clear caches", %{page: page} do
     Page.set_content!(page, "<div id=target1>text</div><div id=target2>text</div>")
     div = Page.query_selector!(page, "#target1")
 
@@ -242,7 +242,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert count(page, ~s{:text("text")}) == 1
   end
 
-  test "should work with :has-text", %{page: page} do
+  test "SE-035 should work with :has-text", %{page: page} do
     Page.set_content!(page, """
     <input id=input2>
     <div id=div1>
@@ -278,7 +278,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert Exception.message(error2) =~ ~s{"has-text" engine expects a single string}
   end
 
-  test "should work with large DOM", %{page: page} do
+  test "SE-036 should work with large DOM", %{page: page} do
     Page.evaluate!(page, """
     () => {
       let id = 0;
@@ -327,20 +327,20 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     end
   end
 
-  test "should be case sensitive if quotes are specified", %{page: page} do
+  test "SE-037 should be case sensitive if quotes are specified", %{page: page} do
     Page.set_content!(page, "<div>yo</div><div>ya</div><div>\nye  </div>")
     assert outer_html(page, "text=yA") == "<div>ya</div>"
     assert Page.query_selector!(page, ~s{text="yA"}) == nil
     assert Page.query_selector!(page, ~s{text= "ya"}) == nil
   end
 
-  test "should search for a substring without quotes", %{page: page} do
+  test "SE-038 should search for a substring without quotes", %{page: page} do
     Page.set_content!(page, "<div>textwithsubstring</div>")
     assert outer_html(page, "text=with") == "<div>textwithsubstring</div>"
     assert Page.query_selector!(page, ~s{text="with"}) == nil
   end
 
-  test "should skip head, script and style", %{page: page} do
+  test "SE-039 should skip head, script and style", %{page: page} do
     Page.set_content!(page, """
     <head>
       <title>title</title>
@@ -370,7 +370,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     end
   end
 
-  test "should match input[type=button|submit|reset]", %{page: page} do
+  test "SE-040 should match input[type=button|submit|reset]", %{page: page} do
     Page.set_content!(
       page,
       ~s{<input type="submit" value="hello"><input type="button" value="world"><input type="reset" value="clear">}
@@ -381,7 +381,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert outer_html(page, "text=clear") == ~s{<input type="reset" value="clear">}
   end
 
-  test "should work for open shadow roots", %{page: page, server: server} do
+  test "SE-041 should work for open shadow roots", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector!(page, "text=root1", "e => e.textContent") == "Hello from root1"
     assert Page.eval_on_selector!(page, "text=root2", "e => e.textContent") == "Hello from root2"
@@ -393,7 +393,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert Page.query_selector!(page, "text:light=root3") == nil
   end
 
-  test "should prioritize light dom over shadow dom in the same parent", %{page: page} do
+  test "SE-042 should prioritize light dom over shadow dom in the same parent", %{page: page} do
     Page.evaluate!(page, """
     () => {
       const div = document.createElement('div');
@@ -413,7 +413,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert Page.eval_on_selector!(page, "div >> text=Hello", "e => e.textContent") == "Hello from light"
   end
 
-  test "should waitForSelector with distributed elements", %{page: page} do
+  test "SE-043 should waitForSelector with distributed elements", %{page: page} do
     promise = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div >> text=Hello") end)
 
     Page.evaluate!(page, """
@@ -437,7 +437,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert ElementHandle.text_content!(handle) == "Hello from light"
   end
 
-  test "should match root after >>", %{page: page} do
+  test "SE-044 should match root after >>", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, "css=section >> text=test")
     assert element
@@ -445,19 +445,19 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert element2
   end
 
-  test "should match root after >> with *", %{page: page} do
+  test "SE-045 should match root after >> with *", %{page: page} do
     Page.set_content!(page, "<button> hello world </button> <button> hellow <span> world </span> </button>")
     assert count(page, "*css=button >> text=hello >> text=world") == 2
   end
 
-  test "should work with leading and trailing spaces", %{page: page} do
+  test "SE-046 should work with leading and trailing spaces", %{page: page} do
     # https://github.com/microsoft/playwright/issues/10997
     Page.set_content!(page, "<button> Add widget </button>")
     Expect.to_be_visible!(Page.locator(page, "text=Add widget"))
     Expect.to_be_visible!(Page.locator(page, "text= Add widget "))
   end
 
-  test "should work with unpaired quotes when not at the start", %{page: page} do
+  test "SE-047 should work with unpaired quotes when not at the start", %{page: page} do
     # https://github.com/microsoft/playwright/issues/12719
     Page.set_content!(page, """
     <div>hello"world<span>yay</span></div>
@@ -485,7 +485,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     assert Page.query_selector!(page, "text=` >> span") == nil
   end
 
-  test "should work with paired quotes in the middle of selector", %{page: page} do
+  test "SE-048 should work with paired quotes in the middle of selector", %{page: page} do
     # https://github.com/microsoft/playwright/issues/16858
     Page.set_content!(page, ~S{<div>pattern "^-?\d+$"</div>})
     # Upstream wraps these in a bare `expect(...)` without a matcher: no assertion.
@@ -499,7 +499,7 @@ defmodule PlaywrightEx.Page.SelectorsTextTest do
     Expect.to_be_visible!(Page.locator(page, ~S{div >> text='pattern "^-?\\d+$"'}))
   end
 
-  test "hasText and internal:text should match full node text in strict mode", %{page: page} do
+  test "SE-049 hasText and internal:text should match full node text in strict mode", %{page: page} do
     Page.set_content!(page, """
     <div id=div1>hello<span>world</span></div>
     <div id=div2>hello</div>

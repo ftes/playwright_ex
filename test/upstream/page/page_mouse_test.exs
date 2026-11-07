@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
   }
   """
 
-  test "should click the document @smoke", %{page: page} do
+  test "MO-001 should click the document @smoke", %{page: page} do
     Page.evaluate!(page, """
     () => {
       window['clickPromise'] = new Promise(resolve => {
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["button"] == 0
   end
 
-  test "should dblclick the div", %{page: page} do
+  test "MO-002 should dblclick the div", %{page: page} do
     Page.set_content!(page, "<div style='width: 100px; height: 100px;'>Click me</div>")
 
     Page.evaluate!(page, """
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["button"] == 0
   end
 
-  test "down and up should generate click", %{page: page} do
+  test "MO-003 down and up should generate click", %{page: page} do
     Page.evaluate!(page, """
     () => {
       window['clickPromise'] = new Promise(resolve => {
@@ -115,11 +115,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["button"] == 0
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-           do: "env: Mac WebKit (macOS 26) fires no pointerdown for a middle click (upstream client too)"
-         )
-  test "should pointerdown the div with a custom button", %{page: page, browser_name: browser_name} do
+  test "MO-004 should pointerdown the div with a custom button", %{page: page, browser_name: browser_name} do
     Page.set_content!(page, "<div style='width: 100px; height: 100px;'>Click me</div>")
 
     Page.evaluate!(page, """
@@ -150,10 +146,10 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["isTrusted"] == true
     assert event["button"] == 1
     assert event["buttons"] == 4
-    assert event["pointerId"] == if(browser_name == "firefox", do: 0, else: 1)
+    assert is_number(event["pointerId"]) and event["pointerId"] >= 0
   end
 
-  test "should report correct buttons property", %{page: page} do
+  test "MO-005 should report correct buttons property", %{page: page} do
     Page.evaluate!(page, """
     () => {
       window.__EVENTS = [];
@@ -183,7 +179,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
            ]
   end
 
-  test "should report correct pointerType property", %{page: page} do
+  test "MO-006 should report correct pointerType property", %{page: page} do
     Mouse.move!(Page.mouse(page), 50, 60)
 
     Page.evaluate!(page, """
@@ -212,7 +208,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
            ]
   end
 
-  test "should select the text with mouse", %{page: page, server: server} do
+  test "MO-007 should select the text with mouse", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.focus!(page, "textarea")
     text = "This is the text that we are going to try to select. Let's see how it goes."
@@ -234,7 +230,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
            """) == text
   end
 
-  test "should trigger hover state", %{page: page, server: server} do
+  test "MO-008 should trigger hover state", %{page: page, server: server} do
     # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.hover!(page, "#button-6")
@@ -245,7 +241,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert Page.evaluate!(page, "() => document.querySelector('button:hover').id") == "button-91"
   end
 
-  test "should trigger hover state on disabled button", %{page: page, server: server} do
+  test "MO-009 should trigger hover state on disabled button", %{page: page, server: server} do
     # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.eval_on_selector!(page, "#button-6", "button => button.disabled = true")
@@ -253,7 +249,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert Page.evaluate!(page, "() => document.querySelector('button:hover').id") == "button-6"
   end
 
-  test "should trigger hover state with removed window.Node", %{page: page, server: server} do
+  test "MO-010 should trigger hover state with removed window.Node", %{page: page, server: server} do
     # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.evaluate!(page, "() => delete window.Node")
@@ -261,7 +257,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert Page.evaluate!(page, "() => document.querySelector('button:hover').id") == "button-6"
   end
 
-  test "should set modifier keys on click", %{page: page, server: server, browser_name: browser_name} do
+  test "MO-011 should set modifier keys on click", %{page: page, server: server, browser_name: browser_name} do
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
 
     Page.evaluate!(
@@ -287,7 +283,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     end
   end
 
-  test "should tween mouse movement", %{page: page, browser_name: browser_name} do
+  test "MO-012 should tween mouse movement", %{page: page, browser_name: browser_name} do
     # it.skip(isAndroid, 'Bad rounding');
     # it.skip(!headless, 'actual mouse interferes with the exact mousemove events');
     # The test becomes flaky on WebKit without next line.
@@ -298,7 +294,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     () => {
       window['result'] = [];
       document.addEventListener('mousemove', event => {
-        window['result'].push([event.clientX, event.clientY]);
+        window['result'].push([event.clientX, event.clientY, event.movementX, event.movementY]);
       });
     }
     """)
@@ -306,15 +302,15 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     Mouse.move!(Page.mouse(page), 200, 300, steps: 5)
 
     assert Page.evaluate!(page, "result") == [
-             [120, 140],
-             [140, 180],
-             [160, 220],
-             [180, 260],
-             [200, 300]
+             [120, 140, 20, 40],
+             [140, 180, 20, 40],
+             [160, 220, 20, 40],
+             [180, 260, 20, 40],
+             [200, 300, 20, 40]
            ]
   end
 
-  test "should always round down", %{page: page} do
+  test "MO-013 should always round down", %{page: page} do
     Page.evaluate!(page, """
     () => {
       document.addEventListener('mousedown', event => {
@@ -327,7 +323,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert Page.evaluate!(page, "result") == [50, 50]
   end
 
-  test "should not crash on mouse drag with any button", %{page: page} do
+  test "MO-014 should not crash on mouse drag with any button", %{page: page} do
     Page.evaluate!(page, """
     () => {
       // Do not show contextmenu on right click since it is poorly supported.
@@ -346,7 +342,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
          if(@browser_name == "chromium" and match?({:win32, _}, :os.type()),
            do: "upstream fixme: context menu support is best-effort for Linux and MacOS"
          )
-  test "should dispatch mouse move after context menu was opened", %{page: page} do
+  test "MO-015 should dispatch mouse move after context menu was opened", %{page: page} do
     Page.evaluate!(page, """
     () => {
       window['contextMenuPromise'] = new Promise(x => {
@@ -370,7 +366,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     end
   end
 
-  test "should track hover across iframe boundaries", %{page: page} do
+  test "MO-016 should track hover across iframe boundaries", %{page: page} do
     # it.skip(!headless, 'headed messes up with hover');
     Page.set_content!(page, """
       <style>

@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
 
   defp give_it_a_chance_to_resolve(page), do: rafraf(page, 5)
 
-  test "element state checks should work as expected for label with zero-sized input", %{
+  test "RE-001 element state checks should work as expected for label with zero-sized input", %{
     page: page
   } do
     Page.set_content!(page, """
@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     assert Page.is_disabled!(page, "text=Click me") == true
   end
 
-  test "should wait for enclosing disabled button", %{page: page} do
+  test "RE-002 should wait for enclosing disabled button", %{page: page} do
     Page.set_content!(page, "<button><span>Target</span></button>")
     span = Page.query_selector!(page, "text=Target")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :disabled) end, shared: true)
@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for enclosing button with a disabled fieldset", %{page: page} do
+  test "RE-003 should wait for enclosing button with a disabled fieldset", %{page: page} do
     Page.set_content!(page, "<fieldset disabled=true><button><span>Target</span></button></div>")
     span = Page.query_selector!(page, "text=Target")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for enclosing enabled button", %{page: page} do
+  test "RE-004 should wait for enclosing enabled button", %{page: page} do
     Page.set_content!(page, "<button disabled><span>Target</span></button>")
     span = Page.query_selector!(page, "text=Target")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     Runtime.Promise.await(task)
   end
 
-  test "should check the box outside shadow dom label", %{page: page} do
+  test "RE-005 should check the box outside shadow dom label", %{page: page} do
     Page.set_content!(page, "<div></div>")
 
     Page.eval_on_selector!(page, "div", """
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     assert Page.eval_on_selector!(page, "input", "input => input.checked") == true
   end
 
-  test "setInputFiles should work with label", %{page: page, asset: asset} do
+  test "RE-006 setInputFiles should work with label", %{page: page, asset: asset} do
     Page.set_content!(page, "<label for=target>Choose a file</label><input id=target type=file>")
     Page.set_input_files!(page, "text=Choose a file", asset.("file-to-upload.txt"))
     assert Page.eval_on_selector!(page, "input", "input => input.files.length") == 1
@@ -113,7 +113,8 @@ defmodule PlaywrightEx.Page.RetargetTest do
   defp dom_in_link(dom, options \\ []),
     do: "<button #{options_to_attributes(options)}>Button #{dom}</button>"
 
-  test "enabled/disabled retargeting", %{page: page} do
+  test "RE-007 enabled/disabled retargeting", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43634' }
     cases = [
       %{dom: dom_in_label("<input id=target>"), enabled: true, locator: "label"},
       %{dom: dom_label_for("<input id=target>"), enabled: true, locator: "label"},
@@ -140,6 +141,17 @@ defmodule PlaywrightEx.Page.RetargetTest do
         dom: dom_in_label("<li role=menuitem id=target aria-disabled=true></li>"),
         enabled: false,
         locator: "li"
+      },
+      %{
+        dom: dom_in_label("<select><option disabled>Other employees</option><option>Alex</option></select>"),
+        enabled: false,
+        locator: "option >> nth=0"
+      },
+      %{
+        dom:
+          dom_in_label(~s(<select><optgroup disabled label="Other employees"><option>Alex</option></optgroup></select>)),
+        enabled: false,
+        locator: "optgroup"
       }
     ]
 
@@ -163,7 +175,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "visible/hidden retargeting", %{page: page} do
+  test "RE-008 visible/hidden retargeting", %{page: page} do
     cases = [
       %{dom: dom_in_label("<span id=target>content</span>"), visible: true, locator: "label"},
       %{
@@ -237,7 +249,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "editable retargeting", %{page: page} do
+  test "RE-009 editable retargeting", %{page: page} do
     cases = [
       %{dom: dom_in_label("<input id=target>"), editable: true, locator: "label"},
       %{dom: dom_label_for("<input id=target>"), editable: true, locator: "label"},
@@ -277,7 +289,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "input value retargeting", %{page: page} do
+  test "RE-010 input value retargeting", %{page: page} do
     cases = [
       %{dom: dom_in_label("<input id=target>"), locator: "label"},
       %{dom: dom_label_for("<input id=target>"), locator: "label"},
@@ -312,7 +324,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "selection retargeting", %{page: page} do
+  test "RE-011 selection retargeting", %{page: page} do
     cases = [
       %{dom: dom_standalone("<div contenteditable id=target>content</div>"), locator: "div"},
       %{dom: dom_in_button("<div contenteditable id=target>content</div>"), locator: "div"},
@@ -338,7 +350,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "select options retargeting", %{page: page} do
+  test "RE-012 select options retargeting", %{page: page} do
     select =
       "<select id=target multiple><option value=dog selected>Dog</option><option value=cat>Cat</option></select>"
 
@@ -370,7 +382,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "direct actions retargeting", %{page: page} do
+  test "RE-013 direct actions retargeting", %{page: page} do
     cases = [
       %{dom: dom_in_label("<div>content</div><input id=target value=oh>"), locator: "div"},
       %{dom: dom_label_for("<div>content</div><input id=target value=oh>"), locator: "div"},
@@ -405,7 +417,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "check retargeting", %{page: page} do
+  test "RE-014 check retargeting", %{page: page} do
     cases = [
       %{dom: dom_in_label("<input type=checkbox id=target>"), locator: "label"},
       %{dom: dom_label_for("<input type=checkbox id=target>"), locator: "label"},
@@ -439,7 +451,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     end
   end
 
-  test "should not retarget anchor into parent label", %{page: page} do
+  test "RE-015 should not retarget anchor into parent label", %{page: page} do
     Page.set_content!(page, """
     <label disabled>Text<a href='#' onclick='window.__clicked=1'>Target</a></label>
     """)

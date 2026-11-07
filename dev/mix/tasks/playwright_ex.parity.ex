@@ -18,8 +18,8 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       does not run it in our setup), or ruled out in `test/upstream_not_ported.txt`. Fails on a
       ported test that a rule rules out, on a rule that matches no test at the pin, and on a spec
       with no test module whose tests are not all ruled out (or that is not in the registry).
-      Prints how many registry tests are not at the pin and which mirrored tests the registry
-      does not have (version skew: the registry comes from upstream main).
+      Prints how many registry tests are not at the pin and which mirrored tests have no
+      registry row (a name without the identifier, or a registry from another version).
     * Modules with `@upstream "<path>.ts"` (nested modules inherit it): each upstream class
       maps to the module named after it (last alias segment), else to the module declaring
       `@upstream`; top-level functions map to that module too. An upstream method is
@@ -429,12 +429,14 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   end
 
   @doc false
-  # Test names built from template literals in a spec file, as patterns (`${...}` matches anything).
-  def spec_templates(source) do
+  # The identifiers its test names start with in a spec file (also of names built at runtime, by
+  # template or concatenation: the identifier is their literal start).
+  def spec_ids(source) do
     for match <- Regex.scan(@spec_test, source, capture: :all_but_first),
-        [_single, _double, template, _next] = pad(match, 4),
-        String.contains?(template, "${"),
-        do: ~r/^#{template |> unescape() |> String.split(~r/\$\{[^}]*\}/) |> Enum.map_join(".*", &Regex.escape/1)}$/
+        [single, double, template, _next] = pad(match, 4),
+        id = TestRegistry.id(unescape(single <> double <> template)),
+        into: MapSet.new(),
+        do: id
   end
 
   defp pad(list, n), do: list ++ List.duplicate("", n - length(list))
@@ -465,7 +467,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
           String.ends_with?(spec, ".spec.ts"),
           test <- tests do
         rows = Map.get(by_file, TestRegistry.file_key(spec), [])
-        Map.merge(test, %{file: file, spec: spec, match: TestRegistry.match(rows, test.describe, test.name)})
+        Map.merge(test, %{file: file, spec: spec, match: TestRegistry.match(rows, test.id)})
       end
 
     matched = fn pred ->
@@ -477,7 +479,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     upstream_skipped =
       matched.(&(not &1.body? and Enum.any?(&1.skips, fn s -> String.starts_with?(s, "upstream ") end)))
 
-    pin = pin_titles(upstream, Map.keys(by_file))
+    pin = pin_ids(upstream, Map.keys(by_file))
     {present, absent} = Enum.split_with(rows, &(&1.id in matched.(fn _ -> true end) or at_pin?(&1, pin)))
 
     %{
@@ -494,29 +496,20 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   end
 
   defp matched_rows({:ok, row}), do: [row]
-  defp matched_rows({:pattern, rows}), do: rows
-  defp matched_rows(_), do: []
+  defp matched_rows(:none), do: []
 
-  # file => {static titles, title patterns} of its spec at the pin (nil without one).
-  defp pin_titles(upstream, files) do
+  # file => the test identifiers of its spec at the pin (nil without one).
+  defp pin_ids(upstream, files) do
     specs = upstream_files(upstream, ["tests/page/**/*.spec.ts", "tests/library/**/*.spec.ts"])
     keys = Enum.map(specs, &TestRegistry.file_key/1)
 
     Map.new(Enum.uniq(files ++ keys), fn file ->
       path = Path.join(upstream, "tests/#{file}.spec.ts")
-      {file, if(File.regular?(path), do: {MapSet.new(spec_tests(File.read!(path))), spec_templates(File.read!(path))})}
+      {file, if(File.regular?(path), do: spec_ids(File.read!(path)))}
     end)
   end
 
-  defp at_pin?(row, pin) do
-    case pin[row.file] do
-      {titles, patterns} ->
-        Enum.any?(row.variants, fn {_, leaf} -> leaf in titles or Enum.any?(patterns, &Regex.match?(&1, leaf)) end)
-
-      nil ->
-        false
-    end
-  end
+  defp at_pin?(row, pin), do: pin[row.file] != nil and row.id in pin[row.file]
 
   @doc false
   # Problems: a test at the pin neither ported nor ruled out, ported and ruled out, a rule
@@ -690,12 +683,12 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   @doc false
   # Informational: registry rows not at the pin, mirrored tests not in the registry.
   def registry_info(registry) do
-    unmatched = Enum.reject(registry.tests, &match?({kind, _} when kind in [:ok, :pattern], &1.match))
+    unmatched = Enum.filter(registry.tests, &(&1.match == :none))
 
     examples =
       for test <- Enum.take(unmatched, 5) do
-        what = if match?({:ambiguous, _}, test.match), do: "ambiguous", else: "not in the registry"
-        "  #{test.file}:#{test.line}: #{inspect(test.describe)} #{inspect(test.name)} (#{what})"
+        what = if test.id, do: "not in the registry", else: "no identifier"
+        "  #{test.file}:#{test.line}: #{inspect(test.name)} (#{what})"
       end
 
     [

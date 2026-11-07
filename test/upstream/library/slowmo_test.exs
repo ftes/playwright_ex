@@ -5,82 +5,82 @@ defmodule PlaywrightEx.Library.SlowmoTest do
   describe "slowMo" do
     # it.skip(mode !== 'default'): checkSlowMo patches the in-process server's
     # DispatcherConnection._doSlowMo via toImpl.
-    test "Page SlowMo check"
+    test "SL-001 Page SlowMo check"
 
-    test "Page SlowMo click"
+    test "SL-002 Page SlowMo click"
 
-    test "Page SlowMo dblclick"
+    test "SL-003 Page SlowMo dblclick"
 
-    test "Page SlowMo dispatchEvent"
+    test "SL-004 Page SlowMo dispatchEvent"
 
-    test "Page SlowMo fill"
+    test "SL-005 Page SlowMo fill"
 
-    test "Page SlowMo focus"
+    test "SL-006 Page SlowMo focus"
 
-    test "Page SlowMo goto"
+    test "SL-007 Page SlowMo goto"
 
-    test "Page SlowMo hover"
+    test "SL-008 Page SlowMo hover"
 
-    test "Page SlowMo press"
+    test "SL-009 Page SlowMo press"
 
-    test "Page SlowMo reload"
+    test "SL-010 Page SlowMo reload"
 
-    test "Page SlowMo selectOption"
+    test "SL-011 Page SlowMo selectOption"
 
-    test "Page SlowMo setInputFiles"
+    test "SL-012 Page SlowMo setInputFiles"
 
-    test "Page SlowMo type"
+    test "SL-013 Page SlowMo type"
 
-    test "Page SlowMo uncheck"
+    test "SL-014 Page SlowMo uncheck"
 
-    test "Frame SlowMo check"
+    test "SL-015 Frame SlowMo check"
 
-    test "Frame SlowMo click"
+    test "SL-016 Frame SlowMo click"
 
-    test "Frame SlowMo dblclick"
+    test "SL-017 Frame SlowMo dblclick"
 
-    test "Frame SlowMo dispatchEvent"
+    test "SL-018 Frame SlowMo dispatchEvent"
 
-    test "Frame SlowMo fill"
+    test "SL-019 Frame SlowMo fill"
 
-    test "Frame SlowMo focus"
+    test "SL-020 Frame SlowMo focus"
 
-    test "Frame SlowMo goto"
+    test "SL-021 Frame SlowMo goto"
 
-    test "Frame SlowMo hover"
+    test "SL-022 Frame SlowMo hover"
 
-    test "Frame SlowMo press"
+    test "SL-023 Frame SlowMo press"
 
-    test "Frame SlowMo selectOption"
+    test "SL-024 Frame SlowMo selectOption"
 
-    test "Frame SlowMo setInputFiles"
+    test "SL-025 Frame SlowMo setInputFiles"
 
-    test "Frame SlowMo type"
+    test "SL-026 Frame SlowMo type"
 
-    test "Frame SlowMo uncheck"
+    test "SL-027 Frame SlowMo uncheck"
 
-    test "ElementHandle SlowMo check"
+    test "SL-028 ElementHandle SlowMo check"
 
-    test "ElementHandle SlowMo click"
+    test "SL-029 ElementHandle SlowMo click"
 
-    test "ElementHandle SlowMo dblclick"
+    test "SL-030 ElementHandle SlowMo dblclick"
 
-    test "ElementHandle SlowMo dispatchEvent"
+    test "SL-031 ElementHandle SlowMo dispatchEvent"
 
-    test "ElementHandle SlowMo fill"
+    test "SL-032 ElementHandle SlowMo fill"
 
-    test "ElementHandle SlowMo focus"
+    test "SL-033 ElementHandle SlowMo focus"
 
-    test "ElementHandle SlowMo hover"
+    test "SL-034 ElementHandle SlowMo hover"
 
-    test "ElementHandle SlowMo press"
+    test "SL-035 ElementHandle SlowMo press"
 
-    test "ElementHandle SlowMo selectOption"
+    test "SL-036 ElementHandle SlowMo selectOption"
 
-    test "ElementHandle SlowMo setInputFiles"
+    test "SL-037 ElementHandle SlowMo setInputFiles"
 
-    test "ElementHandle SlowMo type"
+    test "SL-038 ElementHandle SlowMo type"
 
-    test "ElementHandle SlowMo uncheck"
+    test "SL-039 ElementHandle SlowMo uncheck"
   end
 end

@@ -10,7 +10,7 @@ end-to-end tests, web scraping, agentic AI.
 
 PlaywrightEx is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
-is pinned and installed by Mix, no npm needed. This release drives Playwright 1.64.
+is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.
 
 ## Installation
 

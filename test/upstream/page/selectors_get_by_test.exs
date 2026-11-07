@@ -21,14 +21,14 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     on_exit(fn -> Selectors.set_test_id_attribute(selectors, "data-testid") end)
   end
 
-  test "getByTestId should work", %{page: page} do
+  test "SE-071 getByTestId should work", %{page: page} do
     Page.set_content!(page, ~s(<div><div data-testid="Hello">Hello world</div></div>))
     Expect.to_have_text!(Page.get_by_test_id(page, "Hello"), "Hello world")
     Expect.to_have_text!(Frame.get_by_test_id(Page.main_frame(page), "Hello"), "Hello world")
     Expect.to_have_text!(Locator.get_by_test_id(Page.locator(page, "div"), "Hello"), "Hello world")
   end
 
-  test "getByTestId with custom testId should work", %{page: page, playwright: playwright} do
+  test "SE-072 getByTestId with custom testId should work", %{page: page, playwright: playwright} do
     Page.set_content!(page, ~s(<div><div data-my-custom-testid="Hello">Hello world</div></div>))
     set_test_id_attribute(playwright, "data-my-custom-testid")
     Expect.to_have_text!(Page.get_by_test_id(page, "Hello"), "Hello world")
@@ -36,7 +36,10 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     Expect.to_have_text!(Locator.get_by_test_id(Page.locator(page, "div"), "Hello"), "Hello world")
   end
 
-  test "getByTestId with comma-separated testIdAttributes should match any", %{page: page, playwright: playwright} do
+  test "SE-073 getByTestId with comma-separated testIdAttributes should match any", %{
+    page: page,
+    playwright: playwright
+  } do
     Page.set_content!(page, """
       <section>
         <div data-pw="Hello">first</div>
@@ -52,19 +55,19 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     Expect.to_have_count!(Locator.get_by_test_id(Page.locator(page, "section"), "Hello"), 2)
   end
 
-  test "getByTestId should escape id", %{page: page} do
+  test "SE-074 getByTestId should escape id", %{page: page} do
     Page.set_content!(page, ~s(<div><div data-testid='He"llo'>Hello world</div></div>))
     Expect.to_have_text!(Page.get_by_test_id(page, ~s(He"llo)), "Hello world")
   end
 
-  test "getByTestId should work for regex", %{page: page} do
+  test "SE-075 getByTestId should work for regex", %{page: page} do
     Page.set_content!(page, ~s(<div><div data-testid="Hello">Hello world</div></div>))
     Expect.to_have_text!(Page.get_by_test_id(page, ~r/He[l]*o/), "Hello world")
     Expect.to_have_text!(Frame.get_by_test_id(Page.main_frame(page), "Hello"), "Hello world")
     Expect.to_have_text!(Locator.get_by_test_id(Page.locator(page, "div"), "Hello"), "Hello world")
   end
 
-  test "getByText should work", %{page: page} do
+  test "SE-076 getByText should work", %{page: page} do
     Page.set_content!(page, "<div>yo</div><div>ya</div><div>\nye  </div>")
     assert Locator.evaluate!(Page.get_by_text(page, "ye"), "e => e.outerHTML") =~ ">\nye  </div>"
     assert Locator.evaluate!(Page.get_by_text(page, ~r/ye/), "e => e.outerHTML") =~ ">\nye  </div>"
@@ -79,7 +82,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Page.get_by_text(page, "Hello", exact: true), "e => e.outerHTML") =~ ">Hello</div>"
   end
 
-  test "getByLabel should work", %{page: page} do
+  test "SE-077 getByLabel should work", %{page: page} do
     Page.set_content!(page, "<div><label for=target>Name</label><input id=target type=text></div>")
     assert Locator.evaluate!(Page.get_by_text(page, "Name"), "e => e.nodeName") == "LABEL"
     assert Locator.evaluate!(Page.get_by_label(page, "Name"), "e => e.nodeName") == "INPUT"
@@ -87,7 +90,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Locator.get_by_label(Page.locator(page, "div"), "Name"), "e => e.nodeName") == "INPUT"
   end
 
-  test "getByLabel should work with nested elements", %{page: page} do
+  test "SE-078 getByLabel should work with nested elements", %{page: page} do
     Page.set_content!(page, "<label for=target>Last <span>Name</span></label><input id=target type=text>")
 
     Expect.to_have_attribute!(Page.get_by_label(page, "last name"), "id", "target")
@@ -103,7 +106,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.element_handles!(Page.get_by_label(page, ~r/last name/)) == []
   end
 
-  test "getByLabel should work with multiply-labelled input", %{page: page} do
+  test "SE-079 getByLabel should work with multiply-labelled input", %{page: page} do
     Page.set_content!(
       page,
       "<label for=target>Name</label><input id=target type=text><label for=target>First or Last</label>"
@@ -113,12 +116,12 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Page.get_by_label(page, "First or Last"), "e => e.id") == "target"
   end
 
-  test "getByLabel should work with ancestor label and multiple controls", %{page: page} do
+  test "SE-080 getByLabel should work with ancestor label and multiple controls", %{page: page} do
     Page.set_content!(page, "<label>Name<button id=target>Click me</button><input type=text></label>")
     assert Locator.evaluate!(Page.get_by_label(page, "Name"), "e => e.id") == "target"
   end
 
-  test "getByLabel should work with ancestor label and for", %{page: page} do
+  test "SE-081 getByLabel should work with ancestor label and for", %{page: page} do
     Page.set_content!(page, """
       <label for=target>Name<input type=text id=nontarget></label>
       <input type=text id=target>
@@ -127,12 +130,12 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Page.get_by_label(page, "Name"), "e => e.id") == "target"
   end
 
-  test "getByLabel should work with aria-labelledby", %{page: page} do
+  test "SE-082 getByLabel should work with aria-labelledby", %{page: page} do
     Page.set_content!(page, "<label id=name-label>Name</label><button aria-labelledby=name-label>Click me</button>")
     assert Locator.evaluate!(Page.get_by_label(page, "Name"), "e => e.textContent") == "Click me"
   end
 
-  test "getByLabel should prioritize aria-labelledby over native label", %{page: page} do
+  test "SE-083 getByLabel should prioritize aria-labelledby over native label", %{page: page} do
     Page.set_content!(page, """
       <label id=name-label>Name</label>
       <label>Wrong<button aria-labelledby=name-label>Click me</button></label>
@@ -141,17 +144,17 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Page.get_by_label(page, "Name"), "e => e.textContent") == "Click me"
   end
 
-  test "getByLabel should work with aria-label", %{page: page} do
+  test "SE-084 getByLabel should work with aria-label", %{page: page} do
     Page.set_content!(page, ~s(<input id=target aria-label="Name">))
     assert Locator.evaluate!(Page.get_by_label(page, "Name"), "e => e.id") == "target"
   end
 
-  test "getByLabel should ignore empty aria-label", %{page: page} do
+  test "SE-085 getByLabel should ignore empty aria-label", %{page: page} do
     Page.set_content!(page, "<label for=target>Last Name</label><input id=target type=text aria-label>")
     assert Locator.evaluate!(Page.get_by_label(page, "Last Name"), "e => e.id") == "target"
   end
 
-  test "getByLabel should prioritize aria-labelledby over aria-label", %{page: page} do
+  test "SE-086 getByLabel should prioritize aria-labelledby over aria-label", %{page: page} do
     Page.set_content!(
       page,
       ~s(<label id=other-label>Other</label><input id=target aria-label="Name" aria-labelledby=other-label>)
@@ -160,7 +163,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate!(Page.get_by_label(page, "Other"), "e => e.id") == "target"
   end
 
-  test "getByPlaceholder should work", %{page: page} do
+  test "SE-087 getByPlaceholder should work", %{page: page} do
     Page.set_content!(page, """
     <div>
       <input placeholder='Hello'>
@@ -177,7 +180,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     Expect.to_have_count!(Locator.get_by_placeholder(Page.locator(page, "div"), "hello"), 2)
   end
 
-  test "getByAltText should work", %{page: page} do
+  test "SE-088 getByAltText should work", %{page: page} do
     Page.set_content!(page, """
     <div>
       <input alt='Hello'>
@@ -194,7 +197,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     Expect.to_have_count!(Locator.get_by_alt_text(Page.locator(page, "div"), "hello"), 2)
   end
 
-  test "getByTitle should work", %{page: page} do
+  test "SE-089 getByTitle should work", %{page: page} do
     Page.set_content!(page, """
     <div>
       <input title='Hello'>
@@ -211,7 +214,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     Expect.to_have_count!(Locator.get_by_title(Page.locator(page, "div"), "hello"), 2)
   end
 
-  test "getBy escaping", %{page: page} do
+  test "SE-090 getBy escaping", %{page: page} do
     # expect.soft: the bang form (the first failure ends the test).
     Page.set_content!(page, """
     <label id=label for=control>Hello my
@@ -288,7 +291,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
 
   @outer_html "els => els.map(e => e.outerHTML)"
 
-  test "getByRole escaping", %{page: page} do
+  test "SE-091 getByRole escaping", %{page: page} do
     Page.set_content!(page, """
       <a href="https://playwright.dev">issues 123</a>
       <a href="https://playwright.dev">he llo 56</a>
@@ -338,7 +341,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate_all!(Page.get_by_role(page, :button, name: "Click \\\\me", exact: true), @outer_html) == []
   end
 
-  test "getByRole should accept regexp with v flag", %{page: page} do
+  test "SE-092 getByRole should accept regexp with v flag", %{page: page} do
     # Regression test for https://github.com/microsoft/playwright/issues/41457
     Page.set_content!(page, "<button>Click me</button><button>Submit</button>")
     Expect.to_have_count!(Page.get_by_role(page, :button, name: RegExp.new("Click me", "v")), 1)
@@ -348,7 +351,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
 
   @text_content "els => els.map(e => e.textContent)"
 
-  test "getByRole with description", %{page: page} do
+  test "SE-093 getByRole with description", %{page: page} do
     Page.set_content!(page, """
       <div role="alert" aria-label="Upload successful" aria-description="File doc-2025.pdf was uploaded successfully">Alert 1</div>
       <div role="alert" aria-label="Upload successful" aria-description="File report-2026.pdf was uploaded successfully">Alert 2</div>
@@ -396,7 +399,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
              ["Alert 1", "Alert 2"]
   end
 
-  test "getByRole with description via aria-describedby", %{page: page} do
+  test "SE-094 getByRole with description via aria-describedby", %{page: page} do
     Page.set_content!(page, """
       <button aria-describedby="desc1">Submit</button>
       <span id="desc1">Submits the form data</span>
@@ -413,7 +416,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
              ["Submit"]
   end
 
-  test "getByRole with description via title fallback", %{page: page} do
+  test "SE-095 getByRole with description via title fallback", %{page: page} do
     Page.set_content!(page, """
       <button title="Submits the form">Submit</button>
       <button title="Resets the form">Reset</button>
@@ -423,7 +426,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
     assert Locator.evaluate_all!(Page.get_by_role(page, :button, description: "Resets"), @text_content) == ["Reset"]
   end
 
-  test "getByRole with description whitespace normalization", %{page: page} do
+  test "SE-096 getByRole with description whitespace normalization", %{page: page} do
     Page.set_content!(page, """
       <div role="alert" aria-description="File  doc-2025.pdf   was uploaded   successfully">Alert</div>
     """)
@@ -434,7 +437,7 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
            ) == ["Alert"]
   end
 
-  test "locators should not be affected by global and sticky regex flags", %{page: page} do
+  test "SE-097 locators should not be affected by global and sticky regex flags", %{page: page} do
     Page.set_content!(page, """
       <div>foo</div><div>foo</div><div>foo</div>
       <label>foo<input></label><label>foo<input></label><label>foo<input></label>

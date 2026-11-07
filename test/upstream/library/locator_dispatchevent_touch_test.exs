@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Library.LocatorDispatcheventTouchTest do
     %{page: BrowserContext.new_page!(context)}
   end
 
-  test "should support touch points in touch event arguments", %{page: page, server: server} do
+  test "TA-010 should support touch points in touch event arguments", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """

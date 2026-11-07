@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
   end
 
   test "versions match the image tag" do
-    assert PlaywrightEx.Driver.version() == "1.64.1"
+    assert PlaywrightEx.Driver.version() == "1.65.0"
     guide = File.read!(Path.expand("../../guides/debugging-and-ci.md", __DIR__))
     assert guide =~ "mcr.microsoft.com/playwright:v#{PlaywrightEx.Driver.version()}-noble"
     assert guide =~ "playwright@#{PlaywrightEx.Driver.version()} run-server"

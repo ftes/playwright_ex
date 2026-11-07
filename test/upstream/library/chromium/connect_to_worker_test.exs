@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   # call (`ClientStackTrace`): 1.5 ms (62 ms under load, 35 of 40 failed), now ~0.2 ms (1 of 40
   # under load, macOS, 2026-11-06).
   @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
-  test "should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
+  test "CR-043 should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([
         exec_path(),
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     PlaywrightEx.Promise.await!(close_promise)
   end
 
-  test "should receive close when node process exits", %{browser_type: browser_type} do
+  test "CR-044 should receive close when node process exits", %{browser_type: browser_type} do
     child = child_process([exec_path(), "--inspect-brk=0", "-e", "setTimeout(() => {}, 1e9)"])
     output = wait_for_output(child, "Debugger listening on ws://")
     [_, endpoint] = Regex.run(~r/Debugger listening on (ws:\/\/\S+)/, output)

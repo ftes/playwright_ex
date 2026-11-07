@@ -24,6 +24,48 @@ defmodule PlaywrightEx.Client.EventEmitterTest do
     end
   end
 
+  test "a listener error goes to the error listeners, else it is uncaught (logged)" do
+    emitter = EventEmitter.new()
+    test_pid = self()
+    EventEmitter.on(emitter, "foo", fn _ -> raise "boom" end)
+    EventEmitter.on(emitter, "foo", fn arg -> send(test_pid, {:later, arg}) end)
+
+    log = capture_log(fn -> EventEmitter.emit(emitter, "foo", 1) end)
+    assert log =~ "Uncaught in event listener" and log =~ "boom"
+    assert_received {:later, 1}
+
+    EventEmitter.on(emitter, "error", fn error -> send(test_pid, {:error, error}) end)
+    assert capture_log(fn -> EventEmitter.emit(emitter, "foo", 2) end) == ""
+    assert_received {:error, %RuntimeError{message: "boom"}}
+
+    # An error listener's own error is not emitted again.
+    EventEmitter.on(emitter, "error", fn _ -> raise "error listener" end)
+    log = capture_log(fn -> EventEmitter.emit(emitter, "foo", 3) end)
+    assert log =~ "error listener"
+    assert_received {:error, %RuntimeError{message: "boom"}}
+  end
+
+  test "an error raised after a listener's await goes to the error listeners (EE-058)" do
+    emitter = EventEmitter.new()
+    test_pid = self()
+    EventEmitter.on(emitter, "error", fn error -> send(test_pid, {:error, error}) end)
+
+    EventEmitter.once(emitter, "foo", fn arg ->
+      send(test_pid, {:arg, arg})
+      PlaywrightEx.Runtime.Promise.await(PlaywrightEx.Runtime.Promise.timer(10))
+      raise "listener failed"
+    end)
+
+    EventEmitter.on(emitter, "foo", fn _ -> send(test_pid, :next_listener) end)
+
+    assert capture_log(fn ->
+             EventEmitter.emit(emitter, "foo", 1)
+             assert_received {:arg, 1}
+             assert_received :next_listener
+             assert_receive {:error, %RuntimeError{message: "listener failed"}}
+           end) == ""
+  end
+
   test "remove_all_listeners with behavior wait: errors of later listeners send no message" do
     emitter = EventEmitter.new()
     assert EventEmitter.remove_all_listeners(emitter, "foo", %{behavior: "wait"}) == nil

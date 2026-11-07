@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
   @moduletag :page
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 
-  test "should work", %{page: page, server: server} do
+  test "CV-008 should work", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/simple.html")
     coverage = Coverage.stop_css_coverage!(Page.coverage(page))
@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert binary_part(hd(coverage).text, range.start, range.end - range.start) == "div { color: green; }"
   end
 
-  test "should report sourceURLs", %{page: page, server: server} do
+  test "CV-009 should report sourceURLs", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/sourceurl.html")
     coverage = Coverage.stop_css_coverage!(Page.coverage(page))
@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert hd(coverage).url == "nicename.css"
   end
 
-  test "should report multiple stylesheets", %{page: page, server: server} do
+  test "CV-010 should report multiple stylesheets", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/multiple.html")
     coverage = Coverage.stop_css_coverage!(Page.coverage(page))
@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert Enum.at(coverage, 1).url =~ "/csscoverage/stylesheet2.css"
   end
 
-  test "should report stylesheets that have no coverage", %{page: page, server: server} do
+  test "CV-011 should report stylesheets that have no coverage", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/unused.html")
     coverage = Coverage.stop_css_coverage!(Page.coverage(page))
@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert hd(coverage).ranges == []
   end
 
-  test "should work with media queries", %{page: page, server: server} do
+  test "CV-012 should work with media queries", %{page: page, server: server} do
     # it.skip(chromiumVersionLessThan(browserVersion, '115.0.5762.0'), ...);  -- the pinned Chromium is newer
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/media.html")
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert hd(coverage).ranges == [%{start: 8, end: 15}, %{start: 17, end: 38}]
   end
 
-  test "should work with complicated usecases", %{page: page, server: server} do
+  test "CV-013 should work with complicated usecases", %{page: page, server: server} do
     # it.skip(chromiumVersionLessThan(browserVersion, '115.0.5762.0'), ...);  -- the pinned Chromium is newer
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/involved.html")
@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
            ]
   end
 
-  test "should ignore injected stylesheets", %{page: page} do
+  test "CV-014 should ignore injected stylesheets", %{page: page} do
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.add_style_tag!(page, content: "body { margin: 10px;}")
     # trigger style recalc
@@ -84,7 +84,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert coverage == []
   end
 
-  test "should report stylesheets across navigations", %{page: page, server: server} do
+  test "CV-015 should report stylesheets across navigations", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page), reset_on_navigation: false)
     Page.goto!(page, server.prefix <> "/csscoverage/multiple.html")
     Page.goto!(page, server.empty_page)
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert length(coverage) == 2
   end
 
-  test "should NOT report scripts across navigations", %{page: page, server: server} do
+  test "CV-016 should NOT report scripts across navigations", %{page: page, server: server} do
     # Enabled by default.
     Coverage.start_css_coverage!(Page.coverage(page))
     Page.goto!(page, server.prefix <> "/csscoverage/multiple.html")
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Library.Chromium.CssCoverageTest do
     assert coverage == []
   end
 
-  test "should work with a recently loaded stylesheet", %{page: page, server: server} do
+  test "CV-017 should work with a recently loaded stylesheet", %{page: page, server: server} do
     Coverage.start_css_coverage!(Page.coverage(page))
 
     Page.evaluate!(

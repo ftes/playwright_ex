@@ -105,28 +105,25 @@ defmodule PlaywrightEx.Client.Request do
       # concurrent callers share one call.
       Promise.await(
         Promise.async_once(this, :_actualHeadersPromise, fn ->
-          _wrap_api_call(
-            this,
-            fn _ ->
-              RawHeaders.new(channel_call(this, :rawRequestHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
-            end,
-            %{internal: true}
-          )
+          RawHeaders.new(channel_call(this, :rawRequestHeaders, %{}, TimeoutSettings.k_no_timeout()).headers)
         end)
       )
     end
   end
 
+  # @internal
   def all_headers(this) do
-    RawHeaders.headers(_actual_headers(this))
+    internal().(this, fn -> RawHeaders.headers(_actual_headers(this)) end)
   end
 
+  # @internal
   def headers_array(this) do
-    RawHeaders.headers_array(_actual_headers(this))
+    internal().(this, fn -> RawHeaders.headers_array(_actual_headers(this)) end)
   end
 
+  # @internal
   def header_value(this, name) do
-    RawHeaders.get(_actual_headers(this), name)
+    internal().(this, fn -> RawHeaders.get(_actual_headers(this), name) end)
   end
 
   def response(this) do

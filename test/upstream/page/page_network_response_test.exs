@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert_receive :written, 5000
   end
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "NE-030 should work @smoke", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn = Plug.Conn.put_resp_header(conn, "foo", "bar")
       # `res.setHeader('BaZ', 'bAz')`: put_resp_header wants lowercase names.
@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
            do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
          )
-  test "should return multiple header value", %{page: page, server: server} do
+  test "NE-031 should return multiple header value", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && platform === 'win32', ...)  -- not Windows WebKit
     TestServer.set_route(server, "/headers", fn conn ->
       # Upstream writes directly to the socket to repeat a header: Plug sends repeated entries.
@@ -72,19 +72,19 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.headers(response)["name-a"] == "v1, v2, v3"
   end
 
-  test "should return text", %{page: page, server: server} do
+  test "NE-032 should return text", %{page: page, server: server} do
     response = Page.goto!(page, server.prefix <> "/simple.json")
     assert Response.text!(response) == ~s({"foo": "bar"}\n)
   end
 
-  test "should return uncompressed text", %{page: page, server: server} do
+  test "NE-033 should return uncompressed text", %{page: page, server: server} do
     TestServer.enable_gzip(server, "/simple.json")
     response = Page.goto!(page, server.prefix <> "/simple.json")
     assert Response.headers(response)["content-encoding"] == "gzip"
     assert Response.text!(response) == ~s({"foo": "bar"}\n)
   end
 
-  test "should return uncompressed text for brotli encoding", %{page: page, server: server} do
+  test "NE-034 should return uncompressed text for brotli encoding", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/39160
     # it.fixme(isAndroid, 'net::ERR_CONTENT_DECODING_FAILED')  -- not Android
     text = ~s({"foo": "bar"}\n)
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.text!(response) == text
   end
 
-  test "should return text for identity encoding", %{page: page, server: server} do
+  test "NE-035 should return text for identity encoding", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/42501
     text = "<div>hello</div>"
 
@@ -119,7 +119,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.text!(response) == text
   end
 
-  test "should throw when requesting body of redirected response", %{page: page, server: server} do
+  test "NE-036 should throw when requesting body of redirected response", %{page: page, server: server} do
     TestServer.set_redirect(server, "/foo.html", "/empty.html")
     response = Page.goto!(page, server.prefix <> "/foo.html")
     redirected_from = Request.redirected_from(Response.request(response))
@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Exception.message(error) =~ "Response body is unavailable for redirect responses"
   end
 
-  test "should wait until response completes", %{page: page, server: server} do
+  test "NE-037 should wait until response completes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     me = self()
     # Setup server to trap request.
@@ -167,19 +167,19 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Runtime.Promise.await(response_text) == "hello world!"
   end
 
-  test "should return json", %{page: page, server: server} do
+  test "NE-038 should return json", %{page: page, server: server} do
     response = Page.goto!(page, server.prefix <> "/simple.json")
     assert Response.json!(response) == %{"foo" => "bar"}
   end
 
-  test "should return body", %{page: page, server: server, asset: asset} do
+  test "NE-039 should return body", %{page: page, server: server, asset: asset} do
     response = Page.goto!(page, server.prefix <> "/pptr.png")
     image_buffer = File.read!(asset.("pptr.png"))
     response_buffer = Response.body!(response)
     assert response_buffer == image_buffer
   end
 
-  test "should return body with compression", %{page: page, server: server, asset: asset} do
+  test "NE-040 should return body with compression", %{page: page, server: server, asset: asset} do
     TestServer.enable_gzip(server, "/pptr.png")
     response = Page.goto!(page, server.prefix <> "/pptr.png")
     image_buffer = File.read!(asset.("pptr.png"))
@@ -199,7 +199,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
             true ->
               nil
           end)
-  test "should return non-utf8 body even when content-type says utf8",
+  test "NE-041 should return non-utf8 body even when content-type says utf8",
        %{page: page, server: server} do
     # Binary data with bytes that are invalid UTF-8.
     bytes = [0x80, 0x81, 0x82, 0xFF, 0xFE, 0x00, 0x01, 0x02]
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert bytes_received == bytes
   end
 
-  test "should return status text", %{page: page, server: server} do
+  test "NE-042 should return status text", %{page: page, server: server} do
     TestServer.set_route(server, "/cool", &TestServer.send_resp(&1, 200, "cool!"))
     response = Page.goto!(page, server.prefix <> "/cool")
     assert Response.status_text(response) == "cool!"
@@ -235,7 +235,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
            do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
          )
-  test "should report all headers", %{page: page, server: server} do
+  test "NE-043 should report all headers", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && platform === 'win32', ...)  -- not Windows WebKit
     expected_headers = %{
       "header-a" => ["value-a", "value-a-1", "value-a-2"],
@@ -260,7 +260,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert actual_headers == expected_headers
   end
 
-  test "should report multiple set-cookie headers", %{page: page, server: server} do
+  test "NE-044 should report multiple set-cookie headers", %{page: page, server: server} do
     # it.skip(isElectron && browserMajorVersion < 99, 'This needs Chromium >= 99');  -- not ported: no Electron
     TestServer.set_route(server, "/headers", fn conn ->
       conn = write_head(conn, 200, [{"Set-Cookie", "a=b"}, {"Set-Cookie", "c=d"}])
@@ -282,7 +282,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
            do: "upstream skip: libcurl does not support non-set-cookie multivalue headers"
          )
-  test "should behave the same way for headers and allHeaders",
+  test "NE-045 should behave the same way for headers and allHeaders",
        %{page: page, server: server, browser_name: browser_name} do
     TestServer.set_route(server, "/headers", fn conn ->
       headers = [
@@ -317,7 +317,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: Firefox does return null for file:// URLs")
-  test "should provide a Response with a file URL", %{page: page, asset: asset, browser_name: browser_name} do
+  test "NE-046 should provide a Response with a file URL", %{page: page, asset: asset, browser_name: browser_name} do
     # it.skip(isAndroid), it.skip(channel === 'webkit-wsl')  -- neither
     fileurl = path_to_file_url(asset.("frames/two-frames.html"))
     response = Page.goto!(page, fileurl)
@@ -330,7 +330,11 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.ok(response) == true
   end
 
-  test "should return set-cookie header after route.fulfill", %{page: page, server: server, browser_name: browser_name} do
+  test "NE-047 should return set-cookie header after route.fulfill", %{
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
     # it.fail(browserName === 'webkit' || browserName === 'chromium', 'https://github.com/microsoft/playwright/issues/11035')
     expected_failure(browser_name in ["webkit", "chromium"], fn ->
       Page.route!(page, "**/*", fn route ->
@@ -343,7 +347,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     end)
   end
 
-  test "should return headers after route.fulfill", %{page: page, server: server} do
+  test "NE-048 should return headers after route.fulfill", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       Route.fulfill!(route,
         status: 200,
@@ -363,7 +367,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
            }
   end
 
-  test "should report if request was fromServiceWorker", %{page: page, server: server} do
+  test "NE-049 should report if request was fromServiceWorker", %{page: page, server: server} do
     # it.skip(isAndroid || isElectron)  -- neither
     res = Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
     assert Response.from_service_worker(res) == false
@@ -387,7 +391,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
             true ->
               nil
           end)
-  test "should return body for prefetch script", %{
+  test "NE-050 should return body for prefetch script", %{
     page: page,
     server: server
   } do
@@ -402,7 +406,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          if(match?({:unix, :darwin}, :os.type()) and @browser_name == "webkit",
            do: "upstream fixme: WebKit on Mac evicts the body and returns empty buffer"
          )
-  test "should return body for image with evicted body", %{page: page, server: server} do
+  test "NE-051 should return body for image with evicted body", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/42002
     # truncated 1x1 gif, Chromium evicts its body
     image_base64 = "R0lGODlhAQABAAAAACw="
@@ -424,7 +428,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Base.encode64(body) == image_base64
   end
 
-  test "should bypass disk cache when page interception is enabled", %{page: page, server: server} do
+  test "NE-052 should bypass disk cache when page interception is enabled", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/30000
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     Page.route!(page, "**/api*", &Route.continue/1)
@@ -485,7 +489,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     end)
   end
 
-  test "request.existingResponse should return null before response is received", %{page: page, server: server} do
+  test "NE-053 request.existingResponse should return null before response is received", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     me = self()
 
@@ -522,18 +526,18 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     assert Response.status(existing_response) == 200
   end
 
-  test "request.existingResponse should return the response after it is received", %{page: page, server: server} do
+  test "NE-054 request.existingResponse should return the response after it is received", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)
     request = Response.request(response)
     assert Request.existing_response(request) == response
   end
 
-  test "should return http version", %{page: page, server: server} do
+  test "NE-055 should return http version", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)
     assert Response.http_version!(response) == "HTTP/1.1"
   end
 
-  test "Response.formData() should parse multipart/form-data in page context", %{page: page, server: server} do
+  test "NE-056 Response.formData() should parse multipart/form-data in page context", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/40244
     Page.goto!(page, server.empty_page)
 
@@ -575,7 +579,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
          if(@browser_name == "firefox",
            do: "upstream skip: Firefox keeps the response body available after navigating away, so it never throws"
          )
-  test "should give a readable error when response.body() races with navigation",
+  test "NE-057 should give a readable error when response.body() races with navigation",
        %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/41512
     response =

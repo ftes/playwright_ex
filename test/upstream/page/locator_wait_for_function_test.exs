@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
 
   @moduletag :page
 
-  test "should wait for an attribute to appear", %{page: page} do
+  test "LO-183 should wait for an attribute to appear", %{page: page} do
     Page.set_content!(page, "<button id=toggle>Menu</button>")
 
     Page.evaluate!(
@@ -20,12 +20,12 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     Locator.wait_for_function!(Page.locator(page, "#toggle"), "element => element.hasAttribute('aria-expanded')")
   end
 
-  test "should return immediately when already truthy", %{page: page} do
+  test "LO-184 should return immediately when already truthy", %{page: page} do
     Page.set_content!(page, "<div id=target>yes</div>")
     assert Locator.wait_for_function!(Page.locator(page, "#target"), "element => element.textContent === 'yes'") == :ok
   end
 
-  test "should accept ElementHandle arguments", %{page: page} do
+  test "LO-185 should accept ElementHandle arguments", %{page: page} do
     Page.set_content!(page, "<div id=a></div><div id=b>value</div>")
     handle = Page.query_selector!(page, "#b")
 
@@ -36,17 +36,17 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     )
   end
 
-  test "should accept string expression", %{page: page} do
+  test "LO-186 should accept string expression", %{page: page} do
     Page.set_content!(page, "<div id=target>yes</div>")
     Locator.wait_for_function!(Page.locator(page, "#target"), "element => element.textContent === 'yes'")
   end
 
-  test "should resolve a promise returned by the predicate", %{page: page} do
+  test "LO-187 should resolve a promise returned by the predicate", %{page: page} do
     Page.set_content!(page, "<div id=target>yes</div>")
     Locator.wait_for_function!(Page.locator(page, "#target"), "async element => element.textContent === 'yes'")
   end
 
-  test "should wait for element to appear and survive rerender", %{page: page} do
+  test "LO-188 should wait for element to appear and survive rerender", %{page: page} do
     Page.set_content!(page, "<span>nothing here</span>")
 
     Page.evaluate!(page, """
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     Locator.wait_for_function!(Page.locator(page, "#target"), "element => element.textContent === '3'")
   end
 
-  test "should throw when predicate throws", %{page: page} do
+  test "LO-189 should throw when predicate throws", %{page: page} do
     Page.set_content!(page, "<div id=target>no</div>")
 
     {:error, error} =
@@ -85,13 +85,13 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     assert Exception.message(error) =~ "oh my"
   end
 
-  test "should throw on strict mode violation", %{page: page} do
+  test "LO-190 should throw on strict mode violation", %{page: page} do
     Page.set_content!(page, "<div class=x>1</div><div class=x>2</div>")
     {:error, error} = Locator.wait_for_function(Page.locator(page, "div.x"), "() => true")
     assert Exception.message(error) =~ "strict mode violation"
   end
 
-  test "should abort via signal", %{page: page} do
+  test "LO-191 should abort via signal", %{page: page} do
     Page.set_content!(page, "<div id=target>no</div>")
     controller = AbortController.new()
 
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
     assert error.cause == reason
   end
 
-  test "should abort via already-aborted signal", %{page: page} do
+  test "LO-192 should abort via already-aborted signal", %{page: page} do
     Page.set_content!(page, "<div id=target>no</div>")
     controller = AbortController.new()
     AbortController.abort(controller, "already aborted")

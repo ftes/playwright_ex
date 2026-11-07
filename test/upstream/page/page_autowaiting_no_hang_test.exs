@@ -43,13 +43,17 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     end)
   end
 
-  test "clicking on links which do not commit navigation", %{page: page, server: server, https_server: https_server} do
+  test "AW-013 clicking on links which do not commit navigation", %{
+    page: page,
+    server: server,
+    https_server: https_server
+  } do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<a href='#{https_server.empty_page}'>foobar</a>")
     Page.click!(page, "a")
   end
 
-  test "calling window.stop async", %{page: page, server: server} do
+  test "AW-014 calling window.stop async", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", &hang/1)
 
     Page.evaluate!(
@@ -64,7 +68,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     )
   end
 
-  test "calling window.stop sync", %{page: page, server: server} do
+  test "AW-015 calling window.stop sync", %{page: page, server: server} do
     Page.evaluate!(
       page,
       """
@@ -77,12 +81,12 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     )
   end
 
-  test "assigning location to about:blank", %{page: page, server: server} do
+  test "AW-016 assigning location to about:blank", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, ~s|window.location.href = "about:blank";|)
   end
 
-  test "assigning location to about:blank after non-about:blank", %{page: page, server: server} do
+  test "AW-017 assigning location to about:blank after non-about:blank", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", &hang/1)
 
     Page.evaluate!(page, """
@@ -91,7 +95,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     """)
   end
 
-  test "calling window.open and window.close", %{page: page, server: server} do
+  test "AW-018 calling window.open and window.close", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.evaluate!(page, """
@@ -102,12 +106,12 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     """)
   end
 
-  test "opening a popup", %{page: page, server: server} do
+  test "AW-019 opening a popup", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => window.open(window.location.href) && 1") end)
   end
 
-  test "clicking in the middle of navigation that aborts", %{page: page, server: server} do
+  test "AW-020 clicking in the middle of navigation that aborts", %{page: page, server: server} do
     # req.socket.destroy(): kill the connection's handler process.
     stall_route(server, self(), fn _conn -> Process.exit(self(), :kill) end)
 
@@ -122,7 +126,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     Runtime.Promise.await(click_promise)
   end
 
-  test "clicking in the middle of navigation that commits", %{page: page, server: server} do
+  test "AW-021 clicking in the middle of navigation that commits", %{page: page, server: server} do
     stall_route(server, self(), fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -141,7 +145,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     Expect.to_contain_text!(Page.locator(page, "body"), "hello world")
   end
 
-  test "clicking a link intercepted by the Navigation API same-document", %{page: page, server: server} do
+  test "AW-022 clicking a link intercepted by the Navigation API same-document", %{page: page, server: server} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41125' }
     TestServer.set_route(server, "/intercept.html", fn conn ->
       conn
@@ -174,7 +178,7 @@ defmodule PlaywrightEx.Page.PageAutowaitingNoHangTest do
     assert URI.parse(Page.url(page)).path == "/other"
   end
 
-  test "goBack in the middle of navigation that commits", %{page: page, server: server} do
+  test "AW-023 goBack in the middle of navigation that commits", %{page: page, server: server} do
     stall_route(server, self(), fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")

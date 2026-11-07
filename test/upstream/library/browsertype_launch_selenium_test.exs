@@ -108,7 +108,11 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
 
   @tag :tmp_dir
   @tag skip: @chromium_only
-  test "selenium grid 3.141.59 standalone chromium", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
+  test "BT-097 selenium grid 3.141.59 standalone chromium", %{
+    browser_type: browser_type,
+    asset: asset,
+    tmp_dir: tmp_dir
+  } do
     port = @worker_index * 5 + 15_123
 
     grid =
@@ -137,7 +141,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
   end
 
   @tag skip: @chromium_only
-  test "selenium grid 3.141.59 hub + node chromium", %{browser_type: browser_type} do
+  test "BT-098 selenium grid 3.141.59 hub + node chromium", %{browser_type: browser_type} do
     port = @worker_index * 5 + 15_123
     hub = child_process(["java", "-jar", standalone_3_141_59(), "-role", "hub", "-port", to_string(port)])
     wait_for_port(port)
@@ -175,7 +179,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
 
   @tag :tmp_dir
   @tag skip: @chromium_only
-  test "selenium grid 4.8.3 standalone chromium", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
+  test "BT-099 selenium grid 4.8.3 standalone chromium", %{browser_type: browser_type, asset: asset, tmp_dir: tmp_dir} do
     port = @worker_index * 5 + 15_123
 
     grid =
@@ -205,7 +209,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
   end
 
   @tag skip: @chromium_only
-  test "selenium grid 4.8.3 hub + node chromium", %{browser_type: browser_type} do
+  test "BT-100 selenium grid 4.8.3 hub + node chromium", %{browser_type: browser_type} do
     port = @worker_index * 5 + 15_123
     hub = child_process(["java", "-jar", selenium_4_8_3(), "hub", "--port", to_string(port)])
     wait_for_port(port)
@@ -241,7 +245,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
 
   @tag :tmp_dir
   @tag skip: @chromium_only
-  test "selenium grid 4.8.3 standalone chromium broken driver", %{
+  test "BT-101 selenium grid 4.8.3 standalone chromium broken driver", %{
     browser_type: browser_type,
     asset: asset,
     tmp_dir: tmp_dir
@@ -271,7 +275,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
   end
 
   @tag skip: if(@browser_name == "chromium", do: "upstream skip: not chromium", else: @no_selenium)
-  test "selenium grid 3.141.59 standalone non-chromium", %{browser_type: browser_type} do
+  test "BT-102 selenium grid 3.141.59 standalone non-chromium", %{browser_type: browser_type} do
     test_hook_selenium_remote_url = "http://127.0.0.1:4444/wd/hub"
     {:error, error} = launch(browser_type, test_hook_selenium_remote_url)
     assert Exception.message(error) =~ "Connecting to SELENIUM_REMOTE_URL is only supported by Chromium"
@@ -279,7 +283,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
 
   @tag :tmp_dir
   @tag skip: @chromium_only
-  test "selenium grid 3.141.59 standalone chromium through run-driver", %{asset: asset, tmp_dir: tmp_dir} do
+  test "BT-103 selenium grid 3.141.59 standalone chromium through run-driver", %{asset: asset, tmp_dir: tmp_dir} do
     port = @worker_index * 5 + 15_123
 
     grid =

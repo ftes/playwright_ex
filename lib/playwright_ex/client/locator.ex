@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Client.Locator do
   @upstream "packages/playwright-core/src/client/locator.ts"
   @moduledoc "Port of `#{@upstream}` (`class Locator`). Locators hold no mutable state: a plain struct."
 
+  import PlaywrightEx.Client.ChannelOwner, only: [api_call: 1]
+
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.DisposableStub
@@ -57,32 +59,30 @@ defmodule PlaywrightEx.Client.Locator do
     %PlaywrightEx.Locator{_frame: frame, _selector: selector}
   end
 
+  def _wrap_api_call(this, func, options \\ %{}) do
+    ChannelOwner._wrap_api_call(this._frame, func, options)
+  end
+
   defp _with_element(this, task, options) do
     timeout = Frame._timeout(this._frame, %{timeout: options[:timeout]}).timeout
     deadline = if timeout != 0, do: monotonic_time() + timeout, else: 0
 
-    ChannelOwner._wrap_api_call(
-      this._frame,
-      fn _ ->
-        result =
-          ChannelOwner.channel_call(
-            this._frame,
-            :waitForSelector,
-            %{selector: this._selector, strict: true, state: "attached"},
-            %{signal: options[:signal], timeout: timeout}
-          )
+    result =
+      ChannelOwner.channel_call(
+        this._frame,
+        :waitForSelector,
+        %{selector: this._selector, strict: true, state: "attached"},
+        %{signal: options[:signal], timeout: timeout}
+      )
 
-        handle = ElementHandle.from_nullable(result[:element])
-        if !handle, do: raise("Could not resolve #{this._selector} to DOM Element")
+    handle = ElementHandle.from_nullable(result[:element])
+    if !handle, do: raise("Could not resolve #{this._selector} to DOM Element")
 
-        try do
-          task.(handle, if(deadline != 0, do: deadline - monotonic_time(), else: 0))
-        after
-          JSHandle.dispose(handle)
-        end
-      end,
-      %{title: options.title, internal: options[:internal]}
-    )
+    try do
+      task.(handle, if(deadline != 0, do: deadline - monotonic_time(), else: 0))
+    after
+      JSHandle.dispose(handle)
+    end
   end
 
   def _equals(this, locator) do
@@ -93,12 +93,14 @@ defmodule PlaywrightEx.Client.Locator do
     Frame.page(this._frame)
   end
 
+  # @apiCall({ title: 'Bounding box' })
   def bounding_box(this, options \\ nil) do
-    _with_element(this, fn h, _ -> ElementHandle.bounding_box(h) end, %{
-      title: "Bounding box",
-      timeout: options[:timeout],
-      signal: options[:signal]
-    })
+    api_call(%{title: "Bounding box"}).(this, fn ->
+      _with_element(this, fn h, _ -> ElementHandle.bounding_box(h) end, %{
+        timeout: options[:timeout],
+        signal: options[:signal]
+      })
+    end)
   end
 
   def check(this, options \\ %{}) do
@@ -127,33 +129,40 @@ defmodule PlaywrightEx.Client.Locator do
     Frame._drop(this._frame, this._selector, payload, Map.merge(%{strict: true}, options || %{}))
   end
 
+  # @apiCall({ title: 'Evaluate' })
   def evaluate(this, page_function, arg \\ nil, options \\ nil) do
-    _with_element(this, fn h, _ -> JSHandle.evaluate(h, page_function, arg, options) end, %{
-      title: "Evaluate",
-      timeout: options[:timeout],
-      signal: options[:signal]
-    })
+    api_call(%{title: "Evaluate"}).(this, fn ->
+      _with_element(this, fn h, _ -> JSHandle.evaluate(h, page_function, arg, options) end, %{
+        timeout: options[:timeout],
+        signal: options[:signal]
+      })
+    end)
   end
 
   def evaluate_all(this, page_function, arg \\ nil) do
     Frame.eval_on_selector_all(this._frame, this._selector, page_function, arg)
   end
 
+  # @apiCall({ title: 'Evaluate' })
   def evaluate_handle(this, page_function, arg \\ nil, options \\ nil) do
-    _with_element(this, fn h, _ -> JSHandle.evaluate_handle(h, page_function, arg, options) end, %{
-      title: "Evaluate",
-      timeout: options[:timeout],
-      signal: options[:signal]
-    })
+    api_call(%{title: "Evaluate"}).(this, fn ->
+      _with_element(this, fn h, _ -> JSHandle.evaluate_handle(h, page_function, arg, options) end, %{
+        timeout: options[:timeout],
+        signal: options[:signal]
+      })
+    end)
   end
 
   def fill(this, value, options \\ %{}) do
     Frame.fill(this._frame, this._selector, value, Map.merge(%{strict: true}, options || %{}))
   end
 
+  # @apiCall({ title: 'Clear' })
   def clear(this, options \\ %{}) do
-    ChannelOwner._wrap_api_call(this._frame, fn _ -> fill(this, "", options) end, %{title: "Clear"})
-    nil
+    api_call(%{title: "Clear"}).(this, fn ->
+      fill(this, "", options)
+      nil
+    end)
   end
 
   def _highlight(this) do
@@ -356,15 +365,19 @@ defmodule PlaywrightEx.Client.Locator do
     Frame.press(this._frame, this._selector, key, Map.merge(%{strict: true}, options || %{}))
   end
 
+  # @apiCall({ title: 'Screenshot' })
   def screenshot(this, options \\ %{}) do
     options = options || %{}
-    mask = options[:mask]
 
-    _with_element(
-      this,
-      fn h, timeout -> ElementHandle.screenshot(h, Map.merge(options, %{mask: mask, timeout: timeout})) end,
-      %{title: "Screenshot", timeout: options[:timeout], signal: options[:signal]}
-    )
+    api_call(%{title: "Screenshot"}).(this, fn ->
+      mask = options[:mask]
+
+      _with_element(
+        this,
+        fn h, timeout -> ElementHandle.screenshot(h, Map.merge(options, %{mask: mask, timeout: timeout})) end,
+        %{timeout: options[:timeout], signal: options[:signal]}
+      )
+    end)
   end
 
   def aria_snapshot(this, options \\ %{}) do
@@ -395,28 +408,34 @@ defmodule PlaywrightEx.Client.Locator do
     result.snapshot
   end
 
+  # @apiCall({ title: 'Scroll into view' })
   def scroll_into_view_if_needed(this, options \\ %{}) do
     options = options || %{}
 
-    _with_element(
-      this,
-      fn h, timeout -> ElementHandle.scroll_into_view_if_needed(h, Map.put(options, :timeout, timeout)) end,
-      %{title: "Scroll into view", timeout: options[:timeout], signal: options[:signal]}
-    )
+    api_call(%{title: "Scroll into view"}).(this, fn ->
+      _with_element(
+        this,
+        fn h, timeout -> ElementHandle.scroll_into_view_if_needed(h, Map.put(options, :timeout, timeout)) end,
+        %{timeout: options[:timeout], signal: options[:signal]}
+      )
+    end)
   end
 
   def select_option(this, values, options \\ %{}) do
     Frame.select_option(this._frame, this._selector, values, Map.merge(%{strict: true}, options || %{}))
   end
 
+  # @apiCall({ title: 'Select text' })
   def select_text(this, options \\ %{}) do
     options = options || %{}
 
-    _with_element(
-      this,
-      fn h, timeout -> ElementHandle.select_text(h, Map.put(options, :timeout, timeout)) end,
-      %{title: "Select text", timeout: options[:timeout], signal: options[:signal]}
-    )
+    api_call(%{title: "Select text"}).(this, fn ->
+      _with_element(
+        this,
+        fn h, timeout -> ElementHandle.select_text(h, Map.put(options, :timeout, timeout)) end,
+        %{timeout: options[:timeout], signal: options[:signal]}
+      )
+    end)
   end
 
   def set_checked(this, checked, options \\ nil) do

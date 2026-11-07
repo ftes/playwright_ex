@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Utils
 
-  test "should not be visible in context.pages", %{context_factory: context_factory} do
+  test "BC-051 should not be visible in context.pages", %{context_factory: context_factory} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     assert page in BrowserContext.pages(context)
@@ -24,13 +24,13 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     refute page in BrowserContext.pages(context)
   end
 
-  test "page.context should return the correct instance", %{context_factory: context_factory} do
+  test "BC-052 page.context should return the correct instance", %{context_factory: context_factory} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     assert Page.context(page) == context
   end
 
-  test "frame.focus should work multiple times", %{context_factory: context_factory} do
+  test "BC-053 frame.focus should work multiple times", %{context_factory: context_factory} do
     context = context_factory.([])
     page1 = BrowserContext.new_page!(context)
     page2 = BrowserContext.new_page!(context)
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     end
   end
 
-  test "should click with disabled javascript", %{browser: browser, server: server} do
+  test "BC-054 should click with disabled javascript", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, java_script_enabled: false)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/wrappedlink.html")
@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     BrowserContext.close!(context)
   end
 
-  test "should not hang with touch-enabled viewports", %{browser: browser, playwright: playwright} do
+  test "BC-055 should not hang with touch-enabled viewports", %{browser: browser, playwright: playwright} do
     # @see https://github.com/GoogleChrome/puppeteer/issues/161
     %{viewport: viewport, has_touch: has_touch} = Playwright.devices(playwright)["iPhone 6"]
     context = Browser.new_context!(browser, viewport: viewport, has_touch: has_touch)
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
     BrowserContext.close!(context)
   end
 
-  test "should click the button with deviceScaleFactor set", %{browser: browser, server: server} do
+  test "BC-056 should click the button with deviceScaleFactor set", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 400, height: 400}, device_scale_factor: 5)
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "() => window.devicePixelRatio") == 5
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
-  test "should click the button with offset with page scale", %{
+  test "BC-057 should click the button with offset with page scale", %{
     browser: browser,
     server: server
   } do
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
-  test "should return bounding box with page scale", %{browser: browser, server: server} do
+  test "BC-058 should return bounding box with page scale", %{browser: browser, server: server} do
     # it.skip(browserName === 'firefox' && !isBidi): we run Juggler Firefox.
     context = Browser.new_context!(browser, viewport: %{width: 400, height: 400}, is_mobile: true)
     page = BrowserContext.new_page!(context)
@@ -135,7 +135,10 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
 
   # it.slow(true, 'We open 20 pages here!')
   @tag timeout: @slow_timeout
-  test "should not leak listeners during navigation of 20 pages", %{context_factory: context_factory, server: server} do
+  test "BC-059 should not leak listeners during navigation of 20 pages", %{
+    context_factory: context_factory,
+    server: server
+  } do
     context = context_factory.([])
     # process.on('warning', ...): the client's MaxListenersExceededWarning is logged here. Deviation:
     # no client emitter gets a second listener of one type in this scenario (the JS client's
@@ -166,7 +169,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
            do:
              "upstream fixme: Chromium loses the close when the reload commits into a new RenderFrameHost; fix is not rolled yet"
          )
-  test "should close page while a reload is committing", %{context: context} do
+  test "BC-060 should close page while a reload is committing", %{context: context} do
     # issue: https://github.com/microsoft/playwright/issues/42068
     # issue: https://issues.chromium.org/issues/536385539
     # it.fixme(browserName === 'chromium', 'Chromium loses the close when the reload commits into a new RenderFrameHost; fix is not rolled yet')
@@ -190,7 +193,7 @@ defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
   end
 
   @tag :page
-  test "should keep selection in multiple pages", %{context: context} do
+  test "BC-061 should keep selection in multiple pages", %{context: context} do
     # issue: https://github.com/microsoft/playwright/issues/27475
     page1 = BrowserContext.new_page!(context)
     page2 = BrowserContext.new_page!(context)

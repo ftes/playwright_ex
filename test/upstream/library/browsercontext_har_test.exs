@@ -31,7 +31,10 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
 
   defp echo_post_body(conn), do: Plug.Conn.send_resp(conn, 200, conn.assigns.post_body)
 
-  test "should context.routeFromHAR, matching the method and following redirects", %{context: context, asset: asset} do
+  test "HA-068 should context.routeFromHAR, matching the method and following redirects", %{
+    context: context,
+    asset: asset
+  } do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path)
     page = BrowserContext.new_page!(context)
@@ -42,7 +45,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
   end
 
-  test "should page.routeFromHAR, matching the method and following redirects", %{context: context, asset: asset} do
+  test "HA-069 should page.routeFromHAR, matching the method and following redirects", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
     page = BrowserContext.new_page!(context)
     Page.route_from_har!(page, path)
@@ -53,7 +56,11 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
   end
 
-  test "fallback:continue should continue when not found in har", %{context: context, server: server, asset: asset} do
+  test "HA-070 fallback:continue should continue when not found in har", %{
+    context: context,
+    server: server,
+    asset: asset
+  } do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path, not_found: :fallback)
     page = BrowserContext.new_page!(context)
@@ -61,7 +68,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "by default should abort requests not found in har", %{context: context, server: server, asset: asset} do
+  test "HA-071 by default should abort requests not found in har", %{context: context, server: server, asset: asset} do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path)
     page = BrowserContext.new_page!(context)
@@ -69,7 +76,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert is_exception(error)
   end
 
-  test "fallback:continue should continue requests on bad har", %{
+  test "HA-072 fallback:continue should continue requests on bad har", %{
     context: context,
     server: server,
     output_path: output_path
@@ -82,7 +89,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "should only handle requests matching url filter", %{context: context, asset: asset} do
+  test "HA-073 should only handle requests matching url filter", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path, not_found: :fallback, url: "**/*.js")
     page = BrowserContext.new_page!(context)
@@ -103,7 +110,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgba(0, 0, 0, 0)")
   end
 
-  test "should only context.routeFromHAR requests matching url filter", %{context: context, asset: asset} do
+  test "HA-074 should only context.routeFromHAR requests matching url filter", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path, url: "**/*.js")
     page = BrowserContext.new_page!(context)
@@ -124,7 +131,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgba(0, 0, 0, 0)")
   end
 
-  test "should only page.routeFromHAR requests matching url filter", %{context: context, asset: asset} do
+  test "HA-075 should only page.routeFromHAR requests matching url filter", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
     page = BrowserContext.new_page!(context)
     Page.route_from_har!(page, path, url: "**/*.js")
@@ -145,7 +152,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgba(0, 0, 0, 0)")
   end
 
-  test "should apply overrides before routing from har", %{context: context, asset: asset} do
+  test "HA-076 should apply overrides before routing from har", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path, url: "**/*.js")
     page = BrowserContext.new_page!(context)
@@ -167,7 +174,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "window.value") == "foo"
   end
 
-  test "should support regex filter", %{context: context, asset: asset} do
+  test "HA-077 should support regex filter", %{context: context, asset: asset} do
     path = asset.("har-fulfill.har")
     BrowserContext.route_from_har!(context, path, url: ~r/.*(\.js|.*\.css|no.playwright\/)$/)
     page = BrowserContext.new_page!(context)
@@ -176,7 +183,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page, "body"), "background-color", "rgb(255, 0, 0)")
   end
 
-  test "newPage should fulfill from har, matching the method and following redirects", %{
+  test "HA-078 newPage should fulfill from har, matching the method and following redirects", %{
     browser: browser,
     asset: asset
   } do
@@ -191,7 +198,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Page.close!(page)
   end
 
-  test "should change document URL after redirected navigation", %{context: context, asset: asset} do
+  test "HA-079 should change document URL after redirected navigation", %{context: context, asset: asset} do
     path = asset.("har-redirect.har")
     BrowserContext.route_from_har!(context, path)
     page = BrowserContext.new_page!(context)
@@ -205,7 +212,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
   end
 
-  test "should change document URL after redirected navigation on click", %{
+  test "HA-080 should change document URL after redirected navigation on click", %{
     server: server,
     context: context,
     asset: asset
@@ -223,7 +230,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
   end
 
-  test "should goBack to redirected navigation", %{context: context, asset: asset, server: server} do
+  test "HA-081 should goBack to redirected navigation", %{context: context, asset: asset, server: server} do
     path = asset.("har-redirect.har")
     BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
     page = BrowserContext.new_page!(context)
@@ -236,7 +243,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
   end
 
-  test "should goForward to redirected navigation", %{context: context, asset: asset, server: server} do
+  test "HA-082 should goForward to redirected navigation", %{context: context, asset: asset, server: server} do
     path = asset.("har-redirect.har")
     BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
     page = BrowserContext.new_page!(context)
@@ -252,7 +259,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
   end
 
-  test "should reload redirected navigation", %{context: context, asset: asset} do
+  test "HA-083 should reload redirected navigation", %{context: context, asset: asset} do
     path = asset.("har-redirect.har")
     BrowserContext.route_from_har!(context, path, url: ~r/.*theverge.*/)
     page = BrowserContext.new_page!(context)
@@ -264,7 +271,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page, "() => location.href") == "https://www.theverge.com/"
   end
 
-  test "should fulfill from har with content in a file", %{context: context, asset: asset} do
+  test "HA-084 should fulfill from har with content in a file", %{context: context, asset: asset} do
     path = asset.("har-sha1.har")
     BrowserContext.route_from_har!(context, path)
     page = BrowserContext.new_page!(context)
@@ -272,12 +279,21 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.content!(page) == "<html><head></head><body>Hello, world</body></html>"
   end
 
-  test "should round-trip har.zip", %{context_factory: context_factory, server: server, output_path: output_path} do
-    har_path = output_path.("har.zip")
+  # annotation: [
+  #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43503' },
+  #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43669' },
+  # ]
+  test "HA-085 should round-trip har.zip", %{context_factory: context_factory, server: server, output_path: output_path} do
+    har_path = output_path.("har.ZIP")
     context1 = context_factory.(record_har: %{mode: "minimal", path: har_path})
     page1 = BrowserContext.new_page!(context1)
     Page.goto!(page1, server.prefix <> "/one-style.html")
     BrowserContext.close!(context1)
+
+    har_dir = output_path.("har")
+    {:ok, _} = :zip.unzip(String.to_charlist(har_path), cwd: String.to_charlist(har_dir))
+    %{"log" => log} = JSON.decode!(File.read!(Path.join(har_dir, "har.har")))
+    assert is_binary(hd(log["entries"])["response"]["content"]["_file"])
 
     context2 = context_factory.([])
     BrowserContext.route_from_har!(context2, har_path, not_found: :abort)
@@ -285,9 +301,43 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Page.goto!(page2, server.prefix <> "/one-style.html")
     assert Page.content!(page2) =~ "hello, world!"
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
+
+    # yazl: `:zip.create/3` in memory.
+    entries =
+      for entry <- File.ls!(har_dir) do
+        name = if entry == "har.har", do: "Recording.HAR", else: entry
+        {String.to_charlist(name), File.read!(Path.join(har_dir, entry))}
+      end
+
+    {:ok, {_, zip}} = :zip.create(~c"uppercase.har.zip", entries, [:memory])
+    uppercase_har_path = output_path.("uppercase.har.zip")
+    File.write!(uppercase_har_path, zip)
+
+    BrowserContext.unroute_all!(context2, behavior: :wait)
+    BrowserContext.route_from_har!(context2, uppercase_har_path, not_found: :abort)
+    Page.reload!(page2)
+    assert Page.content!(page2) =~ "hello, world!"
+    Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "should produce extracted zip", %{context_factory: context_factory, server: server, output_path: output_path} do
+  test "HA-114 should reject a malformed har.zip", %{context_factory: context_factory, output_path: output_path} do
+    # yazl: `:zip.create/3` in memory.
+    {:ok, {_, zip}} = :zip.create(~c"malformed.har.zip", [{~c"aa/x.har", "{}"}], [:memory])
+    # yauzl reports '..' in an entry name as an 'error' event while reading entries.
+    zip = :binary.replace(zip, "aa/x.har", "../x.har", [:global])
+    har_path = output_path.("malformed.har.zip")
+    File.write!(har_path, zip)
+
+    context = context_factory.([])
+    {:error, error} = BrowserContext.route_from_har(context, har_path)
+    assert Exception.message(error) =~ "invalid relative path: ../x.har"
+  end
+
+  test "HA-086 should produce extracted zip", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
     har_path = output_path.("har.har")
     context1 = context_factory.(record_har: %{mode: "minimal", path: har_path, content: "attach"})
     page1 = BrowserContext.new_page!(context1)
@@ -306,7 +356,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "should round-trip extracted har.zip", %{
+  test "HA-087 should round-trip extracted har.zip", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -335,7 +385,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
   }
   """
 
-  test "should round-trip har with postData", %{
+  test "HA-088 should round-trip har with postData", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -376,7 +426,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
   }
   """
 
-  test "should record overridden requests to har", %{
+  test "HA-089 should record overridden requests to har", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -424,7 +474,11 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
   }
   """
 
-  test "should disambiguate by header", %{context_factory: context_factory, server: server, output_path: output_path} do
+  test "HA-090 should disambiguate by header", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
     TestServer.set_route(server, "/echo", fn conn ->
       Plug.Conn.send_resp(conn, 200, conn |> Plug.Conn.get_req_header("baz") |> List.first())
     end)
@@ -449,7 +503,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Page.evaluate!(page2, @fetch_header_function, "baz4") == "baz1"
   end
 
-  test "should update har.zip for context", %{
+  test "HA-091 should update har.zip for context", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -469,7 +523,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "should ignore boundary when matching multipart/form-data body", %{
+  test "HA-092 should ignore boundary when matching multipart/form-data body", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -515,7 +569,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_text!(Page.locator(page2, "div"), "done")
   end
 
-  test "should record single set-cookie headers", %{
+  test "HA-093 should record single set-cookie headers", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -544,7 +598,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert cookie2 == "first=foo"
   end
 
-  test "should record multiple set-cookie headers", %{
+  test "HA-094 should record multiple set-cookie headers", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -573,7 +627,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert cookie2 |> String.split("; ") |> Enum.sort() |> Enum.join("; ") == "first=foo; second=bar"
   end
 
-  test "should update har.zip for page", %{
+  test "HA-095 should update har.zip for page", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -593,7 +647,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "should update har.zip for page with different options", %{
+  test "HA-096 should update har.zip for page with different options", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -613,7 +667,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "should update extracted har.zip for page", %{
+  test "HA-097 should update extracted har.zip for page", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -633,7 +687,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     Expect.to_have_css!(Page.locator(page2, "body"), "background-color", "rgb(255, 192, 203)")
   end
 
-  test "page.unrouteAll should stop page.routeFromHAR", %{
+  test "HA-098 page.unrouteAll should stop page.routeFromHAR", %{
     context_factory: context_factory,
     server: server,
     asset: asset
@@ -650,7 +704,7 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Response.ok(response)
   end
 
-  test "context.unrouteAll should stop context.routeFromHAR", %{
+  test "HA-099 context.unrouteAll should stop context.routeFromHAR", %{
     context_factory: context_factory,
     server: server,
     asset: asset
@@ -667,7 +721,11 @@ defmodule PlaywrightEx.Library.BrowsercontextHarTest do
     assert Response.ok(response)
   end
 
-  test "should ignore aborted requests", %{context_factory: context_factory, server: server, output_path: output_path} do
+  test "HA-100 should ignore aborted requests", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
     path = output_path.("test.har")
     fetch_x = "url => fetch(url).catch(e => 'cancelled')"
 

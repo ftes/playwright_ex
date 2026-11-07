@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         :ok
       end
 
-      test "should work with text message", %{page: page, server: server} do
+      test "WS-015 should work with text message", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
                ]
       end
 
-      test "should work with binaryType=blob", %{page: page, server: server} do
+      test "WS-016 should work with binaryType=blob", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         setup_ws(page, server, "blob")
         ws = Task.await(ws_promise, :infinity)
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert_receive {:message, "hi"}, 5000
       end
 
-      test "should work with binaryType=arraybuffer", %{page: page, server: server} do
+      test "WS-017 should work with binaryType=arraybuffer", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         setup_ws(page, server, "arraybuffer")
         ws = Task.await(ws_promise, :infinity)
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       if System.get_env("BROWSER") == "webkit",
         do: @tag(skip: "upstream skip: WebKit ignores the connection error and fires no events!")
 
-      test "should work when connection errors out", %{page: page, server: server} do
+      test "WS-018 should work when connection errors out", %{page: page, server: server} do
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
         %{socket: socket} = Task.await(upgrade_promise, :infinity)
@@ -163,7 +163,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
           nil
       end
 
-      test "should work with error after successful open", %{page: page, server: server} do
+      test "WS-019 should work with error after successful open", %{page: page, server: server} do
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
         %{socket: socket, do_upgrade: do_upgrade} = Task.await(upgrade_promise, :infinity)
@@ -176,7 +176,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert close =~ ~r/close code=\d+ reason= wasClean=false/
       end
 
-      test "should work with client-side close", %{page: page, server: server} do
+      test "WS-020 should work with client-side close", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         upgrade_promise = TestServer.wait_for_upgrade(server)
         setup_ws(page, server, "blob")
@@ -207,14 +207,14 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert closed.reason == "oops"
       end
 
-      test "should pass through the required protocol", %{page: page, server: server} do
+      test "WS-021 should pass through the required protocol", %{page: page, server: server} do
         setup_ws(page, server, "blob", "my-custom-protocol")
         Page.evaluate!(page, "() => window.wsOpened")
         protocol = Page.evaluate!(page, "() => window.ws.protocol")
         assert protocol == "my-custom-protocol"
       end
 
-      test "should work with relative WebSocket URL", %{page: page, server: server} do
+      test "WS-022 should work with relative WebSocket URL", %{page: page, server: server} do
         ws_promise = TestServer.wait_for_web_socket(server)
         setup_ws(page, server, "blob", nil, true)
         ws = Task.await(ws_promise, :infinity)
@@ -233,7 +233,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     end
   end
 
-  test "should work with ws.close", %{page: page, server: server} do
+  test "WS-023 should work with ws.close", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -271,7 +271,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert closed == %{code: 3009, reason: "oops"}
   end
 
-  test "should observe upstream handshake failure when connectToServer is used", %{page: page, server: server} do
+  test "WS-024 should observe upstream handshake failure when connectToServer is used", %{page: page, server: server} do
     # Exercises the WebSocket-as-network-request path used by Firefox after the
     # har-WebSocket plumbing change, where a 4xx handshake response is synthesized
     # into a full lifecycle in FFPage._onWebSocketRequestFinished.
@@ -310,7 +310,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     TestServer.once_web_socket_connection(server, &handle_connection(server, &1))
   end
 
-  test "should observe multiple concurrent routed WebSockets with connectToServer", %{page: page, server: server} do
+  test "WS-025 should observe multiple concurrent routed WebSockets with connectToServer", %{page: page, server: server} do
     # Exercises FFNetworkManager._webSocketRequestIds tracking by routing two
     # simultaneous WebSocket connections through `connectToServer()`. Each request
     # gets a distinct id in the new Firefox WebSocket-as-network-request flow.
@@ -352,7 +352,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     refute_received :routed_connection
   end
 
-  test "should pattern match", %{page: page, server: server} do
+  test "WS-026 should pattern match", %{page: page, server: server} do
     Page.route_web_socket!(page, ~r/.*\/ws$/, &WebSocketRoute.connect_to_server/1)
 
     Page.route_web_socket!(page, "**/mock-ws", fn ws ->
@@ -391,7 +391,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:response", "ws2:mock-response"]))
   end
 
-  test "should work with server", %{page: page, server: server} do
+  test "WS-027 should work with server", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -515,7 +515,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     )
   end
 
-  test "should work without server", %{page: page, server: server} do
+  test "WS-028 should work without server", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -567,7 +567,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     )
   end
 
-  test "should route WebSockets in already loaded documents", %{page: page, server: server} do
+  test "WS-029 should route WebSockets in already loaded documents", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Utils.attach_frame(page, "frame1", server.empty_page)
 
@@ -594,7 +594,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     end
   end
 
-  test "should emit close upon frame navigation", %{page: page, server: server} do
+  test "WS-030 should emit close upon frame navigation", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -617,7 +617,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive :closed, 5000
   end
 
-  test "should emit close upon frame detach", %{page: page, server: server} do
+  test "WS-031 should emit close upon frame detach", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -641,7 +641,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive :closed, 5000
   end
 
-  test "should route on context", %{page: page, server: server} do
+  test "WS-032 should route on context", %{page: page, server: server} do
     Page.route_web_socket!(page, ~r/ws1/, fn ws ->
       WebSocketRoute.on_message(ws, fn _message -> WebSocketRoute.send(ws, "page-mock-1") end)
     end)
@@ -682,7 +682,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     )
   end
 
-  test "should not throw after page closure", %{page: page, server: server} do
+  test "WS-033 should not throw after page closure", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -698,7 +698,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     Task.await(close, :infinity)
   end
 
-  test "should not throw with empty handler", %{page: page, server: server} do
+  test "WS-034 should not throw with empty handler", %{page: page, server: server} do
     Page.route_web_socket!(page, ~r/.*/, fn _ -> nil end)
     setup_ws(page, server, "blob")
     Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["open"]))
@@ -707,7 +707,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["open"]))
   end
 
-  test "should throw when connecting twice", %{page: page, server: server} do
+  test "WS-035 should throw when connecting twice", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->
@@ -725,7 +725,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert Exception.message(error) =~ "Already connected to the server"
   end
 
-  test "should work with no trailing slash", %{page: page, server: server} do
+  test "WS-036 should work with no trailing slash", %{page: page, server: server} do
     {:ok, log} = Agent.start_link(fn -> [] end)
     # No trailing slash!
     Page.route_web_socket!(page, "ws://" <> server.host, fn ws ->
@@ -757,7 +757,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
   end
 
   @tag page: false
-  test "should work with baseURL", %{context_factory: context_factory, server: server} do
+  test "WS-037 should work with baseURL", %{context_factory: context_factory, server: server} do
     context = context_factory.(base_url: "http://" <> server.host)
     page = BrowserContext.new_page!(context)
 
@@ -781,7 +781,10 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
   end
 
   @tag page: false
-  test "should work with baseURL regardless of scheme casing", %{context_factory: context_factory, server: server} do
+  test "WS-038 should work with baseURL regardless of scheme casing", %{
+    context_factory: context_factory,
+    server: server
+  } do
     # baseURL schemes are case-insensitive, same as everywhere else in URL matching.
     context = context_factory.(base_url: "HTTP://" <> server.host)
     page = BrowserContext.new_page!(context)
@@ -805,7 +808,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     )
   end
 
-  test "should expose protocols to the route handler", %{page: page, server: server} do
+  test "WS-039 should expose protocols to the route handler", %{page: page, server: server} do
     {:ok, routes} = Agent.start_link(fn -> [] end)
     Page.route_web_socket!(page, ~r/.*/, fn ws -> Agent.update(routes, &(&1 ++ [ws])) end)
 
@@ -831,7 +834,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert WebSocketRoute.protocols(by_url["/ws-array"]) == ["chat.v2", "chat.v1"]
   end
 
-  test "should expose protocols on server-side route", %{page: page, server: server} do
+  test "WS-040 should expose protocols on server-side route", %{page: page, server: server} do
     me = self()
 
     Page.route_web_socket!(page, ~r/.*/, fn ws ->

@@ -12,7 +12,6 @@ defmodule PlaywrightEx.Page.PageDragTest do
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
   alias PlaywrightEx.Utils
 
   @moduletag :page
@@ -23,7 +22,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
   @source_in_target "target => target.contains(document.querySelector('#source'))"
 
   describe "Drag and drop" do
-    test "should work @smoke", %{page: page, server: server} do
+    test "DD-001 should work @smoke", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       Page.hover!(page, "#source")
       Mouse.down!(Page.mouse(page))
@@ -33,7 +32,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert Page.eval_on_selector!(page, "#target", @source_in_target) == true
     end
 
-    test "should send the right events", %{page: page, server: server, browser_name: browser_name} do
+    test "DD-002 should send the right events", %{page: page, server: server, browser_name: browser_name} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       events = track_events(Page.query_selector!(page, "body"))
       Page.hover!(page, "#source")
@@ -54,7 +53,11 @@ defmodule PlaywrightEx.Page.PageDragTest do
     end
 
     @tag skip: if(@browser_name != "chromium", do: "upstream fixme: not chromium")
-    test "should not send dragover on the first mousemove", %{page: page, server: server, browser_name: browser_name} do
+    test "DD-003 should not send dragover on the first mousemove", %{
+      page: page,
+      server: server,
+      browser_name: browser_name
+    } do
       # it.fixme(browserName !== 'chromium');
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       events = track_events(Page.query_selector!(page, "body"))
@@ -71,7 +74,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
              ]
     end
 
-    test "should work inside iframe", %{page: page, server: server, browser_name: browser_name} do
+    test "DD-004 should work inside iframe", %{page: page, server: server, browser_name: browser_name} do
       Page.goto!(page, server.empty_page)
       frame = Utils.attach_frame(page, "myframe", server.prefix <> "/drag-n-drop.html")
 
@@ -107,7 +110,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert JSHandle.json_value!(page_events) == []
     end
 
-    test "should cancel on escape", %{page: page, server: server, browser_name: browser_name} do
+    test "DD-005 should cancel on escape", %{page: page, server: server, browser_name: browser_name} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       events = track_events(Page.query_selector!(page, "body"))
       Page.hover!(page, "#source")
@@ -138,17 +141,12 @@ defmodule PlaywrightEx.Page.PageDragTest do
     # it.fixme(true, 'implement dragging with iframes');
 
     @tag skip: "upstream fixme: implement dragging with iframes"
-    test "should drag into an iframe"
+    test "DD-006 should drag into an iframe"
 
     @tag skip: "upstream fixme: implement dragging with iframes"
-    test "should drag out of an iframe"
+    test "DD-007 should drag out of an iframe"
 
-    @tag skip:
-           if(@browser_name == "webkit" and not match?({:unix, :linux}, :os.type()),
-             do: "upstream fixme: WebKit doesn't handle the drop effect correctly outside of linux."
-           )
-    test "should respect the drop effect", %{page: page} do
-      # it.fixme(browserName === 'webkit' && !isLinux, 'WebKit doesn\'t handle the drop effect correctly outside of linux.');
+    test "DD-008 should respect the drop effect", %{page: page} do
       # it.fixme(webkit && isLinux && !headless), it.fixme(chromium && !isMac && !headless)  -- we run headless
       # it.slow(trace === 'on')  -- tracing is off
       assert test_if_dropped(page, "copy", "copy") == true
@@ -171,7 +169,41 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert test_if_dropped(page, "uninitialized", "copy") == true
     end
 
-    test "should work if the drag is canceled", %{page: page, server: server} do
+    test "DD-028 should report the default drop effect from effectAllowed", %{page: page} do
+      # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43447' }
+      # it.fixme(browserName === 'webkit' && isLinux && !headless)  -- we run headless
+      Page.set_content!(page, """
+      <div draggable="true">drag target</div>
+      <drop-target>this is the drop target</drop-target>
+      """)
+
+      Page.evaluate!(page, """
+      () => {
+        window['dropEffect'] = 'none';
+
+        document.querySelector('div').addEventListener('dragstart', event => {
+          event.dataTransfer.effectAllowed = 'copyMove';
+          event.dataTransfer.setData('text/plain', 'drag data');
+        });
+        document.querySelector('div').addEventListener('dragend', event => {
+          window['dropEffect'] = event.dataTransfer.dropEffect;
+        });
+
+        // The target accepts the drag without setting dropEffect.
+        document.querySelector('drop-target').addEventListener('dragover', event => {
+          event.preventDefault();
+        });
+      }
+      """)
+
+      Page.hover!(page, "div")
+      Mouse.down!(Page.mouse(page))
+      Page.hover!(page, "drop-target")
+      Mouse.up!(Page.mouse(page))
+      assert Page.evaluate!(page, "dropEffect") == "move"
+    end
+
+    test "DD-009 should work if the drag is canceled", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
 
       Page.evaluate!(page, """
@@ -189,7 +221,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert Page.eval_on_selector!(page, "#target", @source_in_target) == false
     end
 
-    test "should work if the drag event is captured but not canceled", %{page: page, server: server} do
+    test "DD-010 should work if the drag event is captured but not canceled", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
 
       Page.evaluate!(page, """
@@ -207,7 +239,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert Page.eval_on_selector!(page, "#target", @source_in_target) == true
     end
 
-    test "should be able to drag the mouse in a frame", %{page: page, server: server} do
+    test "DD-011 should be able to drag the mouse in a frame", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/frames/one-frame.html")
       events_handle = track_events(Frame.query_selector!(Enum.at(Page.frames(page), 1), "html"))
       Mouse.move!(Page.mouse(page), 30, 30)
@@ -223,7 +255,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
              ]
     end
 
-    test "should work if a frame is stalled", %{page: page, server: server} do
+    test "DD-012 should work if a frame is stalled", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       test = self()
       Page.route!(page, "**/empty.html", fn route, _request -> send(test, {:made_request, route}) end)
@@ -246,7 +278,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
       assert Page.eval_on_selector!(page, "#target", @source_in_target) == true
     end
 
-    test "should work with the helper method", %{page: page, server: server} do
+    test "DD-013 should work with the helper method", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       Page.drag_and_drop!(page, "#source", "#target")
       # could not find source in target
@@ -254,7 +286,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
     end
 
     for title <- ["dragAndDrop", "dragTo"] do
-      test "should #{title} with tweened mouse movement", %{page: page} do
+      test "DD-014 should #{title} with tweened mouse movement", %{page: page} do
         # it.skip(!headless, 'actual mouse interferes with the exact mousemove events')  -- we run headless
         Page.set_content!(page, """
         <body style="margin: 0; padding: 0;">
@@ -306,7 +338,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
       end
     end
 
-    test "should allow specifying the position", %{page: page} do
+    test "DD-015 should allow specifying the position", %{page: page} do
       Page.set_content!(page, """
       <div style="width:100px;height:100px;background:red;" id="red">
       </div>
@@ -347,7 +379,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
              ]
     end
 
-    test "should work with locators", %{page: page, server: server} do
+    test "DD-016 should work with locators", %{page: page, server: server} do
       Page.goto!(page, server.prefix <> "/drag-n-drop.html")
       Locator.drag_to!(Page.locator(page, "#source"), Page.locator(page, "#target"))
       # could not find source in target
@@ -355,7 +387,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
     end
   end
 
-  test "should work if not doing a drag", %{page: page} do
+  test "DD-017 should work if not doing a drag", %{page: page} do
     events_handle = track_events(Page.query_selector!(page, "html"))
     Mouse.move!(Page.mouse(page), 50, 50)
     Mouse.down!(Page.mouse(page))
@@ -370,7 +402,7 @@ defmodule PlaywrightEx.Page.PageDragTest do
            ]
   end
 
-  test "should report event.buttons", %{page: page} do
+  test "DD-018 should report event.buttons", %{page: page} do
     logs_handle =
       Page.evaluate_handle!(page, """
       async () => {
@@ -406,47 +438,45 @@ defmodule PlaywrightEx.Page.PageDragTest do
   end
 
   @tag skip: if(@browser_name == "webkit" and match?({:win32, _}, :os.type()), do: "upstream fixme: webkit on Windows")
-  test "should handle custom dataTransfer", %{page: page} do
+  test "DD-019 should handle custom dataTransfer", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/18013' }
     # it.fixme(browserName === 'webkit' && isWindows);
     Page.set_content!(page, ~s(<button draggable="true">Draggable</button>))
 
-    result_promise =
-      Runtime.Promise.async(fn ->
-        Page.evaluate!(page, """
-        () =>
-          new Promise(resolve => {
-            document.addEventListener('dragstart', event => {
-              event.dataTransfer.setData('custom-type', 'Hello World');
-            }, false);
+    Page.evaluate!(page, """
+    () => {
+      window.__result = new Promise(resolve => {
+        document.addEventListener('dragstart', event => {
+          event.dataTransfer.setData('custom-type', 'Hello World');
+        }, false);
 
-            document.addEventListener('dragenter', event => {
-              event.preventDefault();
-            }, false);
-            document.addEventListener('dragover', event => {
-              event.preventDefault();
-            }, false);
+        document.addEventListener('dragenter', event => {
+          event.preventDefault();
+        }, false);
+        document.addEventListener('dragover', event => {
+          event.preventDefault();
+        }, false);
 
-            document.addEventListener('drop', event => {
-              event.preventDefault();
-              resolve({
-                types: event.dataTransfer.types,
-                data: event.dataTransfer.getData('custom-type'),
-              });
-            }, false);
-          })
-        """)
-      end)
+        document.addEventListener('drop', event => {
+          event.preventDefault();
+          resolve({
+            types: event.dataTransfer.types,
+            data: event.dataTransfer.getData('custom-type'),
+          });
+        }, false);
+      });
+    }
+    """)
 
     Page.hover!(page, ~s([draggable="true"]))
     Mouse.down!(Page.mouse(page))
     Mouse.move!(Page.mouse(page), 100, 100)
     Mouse.up!(Page.mouse(page))
 
-    assert Runtime.Promise.await(result_promise) == %{"types" => ["custom-type"], "data" => "Hello World"}
+    assert Page.evaluate!(page, "() => window.__result") == %{"types" => ["custom-type"], "data" => "Hello World"}
   end
 
-  test "what happens when dragging element is destroyed", %{page: page} do
+  test "DD-020 what happens when dragging element is destroyed", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/21621' }
     Page.set_content!(page, """
     <button draggable="true">Draggable</button>

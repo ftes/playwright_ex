@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
 
   @moduletag :page
 
-  test "should hover @smoke", %{page: page, server: server} do
+  test "LO-127 should hover @smoke", %{page: page, server: server} do
     # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     button = Page.locator(page, "#button-6")
@@ -15,7 +15,7 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => document.querySelector('button:hover').id") == "button-6"
   end
 
-  test "should hover when Node is removed", %{page: page, server: server} do
+  test "LO-128 should hover when Node is removed", %{page: page, server: server} do
     # it.skip(!headless, 'headed messes up with hover');
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
     Page.evaluate!(page, "() => delete window['Node']")
@@ -24,14 +24,14 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => document.querySelector('button:hover').id") == "button-6"
   end
 
-  test "should fill input", %{page: page, server: server} do
+  test "LO-129 should fill input", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     handle = Page.locator(page, "input")
     Locator.fill!(handle, "some value")
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should fill input when Node is removed", %{page: page, server: server} do
+  test "LO-130 should fill input when Node is removed", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     Page.evaluate!(page, "() => delete window['Node']")
     handle = Page.locator(page, "input")
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => window['result']") == "some value"
   end
 
-  test "should clear input", %{page: page, server: server} do
+  test "LO-131 should clear input", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     handle = Page.locator(page, "input")
     Locator.fill!(handle, "some value")
@@ -48,14 +48,14 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => window['result']") == ""
   end
 
-  test "should check the box", %{page: page} do
+  test "LO-132 should check the box", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")
     input = Page.locator(page, "input")
     Locator.check!(input)
     assert Page.evaluate!(page, "checkbox.checked") == true
   end
 
-  test "should check the box using setChecked", %{page: page} do
+  test "LO-133 should check the box using setChecked", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox'></input>")
     input = Page.locator(page, "input")
     Locator.set_checked!(input, true)
@@ -64,14 +64,14 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "checkbox.checked") == false
   end
 
-  test "should uncheck the box", %{page: page} do
+  test "LO-134 should uncheck the box", %{page: page} do
     Page.set_content!(page, "<input id='checkbox' type='checkbox' checked></input>")
     input = Page.locator(page, "input")
     Locator.uncheck!(input)
     assert Page.evaluate!(page, "checkbox.checked") == false
   end
 
-  test "should select single option", %{page: page, server: server} do
+  test "LO-135 should select single option", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/select.html")
     select = Page.locator(page, "select")
     Locator.select_option!(select, "blue")
@@ -79,7 +79,7 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Page.evaluate!(page, "() => window['result'].onChange") == ["blue"]
   end
 
-  test "should focus and blur a button", %{page: page, server: server} do
+  test "LO-136 should focus and blur a button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.locator(page, "button")
     assert Locator.evaluate!(button, "button => document.activeElement === button") == false
@@ -114,20 +114,20 @@ defmodule PlaywrightEx.Page.LocatorMisc1Test do
     assert Locator.evaluate!(button, "button => document.activeElement === button") == false
   end
 
-  test "focus should respect strictness", %{page: page} do
+  test "LO-137 focus should respect strictness", %{page: page} do
     Page.set_content!(page, "<div>A</div><div>B</div>")
     {:error, error} = Locator.focus(Page.locator(page, "div"))
     assert Exception.message(error) =~ "strict mode violation"
   end
 
-  test "should dispatch click event via ElementHandles", %{page: page, server: server} do
+  test "LO-138 should dispatch click event via ElementHandles", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.locator(page, "button")
     Locator.dispatch_event!(button, "click")
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should upload the file", %{page: page, server: server, asset: asset} do
+  test "LO-139 should upload the file", %{page: page, server: server, asset: asset} do
     Page.goto!(page, server.prefix <> "/input/fileupload.html")
     file_path = Path.relative_to_cwd(asset.("file-to-upload.txt"))
     input = Page.locator(page, "input[type=file]")

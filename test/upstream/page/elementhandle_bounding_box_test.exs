@@ -12,7 +12,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
 
   @moduletag :page
 
-  test "should work", %{page: page, server: server} do
+  test "EH-001 should work", %{page: page, server: server} do
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.prefix <> "/grid.html")
     element_handle = Page.query_selector!(page, ".box:nth-of-type(13)")
@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert box == %{x: 100, y: 50, width: 50, height: 50}
   end
 
-  test "should handle nested frames", %{page: page, server: server} do
+  test "EH-002 should handle nested frames", %{page: page, server: server} do
     Page.set_viewport_size!(page, %{width: 616, height: 500})
     Page.goto!(page, server.prefix <> "/frames/nested-frames.html")
 
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert box == %{x: 24, y: 224, width: 268, height: 18}
   end
 
-  test "should get frame box", %{page: page} do
+  test "EH-003 should get frame box", %{page: page} do
     Page.set_viewport_size!(page, %{width: 250, height: 250})
 
     Page.set_content!(page, """
@@ -56,7 +56,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert box == %{x: 0, y: 0, width: 300, height: 500}
   end
 
-  test "should handle scroll offset and click", %{page: page} do
+  test "EH-004 should handle scroll offset and click", %{page: page} do
     Page.set_content!(page, """
       <style>* { margin: 0; padding: 0; }</style>
       <div style="width:8000px; height:8000px;">
@@ -76,13 +76,13 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert Page.evaluate!(page, "() => window['__clicked']") == true
   end
 
-  test "should return null for invisible elements", %{page: page} do
+  test "EH-005 should return null for invisible elements", %{page: page} do
     Page.set_content!(page, ~s(<div style="display:none">hi</div>))
     element = Page.query_selector!(page, "div")
     assert ElementHandle.bounding_box!(element) == nil
   end
 
-  test "should get bounding box of element inside a cross-origin iframe", %{page: page, server: server} do
+  test "EH-006 should get bounding box of element inside a cross-origin iframe", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert round(box.y) == round(iframe_box.y + inner["y"])
   end
 
-  test "should force a layout", %{page: page} do
+  test "EH-007 should force a layout", %{page: page} do
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.set_content!(page, ~s(<div style="width: 100px; height: 100px">hello</div>))
     element_handle = Page.query_selector!(page, "div")
@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert box == %{x: 8, y: 8, width: 100, height: 200}
   end
 
-  test "should work with SVG nodes", %{page: page} do
+  test "EH-008 should work with SVG nodes", %{page: page} do
     Page.set_content!(page, """
         <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
           <rect id="theRect" x="30" y="50" width="200" height="300"></rect>
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
     assert pw_bounding_box == Map.new(web_bounding_box, fn {k, v} -> {String.to_atom(k), v} end)
   end
 
-  test "should work when inline box child is outside of viewport", %{page: page} do
+  test "EH-009 should work when inline box child is outside of viewport", %{page: page} do
     Page.set_content!(page, """
         <style>
         i {

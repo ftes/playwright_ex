@@ -15,13 +15,13 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
 
   @moduletag :page
 
-  test "should dispatch click event @smoke", %{page: page, server: server} do
+  test "DE-001 should dispatch click event @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.dispatch_event!(page, "button", "click")
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should dispatch click event properties", %{page: page, server: server} do
+  test "DE-002 should dispatch click event properties", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.dispatch_event!(page, "button", "click")
     Utils.assert_truthy(Page.evaluate!(page, "bubbles"))
@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     Utils.assert_truthy(Page.evaluate!(page, "composed"))
   end
 
-  test "should dispatch click svg", %{page: page} do
+  test "DE-003 should dispatch click svg", %{page: page} do
     Page.set_content!(page, """
     <svg height="100" width="100">
       <circle onclick="javascript:window.__CLICKED=42" cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "() => window['__CLICKED']") == 42
   end
 
-  test "should dispatch click on a span with an inline element inside", %{page: page} do
+  test "DE-004 should dispatch click on a span with an inline element inside", %{page: page} do
     Page.set_content!(page, """
     <style>
     span::before {
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "() => window['CLICKED']") == 42
   end
 
-  test "should dispatch click after navigation ", %{page: page, server: server} do
+  test "DE-005 should dispatch click after navigation ", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.dispatch_event!(page, "button", "click")
     Page.goto!(page, server.prefix <> "/input/button.html")
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should dispatch click after a cross origin navigation ", %{page: page, server: server} do
+  test "DE-006 should dispatch click after a cross origin navigation ", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.dispatch_event!(page, "button", "click")
     Page.goto!(page, server.cross_process_prefix <> "/input/button.html")
@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should not fail when element is blocked on hover", %{page: page} do
+  test "DE-007 should not fail when element is blocked on hover", %{page: page} do
     Page.set_content!(page, """
     <style>
       container { display: block; position: relative; width: 200px; height: 50px; }
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     Utils.assert_truthy(Page.evaluate!(page, "() => window['clicked']"))
   end
 
-  test "should dispatch click when node is added in shadow dom", %{page: page, server: server} do
+  test "DE-008 should dispatch click when node is added in shadow dom", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     watchdog = Runtime.Promise.async(fn -> Page.dispatch_event!(page, "span", "click") end)
 
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "() => window['clicked']") == true
   end
 
-  test "should be atomic", %{playwright: playwright, page: page} do
+  test "DE-009 should be atomic", %{playwright: playwright, page: page} do
     create_dummy_selector = """
     (() => ({
       query(root, selector) {
@@ -139,7 +139,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     assert Page.evaluate!(page, "() => window['_clicked']") == true
   end
 
-  test "should dispatch drag drop events", %{page: page, server: server} do
+  test "DE-010 should dispatch drag drop events", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/drag-n-drop.html")
     data_transfer = Page.evaluate_handle!(page, "() => new DataTransfer()")
     Page.dispatch_event!(page, "#source", "dragstart", %{dataTransfer: data_transfer})
@@ -156,7 +156,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     )
   end
 
-  test "should dispatch drag drop events via ElementHandles", %{page: page, server: server} do
+  test "DE-011 should dispatch drag drop events via ElementHandles", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/drag-n-drop.html")
     data_transfer = Page.evaluate_handle!(page, "() => new DataTransfer()")
     source = Page.query_selector!(page, "#source")
@@ -173,7 +173,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     )
   end
 
-  test "should dispatch click event via ElementHandles", %{page: page, server: server} do
+  test "DE-012 should dispatch click event via ElementHandles", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
     ElementHandle.dispatch_event!(button, "click")
@@ -181,7 +181,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
   end
 
   # https://github.com/microsoft/playwright/issues/15562
-  test "should dispatch wheel event", %{page: page, server: server} do
+  test "DE-013 should dispatch wheel event", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/scrollable.html")
 
     events_handle =
@@ -209,7 +209,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
              %{"deltaX" => 100, "deltaY" => 200}
   end
 
-  test "should dispatch device orientation event", %{page: page, server: server} do
+  test "DE-014 should dispatch device orientation event", %{page: page, server: server} do
     # it.skip(isAndroid, ...)  -- not Android
     Page.goto!(page, server.prefix <> "/device-orientation.html")
 
@@ -226,7 +226,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     Utils.assert_falsy(Page.evaluate!(page, "absolute"))
   end
 
-  test "should dispatch absolute device orientation event", %{page: page, server: server} do
+  test "DE-015 should dispatch absolute device orientation event", %{page: page, server: server} do
     # it.skip(isAndroid, ...)  -- not Android
     Page.goto!(page, server.prefix <> "/device-orientation.html")
 
@@ -244,7 +244,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
     Utils.assert_truthy(Page.evaluate!(page, "absolute"))
   end
 
-  test "should dispatch device motion event", %{page: page, server: server} do
+  test "DE-016 should dispatch device motion event", %{page: page, server: server} do
     # it.skip(isAndroid, ...)  -- not Android
     Page.goto!(page, server.prefix <> "/device-motion.html")
 
@@ -269,7 +269,7 @@ defmodule PlaywrightEx.Page.PageDispatcheventTest do
   end
 
   # https://github.com/microsoft/playwright/issues/28690
-  test "should throw if argument is from different frame", %{page: page, server: server} do
+  test "DE-017 should throw if argument is from different frame", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
 
     data_transfer =

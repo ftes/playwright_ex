@@ -24,12 +24,12 @@ defmodule PlaywrightEx.Library.PermissionsTest do
   describe "permissions" do
     # it.fixme(({ browserName, isWindows }) => browserName === 'webkit' && isWindows, 'Permissions API is disabled on Windows WebKit');
 
-    test "should be prompt by default", %{page: page, server: server} do
+    test "PE-001 should be prompt by default", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       assert get_permission(page, "geolocation") == "prompt"
     end
 
-    test "should deny permission when not listed",
+    test "PE-002 should deny permission when not listed",
          %{page: page, context: context, server: server, browser_name: browser_name} do
       # it.skip(isFrozenWebkit);
       Page.goto!(page, server.empty_page)
@@ -47,20 +47,24 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       end
     end
 
-    test "should fail when bad permission is given", %{page: page, context: context, server: server} do
+    test "PE-003 should fail when bad permission is given", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       {:error, error} = BrowserContext.grant_permissions(context, ["foo"], origin: server.empty_page)
       # isBidi: 'Protocol error (permissions.setPermission): invalid argument'
       assert Exception.message(error) =~ "Unknown permission: foo"
     end
 
-    test "should grant geolocation permission when origin is listed", %{page: page, context: context, server: server} do
+    test "PE-004 should grant geolocation permission when origin is listed", %{
+      page: page,
+      context: context,
+      server: server
+    } do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["geolocation"], origin: server.empty_page)
       assert get_permission(page, "geolocation") == "granted"
     end
 
-    test "should prompt for geolocation permission when origin is not listed",
+    test "PE-005 should prompt for geolocation permission when origin is not listed",
          %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["geolocation"], origin: server.empty_page)
@@ -68,13 +72,13 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_permission(page, "geolocation") == "prompt"
     end
 
-    test "should grant notifications permission when listed", %{page: page, context: context, server: server} do
+    test "PE-006 should grant notifications permission when listed", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["notifications"], origin: server.empty_page)
       assert get_permission(page, "notifications") == "granted"
     end
 
-    test "should accumulate when adding", %{page: page, context: context, server: server} do
+    test "PE-007 should accumulate when adding", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["geolocation"])
       BrowserContext.grant_permissions!(context, ["notifications"])
@@ -82,7 +86,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_permission(page, "notifications") == "granted"
     end
 
-    test "should clear permissions", %{page: page, context: context, server: server} do
+    test "PE-008 should clear permissions", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["geolocation"])
       BrowserContext.clear_permissions!(context)
@@ -91,13 +95,13 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_permission(page, "notifications") == "granted"
     end
 
-    test "should grant permission when listed for all domains", %{page: page, context: context, server: server} do
+    test "PE-009 should grant permission when listed for all domains", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["geolocation"])
       assert get_permission(page, "geolocation") == "granted"
     end
 
-    test "should grant permission when creating context", %{server: server, browser: browser} do
+    test "PE-010 should grant permission when creating context", %{server: server, browser: browser} do
       context = Browser.new_context!(browser, permissions: ["geolocation"])
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.empty_page)
@@ -105,7 +109,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       BrowserContext.close!(context)
     end
 
-    test "should reset permissions", %{page: page, context: context, server: server} do
+    test "PE-011 should reset permissions", %{page: page, context: context, server: server} do
       Page.goto!(page, server.empty_page)
       BrowserContext.grant_permissions!(context, ["geolocation"], origin: server.empty_page)
       assert get_permission(page, "geolocation") == "granted"
@@ -113,7 +117,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_permission(page, "geolocation") == "prompt"
     end
 
-    test "should trigger permission onchange", %{page: page, context: context, server: server} do
+    test "PE-012 should trigger permission onchange", %{page: page, context: context, server: server} do
       # it.fail(browserName === 'webkit')
       expected_failure(@browser_name == "webkit", fn ->
         Page.goto!(page, server.empty_page)
@@ -142,7 +146,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       end)
     end
 
-    test "should isolate permissions between browser contexts",
+    test "PE-013 should isolate permissions between browser contexts",
          %{server: server, browser: browser, browser_name: browser_name} do
       # it.skip(isFrozenWebkit);
       context = Browser.new_context!(browser)
@@ -193,7 +197,12 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     end
   end
 
-  test "should support clipboard read", %{page: page, context: context, server: server, browser_name: browser_name} do
+  test "PE-014 should support clipboard read", %{
+    page: page,
+    context: context,
+    server: server,
+    browser_name: browser_name
+  } do
     # it.fail(browserName === 'firefox', 'No such permissions (requires flag) in Firefox')
     expected_failure(@browser_name == "firefox", fn ->
       # https://github.com/microsoft/playwright/issues/27475
@@ -217,7 +226,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     end)
   end
 
-  test "should isolate the headless clipboard from the operating system",
+  test "PE-015 should isolate the headless clipboard from the operating system",
        %{browser_type: browser_type, server: server, browser_name: browser_name} do
     # https://github.com/microsoft/playwright/issues/13097
     # it.skip(isFrozenWebkit, 'needs recent webkit');
@@ -262,7 +271,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium-only api")
-  test "storage access", %{page: page, context: context, server: server} do
+  test "PE-016 storage access", %{page: page, context: context, server: server} do
     # https://github.com/microsoft/playwright/issues/31227
     BrowserContext.grant_permissions!(context, ["storage-access"])
     assert get_permission(page, "storage-access") == "granted"
@@ -293,7 +302,10 @@ defmodule PlaywrightEx.Library.PermissionsTest do
   # it.describe(() => { it.use({ ignoreHTTPSErrors: true }) }): secure context.
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium-only api")
-  test "should be able to use the local-fonts API", %{context_factory: context_factory, https_server: https_server} do
+  test "PE-017 should be able to use the local-fonts API", %{
+    context_factory: context_factory,
+    https_server: https_server
+  } do
     # it.skip(!!channel && channel.startsWith('msedge'), 'always times out in edge');
     # it.fixme(!headless, 'times out in headed');
     # https://github.com/microsoft/playwright/issues/36113
@@ -308,7 +320,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
   end
 
   @tag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
-  test "local network request is allowed from public origin",
+  test "PE-018 local network request is allowed from public origin",
        %{page: page, context: context, server: server, browser_name: browser_name} do
     # https://github.com/microsoft/playwright/issues/37861
     # it.skip(browserName === 'chromium' && browserMajorVersion < 145, ...)  -- the pinned Chromium is newer
@@ -381,7 +393,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
     refute_received {:client_request, _}
   end
 
-  test "can request screen-wake-lock", %{page: page, context: context} do
+  test "PE-019 can request screen-wake-lock", %{page: page, context: context} do
     # https://github.com/microsoft/playwright/issues/39115
     BrowserContext.grant_permissions!(context, ["screen-wake-lock"])
 
@@ -420,7 +432,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       )
     end
 
-    test "should capture when camera and microphone are granted", %{page: page, context: context, server: server} do
+    test "PE-020 should capture when camera and microphone are granted", %{page: page, context: context, server: server} do
       # https://github.com/microsoft/playwright/issues/2973
       # it.skip(isFrozenWebkit, 'Mock capture device support requires a newer WebKit build');
       BrowserContext.grant_permissions!(context, ["camera", "microphone"], origin: server.prefix)
@@ -434,14 +446,14 @@ defmodule PlaywrightEx.Library.PermissionsTest do
              }
     end
 
-    test "should reject when no permission is granted", %{page: page, server: server} do
+    test "PE-021 should reject when no permission is granted", %{page: page, server: server} do
       # https://github.com/microsoft/playwright/issues/2973
       # it.skip(isFrozenWebkit, 'Mock capture device support requires a newer WebKit build');
       Page.goto!(page, server.empty_page)
       assert get_user_media(page, %{video: true, audio: true}) == %{"error" => "NotAllowedError"}
     end
 
-    test "should gate audio and video independently", %{page: page, context: context, server: server} do
+    test "PE-022 should gate audio and video independently", %{page: page, context: context, server: server} do
       # https://github.com/microsoft/playwright/issues/2973
       # it.skip(isFrozenWebkit, 'Mock capture device support requires a newer WebKit build');
       BrowserContext.grant_permissions!(context, ["camera"], origin: server.prefix)
@@ -452,7 +464,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       assert get_user_media(page, %{audio: true}) == %{"error" => "NotAllowedError"}
     end
 
-    test "should stop capturing after permissions are cleared", %{page: page, context: context, server: server} do
+    test "PE-023 should stop capturing after permissions are cleared", %{page: page, context: context, server: server} do
       # https://github.com/microsoft/playwright/issues/2973
       # it.skip(isFrozenWebkit, 'Mock capture device support requires a newer WebKit build');
       BrowserContext.grant_permissions!(context, ["camera"], origin: server.prefix)

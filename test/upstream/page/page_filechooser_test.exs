@@ -2,14 +2,16 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   @upstream "tests/page/page-filechooser.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import PlaywrightEx.Utils, only: [attach_frame: 3, assert_truthy: 1]
 
   alias PlaywrightEx.AbortController
+  alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.FileChooser
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.TimeoutError
@@ -57,7 +59,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   @tag :tmp_dir
   # test.slow()
   @tag timeout: @slow_timeout
-  test "should upload multiple large files", %{page: page, server: server, tmp_dir: tmp_dir} do
+  test "FC-001 should upload multiple large files", %{page: page, server: server, tmp_dir: tmp_dir} do
     files_count = 10
     Page.goto!(page, server.prefix <> "/input/fileupload-multi.html")
     upload_file = Path.join(tmp_dir, "50MB_1.zip")
@@ -84,7 +86,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Enum.each(upload_files, &File.rm!/1)
   end
 
-  test "should emit event once", %{page: page} do
+  test "FC-002 should emit event once", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     test = self()
     Page.once(page, :file_chooser, &send(test, {:chooser, &1}))
@@ -93,7 +95,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should emit event via prepend", %{page: page} do
+  test "FC-003 should emit event via prepend", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     test = self()
     Page.prepend_listener(page, :file_chooser, &send(test, {:chooser, &1}))
@@ -102,7 +104,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should emit event for iframe", %{page: page, server: server} do
+  test "FC-004 should emit event for iframe", %{page: page, server: server} do
     frame = attach_frame(page, "frame1", server.empty_page)
     Frame.set_content!(frame, "<input type=file>")
     test = self()
@@ -112,7 +114,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should emit event on/off", %{page: page} do
+  test "FC-005 should emit event on/off", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     Page.on(page, :file_chooser, self_removing_listener(page, &Page.off/3, self()))
     Page.click!(page, "input")
@@ -120,7 +122,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should emit event addListener/removeListener", %{page: page} do
+  test "FC-006 should emit event addListener/removeListener", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     Page.add_listener(page, :file_chooser, self_removing_listener(page, &Page.remove_listener/3, self()))
     Page.click!(page, "input")
@@ -128,7 +130,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should work when file input is attached to DOM", %{page: page} do
+  test "FC-007 should work when file input is attached to DOM", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     promise = Page.wait_for_event(page, :file_chooser)
     Page.click!(page, "input")
@@ -136,7 +138,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should work when file input is not attached to DOM", %{page: page, asset: asset} do
+  test "FC-008 should work when file input is not attached to DOM", %{page: page, asset: asset} do
     set_files = set_files_on_chooser(page, asset.("file-to-upload.txt"))
 
     content =
@@ -157,7 +159,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert content == "contents of the file"
   end
 
-  test "should not throw when filechooser belongs to iframe", %{page: page, server: server} do
+  test "FC-009 should not throw when filechooser belongs to iframe", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = page |> Page.main_frame() |> Frame.child_frames() |> hd()
 
@@ -179,7 +181,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.wait_for_function!(page, "() => window.__done")
   end
 
-  test "should not throw when frame is detached immediately", %{page: page, server: server} do
+  test "FC-010 should not throw when frame is detached immediately", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = page |> Page.main_frame() |> Frame.child_frames() |> hd()
 
@@ -203,24 +205,24 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.wait_for_function!(page, "() => window.__done")
   end
 
-  test "should respect timeout", %{page: page} do
+  test "FC-011 should respect timeout", %{page: page} do
     {:error, error} = page |> Page.wait_for_event(:file_chooser, timeout: 1) |> Promise.await()
     assert %TimeoutError{} = error
   end
 
-  test "should respect default timeout when there is no custom timeout", %{page: page} do
+  test "FC-012 should respect default timeout when there is no custom timeout", %{page: page} do
     Page.set_default_timeout(page, 1)
     {:error, error} = page |> Page.wait_for_event(:file_chooser) |> Promise.await()
     assert %TimeoutError{} = error
   end
 
-  test "should prioritize exact timeout over default timeout", %{page: page} do
+  test "FC-013 should prioritize exact timeout over default timeout", %{page: page} do
     Page.set_default_timeout(page, 0)
     {:error, error} = page |> Page.wait_for_event(:file_chooser, timeout: 1) |> Promise.await()
     assert %TimeoutError{} = error
   end
 
-  test "should work with no timeout", %{page: page} do
+  test "FC-014 should work with no timeout", %{page: page} do
     promise = Page.wait_for_event(page, :file_chooser, timeout: 0)
 
     Page.evaluate!(page, """
@@ -235,7 +237,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert chooser
   end
 
-  test "should abort with signal", %{page: page} do
+  test "FC-015 should abort with signal", %{page: page} do
     controller = AbortController.new()
     promise = Page.wait_for_event(page, :file_chooser, signal: AbortController.signal(controller))
     AbortController.abort(controller, "Aborted by user")
@@ -244,7 +246,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert error.cause == "Aborted by user"
   end
 
-  test "should return the same file chooser when there are many watchdogs simultaneously", %{page: page} do
+  test "FC-016 should return the same file chooser when there are many watchdogs simultaneously", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     promise1 = Page.wait_for_event(page, :file_chooser)
     promise2 = Page.wait_for_event(page, :file_chooser)
@@ -254,7 +256,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert file_chooser1 == file_chooser2
   end
 
-  test "should accept single file", %{page: page, asset: asset} do
+  test "FC-017 should accept single file", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file oninput='javascript:console.timeStamp()'>")
     promise = Page.wait_for_event(page, :file_chooser)
     Page.click!(page, "input")
@@ -267,7 +269,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   end
 
   # @see https://github.com/microsoft/playwright/issues/4704
-  test "should not trim big uploaded files", %{page: page, server: server} do
+  test "FC-018 should not trim big uploaded files", %{page: page, server: server} do
     test = self()
 
     TestServer.set_route(server, "/upload", fn conn ->
@@ -297,7 +299,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert file.size == data_size
   end
 
-  test "should be able to read selected file", %{page: page, asset: asset} do
+  test "FC-019 should be able to read selected file", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file>")
     set_files = set_files_on_chooser(page, asset.("file-to-upload.txt"))
     content = Page.eval_on_selector!(page, "input", @read_selected_file)
@@ -305,7 +307,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert content == "contents of the file"
   end
 
-  test "should be able to reset selected files with empty file list", %{page: page, asset: asset} do
+  test "FC-020 should be able to reset selected files with empty file list", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file>")
     set_files1 = set_files_on_chooser(page, asset.("file-to-upload.txt"))
     file_length1 = Page.eval_on_selector!(page, "input", @pick_files_length)
@@ -317,7 +319,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert file_length2 == 0
   end
 
-  test "should work for single file pick", %{page: page} do
+  test "FC-021 should work for single file pick", %{page: page} do
     Page.set_content!(page, "<input type=file>")
     promise = Page.wait_for_event(page, :file_chooser)
     Page.click!(page, "input")
@@ -325,7 +327,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert FileChooser.is_multiple(file_chooser) == false
   end
 
-  test "should work for \"multiple\"", %{page: page} do
+  test "FC-022 should work for \"multiple\"", %{page: page} do
     Page.set_content!(page, "<input multiple type=file>")
     promise = Page.wait_for_event(page, :file_chooser)
     Page.click!(page, "input")
@@ -333,7 +335,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     assert FileChooser.is_multiple(file_chooser) == true
   end
 
-  test "should work for \"webkitdirectory\"", %{page: page} do
+  test "FC-023 should work for \"webkitdirectory\"", %{page: page} do
     Page.set_content!(page, "<input multiple webkitdirectory type=file>")
     promise = Page.wait_for_event(page, :file_chooser)
     Page.click!(page, "input")
@@ -343,7 +345,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
 
   # https://github.com/microsoft/playwright/issues/11375
   # test.skip(browserName === 'chromium' && browserMajorVersion < 99): the pinned browsers are newer.
-  test "should emit event after navigation", %{page: page, server: server} do
+  test "FC-024 should emit event after navigation", %{page: page, server: server} do
     test = self()
     Page.on(page, :file_chooser, fn _ -> send(test, {:log, "filechooser"}) end)
     Page.goto!(page, server.prefix <> "/empty.html")
@@ -360,7 +362,7 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   end
 
   # test.skip(isElectron && browserMajorVersion <= 98): no Electron.
-  test "should trigger listener added before navigation", %{page: page, server: server} do
+  test "FC-025 should trigger listener added before navigation", %{page: page, server: server} do
     # Add listener before cross process navigation.
     test = self()
     Page.once(page, :file_chooser, &send(test, {:chooser, &1}))
@@ -370,6 +372,104 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
     Page.click!(page, "input")
     assert_receive {:chooser, chooser}
     assert chooser
+  end
+
+  describe "user activation" do
+    # Each test navigates to a fresh document, because transient activation
+    # (including the one granted by page.evaluate in all browsers) sticks to
+    # the document for several seconds.
+    @activation_html """
+      <button id="once">once</button>
+      <button id="twice">twice</button>
+      <input type=file>
+      <script>
+        const input = document.querySelector('input');
+        document.querySelector('#once').addEventListener('click', () => input.click());
+        document.querySelector('#twice').addEventListener('click', () => { input.click(); input.click(); });
+        window.showPicker = () => {
+          try {
+            input.showPicker();
+            return 'ok';
+          } catch (e) {
+            return e.name;
+          }
+        };
+        if (location.search === '?click')
+          setTimeout(() => input.click(), 0);
+        if (location.search === '?showPicker')
+          setTimeout(() => console.log('showPicker:' + window.showPicker()), 0);
+      </script>
+    """
+
+    setup %{page: page, server: server} do
+      Page.route!(page, server.prefix <> "/activation.html*", fn route ->
+        Route.fulfill(route, content_type: "text/html", body: @activation_html)
+      end)
+
+      :ok
+    end
+
+    @tag skip:
+           if(@browser_name == "webkit",
+             do: "upstream fixme: WebKit opens the file chooser from input.click() without user activation"
+           )
+    test "FC-026 should not open file chooser without user activation", %{page: page, server: server} do
+      # test.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
+      test = self()
+      Page.on(page, :file_chooser, fn _ -> send(test, :chooser) end)
+
+      Page.goto!(page, server.prefix <> "/activation.html?click")
+      Page.wait_for_timeout!(page, 500)
+      assert choosers() == 0
+
+      # Do not poll with waitForFunction: each poll evaluates in the page with a user gesture,
+      # which grants transient user activation and would let showPicker() succeed.
+      result = Page.wait_for_event(page, :console, &String.starts_with?(ConsoleMessage.text(&1), "showPicker:"))
+      Page.goto!(page, server.prefix <> "/activation.html?showPicker")
+      assert ConsoleMessage.text(Promise.await!(result)) == "showPicker:NotAllowedError"
+      assert choosers() == 0
+    end
+
+    test "FC-027 should open file chooser with user activation", %{page: page, server: server} do
+      Page.goto!(page, server.prefix <> "/activation.html")
+      chooser = Page.expect_event!(page, :file_chooser, fn -> Page.click!(page, "#once") end)
+      assert_truthy(chooser)
+
+      # page.evaluate grants transient user activation in all browsers.
+      Page.goto!(page, server.prefix <> "/activation.html")
+
+      chooser2 =
+        Page.expect_event!(page, :file_chooser, fn ->
+          Page.evaluate!(page, "() => document.querySelector('input').click()")
+        end)
+
+      assert_truthy(chooser2)
+      Page.goto!(page, server.prefix <> "/activation.html")
+      assert Page.evaluate!(page, "() => window.showPicker()") == "ok"
+    end
+
+    @tag skip:
+           if(@browser_name == "webkit",
+             do: "upstream fixme: WebKit does not consume user activation when opening the file chooser"
+           )
+    test "FC-028 should consume user activation when opening file chooser", %{page: page, server: server} do
+      # test.fixme(isElectron || isAndroid, ...)  -- neither applies here
+      test = self()
+      Page.on(page, :file_chooser, fn _ -> send(test, :chooser) end)
+      Page.goto!(page, server.prefix <> "/activation.html")
+      Page.click!(page, "#twice")
+      Page.wait_for_timeout!(page, 500)
+      assert choosers() == 1
+    end
+  end
+
+  # `let choosers = 0; page.on('filechooser', () => choosers++)`: the listener sends to the test process.
+  defp choosers(count \\ 0) do
+    receive do
+      :chooser -> choosers(count + 1)
+    after
+      0 -> count
+    end
   end
 
   # `const logs = []; ... logs.push(x)`: the listener sends to the test process.

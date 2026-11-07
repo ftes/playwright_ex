@@ -7,47 +7,47 @@ defmodule PlaywrightEx.Page.QueryselectorTest do
 
   @moduletag :page
 
-  test "should throw for non-string selector", %{page: page} do
+  test "QS-001 should throw for non-string selector", %{page: page} do
     {:error, error} = Page.query_selector(page, :null)
     assert Exception.message(error) =~ "selector: expected string, got object"
   end
 
-  test "should query existing element with css selector @smoke", %{page: page} do
+  test "QS-002 should query existing element with css selector @smoke", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, "css=section")
     assert element
   end
 
-  test "should query existing element with text selector", %{page: page} do
+  test "QS-003 should query existing element with text selector", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, ~s(text="test"))
     assert element
   end
 
-  test "should query existing element with xpath selector", %{page: page} do
+  test "QS-004 should query existing element with xpath selector", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, "xpath=/html/body/section")
     assert element
   end
 
-  test "should return null for non-existing element", %{page: page} do
+  test "QS-005 should return null for non-existing element", %{page: page} do
     element = Page.query_selector!(page, "non-existing-element")
     assert element == nil
   end
 
-  test "should auto-detect xpath selector", %{page: page} do
+  test "QS-006 should auto-detect xpath selector", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, "//html/body/section")
     assert element
   end
 
-  test "should auto-detect xpath selector with starting parenthesis", %{page: page} do
+  test "QS-007 should auto-detect xpath selector with starting parenthesis", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, "(//section)[1]")
     assert element
   end
 
-  test "should auto-detect xpath selector starting with ..", %{page: page} do
+  test "QS-008 should auto-detect xpath selector starting with ..", %{page: page} do
     Page.set_content!(page, "<div><section>test</section><span></span></div>")
     span = Page.query_selector!(page, ~s("test" >> ../span))
     assert JSHandle.evaluate!(span, "e => e.nodeName") == "SPAN"
@@ -55,25 +55,25 @@ defmodule PlaywrightEx.Page.QueryselectorTest do
     assert JSHandle.evaluate!(div, "e => e.nodeName") == "DIV"
   end
 
-  test "should auto-detect text selector", %{page: page} do
+  test "QS-009 should auto-detect text selector", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, ~s("test"))
     assert element
   end
 
-  test "should auto-detect css selector", %{page: page} do
+  test "QS-010 should auto-detect css selector", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     element = Page.query_selector!(page, "section")
     assert element
   end
 
-  test "should support >> syntax", %{page: page} do
+  test "QS-011 should support >> syntax", %{page: page} do
     Page.set_content!(page, "<section><div>test</div></section>")
     element = Page.query_selector!(page, "css=section >> css=div")
     assert element
   end
 
-  test "should query existing elements", %{page: page} do
+  test "QS-012 should query existing elements", %{page: page} do
     Page.set_content!(page, "<div>A</div><br/><div>B</div>")
     elements = Page.query_selector_all!(page, "div")
     assert length(elements) == 2
@@ -81,31 +81,31 @@ defmodule PlaywrightEx.Page.QueryselectorTest do
     assert promises == ["A", "B"]
   end
 
-  test "should return empty array if nothing is found", %{page: page, server: server} do
+  test "QS-013 should return empty array if nothing is found", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     elements = Page.query_selector_all!(page, "div")
     assert elements == []
   end
 
-  test "xpath should query existing element", %{page: page} do
+  test "QS-014 xpath should query existing element", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     elements = Page.query_selector_all!(page, "xpath=/html/body/section")
     assert Enum.at(elements, 0)
     assert length(elements) == 1
   end
 
-  test "xpath should return empty array for non-existing element", %{page: page} do
+  test "QS-015 xpath should return empty array for non-existing element", %{page: page} do
     element = Page.query_selector_all!(page, "//html/body/non-existing-element")
     assert element == []
   end
 
-  test "xpath should return multiple elements", %{page: page} do
+  test "QS-016 xpath should return multiple elements", %{page: page} do
     Page.set_content!(page, "<div></div><div></div>")
     elements = Page.query_selector_all!(page, "xpath=/html/body/div")
     assert length(elements) == 2
   end
 
-  test "$$ should work with bogus Array.from", %{page: page} do
+  test "QS-017 $$ should work with bogus Array.from", %{page: page} do
     Page.set_content!(page, "<div>hello</div><div></div>")
 
     div1 =

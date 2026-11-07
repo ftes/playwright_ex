@@ -9,6 +9,9 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Promise
+  alias PlaywrightEx.Request
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
@@ -16,7 +19,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
-  test "should work", %{browser: browser, server: server} do
+  test "UA-001 should work", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "() => navigator.userAgent") =~ "Mozilla"
@@ -30,7 +33,26 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     BrowserContext.close!(context)
   end
 
-  test "should work for subframes", %{browser: browser, server: server} do
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43597' }
+  test "UA-007 should preserve custom user agent in route.fetch", %{context_factory: context_factory, server: server} do
+    context = context_factory.(user_agent: "my-custom-user-agent")
+    page = BrowserContext.new_page!(context)
+
+    Page.route!(page, "**/empty.html", fn route ->
+      Route.fulfill!(route, response: Route.fetch!(route))
+    end)
+
+    request = Page.wait_for_request(page, server.empty_page)
+    server_request = TestServer.wait_for_request(server, "/empty.html")
+    Page.goto!(page, server.empty_page)
+    request = Promise.await!(request)
+    server_request = Task.await(server_request, :infinity)
+    # expect.soft: the first failure ends the test here.
+    assert Request.headers(request)["user-agent"] == "my-custom-user-agent"
+    assert header(server_request, "user-agent") == "my-custom-user-agent"
+  end
+
+  test "UA-002 should work for subframes", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     assert Page.evaluate!(page, "() => navigator.userAgent") =~ "Mozilla"
@@ -44,7 +66,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     BrowserContext.close!(context)
   end
 
-  test "should emulate device user-agent", %{browser: browser, server: server, playwright: playwright} do
+  test "UA-003 should emulate device user-agent", %{browser: browser, server: server, playwright: playwright} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, server.prefix <> "/mobile.html")
@@ -58,7 +80,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     BrowserContext.close!(context)
   end
 
-  test "should make a copy of default options", %{browser: browser, server: server} do
+  test "UA-004 should make a copy of default options", %{browser: browser, server: server} do
     options = %{user_agent: "foobar"}
     context = Browser.new_context!(browser, options)
     # options.userAgent = 'wrong'  -- Elixir data is immutable
@@ -69,7 +91,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     BrowserContext.close!(context)
   end
 
-  test "custom user agent for download", %{server: server, context_factory: context_factory} do
+  test "UA-005 custom user agent for download", %{server: server, context_factory: context_factory} do
     # it.skip(chromium && chromiumVersionLessThan(browserVersion, '116.0.0.0'))  -- the pinned Chromium is newer
     TestServer.set_route(server, "/download", fn conn ->
       conn
@@ -89,7 +111,7 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: This API is Chromium-only")
-  test "should work for navigator.userAgentData and sec-ch-ua headers", %{
+  test "UA-006 should work for navigator.userAgentData and sec-ch-ua headers", %{
     playwright: playwright,
     browser: browser,
     server: server

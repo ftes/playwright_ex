@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
   setup {TestProxy, :proxy_server}
   setup {TestProxy, :socks_port}
 
-  test "context request should pick up proxy credentials",
+  test "PR-041 context request should pick up proxy credentials",
        %{browser_type: browser_type, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port, allow_connect_requests: true)
     test_pid = self()
@@ -44,7 +44,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
     Browser.close!(browser)
   end
 
-  test "global request should pick up proxy credentials",
+  test "PR-042 global request should pick up proxy credentials",
        %{playwright: playwright, server: server, proxy_server: proxy_server} do
     TestProxy.forward_to(proxy_server, server.port, allow_connect_requests: true)
     test_pid = self()
@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
     end
   end
 
-  test "should work with context level proxy",
+  test "PR-043 should work with context level proxy",
        %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     TestServer.set_route(server, "/target.html", fn conn ->
       Plug.Conn.send_resp(conn, 200, "<title>Served by the proxy</title>")
@@ -92,7 +92,11 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
     assert request.request_path == "/target.html"
   end
 
-  test "should support proxy.bypass", %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
+  test "PR-044 should support proxy.bypass", %{
+    context_factory: context_factory,
+    server: server,
+    proxy_server: proxy_server
+  } do
     TestServer.set_route(server, "/target.html", fn conn -> Plug.Conn.send_resp(conn, 200, "Served by the proxy") end)
     # FYI: using long and weird domain names to avoid ATT DNS hijacking
     # that resolves everything to some weird search results page.
@@ -136,7 +140,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
   end
 
   @tag skip: if(System.get_env("INSIDE_DOCKER", "") != "", do: "upstream skip: connect ECONNREFUSED 127.0.0.1:<port>")
-  test "should use socks proxy", %{playwright: playwright, server: server, socks_port: socks_port} do
+  test "PR-045 should use socks proxy", %{playwright: playwright, server: server, socks_port: socks_port} do
     request =
       APIRequest.new_context!(Playwright.request(playwright), proxy: %{server: "socks5://localhost:#{socks_port}"})
 
@@ -144,7 +148,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
     assert APIResponse.text!(response) =~ "Served by the SOCKS proxy"
   end
 
-  test "should send correct ALPN protocol to HTTPS proxy", %{playwright: playwright, server: server} do
+  test "PR-046 should send correct ALPN protocol to HTTPS proxy", %{playwright: playwright, server: server} do
     # it.skip(nodeVersion.major < 22, 'ALPNCallback is supported starting from Node 22');
     # https.createServer({ ALPNCallback }): the protocols the client offers in its hello.
     {:ok, listen} =
@@ -178,7 +182,7 @@ defmodule PlaywrightEx.Library.FetchProxyTest do
     APIRequestContext.dispose!(request)
   end
 
-  test "should apply proxy.bypass to redirect targets",
+  test "PR-047 should apply proxy.bypass to redirect targets",
        %{context_factory: context_factory, server: server, proxy_server: proxy_server} do
     cross_process_host = URI.parse(server.cross_process_prefix).authority
     # it.skip(crossProcessHost === server.HOST, 'Needs two different host names for the same server');

@@ -50,6 +50,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `class X extends ChannelOwner`, `super(...)` | `use PlaywrightEx.Client.ChannelOwner`, `ChannelOwner.new(__MODULE__, parent, type, guid, init)` |
 | `super.foo()` | `Parent.foo(this)` |
 | `this.foo()` where a subclass may override | `impl(this).foo(this)` (`Heap.impl/1`: the client module of a facade struct) |
+| `@apiCall({ title: 'X' })` / `@internal` method decorator | `# @apiCall({ title: 'X' })` above the def, the body (after JS default parameters) in `api_call(%{title: "X"}).(this, fn -> ... end)` / `internal().(this, fn -> ... end)` (`ChannelOwner.api_call/1`): runs it through the receiver's `_wrap_api_call/3` |
 | `this._channel.foo(params, options)` | `channel_call(this, :foo, params, options)`; the generated validator converts to the wire |
 | `this._channel.on('event', ...)` | `EventEmitter.on(_channel(this), "event", ...)` |
 | `X.from(channel)` | identity: channels and owners are the same handle |
@@ -128,23 +129,23 @@ single thread. Use each only where the JS code needs it, with its marker.
   changes driver-wide state (selectors, test id attribute) resets it in `on_exit`.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
-  upstream:tests/page/page-goto.spec.ts`), test names identical to upstream. ExUnit has no nested
+  upstream:tests/page/page-goto.spec.ts`), test names identical to upstream, which start with
+  the registry ID (`test "PA-001 should fire load when expected"`). ExUnit has no nested
   describes: `describe "a b"` for upstream's `describe('a') > describe('b')`.
-- Keep the upstream order. A test that is not ported stays as a bodiless test (`test "should
+- Keep the upstream order. A test that is not ported stays as a bodiless test (`test "GO-001 should
   work"`), and its reason goes in `test/upstream_not_ported.txt` (the playwright-python/java
   mechanism): one rule per line, a selector then the reason; the selector is a registry ID
   (`CL-067`), a subsystem code (`CG`) or a spec glob without `.spec.ts` (`library/inspector/*`).
-  IDs come from `test/upstream_registry.md` (upstream's `tests/registry.md`, copied from
-  playwright-python; a test matches its row by `@upstream` file and name, the `describe` tells
-  same-named tests apart). `PlaywrightEx.UpstreamCase` skips a rule-matched test at compile
+  IDs come from `test/upstream_registry.md` (upstream's `tests/registry.md` at the pin; a test
+  matches the row of its `@upstream` file with the ID its name starts with). `PlaywrightEx.UpstreamCase` skips a rule-matched test at compile
   time (`not ported: <reason>`, over the test's own skip tags). Conditional exclusions (one
   browser, one loop variant) stay `@tag skip: if(..., do: "not ported: ...")` in the file;
   env/upstream/flaky/ci tags stay in the file too.
 - `mix playwright_ex.parity` compares the names, and checks the rules as Python's
   `check_test_registry.py`: every registry test at the pin is ported (has a body), bodiless under
   an unconditional `upstream skip/fixme` tag, or ruled out; a ported test that a rule matches,
-  or a rule that matches nothing at the pin, fails. Registry rows of tests newer than the pin
-  are ignored; mirrored tests the registry lacks (renamed upstream) are listed, not failed. A
+  or a rule that matches nothing at the pin, fails. Registry rows of tests not at the pin
+  are ignored; mirrored tests the registry lacks (no or a stale ID) are listed, not failed. A
   spec with no test module needs all its tests ruled out (driver internals, Node-only tooling).
   It also fails on stale skips: a reason (tag or rule) that only lists API names (`not ported:
   Page.emulateMedia`, `not ported: Locator.evaluate (ElementHandle), expect`) where a cited
@@ -212,25 +213,24 @@ single thread. Use each only where the JS code needs it, with its marker.
 3. `git diff vA vB -- packages/playwright-core/src/client tests/page tests/library` in upstream; port the hunks.
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
-   update `@unported_client_files` / `test/upstream_not_ported.txt`. Refresh
-   `test/upstream_registry.md` from playwright-python (or upstream's `tests/registry.md`).
+   update `@unported_client_files` / `test/upstream_not_ported.txt`. Copy upstream's
+   `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and removed
+   tests, not changed bodies: port those from the spec diff.
 5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
-   (`grep -rlE '"(env|flaky):' test/upstream`) with `mix test --include skip` on the browser they
-   name, drop each skip that passes, and re-check "Upstream issues to re-check" below.
+   (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
+   browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that
+   passes, and re-check "Upstream issues to re-check" below.
 
 ### Upstream issues to re-check
 
 Problems upstream's own client has too; re-check on each bump, drop what's fixed.
 
-- **macOS WebKit `env:` skips** (12 tests, macOS 26): upstream's client fails them too; Linux CI
-  passes.
-- **Firefox Partitioned cookies** from a fresh Bandit server (`env:` skip): upstream's client too;
-  mechanism unknown.
-- **Chromium worker hang** (`workers_test:237`, tagged flaky): upstream's client hangs too (6/510
-  under 2-CPU load), microsoft/playwright#43922.
-- **OOPIF "should click"** (chromium/oopif_test, skipped on macOS): a browser race right after an
-  OOPIF `goto`; the driver's JS client misses it as often (5-8 in 10 when looped), with the same
-  CDP commands and gap.
+- **macOS WebKit `env:` skips** (13 tests, macOS 26: the proxy for localhost, 127.0.0.1 and
+  link-local targets, `colorScheme: null` on a dark host): upstream's client fails them too;
+  Linux CI passes.
+- **Chromium worker hang** (`workers_test`, tagged flaky): upstream's client hangs too (6/510
+  under 2-CPU load), microsoft/playwright#43922, closed right after 1.65.0 (101/101 unloaded on
+  1.65).

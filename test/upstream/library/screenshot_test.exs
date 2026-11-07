@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
   describe "page screenshot" do
     # browserTest.skip(browserName === 'firefox' && !headless)  -- we run headless
 
-    test "should run in parallel in multiple pages", %{server: server, context_factory: context_factory} do
+    test "SS-068 should run in parallel in multiple pages", %{server: server, context_factory: context_factory} do
       context = context_factory.([])
       n = 5
 
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
-    test "should work with a mobile viewport", %{browser: browser, server: server} do
+    test "SS-069 should work with a mobile viewport", %{browser: browser, server: server} do
       # browserTest.skip(browserName === 'firefox')
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -136,7 +136,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
-    test "should work with a mobile viewport and clip", %{browser: browser, server: server} do
+    test "SS-070 should work with a mobile viewport and clip", %{browser: browser, server: server} do
       # browserTest.skip(browserName === 'firefox')
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
-    test "should work with a mobile viewport and fullPage", %{browser: browser, server: server} do
+    test "SS-071 should work with a mobile viewport and fullPage", %{browser: browser, server: server} do
       # browserTest.skip(browserName === 'firefox')
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should work with device scale factor", %{browser: browser, server: server} do
+    test "SS-072 should work with device scale factor", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, device_scale_factor: 2)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -166,7 +166,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should work with device scale factor and clip", %{browser: browser, server: server} do
+    test "SS-073 should work with device scale factor and clip", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 500, height: 500}, device_scale_factor: 3)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -175,7 +175,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should work with device scale factor and scale:css", %{browser: browser, server: server} do
+    test "SS-074 should work with device scale factor and scale:css", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, device_scale_factor: 2)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -184,7 +184,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should produce screenshot of correct size with scale:css and null viewport", %{
+    test "SS-075 should produce screenshot of correct size with scale:css and null viewport", %{
       browser: browser,
       server: server
     } do
@@ -199,7 +199,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should work with device scale factor, clip and scale:css", %{browser: browser, server: server} do
+    test "SS-076 should work with device scale factor, clip and scale:css", %{browser: browser, server: server} do
       context = Browser.new_context!(browser, viewport: %{width: 500, height: 500}, device_scale_factor: 3)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -208,7 +208,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should throw if screenshot size is too large with device scale factor", %{
+    test "SS-077 should throw if screenshot size is too large with device scale factor", %{
       browser: browser,
       browser_name: browser_name
     } do
@@ -247,7 +247,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     # browserTest.fixme(chromium && !headless && linux)  -- we run headless
     # browserTest.slow(true, 'Large screenshot is slow')
     @tag timeout: @slow_timeout
-    test "should work with large size", %{context_factory: context_factory} do
+    test "SS-078 should work with large size", %{context_factory: context_factory} do
       context = context_factory.([])
       page = BrowserContext.new_page!(context)
 
@@ -276,7 +276,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       assert pixel(decoded, 0, 8339).b > 128
     end
 
-    test "should handle vh units ", %{context_factory: context_factory} do
+    test "SS-079 should handle vh units ", %{context_factory: context_factory} do
       context = context_factory.([])
       page = BrowserContext.new_page!(context)
 
@@ -306,14 +306,14 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     # browserTest.skip(mode === 'driver', 'test hooks are not available in driver mode')
-    test "should not hang when event loop is blocked"
+    test "SS-080 should not hang when event loop is blocked"
   end
 
   describe "element screenshot" do
     # browserTest.skip(browserName === 'firefox' && !headless)  -- we run headless
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
-    test "element screenshot should work with a mobile viewport", %{browser: browser, server: server} do
+    test "SS-081 element screenshot should work with a mobile viewport", %{browser: browser, server: server} do
       # browserTest.skip(browserName === 'firefox' && !isBidi)  -- isBidi is false here
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, is_mobile: true)
       page = BrowserContext.new_page!(context)
@@ -326,7 +326,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
-    test "element screenshot should work with device scale factor", %{browser: browser, server: server} do
+    test "SS-082 element screenshot should work with device scale factor", %{browser: browser, server: server} do
       # browserTest.skip(browserName === 'firefox' && !isBidi)  -- isBidi is false here
       context = Browser.new_context!(browser, viewport: %{width: 320, height: 480}, device_scale_factor: 2)
       page = BrowserContext.new_page!(context)
@@ -338,7 +338,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should take screenshots when default viewport is null", %{browser: browser} do
+    test "SS-083 should take screenshots when default viewport is null", %{browser: browser} do
       context = Browser.new_context!(browser, viewport: :null)
       page = BrowserContext.new_page!(context)
       Page.set_content!(page, "<div style='height: 10000px; background: red'></div>")
@@ -363,7 +363,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should take fullPage screenshots when default viewport is null", %{server: server, browser: browser} do
+    test "SS-084 should take fullPage screenshots when default viewport is null", %{server: server, browser: browser} do
       context = Browser.new_context!(browser, viewport: :null)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.prefix <> "/grid.html")
@@ -377,7 +377,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should restore default viewport after fullPage screenshot", %{browser: browser} do
+    test "SS-085 should restore default viewport after fullPage screenshot", %{browser: browser} do
       context = Browser.new_context!(browser, viewport: %{width: 456, height: 789})
       page = BrowserContext.new_page!(context)
       Utils.verify_viewport(page, 456, 789)
@@ -387,11 +387,11 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should restore viewport after page screenshot and exception"
+    test "SS-086 should restore viewport after page screenshot and exception"
 
-    test "should restore viewport after page screenshot and timeout"
+    test "SS-087 should restore viewport after page screenshot and timeout"
 
-    test "should take element screenshot when default viewport is null and restore back", %{browser: browser} do
+    test "SS-088 should take element screenshot when default viewport is null and restore back", %{browser: browser} do
       context = Browser.new_context!(browser, viewport: :null)
       page = BrowserContext.new_page!(context)
 
@@ -423,9 +423,9 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should restore viewport after element screenshot and exception"
+    test "SS-089 should restore viewport after element screenshot and exception"
 
-    test "element screenshots should handle vh units ", %{context_factory: context_factory} do
+    test "SS-090 element screenshots should handle vh units ", %{context_factory: context_factory} do
       context = context_factory.([])
       page = BrowserContext.new_page!(context)
 
@@ -452,7 +452,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     end
 
     @tag skip: if(@browser_name == "chromium", do: "upstream skip: https://github.com/microsoft/playwright/issues/9757")
-    test "should work if the main resource hangs", %{browser: browser, server: server} do
+    test "SS-091 should work if the main resource hangs", %{browser: browser, server: server} do
       # browserTest.skip(mode !== 'default')  -- default mode here
       page = Browser.new_page!(browser)
 
@@ -474,7 +474,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       end
     end
 
-    test "should capture full element when larger than viewport with device scale factor", %{browser: browser} do
+    test "SS-092 should capture full element when larger than viewport with device scale factor", %{browser: browser} do
       context = Browser.new_context!(browser, viewport: %{width: 501, height: 501}, device_scale_factor: 2.5)
       page = BrowserContext.new_page!(context)
 
@@ -501,7 +501,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       BrowserContext.close!(context)
     end
 
-    test "should capture full element when larger than viewport with device scale factor and scale:css", %{
+    test "SS-093 should capture full element when larger than viewport with device scale factor and scale:css", %{
       browser: browser
     } do
       context = Browser.new_context!(browser, viewport: %{width: 501, height: 501}, device_scale_factor: 2.5)
@@ -534,7 +534,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
     @tag skip: if(@browser_name == "webkit", do: "upstream fixme: webkit")
 
     @tag :tmp_dir
-    test "page screenshot should capture css transform with device pixels", %{
+    test "SS-094 page screenshot should capture css transform with device pixels", %{
       browser: browser,
       browser_name: browser_name,
       tmp_dir: tmp_dir
@@ -585,7 +585,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
       File.cp!(
         Path.join(
           PlaywrightEx.Upstream.dir(),
-          "tests/library/screenshot.spec.ts-snapshots/element-screenshot-page-screenshot-should-capture-css-transform-with-device-pixels-1-#{browser_name}.png"
+          "tests/library/screenshot.spec.ts-snapshots/element-screenshot-SS-094-page-screenshot-should-capture-css-transform-with-device-pixels-1-#{browser_name}.png"
         ),
         path
       )

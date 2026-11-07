@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     end
   end
 
-  test "should handle nested frames @smoke", %{page: page, server: server} do
+  test "FR-024 should handle nested frames @smoke", %{page: page, server: server} do
     # it.skip(isAndroid, 'No cross-process on Android');
     # it.skip(isBidi, 'frame.name() is racy with BiDi');
 
@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
            ]
   end
 
-  test "should send events when frames are manipulated dynamically", %{page: page, server: server} do
+  test "FR-025 should send events when frames are manipulated dynamically", %{page: page, server: server} do
     me = self()
     Page.goto!(page, server.empty_page)
     # validate frameattached events
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert Frame.is_detached(hd(detached_frames)) == true
   end
 
-  test "should send \"framenavigated\" when navigating on anchor URLs", %{page: page, server: server} do
+  test "FR-026 should send \"framenavigated\" when navigating on anchor URLs", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame_navigated = Page.wait_for_event(page, :frame_navigated)
     Page.goto!(page, server.empty_page <> "#foo")
@@ -86,14 +86,14 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert Page.url(page) == server.empty_page <> "#foo"
   end
 
-  test "should persist mainFrame on cross-process navigation", %{page: page, server: server} do
+  test "FR-027 should persist mainFrame on cross-process navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     main_frame = Page.main_frame(page)
     Page.goto!(page, server.cross_process_prefix <> "/empty.html")
     assert Page.main_frame(page) == main_frame
   end
 
-  test "should not send attach/detach events for main frame", %{page: page, server: server} do
+  test "FR-028 should not send attach/detach events for main frame", %{page: page, server: server} do
     me = self()
     Page.on(page, :frame_attached, fn _frame -> send(me, :has_events) end)
     Page.on(page, :frame_detached, fn _frame -> send(me, :has_events) end)
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     refute_received :has_events
   end
 
-  test "should detach child frames on navigation", %{page: page, server: server} do
+  test "FR-029 should detach child frames on navigation", %{page: page, server: server} do
     me = self()
     Page.on(page, :frame_attached, &send(me, {:attached, &1}))
     Page.on(page, :frame_detached, &send(me, {:detached, &1}))
@@ -117,7 +117,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert length(received(:navigated)) == 1
   end
 
-  test "should support framesets", %{page: page, server: server} do
+  test "FR-030 should support framesets", %{page: page, server: server} do
     me = self()
     Page.on(page, :frame_attached, &send(me, {:attached, &1}))
     Page.on(page, :frame_detached, &send(me, {:detached, &1}))
@@ -133,7 +133,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert length(received(:navigated)) == 1
   end
 
-  test "should report frame from-inside shadow DOM", %{page: page, server: server} do
+  test "FR-031 should report frame from-inside shadow DOM", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/shadow.html")
 
     Page.evaluate!(
@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert Frame.url(Enum.at(Page.frames(page), 1)) == server.empty_page
   end
 
-  test "should report frame.name()", %{page: page, server: server} do
+  test "FR-032 should report frame.name()", %{page: page, server: server} do
     # it.skip(isBidi, 'frame.name() is racy with BiDi');
 
     attach_frame(page, "theFrameId", server.empty_page)
@@ -177,7 +177,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert Frame.name(Enum.at(Page.frames(page), 2)) == "theFrameName"
   end
 
-  test "should report frame.parent()", %{page: page, server: server} do
+  test "FR-033 should report frame.parent()", %{page: page, server: server} do
     attach_frame(page, "frame1", server.empty_page)
     attach_frame(page, "frame2", server.empty_page)
     assert Frame.parent_frame(Enum.at(Page.frames(page), 0)) == nil
@@ -185,7 +185,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert Frame.parent_frame(Enum.at(Page.frames(page), 2)) == Page.main_frame(page)
   end
 
-  test "should report different frame instance when frame re-attaches", %{page: page, server: server} do
+  test "FR-034 should report different frame instance when frame re-attaches", %{page: page, server: server} do
     frame1 = attach_frame(page, "frame1", server.empty_page)
 
     Page.evaluate!(page, """
@@ -204,7 +204,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")
-  test "should refuse to display x-frame-options:deny iframe", %{page: page, server: server} do
+  test "FR-035 should refuse to display x-frame-options:deny iframe", %{page: page, server: server} do
     # it.skip(browserName === 'firefox');
     TestServer.set_route(server, "/x-frame-options-deny.html", fn conn ->
       conn
@@ -228,7 +228,7 @@ defmodule PlaywrightEx.Page.FrameHierarchyTest do
     assert refusal_text =~ ~r/Refused to display .* in a frame because it set 'X-Frame-Options' to 'deny'./i
   end
 
-  test "should return frame.page()", %{page: page, server: server} do
+  test "FR-036 should return frame.page()", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     assert Frame.page(Page.main_frame(page)) == page
     assert page |> Page.main_frame() |> Frame.child_frames() |> hd() |> Frame.page() == page

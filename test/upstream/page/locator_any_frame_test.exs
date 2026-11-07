@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
 
   defp any_frame(page), do: Page.frame_locator(page)
 
-  test "should click a button inside an iframe", %{page: page, server: server} do
+  test "LO-001 should click a button inside an iframe", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<button onclick="window.__clicked = true">Click me</button>))
     Page.goto!(page, server.empty_page)
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert Frame.evaluate!(Enum.at(Page.frames(page), 1), "() => window.__clicked") == true
   end
 
-  test "should click a button in the main frame", %{page: page, server: server} do
+  test "LO-002 should click a button in the main frame", %{page: page, server: server} do
     route_page(
       page,
       "empty.html",
@@ -53,7 +53,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert Page.evaluate!(page, "() => window.__clicked") == true
   end
 
-  test "should fail click when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-003 should fail click when elements match in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<button>one</button>))
     route_page(page, "b.html", ~s(<button>two</button>))
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "waiting for frameLocator().locator('button')"
   end
 
-  test "should fail click upon strict mode violation inside a single frame", %{page: page, server: server} do
+  test "LO-004 should fail click upon strict mode violation inside a single frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<button>one</button><button>two</button>))
     Page.goto!(page, server.empty_page)
@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "waiting for frameLocator().locator('button')"
   end
 
-  test "should time out on click when there are no matches", %{page: page, server: server} do
+  test "LO-005 should time out on click when there are no matches", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>Nothing here</div>))
     Page.goto!(page, server.empty_page)
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "waiting for frameLocator().locator('button')"
   end
 
-  test "should count elements in a single frame", %{page: page, server: server} do
+  test "LO-006 should count elements in a single frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>1</div><div>2</div><div>3</div>))
     Page.goto!(page, server.empty_page)
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert page |> any_frame() |> FrameLocator.locator("button") |> Locator.count!() == 0
   end
 
-  test "should fail count when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-007 should fail count when elements match in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<div>main</div><iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>child</div>))
     Page.goto!(page, server.empty_page)
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should support toHaveCount", %{page: page, server: server} do
+  test "LO-008 should support toHaveCount", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span><span>two</span>))
     Page.goto!(page, server.empty_page)
@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_have_count!(page |> any_frame() |> FrameLocator.locator("button"), 0)
   end
 
-  test "should wait for a frame to appear with toHaveCount", %{page: page, server: server} do
+  test "LO-009 should wait for a frame to appear with toHaveCount", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<div>No frames yet</div>))
     route_page(page, "a.html", ~s(<span>one</span><span>two</span>))
     Page.goto!(page, server.empty_page)
@@ -127,7 +127,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_have_count!(page |> any_frame() |> FrameLocator.locator("span"), 2)
   end
 
-  test "should fail toHaveCount when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-010 should fail toHaveCount when elements match in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span>))
     route_page(page, "b.html", ~s(<span>two</span>))
@@ -139,21 +139,21 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("span")'
   end
 
-  test "should support toHaveText", %{page: page, server: server} do
+  test "LO-011 should support toHaveText", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>Hello iframe</div>))
     Page.goto!(page, server.empty_page)
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("div"), "Hello iframe")
   end
 
-  test "should support toHaveText with an array", %{page: page, server: server} do
+  test "LO-012 should support toHaveText with an array", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span><span>two</span>))
     Page.goto!(page, server.empty_page)
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("span"), ["one", "two"])
   end
 
-  test "should fail toHaveText when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-013 should fail toHaveText when elements match in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<div>one</div>))
     route_page(page, "b.html", ~s(<div>two</div>))
@@ -165,7 +165,10 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("div")'
   end
 
-  test "should fail toHaveText with an array when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-014 should fail toHaveText with an array when elements match in multiple frames", %{
+    page: page,
+    server: server
+  } do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span>))
     route_page(page, "b.html", ~s(<span>two</span>))
@@ -178,7 +181,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should fail toHaveText upon strict mode violation inside a single frame", %{page: page, server: server} do
+  test "LO-015 should fail toHaveText upon strict mode violation inside a single frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>one</div><div>two</div>))
     Page.goto!(page, server.empty_page)
@@ -189,7 +192,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ ~s'Locator: Page.frame_locator(page) |> FrameLocator.locator("div")'
   end
 
-  test "should support evaluate", %{page: page, server: server} do
+  test "LO-016 should support evaluate", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div data-foo="bar">Hello</div>))
     Page.goto!(page, server.empty_page)
@@ -198,7 +201,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
              "bar"
   end
 
-  test "should fail evaluate when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-017 should fail evaluate when elements match in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<div>one</div>))
     route_page(page, "b.html", ~s(<div>two</div>))
@@ -211,7 +214,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should time out on evaluate when there are no matches", %{page: page, server: server} do
+  test "LO-018 should time out on evaluate when there are no matches", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>Nothing here</div>))
     Page.goto!(page, server.empty_page)
@@ -226,7 +229,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "waiting for frameLocator().locator('button')"
   end
 
-  test "should support evaluateAll", %{page: page, server: server} do
+  test "LO-019 should support evaluateAll", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span><span>two</span>))
     Page.goto!(page, server.empty_page)
@@ -241,7 +244,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert page |> any_frame() |> FrameLocator.locator("button") |> Locator.evaluate_all!("els => els.length") == 0
   end
 
-  test "should fail evaluateAll when elements match in multiple frames", %{page: page, server: server} do
+  test "LO-020 should fail evaluateAll when elements match in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span>))
     route_page(page, "b.html", ~s(<span>two</span>))
@@ -251,14 +254,14 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should support hasText filter", %{page: page, server: server} do
+  test "LO-021 should support hasText filter", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>foo</div><div>bar</div>))
     Page.goto!(page, server.empty_page)
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("div", has_text: "bar"), "bar")
   end
 
-  test "should support first/last/nth", %{page: page, server: server} do
+  test "LO-022 should support first/last/nth", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<span>one</span><span>two</span><span>three</span>))
     Page.goto!(page, server.empty_page)
@@ -268,7 +271,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("span") |> Locator.nth(1), "two")
   end
 
-  test "should support nth in the middle of the chain", %{page: page, server: server} do
+  test "LO-023 should support nth in the middle of the chain", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div><span>one</span></div><div><span>two</span></div>))
     Page.goto!(page, server.empty_page)
@@ -279,21 +282,21 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should support composite locators", %{page: page, server: server} do
+  test "LO-024 should support composite locators", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div><span>foo</span></div><div><i>bar</i></div>))
     Page.goto!(page, server.empty_page)
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("div", has: Page.locator(page, "span")), "foo")
   end
 
-  test "should support capture", %{page: page, server: server} do
+  test "LO-025 should support capture", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div id="target"><span>hello</span></div>))
     Page.goto!(page, server.empty_page)
     Expect.to_have_attribute!(page |> any_frame() |> FrameLocator.locator("*css=div >> span"), "id", "target")
   end
 
-  test "should find a frame inside the scope", %{page: page, server: server} do
+  test "LO-026 should find a frame inside the scope", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<section><iframe src="a.html"></iframe></section><button>outside</button>))
     route_page(page, "a.html", ~s(<button>inside</button>))
     Page.goto!(page, server.empty_page)
@@ -304,7 +307,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert ElementHandle.text_content!(hd(buttons)) == "inside"
   end
 
-  test "should find a nested frame inside the scope", %{page: page, server: server} do
+  test "LO-027 should find a nested frame inside the scope", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<section><iframe src="a.html"></iframe></section><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe src="c.html"></iframe>))
     route_page(page, "b.html", ~s(<button>outside</button>))
@@ -323,7 +326,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert ElementHandle.text_content!(hd(buttons)) == "deep"
   end
 
-  test "should find a frame inside the scope while another iframe is stalled", %{page: page, server: server} do
+  test "LO-028 should find a frame inside the scope while another iframe is stalled", %{page: page, server: server} do
     route_page(
       page,
       "empty.html",
@@ -340,7 +343,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert ElementHandle.text_content!(hd(buttons)) == "inside"
   end
 
-  test "should respect the scope without a frame inside the scope", %{page: page, server: server} do
+  test "LO-029 should respect the scope without a frame inside the scope", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<section><button>target</button></section><iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<button>in-frame</button>))
     Page.goto!(page, server.empty_page)
@@ -351,7 +354,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert ElementHandle.text_content!(hd(buttons)) == "target"
   end
 
-  test "should not match a chain across a frame boundary", %{page: page, server: server} do
+  test "LO-030 should not match a chain across a frame boundary", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<section><iframe src="a.html"></iframe></section>))
     route_page(page, "a.html", ~s(<iframe src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>deep</button>))
@@ -364,7 +367,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("button"), "deep")
   end
 
-  test "should only search frames inside the starting frame", %{page: page, server: server} do
+  test "LO-031 should only search frames inside the starting frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><button>main</button>))
     route_page(page, "a.html", ~s(<iframe src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>deep</button>))
@@ -376,7 +379,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_have_text!(middle_frame |> Frame.frame_locator() |> FrameLocator.locator("button"), "deep")
   end
 
-  test "should enter a frame found in a nested frame", %{page: page, server: server} do
+  test "LO-032 should enter a frame found in a nested frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><button>main</button>))
     route_page(page, "a.html", ~s(<iframe id="target" src="b.html"></iframe><button>decoy</button>))
     route_page(page, "b.html", ~s(<button>inside</button>))
@@ -388,7 +391,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should click inside an entered frame", %{page: page, server: server} do
+  test "LO-033 should click inside an entered frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe id="target" src="b.html"></iframe><button>Click me</button>))
     route_page(page, "b.html", ~s(<button onclick="window.__clicked = true">Click me</button>))
@@ -404,7 +407,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert Frame.evaluate!(frame, "() => window.__clicked") == true
   end
 
-  test "should not search nested frames after entering a frame", %{page: page, server: server} do
+  test "LO-034 should not search nested frames after entering a frame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe id="target" src="a.html"></iframe><button>main</button>))
     route_page(page, "a.html", ~s(<iframe src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>deep</button>))
@@ -417,7 +420,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should support two frameLocators", %{page: page, server: server} do
+  test "LO-035 should support two frameLocators", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe id="x" src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<iframe id="y" src="c.html"></iframe><button>decoy</button>))
@@ -434,7 +437,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should support locator before frameLocator", %{page: page, server: server} do
+  test "LO-036 should support locator before frameLocator", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<section><iframe src="b.html"></iframe></section><iframe src="c.html"></iframe>))
     route_page(page, "b.html", ~s(<button>in-section</button>))
@@ -451,7 +454,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should support owner of a frameLocator", %{page: page, server: server} do
+  test "LO-037 should support owner of a frameLocator", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe id="target" src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>inside</button>))
@@ -464,7 +467,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
            |> Locator.get_attribute!("id") == "target"
   end
 
-  test "should wait for the frame to enter to appear", %{page: page, server: server} do
+  test "LO-038 should wait for the frame to enter to appear", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div>Nothing yet</div>))
     route_page(page, "b.html", ~s(<button>late</button>))
@@ -488,7 +491,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should fail when the frame to enter matches in multiple frames", %{page: page, server: server} do
+  test "LO-039 should fail when the frame to enter matches in multiple frames", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="b.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe class="inner" src="c.html"></iframe>))
     route_page(page, "b.html", ~s(<iframe class="inner" src="c.html"></iframe>))
@@ -510,7 +513,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should support contentFrame", %{page: page, server: server} do
+  test "LO-040 should support contentFrame", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe id="target" src="b.html"></iframe><button>decoy</button>))
     route_page(page, "b.html", ~s(<button>inside</button>))
@@ -526,7 +529,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should render frameLocator() in the locator description", %{page: page} do
+  test "LO-041 should render frameLocator() in the locator description", %{page: page} do
     # Elixir syntax: the client renders locators (architecture: Driver language and rendering).
     assert page
            |> any_frame()
@@ -544,7 +547,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
              ~s'Page.frame_locator(page) |> FrameLocator.locator("section") |> Locator.locator("iframe") |> Locator.content_frame() |> FrameLocator.get_by_text("foo")'
   end
 
-  test "should not allow frameLocator() inside a composite locator", %{page: page, server: server} do
+  test "LO-042 should not allow frameLocator() inside a composite locator", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<button>main</button><iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<a href="#">link</a>))
     Page.goto!(page, server.empty_page)
@@ -600,7 +603,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert error5.message =~ "frameLocator() matched elements in multiple frames"
   end
 
-  test "should support a composite locator under frameLocator()", %{page: page, server: server} do
+  test "LO-043 should support a composite locator under frameLocator()", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<div class="classname">first</div><button>second</button>))
     Page.goto!(page, server.empty_page)
@@ -612,7 +615,10 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should support a composite locator under frameLocator() and a frame locator", %{page: page, server: server} do
+  test "LO-044 should support a composite locator under frameLocator() and a frame locator", %{
+    page: page,
+    server: server
+  } do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<iframe id="f" src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<div class="classname">first</div><button>second</button>))
@@ -629,19 +635,19 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     )
   end
 
-  test "should not allow first/last/nth on frameLocator()", %{page: page} do
+  test "LO-045 should not allow first/last/nth on frameLocator()", %{page: page} do
     message = ~r/Selecting the nth frame is not allowed on frameLocator\(\)/
     assert_raise RuntimeError, message, fn -> page |> any_frame() |> FrameLocator.first() end
     assert_raise RuntimeError, message, fn -> page |> any_frame() |> FrameLocator.last() end
     assert_raise RuntimeError, message, fn -> page |> any_frame() |> FrameLocator.nth(1) end
   end
 
-  test "should not allow owner on frameLocator()", %{page: page} do
+  test "LO-046 should not allow owner on frameLocator()", %{page: page} do
     {:error, error} = page |> any_frame() |> FrameLocator.owner() |> Locator.count()
     assert error.message =~ "Selector cannot be empty after frameLocator()"
   end
 
-  test "should resolve aria-ref selectors", %{page: page, server: server} do
+  test "LO-047 should resolve aria-ref selectors", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<button>main</button><iframe src="a.html"></iframe>))
     route_page(page, "a.html", ~s(<button>inside</button>))
     Page.goto!(page, server.empty_page)
@@ -653,7 +659,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_have_text!(page |> any_frame() |> FrameLocator.locator("aria-ref=#{inside_ref}"), "inside")
   end
 
-  test "should click while another iframe is stalled", %{page: page, server: server} do
+  test "LO-048 should click while another iframe is stalled", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="stall.html"></iframe>))
     route_page(page, "a.html", ~s(<button onclick="window.__clicked = true">Click me</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
@@ -664,7 +670,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     assert Frame.evaluate!(frame, "() => window.__clicked") == true
   end
 
-  test "should support toBeVisible while another iframe is stalled", %{page: page, server: server} do
+  test "LO-049 should support toBeVisible while another iframe is stalled", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="stall.html"></iframe>))
     route_page(page, "a.html", ~s(<button>Click me</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
@@ -673,7 +679,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     Expect.to_be_visible!(page |> any_frame() |> FrameLocator.locator("button"))
   end
 
-  test "should support toHaveCount while another iframe is stalled", %{page: page, server: server} do
+  test "LO-050 should support toHaveCount while another iframe is stalled", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html"></iframe><iframe src="stall.html"></iframe>))
     route_page(page, "a.html", ~s(<button>Click me</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
@@ -683,7 +689,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
   end
 
   # https://github.com/microsoft/playwright/issues/42719
-  test "should treat elements inside hidden iframe as hidden", %{page: page, server: server} do
+  test "LO-051 should treat elements inside hidden iframe as hidden", %{page: page, server: server} do
     route_page(page, "empty.html", ~s(<iframe src="a.html" style="visibility: hidden"></iframe>))
     route_page(page, "a.html", ~s(<button onclick="window.__clicked = true">Click me</button>))
     Page.goto!(page, server.empty_page)

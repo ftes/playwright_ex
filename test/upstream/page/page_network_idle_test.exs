@@ -80,18 +80,18 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     if !is_set_content, do: assert(Response.ok(response) == true)
   end
 
-  test "should navigate to empty page with networkidle", %{page: page, server: server} do
+  test "NE-070 should navigate to empty page with networkidle", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page, wait_until: :networkidle)
     assert Response.status(response) == 200
   end
 
-  test "should wait for networkidle to succeed navigation", %{page: page, server: server} do
+  test "NE-071 should wait for networkidle to succeed navigation", %{page: page, server: server} do
     network_idle_test(Page.main_frame(page), server, fn ->
       Page.goto!(page, server.prefix <> "/networkidle.html", wait_until: :networkidle)
     end)
   end
 
-  test "should wait for networkidle to succeed navigation with request from previous navigation",
+  test "NE-072 should wait for networkidle to succeed navigation with request from previous navigation",
        %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/foo.js", &hang/1)
@@ -102,7 +102,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     end)
   end
 
-  test "should wait for networkidle in waitForNavigation", %{page: page, server: server} do
+  test "NE-073 should wait for networkidle in waitForNavigation", %{page: page, server: server} do
     network_idle_test(Page.main_frame(page), server, fn ->
       promise = Page.wait_for_navigation(page, wait_until: :networkidle)
       Runtime.Promise.void(fn -> Page.goto(page, server.prefix <> "/networkidle.html") end)
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     end)
   end
 
-  test "should wait for networkidle in setContent", %{page: page, server: server} do
+  test "NE-074 should wait for networkidle in setContent", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     network_idle_test(
@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     )
   end
 
-  test "should wait for networkidle in setContent with request from previous navigation",
+  test "NE-075 should wait for networkidle in setContent with request from previous navigation",
        %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/foo.js", &hang/1)
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     )
   end
 
-  test "should wait for networkidle when navigating iframe", %{page: page, server: server} do
+  test "NE-076 should wait for networkidle when navigating iframe", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     frame = page |> Page.main_frame() |> Frame.child_frames() |> hd()
 
@@ -144,7 +144,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     end)
   end
 
-  test "should wait for networkidle in setContent from the child frame", %{page: page, server: server} do
+  test "NE-077 should wait for networkidle in setContent from the child frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     network_idle_test(
@@ -155,13 +155,13 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     )
   end
 
-  test "should wait for networkidle from the child frame", %{page: page, server: server} do
+  test "NE-078 should wait for networkidle from the child frame", %{page: page, server: server} do
     network_idle_test(Page.main_frame(page), server, fn ->
       Page.goto!(page, server.prefix <> "/networkidle-frame.html", wait_until: :networkidle)
     end)
   end
 
-  test "should wait for networkidle from the popup", %{page: page, server: server} do
+  test "NE-079 should wait for networkidle from the popup", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -178,7 +178,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
     end
   end
 
-  test "should wait for networkidle when iframe attaches and detaches", %{page: page, server: server} do
+  test "NE-080 should wait for networkidle when iframe attaches and detaches", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", &hang/1)
 
     promise =
@@ -208,7 +208,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/18283
-  test "should work after repeated navigations in the same page", %{page: page, server: server} do
+  test "NE-081 should work after repeated navigations in the same page", %{page: page, server: server} do
     request_count = :counters.new(1, [])
 
     Page.route!(page, "**/empty.html", fn route ->
@@ -246,7 +246,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/37226
-  test "should not wait for an open EventSource connection", %{page: page, server: server} do
+  test "NE-082 should not wait for an open EventSource connection", %{page: page, server: server} do
     TestServer.set_route(server, "/sse", &sse/1)
 
     TestServer.set_route(server, "/sse-page.html", fn conn ->
@@ -260,7 +260,7 @@ defmodule PlaywrightEx.Page.PageNetworkIdleTest do
   end
 
   # issue: https://github.com/microsoft/playwright/issues/37226
-  test "should not wait for an open EventSource connection in setContent", %{page: page, server: server} do
+  test "NE-083 should not wait for an open EventSource connection in setContent", %{page: page, server: server} do
     TestServer.set_route(server, "/sse", &sse/1)
 
     Page.goto!(page, server.empty_page)

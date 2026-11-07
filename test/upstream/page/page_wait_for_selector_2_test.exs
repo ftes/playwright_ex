@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
 
   @add_element "tag => document.body.appendChild(document.createElement(tag))"
 
-  test "should survive cross-process navigation", %{page: page, server: server} do
+  test "WA-044 should survive cross-process navigation", %{page: page, server: server} do
     wait_for_selector = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ".box") end, shared: true)
     Page.goto!(page, server.empty_page)
     refute Runtime.Promise.settled?(wait_for_selector)
@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Runtime.Promise.await(wait_for_selector)
   end
 
-  test "should wait for visible", %{page: page} do
+  test "WA-045 should wait for visible", %{page: page} do
     wait_for_selector = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div") end, shared: true)
     Page.set_content!(page, "<div style='display: none; visibility: hidden;'>1</div>")
     refute Runtime.Promise.settled?(wait_for_selector)
@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Runtime.Promise.await(wait_for_selector)
   end
 
-  test "should not consider visible when zero-sized", %{page: page} do
+  test "WA-046 should not consider visible when zero-sized", %{page: page} do
     Page.set_content!(page, "<div style='width: 0; height: 0;'>1</div>")
     {:error, error} = Page.wait_for_selector(page, "div", timeout: 1000)
     assert Exception.message(error) =~ "page.waitForSelector: Timeout 1000ms exceeded"
@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Page.wait_for_selector!(page, "div", timeout: 1000)
   end
 
-  test "should wait for visible recursively", %{page: page} do
+  test "WA-047 should wait for visible recursively", %{page: page} do
     wait_for_selector = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "div#inner") end, shared: true)
     Page.set_content!(page, ~s(<div style='display: none; visibility: hidden;'><div id="inner">hi</div></div>))
     refute Runtime.Promise.settled?(wait_for_selector)
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Runtime.Promise.await(wait_for_selector)
   end
 
-  test "should consider outside of viewport visible", %{page: page} do
+  test "WA-048 should consider outside of viewport visible", %{page: page} do
     Page.set_content!(page, """
     <style>
       .cover {
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Expect.to_be_visible!(cover)
   end
 
-  test "hidden should wait for hidden", %{page: page} do
+  test "WA-049 hidden should wait for hidden", %{page: page} do
     Page.set_content!(page, "<div style='display: block;'>content</div>")
 
     wait_for_selector =
@@ -91,7 +91,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Runtime.Promise.await(wait_for_selector)
   end
 
-  test "hidden should wait for display: none", %{page: page} do
+  test "WA-050 hidden should wait for display: none", %{page: page} do
     Page.set_content!(page, "<div style='display: block;'>content</div>")
 
     wait_for_selector =
@@ -104,7 +104,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Runtime.Promise.await(wait_for_selector)
   end
 
-  test "hidden should wait for removal", %{page: page} do
+  test "WA-051 hidden should wait for removal", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
 
     wait_for_selector =
@@ -117,12 +117,12 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Runtime.Promise.await(wait_for_selector)
   end
 
-  test "should return null if waiting to hide non-existing element", %{page: page} do
+  test "WA-052 should return null if waiting to hide non-existing element", %{page: page} do
     handle = Page.wait_for_selector!(page, "non-existing", state: :hidden)
     assert handle == nil
   end
 
-  test "should respect timeout", %{page: page} do
+  test "WA-053 should respect timeout", %{page: page} do
     {:error, error} = Page.wait_for_selector(page, "div", timeout: 3000, state: :attached)
     assert error
     assert Exception.message(error) =~ "page.waitForSelector: Timeout 3000ms exceeded"
@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert %TimeoutError{} = error
   end
 
-  test "should have an error message specifically for awaiting an element to be hidden", %{page: page} do
+  test "WA-054 should have an error message specifically for awaiting an element to be hidden", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     {:error, error} = Page.wait_for_selector(page, "div", state: :hidden, timeout: 1000)
     assert error
@@ -138,7 +138,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Exception.message(error) =~ "waiting for locator('div') to be hidden"
   end
 
-  test "should respond to node attribute mutation", %{page: page} do
+  test "WA-055 should respond to node attribute mutation", %{page: page} do
     wait_for_selector =
       Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ".zombo", state: :attached) end, shared: true)
 
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Runtime.Promise.await(wait_for_selector)
   end
 
-  test "should return the element handle", %{page: page} do
+  test "WA-056 should return the element handle", %{page: page} do
     wait_for_selector = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ".zombo") end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
     assert Page.evaluate!(page, "x => x.textContent", Runtime.Promise.await(wait_for_selector)) == "anything"
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
   # `error.stack` is the stack trace of the raised error (the bang form; `{:error, e}` has none).
   # 'wait-for-selector' is this file's name: here its path, as the library's `wait_for_selector`
   # frames would match the name alone.
-  test "should have correct stack trace for timeout", %{page: page} do
+  test "WA-057 should have correct stack trace for timeout", %{page: page} do
     {error, stacktrace} =
       try do
         Page.wait_for_selector!(page, ".zombo", timeout: 10)
@@ -169,13 +169,13 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Exception.format(:error, error, stacktrace) =~ Path.relative_to_cwd(__ENV__.file)
   end
 
-  test "should throw for unknown state option", %{page: page} do
+  test "WA-058 should throw for unknown state option", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     {:error, error} = Page.wait_for_selector(page, "section", state: "foo")
     assert Exception.message(error) =~ "state: expected one of (attached|detached|visible|hidden)"
   end
 
-  test "should throw for visibility option", %{page: page} do
+  test "WA-059 should throw for visibility option", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     # `visibility` is not an option of the facade: it rejects it before the driver does.
     assert_raise ArgumentError, ~r/unknown option :visibility/, fn ->
@@ -183,19 +183,19 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     end
   end
 
-  test "should throw for true state option", %{page: page} do
+  test "WA-060 should throw for true state option", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     {:error, error} = Page.wait_for_selector(page, "section", state: true)
     assert Exception.message(error) =~ "state: expected one of (attached|detached|visible|hidden)"
   end
 
-  test "should throw for false state option", %{page: page} do
+  test "WA-061 should throw for false state option", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     {:error, error} = Page.wait_for_selector(page, "section", state: false)
     assert Exception.message(error) =~ "state: expected one of (attached|detached|visible|hidden)"
   end
 
-  test "should support >> selector syntax", %{page: page, server: server} do
+  test "WA-062 should support >> selector syntax", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
     watchdog = Runtime.Promise.async(fn -> Frame.wait_for_selector!(frame, "css=div >> css=span", state: :attached) end)
@@ -207,12 +207,12 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert tag_name == "SPAN"
   end
 
-  test "should wait for detached if already detached", %{page: page} do
+  test "WA-063 should wait for detached if already detached", %{page: page} do
     Page.set_content!(page, ~s(<section id="testAttribute">43543</section>))
     assert Page.wait_for_selector!(page, "css=div", state: :detached) == nil
   end
 
-  test "should wait for detached", %{page: page} do
+  test "WA-064 should wait for detached", %{page: page} do
     Page.set_content!(page, ~s(<section id="testAttribute"><div>43543</div></section>))
     wait_for = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "css=div", state: :detached) end, shared: true)
     refute Runtime.Promise.settled?(wait_for)
@@ -222,7 +222,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Runtime.Promise.await(wait_for)
   end
 
-  test "should support some fancy xpath", %{page: page} do
+  test "WA-065 should support some fancy xpath", %{page: page} do
     Page.set_content!(page, "<p>red herring</p><p>hello  world  </p>")
 
     wait_for_x_path =
@@ -231,7 +231,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Page.evaluate!(page, "x => x.textContent", Runtime.Promise.await(wait_for_x_path)) == "hello  world  "
   end
 
-  test "should respect timeout xpath", %{page: page} do
+  test "WA-066 should respect timeout xpath", %{page: page} do
     {:error, error} = Page.wait_for_selector(page, "//div", state: :attached, timeout: 3000)
     assert error
     assert Exception.message(error) =~ "page.waitForSelector: Timeout 3000ms exceeded"
@@ -239,7 +239,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert %TimeoutError{} = error
   end
 
-  test "should run in specified frame xpath", %{page: page, server: server} do
+  test "WA-067 should run in specified frame xpath", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     Utils.attach_frame(page, "frame2", server.empty_page)
     frame1 = Enum.at(Page.frames(page), 1)
@@ -254,7 +254,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert ElementHandle.owner_frame!(e_handle) == frame2
   end
 
-  test "should throw when frame is detached xpath", %{page: page, server: server} do
+  test "WA-068 should throw when frame is detached xpath", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
     wait_promise = Runtime.Promise.async(fn -> Frame.wait_for_selector(frame, ~s|//*[@class="box"]|) end)
@@ -264,19 +264,19 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Exception.message(wait_error) =~ "frame.waitForSelector: Frame was detached"
   end
 
-  test "should return the element handle xpath", %{page: page} do
+  test "WA-069 should return the element handle xpath", %{page: page} do
     wait_for_x_path = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ~s|//*[@class="zombo"]|) end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
     assert Page.evaluate!(page, "x => x.textContent", Runtime.Promise.await(wait_for_x_path)) == "anything"
   end
 
-  test "should allow you to select an element with single slash xpath", %{page: page} do
+  test "WA-070 should allow you to select an element with single slash xpath", %{page: page} do
     Page.set_content!(page, "<div>some text</div>")
     wait_for_x_path = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "//html/body/div") end)
     assert Page.evaluate!(page, "x => x.textContent", Runtime.Promise.await(wait_for_x_path)) == "some text"
   end
 
-  test "should correctly handle hidden shadow host", %{page: page} do
+  test "WA-071 should correctly handle hidden shadow host", %{page: page} do
     Page.set_content!(page, """
     <x-host hidden></x-host>
     <script>
@@ -295,11 +295,11 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Page.wait_for_selector!(page, "div", state: :hidden)
   end
 
-  test "should work when navigating before node adoption"
+  test "WA-072 should work when navigating before node adoption"
 
-  test "should fail when navigating while on handle"
+  test "WA-073 should fail when navigating while on handle"
 
-  test "should fail if element handle was detached while waiting", %{page: page} do
+  test "WA-074 should fail if element handle was detached while waiting", %{page: page} do
     Page.set_content!(page, "<button>hello</button>")
     button = Page.query_selector!(page, "button")
     promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector(button, "something") end)
@@ -309,7 +309,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
-  test "should succeed if element handle was detached while waiting for hidden", %{page: page} do
+  test "WA-075 should succeed if element handle was detached while waiting for hidden", %{page: page} do
     Page.set_content!(page, "<button>hello</button>")
     button = Page.query_selector!(page, "button")
     promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector!(button, "something", state: :hidden) end)
@@ -318,7 +318,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
     Runtime.Promise.await(promise)
   end
 
-  test "should succeed if element handle was detached while waiting for detached", %{page: page} do
+  test "WA-076 should succeed if element handle was detached while waiting for detached", %{page: page} do
     Page.set_content!(page, "<button>hello</button>")
     button = Page.query_selector!(page, "button")
     promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector!(button, "something", state: :detached) end)

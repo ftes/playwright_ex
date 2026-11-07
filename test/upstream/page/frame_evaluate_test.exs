@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
 
   @moduletag :page
 
-  test "should have different execution contexts", %{page: page, server: server} do
+  test "FR-001 should have different execution contexts", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     assert length(Page.frames(page)) == 2
@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert Frame.evaluate!(Enum.at(Page.frames(page), 1), "() => window['FOO']") == "bar"
   end
 
-  test "should have correct execution contexts @smoke", %{page: page, server: server} do
+  test "FR-002 should have correct execution contexts @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     assert length(Page.frames(page)) == 2
     assert Frame.evaluate!(Enum.at(Page.frames(page), 0), "() => document.body.textContent.trim()") == ""
@@ -28,11 +28,11 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
              "Hi, I'm frame"
   end
 
-  test "should dispose context on navigation"
+  test "FR-003 should dispose context on navigation"
 
-  test "should dispose context on cross-origin navigation"
+  test "FR-004 should dispose context on cross-origin navigation"
 
-  test "should execute after cross-site navigation", %{page: page, server: server} do
+  test "FR-005 should execute after cross-site navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     main_frame = Page.main_frame(page)
     assert Frame.evaluate!(main_frame, "() => window.location.href") =~ server.empty_page
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert Frame.evaluate!(main_frame, "() => window.location.href") =~ server.cross_process_prefix
   end
 
-  test "should not allow cross-frame js handles", %{page: page, server: server} do
+  test "FR-006 should not allow cross-frame js handles", %{page: page, server: server} do
     # Upstream to-do: this should actually be possible because frames script each other,
     # but protocol implementations do not support this. For now, assume current
     # behavior.
@@ -63,14 +63,14 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert Exception.message(error) =~ "JSHandles can be evaluated only in the context they were created!"
   end
 
-  test "should allow cross-frame element handles", %{page: page, server: server} do
+  test "FR-007 should allow cross-frame element handles", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     body_handle = page |> Page.main_frame() |> Frame.child_frames() |> Enum.at(0) |> Frame.query_selector!("body")
     result = Page.evaluate!(page, "body => body.innerHTML", body_handle)
     assert String.trim(result) == "<div>Hi, I'm frame</div>"
   end
 
-  test "should not allow cross-frame element handles when frames do not script each other", %{
+  test "FR-008 should not allow cross-frame element handles when frames do not script each other", %{
     page: page,
     server: server
   } do
@@ -81,14 +81,14 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert Exception.message(error) =~ "Unable to adopt element handle from a different document"
   end
 
-  test "should throw for detached frames", %{page: page, server: server} do
+  test "FR-009 should throw for detached frames", %{page: page, server: server} do
     frame1 = attach_frame(page, "frame1", server.empty_page)
     detach_frame(page, "frame1")
     {:error, error} = Frame.evaluate(frame1, "() => 7 * 8")
     assert Exception.message(error) =~ "frame.evaluate: Frame was detached"
   end
 
-  test "should be isolated between frames", %{page: page, server: server} do
+  test "FR-010 should be isolated between frames", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     attach_frame(page, "frame1", server.empty_page)
     assert length(Page.frames(page)) == 2
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert a2 == 2
   end
 
-  test "should work in iframes that failed initial navigation", %{page: page, browser_name: browser_name} do
+  test "FR-011 should work in iframes that failed initial navigation", %{page: page, browser_name: browser_name} do
     Page.set_content!(
       page,
       """
@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert Frame.query_selector!(Enum.at(Page.frames(page), 1), "div")
   end
 
-  test "should work in iframes that interrupted initial javascript url navigation", %{page: page, server: server} do
+  test "FR-012 should work in iframes that interrupted initial javascript url navigation", %{page: page, server: server} do
     # Chromium does not report isolated world for the iframe.
     Page.goto!(page, server.empty_page)
 
@@ -162,7 +162,7 @@ defmodule PlaywrightEx.Page.FrameEvaluateTest do
     assert Frame.query_selector!(Enum.at(Page.frames(page), 1), "div")
   end
 
-  test "evaluateHandle should work", %{page: page, server: server} do
+  test "FR-013 evaluateHandle should work", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     main_frame = Page.main_frame(page)
     window_handle = Frame.evaluate_handle!(main_frame, "() => window")

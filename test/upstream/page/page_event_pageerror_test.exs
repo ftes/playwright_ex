@@ -11,7 +11,8 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     Page.expect_event!(page, :page_error, fn -> Page.evaluate!(page, expression, arg) end)
   end
 
-  test "should fire", %{page: page, server: server, browser_name: browser_name} do
+  test "ER-001 should fire", %{page: page, server: server, browser_name: browser_name} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43450' }
     url = server.prefix <> "/error.html"
     error = Page.expect_event!(page, :page_error, fn -> Page.goto!(page, url) end)
     assert error.name == "Error"
@@ -45,9 +46,80 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
                    at  (myscript.js:3:1)\
                """
     end
+
+    # The same script from another origin: Chromium reports it without an exception object,
+    # so the stack is built from the CDP call frames, which are zero-based.
+    cross_origin_url = server.cross_process_prefix <> "/error.js"
+
+    TestServer.set_route(server, "/error.js", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/javascript")
+      # Same lines as error.html, so the stack has the same locations.
+      |> Plug.Conn.send_resp(200, """
+
+      console.error('Not a JS error');
+      a();
+
+      function a() {
+          b();
+      }
+
+      function b() {
+          c();
+      }
+
+      function c() {
+          throw new Error('Fancy error!');
+      }
+      """)
+    end)
+
+    TestServer.set_route(server, "/cross-origin-error.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, ~s(<script src="#{cross_origin_url}"></script>))
+    end)
+
+    cross_origin_error =
+      Page.expect_event!(page, :page_error, fn -> Page.goto!(page, server.prefix <> "/cross-origin-error.html") end)
+
+    assert cross_origin_error.message == "Fancy error!"
+
+    cond do
+      browser_name == "chromium" and @browser_major_version >= 155 ->
+        assert cross_origin_error.stack == """
+               Uncaught Error: Fancy error!
+                   at c (#{cross_origin_url}:14:11)
+                   at b (#{cross_origin_url}:10:5)
+                   at a (#{cross_origin_url}:6:5)
+                   at <anonymous> (#{cross_origin_url}:3:1)\
+               """
+
+      browser_name == "webkit" ->
+        assert cross_origin_error.stack == """
+               Error: Fancy error!
+                   at c (#{cross_origin_url}:14:36)
+                   at b (#{cross_origin_url}:10:6)
+                   at a (#{cross_origin_url}:6:6)
+                   at global code (#{cross_origin_url}:3:2)\
+               """
+
+      # browserName === 'firefox' && !isBidi: no BiDi
+      browser_name == "firefox" ->
+        assert cross_origin_error.stack == """
+               Error: Fancy error!
+                   at c (#{cross_origin_url}:14:11)
+                   at b (#{cross_origin_url}:10:5)
+                   at a (#{cross_origin_url}:6:5)
+                   at  (#{cross_origin_url}:3:1)\
+               """
+
+      true ->
+        :ok
+    end
   end
 
-  test "should not receive console message for pageError", %{page: page, server: server} do
+  test "ER-002 should not receive console message for pageError", %{page: page, server: server} do
     test = self()
     Page.on(page, :console, fn e -> send(test, {:console, e}) end)
     Page.expect_event!(page, :page_error, fn -> Page.goto!(page, server.prefix <> "/error.html") end)
@@ -56,7 +128,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     refute_received {:console, _}
   end
 
-  test "should contain sourceURL", %{page: page, server: server, browser_name: browser_name} do
+  test "ER-003 should contain sourceURL", %{page: page, server: server, browser_name: browser_name} do
     # it.fail(browserName === 'webkit');
     expected_failure(browser_name == "webkit", fn ->
       error = Page.expect_event!(page, :page_error, fn -> Page.goto!(page, server.prefix <> "/error.html") end)
@@ -64,7 +136,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     end)
   end
 
-  test "should contain the Error.name property", %{page: page} do
+  test "ER-004 should contain the Error.name property", %{page: page} do
     error =
       throw_later(page, """
       () => {
@@ -80,7 +152,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     assert error.message == "my-message"
   end
 
-  test "should support an empty Error.name property", %{page: page} do
+  test "ER-005 should support an empty Error.name property", %{page: page} do
     error =
       throw_later(page, """
       () => {
@@ -96,7 +168,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     assert error.message == "my-message"
   end
 
-  test "should handle odd values", %{page: page} do
+  test "ER-006 should handle odd values", %{page: page} do
     cases = [
       [:null, "null"],
       [nil, "undefined"],
@@ -110,21 +182,21 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     end
   end
 
-  test "should handle object", %{page: page, browser_name: browser_name} do
+  test "ER-007 should handle object", %{page: page, browser_name: browser_name} do
     error = throw_later(page, "() => { window.builtins.setTimeout(() => { throw {}; }, 0); }")
     assert error.message == if(browser_name == "chromium", do: "Object", else: "[object Object]")
   end
 
-  test "should handle window", %{page: page, browser_name: browser_name} do
+  test "ER-008 should handle window", %{page: page, browser_name: browser_name} do
     error = throw_later(page, "() => { window.builtins.setTimeout(() => { throw window; }, 0); }")
     assert error.message == if(browser_name == "chromium", do: "Window", else: "[object Window]")
   end
 
-  test "should remove a listener of a non-existing event handler", %{page: page} do
+  test "ER-009 should remove a listener of a non-existing event handler", %{page: page} do
     Page.remove_listener(page, :page_error, fn _ -> nil end)
   end
 
-  test "should emit error from unhandled rejects", %{page: page} do
+  test "ER-010 should emit error from unhandled rejects", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/14165' }
     error =
       Page.expect_event!(page, :page_error, fn ->
@@ -138,7 +210,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     assert error.message =~ "sad :("
   end
 
-  test "pageErrors should work", %{page: page} do
+  test "ER-011 pageErrors should work", %{page: page} do
     Page.evaluate!(page, """
     async () => {
       for (let i = 0; i < 301; i++)
@@ -156,7 +228,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     assert Enum.take(messages, -length(expected)) == expected, "should return last errors"
   end
 
-  test "clearPageErrors should work", %{page: page} do
+  test "ER-012 clearPageErrors should work", %{page: page} do
     Page.evaluate!(page, """
     () => {
       window.builtins.setTimeout(() => { throw new Error('error1'); }, 0);
@@ -188,7 +260,7 @@ defmodule PlaywrightEx.Page.PageEventPageerrorTest do
     assert Enum.at(errors, 0).message =~ "error3"
   end
 
-  test "should fire illegal character error", %{page: page, server: server, browser_name: browser_name} do
+  test "ER-013 should fire illegal character error", %{page: page, server: server, browser_name: browser_name} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/38388' }
     TestServer.set_route(server, "/error.html", fn conn ->
       Plug.Conn.send_resp(conn, 200, """

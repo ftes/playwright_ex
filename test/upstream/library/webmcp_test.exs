@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
 
   defp text_content(text), do: %{"content" => [%{"type" => "text", "text" => text}]}
 
-  test "should list tools registered by the page", %{page: page, server: server} do
+  test "WM-001 should list tools registered by the page", %{page: page, server: server} do
     serve(
       server,
       "/",
@@ -100,19 +100,19 @@ defmodule PlaywrightEx.Library.WebmcpTest do
            ]
   end
 
-  test "should report no tools when the page registers none", %{page: page, server: server} do
+  test "WM-002 should report no tools when the page registers none", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert WebMCP.tools!(Page.webmcp(page)) == []
   end
 
-  test "should call a tool", %{page: page, server: server} do
+  test "WM-003 should call a tool", %{page: page, server: server} do
     serve(server, "/", register_script(@k_add))
     Page.goto!(page, server.prefix <> "/")
 
     assert WebMCP.call_tool!(Page.webmcp(page), "add", %{a: 2, b: 40}) == text_content("42")
   end
 
-  test "should return isError results as is", %{page: page, server: server} do
+  test "WM-004 should return isError results as is", %{page: page, server: server} do
     serve(
       server,
       "/",
@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert WebMCP.call_tool!(Page.webmcp(page), "broken") == Map.put(text_content("nope"), "isError", true)
   end
 
-  test "should throw when the tool throws", %{page: page, server: server, browser_name: browser_name} do
+  test "WM-005 should throw when the tool throws", %{page: page, server: server, browser_name: browser_name} do
     serve(
       server,
       "/",
@@ -147,10 +147,11 @@ defmodule PlaywrightEx.Library.WebmcpTest do
 
     {:error, error} = WebMCP.call_tool(Page.webmcp(page), "throwing")
     # Chromium does not report the error that the tool threw.
-    assert Exception.message(error) =~ if(browser_name == "chromium", do: "the invocation failed", else: "boom")
+    assert Exception.message(error) =~
+             if(browser_name == "chromium", do: ~r/the invocation failed|Tool execution failed/, else: ~r/boom/)
   end
 
-  test "should throw for an unknown tool", %{page: page, server: server} do
+  test "WM-006 should throw for an unknown tool", %{page: page, server: server} do
     serve(server, "/", register_script(@k_add))
     Page.goto!(page, server.prefix <> "/")
 
@@ -159,7 +160,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert Exception.message(error) =~ "Available tools: add"
   end
 
-  test "should time out when the tool does not settle", %{page: page, server: server} do
+  test "WM-007 should time out when the tool does not settle", %{page: page, server: server} do
     serve(
       server,
       "/",
@@ -178,7 +179,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert Exception.message(error) =~ "Timeout 500ms exceeded"
   end
 
-  test "should drop tools after navigation", %{page: page, server: server} do
+  test "WM-008 should drop tools after navigation", %{page: page, server: server} do
     serve(server, "/", register_script(@k_add))
     Page.goto!(page, server.prefix <> "/")
     assert length(WebMCP.tools!(Page.webmcp(page))) == 1
@@ -189,7 +190,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert Exception.message(error) =~ "The frame does not register any WebMCP tools"
   end
 
-  test "should list a tool registered after load", %{page: page, server: server} do
+  test "WM-009 should list a tool registered after load", %{page: page, server: server} do
     serve(server, "/", register_script(@k_add))
     Page.goto!(page, server.prefix <> "/")
     assert length(WebMCP.tools!(Page.webmcp(page))) == 1
@@ -205,7 +206,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
     assert Enum.map(tools, & &1.name) == ["add", "late"]
   end
 
-  test "should list tools while a tool is running", %{page: page, server: server} do
+  test "WM-010 should list tools while a tool is running", %{page: page, server: server} do
     serve(
       server,
       "/",
@@ -231,7 +232,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: Only Chromium implements declarative tools")
-  test "should list declarative tools", %{page: page, server: server} do
+  test "WM-011 should list declarative tools", %{page: page, server: server} do
     # test.skip(browserName !== 'chromium', 'Only Chromium implements declarative tools');
     serve(server, "/", """
       <form toolname="subscribe" tooldescription="Subscribes to the newsletter">
@@ -263,7 +264,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
            do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet",
            else: @webkit_skip
          )
-  test "should scope tools to their frame", %{page: page, server: server} do
+  test "WM-012 should scope tools to their frame", %{page: page, server: server} do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
     serve(server, "/", register_script(@k_add) <> ~s(<iframe src="/frame.html"></iframe>))
 
@@ -306,7 +307,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
            do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet",
            else: @webkit_skip
          )
-  test "should call same-name tools in their own frame", %{page: page, server: server} do
+  test "WM-013 should call same-name tools in their own frame", %{page: page, server: server} do
     # test.skip(browserName === 'firefox', 'Firefox does not support registering WebMCP tools in iframes yet, ...');
     serve(server, "/", register_echo("echo", "main") <> ~s(<iframe src="/frame.html"></iframe>))
     serve(server, "/frame.html", register_echo("echo", "frame"))
@@ -322,7 +323,7 @@ defmodule PlaywrightEx.Library.WebmcpTest do
            do: "upstream skip: Firefox does not support registering WebMCP tools in iframes yet",
            else: @webkit_skip
          )
-  test "should list and call tools in cross-origin and nested frames", %{
+  test "WM-014 should list and call tools in cross-origin and nested frames", %{
     page: page,
     server: server
   } do

@@ -71,12 +71,12 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
   }
   """
 
-  test "should work", %{page: page, server: server} do
+  test "RO-057 should work", %{page: page, server: server} do
     Page.route!(page, "**/*", &Route.continue/1)
     Page.goto!(page, server.empty_page)
   end
 
-  test "should amend HTTP headers", %{page: page, server: server} do
+  test "RO-058 should amend HTTP headers", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       headers = Map.put(Request.headers(Route.request(route)), "FOO", "bar")
       Route.continue(route, headers: headers)
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(Task.await(request, :infinity), "foo") == "bar"
   end
 
-  test "should not allow to override unsafe HTTP headers", %{page: page, server: server} do
+  test "RO-059 should not allow to override unsafe HTTP headers", %{page: page, server: server} do
     me = self()
     Page.route!(page, "**/*", fn route -> send(me, {:route, route}) end)
     server_request_promise = TestServer.wait_for_request(server, "/empty.html")
@@ -105,7 +105,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Runtime.Promise.await(goto)
   end
 
-  test "should delete header with undefined value", %{page: page, server: server} do
+  test "RO-060 should delete header with undefined value", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
 
     TestServer.set_route(server, "/something", fn conn ->
@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "bar") == "b"
   end
 
-  test "should amend method", %{page: page, server: server} do
+  test "RO-061 should amend method", %{page: page, server: server} do
     s_request = TestServer.wait_for_request(server, "/sleep.zzz")
     Page.goto!(page, server.empty_page)
     Page.route!(page, "**/*", &Route.continue(&1, method: "POST"))
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Task.await(s_request, :infinity).method == "POST"
   end
 
-  test "should override request url", %{page: page, server: server} do
+  test "RO-062 should override request url", %{page: page, server: server} do
     server_request = TestServer.wait_for_request(server, "/global-var.html")
     Page.route!(page, "**/foo", &Route.continue(&1, url: server.prefix <> "/global-var.html"))
     response = Page.goto!(page, server.prefix <> "/foo")
@@ -167,7 +167,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Task.await(server_request, :infinity).method == "GET"
   end
 
-  test "should not allow changing protocol when overriding url", %{page: page, server: server} do
+  test "RO-063 should not allow changing protocol when overriding url", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/*", fn route ->
@@ -184,7 +184,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Exception.message(error) =~ "New URL must have same protocol as overridden URL"
   end
 
-  test "should not throw if request was cancelled by the page", %{page: page, server: server} do
+  test "RO-064 should not throw if request was cancelled by the page", %{page: page, server: server} do
     me = self()
     Page.route!(page, "**/data.json", fn route -> send(me, {:route, route}) end)
     Page.goto!(page, server.empty_page)
@@ -213,14 +213,14 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Runtime.Promise.await(fetch)
   end
 
-  test "should override method along with url", %{page: page, server: server} do
+  test "RO-065 should override method along with url", %{page: page, server: server} do
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.route!(page, "**/foo", &Route.continue(&1, url: server.empty_page, method: "POST"))
     Page.goto!(page, server.prefix <> "/foo")
     assert Task.await(request, :infinity).method == "POST"
   end
 
-  test "should amend method on main request", %{page: page, server: server} do
+  test "RO-066 should amend method on main request", %{page: page, server: server} do
     request = TestServer.wait_for_request(server, "/empty.html")
     Page.route!(page, "**/*", &Route.continue(&1, method: "POST"))
     Page.goto!(page, server.empty_page)
@@ -228,7 +228,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
   end
 
   describe "post data" do
-    test "should amend post data", %{page: page, server: server} do
+    test "RO-067 should amend post data", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       Page.route!(page, "**/*", &Route.continue(&1, post_data: "doggo"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
@@ -236,7 +236,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       assert Task.await(server_request, :infinity).assigns.post_body == "doggo"
     end
 
-    test "should compute content-length from post data", %{page: page, server: server} do
+    test "RO-068 should compute content-length from post data", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       data = String.duplicate("a", 7500)
 
@@ -253,7 +253,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       assert req_header(server_request, "content-type") == "application/json"
     end
 
-    test "should amend method and post data", %{page: page, server: server} do
+    test "RO-069 should amend method and post data", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       Page.route!(page, "**/*", &Route.continue(&1, method: "POST", post_data: "doggo"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
@@ -263,7 +263,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       assert server_request.assigns.post_body == "doggo"
     end
 
-    test "should amend utf8 post data", %{page: page, server: server} do
+    test "RO-070 should amend utf8 post data", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       Page.route!(page, "**/*", &Route.continue(&1, post_data: "пушкин"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
@@ -273,7 +273,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       assert server_request.assigns.post_body == "пушкин"
     end
 
-    test "should amend longer post data", %{page: page, server: server} do
+    test "RO-071 should amend longer post data", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       Page.route!(page, "**/*", &Route.continue(&1, post_data: "doggo-is-longer-than-birdy"))
       server_request = TestServer.wait_for_request(server, "/sleep.zzz")
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       assert server_request.assigns.post_body == "doggo-is-longer-than-birdy"
     end
 
-    test "should amend binary post data", %{page: page, server: server} do
+    test "RO-072 should amend binary post data", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       arr = :binary.list_to_bin(Enum.to_list(0..255))
       Page.route!(page, "**/*", &Route.continue(&1, post_data: {:binary, arr}))
@@ -296,7 +296,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
       assert buffer == arr
     end
 
-    test "should use content-type from original request", %{page: page, server: server} do
+    test "RO-073 should use content-type from original request", %{page: page, server: server} do
       Page.goto!(page, server.empty_page)
       Page.route!(page, "#{server.prefix}/title.html", &Route.continue(&1, post_data: ~s({"b":2})))
       request = TestServer.wait_for_request(server, "/title.html")
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     end
   end
 
-  test "should work with Cross-Origin-Opener-Policy", %{page: page, server: server, browser_name: browser_name} do
+  test "RO-074 should work with Cross-Origin-Opener-Policy", %{page: page, server: server, browser_name: browser_name} do
     # it.fail(browserName === 'webkit', 'https://github.com/microsoft/playwright/issues/8796')
     expected_failure(@browser_name == "webkit", fn ->
       me = self()
@@ -368,7 +368,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     end)
   end
 
-  test "should not delete the origin header", %{page: page, server: server} do
+  test "RO-075 should not delete the origin header", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
 
     TestServer.set_route(server, "/something", fn conn ->
@@ -404,7 +404,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "origin") == server.prefix
   end
 
-  test "should continue preload link requests", %{page: page, server: server} do
+  test "RO-076 should continue preload link requests", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/one-style.css", fn route ->
@@ -422,7 +422,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert color == "rgb(255, 192, 203)"
   end
 
-  test "should respect set-cookie in redirect response", %{page: page, server: server} do
+  test "RO-077 should respect set-cookie in redirect response", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<a href="/set-cookie-redirect">Set cookie</a>))
 
@@ -444,7 +444,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Page.evaluate!(page, "() => document.cookie") == "foo=bar"
   end
 
-  test "continue should not propagate cookie override to redirects", %{page: page, server: server} do
+  test "RO-078 continue should not propagate cookie override to redirects", %{page: page, server: server} do
     TestServer.set_route(server, "/set-cookie", fn conn ->
       conn |> Plug.Conn.put_resp_header("set-cookie", "foo=bar;") |> Plug.Conn.send_resp(200, "")
     end)
@@ -462,7 +462,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(Task.await(server_request, :infinity), "cookie") == "foo=bar"
   end
 
-  test "continue should not override cookie", %{page: page, server: server} do
+  test "RO-079 continue should not override cookie", %{page: page, server: server} do
     TestServer.set_route(server, "/set-cookie", fn conn ->
       conn |> Plug.Conn.put_resp_header("set-cookie", "foo=bar;") |> Plug.Conn.send_resp(200, "")
     end)
@@ -483,7 +483,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "value"
   end
 
-  test "continue with headers should send fresh cookie from the browser cookie store", %{
+  test "RO-080 continue with headers should send fresh cookie from the browser cookie store", %{
     page: page,
     server: server
   } do
@@ -506,7 +506,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(Task.await(server_request, :infinity), "cookie") == "foo=v2"
   end
 
-  test "continue with headers should send fresh cookie after a redirect", %{page: page, server: server} do
+  test "RO-081 continue with headers should send fresh cookie after a redirect", %{page: page, server: server} do
     TestServer.set_route(server, "/set-cookie", fn conn ->
       conn |> Plug.Conn.put_resp_header("set-cookie", "foo=v1;") |> Plug.Conn.send_resp(200, "")
     end)
@@ -532,7 +532,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(Task.await(server_request, :infinity), "cookie") == "foo=v2"
   end
 
-  test "redirect after continue should be able to delete cookie", %{page: page, server: server} do
+  test "RO-082 redirect after continue should be able to delete cookie", %{page: page, server: server} do
     TestServer.set_route(server, "/set-cookie", fn conn ->
       conn |> Plug.Conn.put_resp_header("set-cookie", "foo=bar;") |> Plug.Conn.send_resp(200, "")
     end)
@@ -558,7 +558,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Utils.assert_falsy(req_header(Task.await(server_request, :infinity), "cookie"))
   end
 
-  test "continue should propagate headers to redirects", %{page: page, server: server} do
+  test "RO-083 continue should propagate headers to redirects", %{page: page, server: server} do
     TestServer.set_redirect(server, "/redirect", "/empty.html")
 
     Page.route!(page, "**/redirect", fn route ->
@@ -570,7 +570,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(Task.await(server_request, :infinity), "custom") == "value"
   end
 
-  test "continue should drop content-length on redirects", %{page: page, server: server} do
+  test "RO-084 continue should drop content-length on redirects", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_redirect(server, "/redirect", "/empty.html")
 
@@ -587,7 +587,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "value"
   end
 
-  test "redirected requests should report overridden headers", %{page: page, server: server} do
+  test "RO-085 redirected requests should report overridden headers", %{page: page, server: server} do
     TestServer.set_redirect(server, "/redirect", "/empty.html")
 
     Page.route!(page, "**/redirect", fn route ->
@@ -603,7 +603,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert Request.all_headers!(Response.request(response))["custom"] == "value"
   end
 
-  test "continue should delete headers on redirects", %{page: page, server: server} do
+  test "RO-086 continue should delete headers on redirects", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
 
     TestServer.set_route(server, "/something", fn conn ->
@@ -638,7 +638,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Utils.assert_falsy(req_header(Task.await(server_request, :infinity), "foo"))
   end
 
-  test "propagate headers same origin redirect", %{page: page, server: server} do
+  test "RO-087 propagate headers same origin redirect", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
     set_cors_route(server, "authorization,cookie,custom", [])
     TestServer.set_redirect(server, "/redirect", "/something")
@@ -651,7 +651,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "foo"
   end
 
-  test "propagate headers cross origin", %{page: page, server: server} do
+  test "RO-088 propagate headers cross origin", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
 
     set_cors_route(server, "authorization,custom", [
@@ -666,7 +666,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "foo"
   end
 
-  test "propagate headers cross origin redirect", %{page: page, server: server} do
+  test "RO-089 propagate headers cross origin redirect", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
 
     set_cors_route(server, "authorization,cookie,custom", [
@@ -690,7 +690,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "foo"
   end
 
-  test "propagate headers cross origin redirect after interception", %{
+  test "RO-090 propagate headers cross origin redirect after interception", %{
     page: page,
     server: server,
     browser_name: browser_name
@@ -745,7 +745,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_header(server_request, "custom") == "foo"
   end
 
-  test "continue should pass on 307 cross-origin redirect", %{page: page, server: server} do
+  test "RO-091 continue should pass on 307 cross-origin redirect", %{page: page, server: server} do
     TestServer.set_route(server, "/final", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -772,7 +772,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     Expect.to_have_text!(Page.locator(page, "p"), "ok")
   end
 
-  test "should intercept css variable with background url", %{page: page, server: server} do
+  test "RO-092 should intercept css variable with background url", %{page: page, server: server} do
     TestServer.set_route(server, "/test.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -830,7 +830,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     req
   end
 
-  test "continue should not change multipart/form-data body", %{page: page, server: server} do
+  test "RO-093 continue should not change multipart/form-data body", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     TestServer.set_route(server, "/upload", fn conn ->
@@ -857,7 +857,7 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert req_after.assigns.post_body =~ file_content
   end
 
-  test "should not forward Host header on cross-origin redirect", %{
+  test "RO-094 should not forward Host header on cross-origin redirect", %{
     page: page,
     server: server,
     browser_name: browser_name
@@ -898,7 +898,10 @@ defmodule PlaywrightEx.Page.PageRequestContinueTest do
     assert redirected_host == url_host(server.cross_process_prefix)
   end
 
-  test "postData should return empty string when overriding body with empty string", %{page: page, server: server} do
+  test "RO-095 postData should return empty string when overriding body with empty string", %{
+    page: page,
+    server: server
+  } do
     Page.goto!(page, server.empty_page)
     Page.route!(page, "**/*", &Route.continue(&1, post_data: ""))
 

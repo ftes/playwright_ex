@@ -17,14 +17,13 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
 
   # rewriteAndroidLoopbackURL  -- not ported: no Android
 
-  test "should work", %{page: page, server: server} do
+  test "RO-096 should work", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       Route.fulfill(route, status: 201, headers: %{"foo" => "bar"}, content_type: "text/html", body: "Yo, page!")
     end)
@@ -35,7 +34,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Page.evaluate!(page, "() => document.body.textContent") == "Yo, page!"
   end
 
-  test "should work with buffer as body", %{page: page, server: server} do
+  test "RO-097 should work with buffer as body", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       Route.fulfill(route, status: 200, content_type: "text/plain", body: {:binary, "Yo, page!"})
     end)
@@ -45,7 +44,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Page.evaluate!(page, "() => document.body.textContent") == "Yo, page!"
   end
 
-  test "should work with status code 422", %{page: page, server: server} do
+  test "RO-098 should work with status code 422", %{page: page, server: server} do
     Page.route!(page, "**/*", &Route.fulfill(&1, status: 422, body: "Yo, page!"))
     response = Page.goto!(page, server.empty_page)
     assert Response.status(response) == 422
@@ -53,7 +52,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Page.evaluate!(page, "() => document.body.textContent") == "Yo, page!"
   end
 
-  test "should fulfill with unuassigned status codes", %{page: page, server: server} do
+  test "RO-099 should fulfill with unuassigned status codes", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/data.json", fn route ->
@@ -83,24 +82,21 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert response["statusText"] == "Unknown"
   end
 
-  test "should not throw if request was cancelled by the page", %{page: page, server: server} do
+  test "RO-100 should not throw if request was cancelled by the page", %{page: page, server: server} do
     me = self()
     Page.route!(page, "**/data.json", fn route -> send(me, {:route, route}) end)
     Page.goto!(page, server.empty_page)
 
-    fetch =
-      Runtime.Promise.async(fn ->
-        Page.evaluate(
-          page,
-          """
-          url => {
-            globalThis.controller = new AbortController();
-            return fetch(url, { signal: globalThis.controller.signal });
-          }
-          """,
-          server.prefix <> "/data.json"
-        )
-      end)
+    Page.evaluate!(
+      page,
+      """
+      url => {
+        globalThis.controller = new AbortController();
+        fetch(url, { signal: globalThis.controller.signal }).catch(() => {});
+      }
+      """,
+      server.prefix <> "/data.json"
+    )
 
     assert_receive {:route, route}, 5000
     failure_promise = Page.wait_for_event(page, :request_failed)
@@ -110,10 +106,9 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Request.failure(cancelled_request).errorText =~ ~r/cancelled|aborted/i
     # Should not throw.
     Route.fulfill!(route, status: 200)
-    Runtime.Promise.await(fetch)
   end
 
-  test "should allow mocking binary responses", %{page: page, server: server, asset: asset} do
+  test "RO-101 should allow mocking binary responses", %{page: page, server: server, asset: asset} do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     # it.skip(isAndroid)  -- not Android
     Page.route!(page, "**/*", fn route ->
@@ -138,7 +133,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     to_match_snapshot(ElementHandle.screenshot!(img), "mock-binary-response.png")
   end
 
-  test "should allow mocking svg with charset", %{page: page, server: server} do
+  test "RO-102 should allow mocking svg with charset", %{page: page, server: server} do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     # it.skip(isAndroid)  -- not Android
     # it.skip(isElectron && electronMajorVersion < 30)  -- not Electron
@@ -167,7 +162,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     to_match_snapshot(ElementHandle.screenshot!(img), "mock-svg.png")
   end
 
-  test "should work with file path", %{page: page, server: server, asset: asset} do
+  test "RO-103 should work with file path", %{page: page, server: server, asset: asset} do
     # it.skip(isAndroid)  -- not Android
     Page.route!(page, "**/*", &Route.fulfill(&1, content_type: "shouldBeIgnored", path: asset.("pptr.png")))
 
@@ -188,7 +183,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     to_match_snapshot(ElementHandle.screenshot!(img), "mock-binary-response.png")
   end
 
-  test "should stringify intercepted request response headers", %{page: page, server: server} do
+  test "RO-104 should stringify intercepted request response headers", %{page: page, server: server} do
     Page.route!(page, "**/*", &Route.fulfill(&1, status: 200, headers: %{"foo" => "true"}, body: "Yo, page!"))
     response = Page.goto!(page, server.empty_page)
     assert Response.status(response) == 200
@@ -197,7 +192,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Page.evaluate!(page, "() => document.body.textContent") == "Yo, page!"
   end
 
-  test "should not modify the headers sent to the server", %{page: page, server: server} do
+  test "RO-105 should not modify the headers sent to the server", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
     me = self()
 
@@ -232,7 +227,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Enum.sort(second.req_headers) == Enum.sort(first.req_headers)
   end
 
-  test "should include the origin header", %{page: page, server: server} do
+  test "RO-106 should include the origin header", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/empty.html")
     me = self()
 
@@ -263,7 +258,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Request.headers(intercepted_request)["origin"] == server.prefix
   end
 
-  test "should fulfill with global fetch result", %{playwright: playwright, page: page, server: server} do
+  test "RO-107 should fulfill with global fetch result", %{playwright: playwright, page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       request = APIRequest.new_context!(Playwright.request(playwright))
       response = APIRequestContext.get!(request, server.prefix <> "/simple.json")
@@ -275,7 +270,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Response.json!(response) == %{"foo" => "bar"}
   end
 
-  test "should fulfill with fetch result", %{page: page, server: server} do
+  test "RO-108 should fulfill with fetch result", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       response = APIRequestContext.get!(Page.request(page), server.prefix <> "/simple.json")
       Route.fulfill(route, response: response)
@@ -286,7 +281,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Response.json!(response) == %{"foo" => "bar"}
   end
 
-  test "should fulfill with fetch result and overrides", %{page: page, server: server} do
+  test "RO-109 should fulfill with fetch result and overrides", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       response = APIRequestContext.get!(Page.request(page), server.prefix <> "/simple.json")
 
@@ -307,7 +302,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Response.json!(response) == %{"foo" => "bar"}
   end
 
-  test "should fetch original request and fulfill", %{page: page, server: server} do
+  test "RO-110 should fetch original request and fulfill", %{page: page, server: server} do
     Page.route!(page, "**/*", fn route ->
       response = APIRequestContext.fetch!(Page.request(page), Route.request(route))
       Route.fulfill(route, response: response)
@@ -318,7 +313,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Page.title!(page) == "Woof-Woof"
   end
 
-  test "should fulfill with multiple set-cookie", %{page: page, server: server} do
+  test "RO-111 should fulfill with multiple set-cookie", %{page: page, server: server} do
     cookies = ["a=b", "c=d"]
 
     Page.route!(page, "**/multiple-set-cookie.html", fn route ->
@@ -336,7 +331,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Response.header_value!(response, "X-Header-2") == "v2"
   end
 
-  test "should fulfill with fetch response that has multiple set-cookie", %{
+  test "RO-112 should fulfill with fetch response that has multiple set-cookie", %{
     playwright: playwright,
     page: page,
     server: server
@@ -363,7 +358,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
          if(@browser_name == "webkit",
            do: "upstream skip: Set-Cookie with \\n in intercepted response does not pass validation in WebCore"
          )
-  test "headerValue should return set-cookie from intercepted response", %{
+  test "RO-113 headerValue should return set-cookie from intercepted response", %{
     page: page,
     server: server,
     browser_name: browser_name
@@ -376,7 +371,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     end)
   end
 
-  test "should fulfill with har response", %{page: page, asset: asset} do
+  test "RO-114 should fulfill with har response", %{page: page, asset: asset} do
     har_path = asset.("har-fulfill.har")
     har = JSON.decode!(File.read!(har_path))
 
@@ -413,7 +408,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     end
   end
 
-  test "should fulfill preload link requests", %{page: page, server: server} do
+  test "RO-115 should fulfill preload link requests", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/one-style.css", fn route ->
@@ -440,7 +435,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert color == "rgb(0, 128, 0)"
   end
 
-  test "should fulfill json", %{page: page, server: server} do
+  test "RO-116 should fulfill json", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.route!(page, "**/data.json", fn route ->
@@ -455,7 +450,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert body == ~s({"bar":"baz"})
   end
 
-  test "should fulfill with gzip and readback", %{page: page, server: server} do
+  test "RO-117 should fulfill with gzip and readback", %{page: page, server: server} do
     TestServer.enable_gzip(server, "/one-style.html")
 
     Page.route!(page, "**/one-style.html", fn route ->
@@ -470,7 +465,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Response.text!(response) =~ "<div>hello, world!</div>"
   end
 
-  test "should not go to the network for fulfilled requests body", %{page: page, server: server} do
+  test "RO-118 should not go to the network for fulfilled requests body", %{page: page, server: server} do
     Page.route!(page, "**/one-style.css", fn route ->
       Route.fulfill(route, status: 404, content_type: "text/plain", body: "Not Found! (mocked)")
     end)
@@ -493,7 +488,7 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     refute_received :server_hit
   end
 
-  test "should return body for fulfilled responses", %{page: page, server: server} do
+  test "RO-119 should return body for fulfilled responses", %{page: page, server: server} do
     for status <- [100, 200, 404, 500] do
       # it.step(`status ${status}`, ...)
       body_override = "Custom body #{status}"

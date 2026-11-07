@@ -13,7 +13,7 @@ defmodule PlaywrightEx.Library.GeolocationTest do
   }))
   """
 
-  test "should work @smoke", %{server: server, context_factory: context_factory} do
+  test "GE-001 should work @smoke", %{server: server, context_factory: context_factory} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     BrowserContext.grant_permissions!(context, ["geolocation"])
@@ -23,13 +23,13 @@ defmodule PlaywrightEx.Library.GeolocationTest do
     assert geolocation == %{"latitude" => 10, "longitude" => 10}
   end
 
-  test "should throw when invalid longitude", %{context_factory: context_factory} do
+  test "GE-002 should throw when invalid longitude", %{context_factory: context_factory} do
     context = context_factory.([])
     {:error, error} = BrowserContext.set_geolocation(context, %{longitude: 200, latitude: 10})
     assert Exception.message(error) =~ "geolocation.longitude: precondition -180 <= LONGITUDE <= 180 failed."
   end
 
-  test "should isolate contexts", %{server: server, context_factory: context_factory, browser: browser} do
+  test "GE-003 should isolate contexts", %{server: server, context_factory: context_factory, browser: browser} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     BrowserContext.grant_permissions!(context, ["geolocation"])
@@ -54,14 +54,14 @@ defmodule PlaywrightEx.Library.GeolocationTest do
     BrowserContext.close!(context2)
   end
 
-  test "should throw with missing latitude", %{context_factory: context_factory} do
+  test "GE-004 should throw with missing latitude", %{context_factory: context_factory} do
     context = context_factory.([])
     # @ts-expect-error setGeolocation must have latitude
     {:error, error} = BrowserContext.set_geolocation(context, %{longitude: 10})
     assert Exception.message(error) =~ "geolocation.latitude: expected float, got undefined"
   end
 
-  test "should not modify passed default options object", %{browser: browser} do
+  test "GE-005 should not modify passed default options object", %{browser: browser} do
     geolocation = %{longitude: 10, latitude: 10}
     options = [geolocation: geolocation]
     context = Browser.new_context!(browser, options)
@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Library.GeolocationTest do
     BrowserContext.close!(context)
   end
 
-  test "should throw with missing longitude in default options", %{browser: browser} do
+  test "GE-006 should throw with missing longitude in default options", %{browser: browser} do
     # @ts-expect-error geolocation must have longitude
     error =
       case Browser.new_context(browser, geolocation: %{latitude: 10}) do
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Library.GeolocationTest do
     assert Exception.message(error) =~ "geolocation.longitude: expected float, got undefined"
   end
 
-  test "should use context options", %{browser: browser, server: server} do
+  test "GE-007 should use context options", %{browser: browser, server: server} do
     options = [geolocation: %{longitude: 10, latitude: 10}, permissions: ["geolocation"]]
     context = Browser.new_context!(browser, options)
     page = BrowserContext.new_page!(context)
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Library.GeolocationTest do
     BrowserContext.close!(context)
   end
 
-  test "watchPosition should be notified", %{server: server, context_factory: context_factory} do
+  test "GE-008 watchPosition should be notified", %{server: server, context_factory: context_factory} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     BrowserContext.grant_permissions!(context, ["geolocation"])
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Library.GeolocationTest do
     assert all_messages =~ "lat=40 lng=50"
   end
 
-  test "should use context options for popup", %{context_factory: context_factory, server: server} do
+  test "GE-009 should use context options for popup", %{context_factory: context_factory, server: server} do
     context = context_factory.([])
     page = BrowserContext.new_page!(context)
     BrowserContext.grant_permissions!(context, ["geolocation"])

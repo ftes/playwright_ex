@@ -13,7 +13,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
 
   @ids "els => els.map(e => e.id).join(',')"
 
-  test "should work for open shadow roots", %{page: page, server: server} do
+  test "SE-133 should work for open shadow roots", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector!(page, "id=target", "e => e.textContent") == "Hello from root2"
     assert Page.eval_on_selector!(page, "data-testid=foo", "e => e.textContent") == "Hello from root1"
@@ -23,14 +23,14 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.query_selector_all!(page, "data-testid:light=foo") == []
   end
 
-  test "should click on links in shadow dom", %{page: page, server: server} do
+  test "SE-134 should click on links in shadow dom", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/shadow-dom-link.html")
     assert Page.evaluate!(page, "() => window.clickCount") == 0
     Page.click!(page, "#inner-link")
     assert Page.evaluate!(page, "() => window.clickCount") == 1
   end
 
-  test "should work with :visible", %{page: page} do
+  test "SE-135 should work with :visible", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div id=target1></div>
@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector!(page, "div:visible", "div => div.id") == "target2"
   end
 
-  test "should work with >> visible=", %{page: page} do
+  test "SE-136 should work with >> visible=", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div id=target1></div>
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector!(page, "div >> visible=true", "div => div.id") == "target2"
   end
 
-  test "should work with >> visible=false", %{page: page} do
+  test "SE-137 should work with >> visible=false", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div id=target1></div>
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     Expect.to_have_count!(Page.locator(page, "div >> visible=false"), 1)
   end
 
-  test "should work with :nth-match", %{page: page} do
+  test "SE-138 should work with :nth-match", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div id=target1></div>
@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert JSHandle.evaluate!(element, "e => e.id") == "target3"
   end
 
-  test "should work with nth=", %{page: page} do
+  test "SE-139 should work with nth=", %{page: page} do
     Page.set_content!(page, """
     <section>
       <div id=target1></div>
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Locator.text_content!(Page.locator(page, "div >> div >> span >> nth=1")) == "hello"
   end
 
-  test "should work with strict mode and chaining", %{page: page} do
+  test "SE-140 should work with strict mode and chaining", %{page: page} do
     Page.set_content!(page, """
     <div>
       <div>
@@ -182,7 +182,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Locator.text_content!(Page.locator(page, "div >> div >> span")) == "hi"
   end
 
-  test "should work with layout selectors", %{page: page} do
+  test "SE-141 should work with layout selectors", %{page: page} do
     # it.skip(trace === 'on')  -- we run without tracing
 
     #      +--+  +--+
@@ -300,12 +300,12 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert error.message =~ ~s("near" engine expects a selector list and optional maximum distance in pixels)
   end
 
-  test "should escape the scope with >>", %{page: page} do
+  test "SE-142 should escape the scope with >>", %{page: page} do
     Page.set_content!(page, "<div><label>Test</label><input id='myinput'></div>")
     assert Page.eval_on_selector!(page, "label >> xpath=.. >> input", "e => e.id") == "myinput"
   end
 
-  test "xpath should be relative", %{page: page} do
+  test "SE-143 xpath should be relative", %{page: page} do
     Page.set_content!(page, """
     <span class="find-me" id=target1>1</span>
     <div>
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector!(page, ~s(div >> xpath=/*[@class="find-me"]), "e => e.id") == "target2"
   end
 
-  test "should work with pipe in xpath", %{page: page} do
+  test "SE-144 should work with pipe in xpath", %{page: page} do
     Page.set_content!(page, """
     <span class="find-me" id=t1>1</span>
     <div>
@@ -349,13 +349,13 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     Page.click!(page, ~s(//code|//span[@id="t2"]))
   end
 
-  test "should print original xpath in error", %{page: page} do
+  test "SE-145 should print original xpath in error", %{page: page} do
     {:error, error} = Locator.is_visible(Page.locator(page, "//*[contains(@Class, 'foo']"))
     assert error.message =~ ~S"//*[contains(@Class, \'foo\']"
     refute error.message =~ ".//*[contains(@Class, 'foo']"
   end
 
-  test "data-testid on the handle should be relative", %{page: page} do
+  test "SE-146 data-testid on the handle should be relative", %{page: page} do
     Page.set_content!(page, """
     <span data-testid="find-me" id=target1>1</span>
     <div>
@@ -370,7 +370,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector!(page, "div >> data-testid=find-me", "e => e.id") == "target2"
   end
 
-  test "should properly determine visibility of display:contents elements", %{page: page} do
+  test "SE-147 should properly determine visibility of display:contents elements", %{page: page} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/11202' }
     Page.set_content!(page, """
     <div>
@@ -413,7 +413,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     Page.wait_for_selector!(page, "article", state: :hidden)
   end
 
-  test "should work with internal:has=", %{page: page, server: server} do
+  test "SE-148 should work with internal:has=", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/deep-shadow.html")
     assert Page.eval_on_selector_all!(page, ~s(div >> internal:has="#target"), "els => els.length") == 2
     assert Page.eval_on_selector_all!(page, ~s(div >> internal:has="[data-testid=foo]"), "els => els.length") == 3
@@ -457,7 +457,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert error4.message =~ ~s(Unexpected token "!" while parsing css selector "span!")
   end
 
-  test "should work with internal:has-not=", %{page: page} do
+  test "SE-149 should work with internal:has-not=", %{page: page} do
     Page.set_content!(page, "<section><span></span><div></div></section><section><br></section>")
     assert Page.eval_on_selector_all!(page, ~s(section >> internal:has-not="span"), "els => els.length") == 1
     assert Page.eval_on_selector_all!(page, ~s(section >> internal:has-not="span, div, br"), "els => els.length") == 0
@@ -466,7 +466,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector_all!(page, ~s(section >> internal:has-not="article"), "els => els.length") == 2
   end
 
-  test "should work with internal:and=", %{page: page} do
+  test "SE-150 should work with internal:and=", %{page: page} do
     Page.set_content!(page, """
     <div class=foo>hello</div><div class=bar>world</div>
     <span class=foo>hello2</span><span class=bar>world2</span>
@@ -481,7 +481,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Page.eval_on_selector_all!(page, ~s(.bar >> internal:and="span"), texts) == ["world2"]
   end
 
-  test "should work with internal:or=", %{page: page} do
+  test "SE-151 should work with internal:or=", %{page: page} do
     Page.set_content!(page, """
     <div>hello</div>
     <span>world</span>
@@ -497,7 +497,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
     assert Locator.text_content!(Page.locator(page, ~s(span >> internal:or="article"))) == "world"
   end
 
-  test "should work with internal:chain=", %{page: page} do
+  test "SE-152 should work with internal:chain=", %{page: page} do
     Page.set_content!(page, """
     <div>one <span>two</span> <button>three</button> </div>
     <span>four</span>
@@ -511,7 +511,7 @@ defmodule PlaywrightEx.Page.SelectorsMiscTest do
              ["two", "three"]
   end
 
-  test "chaining should work with large DOM @smoke", %{page: page} do
+  test "SE-153 chaining should work with large DOM @smoke", %{page: page} do
     Page.evaluate!(page, """
     () => {
       let last = document.body;

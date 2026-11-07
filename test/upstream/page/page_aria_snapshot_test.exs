@@ -34,7 +34,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     Expect.to_match_aria_snapshot!(locator, snapshot)
   end
 
-  test "should snapshot", %{page: page} do
+  test "AR-001 should snapshot", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     check_and_match_snapshot(Page.locator(page, "body"), """
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should snapshot list", %{page: page} do
+  test "AR-002 should snapshot list", %{page: page} do
     Page.set_content!(page, """
     <h1>title</h1>
     <h1>title 2</h1>
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should snapshot list with accessible name", %{page: page} do
+  test "AR-003 should snapshot list with accessible name", %{page: page} do
     Page.set_content!(page, """
     <ul aria-label="my list">
       <li>one</li>
@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should quote names that look like regexes", %{page: page} do
+  test "AR-004 should quote names that look like regexes", %{page: page} do
     Page.set_content!(page, """
     <nav>
       <a href="/">/</a>
@@ -89,7 +89,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should snapshot complex", %{page: page} do
+  test "AR-005 should snapshot complex", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li>
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should allow text nodes", %{page: page} do
+  test "AR-006 should allow text nodes", %{page: page} do
     Page.set_content!(page, """
     <h1>Microsoft</h1>
     <div>Open source projects and samples from Microsoft</div>
@@ -118,7 +118,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should snapshot details visibility", %{page: page} do
+  test "AR-007 should snapshot details visibility", %{page: page} do
     Page.set_content!(page, """
     <details>
       <summary>Summary</summary>
@@ -131,7 +131,44 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should snapshot integration", %{page: page} do
+  test "AR-008 should not snapshot text directly inside closed details", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/43019
+    Page.set_content!(page, """
+    <details>
+      <summary>Summary</summary>
+      Details
+    </details>
+    """)
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - group: Summary
+    """)
+
+    Page.eval_on_selector!(page, "details", "details => details.open = true")
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - group: Summary Details
+    """)
+  end
+
+  test "AR-009 should not snapshot text that is not assigned to a slot", %{page: page} do
+    # issue: https://github.com/microsoft/playwright/issues/43019
+    Page.set_content!(page, """
+    <div role=button>Light</div>
+    <script>
+      document.querySelector('div').attachShadow({ mode: 'open' }).innerHTML = '<p>Shadow</p>';
+    </script>
+    """)
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - button "Shadow":
+      - paragraph: Shadow
+    """)
+
+    Expect.to_be_visible!(Page.get_by_role(page, :button, name: "Shadow", exact: true))
+  end
+
+  test "AR-010 should snapshot integration", %{page: page} do
     Page.set_content!(page, """
     <h1>Microsoft</h1>
     <div>Open source projects and samples from Microsoft</div>
@@ -178,7 +215,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should support multiline text", %{page: page} do
+  test "AR-011 should support multiline text", %{page: page} do
     Page.set_content!(page, """
     <p>
       Line 1
@@ -199,7 +236,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should concatenate span text", %{page: page} do
+  test "AR-012 should concatenate span text", %{page: page} do
     Page.set_content!(page, """
     <span>One</span> <span>Two</span> <span>Three</span>
     """)
@@ -209,7 +246,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should concatenate span text 2", %{page: page} do
+  test "AR-013 should concatenate span text 2", %{page: page} do
     Page.set_content!(page, """
     <span>One </span><span>Two </span><span>Three</span>
     """)
@@ -219,7 +256,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should concatenate div text with spaces", %{page: page} do
+  test "AR-014 should concatenate div text with spaces", %{page: page} do
     Page.set_content!(page, """
     <div>One</div><div>Two</div><div>Three</div>
     """)
@@ -229,7 +266,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should include pseudo in text", %{page: page} do
+  test "AR-015 should include pseudo in text", %{page: page} do
     Page.set_content!(page, """
     <style>
       span:before {
@@ -251,7 +288,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should not include hidden pseudo in text", %{page: page} do
+  test "AR-016 should not include hidden pseudo in text", %{page: page} do
     Page.set_content!(page, """
     <style>
       span:before {
@@ -275,7 +312,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should include new line for block pseudo", %{page: page} do
+  test "AR-017 should include new line for block pseudo", %{page: page} do
     Page.set_content!(page, """
     <style>
       span:before {
@@ -299,7 +336,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should work with slots", %{page: page} do
+  test "AR-018 should work with slots", %{page: page} do
     # Text "foo" is assigned to the slot, should not be used twice.
     Page.set_content!(page, """
     <button><div>foo</div></button>
@@ -362,7 +399,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should snapshot inner text", %{page: page} do
+  test "AR-019 should snapshot inner text", %{page: page} do
     Page.set_content!(page, """
     <div role="listitem">
       <div>
@@ -405,7 +442,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should include pseudo codepoints", %{page: page, server: server} do
+  test "AR-020 should include pseudo codepoints", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -418,7 +455,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "check aria-hidden text", %{page: page} do
+  test "AR-021 check aria-hidden text", %{page: page} do
     Page.set_content!(page, """
     <p>
       <span>hello</span>
@@ -431,7 +468,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should ignore presentation and none roles", %{page: page} do
+  test "AR-022 should ignore presentation and none roles", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li role='presentation'>hello</li>
@@ -444,7 +481,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should treat input value as text in templates, but not for checkbox/radio/file", %{page: page} do
+  test "AR-023 should treat input value as text in templates, but not for checkbox/radio/file", %{page: page} do
     Page.set_content!(page, """
     <input value='hello world'>
     <input type=file>
@@ -460,7 +497,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should not use on as checkbox value", %{page: page} do
+  test "AR-024 should not use on as checkbox value", %{page: page} do
     Page.set_content!(page, """
     <input type='checkbox'>
     <input type='radio'>
@@ -472,7 +509,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should respect aria-owns", %{page: page} do
+  test "AR-025 should respect aria-owns", %{page: page} do
     Page.set_content!(page, """
     <a href='about:blank' aria-owns='input p'>
       <div role='region'>Link 1</div>
@@ -499,7 +536,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should be ok with circular ownership", %{page: page} do
+  test "AR-026 should be ok with circular ownership", %{page: page} do
     Page.set_content!(page, """
     <a href='about:blank' id='parent'>
       <div role='region' aria-owns='parent'>Hello</div>
@@ -513,7 +550,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should escape yaml text in text nodes", %{page: page} do
+  test "AR-027 should escape yaml text in text nodes", %{page: page} do
     Page.set_content!(page, """
     <details>
       <summary>one: <a href="#">link1</a> "two <a href="#">link2</a> 'three <a href="#">link3</a> `four</summary>
@@ -559,7 +596,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should normalize whitespace", %{page: page} do
+  test "AR-028 should normalize whitespace", %{page: page} do
     Page.set_content!(page, """
     <details>
       <summary> one  \n two <a href="#"> link &nbsp;\n  1 </a> </summary>
@@ -590,7 +627,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should handle long strings", %{page: page} do
+  test "AR-029 should handle long strings", %{page: page} do
     s = String.duplicate("a", 10_000)
 
     Page.set_content!(page, """
@@ -606,7 +643,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should escape special yaml characters", %{page: page} do
+  test "AR-030 should escape special yaml characters", %{page: page} do
     Page.set_content!(page, """
     <a href="#">@hello</a>@hello
     <a href="#">]hello</a>]hello
@@ -634,7 +671,8 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should escape special yaml values", %{page: page} do
+  test "AR-031 should escape special yaml values", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43451' }
     Page.set_content!(page, """
     <a href="#">true</a>False
     <a href="#">NO</a>yes
@@ -644,6 +682,8 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     <a href="#">123</a>123
     <a href="#">-1.2</a>-1.2
     <a href="#">-</a>-
+    <a href="#">~</a>~
+    <a href="#">.inf</a>.NaN
     <input type=text value="555">
     """)
 
@@ -672,11 +712,17 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     - link "-":
       - /url: "#"
     - text: "-"
+    - link "~":
+      - /url: "#"
+    - text: "~"
+    - link ".inf":
+      - /url: "#"
+    - text: ".NaN"
     - textbox: "555"
     """)
   end
 
-  test "should not report textarea textContent", %{page: page} do
+  test "AR-032 should not report textarea textContent", %{page: page} do
     Page.set_content!(page, "<textarea>Before</textarea>")
 
     check_and_match_snapshot(Page.locator(page, "body"), """
@@ -690,7 +736,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "should not show visible children of hidden elements", %{page: page} do
+  test "AR-033 should not show visible children of hidden elements", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/36296
     Page.set_content!(page, """
     <div style="visibility: hidden;">
@@ -703,7 +749,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     assert Locator.aria_snapshot!(Page.locator(page, "body")) == ""
   end
 
-  test "should not show unhidden children of aria-hidden elements", %{page: page} do
+  test "AR-034 should not show unhidden children of aria-hidden elements", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/36296
     Page.set_content!(page, """
     <div aria-hidden="true">
@@ -716,7 +762,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     assert Locator.aria_snapshot!(Page.locator(page, "body")) == ""
   end
 
-  test "should snapshot placeholder when different from the name", %{page: page} do
+  test "AR-035 should snapshot placeholder when different from the name", %{page: page} do
     Page.set_content!(page, """
     <input placeholder="Placeholder">
     """)
@@ -735,7 +781,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
            """)
   end
 
-  test "match values both against regex and string", %{page: page} do
+  test "AR-036 match values both against regex and string", %{page: page} do
     Page.set_content!(page, ~s(<a href="/auth?r=/">Log in</a>))
 
     check_and_match_snapshot(Page.locator(page, "body"), """
@@ -744,7 +790,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     """)
   end
 
-  test "auto-waits the locator and does not include iframes", %{page: page} do
+  test "AR-037 auto-waits the locator and does not include iframes", %{page: page} do
     Page.set_content!(page, """
     <div>Hello</div>
     """)
@@ -764,7 +810,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
            """)
   end
 
-  test "should limit depth", %{page: page} do
+  test "AR-038 should limit depth", %{page: page} do
     Page.set_content!(page, """
     <ul id=target>
       <li>item2</li>
@@ -785,7 +831,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
            """)
   end
 
-  test "should snapshot a locator inside an iframe", %{page: page} do
+  test "AR-039 should snapshot a locator inside an iframe", %{page: page} do
     Page.set_content!(page, """
     <h1>Main Page</h1>
     <iframe srcdoc="<ul><li>Item 1</li><li>Item 2</li></ul>"></iframe>
@@ -801,7 +847,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
            """)
   end
 
-  test "should include frames on frameset pages", %{page: page, server: server} do
+  test "AR-040 should include frames on frameset pages", %{page: page, server: server} do
     # issue: https://github.com/microsoft/playwright/issues/41784
     TestServer.set_route(server, "/frameset.html", fn conn ->
       conn
@@ -821,7 +867,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
              """)
   end
 
-  test "should snapshot a locator inside a frameset frame", %{page: page, server: server} do
+  test "AR-041 should snapshot a locator inside a frameset frame", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/frameset.html")
 
     check_and_match_snapshot(
@@ -832,7 +878,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     )
   end
 
-  test "should snapshot with box from page", %{page: page} do
+  test "AR-042 should snapshot with box from page", %{page: page} do
     Page.set_content!(page, """
     <button style="position:absolute;left:100px;top:50px;width:80px;height:40px;margin:0;padding:0;border:0;">click</button>
     """)
@@ -841,7 +887,7 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     assert snapshot == ~s(- button "click" [box=100,50,80,40])
   end
 
-  test "should snapshot with box from locator", %{page: page} do
+  test "AR-043 should snapshot with box from locator", %{page: page} do
     Page.set_content!(page, """
     <div style="position:absolute;left:10px;top:20px;width:200px;height:100px;">
       <button style="position:absolute;left:5px;top:5px;width:60px;height:30px;margin:0;padding:0;border:0;">ok</button>
@@ -852,13 +898,13 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
     assert snapshot == ~s(- button "ok" [box=15,25,60,30])
   end
 
-  test "should not include box when option is omitted", %{page: page} do
+  test "AR-044 should not include box when option is omitted", %{page: page} do
     Page.set_content!(page, "<button>click</button>")
     snapshot = Page.aria_snapshot!(page)
     refute snapshot =~ ~r/\[box=/
   end
 
-  test "should not include hidden iframes", %{page: page} do
+  test "AR-045 should not include hidden iframes", %{page: page} do
     Page.set_content!(page, """
     <iframe name="visible" srcdoc="<button>Visible</button>"></iframe>
     <iframe name="hidden" style="visibility: hidden" srcdoc="<button>Hidden</button>"></iframe>
@@ -869,5 +915,30 @@ defmodule PlaywrightEx.Page.PageAriaSnapshotTest do
              unshift("""
              - iframe
              """)
+  end
+
+  test "AR-171 should include inert elements and elements outside of a modal dialog", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36938' }
+    Page.set_content!(page, """
+    <button>Hi</button>
+    <button inert>Hello</button>
+    <div inert>
+      <button>Yay</button>
+    </div>
+    <dialog id=dialog>
+      <button>Inside</button>
+    </dialog>
+    <script>
+      document.getElementById('dialog').showModal();
+    </script>
+    """)
+
+    check_and_match_snapshot(Page.locator(page, "body"), """
+    - button "Hi"
+    - button "Hello"
+    - button "Yay"
+    - dialog:
+      - button "Inside"
+    """)
   end
 end

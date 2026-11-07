@@ -8,16 +8,19 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.CDPSession
   alias PlaywrightEx.Download
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.RemoteServer.LaunchServer
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
 
   # Deviations:
@@ -58,16 +61,56 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     json
   end
 
-  test "should connect to an existing cdp session", %{browser_type: browser_type} do
-    {browser_server, port} = launch_with_port(browser_type)
-    cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
-    contexts = Browser.contexts(cdp_browser)
-    assert length(contexts) == 1
-    Browser.close!(cdp_browser)
-    Browser.close!(browser_server)
+  # issue: https://github.com/microsoft/playwright/issues/43880
+  @tag :tmp_dir
+  test "CD-001 should connect to an existing cdp session", %{
+    browser_type: browser_type,
+    create_user_data_dir: create_user_data_dir,
+    tmp_dir: tmp_dir
+  } do
+    config_home = create_user_data_dir.()
+    user_data_dir = Path.join(config_home, "google-chrome")
+
+    browser_server =
+      BrowserType.launch_persistent_context!(browser_type, user_data_dir, args: ["--remote-debugging-port=0"])
+
+    try do
+      [port | _] = String.split(File.read!(Path.join(user_data_dir, "DevToolsActivePort")), "\n")
+      cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
+      contexts = Browser.contexts(cdp_browser)
+      assert length(contexts) == 1
+      Browser.close!(cdp_browser)
+
+      if match?({:unix, :linux}, :os.type()) do
+        # deviation: the other client is a driver of its own started with `env`, whose contexts are
+        # asserted directly (upstream: a Node.js child process running the JS client, its stdout).
+        for {env, i} <-
+              Enum.with_index([
+                %{"CHROME_USER_DATA_DIR" => "", "CHROME_CONFIG_HOME" => "", "XDG_CONFIG_HOME" => config_home},
+                %{
+                  "CHROME_USER_DATA_DIR" => "",
+                  "CHROME_CONFIG_HOME" => config_home,
+                  "XDG_CONFIG_HOME" => Path.join(tmp_dir, "unused-config")
+                },
+                %{
+                  "CHROME_USER_DATA_DIR" => user_data_dir,
+                  "CHROME_CONFIG_HOME" => Path.join(tmp_dir, "unused-config"),
+                  "XDG_CONFIG_HOME" => Path.join(tmp_dir, "unused-xdg-config")
+                }
+              ]) do
+          child_browser_type = browser_type_with_env(:"connect_over_cdp_channel_#{i}", Map.to_list(env))
+          browser = BrowserType.connect_over_cdp!(child_browser_type, "chrome")
+          contexts = Browser.contexts(browser)
+          Browser.close!(browser)
+          assert length(contexts) == 1
+        end
+      end
+    after
+      BrowserContext.close!(browser_server)
+    end
   end
 
-  test "should connect when an existing page has no renderer", %{browser_type: browser_type, server: server} do
+  test "CD-002 should connect when an existing page has no renderer", %{browser_type: browser_type, server: server} do
     {browser_server, port} = launch_with_port(browser_type)
     # Prepare a page without a renderer, e.g. one discarded by the Memory Saver.
     cdp_browser1 = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
@@ -91,7 +134,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should connect when the opener of an existing page has no renderer", %{
+  test "CD-003 should connect when the opener of an existing page has no renderer", %{
     browser_type: browser_type,
     server: server
   } do
@@ -135,7 +178,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
           end)
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41714' }
   @tag :headed
-  test "should connect when an existing page has been discarded", %{
+  test "CD-004 should connect when an existing page has been discarded", %{
     browser_type: browser_type,
     create_user_data_dir: create_user_data_dir,
     server: server
@@ -183,10 +226,36 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     end
   end
 
-  test "should cleanup artifacts dir after connectOverCDP disconnects due to ws close"
+  test "CD-005 should cleanup artifacts dir after connectOverCDP disconnects due to ws close"
+
+  # issue: https://github.com/microsoft/playwright/issues/43200
+  # test.skip(mode !== 'default', 'launchServer is only available in-process')  -- always default mode
+  test "CD-006 should reject pending CDPSession calls when the browser is killed", %{
+    browser_type: browser_type,
+    launch_server: launch_server
+  } do
+    port = free_port()
+    {:ok, browser_server} = launch_server.(%{args: ["--remote-debugging-port=#{port}"]})
+    cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
+    context = hd(Browser.contexts(cdp_browser))
+    page = BrowserContext.new_page!(context)
+    session = BrowserContext.new_cdp_session!(context, page)
+
+    send_promise =
+      Runtime.Promise.async(fn ->
+        CDPSession.send(session, "Runtime.evaluate", %{expression: "new Promise(() => {})", awaitPromise: true})
+      end)
+
+    LaunchServer.kill(browser_server)
+    {:error, error} = Runtime.Promise.await(send_promise)
+    assert error.message =~ "Target page, context or browser has been closed"
+  end
 
   @tag :tmp_dir
-  test "should write traces to provided artifactsDir on connectOverCDP", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+  test "CD-007 should write traces to provided artifactsDir on connectOverCDP", %{
+    browser_type: browser_type,
+    tmp_dir: tmp_dir
+  } do
     # test.skip(trace === 'on');  -- tracing is off
     {browser_server, port} = launch_with_port(browser_type)
     artifacts_dir = Path.join(tmp_dir, "custom-artifacts")
@@ -216,7 +285,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   end
 
   @tag :tmp_dir
-  test "should connectOverCDP and manage downloads in default context", %{
+  test "CD-008 should connectOverCDP and manage downloads in default context", %{
     browser_type: browser_type,
     server: server,
     tmp_dir: tmp_dir
@@ -246,7 +315,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert File.read!(user_path) == "Hello world"
   end
 
-  test "should connect to an existing cdp session twice", %{browser_type: browser_type, server: server} do
+  test "CD-009 should connect to an existing cdp session twice", %{browser_type: browser_type, server: server} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser1 = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     cdp_browser2 = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
@@ -273,7 +342,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should connect to existing page with iframe and navigate", %{browser_type: browser_type, server: server} do
+  test "CD-010 should connect to existing page with iframe and navigate", %{browser_type: browser_type, server: server} do
     {browser_server, port} = launch_with_port(browser_type)
     context1 = Browser.new_context!(browser_server)
     page = BrowserContext.new_page!(context1)
@@ -286,7 +355,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should connect to existing service workers", %{browser_type: browser_type, server: server} do
+  test "CD-011 should connect to existing service workers", %{browser_type: browser_type, server: server} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser1 = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}")
     context = hd(Browser.contexts(cdp_browser1))
@@ -304,7 +373,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should connect over a ws endpoint", %{browser_type: browser_type, playwright: playwright} do
+  test "CD-012 should connect over a ws endpoint", %{browser_type: browser_type, playwright: playwright} do
     {browser_server, port} = launch_with_port(browser_type)
     json = json_version(playwright, port)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, JSON.decode!(json)["webSocketDebuggerUrl"])
@@ -321,7 +390,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should send extra headers with connect request", %{browser_type: browser_type, server: server} do
+  test "CD-013 should send extra headers with connect request", %{browser_type: browser_type, server: server} do
     # `server.waitForWebSocketConnectionRequest()`: the upgrade request (TestServer has no WebSocket).
     request = TestServer.wait_for_web_socket_connection_request(server)
 
@@ -346,19 +415,25 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert header(request, "foo") == "bar"
   end
 
-  test "should keep URL parameters when adding json/version", %{browser_type: browser_type, server: server} do
+  test "CD-014 should keep URL parameters when adding json/version", %{browser_type: browser_type, server: server} do
     request = TestServer.wait_for_request(server, "/browser/json/version/?foo=bar")
     BrowserType.connect_over_cdp(browser_type, "http://localhost:#{server.port}/browser/?foo=bar")
     Task.await(request, :infinity)
   end
 
-  test "should append /json/version with a slash if there isnt one", %{browser_type: browser_type, server: server} do
+  test "CD-015 should append /json/version with a slash if there isnt one", %{
+    browser_type: browser_type,
+    server: server
+  } do
     request = TestServer.wait_for_request(server, "/browser/json/version/?foo=bar")
     BrowserType.connect_over_cdp(browser_type, "http://localhost:#{server.port}/browser?foo=bar")
     Task.await(request, :infinity)
   end
 
-  test "should send default User-Agent header with connect request", %{browser_type: browser_type, server: server} do
+  test "CD-016 should send default User-Agent header with connect request", %{
+    browser_type: browser_type,
+    server: server
+  } do
     request = TestServer.wait_for_web_socket_connection_request(server)
 
     BrowserType.connect_over_cdp(browser_type, "ws://localhost:#{server.port}/ws",
@@ -372,7 +447,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert header(request, "foo") == "bar"
   end
 
-  test "should report all pages in an existing browser", %{browser_type: browser_type} do
+  test "CD-017 should report all pages in an existing browser", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     contexts = Browser.contexts(cdp_browser)
@@ -387,7 +462,11 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should connect via https", %{browser_type: browser_type, https_server: https_server, playwright: playwright} do
+  test "CD-018 should connect via https", %{
+    browser_type: browser_type,
+    https_server: https_server,
+    playwright: playwright
+  } do
     {browser_server, port} = launch_with_port(browser_type)
     json = json_version(playwright, port)
 
@@ -407,7 +486,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should return valid browser from context.browser()", %{browser_type: browser_type} do
+  test "CD-019 should return valid browser from context.browser()", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     contexts = Browser.contexts(cdp_browser)
@@ -421,7 +500,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should report an expected error when the endpointURL returns a non-expected status code", %{
+  test "CD-020 should report an expected error when the endpointURL returns a non-expected status code", %{
     browser_type: browser_type,
     server: server
   } do
@@ -435,7 +514,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
              "browserType.connectOverCDP: Unexpected status 404 when connecting to #{server.prefix}/json/version/"
   end
 
-  test "should report an expected error when the endpoint URL JSON webSocketDebuggerUrl is undefined", %{
+  test "CD-021 should report an expected error when the endpoint URL JSON webSocketDebuggerUrl is undefined", %{
     browser_type: browser_type,
     server: server
   } do
@@ -447,7 +526,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert Exception.message(error) =~ "browserType.connectOverCDP: Invalid URL"
   end
 
-  test "should connect to an existing cdp session when passed as a first argument", %{browser_type: browser_type} do
+  test "CD-022 should connect to an existing cdp session when passed as a first argument", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     contexts = Browser.contexts(cdp_browser)
@@ -456,7 +535,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should use proxy with connectOverCDP", %{browser_type: browser_type, server: server} do
+  test "CD-023 should use proxy with connectOverCDP", %{browser_type: browser_type, server: server} do
     TestServer.set_route(server, "/target.html", fn conn ->
       Plug.Conn.send_resp(conn, 200, "<html><title>Served by the proxy</title></html>")
     end)
@@ -465,7 +544,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     context = Browser.new_context!(cdp_browser, proxy: %{server: "localhost:#{server.port}"})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert Page.title!(page) == "Served by the proxy"
     Browser.close!(cdp_browser)
     Browser.close!(browser_server)
@@ -473,7 +552,10 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
 
   # test.skip(mode !== 'default'), process.env.HTTP_PROXY = proxyServer.URL: the driver is another
   # process, so a driver of its own started with it (playwright-python's way).
-  test "should use env proxy with connectOverCDP discovery request", %{server: server, proxy_server: proxy_server} do
+  test "CD-024 should use env proxy with connectOverCDP discovery request", %{
+    server: server,
+    proxy_server: proxy_server
+  } do
     TestProxy.forward_to(proxy_server, server.port)
 
     browser_type = browser_type_with_env(:connect_over_cdp_env_proxy, [{"HTTP_PROXY", proxy_server.url}])
@@ -482,7 +564,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert TestProxy.request_urls(proxy_server) == ["#{server.prefix}/json/version/"]
   end
 
-  test "should send target Host header when using env HTTP proxy with connectOverCDP", %{
+  test "CD-025 should send target Host header when using env HTTP proxy with connectOverCDP", %{
     server: server,
     proxy_server: proxy_server
   } do
@@ -494,7 +576,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert TestProxy.request_hosts(proxy_server) == [server.host]
   end
 
-  test "should be able to connect via localhost", %{browser_type: browser_type} do
+  test "CD-026 should be able to connect via localhost", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://localhost:#{port}")
     contexts = Browser.contexts(cdp_browser)
@@ -503,7 +585,9 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "emulate media should not be affected by second connectOverCDP with noDefaults", %{browser_type: browser_type} do
+  test "CD-027 emulate media should not be affected by second connectOverCDP with noDefaults", %{
+    browser_type: browser_type
+  } do
     {browser_server, port} = launch_with_port(browser_type)
     is_print = fn page -> Page.evaluate!(page, "() => matchMedia('print').matches") end
 
@@ -519,7 +603,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   end
 
   @tag :tmp_dir
-  test "should allow tracing over cdp session", %{browser_type: browser_type, tmp_dir: tmp_dir} do
+  test "CD-028 should allow tracing over cdp session", %{browser_type: browser_type, tmp_dir: tmp_dir} do
     # test.skip(trace === 'on');  -- tracing is off
     {_browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
@@ -533,7 +617,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert File.exists?(trace_zip)
   end
 
-  test "setInputFiles should preserve lastModified timestamp", %{browser_type: browser_type, asset: asset} do
+  test "CD-029 setInputFiles should preserve lastModified timestamp", %{browser_type: browser_type, asset: asset} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     [context] = Browser.contexts(cdp_browser)
@@ -558,9 +642,9 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "setInputFiles should use local path when isLocal is set"
+  test "CD-030 setInputFiles should use local path when isLocal is set"
 
-  test "should print custom ws close error", %{browser_type: browser_type, server: server} do
+  test "CD-031 should print custom ws close error", %{browser_type: browser_type, server: server} do
     TestServer.once_web_socket_connection(server, fn ws ->
       TestServer.WebSocket.on(ws, :message, fn -> TestServer.WebSocket.close(ws, 4123, "Oh my!") end)
     end)
@@ -569,9 +653,9 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     assert Exception.message(error) =~ "Browser logs:\n\nOh my!\n"
   end
 
-  test "should not reuse utility worlds between two clients"
+  test "CD-032 should not reuse utility worlds between two clients"
 
-  test "should get title and URL of existing page", %{browser_type: browser_type, server: server} do
+  test "CD-033 should get title and URL of existing page", %{browser_type: browser_type, server: server} do
     {browser_server, port} = launch_with_port(browser_type)
     cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
     [context] = Browser.contexts(cdp_browser)
@@ -590,7 +674,8 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should skip default overrides with noDefaults", %{browser_type: browser_type, server: server} do
+  # issue: https://github.com/microsoft/playwright/issues/43715
+  test "CD-034 should skip default overrides with noDefaults", %{browser_type: browser_type, server: server} do
     {_browser_server, port} = launch_with_port(browser_type)
     browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/", no_defaults: true)
     default_context = hd(Browser.contexts(browser))
@@ -614,7 +699,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser)
   end
 
-  test "noDefaults should not affect new contexts", %{browser_type: browser_type} do
+  test "CD-035 noDefaults should not affect new contexts", %{browser_type: browser_type} do
     {browser_server, port} = launch_with_port(browser_type)
     browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/", no_defaults: true)
 
@@ -629,5 +714,53 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
     Browser.close!(browser_server)
   end
 
-  test "should connect over CDP using a ConnectionTransport"
+  test "CD-036 should connect over CDP using a ConnectionTransport"
+
+  # issue: https://github.com/microsoft/playwright/issues/43638
+  # issue: https://issues.chromium.org/issues/578393908
+  @tag skip: "upstream fixme: test.fixme (no reason given)"
+  test "CD-053 should connect when another client inspects a terminated shared worker", %{
+    browser_type: browser_type,
+    server: server
+  } do
+    {browser, port} = launch_with_port(browser_type)
+
+    try do
+      # Another client inspects the shared worker.
+      page = Browser.new_page!(browser)
+      inspector = Browser.new_browser_cdp_session!(browser)
+      test_pid = self()
+
+      CDPSession.on(inspector, "Target.targetCreated", fn event ->
+        if event["targetInfo"]["type"] == "shared_worker",
+          do: send(test_pid, {:worker_created, event["targetInfo"]["targetId"]})
+      end)
+
+      CDPSession.send!(inspector, "Target.setDiscoverTargets", %{discover: true})
+      Page.goto!(page, server.prefix <> "/shared-worker/shared-worker.html")
+      assert Page.evaluate!(page, "window.sharedWorkerResponsePromise") == "echo:hello"
+      assert_receive {:worker_created, worker_target_id}
+      CDPSession.send!(inspector, "Target.attachToTarget", %{targetId: worker_target_id, flatten: true})
+
+      # The last client of the shared worker goes away, so the worker is terminated.
+      # The inspector stays attached, so the worker target lingers without a browser context.
+      Page.close!(page)
+
+      Utils.poll(
+        fn ->
+          %{"targetInfos" => target_infos} = CDPSession.send!(inspector, "Target.getTargets")
+          Enum.any?(target_infos, &(&1["targetId"] == worker_target_id))
+        end,
+        &assert(&1 == false)
+      )
+
+      # A new client auto-attaches to the lingering worker target.
+      cdp_browser = BrowserType.connect_over_cdp!(browser_type, "http://127.0.0.1:#{port}/")
+      page2 = BrowserContext.new_page!(hd(Browser.contexts(cdp_browser)))
+      assert Page.evaluate!(page2, "1 + 1") == 2
+      Browser.close!(cdp_browser)
+    after
+      Browser.close!(browser)
+    end
+  end
 end

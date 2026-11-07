@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
 
   @moduletag :page
 
-  test "should allow service workers by default", %{page: page, server: server} do
+  test "WO-027 should allow service workers by default", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/serviceworkers/empty/sw.html")
     Utils.assert_truthy(Page.evaluate!(page, "() => window['registrationPromise']"))
   end
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
            if(@browser_name == "firefox" and @mode in ["network-fallback", "preload-fallback"],
              do: "upstream fixme: Firefox does not apply offline emulation to service worker requests."
            )
-    test "should allow #{mode} service worker navigation while offline", %{
+    test "WO-028 should allow #{mode} service worker navigation while offline", %{
       context: context,
       page: page,
       server: server
@@ -130,7 +130,7 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
       %{context: context, page: BrowserContext.new_page!(context)}
     end
 
-    test "blocks service worker registration", %{page: page, server: server} do
+    test "WO-029 blocks service worker registration", %{page: page, server: server} do
       console_promise =
         Page.wait_for_event(page, :console,
           predicate: fn evt -> ConsoleMessage.text(evt) == "Service Worker registration blocked by Playwright" end
@@ -140,7 +140,7 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
       Promise.await!(console_promise)
     end
 
-    test "should not throw error on about:blank", %{page: page} do
+    test "WO-030 should not throw error on about:blank", %{page: page} do
       # issue: https://github.com/microsoft/playwright/issues/32292
       test_pid = self()
       Page.on(page, :page_error, fn error -> send(test_pid, {:page_error, error}) end)
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
       refute_received {:page_error, _}
     end
 
-    test "should not throw error in opaque sandboxed iframe", %{page: page, server: server} do
+    test "WO-031 should not throw error in opaque sandboxed iframe", %{page: page, server: server} do
       # issue: https://github.com/microsoft/playwright/issues/43113
       test_pid = self()
       Page.on(page, :page_error, fn error -> send(test_pid, {:page_error, error}) end)

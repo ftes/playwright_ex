@@ -76,7 +76,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
     defp first(list), do: List.first(list) || %{}
 
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/39475' }
-    test "should support service worker stop and restart lifecycle", %{browser_type: browser_type, asset: asset} do
+    test "CR-036 should support service worker stop and restart lifecycle", %{browser_type: browser_type, asset: asset} do
       extension_path = asset.("extension-mv3-sw-lifecycle")
       context = launch_persistent_context(browser_type, extension_path)
 
@@ -119,7 +119,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
       BrowserContext.close!(context)
     end
 
-    test "should give access to the service worker", %{browser_type: browser_type, asset: asset} do
+    test "CR-037 should give access to the service worker", %{browser_type: browser_type, asset: asset} do
       extension_path = asset.("extension-mv3-simple")
       context = launch_persistent_context(browser_type, extension_path)
       service_worker = service_worker(context)
@@ -131,7 +131,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
     end
 
     @tag :tmp_dir
-    test "should give access to the service worker when recording video", %{
+    test "CR-038 should give access to the service worker when recording video", %{
       browser_type: browser_type,
       asset: asset,
       tmp_dir: tmp_dir
@@ -145,7 +145,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
       BrowserContext.close!(context)
     end
 
-    test "should support request/response events in the service worker", %{
+    test "CR-039 should support request/response events in the service worker", %{
       browser_type: browser_type,
       asset: asset,
       server: server
@@ -194,7 +194,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
     end
 
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/32762' }
-    test "should report console messages from content script", %{
+    test "CR-040 should report console messages from content script", %{
       browser_type: browser_type,
       asset: asset,
       server: server
@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
       BrowserContext.close!(context)
     end
 
-    test "should use custom userAgent in service worker fetch requests", %{
+    test "CR-041 should use custom userAgent in service worker fetch requests", %{
       browser_type: browser_type,
       asset: asset,
       server: server

@@ -9,7 +9,7 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
 
   @moduletag :page
 
-  test "should select textarea", %{page: page, server: server} do
+  test "EH-102 should select textarea", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     JSHandle.evaluate!(textarea, "textarea => textarea.value = 'some value'")
@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "some value"
   end
 
-  test "should select input", %{page: page, server: server} do
+  test "EH-103 should select input", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     input = Page.query_selector!(page, "input")
     JSHandle.evaluate!(input, "input => input.value = 'some value'")
@@ -25,14 +25,14 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "some value"
   end
 
-  test "should select plain div", %{page: page, server: server} do
+  test "EH-104 should select plain div", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     div = Page.query_selector!(page, "div.plain")
     ElementHandle.select_text!(div)
     assert Page.evaluate!(page, "() => window.getSelection().toString()") == "Plain div"
   end
 
-  test "should timeout waiting for invisible element", %{page: page, server: server} do
+  test "EH-105 should timeout waiting for invisible element", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     JSHandle.evaluate!(textarea, "e => e.style.display = 'none'")
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Page.ElementhandleSelectTextTest do
     assert Exception.message(error) =~ "element is not visible"
   end
 
-  test "should wait for visible", %{page: page, server: server} do
+  test "EH-106 should wait for visible", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/textarea.html")
     textarea = Page.query_selector!(page, "textarea")
     JSHandle.evaluate!(textarea, "textarea => textarea.value = 'some value'")

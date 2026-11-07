@@ -2,6 +2,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   @upstream "tests/library/chromium/session.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.AbortController
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.CDPSession
@@ -9,6 +10,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
+  alias PlaywrightEx.TimeoutError
   alias PlaywrightEx.Utils
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
@@ -17,7 +19,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
   @tag :page
-  test "should work", %{page: page} do
+  test "CD-037 should work", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
 
     Task.await_many(
@@ -33,7 +35,40 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should send events", %{page: page, server: server} do
+  test "CD-038 should respect timeout and signal options", %{page: page} do
+    client = BrowserContext.new_cdp_session!(Page.context(page), page)
+
+    eval_response =
+      CDPSession.send!(client, "Runtime.evaluate", %{expression: "1 + 2", returnByValue: true}, timeout: 5000)
+
+    assert eval_response["result"]["value"] == 3
+
+    {:error, error} =
+      CDPSession.send(client, "Runtime.evaluate", %{expression: "new Promise(() => {})", awaitPromise: true},
+        timeout: 500
+      )
+
+    assert %TimeoutError{} = error
+    assert error.message =~ "Timeout 500ms exceeded"
+
+    controller = AbortController.new()
+
+    promise =
+      Runtime.Promise.async(fn ->
+        CDPSession.send(client, "Runtime.evaluate", %{expression: "new Promise(() => {})", awaitPromise: true},
+          signal: AbortController.signal(controller)
+        )
+      end)
+
+    reason = %RuntimeError{message: "Aborted by user"}
+    AbortController.abort(controller, reason)
+    {:error, abort_error} = Runtime.Promise.await(promise)
+    assert abort_error.name == "AbortError"
+    assert abort_error.cause == reason
+  end
+
+  @tag :page
+  test "CD-039 should send events", %{page: page, server: server} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     CDPSession.send!(client, "Network.enable")
     test_pid = self()
@@ -44,7 +79,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should only accept a page or frame", %{page: page} do
+  test "CD-040 should only accept a page or frame", %{page: page} do
     {:error, error} = BrowserContext.new_cdp_session(Page.context(page), Page.context(page))
     assert Exception.message(error) =~ "page: expected Page or Frame"
 
@@ -54,7 +89,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should enable and disable domains independently", %{page: page} do
+  test "CD-041 should enable and disable domains independently", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     CDPSession.send!(client, "Runtime.enable")
     CDPSession.send!(client, "Debugger.enable")
@@ -73,7 +108,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should be able to detach session", %{page: page} do
+  test "CD-042 should be able to detach session", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     CDPSession.send!(client, "Runtime.enable")
     eval_response = CDPSession.send!(client, "Runtime.evaluate", %{expression: "1 + 2", returnByValue: true})
@@ -84,7 +119,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should throw nice errors", %{page: page} do
+  test "CD-043 should throw nice errors", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     {:error, error} = the_source_of_the_problems(client)
 
@@ -97,7 +132,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should work with main frame", %{page: page} do
+  test "CD-044 should work with main frame", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), Page.main_frame(page))
 
     Task.await_many(
@@ -113,7 +148,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should throw if target is part of main", %{server: server, page: page} do
+  test "CD-045 should throw if target is part of main", %{server: server, page: page} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     assert Frame.url(Enum.at(Page.frames(page), 0)) =~ "/frames/one-frame.html"
     assert Frame.url(Enum.at(Page.frames(page), 1)) =~ "/frames/frame.html"
@@ -124,7 +159,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
              "This frame does not have a separate CDP session, it is a part of the parent frame's session"
   end
 
-  test "should not break page.close()", %{browser: browser} do
+  test "CD-046 should not break page.close()", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     session = BrowserContext.new_cdp_session!(Page.context(page), page)
@@ -133,7 +168,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     BrowserContext.close!(context)
   end
 
-  test "should detach when page closes", %{browser: browser} do
+  test "CD-047 should detach when page closes", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     session = BrowserContext.new_cdp_session!(context, page)
@@ -143,7 +178,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     BrowserContext.close!(context)
   end
 
-  test "should reject protocol calls when page closes", %{browser: browser} do
+  test "CD-048 should reject protocol calls when page closes", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     session = BrowserContext.new_cdp_session!(context, page)
@@ -165,7 +200,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should emit event for each CDP event", %{page: page, server: server} do
+  test "CD-049 should emit event for each CDP event", %{page: page, server: server} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     CDPSession.send!(client, "Network.enable")
     test_pid = self()
@@ -187,7 +222,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
   end
 
   @tag :page
-  test "should emit close event when session is detached", %{page: page} do
+  test "CD-050 should emit close event when session is detached", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
     test_pid = self()
     CDPSession.on(client, :close, fn session -> send(test_pid, {:closed, session}) end)
@@ -196,7 +231,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     assert closed_session == client
   end
 
-  test "should emit close event when page closes", %{browser: browser} do
+  test "CD-051 should emit close event when page closes", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     session = BrowserContext.new_cdp_session!(context, page)
@@ -208,7 +243,7 @@ defmodule PlaywrightEx.Library.Chromium.SessionTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with newBrowserCDPSession", %{browser: browser} do
+  test "CD-052 should work with newBrowserCDPSession", %{browser: browser} do
     session = Browser.new_browser_cdp_session!(browser)
 
     version = CDPSession.send!(session, "Browser.getVersion")

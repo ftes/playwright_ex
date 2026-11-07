@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         %{reused_context: reused_context}
       end
 
-      test "should re-add binding after reset", %{reused_context: reused_context} do
+      test "BC-073 should re-add binding after reset", %{reused_context: reused_context} do
         context = reused_context.(nil)
 
         BrowserContext.expose_function!(context, "add", fn a, b -> a - b end)
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         assert Page.evaluate!(page, "add(5, 6)") == 11
       end
 
-      test "should reset serviceworker", %{reused_context: reused_context, server: server} do
+      test "BC-074 should reset serviceworker", %{reused_context: reused_context, server: server} do
         TestServer.set_route(server, "/page.html", fn conn ->
           conn
           |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -166,7 +166,10 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         Expect.to_have_title!(page, "Page Title")
       end
 
-      test "should reset serviceworker that hangs in importScripts", %{reused_context: reused_context, server: server} do
+      test "BC-075 should reset serviceworker that hangs in importScripts", %{
+        reused_context: reused_context,
+        server: server
+      } do
         TestServer.set_route(server, "/page.html", fn conn ->
           conn
           |> Plug.Conn.put_resp_header("content-type", "text/html")
@@ -216,7 +219,8 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         Expect.to_have_title!(page, "Page Title")
       end
 
-      test "should not cache resources", %{reused_context: reused_context, server: server} do
+      # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43704' }
+      test "BC-076 should not cache resources", %{reused_context: reused_context, server: server} do
         # test.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/19926' });
         {:ok, request_count_map} = Agent.start_link(fn -> %{} end)
         increment = fn url -> Agent.update(request_count_map, &Map.update(&1, url, 1, fn c -> c + 1 end)) end
@@ -265,7 +269,11 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
 
         context = reused_context.(nil)
         page = BrowserContext.new_page!(context)
-        Page.goto!(page, server.prefix <> "/page.html")
+
+        Page.expect_response!(page, server.prefix <> "/simple.json", fn ->
+          Page.goto!(page, server.prefix <> "/page.html")
+        end)
+
         Expect.to_have_title!(page, "Count: 0")
         assert get.("/page.html") == 1
         assert get.("/style.css") == 1
@@ -273,14 +281,18 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
 
         context = reused_context.(nil)
         page = hd(BrowserContext.pages(context))
-        Page.goto!(page, server.prefix <> "/page.html")
+
+        Page.expect_response!(page, server.prefix <> "/simple.json", fn ->
+          Page.goto!(page, server.prefix <> "/page.html")
+        end)
+
         Expect.to_have_title!(page, "Count: 1")
         assert get.("/page.html") == 2
         assert get.("/style.css") == 2
         assert get.("/simple.json") == 2
       end
 
-      test "should ignore binding from beforeunload", %{reused_context: reused_context} do
+      test "BC-077 should ignore binding from beforeunload", %{reused_context: reused_context} do
         # test.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22803' });
 
         context = reused_context.(nil)
@@ -304,7 +316,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
       end
 
       # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22432' }
-      test "should reset mouse position", %{reused_context: reused_context} do
+      test "BC-078 should reset mouse position", %{reused_context: reused_context} do
         # Note: this test only reproduces the issue locally when run with --repeat-each=20.
         # test.skip(!headless, 'headed browser has mouse jiggles');  -- we run headless
 
@@ -337,7 +349,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
       end
 
       @tag :tmp_dir
-      test "should reset tracing", %{reused_context: reused_context, tmp_dir: tmp_dir} do
+      test "BC-079 should reset tracing", %{reused_context: reused_context, tmp_dir: tmp_dir} do
         # test.skip(trace === 'on');  -- no runner tracing
 
         context = reused_context.(nil)
@@ -354,7 +366,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         assert Exception.message(error) =~ "Must start tracing before stopping"
       end
 
-      test "should work with clock emulation", %{reused_context: reused_context} do
+      test "BC-080 should work with clock emulation", %{reused_context: reused_context} do
         context = reused_context.(nil)
 
         page = BrowserContext.new_page!(context)
@@ -367,7 +379,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         assert Page.evaluate!(page, "new Date().toISOString()") == "2020-01-01T00:00:00.000Z"
       end
 
-      test "should continue issuing events after closing the reused page", %{
+      test "BC-081 should continue issuing events after closing the reused page", %{
         reused_context: reused_context,
         server: server
       } do
@@ -388,7 +400,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
       end
 
       # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36480' }
-      test "should work with routeWebSocket", %{reused_context: reused_context, server: server} do
+      test "BC-082 should work with routeWebSocket", %{reused_context: reused_context, server: server} do
         setup = fn page, suffix ->
           Page.route_web_socket!(page, ~r/ws1/, fn ws ->
             WebSocketRoute.on_message(ws, fn _message ->
@@ -458,7 +470,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         )
       end
 
-      test "should update viewport and media", %{reused_context: reused_context} do
+      test "BC-083 should update viewport and media", %{reused_context: reused_context} do
         # Internal client call: options with JS keys.
         context = reused_context.(%{viewport: %{width: 800, height: 600}, colorScheme: "dark"})
         page = BrowserContext.new_page!(context)

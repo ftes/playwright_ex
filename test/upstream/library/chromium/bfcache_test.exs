@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Library.Chromium.BfcacheTest do
     %{page: BrowserContext.new_page!(context)}
   end
 
-  test "bindings should work after restoring from bfcache", %{page: page, server: server} do
+  test "CR-042 bindings should work after restoring from bfcache", %{page: page, server: server} do
     Page.expose_function!(page, "add", fn a, b -> a + b end)
 
     Page.goto!(page, server.prefix <> "/cached/bfcached.html")

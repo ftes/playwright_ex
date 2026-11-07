@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
   # `${/re/}` in a JS template literal renders the regex source between slashes.
   defp js_regex(regex), do: "/#{Regex.source(regex)}/"
 
-  test "should match page", %{page: page} do
+  test "AR-107 should match page", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     Expect.to_match_aria_snapshot!(page, """
@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should match page complex", %{page: page} do
+  test "AR-108 should match page complex", %{page: page} do
     Page.set_content!(page, """
     <h1>Microsoft</h1>
     <div>Open source projects and samples from Microsoft</div>
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should match page with not", %{page: page} do
+  test "AR-109 should match page with not", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     Expect.not_to_match_aria_snapshot!(page, """
@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should fail page with timeout", %{page: page} do
+  test "AR-110 should fail page with timeout", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     {:error, e} =
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     refute e.message =~ "Locator"
   end
 
-  test "should match", %{page: page} do
+  test "AR-111 should match", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     Expect.to_match_aria_snapshot!(page, """
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ ~s(- heading "title" [level=1])
   end
 
-  test "should match in list", %{page: page} do
+  test "AR-112 should match in list", %{page: page} do
     Page.set_content!(page, """
     <h1>title</h1>
     <h1>title 2</h1>
@@ -88,7 +88,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should match list with accessible name", %{page: page} do
+  test "AR-113 should match list with accessible name", %{page: page} do
     Page.set_content!(page, """
     <ul aria-label="my list">
       <li>one</li>
@@ -103,7 +103,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should match deep item", %{page: page} do
+  test "AR-114 should match deep item", %{page: page} do
     Page.set_content!(page, """
     <div>
       <h1>title</h1>
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should match complex", %{page: page} do
+  test "AR-115 should match complex", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li>
@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should match regex", %{page: page} do
+  test "AR-116 should match regex", %{page: page} do
     Page.set_content!(page, "<h1>Issues 12</h1>")
 
     Expect.to_match_aria_snapshot!(page, """
@@ -158,7 +158,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should allow text nodes", %{page: page} do
+  test "AR-117 should allow text nodes", %{page: page} do
     Page.set_content!(page, """
     <h1>Microsoft</h1>
     <div>Open source projects and samples from Microsoft</div>
@@ -170,7 +170,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "details visibility", %{page: page} do
+  test "AR-118 details visibility", %{page: page} do
     Page.set_content!(page, """
     <details>
       <summary>Summary</summary>
@@ -183,7 +183,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "checked attribute", %{page: page} do
+  test "AR-119 checked attribute", %{page: page} do
     Page.set_content!(page, """
     <input type='checkbox' checked />
     """)
@@ -212,7 +212,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ " attribute must be a boolean or \"mixed\""
   end
 
-  test "disabled attribute", %{page: page} do
+  test "AR-120 disabled attribute", %{page: page} do
     Page.set_content!(page, """
     <button disabled>Click me</button>
     """)
@@ -237,7 +237,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ " attribute must be a boolean"
   end
 
-  test "expanded attribute", %{page: page} do
+  test "AR-121 expanded attribute", %{page: page} do
     Page.set_content!(page, """
     <button aria-expanded="true">Toggle</button>
     """)
@@ -262,7 +262,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ " attribute must be a boolean"
   end
 
-  test "level attribute", %{page: page} do
+  test "AR-122 level attribute", %{page: page} do
     Page.set_content!(page, """
     <h2>Section Title</h2>
     """)
@@ -283,7 +283,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ " attribute must be a number"
   end
 
-  test "pressed attribute", %{page: page} do
+  test "AR-123 pressed attribute", %{page: page} do
     Page.set_content!(page, """
     <button aria-pressed="true">Like</button>
     """)
@@ -321,7 +321,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ " attribute must be a boolean or \"mixed\""
   end
 
-  test "selected attribute", %{page: page} do
+  test "AR-124 selected attribute", %{page: page} do
     Page.set_content!(page, """
     <table>
       <tr aria-selected="true">
@@ -388,7 +388,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ " attribute must be a boolean"
   end
 
-  test "integration test", %{page: page} do
+  test "AR-125 integration test", %{page: page} do
     Page.set_content!(page, """
     <h1>Microsoft</h1>
     <div>Open source projects and samples from Microsoft</div>
@@ -434,7 +434,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "integration test 2", %{page: page} do
+  test "AR-126 integration test 2", %{page: page} do
     Page.set_content!(page, """
     <div>
       <header>
@@ -450,7 +450,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "expected formatter", %{page: page} do
+  test "AR-127 expected formatter", %{page: page} do
     Page.set_content!(page, """
     <div>
       <header>
@@ -491,7 +491,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
            """
   end
 
-  test "should unpack escaped names", %{page: page} do
+  test "AR-128 should unpack escaped names", %{page: page} do
     Page.set_content!(page, """
     <button>Click: me</button>
     """)
@@ -579,7 +579,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should report error in YAML", %{page: page} do
+  test "AR-129 should report error in YAML", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     {:error, error} =
@@ -616,7 +616,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
            """
   end
 
-  test "should report error in YAML keys", %{page: page} do
+  test "AR-130 should report error in YAML keys", %{page: page} do
     Page.set_content!(page, "<h1>title</h1>")
 
     {:error, error} =
@@ -764,7 +764,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
            """
   end
 
-  test "call log should contain actual snapshot", %{page: page} do
+  test "AR-131 call log should contain actual snapshot", %{page: page} do
     Page.set_content!(page, "<h1>todos</h1>")
 
     {:error, error} =
@@ -779,7 +779,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert error.message =~ ~s(unexpected value "- heading "todos" [level=1]")
   end
 
-  test "should parse attributes", %{page: page} do
+  test "AR-132 should parse attributes", %{page: page} do
     Page.set_content!(page, """
     <button aria-pressed="mixed">hello world</button>
     """)
@@ -797,7 +797,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should not unshift actual template text", %{page: page} do
+  test "AR-133 should not unshift actual template text", %{page: page} do
     Page.set_content!(page, """
     <h1>title</h1>
     <h1>title 2</h1>
@@ -813,7 +813,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
              "\n    - heading \"title\" [level=1]\n- heading \"title 2\" [level=1]"
   end
 
-  test "should not match what is not matched", %{page: page} do
+  test "AR-134 should not match what is not matched", %{page: page} do
     Page.set_content!(page, "<p>Text</p>")
 
     {:error, error} =
@@ -830,7 +830,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
            """
   end
 
-  test "should match url", %{page: page} do
+  test "AR-135 should match url", %{page: page} do
     Page.set_content!(page, """
     <a href='https://example.com'>Link</a>
     """)
@@ -841,7 +841,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "should detect unexpected children: equal", %{page: page} do
+  test "AR-136 should detect unexpected children: equal", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li>One</li>
@@ -872,7 +872,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ "+   - listitem: Two"
   end
 
-  test "should detect unexpected children: deep-equal", %{page: page} do
+  test "AR-137 should detect unexpected children: deep-equal", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li>
@@ -916,7 +916,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert e.message =~ "+       - listitem: \"1.2\""
   end
 
-  test "should allow restoring contain mode inside deep-equal", %{page: page} do
+  test "AR-138 should allow restoring contain mode inside deep-equal", %{page: page} do
     Page.set_content!(page, """
     <ul>
       <li>
@@ -954,7 +954,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "top-level deep-equal", %{page: page} do
+  test "AR-139 top-level deep-equal", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/36456
     Page.set_content!(page, """
     <ul>
@@ -989,7 +989,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
              """)
   end
 
-  test "generated snapshot includes text children when name is longer than text", %{page: page} do
+  test "AR-140 generated snapshot includes text children when name is longer than text", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/40079
     Page.set_content!(page, """
     <section>
@@ -1006,7 +1006,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     """)
   end
 
-  test "treat bad regex as a string", %{page: page} do
+  test "AR-141 treat bad regex as a string", %{page: page} do
     Page.set_content!(page, ~s(<a href="/foo">Log in</a>))
 
     {:error, error} =
@@ -1024,7 +1024,7 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     assert error.message =~ "+   - /url: /foo"
   end
 
-  test "invalid attribute", %{page: page} do
+  test "AR-142 invalid attribute", %{page: page} do
     # issue: https://github.com/microsoft/playwright/issues/34839
     Page.set_content!(page, """
     <input type="text" aria-label="Email" aria-invalid="true" value="not-an-email">
@@ -1045,11 +1045,15 @@ defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
     Page.set_content!(page, """
     <input type="text" aria-label="Bio" aria-invalid="grammar">
     <input type="text" aria-label="Note" aria-invalid="spelling">
+    <input type="text" aria-label="Mixed-case grammar" aria-invalid="Grammar">
+    <input type="text" aria-label="Mixed-case spelling" aria-invalid="Spelling">
     """)
 
     Expect.to_match_aria_snapshot!(page, """
     - textbox "Bio" [invalid=grammar]
     - textbox "Note" [invalid=spelling]
+    - textbox "Mixed-case grammar" [invalid=grammar]
+    - textbox "Mixed-case spelling" [invalid=spelling]
     """)
 
     # A `grammar` value is distinct from a plain `true` invalid state.

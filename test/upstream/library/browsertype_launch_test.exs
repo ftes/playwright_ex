@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
 
-  test "should reject all promises when browser is closed", %{browser_type: browser_type} do
+  test "BT-004 should reject all promises when browser is closed", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
     page = BrowserContext.new_page!(Browser.new_context!(browser))
     never_resolves = Runtime.Promise.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end)
@@ -22,12 +22,12 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   end
 
   # `{ userDataDir } as any`: the facade rejects options that are not in the API.
-  test "should throw if userDataDir option is passed", %{browser_type: browser_type} do
+  test "BT-005 should throw if userDataDir option is passed", %{browser_type: browser_type} do
     wait_error = catch_error(BrowserType.launch(browser_type, user_data_dir: "random-path"))
     assert Exception.message(wait_error) =~ "browserType.launch: unknown option :user_data_dir"
   end
 
-  test "should throw if userDataDir is passed as an argument", %{browser_type: browser_type} do
+  test "BT-006 should throw if userDataDir is passed as an argument", %{browser_type: browser_type} do
     {:error, wait_error} =
       BrowserType.launch(browser_type, args: ["--user-data-dir=random-path", "--profile=random-path"])
 
@@ -35,40 +35,40 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
   end
 
   # `{ port: 1234 } as any`: the facade rejects options that are not in the API.
-  test "should throw if port option is passed", %{browser_type: browser_type} do
+  test "BT-007 should throw if port option is passed", %{browser_type: browser_type} do
     error = catch_error(BrowserType.launch(browser_type, port: 1234))
     assert Exception.message(error) =~ "browserType.launch: unknown option :port"
   end
 
   # `{ port: 1234 } as any`: the facade rejects options that are not in the API.
-  test "should throw if port option is passed for persistent context", %{browser_type: browser_type} do
+  test "BT-008 should throw if port option is passed for persistent context", %{browser_type: browser_type} do
     error = catch_error(BrowserType.launch_persistent_context(browser_type, "foo", port: 1234))
     assert Exception.message(error) =~ "browserType.launchPersistentContext: unknown option :port"
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
-  test "should throw if page argument is passed", %{browser_type: browser_type} do
+  test "BT-009 should throw if page argument is passed", %{browser_type: browser_type} do
     {:error, wait_error} = BrowserType.launch(browser_type, args: ["http://example.com"])
     assert Exception.message(wait_error) =~ "can not specify page"
   end
 
-  test "should reject if launched browser fails immediately", %{browser_type: browser_type, asset: asset} do
+  test "BT-010 should reject if launched browser fails immediately", %{browser_type: browser_type, asset: asset} do
     {:error, error} = BrowserType.launch(browser_type, executable_path: asset.("dummy_bad_browser_executable.js"))
     assert Exception.message(error) =~ ~r/browserType\.launch(.|\n)*(spawn UNKNOWN|spawn EFTYPE|Browser logs:)/im
   end
 
-  test "should reject if executable path is invalid", %{browser_type: browser_type} do
+  test "BT-011 should reject if executable path is invalid", %{browser_type: browser_type} do
     {:error, wait_error} = BrowserType.launch(browser_type, executable_path: "random-invalid-path")
     assert Exception.message(wait_error) =~ "Failed to launch"
   end
 
-  test "should handle timeout"
+  test "BT-012 should handle timeout"
 
-  test "should handle exception and report launch log"
+  test "BT-013 should handle exception and report launch log"
 
-  test "should accept objects as options"
+  test "BT-014 should accept objects as options"
 
-  test "should fire close event for all contexts", %{browser_type: browser_type} do
+  test "BT-015 should fire close event for all contexts", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
     context = Browser.new_context!(browser)
     test = self()
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     assert_received :closed
   end
 
-  test "should be callable twice", %{browser_type: browser_type} do
+  test "BT-016 should be callable twice", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
 
     Task.await_many(
@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
     async_dispose.(value)
   end
 
-  test "should allow await using", %{browser_type: browser_type} do
+  test "BT-017 should allow await using", %{browser_type: browser_type} do
     # it.skip(nodeVersion.major < 18)  -- not Node
 
     b =

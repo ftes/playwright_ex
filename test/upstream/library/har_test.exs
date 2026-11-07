@@ -86,7 +86,11 @@ defmodule PlaywrightEx.Library.HarTest do
     if System.system_time(:millisecond) < until, do: busy_loop(until)
   end
 
-  test "should have version and creator", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-001 should have version and creator", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     log = get_log(session)
@@ -95,7 +99,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert log["creator"]["version"] =~ (System.get_env("PW_VERSION_OVERRIDE") || PlaywrightEx.Driver.version())
   end
 
-  test "should have browser", %{
+  test "HA-002 should have browser", %{
     browser_name: browser_name,
     browser: browser,
     context_factory: context_factory,
@@ -110,7 +114,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert log["browser"]["version"] == Browser.version(browser)
   end
 
-  test "should have pages", %{context_factory: context_factory, output_path: output_path} do
+  test "HA-003 should have pages", %{context_factory: context_factory, output_path: output_path} do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, "data:text/html,<title>Hello</title>")
     # For data: load comes before domcontentloaded...
@@ -125,7 +129,10 @@ defmodule PlaywrightEx.Library.HarTest do
     assert page_entry["pageTimings"]["onLoad"] > 0
   end
 
-  test "should have pages in persistent context", %{launch_persistent: launch_persistent, output_path: output_path} do
+  test "HA-004 should have pages in persistent context", %{
+    launch_persistent: launch_persistent,
+    output_path: output_path
+  } do
     har_path = output_path.("test.har")
     %{context: context, page: page} = launch_persistent.(record_har: %{path: har_path})
     Page.goto!(page, "data:text/html,<title>Hello</title>")
@@ -139,7 +146,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert page_entry["title"] == "Hello"
   end
 
-  test "should include request", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-005 should include request", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     log = get_log(session)
@@ -154,7 +161,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry["request"]["bodySize"] == 0
   end
 
-  test "should populate entry startedDateTime from the browser", %{
+  test "HA-006 should populate entry startedDateTime from the browser", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -194,7 +201,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert started_at < unblocked_at - 100
   end
 
-  test "should include response", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-007 should include response", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     log = get_log(session)
@@ -206,7 +213,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert header(entry["response"]["headers"], "content-type")["value"] =~ "text/html"
   end
 
-  test "should include redirectURL", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-008 should include redirectURL", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     TestServer.set_redirect(server, "/foo.html", "/empty.html")
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.prefix <> "/foo.html")
@@ -217,14 +228,18 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry["response"]["redirectURL"] == server.empty_page
   end
 
-  test "should include query params", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-009 should include query params", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.prefix <> "/har.html?name=value")
     log = get_log(session)
     assert hd(log["entries"])["request"]["queryString"] == [%{"name" => "name", "value" => "value"}]
   end
 
-  test "should include postData", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-010 should include postData", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "() => fetch('./post', { method: 'POST', body: 'Hello' })")
@@ -237,7 +252,11 @@ defmodule PlaywrightEx.Library.HarTest do
            }
   end
 
-  test "should include binary postData", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-011 should include binary postData", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
 
@@ -256,7 +275,11 @@ defmodule PlaywrightEx.Library.HarTest do
            }
   end
 
-  test "should include form params", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-012 should include form params", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
 
@@ -278,7 +301,7 @@ defmodule PlaywrightEx.Library.HarTest do
            }
   end
 
-  test "should include cookies", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-013 should include cookies", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)
     context = Page.context(page)
 
@@ -300,7 +323,11 @@ defmodule PlaywrightEx.Library.HarTest do
            ]
   end
 
-  test "should include set-cookies", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-014 should include set-cookies", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -321,7 +348,26 @@ defmodule PlaywrightEx.Library.HarTest do
     assert date_ms(Enum.at(cookies, 2)["expires"]) > now_ms()
   end
 
-  test "should include set-cookies with lowercase attributes", %{
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43155' }
+  test "HA-015 should include set-cookies without equals sign as nameless", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    %{page: page} = session = page_with_har(context_factory, output_path)
+
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> put_set_cookies(["token; HttpOnly"])
+      |> Plug.Conn.send_resp(200, "")
+    end)
+
+    Page.goto!(page, server.empty_page)
+    log = get_log(session)
+    assert hd(log["entries"])["response"]["cookies"] == [%{"name" => "", "value" => "token", "httpOnly" => true}]
+  end
+
+  test "HA-016 should include set-cookies with lowercase attributes", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -348,7 +394,11 @@ defmodule PlaywrightEx.Library.HarTest do
            }
   end
 
-  test "should skip invalid Expires", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-017 should skip invalid Expires", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -367,7 +417,7 @@ defmodule PlaywrightEx.Library.HarTest do
          if(@browser_name == "webkit",
            do: "upstream fixme: We get \"name1=val, ue1, name2=val, ue2\" as a header value"
          )
-  test "should include set-cookies with comma", %{
+  test "HA-018 should include set-cookies with comma", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -388,7 +438,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(cookies, 1) == %{"name" => "name2", "value" => "val, ue2"}
   end
 
-  test "should include secure set-cookies", %{
+  test "HA-019 should include secure set-cookies", %{
     context_factory: context_factory,
     output_path: output_path,
     https_server: https_server
@@ -407,7 +457,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(cookies, 0) == %{"name" => "name1", "value" => "value1", "secure" => true}
   end
 
-  test "should record request overrides", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-020 should record request overrides", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
 
     Page.route!(page, "**/foo", fn route ->
@@ -434,7 +488,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert request["postData"] == %{"mimeType" => "text/plain", "params" => [], "text" => "Hi!"}
   end
 
-  test "should include content @smoke", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-021 should include content @smoke", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.prefix <> "/har.html")
     Page.evaluate!(page, "() => fetch('/pptr.png').then(r => r.arrayBuffer())")
@@ -460,7 +518,34 @@ defmodule PlaywrightEx.Library.HarTest do
     assert content2["compression"] == 0
   end
 
-  test "should use attach mode for zip extension", %{
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43493' }
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream fixme: WebKit decodes the body of a textual resource before it gets to us"
+         )
+  test "HA-113 should store binary content with a textual mime type as base64", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    body = <<0x80, 0xC3, 0x28, 0xFF, 0x41>>
+
+    TestServer.set_route(server, "/binary.js", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/javascript")
+      |> Plug.Conn.send_resp(200, body)
+    end)
+
+    %{page: page} = session = page_with_har(context_factory, output_path)
+    Page.goto!(page, server.empty_page)
+    Page.evaluate!(page, "() => fetch('/binary.js').then(r => r.arrayBuffer())")
+    log = get_log(session)
+    content = Enum.find(log["entries"], &String.ends_with?(&1["request"]["url"], "/binary.js"))["response"]["content"]
+    assert content["encoding"] == "base64"
+    assert Base.decode64!(content["text"]) == body
+  end
+
+  test "HA-022 should use attach mode for zip extension", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -474,7 +559,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Map.fetch!(zip, "75841480e2606c03389077304342fac2c58ccb1b.html") =~ "HAR Page"
   end
 
-  test "should omit content", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-023 should omit content", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path, %{content: "omit", outputPath: "test.har"})
     Page.goto!(page, server.prefix <> "/har.html")
     Page.evaluate!(page, "() => fetch('/pptr.png').then(r => r.arrayBuffer())")
@@ -483,7 +568,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert hd(log["entries"])["response"]["content"]["_file"] == nil
   end
 
-  test "should omit content legacy", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-024 should omit content legacy", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path, %{omitContent: true, outputPath: "test.har"})
     Page.goto!(page, server.prefix <> "/har.html")
     Page.evaluate!(page, "() => fetch('/pptr.png').then(r => r.arrayBuffer())")
@@ -492,7 +581,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert hd(log["entries"])["response"]["content"]["_file"] == nil
   end
 
-  test "should attach content", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-025 should attach content", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} =
       session = page_with_har(context_factory, output_path, %{content: "attach", outputPath: "test.har.zip"})
 
@@ -525,7 +614,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert byte_size(Map.fetch!(zip, "a4c3a18f0bb83f5d9fe7ce561e065c36205762fa.png")) == content2["size"]
   end
 
-  test "should filter by glob", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-026 should filter by glob", %{context_factory: context_factory, output_path: output_path, server: server} do
     har_path = output_path.("test.har")
 
     context =
@@ -543,7 +632,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert String.ends_with?(hd(log["entries"])["request"]["url"], "one-style.css")
   end
 
-  test "should filter by regexp", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-027 should filter by regexp", %{context_factory: context_factory, output_path: output_path, server: server} do
     har_path = output_path.("test.har")
     context = context_factory.(record_har: %{path: har_path, urlFilter: ~r/HAR.X?HTML/i}, ignore_https_errors: true)
     page = BrowserContext.new_page!(context)
@@ -554,7 +643,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert String.ends_with?(hd(log["entries"])["request"]["url"], "har.html")
   end
 
-  test "should include sizes", %{
+  test "HA-028 should include sizes", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server,
@@ -577,7 +666,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry1["response"]["_transferSize"] >= 150
   end
 
-  test "should work with gzip compression", %{
+  test "HA-029 should work with gzip compression", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -591,21 +680,25 @@ defmodule PlaywrightEx.Library.HarTest do
     assert hd(log["entries"])["response"]["content"]["compression"] > 4000
   end
 
-  test "should calculate time", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-030 should calculate time", %{context_factory: context_factory, output_path: output_path, server: server} do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.prefix <> "/har.html")
     log = get_log(session)
     assert hd(log["entries"])["time"] > 0
   end
 
-  test "should return receive time", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-031 should return receive time", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.prefix <> "/har.html")
     log = get_log(session)
     assert hd(log["entries"])["timings"]["receive"] > 0
   end
 
-  test "should report the correct _transferSize with PNG files", %{
+  test "HA-032 should report the correct _transferSize with PNG files", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server,
@@ -622,7 +715,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(log["entries"], 1)["response"]["_transferSize"] > File.stat!(asset.("pptr.png")).size
   end
 
-  test "should have -1 _transferSize when its a failed request", %{
+  test "HA-033 should have -1 _transferSize when its a failed request", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -641,7 +734,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(log["entries"], 1)["response"]["_transferSize"] == -1
   end
 
-  test "should record failed request headers", %{
+  test "HA-034 should record failed request headers", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -657,7 +750,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.any?(request["headers"], &match?(%{"name" => "User-Agent"}, &1))
   end
 
-  test "should record failed request overrides", %{
+  test "HA-035 should record failed request overrides", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -690,7 +783,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert request["postData"] == %{"mimeType" => "text/plain", "params" => [], "text" => "Hi!"}
   end
 
-  test "should report the correct request body size", %{
+  test "HA-036 should report the correct request body size", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -714,7 +807,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(log["entries"], 1)["request"]["bodySize"] == 6
   end
 
-  test "should report the correct request body size when the bodySize is 0", %{
+  test "HA-037 should report the correct request body size when the bodySize is 0", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -738,7 +831,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.at(log["entries"], 1)["request"]["bodySize"] == 0
   end
 
-  test "should report the correct response body size when the bodySize is 0", %{
+  test "HA-038 should report the correct response body size when the bodySize is 0", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -750,7 +843,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert hd(log["entries"])["response"]["bodySize"] == 0
   end
 
-  test "should have popup requests", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-039 should have popup requests", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<a target=_blank rel=noopener href="/one-style.html">yo</a>))
@@ -769,7 +866,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry1["response"]["status"] == 200
   end
 
-  test "should not contain internal pages", %{
+  test "HA-040 should not contain internal pages", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -790,7 +887,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert length(log["pages"]) == 1
   end
 
-  test "should have connection details", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-041 should have connection details", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     log = get_log(session)
@@ -803,7 +904,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert security_details == %{}
   end
 
-  test "should have security details", %{
+  test "HA-042 should have security details", %{
     context_factory: context_factory,
     output_path: output_path,
     https_server: https_server,
@@ -861,7 +962,7 @@ defmodule PlaywrightEx.Library.HarTest do
     end)
   end
 
-  test "should have connection details for redirects", %{
+  test "HA-043 should have connection details for redirects", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server,
@@ -888,7 +989,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert details_empty["_serverPort"] == server.port
   end
 
-  test "should have connection details for failed requests", %{
+  test "HA-044 should have connection details for failed requests", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -905,7 +1006,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert port == server.port
   end
 
-  test "should return server address directly from response", %{context_factory: context_factory, server: server} do
+  test "HA-045 should return server address directly from response", %{context_factory: context_factory, server: server} do
     page = BrowserContext.new_page!(context_factory.([]))
     response = Page.goto!(page, server.empty_page)
     %{ipAddress: ip_address, port: port} = Response.server_addr!(response)
@@ -913,7 +1014,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert port == server.port
   end
 
-  test "should return security details directly from response", %{
+  test "HA-046 should return security details directly from response", %{
     context_factory: context_factory,
     https_server: https_server,
     browser_name: browser_name
@@ -951,7 +1052,7 @@ defmodule PlaywrightEx.Library.HarTest do
     end
   end
 
-  test "should contain http2 for http2 requests", %{context_factory: context_factory, output_path: output_path} do
+  test "HA-047 should contain http2 for http2 requests", %{context_factory: context_factory, output_path: output_path} do
     # createHttp2Server(await TestServer.certOptions()): Bandit negotiates h2 over TLS.
     {:ok, http2_server} =
       Bandit.start_link(
@@ -983,7 +1084,7 @@ defmodule PlaywrightEx.Library.HarTest do
              do: "upstream skip: headed webkit does not have a favicon feature"
            )
   @tag :headed
-  test "should filter favicon and favicon redirects", %{
+  test "HA-048 should filter favicon and favicon redirects", %{
     server: server,
     asset: asset,
     context_factory: context_factory,
@@ -1034,7 +1135,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry["request"]["url"] == server.prefix <> "/page.html"
   end
 
-  test "should have different hars for concurrent contexts", %{
+  test "HA-049 should have different hars for concurrent contexts", %{
     context_factory: context_factory,
     output_path: output_path
   } do
@@ -1063,7 +1164,11 @@ defmodule PlaywrightEx.Library.HarTest do
     assert page_entry["title"] == "One"
   end
 
-  test "should exclude API request", %{context_factory: context_factory, output_path: output_path, server: server} do
+  test "HA-050 should exclude API request", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
     %{page: page} = session = page_with_har(context_factory, output_path)
     Page.goto!(page, server.empty_page)
     APIRequestContext.get!(Page.request(page), server.prefix <> "/simple.json")
@@ -1071,7 +1176,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert Enum.map(log["entries"], & &1["request"]["url"]) == [server.empty_page]
   end
 
-  test "should correctly record API request cookies with equals sign in value", %{
+  test "HA-051 should correctly record API request cookies with equals sign in value", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -1091,7 +1196,31 @@ defmodule PlaywrightEx.Library.HarTest do
            ]
   end
 
-  test "should respect minimal mode for API Requests", %{
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43155' }
+  test "HA-052 should record nameless API request cookies", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    context = context_factory.([])
+    har_path = output_path.("request.har")
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+
+    APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json",
+      headers: %{"cookie" => "nameless; other=val"}
+    )
+
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    BrowserContext.close!(context)
+    log = read_log(har_path)
+
+    assert hd(log["entries"])["request"]["cookies"] == [
+             %{"name" => "", "value" => "nameless"},
+             %{"name" => "other", "value" => "val"}
+           ]
+  end
+
+  test "HA-053 should respect minimal mode for API Requests", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -1118,7 +1247,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert entry["response"]["bodySize"] == -1
   end
 
-  test "should include redirects from API request", %{
+  test "HA-054 should include redirects from API request", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -1146,7 +1275,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert json["timings"] != nil
   end
 
-  test "should not hang on resources served from cache", %{
+  test "HA-055 should not hang on resources served from cache", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server,
@@ -1171,7 +1300,7 @@ defmodule PlaywrightEx.Library.HarTest do
       else: assert(length(entries) == 2)
   end
 
-  test "should not hang on slow chunked response", %{
+  test "HA-056 should not hang on slow chunked response", %{
     browser_name: browser_name,
     browser: browser,
     context_factory: context_factory,
@@ -1213,7 +1342,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert log["browser"]["version"] == Browser.version(browser)
   end
 
-  test "should close the context when saving the har fails", %{
+  test "HA-057 should close the context when saving the har fails", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -1234,7 +1363,7 @@ defmodule PlaywrightEx.Library.HarTest do
   # it.slow()
   @tag timeout: @slow_timeout
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: serializer is browser-agnostic; one browser is enough")
-  test "should support HAR larger than 512MB", %{
+  test "HA-058 should support HAR larger than 512MB", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server
@@ -1271,7 +1400,7 @@ defmodule PlaywrightEx.Library.HarTest do
     assert tail =~ ~r/\}\s*\}\s*$/
   end
 
-  test "should record resource type", %{
+  test "HA-059 should record resource type", %{
     context_factory: context_factory,
     output_path: output_path,
     server: server,
@@ -1344,7 +1473,7 @@ defmodule PlaywrightEx.Library.HarTest do
   end
 
   describe "tracing.startHar" do
-    test "should record a HAR with options", %{
+    test "HA-060 should record a HAR with options", %{
       context_factory: context_factory,
       output_path: output_path,
       server: server
@@ -1364,7 +1493,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert hd(log["entries"])["request"]["bodySize"] == -1
     end
 
-    test "should record a HAR for a context APIRequestContext", %{
+    test "HA-061 should record a HAR for a context APIRequestContext", %{
       context_factory: context_factory,
       output_path: output_path,
       server: server
@@ -1416,7 +1545,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert entry["_serverPort"] == server.port
     end
 
-    test "should include pages", %{context_factory: context_factory, output_path: output_path, server: server} do
+    test "HA-062 should include pages", %{context_factory: context_factory, output_path: output_path, server: server} do
       context = context_factory.([])
       har_path = output_path.("tracing.har")
       Tracing.start_har!(BrowserContext.tracing(context), har_path)
@@ -1435,7 +1564,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert Enum.at(log["pages"], 1)["title"] == ""
     end
 
-    test "should record a zipped HAR for APIRequestContext", %{
+    test "HA-063 should record a zipped HAR for APIRequestContext", %{
       playwright: playwright,
       output_path: output_path,
       server: server
@@ -1452,7 +1581,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert Enum.any?(log["entries"], &(&1["request"]["url"] == server.prefix <> "/simple.json"))
     end
 
-    test "should record correct cookie expires for APIRequestContext", %{
+    test "HA-064 should record correct cookie expires for APIRequestContext", %{
       playwright: playwright,
       output_path: output_path,
       server: server
@@ -1478,7 +1607,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert expires.year == 2030
     end
 
-    test "should record mixed-case request content-type for APIRequestContext", %{
+    test "HA-065 should record mixed-case request content-type for APIRequestContext", %{
       playwright: playwright,
       output_path: output_path,
       server: server
@@ -1502,7 +1631,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert entry["request"]["postData"]["mimeType"] == "application/json"
     end
 
-    test "should record a HAR with resourcesDir", %{
+    test "HA-066 should record a HAR with resourcesDir", %{
       context_factory: context_factory,
       output_path: output_path,
       server: server
@@ -1527,7 +1656,7 @@ defmodule PlaywrightEx.Library.HarTest do
       assert File.read!(resource_path) =~ "pink"
     end
 
-    test "should reject resourcesDir together with a .zip har file", %{
+    test "HA-067 should reject resourcesDir together with a .zip har file", %{
       context_factory: context_factory,
       output_path: output_path
     } do

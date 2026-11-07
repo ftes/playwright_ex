@@ -7,14 +7,14 @@ defmodule PlaywrightEx.Page.ElementhandleClickTest do
 
   @moduletag :page
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "EH-010 should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
     ElementHandle.click!(button)
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should work with Node removed", %{page: page, server: server} do
+  test "EH-011 should work with Node removed", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     Page.evaluate!(page, "() => delete window['Node']")
     button = Page.query_selector!(page, "button")
@@ -22,14 +22,14 @@ defmodule PlaywrightEx.Page.ElementhandleClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked"
   end
 
-  test "should work for Shadow DOM v1", %{page: page, server: server} do
+  test "EH-012 should work for Shadow DOM v1", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/shadow.html")
     button_handle = Page.evaluate_handle!(page, "() => window['button']")
     ElementHandle.click!(button_handle)
     assert Page.evaluate!(page, "clicked") == true
   end
 
-  test "should work for TextNodes", %{page: page} do
+  test "EH-013 should work for TextNodes", %{page: page} do
     Page.set_content!(page, """
     <div id='outer' onclick="window['result'] = 'Clicked ' + event.target.id;">
       <div id='inner' style="max-width: 50px">Lorem ipsum dolor sit amet consectetur adipiscing elit proin, integer curabitur imperdiet rhoncus cursus tincidunt bibendum, consequat sed magnis laoreet luctus mollis tellus. Nisl parturient mus accumsan feugiat sem laoreet magnis nisi, aptent per sollicitudin gravida orci ac blandit, viverra eros praesent auctor vivamus semper bibendum. Consequat sed habitasse luctus dictumst gravida platea semper phasellus, nascetur ridiculus purus est varius quisque et scelerisque, id vehicula eleifend montes sollicitudin dis velit. Pellentesque ridiculus per natoque et eleifend taciti nunc, laoreet auctor at condimentum imperdiet ante, conubia mi cubilia scelerisque sociosqu sem.</div>
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Page.ElementhandleClickTest do
     assert Page.evaluate!(page, "() => window['result']") == "Clicked outer"
   end
 
-  test "should throw for detached nodes", %{page: page, server: server} do
+  test "EH-014 should throw for detached nodes", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
     Page.evaluate!(page, "button => button.remove()", button)
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.ElementhandleClickTest do
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
-  test "should throw for hidden nodes with force", %{page: page, server: server} do
+  test "EH-015 should throw for hidden nodes with force", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
     Page.evaluate!(page, "button => button.style.display = 'none'", button)
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Page.ElementhandleClickTest do
     assert Exception.message(error) =~ "Element is not visible"
   end
 
-  test "should throw for recursively hidden nodes with force", %{page: page, server: server} do
+  test "EH-016 should throw for recursively hidden nodes with force", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
     Page.evaluate!(page, "button => button.parentElement.style.display = 'none'", button)
@@ -66,14 +66,14 @@ defmodule PlaywrightEx.Page.ElementhandleClickTest do
     assert Exception.message(error) =~ "Element is not visible"
   end
 
-  test "should throw for <br> elements with force", %{page: page} do
+  test "EH-017 should throw for <br> elements with force", %{page: page} do
     Page.set_content!(page, "hello<br>goodbye")
     br = Page.query_selector!(page, "br")
     {:error, error} = ElementHandle.click(br, force: true)
     assert Exception.message(error) =~ "Element is outside of the viewport"
   end
 
-  test "should double click the button", %{page: page, server: server} do
+  test "EH-018 should double click the button", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/input/button.html")
 
     Page.evaluate!(page, """

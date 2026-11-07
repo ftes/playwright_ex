@@ -23,7 +23,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
     end
   end
 
-  test "BrowserContext.Events.Request", %{context: context, server: server} do
+  test "NE-121 BrowserContext.Events.Request", %{context: context, server: server} do
     test = self()
     page = BrowserContext.new_page!(context)
     BrowserContext.on(context, :request, fn request -> send(test, {:request, request}) end)
@@ -40,7 +40,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
            ]
   end
 
-  test "BrowserContext.Events.Response", %{context: context, server: server} do
+  test "NE-122 BrowserContext.Events.Response", %{context: context, server: server} do
     test = self()
     page = BrowserContext.new_page!(context)
     BrowserContext.on(context, :response, fn response -> send(test, {:response, response}) end)
@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
            ]
   end
 
-  test "BrowserContext.Events.RequestFailed", %{context: context, server: server} do
+  test "NE-123 BrowserContext.Events.RequestFailed", %{context: context, server: server} do
     test = self()
 
     # res.connection.destroy(): kill the connection's handler process.
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
     assert Request.frame(hd(failed_requests))
   end
 
-  test "BrowserContext.Events.RequestFinished", %{context: context, server: server} do
+  test "NE-124 BrowserContext.Events.RequestFinished", %{context: context, server: server} do
     page = BrowserContext.new_page!(context)
     request_finished = BrowserContext.wait_for_event(context, :request_finished)
     response = Page.goto!(page, server.empty_page)
@@ -90,7 +90,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
     assert Request.failure(request) == nil
   end
 
-  test "should fire events in proper order", %{context: context, server: server} do
+  test "NE-125 should fire events in proper order", %{context: context, server: server} do
     test = self()
     page = BrowserContext.new_page!(context)
     BrowserContext.on(context, :request, fn _ -> send(test, {:event, "request"}) end)
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
              do: "upstream skip: headed webkit does not have a favicon feature"
            )
   @tag :headed
-  test "should not fire events for favicon or favicon redirects", %{context: context, page: page, server: server} do
+  test "NE-126 should not fire events for favicon or favicon redirects", %{context: context, page: page, server: server} do
     favicon = "/no-cache/favicon.ico"
     hashed_favicon_url = "/favicon-hashed.ico"
     image_path = "/fakeimage.png"
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
     refute Enum.any?(events, &String.contains?(&1, hashed_favicon_url))
   end
 
-  test "should reject response.finished if context closes", %{page: page, server: server} do
+  test "NE-127 should reject response.finished if context closes", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     TestServer.set_route(server, "/get", fn conn ->

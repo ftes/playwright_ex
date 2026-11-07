@@ -111,7 +111,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   })
   """
 
-  test "should only have one websocket entry", %{
+  test "HA-101 should only have one websocket entry", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -129,7 +129,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     assert ws_entry["_resourceType"] == "websocket"
   end
 
-  test "should include websocket handshake headers and status", %{
+  test "HA-102 should include websocket handshake headers and status", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -285,15 +285,23 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     end
   end
 
-  test "should embed websocket messages", %{context_factory: context_factory, server: server, output_path: output_path} do
+  test "HA-103 should embed websocket messages", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
     test_web_socket_messages(context_factory, server, output_path, "embed")
   end
 
-  test "should attach websocket messages", %{context_factory: context_factory, server: server, output_path: output_path} do
+  test "HA-104 should attach websocket messages", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
     test_web_socket_messages(context_factory, server, output_path, "attach")
   end
 
-  test "should attach websocket messages for a still open websocket after stopping", %{
+  test "HA-105 should attach websocket messages for a still open websocket after stopping", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -394,11 +402,15 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     assert ws_entry["time"] >= List.last(messages)["time"] - hd(messages)["time"]
   end
 
-  test "should omit websocket messages", %{context_factory: context_factory, server: server, output_path: output_path} do
+  test "HA-106 should omit websocket messages", %{
+    context_factory: context_factory,
+    server: server,
+    output_path: output_path
+  } do
     test_web_socket_messages(context_factory, server, output_path, "omit")
   end
 
-  test "should record websocket connection failure", %{
+  test "HA-107 should record websocket connection failure", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -435,7 +447,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     Utils.assert_truthy(ws_entry["response"]["_failureText"])
   end
 
-  test "should record websocket handshake failure", %{
+  test "HA-108 should record websocket handshake failure", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path,
@@ -493,7 +505,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   })
   """
 
-  test "should still capture websocket when route passes messages through", %{
+  test "HA-109 should still capture websocket when route passes messages through", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -531,7 +543,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
            ]
   end
 
-  test "should still allow routeWebSocket to fully mock the connection when capturing HAR", %{
+  test "HA-110 should still allow routeWebSocket to fully mock the connection when capturing HAR", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -560,7 +572,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     assert ws_entries == []
   end
 
-  test "should still allow routeWebSocket to modify messages when capturing HAR", %{
+  test "HA-111 should still allow routeWebSocket to modify messages when capturing HAR", %{
     context_factory: context_factory,
     server: server,
     output_path: output_path
@@ -601,7 +613,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
   end
 
   # it.skip(mode !== 'default', 'no env vars in non-default mode')
-  test "should respect PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES", %{server: server, output_path: output_path} do
+  test "HA-112 should respect PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES", %{server: server, output_path: output_path} do
     # it.skip(mode !== 'default', 'no env vars in non-default mode');  -- we always run the default mode
 
     # process.env.PLAYWRIGHT_HAR_NO_WEBSOCKET_FRAMES = '1';

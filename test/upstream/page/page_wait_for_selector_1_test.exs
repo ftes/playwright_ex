@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
 
   defp give_it_time_to_log(frame), do: Utils.rafraf(frame, 2)
 
-  test "should throw on waitFor", %{page: page, server: server} do
+  test "WA-027 should throw on waitFor", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # `waitFor` is not an option of the facade: it rejects it before the driver does.
     assert_raise ArgumentError, ~r/unknown option :wait_for/, fn ->
@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     end
   end
 
-  test "should tolerate waitFor=visible", %{page: page, server: server} do
+  test "WA-028 should tolerate waitFor=visible", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # `waitFor` is not an option of the facade: it rejects it before the driver tolerates it.
     assert_raise ArgumentError, ~r/unknown option :wait_for/, fn ->
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     end
   end
 
-  test "should immediately resolve promise if node exists", %{page: page, server: server} do
+  test "WA-029 should immediately resolve promise if node exists", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
     Frame.wait_for_selector!(frame, "*")
@@ -43,14 +43,14 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     Frame.wait_for_selector!(frame, "div", state: :attached)
   end
 
-  test "elementHandle.waitForSelector should immediately resolve if node exists", %{page: page} do
+  test "WA-030 elementHandle.waitForSelector should immediately resolve if node exists", %{page: page} do
     Page.set_content!(page, "<span>extra</span><div><span>target</span></div>")
     div = Page.query_selector!(page, "div")
     span = ElementHandle.wait_for_selector!(div, "span", state: :attached)
     assert JSHandle.evaluate!(span, "e => e.textContent") == "target"
   end
 
-  test "elementHandle.waitForSelector should wait", %{page: page} do
+  test "WA-031 elementHandle.waitForSelector should wait", %{page: page} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
     promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector!(div, "span", state: :attached) end)
@@ -59,14 +59,14 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert JSHandle.evaluate!(span, "e => e.textContent") == "target"
   end
 
-  test "elementHandle.waitForSelector should timeout", %{page: page} do
+  test "WA-032 elementHandle.waitForSelector should timeout", %{page: page} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
     {:error, error} = ElementHandle.wait_for_selector(div, "span", timeout: 100)
     assert Exception.message(error) =~ "Timeout 100ms exceeded."
   end
 
-  test "elementHandle.waitForSelector should throw on navigation", %{page: page, server: server} do
+  test "WA-033 elementHandle.waitForSelector should throw on navigation", %{page: page, server: server} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
     promise = Runtime.Promise.async(fn -> ElementHandle.wait_for_selector(div, "span") end)
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert Exception.message(error) =~ "waiting for locator('span') to be visible"
   end
 
-  test "should work with removed MutationObserver", %{page: page} do
+  test "WA-034 should work with removed MutationObserver", %{page: page} do
     Page.evaluate!(page, "() => delete window.MutationObserver")
     task = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, ".zombo") end)
     Page.set_content!(page, "<div class='zombo'>anything</div>")
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert Page.evaluate!(page, "x => x.textContent", handle) == "anything"
   end
 
-  test "should resolve promise when node is added", %{page: page, server: server} do
+  test "WA-035 should resolve promise when node is added", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
     watchdog = Runtime.Promise.async(fn -> Frame.wait_for_selector!(frame, "div", state: :attached) end)
@@ -96,7 +96,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert tag_name == "DIV"
   end
 
-  test "should report logs while waiting for visible", %{page: page, server: server} do
+  test "WA-036 should report logs while waiting for visible", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
     watchdog = Runtime.Promise.async(fn -> Frame.wait_for_selector(frame, "div", timeout: 5000) end)
@@ -140,7 +140,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert message =~ ~s(locator resolved to hidden <div class="another"></div>)
   end
 
-  test "should report logs while waiting for hidden", %{page: page, server: server} do
+  test "WA-037 should report logs while waiting for hidden", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     frame = Page.main_frame(page)
 
@@ -177,7 +177,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert message =~ ~s(locator resolved to visible <div class="another">hello</div>)
   end
 
-  test "should report logs when the selector resolves to multiple elements", %{page: page, server: server} do
+  test "WA-038 should report logs when the selector resolves to multiple elements", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.set_content!(page, """
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
              "locator resolved to 2 elements. Proceeding with the first one: <button>Reset</button>"
   end
 
-  test "should resolve promise when node is added in shadow dom", %{page: page, server: server} do
+  test "WA-039 should resolve promise when node is added in shadow dom", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     watchdog = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "span") end)
 
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert JSHandle.evaluate!(handle, "e => e.textContent") == "Hello from shadow"
   end
 
-  test "should work when node is added through innerHTML", %{page: page, server: server} do
+  test "WA-040 should work when node is added through innerHTML", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     watchdog = Runtime.Promise.async(fn -> Page.wait_for_selector!(page, "h3 div", state: :attached) end)
     Page.evaluate!(page, @add_element, "span")
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     Runtime.Promise.await(watchdog)
   end
 
-  test "page.waitForSelector is shortcut for main frame", %{page: page, server: server} do
+  test "WA-041 page.waitForSelector is shortcut for main frame", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Utils.attach_frame(page, "frame1", server.empty_page)
     other_frame = Enum.at(Page.frames(page), 1)
@@ -236,7 +236,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert ElementHandle.owner_frame!(e_handle) == Page.main_frame(page)
   end
 
-  test "should run in specified frame", %{page: page, server: server} do
+  test "WA-042 should run in specified frame", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     Utils.attach_frame(page, "frame2", server.empty_page)
     frame1 = Enum.at(Page.frames(page), 1)
@@ -251,7 +251,7 @@ defmodule PlaywrightEx.Page.PageWaitForSelector1Test do
     assert ElementHandle.owner_frame!(e_handle) == frame2
   end
 
-  test "should throw when frame is detached", %{page: page, server: server} do
+  test "WA-043 should throw when frame is detached", %{page: page, server: server} do
     Utils.attach_frame(page, "frame1", server.empty_page)
     frame = Enum.at(Page.frames(page), 1)
     wait_promise = Runtime.Promise.async(fn -> Frame.wait_for_selector(frame, ".box") end)

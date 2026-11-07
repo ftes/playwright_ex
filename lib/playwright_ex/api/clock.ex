@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Clock do
 
   ## Arguments
 
-  * `ticks` - Time may be the number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
+  * `ticks` - Time may be a finite number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
   """
   @spec fast_forward(t(), integer() | String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def fast_forward(clock, ticks) do
@@ -106,7 +106,7 @@ defmodule PlaywrightEx.Clock do
 
   ## Arguments
 
-  * `ticks` - Time may be the number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
+  * `ticks` - Time may be a finite number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
   """
   @spec run_for(t(), integer() | String.t()) :: :ok | {:error, PlaywrightEx.error()}
   def run_for(clock, ticks) do

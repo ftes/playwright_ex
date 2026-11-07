@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     end
   end
 
-  test "should work with navigation @smoke", %{page: page, server: server} do
+  test "RO-151 should work with navigation @smoke", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/*", fn route ->
@@ -52,7 +52,8 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert Request.is_navigation_request(requests["style.css"]) == false
   end
 
-  test "should intercept after a service worker", %{page: page, server: server, browser_name: browser_name} do
+  test "RO-152 should intercept after a service worker", %{page: page, server: server, browser_name: browser_name} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41932' }
     Page.goto!(page, server.prefix <> "/serviceworkers/fetchdummy/sw.html")
     Page.evaluate!(page, "() => window['activationPromise']")
 
@@ -69,6 +70,29 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     # Page route is applied after service worker fetch event.
     sw_response2 = Page.evaluate!(page, "() => window['fetchDummy']('foo')")
     assert sw_response2 == "responseFromServiceWorker:foo"
+
+    # Frozen WebKit predates the header preservation fix.
+    # if (!isFrozenWebkit)  -- we run a current WebKit
+    headers = %{
+      "cache-control" => "max-age=12345",
+      "accept-language" => "fr-CH",
+      "accept" => "application/custom"
+    }
+
+    received_headers =
+      Page.evaluate!(
+        page,
+        """
+        async headers => {
+          const response = await fetch('headers', { headers });
+          return response.json();
+        }
+        """,
+        headers
+      )
+
+    # expect(receivedHeaders).toMatchObject(headers)
+    assert Map.take(received_headers, Map.keys(headers)) == headers
 
     # Page route is not applied to service worker initiated fetch.
     non_intercepted_response = Page.evaluate!(page, "() => window['fetchDummy']('passthrough')")
@@ -99,7 +123,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     Api.call(nil, local_utils, fn -> UrlMatch.url_matches(local_utils, base_url, url, match) end)
   end
 
-  test "should work with glob", %{playwright: playwright} do
+  test "RO-153 should work with glob", %{playwright: playwright} do
     glob_to_regex = fn glob -> Regex.compile!(glob_to_regex_pattern(playwright, glob)) end
     url_matches = &url_matches(playwright, &1, &2, &3)
 
@@ -218,7 +242,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     end
   end
 
-  test "should throw on unbalanced glob braces", %{playwright: playwright} do
+  test "RO-154 should throw on unbalanced glob braces", %{playwright: playwright} do
     glob_to_regex_pattern = &glob_to_regex_pattern(playwright, &1)
 
     assert_raise PlaywrightError, ~r/Invalid glob pattern "{foo": unmatched '{'/, fn ->
@@ -238,19 +262,19 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     glob_to_regex_pattern.("foo\\}")
   end
 
-  test "should throw on page.route with invalid glob", %{page: page} do
+  test "RO-155 should throw on page.route with invalid glob", %{page: page} do
     assert {:error, e} = Page.route(page, "http://*/foo{", &Route.continue/1)
     assert Exception.message(e) =~ "unmatched '{'"
   end
 
-  test "should intercept by glob", %{page: page, server: server} do
+  test "RO-156 should intercept by glob", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.route!(page, "http://localhos**?*oo", fn route -> Route.fulfill!(route, status: 200, body: "intercepted") end)
     result = Page.evaluate!(page, "url => fetch(url).then(r => r.text())", server.prefix <> "/?foo")
     assert result == "intercepted"
   end
 
-  test "should intercept network activity from worker", %{page: page, server: server} do
+  test "RO-157 should intercept network activity from worker", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     TestServer.set_route(server, "/data_for_worker", &Plug.Conn.send_resp(&1, 200, "failed to intercept"))
     url = server.prefix <> "/data_for_worker"
@@ -274,7 +298,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
 
   @tag skip:
          if(@browser_name == "chromium" and @browser_major_version < 130, do: "upstream skip: fixed in Chromium 130")
-  test "should intercept worker requests when enabled after worker creation", %{
+  test "RO-158 should intercept worker requests when enabled after worker creation", %{
     page: page,
     server: server
   } do
@@ -306,7 +330,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert ConsoleMessage.text(msg) == "intercepted"
   end
 
-  test "should intercept network activity from worker 2", %{page: page, server: server} do
+  test "RO-159 should intercept network activity from worker 2", %{page: page, server: server} do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/31747' }
     url = server.prefix <> "/worker/worker.js"
 
@@ -319,7 +343,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   end
 
   # `vm.runInContext('new RegExp(...)')`: no cross-realm regexes in Elixir, a plain Regex.
-  test "should work with regular expression passed from a different context", %{page: page, server: server} do
+  test "RO-160 should work with regular expression passed from a different context", %{page: page, server: server} do
     regexp = Regex.compile!("empty\\.html")
     me = self()
 
@@ -343,7 +367,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   end
 
   # `/\/intercept-me/g`: Elixir regexes have no global flag (nor `lastIndex`).
-  test "should intercept every request matching a global regexp", %{page: page, server: server} do
+  test "RO-161 should intercept every request matching a global regexp", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     me = self()
 
@@ -361,7 +385,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     assert length(received()) == 3
   end
 
-  test "should not break remote worker importScripts", %{page: page, server: server} do
+  test "RO-162 should not break remote worker importScripts", %{page: page, server: server} do
     Page.route!(page, "**", fn route ->
       Route.continue!(route)
     end)
@@ -370,7 +394,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
     Page.wait_for_selector!(page, "#status:has-text('finished')")
   end
 
-  test "should disable memory cache when intercepting", %{page: page, server: server} do
+  test "RO-163 should disable memory cache when intercepting", %{page: page, server: server} do
     me = self()
 
     Page.route!(page, "**/page.html", fn route ->
@@ -391,7 +415,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   end
 
   @tag skip: if(@browser_name != "webkit", do: "upstream skip: browserName !== 'webkit'")
-  test "should intercept blob url requests", %{page: page, server: server} do
+  test "RO-164 should intercept blob url requests", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     Page.route!(page, "**/*", fn route -> Route.fulfill(route, status: 200, body: "intercepted") end)
     Page.on(page, :console, fn msg -> IO.puts(ConsoleMessage.text(msg)) end)

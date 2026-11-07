@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     end
   end
 
-  test "should work @smoke", %{page: page, browser_name: browser_name} do
+  test "CM-001 should work @smoke", %{page: page, browser_name: browser_name} do
     message =
       Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => console.log('hello', 5, { foo: 'bar' })") end)
 
@@ -36,7 +36,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert JSHandle.json_value!(arg2) == %{"foo" => "bar"}
   end
 
-  test "should emit same log twice", %{page: page} do
+  test "CM-002 should emit same log twice", %{page: page} do
     test = self()
     Page.on(page, :console, fn m -> send(test, {:event, ConsoleMessage.text(m)}) end)
 
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert received() == ["hello", "hello"]
   end
 
-  test "should use text() for inspection", %{page: page} do
+  test "CM-003 should use text() for inspection", %{page: page} do
     test = self()
     inspect = fn value -> send(test, {:event, inspect(value)}) end
     Page.on(page, :console, inspect)
@@ -59,7 +59,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert received() == ["#PlaywrightEx.ConsoleMessage<Hello world>"]
   end
 
-  test "should work for different console API calls", %{page: page} do
+  test "CM-004 should work for different console API calls", %{page: page} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:event, msg}) end)
     # All console events will be reported before `page.evaluate` is finished.
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
 
   # it.fixme(browserName === 'firefox' && !isBidi, 'https://github.com/microsoft/playwright/issues/10580');
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: https://github.com/microsoft/playwright/issues/10580")
-  test "should format the message correctly with time/timeLog/timeEnd", %{page: page, browser_name: browser_name} do
+  test "CM-005 should format the message correctly with time/timeLog/timeEnd", %{page: page, browser_name: browser_name} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:event, msg}) end)
 
@@ -143,7 +143,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert ConsoleMessage.text(Enum.at(messages, 1)) =~ ~r/foo time: \d+(.\d+)? ?ms/
   end
 
-  test "should not fail for window object", %{page: page, browser_name: browser_name} do
+  test "CM-006 should not fail for window object", %{page: page, browser_name: browser_name} do
     message = Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => console.error(window)") end)
 
     if browser_name != "firefox",
@@ -151,7 +151,10 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
       else: assert(ConsoleMessage.text(message) == "JSHandle@object")
   end
 
-  test "should not fail for object that can't be coerced to a primitive", %{page: page, browser_name: browser_name} do
+  test "CM-007 should not fail for object that can't be coerced to a primitive", %{
+    page: page,
+    browser_name: browser_name
+  } do
     message =
       Page.expect_event!(page, :console, fn ->
         Page.evaluate!(page, "() => console.log({ toString() { return {}; }, valueOf() { return {}; } })")
@@ -166,7 +169,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
          if(@browser_name == "webkit" and match?({:win32, _}, :os.type()),
            do: "upstream skip: Upstream issue https://bugs.webkit.org/show_bug.cgi?id=229515"
          )
-  test "should trigger correct Log", %{page: page, server: server} do
+  test "CM-008 should trigger correct Log", %{page: page, server: server} do
     # it.skip(browserName === 'webkit' && isWindows, 'Upstream issue https://bugs.webkit.org/show_bug.cgi?id=229515');
     Page.goto!(page, "about:blank")
 
@@ -179,7 +182,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert ConsoleMessage.type(message) == "error"
   end
 
-  test "should have location for console API calls", %{page: page, server: server} do
+  test "CM-009 should have location for console API calls", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     message =
@@ -198,7 +201,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
            }
   end
 
-  test "should not throw when there are console messages in detached iframes", %{page: page, server: server} do
+  test "CM-010 should not throw when there are console messages in detached iframes", %{page: page, server: server} do
     # @see https://github.com/GoogleChrome/puppeteer/issues/3865
     Page.goto!(page, server.empty_page)
 
@@ -226,7 +229,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert Page.evaluate!(popup, "1 + 1") == 2
   end
 
-  test "should use object previews for arrays and objects", %{page: page, browser_name: browser_name} do
+  test "CM-011 should use object previews for arrays and objects", %{page: page, browser_name: browser_name} do
     test = self()
     Page.on(page, :console, fn message -> send(test, {:event, ConsoleMessage.text(message)}) end)
     Page.evaluate!(page, "() => console.log([1, 2, 3], { a: 1 }, window)")
@@ -237,7 +240,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
       else: assert(text == "Array JSHandle@object JSHandle@object")
   end
 
-  test "should use object previews for errors", %{page: page, browser_name: browser_name} do
+  test "CM-012 should use object previews for errors", %{page: page, browser_name: browser_name} do
     test = self()
     Page.on(page, :console, fn message -> send(test, {:event, ConsoleMessage.text(message)}) end)
     Page.evaluate!(page, "() => console.log(new Error('Exception'))")
@@ -250,7 +253,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     end
   end
 
-  test "do not update console count on unhandled rejections", %{page: page} do
+  test "CM-013 do not update console count on unhandled rejections", %{page: page} do
     {:ok, messages} = Agent.start_link(fn -> [] end)
     console_event_listener = fn m -> Agent.update(messages, &(&1 ++ [ConsoleMessage.text(m)])) end
     Page.add_listener(page, :console, console_event_listener)
@@ -270,7 +273,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     Utils.poll(fn -> Agent.get(messages, & &1) end, &assert(&1 == ["begin", "end"]))
   end
 
-  test "should have timestamp", %{page: page} do
+  test "CM-014 should have timestamp", %{page: page} do
     # Generous slack to absorb host wall-clock resolution (e.g. ~15.6ms on Windows)
     # vs sub-millisecond browser timestamps.
     before = System.system_time(:millisecond) - 100
@@ -283,7 +286,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert ConsoleMessage.timestamp(message) <= after_
   end
 
-  test "should have increasing timestamps", %{page: page} do
+  test "CM-015 should have increasing timestamps", %{page: page} do
     test = self()
     Page.on(page, :console, fn msg -> send(test, {:event, msg}) end)
 
@@ -302,7 +305,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
         do: assert(ConsoleMessage.timestamp(message) >= ConsoleMessage.timestamp(previous))
   end
 
-  test "should have timestamp in consoleMessages", %{page: page} do
+  test "CM-016 should have timestamp in consoleMessages", %{page: page} do
     # Generous slack to absorb host wall-clock resolution (e.g. ~15.6ms on Windows)
     # vs sub-millisecond browser timestamps.
     before = System.system_time(:millisecond) - 100
@@ -316,7 +319,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert ConsoleMessage.timestamp(last) <= after_
   end
 
-  test "consoleMessages should work", %{page: page} do
+  test "CM-017 consoleMessages should work", %{page: page} do
     Page.evaluate!(page, """
     () => {
       for (let i = 0; i < 301; i++)
@@ -338,7 +341,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert Enum.take(objects, -length(expected)) == expected, "should return last messages"
   end
 
-  test "clearConsoleMessages should work", %{page: page} do
+  test "CM-018 clearConsoleMessages should work", %{page: page} do
     Page.evaluate!(page, """
     () => {
       console.log('message1');
@@ -361,7 +364,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert ConsoleMessage.text(Enum.at(messages, 0)) == "message3"
   end
 
-  test "consoleMessages since-navigation filter should work", %{page: page, server: server} do
+  test "CM-019 consoleMessages since-navigation filter should work", %{page: page, server: server} do
     Page.evaluate!(page, "() => console.log('before navigation')")
     Page.goto!(page, server.empty_page)
     Page.evaluate!(page, "() => console.log('after navigation')")
@@ -376,7 +379,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     assert "after navigation" in Enum.map(since_nav, &ConsoleMessage.text/1)
   end
 
-  test "pageErrors since-navigation filter should work", %{page: page, server: server} do
+  test "CM-020 pageErrors since-navigation filter should work", %{page: page, server: server} do
     TestServer.set_content(server, "/page1", "<script>throw new Error('page1 error');</script>", "text/html")
     TestServer.set_content(server, "/page2", "<script>throw new Error('page2 error');</script>", "text/html")
 

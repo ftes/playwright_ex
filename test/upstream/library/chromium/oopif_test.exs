@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   import PlaywrightEx.UpstreamSnapshot
-  import PlaywrightEx.Utils, only: [attach_frame: 3, poll: 2]
+  import PlaywrightEx.Utils, only: [attach_frame: 3, poll: 2, rafraf: 1]
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should report oopif frames", %{page: page, browser: browser, server: server} do
+  test "OO-001 should report oopif frames", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
     assert length(Page.frames(page)) == 2
@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should handle oopif detach", %{page: page, browser: browser, server: server} do
+  test "OO-002 should handle oopif detach", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
     assert length(Page.frames(page)) == 2
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should remove workers of a detached oopif", %{page: page, browser: browser, server: server} do
+  test "OO-003 should remove workers of a detached oopif", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.empty_page)
     worker_promise = Page.wait_for_event(page, :worker)
     attach_frame(page, "frame1", server.cross_process_prefix <> "/worker/worker.html")
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42278' }
   @tag :page
-  test "should not hang in unrouteAll when oopif worker is gone", %{
+  test "OO-004 should not hang in unrouteAll when oopif worker is gone", %{
     page: page,
     context: context,
     browser: browser,
@@ -90,7 +90,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should handle remote -> local -> remote transitions", %{page: page, browser: browser, server: server} do
+  test "OO-005 should handle remote -> local -> remote transitions", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   @tag :page
   @tag skip: "upstream fixme: it.fixme (no reason given)"
-  test "should get the proper viewport", %{page: page, browser: browser, server: server} do
+  test "OO-006 should get the proper viewport", %{page: page, browser: browser, server: server} do
     assert Page.viewport_size(page) == %{width: 1280, height: 720}
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should expose function", %{page: page, browser: browser, server: server} do
+  test "OO-007 should expose function", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
@@ -153,7 +153,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should emulate media", %{page: page, browser: browser, server: server} do
+  test "OO-008 should emulate media", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
@@ -164,7 +164,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should emulate offline", %{page: page, browser: browser, server: server} do
+  test "OO-009 should emulate offline", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
@@ -174,7 +174,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     assert Frame.evaluate!(oopif, "() => navigator.onLine") == false
   end
 
-  test "should support context options", %{browser: browser, server: server, playwright: playwright} do
+  test "OO-010 should support context options", %{browser: browser, server: server, playwright: playwright} do
     i_phone = Playwright.devices(playwright)["iPhone 6"]
 
     context =
@@ -205,7 +205,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should respect route", %{page: page, browser: browser, server: server} do
+  test "OO-011 should respect route", %{page: page, browser: browser, server: server} do
     test_pid = self()
 
     Page.route!(page, "**/digits/0.png", fn route ->
@@ -221,28 +221,26 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   @tag :page
   # A test's `skip: nil` would override the `@moduletag skip:`.
-  @tag skip:
-         @chromium_only ||
-           if(match?({:unix, :darwin}, :os.type()),
-             do: "env: golden rendered on Linux; on macOS the OOPIF screenshot is blank (upstream's JS client too)"
-           )
-  test "should take screenshot", %{page: page, browser: browser, server: server} do
+  @tag skip: @chromium_only
+  test "OO-012 should take screenshot", %{page: page, browser: browser, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43584' });
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
+    rafraf(Enum.at(Page.frames(page), 1))
     to_match_snapshot(Page.screenshot!(page), "screenshot-oopif.png")
   end
 
   @tag :page
-  test "should load oopif iframes with subresources and route", %{page: page, browser: browser, server: server} do
+  test "OO-013 should load oopif iframes with subresources and route", %{page: page, browser: browser, server: server} do
     Page.route!(page, "**/*", &Route.continue/1)
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
   end
 
   @tag :page
-  test "should report main requests", %{page: page, browser: browser, server: server} do
+  test "OO-014 should report main requests", %{page: page, browser: browser, server: server} do
     test_pid = self()
     Page.on(page, :request, fn r -> send(test_pid, {:request_frame, Request.frame(r)}) end)
     Page.on(page, :request_finished, fn r -> send(test_pid, {:finished_frame, Request.frame(r)}) end)
@@ -296,7 +294,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should support exposeFunction", %{page: page, browser: browser, server: server} do
+  test "OO-015 should support exposeFunction", %{page: page, browser: browser, server: server} do
     BrowserContext.expose_function!(Page.context(page), "dec", fn a -> a - 1 end)
     Page.expose_function!(page, "inc", fn a -> a + 1 end)
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
@@ -309,7 +307,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should support addInitScript", %{page: page, browser: browser, server: server} do
+  test "OO-016 should support addInitScript", %{page: page, browser: browser, server: server} do
     BrowserContext.add_init_script!(Page.context(page), "window['bar'] = 17")
     Page.add_init_script!(page, "window['foo'] = 42")
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
@@ -323,7 +321,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   # @see https://github.com/microsoft/playwright/issues/1240
   @tag :page
-  test "should click a button when it overlays oopif", %{page: page, browser: browser, server: server} do
+  test "OO-017 should click a button when it overlays oopif", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/button-overlay-oopif.html")
     assert_oopif_count(browser, 1)
     Page.click!(page, "button")
@@ -334,7 +332,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     do: @tag(skip: "headed: no X server (upstream runs headed tests under xvfb)")
 
   @tag :headed
-  test "should report google.com frame with headed", %{browser_type: browser_type, server: server} do
+  test "OO-018 should report google.com frame with headed", %{browser_type: browser_type, server: server} do
     # it.skip(channel === 'chromium-headless-shell', 'Headless Shell does not support headed mode')  -- we run no channel
     # @see https://github.com/GoogleChrome/puppeteer/issues/2548
     # https://google.com is isolated by default in Chromium embedder.
@@ -360,7 +358,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "ElementHandle.boundingBox() should work", %{page: page, browser: browser, server: server} do
+  test "OO-019 ElementHandle.boundingBox() should work", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
 
     Page.eval_on_selector!(page, "iframe", """
@@ -392,13 +390,8 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     end)
   end
 
-  # macOS headless Chromium drops the click right after the OOPIF's goto 2-5 times in 10, for the
-  # driver's JS client too: both send the same CDP sequence with the same ~57 ms goto-to-click gap,
-  # and a 50 ms sleep after the goto makes ours pass 20 in 20. In a full module run (random order,
-  # warm browser) it fails more often than alone.
-  @tag skip: if(match?({:unix, :darwin}, :os.type()), do: "env: macOS Chromium OOPIF click races the frame's goto")
   @tag :page
-  test "should click", %{page: page, browser: browser, server: server} do
+  test "OO-020 should click", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
 
     Page.eval_on_selector!(page, "iframe", """
@@ -425,7 +418,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "contentFrame should work", %{page: page, browser: browser, server: server} do
+  test "OO-021 contentFrame should work", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
@@ -439,7 +432,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should allow cdp sessions on oopifs", %{page: page, browser: browser, server: server} do
+  test "OO-022 should allow cdp sessions on oopifs", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
     assert length(Page.frames(page)) == 2
@@ -457,7 +450,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should emit filechooser event for iframe", %{page: page, server: server, browser: browser} do
+  test "OO-023 should emit filechooser event for iframe", %{page: page, server: server, browser: browser} do
     # Add listener before OOPIF is created.
     chooser_promise = Page.wait_for_event(page, :file_chooser)
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
@@ -472,7 +465,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/28023' }
   @tag :page
-  test "should be able to click in iframe", %{page: page, server: server, browser: browser} do
+  test "OO-024 should be able to click in iframe", %{page: page, server: server, browser: browser} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
     assert length(Page.frames(page)) == 2
@@ -485,7 +478,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should not throw on exposeFunction when oopif detaches", %{page: page, browser: browser, server: server} do
+  test "OO-025 should not throw on exposeFunction when oopif detaches", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
 
@@ -502,7 +495,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/20809' }
   @tag :page
-  test "should intercept response body from oopif", %{page: page, server: server} do
+  test "OO-026 should intercept response body from oopif", %{page: page, server: server} do
     response_promise = Page.wait_for_response(page, "**/grid.html")
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     response = Promise.await!(response_promise)
@@ -510,7 +503,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   @tag :page
-  test "should navigate a local frame to oopif with frame.goto", %{page: page, browser: browser, server: server} do
+  test "OO-027 should navigate a local frame to oopif with frame.goto", %{page: page, browser: browser, server: server} do
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
     assert_oopif_count(browser, 0)
     frame = Enum.at(Page.frames(page), 1)
@@ -531,7 +524,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/36095' }
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/17656' }
-  test "should allow to re-connect to OOPIFs with CDP when iframes were there already", %{
+  test "OO-028 should allow to re-connect to OOPIFs with CDP when iframes were there already", %{
     browser_type: browser_type,
     server: server
   } do
@@ -555,7 +548,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   end
 
   # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42955' }
-  test "should report the whole frame tree when connecting over CDP to nested OOPIFs", %{
+  test "OO-029 should report the whole frame tree when connecting over CDP to nested OOPIFs", %{
     browser_type: browser_type,
     server: server
   } do

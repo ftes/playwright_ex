@@ -14,13 +14,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   alias PlaywrightEx.Utils
   alias PlaywrightEx.VideoPlayer
 
-  @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()
-  @mac_webkit_frames_skip if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-                            do:
-                              "env: Mac WebKit (macOS 26) video frames leave the right/bottom of the viewport gray (upstream client too)"
-                          )
-
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
@@ -37,7 +31,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     {fn frame -> Agent.update(agent, &(&1 ++ [frame])) end, fn -> Agent.get(agent, & &1) end}
   end
 
-  test "screencast.start delivers frames via onFrame callback", %{browser: browser, server: server} do
+  test "SC-001 screencast.start delivers frames via onFrame callback", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 1000, height: 400})
     page = BrowserContext.new_page!(context)
 
@@ -63,7 +57,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  test "applies backpressure while async onFrame callback is pending", %{browser: browser, server: server} do
+  test "SC-002 applies backpressure while async onFrame callback is pending", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 500, height: 400})
     page = BrowserContext.new_page!(context)
 
@@ -121,11 +115,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  @tag skip:
-         if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
-           do: "env: Mac WebKit (macOS 26) reports a 901x361 viewport for 1000x400 (upstream client too)"
-         )
-  test "onFrame receives viewport size", %{browser: browser, server: server} do
+  test "SC-003 onFrame receives viewport size", %{browser: browser, server: server} do
     # test.skip(trace === 'on', ...): no trace; test.fixme(browserName === 'firefox' && isMac && !headless, ...): headless
     context = Browser.new_context!(browser, viewport: %{width: 1000, height: 400})
     page = BrowserContext.new_page!(context)
@@ -154,7 +144,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  test "start throws if screencast is already started", %{browser: browser} do
+  test "SC-004 start throws if screencast is already started", %{browser: browser} do
     context = Browser.new_context!(browser, viewport: %{width: 500, height: 400})
     page = BrowserContext.new_page!(context)
 
@@ -166,7 +156,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  test "start allows restart with different options after stop", %{browser: browser} do
+  test "SC-005 start allows restart with different options after stop", %{browser: browser} do
     context = Browser.new_context!(browser, viewport: %{width: 500, height: 400})
     page = BrowserContext.new_page!(context)
 
@@ -178,7 +168,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     BrowserContext.close!(context)
   end
 
-  test "start returns a disposable that stops screencast", %{browser: browser, server: server} do
+  test "SC-006 start returns a disposable that stops screencast", %{browser: browser, server: server} do
     context = Browser.new_context!(browser, viewport: %{width: 500, height: 400})
     page = BrowserContext.new_page!(context)
 
@@ -208,7 +198,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   # test.slow()
   @tag timeout: @slow_timeout
   @tag :tmp_dir
-  test "start/stop twice without path creates two files in artifactsDir", %{
+  test "SC-007 start/stop twice without path creates two files in artifactsDir", %{
     browser_type: browser_type,
     tmp_dir: tmp_dir
   } do
@@ -238,7 +228,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   # test.slow()
   @tag timeout: @slow_timeout
   @tag :tmp_dir
-  test "start should work when recordVideo is set", %{browser: browser, tmp_dir: tmp_dir} do
+  test "SC-008 start should work when recordVideo is set", %{browser: browser, tmp_dir: tmp_dir} do
     auto_dir = Path.join(tmp_dir, "auto")
     manual_dir = Path.join(tmp_dir, "manual")
     context = Browser.new_context!(browser, record_video: %{dir: auto_dir})
@@ -258,7 +248,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   @tag skip: @ffmpeg_skip
   @tag :tmp_dir
-  test "start should record video with the requested fps", %{browser: browser, tmp_dir: tmp_dir} do
+  test "SC-009 start should record video with the requested fps", %{browser: browser, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     video_path = Path.join(tmp_dir, "video.webm")
@@ -271,20 +261,20 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   @tag :page
   @tag :tmp_dir
-  test "start should throw on invalid fps", %{page: page, tmp_dir: tmp_dir} do
+  test "SC-010 start should throw on invalid fps", %{page: page, tmp_dir: tmp_dir} do
     {:error, error} = Screencast.start(Page.screencast(page), path: Path.join(tmp_dir, "video.webm"), fps: -1)
     assert error.message =~ ~s("fps" must be a positive number, got -1)
   end
 
   @tag :page
   @tag :tmp_dir
-  test "start should fail when another recording is in progress", %{page: page, tmp_dir: tmp_dir} do
+  test "SC-011 start should fail when another recording is in progress", %{page: page, tmp_dir: tmp_dir} do
     Screencast.start!(Page.screencast(page), path: Path.join(tmp_dir, "video.webm"))
     {:error, error} = Screencast.start(Page.screencast(page), path: Path.join(tmp_dir, "video2.webm"))
     assert error.message =~ "Screencast is already started"
   end
 
-  test "stop should not fail when no recording is in progress", %{browser: browser} do
+  test "SC-012 stop should not fail when no recording is in progress", %{browser: browser} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     # stop() is a no-op when screencast is not started.
@@ -293,7 +283,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   end
 
   @tag :tmp_dir
-  test "start should finish when page is closed", %{browser: browser, tmp_dir: tmp_dir} do
+  test "SC-013 start should finish when page is closed", %{browser: browser, tmp_dir: tmp_dir} do
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
     video_path = Path.join(tmp_dir, "video.webm")
@@ -308,7 +298,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   @tag skip: @ffmpeg_skip
   @tag :tmp_dir
-  test "empty video", %{browser: browser, tmp_dir: tmp_dir} do
+  test "SC-014 empty video", %{browser: browser, tmp_dir: tmp_dir} do
     size = %{width: 800, height: 800}
     context = Browser.new_context!(browser, viewport: size)
     page = BrowserContext.new_page!(context)
@@ -321,9 +311,9 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   # test.slow()
   @tag timeout: @slow_timeout
-  @tag skip: @ffmpeg_skip || @mac_webkit_frames_skip
+  @tag skip: @ffmpeg_skip
   @tag :tmp_dir
-  test "start dispose stops recording", %{browser: browser, tmp_dir: tmp_dir} do
+  test "SC-015 start dispose stops recording", %{browser: browser, tmp_dir: tmp_dir} do
     size = %{width: 800, height: 800}
     context = Browser.new_context!(browser, viewport: size)
     page = BrowserContext.new_page!(context)

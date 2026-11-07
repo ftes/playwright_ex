@@ -13,7 +13,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
 
   defp give_it_a_chance_to_resolve(page), do: rafraf(page, 5)
 
-  test "should wait for visible", %{page: page} do
+  test "EH-112 should wait for visible", %{page: page} do
     Page.set_content!(page, "<div style='display:none'>content</div>")
     div = Page.query_selector!(page, "div")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(div, :visible) end, shared: true)
@@ -23,20 +23,20 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for already visible", %{page: page} do
+  test "EH-113 should wait for already visible", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     div = Page.query_selector!(page, "div")
     ElementHandle.wait_for_element_state!(div, :visible)
   end
 
-  test "should timeout waiting for visible", %{page: page} do
+  test "EH-114 should timeout waiting for visible", %{page: page} do
     Page.set_content!(page, "<div style='display:none'>content</div>")
     div = Page.query_selector!(page, "div")
     {:error, error} = ElementHandle.wait_for_element_state(div, :visible, timeout: 1000)
     assert Exception.message(error) =~ "Timeout 1000ms exceeded"
   end
 
-  test "should throw waiting for visible when detached", %{page: page} do
+  test "EH-115 should throw waiting for visible when detached", %{page: page} do
     Page.set_content!(page, "<div style='display:none'>content</div>")
     div = Page.query_selector!(page, "div")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state(div, :visible) end)
@@ -45,7 +45,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
-  test "should wait for hidden", %{page: page} do
+  test "EH-116 should wait for hidden", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     div = Page.query_selector!(page, "div")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(div, :hidden) end, shared: true)
@@ -55,13 +55,13 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for already hidden", %{page: page} do
+  test "EH-117 should wait for already hidden", %{page: page} do
     Page.set_content!(page, "<div></div>")
     div = Page.query_selector!(page, "div")
     ElementHandle.wait_for_element_state!(div, :hidden)
   end
 
-  test "should wait for hidden when detached", %{page: page} do
+  test "EH-118 should wait for hidden when detached", %{page: page} do
     Page.set_content!(page, "<div>content</div>")
     div = Page.query_selector!(page, "div")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(div, :hidden) end, shared: true)
@@ -71,7 +71,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     Runtime.Promise.await(task)
   end
 
-  test "should throw waiting for enabled when detached", %{page: page} do
+  test "EH-119 should throw waiting for enabled when detached", %{page: page} do
     Page.set_content!(page, "<button disabled>Target</button>")
     button = Page.query_selector!(page, "button")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state(button, :enabled) end)
@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     assert Exception.message(error) =~ "Element is not attached to the DOM"
   end
 
-  test "should wait for aria enabled button", %{page: page} do
+  test "EH-120 should wait for aria enabled button", %{page: page} do
     Page.set_content!(page, "<button aria-disabled=true><span>Target</span></button>")
     span = Page.query_selector!(page, "text=Target")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
@@ -90,7 +90,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for button with an aria-disabled parent", %{page: page} do
+  test "EH-121 should wait for button with an aria-disabled parent", %{page: page} do
     Page.set_content!(page, ~s(<div role="group" aria-disabled=true><button><span>Target</span></button></div>))
     span = Page.query_selector!(page, "text=Target")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(span, :enabled) end, shared: true)
@@ -100,7 +100,8 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for stable position", %{page: page, server: server} do
+  test "EH-122 should wait for stable position", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43632' }
     Page.goto!(page, server.prefix <> "/input/button.html")
     button = Page.query_selector!(page, "button")
 
@@ -120,7 +121,7 @@ defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
     Runtime.Promise.await(task)
   end
 
-  test "should wait for editable input", %{page: page} do
+  test "EH-123 should wait for editable input", %{page: page} do
     Page.set_content!(page, "<input readonly>")
     input = Page.query_selector!(page, "input")
     task = Runtime.Promise.async(fn -> ElementHandle.wait_for_element_state!(input, :editable) end, shared: true)

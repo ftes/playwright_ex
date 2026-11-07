@@ -8,6 +8,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
+  alias PlaywrightEx.Worker
 
   @moduletag :page
 
@@ -26,7 +27,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
   # The `crash` fixture: page.goto('chrome://crash').catch(e => {})
   defp crash(page), do: Runtime.Promise.void(fn -> Page.goto(page, "chrome://crash") end)
 
-  test "should emit crash event when page crashes", %{page: page} do
+  test "ER-014 should emit crash event when page crashes", %{page: page} do
     Page.set_content!(page, "<div>This page should crash</div>")
     me = self()
     Page.on(page, :crash, &send(me, {:crash, &1}))
@@ -35,7 +36,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     assert crashed_page == page
   end
 
-  test "should throw on any action after page crashes", %{page: page, server: server, browser_name: browser_name} do
+  test "ER-015 should throw on any action after page crashes", %{page: page, server: server, browser_name: browser_name} do
     Page.set_content!(page, "<div>This page should crash</div>")
     crashed = Page.wait_for_event(page, :crash)
     crash(page)
@@ -55,13 +56,13 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     expect_crash_error.(Page.reload(page))
   end
 
-  test "expect should not hang when page crashed", %{page: page} do
+  test "ER-016 expect should not hang when page crashed", %{page: page} do
     expect_promise = Runtime.Promise.async(fn -> Expect.to_be_visible(Page.get_by_text(page, "child")) end)
     crash(page)
     assert {:error, _} = Runtime.Promise.await(expect_promise)
   end
 
-  test "should cancel waitForEvent when page crashes", %{page: page} do
+  test "ER-017 should cancel waitForEvent when page crashes", %{page: page} do
     Page.set_content!(page, "<div>This page should crash</div>")
     promise = Page.wait_for_event(page, :response)
     crash(page)
@@ -69,7 +70,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     assert Exception.message(error) =~ "Page crashed"
   end
 
-  test "should cancel navigation when page crashes", %{server: server, page: page} do
+  test "ER-018 should cancel navigation when page crashes", %{server: server, page: page} do
     Page.set_content!(page, "<div>This page should crash</div>")
     TestServer.set_route(server, "/one-style.css", fn _conn -> Process.sleep(:infinity) end)
     navigation = Page.wait_for_navigation(page, wait_until: :domcontentloaded)
@@ -80,7 +81,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     assert Exception.message(error) =~ "page.goto: Page crashed"
   end
 
-  test "should be able to close context when page crashes", %{page: page} do
+  test "ER-019 should be able to close context when page crashes", %{page: page} do
     # test.skip(isAndroid)  -- Android is not supported
     Page.set_content!(page, "<div>This page should crash</div>")
     crashed = Page.wait_for_event(page, :crash)
@@ -89,7 +90,7 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     BrowserContext.close!(Page.context(page))
   end
 
-  test "should be able to close page after crash", %{page: page} do
+  test "ER-020 should be able to close page after crash", %{page: page} do
     Page.set_content!(page, "<div>This page should crash</div>")
     crashed = Page.wait_for_event(page, :crash)
     crash(page)
@@ -103,6 +104,26 @@ defmodule PlaywrightEx.Library.PageEventCrashTest do
     assert BrowserContext.pages(Page.context(page)) == []
   end
 
-  @tag skip: "upstream fixme: test.fixme (no reason given)"
-  test "should reject in-flight worker.evaluate when page crashes"
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43204' }
+  test "ER-021 should reject in-flight worker.evaluate when page crashes", %{page: page, server: server} do
+    Page.goto!(page, server.empty_page)
+    worker_promise = Page.wait_for_event(page, :worker)
+
+    Page.evaluate!(page, """
+    () => new Worker(URL.createObjectURL(
+        new Blob(['self.onmessage = () => {}'], { type: 'application/javascript' })))
+    """)
+
+    worker = Promise.await!(worker_promise)
+    test = self()
+    Worker.once(worker, :close, fn _ -> send(test, :closed) end)
+    # never resolves in-worker
+    eval_promise = Runtime.Promise.async(fn -> Worker.evaluate(worker, "() => new Promise(() => {})") end)
+    crash(page)
+    {:error, error} = Runtime.Promise.await(eval_promise)
+    # Chromium may detach the worker before it reports the crash.
+    assert Exception.message(error) =~ ~r/Page crashed|Target page, context or browser has been closed/
+    assert_receive :closed
+    assert Page.workers(page) == []
+  end
 end

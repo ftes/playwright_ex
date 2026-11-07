@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Library.FaviconTest do
              do: "upstream skip: headed webkit does not have a favicon feature"
            )
   @tag :headed
-  test "should load svg favicon with prefer-color-scheme", %{page: page, server: server, asset: asset} do
+  test "FA-001 should load svg favicon with prefer-color-scheme", %{page: page, server: server, asset: asset} do
     # Browsers aggressively cache favicons, so force bust with the
     # `d` parameter to make iterating on this test more predictable and isolated.
     favicon = "/favicon.svg?d=#{System.system_time(:millisecond)}"

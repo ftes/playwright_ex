@@ -49,36 +49,36 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  test "should work @smoke", %{page: page, server: server} do
+  test "NA-001 should work @smoke", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert Page.url(page) == server.empty_page
   end
 
-  test "should work with file URL", %{page: page, asset: asset} do
+  test "NA-002 should work with file URL", %{page: page, asset: asset} do
     fileurl = path_to_file_url(asset.("empty.html"))
     Page.goto!(page, fileurl)
     assert String.downcase(Page.url(page)) == String.downcase(fileurl)
     assert length(Page.frames(page)) == 1
   end
 
-  test "should navigate from file URL to about:blank", %{page: page, asset: asset} do
+  test "NA-003 should navigate from file URL to about:blank", %{page: page, asset: asset} do
     Page.goto!(page, path_to_file_url(asset.("empty.html")))
     Page.goto!(page, "about:blank")
   end
 
-  test "should work with file URL with subframes", %{page: page, asset: asset} do
+  test "NA-004 should work with file URL with subframes", %{page: page, asset: asset} do
     fileurl = path_to_file_url(asset.("frames/two-frames.html"))
     Page.goto!(page, fileurl)
     assert String.downcase(Page.url(page)) == String.downcase(fileurl)
     assert length(Page.frames(page)) == 3
   end
 
-  test "should use http for no protocol", %{page: page, server: server} do
+  test "NA-005 should use http for no protocol", %{page: page, server: server} do
     Page.goto!(page, String.replace_prefix(server.empty_page, "http://", ""))
     assert Page.url(page) == server.empty_page
   end
 
-  test "should work cross-process", %{page: page, server: server} do
+  test "NA-006 should work cross-process", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert Page.url(page) == server.empty_page
 
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Response.url(response) == url
   end
 
-  test "should work with cross-process that fails before committing", %{page: page, server: server} do
+  test "NA-007 should work with cross-process that fails before committing", %{page: page, server: server} do
     # req.socket.destroy(): kill the connection's handler process.
     TestServer.set_route(server, "/empty.html", fn _conn -> Process.exit(self(), :kill) end)
     response1 = Page.goto!(page, server.cross_process_prefix <> "/title.html")
@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert is_exception(error)
   end
 
-  test "should work with Cross-Origin-Opener-Policy", %{page: page, server: server} do
+  test "NA-008 should work with Cross-Origin-Opener-Policy", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
                     do: [{"cross-origin-embedder-policy", cross_origin_embedder_policy}],
                     else: []
                   )
-    test "should work with Cross-Origin-Opener-Policy#{if cross_origin_embedder_policy, do: " and Cross-Origin-Embedder-Policy"} and history state",
+    test "NA-009 should work with Cross-Origin-Opener-Policy#{if cross_origin_embedder_policy, do: " and Cross-Origin-Embedder-Policy"} and history state",
          %{page: page, server: server} do
       TestServer.set_route(server, "/empty.html", fn conn ->
         conn
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  test "should work with Cross-Origin-Opener-Policy and interception", %{page: page, server: server} do
+  test "NA-010 should work with Cross-Origin-Opener-Policy and interception", %{page: page, server: server} do
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn
       |> Plug.Conn.put_resp_header("cross-origin-opener-policy", "same-origin")
@@ -187,7 +187,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Request.failure(Response.request(response)) == nil
   end
 
-  test "should work with Cross-Origin-Opener-Policy after redirect", %{page: page, server: server} do
+  test "NA-011 should work with Cross-Origin-Opener-Policy after redirect", %{page: page, server: server} do
     TestServer.set_redirect(server, "/redirect", "/empty.html")
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -218,7 +218,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Request.url(first_request) == server.prefix <> "/redirect"
   end
 
-  test "should capture iframe navigation request", %{page: page, server: server} do
+  test "NA-012 should capture iframe navigation request", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert Page.url(page) == server.empty_page
 
@@ -237,7 +237,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert received() == [Enum.at(Page.frames(page), 1)]
   end
 
-  test "should capture cross-process iframe navigation request", %{page: page, server: server} do
+  test "NA-013 should capture cross-process iframe navigation request", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert Page.url(page) == server.empty_page
 
@@ -257,7 +257,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert received() == [Enum.at(Page.frames(page), 1)]
   end
 
-  test "should work with anchor navigation", %{page: page, server: server} do
+  test "NA-014 should work with anchor navigation", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     assert Page.url(page) == server.empty_page
     Page.goto!(page, server.empty_page <> "#foo")
@@ -266,7 +266,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.url(page) == server.empty_page <> "#bar"
   end
 
-  test "should work with redirects", %{page: page, server: server} do
+  test "NA-015 should work with redirects", %{page: page, server: server} do
     TestServer.set_redirect(server, "/redirect/1.html", "/redirect/2.html")
     TestServer.set_redirect(server, "/redirect/2.html", "/empty.html")
     response = Page.goto!(page, server.prefix <> "/redirect/1.html")
@@ -274,22 +274,22 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.url(page) == server.empty_page
   end
 
-  test "should navigate to about:blank", %{page: page} do
+  test "NA-016 should navigate to about:blank", %{page: page} do
     response = Page.goto!(page, "about:blank")
     assert response == nil
   end
 
-  test "should return response when page changes its URL after load", %{page: page, server: server} do
+  test "NA-017 should return response when page changes its URL after load", %{page: page, server: server} do
     response = Page.goto!(page, server.prefix <> "/historyapi.html")
     assert Response.status(response) == 200
   end
 
-  test "should work with subframes return 204", %{page: page, server: server} do
+  test "NA-018 should work with subframes return 204", %{page: page, server: server} do
     TestServer.set_route(server, "/frames/frame.html", fn conn -> Plug.Conn.send_resp(conn, 204, "") end)
     Page.goto!(page, server.prefix <> "/frames/one-frame.html")
   end
 
-  test "should work with subframes return 204 with domcontentloaded", %{page: page, server: server} do
+  test "NA-019 should work with subframes return 204 with domcontentloaded", %{page: page, server: server} do
     TestServer.set_route(server, "/frames/frame.html", fn conn -> Plug.Conn.send_resp(conn, 204, "") end)
     Page.goto!(page, server.prefix <> "/frames/one-frame.html", wait_until: :domcontentloaded)
   end
@@ -298,7 +298,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
          if(@browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
            do: "upstream fixme: Regressed in https://github.com/microsoft/playwright-browsers/pull/1297"
          )
-  test "should fail when server returns 204", %{page: page, server: server, browser_name: browser_name} do
+  test "NA-020 should fail when server returns 204", %{page: page, server: server, browser_name: browser_name} do
     # WebKit just loads an empty page.
     TestServer.set_route(server, "/empty.html", fn conn -> Plug.Conn.send_resp(conn, 204, "") end)
     {:error, error} = Page.goto(page, server.empty_page)
@@ -310,12 +310,12 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  test "should navigate to empty page with domcontentloaded", %{page: page, server: server} do
+  test "NA-021 should navigate to empty page with domcontentloaded", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page, wait_until: :domcontentloaded)
     assert Response.status(response) == 200
   end
 
-  test "should work when page calls history API in beforeunload", %{page: page, server: server} do
+  test "NA-022 should work when page calls history API in beforeunload", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
 
     Page.evaluate!(page, """
@@ -328,7 +328,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Response.status(response) == 200
   end
 
-  test "should fail when navigating to bad url", %{page: page, browser_name: browser_name} do
+  test "NA-023 should fail when navigating to bad url", %{page: page, browser_name: browser_name} do
     {:error, error} = Page.goto(page, "asdfasdf")
 
     if browser_name in ["chromium", "webkit"],
@@ -336,7 +336,11 @@ defmodule PlaywrightEx.Page.PageGotoTest do
       else: assert(Exception.message(error) =~ "Invalid url")
   end
 
-  test "should fail when navigating to bad SSL", %{page: page, browser_name: browser_name, https_server: https_server} do
+  test "NA-024 should fail when navigating to bad SSL", %{
+    page: page,
+    browser_name: browser_name,
+    https_server: https_server
+  } do
     # Make sure that network events do not emit 'undefined'.
     # @see https://crbug.com/750469
     test = self()
@@ -348,7 +352,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Exception.message(error) =~ Utils.expected_ssl_error(browser_name)
   end
 
-  test "should fail when navigating to bad SSL after redirects",
+  test "NA-025 should fail when navigating to bad SSL after redirects",
        %{page: page, browser_name: browser_name, server: server, https_server: https_server} do
     TestServer.set_redirect(server, "/redirect/1.html", "/redirect/2.html")
     TestServer.set_redirect(server, "/redirect/2.html", "/empty.html")
@@ -356,24 +360,24 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Exception.message(error) =~ Utils.expected_ssl_error(browser_name)
   end
 
-  test "should not crash when navigating to bad SSL after a cross origin navigation",
+  test "NA-026 should not crash when navigating to bad SSL after a cross origin navigation",
        %{page: page, server: server, https_server: https_server} do
     Page.goto!(page, server.cross_process_prefix <> "/empty.html")
     Page.goto(page, https_server.empty_page)
   end
 
-  test "should not throw if networkidle0 is passed as an option", %{page: page, server: server} do
+  test "NA-027 should not throw if networkidle0 is passed as an option", %{page: page, server: server} do
     # networkidle0 is undocumented: passed as the wire string.
     Page.goto!(page, server.empty_page, wait_until: "networkidle0")
   end
 
-  test "should throw if networkidle2 is passed as an option", %{page: page, server: server} do
+  test "NA-028 should throw if networkidle2 is passed as an option", %{page: page, server: server} do
     # networkidle2 is not allowed: passed as the wire string.
     {:error, error} = Page.goto(page, server.empty_page, wait_until: "networkidle2")
     assert Exception.message(error) =~ "waitUntil: expected one of (load|domcontentloaded|networkidle|commit)"
   end
 
-  test "should fail when main resources failed to load", %{page: page, browser_name: browser_name} do
+  test "NA-029 should fail when main resources failed to load", %{page: page, browser_name: browser_name} do
     {:error, error} = Page.goto(page, "http://localhost:44123/non-existing-url")
 
     case browser_name do
@@ -383,7 +387,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  test "should fail when exceeding maximum navigation timeout", %{page: page, server: server} do
+  test "NA-030 should fail when exceeding maximum navigation timeout", %{page: page, server: server} do
     # Hang for request to the empty.html
     TestServer.set_route(server, "/empty.html", &hang/1)
     {:error, error} = Page.goto(page, server.prefix <> "/empty.html", timeout: 1)
@@ -392,7 +396,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert %TimeoutError{} = error
   end
 
-  test "should fail when exceeding default maximum navigation timeout", %{page: page, server: server} do
+  test "NA-031 should fail when exceeding default maximum navigation timeout", %{page: page, server: server} do
     # Hang for request to the empty.html
     TestServer.set_route(server, "/empty.html", &hang/1)
     BrowserContext.set_default_navigation_timeout(Page.context(page), 2)
@@ -403,7 +407,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert %TimeoutError{} = error
   end
 
-  test "should fail when exceeding browser context navigation timeout", %{page: page, server: server} do
+  test "NA-032 should fail when exceeding browser context navigation timeout", %{page: page, server: server} do
     # Hang for request to the empty.html
     TestServer.set_route(server, "/empty.html", &hang/1)
     BrowserContext.set_default_navigation_timeout(Page.context(page), 2)
@@ -413,7 +417,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert %TimeoutError{} = error
   end
 
-  test "should fail when exceeding default maximum timeout", %{page: page, server: server} do
+  test "NA-033 should fail when exceeding default maximum timeout", %{page: page, server: server} do
     # Hang for request to the empty.html
     TestServer.set_route(server, "/empty.html", &hang/1)
     # Undo what harness did.
@@ -426,7 +430,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert %TimeoutError{} = error
   end
 
-  test "should fail when exceeding browser context timeout", %{page: page, server: server} do
+  test "NA-034 should fail when exceeding browser context timeout", %{page: page, server: server} do
     # Hang for request to the empty.html
     TestServer.set_route(server, "/empty.html", &hang/1)
     # Undo what harness did.
@@ -438,7 +442,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert %TimeoutError{} = error
   end
 
-  test "should prioritize default navigation timeout over default timeout", %{page: page, server: server} do
+  test "NA-035 should prioritize default navigation timeout over default timeout", %{page: page, server: server} do
     # Hang for request to the empty.html
     TestServer.set_route(server, "/empty.html", &hang/1)
     Page.set_default_timeout(page, 0)
@@ -449,14 +453,18 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert %TimeoutError{} = error
   end
 
-  test "should disable timeout when its set to 0", %{page: page, server: server} do
+  test "NA-036 should disable timeout when its set to 0", %{page: page, server: server} do
     test = self()
     Page.once(page, :load, fn _ -> send(test, :loaded) end)
     assert {:ok, _} = Page.goto(page, server.prefix <> "/grid.html", timeout: 0, wait_until: :load)
     assert_received :loaded
   end
 
-  test "should fail when replaced by another navigation", %{page: page, server: server, browser_name: browser_name} do
+  test "NA-037 should fail when replaced by another navigation", %{
+    page: page,
+    server: server,
+    browser_name: browser_name
+  } do
     test = self()
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -488,7 +496,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  test "js redirect overrides url bar navigation ", %{page: page, server: server, browser_name: browser_name} do
+  test "NA-038 js redirect overrides url bar navigation ", %{page: page, server: server, browser_name: browser_name} do
     # it.skip(trace === 'on', ...);  -- tracing is off
     TestServer.set_route(server, "/a", fn conn ->
       conn
@@ -541,7 +549,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end
   end
 
-  test "should succeed on url bar navigation when there is pending navigation", %{page: page, server: server} do
+  test "NA-039 should succeed on url bar navigation when there is pending navigation", %{page: page, server: server} do
     # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     TestServer.set_route(server, "/a", fn conn ->
       conn
@@ -576,23 +584,23 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.url(page) == server.prefix <> "/b"
   end
 
-  test "should work when navigating to valid url", %{page: page, server: server} do
+  test "NA-040 should work when navigating to valid url", %{page: page, server: server} do
     response = Page.goto!(page, server.empty_page)
     assert Response.ok(response) == true
   end
 
-  test "should work when navigating to data url", %{page: page} do
+  test "NA-041 should work when navigating to data url", %{page: page} do
     response = Page.goto!(page, "data:text/html,hello")
     assert response == nil
   end
 
-  test "should work when navigating to 404", %{page: page, server: server} do
+  test "NA-042 should work when navigating to 404", %{page: page, server: server} do
     response = Page.goto!(page, server.prefix <> "/not-found")
     assert Response.ok(response) == false
     assert Response.status(response) == 404
   end
 
-  test "should return last response in redirect chain", %{page: page, server: server} do
+  test "NA-043 should return last response in redirect chain", %{page: page, server: server} do
     TestServer.set_redirect(server, "/redirect/1.html", "/redirect/2.html")
     TestServer.set_redirect(server, "/redirect/2.html", "/redirect/3.html")
     TestServer.set_redirect(server, "/redirect/3.html", server.empty_page)
@@ -603,21 +611,21 @@ defmodule PlaywrightEx.Page.PageGotoTest do
 
   # process.on('warning'): the client's MaxListenersExceededWarning is logged (Logger); the
   # driver's own Node warnings (upstream: the in-process server's) go to its stderr, unchecked.
-  test "should not leak listeners during navigation", %{page: page, server: server} do
+  test "NA-044 should not leak listeners during navigation", %{page: page, server: server} do
     warning = capture_log(fn -> for _ <- 1..20, do: Page.goto!(page, server.empty_page) end)
     refute warning =~ "MaxListenersExceededWarning"
   end
 
   # process.on('warning'): the client's MaxListenersExceededWarning is logged (Logger); the
   # driver's own Node warnings (upstream: the in-process server's) go to its stderr, unchecked.
-  test "should not leak listeners during bad navigation", %{page: page} do
+  test "NA-045 should not leak listeners during bad navigation", %{page: page} do
     warning = capture_log(fn -> for _ <- 1..20, do: {:error, _} = Page.goto(page, "asdf") end)
     refute warning =~ "MaxListenersExceededWarning"
   end
 
   # process.on('warning'): the client's MaxListenersExceededWarning is logged (Logger); the
   # driver's own Node warnings (upstream: the in-process server's) go to its stderr, unchecked.
-  test "should not leak listeners during 20 waitForNavigation", %{page: page, server: server} do
+  test "NA-046 should not leak listeners during 20 waitForNavigation", %{page: page, server: server} do
     warning =
       capture_log(fn ->
         promises = for _ <- 1..20, do: Page.wait_for_navigation(page)
@@ -628,7 +636,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     refute warning =~ "MaxListenersExceededWarning"
   end
 
-  test "should navigate to dataURL and not fire dataURL requests", %{page: page} do
+  test "NA-047 should navigate to dataURL and not fire dataURL requests", %{page: page} do
     test = self()
     Page.on(page, :request, fn request -> send(test, {:event, request}) end)
     data_url = "data:text/html,<div>yo</div>"
@@ -637,7 +645,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert received() == []
   end
 
-  test "should navigate to URL with hash and fire requests without hash", %{page: page, server: server} do
+  test "NA-048 should navigate to URL with hash and fire requests without hash", %{page: page, server: server} do
     test = self()
     Page.on(page, :request, fn request -> send(test, {:event, request}) end)
     response = Page.goto!(page, server.empty_page <> "#hash")
@@ -648,25 +656,57 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Request.url(hd(requests)) == server.empty_page
   end
 
-  test "should work with self requesting page", %{page: page, server: server} do
+  test "NA-049 should work with self requesting page", %{page: page, server: server} do
     response = Page.goto!(page, server.prefix <> "/self-request.html")
     assert Response.status(response) == 200
     assert Response.url(response) =~ "self-request.html"
   end
 
-  test "should fail when navigating and show the url at the error message", %{page: page, https_server: https_server} do
+  test "NA-050 should fail when navigating and show the url at the error message", %{
+    page: page,
+    https_server: https_server
+  } do
     url = https_server.prefix <> "/redirect/1.html"
     {:error, error} = Page.goto(page, url)
     assert Exception.message(error) =~ url
   end
 
-  test "should be able to navigate to a page controlled by service worker", %{page: page, server: server} do
+  # `async function transaction(value)`, passed to page.evaluate.
+  @transaction """
+  async function transaction(value) {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('roundtrip', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('items');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('items', 'readwrite');
+      const request = tx.objectStore('items').get('name');
+      request.onsuccess = () => {
+        if (value)
+          tx.objectStore('items').put(value, 'name');
+      };
+      tx.oncomplete = () => resolve(request.result);
+      tx.onerror = tx.onabort = () => reject(tx.error);
+    });
+  }
+  """
+
+  test "NA-051 should be able to navigate to a page controlled by service worker", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42694' }
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
     Page.evaluate!(page, "() => window['activationPromise']")
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
+    Page.wait_for_function!(page, "() => !!navigator.serviceWorker.controller")
+    Page.evaluate!(page, @transaction, "value")
+    Page.goto!(page, server.cross_process_prefix <> "/empty.html")
+    Page.go_back!(page)
+    Page.wait_for_function!(page, "() => !!navigator.serviceWorker.controller")
+    assert Page.evaluate!(page, @transaction, :null) == "value"
   end
 
-  test "should send referer", %{page: page, server: server} do
+  test "NA-052 should send referer", %{page: page, server: server} do
     request1 = TestServer.wait_for_request(server, "/grid.html")
     request2 = TestServer.wait_for_request(server, "/digits/1.png")
     Page.goto!(page, server.prefix <> "/grid.html", referer: "http://google.com/")
@@ -676,7 +716,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.url(page) == server.prefix <> "/grid.html"
   end
 
-  test "should send referer of cross-origin URL", %{page: page, server: server} do
+  test "NA-053 should send referer of cross-origin URL", %{page: page, server: server} do
     request1 = TestServer.wait_for_request(server, "/grid.html")
     request2 = TestServer.wait_for_request(server, "/digits/1.png")
     Page.goto!(page, server.prefix <> "/grid.html", referer: "https://microsoft.com/xbox/")
@@ -686,14 +726,14 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.url(page) == server.prefix <> "/grid.html"
   end
 
-  test "should reject referer option when setExtraHTTPHeaders provides referer", %{page: page, server: server} do
+  test "NA-054 should reject referer option when setExtraHTTPHeaders provides referer", %{page: page, server: server} do
     Page.set_extra_http_headers!(page, %{"referer" => "http://microsoft.com/"})
     {:error, error} = Page.goto(page, server.prefix <> "/grid.html", referer: "http://google.com/")
     assert Exception.message(error) =~ ~s("referer" is already specified as extra HTTP header)
     assert Exception.message(error) =~ server.prefix <> "/grid.html"
   end
 
-  test "should override referrer-policy", %{page: page, server: server} do
+  test "NA-055 should override referrer-policy", %{page: page, server: server} do
     TestServer.set_route(server, "/grid.html", fn conn ->
       conn |> Plug.Conn.put_resp_header("referrer-policy", "no-referrer") |> then(&TestServer.serve_file(server, &1))
     end)
@@ -707,7 +747,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.url(page) == server.prefix <> "/grid.html"
   end
 
-  test "should fail when canceled by another navigation", %{page: page, server: server} do
+  test "NA-056 should fail when canceled by another navigation", %{page: page, server: server} do
     TestServer.set_route(server, "/one-style.html", &hang/1)
     request = TestServer.wait_for_request(server, "/one-style.html")
     failed = Runtime.Promise.async(fn -> Page.goto(page, server.prefix <> "/one-style.html") end)
@@ -717,12 +757,12 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Exception.message(error) != ""
   end
 
-  test "should work with lazy loading iframes", %{page: page, server: server} do
+  test "NA-057 should work with lazy loading iframes", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/lazy-frame.html")
     assert length(Page.frames(page)) == 2
   end
 
-  test "should report raw buffer for main resource", %{page: page, server: server, browser_name: browser_name} do
+  test "NA-058 should report raw buffer for main resource", %{page: page, server: server, browser_name: browser_name} do
     # it.fail(browserName === 'chromium', 'Chromium sends main resource as text')
     # it.fail(browserName === 'webkit' && platform === 'win32' && channel !== 'webkit-wsl', 'Same here')
     expected_failure(browser_name == "chromium" or (browser_name == "webkit" and match?({:win32, _}, :os.type())), fn ->
@@ -733,12 +773,12 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     end)
   end
 
-  test "should not throw unhandled rejections on invalid url", %{page: page} do
+  test "NA-059 should not throw unhandled rejections on invalid url", %{page: page} do
     {:error, e} = Page.goto(page, "https://www.youtube Panel Title.com/")
     assert Exception.message(e) =~ "Panel Title"
   end
 
-  test "should not crash when RTCPeerConnection is used", %{page: page, server: server} do
+  test "NA-060 should not crash when RTCPeerConnection is used", %{page: page, server: server} do
     TestServer.set_route(server, "/rtc.html", fn conn ->
       Plug.Conn.send_resp(conn, 200, """
       <!DOCTYPE html>
@@ -766,7 +806,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     """)
   end
 
-  test "should properly wait for load", %{page: page, server: server} do
+  test "NA-061 should properly wait for load", %{page: page, server: server} do
     TestServer.set_route(server, "/slow.js", fn conn ->
       Process.sleep(100)
 
@@ -788,7 +828,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream fixme: load/domcontentloaded events are flaky")
-  test "should not resolve goto upon window.stop()", %{page: page, server: server} do
+  test "NA-062 should not resolve goto upon window.stop()", %{page: page, server: server} do
     # it.fixme(browserName === 'firefox' && !isBidi, 'load/domcontentloaded events are flaky');
     # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     test = self()
@@ -816,7 +856,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     refute done?.()
   end
 
-  test "should return from goto if new navigation is started", %{page: page, server: server} do
+  test "NA-063 should return from goto if new navigation is started", %{page: page, server: server} do
     TestServer.set_route(server, "/slow.js", &hang/1)
 
     navigation =
@@ -828,7 +868,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Response.status(Runtime.Promise.await(navigation)) == 200
   end
 
-  test "should return when navigation is committed if commit is specified", %{page: page, server: server} do
+  test "NA-064 should return when navigation is committed if commit is specified", %{page: page, server: server} do
     TestServer.set_route(server, "/script.js", &hang/1)
 
     TestServer.set_route(server, "/empty.html", fn conn ->
@@ -842,7 +882,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.title!(page) == "Hello"
   end
 
-  test "should wait for load when iframe attaches and detaches", %{page: page, server: server} do
+  test "NA-065 should wait for load when iframe attaches and detaches", %{page: page, server: server} do
     # it.skip(process.env.PW_CLOCK === 'frozen');  -- not ported: no frozen-clock mode
     TestServer.set_route(server, "/empty.html", fn conn ->
       conn
@@ -876,7 +916,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Page.query_selector!(page, "iframe") == nil
   end
 
-  test "should return url with basic auth info", %{page: page, server: server} do
+  test "NA-066 should return url with basic auth info", %{page: page, server: server} do
     url = "http://admin:admin@localhost:#{server.port}/empty.html"
     Page.goto!(page, url)
     assert Page.url(page) == url

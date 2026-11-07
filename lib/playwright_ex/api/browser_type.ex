@@ -170,6 +170,8 @@ defmodule PlaywrightEx.BrowserType do
 
   * `endpoint_url` - *Since Playwright 1.11.* A CDP websocket endpoint or http url to connect to. For example `http://localhost:9222/` or `ws://127.0.0.1:9222/devtools/browser/387adf4c-243f-4051-a181-46798f4a46f4`.
 
+    Alternatively, a browser channel name such as `chrome` or `msedge` to connect to a browser with remote debugging enabled in its default user data directory. On Linux, Playwright uses `CHROME_USER_DATA_DIR` when set. Otherwise, it uses `CHROME_CONFIG_HOME`, then `XDG_CONFIG_HOME`, then `~/.config` to locate that directory.
+
   ## Options
 
   * `:artifacts_dir` (`t:String.t/0`) - *Since Playwright 1.61.* If specified, browser artifacts (such as traces and downloads) are saved into this directory.
@@ -178,8 +180,8 @@ defmodule PlaywrightEx.BrowserType do
   * `:is_local` (`t:boolean/0`) - *Since Playwright 1.58.* Tells Playwright that it runs on the same host as the CDP server. It will enable certain optimizations that rely upon
     the file system being the same between Playwright and the Browser.
   * `:no_defaults` (`t:boolean/0`) - *Since Playwright 1.60.* When true, Playwright will not apply its default overrides to the existing default browser context.
-    Specifically, `:accept_downloads` is left at the browser's setting, focus
-    emulation is not enabled, and media emulation options (such as `:color_scheme`,
+    Specifically, `:accept_downloads` and font families are left at the browser's
+    settings, focus emulation is not enabled, and media emulation options (such as `:color_scheme`,
     `:reduced_motion`, `:forced_colors`, and
     `contrast`) are not applied. Useful when attaching to a user's daily-driver
     browser where these overrides would interfere with existing browser state. New contexts created via
@@ -986,7 +988,7 @@ defmodule PlaywrightEx.BrowserType do
       no_defaults: %{
         type_doc: "`t:boolean/0`",
         doc:
-          "When true, Playwright will not apply its default overrides to the existing default browser context. Specifically, `:accept_downloads` is left at the browser's setting, focus emulation is not enabled, and media emulation options (such as `:color_scheme`, `:reduced_motion`, `:forced_colors`, and `contrast`) are not applied. Useful when attaching to a user's daily-driver browser where these overrides would interfere with existing browser state. New contexts created via `PlaywrightEx.Browser.new_context/2` are not affected. Defaults to `false`.",
+          "When true, Playwright will not apply its default overrides to the existing default browser context. Specifically, `:accept_downloads` and font families are left at the browser's settings, focus emulation is not enabled, and media emulation options (such as `:color_scheme`, `:reduced_motion`, `:forced_colors`, and `contrast`) are not applied. Useful when attaching to a user's daily-driver browser where these overrides would interfere with existing browser state. New contexts created via `PlaywrightEx.Browser.new_context/2` are not affected. Defaults to `false`.",
         since: "1.60",
         spec: quote(do: boolean())
       },

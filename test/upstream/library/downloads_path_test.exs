@@ -26,7 +26,7 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
     end
 
     @tag :tmp_dir
-    test "should keep downloadsPath folder", %{browser_type: browser_type, server: server, tmp_dir: tmp_dir} do
+    test "DO-039 should keep downloadsPath folder", %{browser_type: browser_type, server: server, tmp_dir: tmp_dir} do
       downloads_browser = BrowserType.launch!(browser_type, downloads_path: tmp_dir)
       page = Browser.new_page!(downloads_browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
@@ -40,7 +40,11 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
     end
 
     @tag :tmp_dir
-    test "should delete downloads when context closes", %{browser_type: browser_type, server: server, tmp_dir: tmp_dir} do
+    test "DO-040 should delete downloads when context closes", %{
+      browser_type: browser_type,
+      server: server,
+      tmp_dir: tmp_dir
+    } do
       downloads_browser = BrowserType.launch!(browser_type, downloads_path: tmp_dir)
       page = Browser.new_page!(downloads_browser)
       Page.set_content!(page, ~s(<a href="#{server.prefix}/download">download</a>))
@@ -53,7 +57,7 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
     end
 
     @tag :tmp_dir
-    test "should report downloads in downloadsPath folder", %{
+    test "DO-041 should report downloads in downloadsPath folder", %{
       browser_type: browser_type,
       server: server,
       tmp_dir: tmp_dir
@@ -69,7 +73,7 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
     end
 
     @tag :tmp_dir
-    test "should report downloads in downloadsPath folder with a relative path", %{
+    test "DO-042 should report downloads in downloadsPath folder with a relative path", %{
       browser_type: browser_type,
       server: server,
       tmp_dir: tmp_dir
@@ -85,7 +89,7 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
     end
 
     @tag :tmp_dir
-    test "should accept downloads in persistent context", %{
+    test "DO-043 should accept downloads in persistent context", %{
       launch_persistent: launch_persistent,
       server: server,
       tmp_dir: tmp_dir
@@ -101,7 +105,7 @@ defmodule PlaywrightEx.Library.DownloadsPathTest do
     end
 
     @tag :tmp_dir
-    test "should delete downloads when persistent context closes", %{
+    test "DO-044 should delete downloads when persistent context closes", %{
       launch_persistent: launch_persistent,
       server: server,
       tmp_dir: tmp_dir

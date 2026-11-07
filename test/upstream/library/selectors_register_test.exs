@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
   })
   """
 
-  test "should work", %{playwright: playwright, browser: browser} do
+  test "SE-160 should work", %{playwright: playwright, browser: browser} do
     # Register one engine before creating context.
     Selectors.register!(Playwright.selectors(playwright), "tag", "(#{@create_tag_selector})()")
 
@@ -46,7 +46,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     BrowserContext.close!(context)
   end
 
-  test "should work when registered on global", %{playwright: playwright, browser: browser} do
+  test "SE-161 should work when registered on global", %{playwright: playwright, browser: browser} do
     # it.skip(mode === 'driver', ...)  -- always default mode
     # require('@playwright/test').selectors: the selectors of the Playwright instance that launched
     # the browser (in default mode). There are no global selectors here: that is `playwright`'s.
@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     BrowserContext.close!(context)
   end
 
-  test "should work with path", %{playwright: playwright, browser: browser, asset: asset} do
+  test "SE-162 should work with path", %{playwright: playwright, browser: browser, asset: asset} do
     Selectors.register!(Playwright.selectors(playwright), "foo", %{path: asset.("sectionselectorengine.js")})
     page = Browser.new_page!(browser)
     Page.set_content!(page, "<section></section>")
@@ -78,7 +78,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     Page.close!(page)
   end
 
-  test "should work in main and isolated world", %{playwright: playwright, browser: browser} do
+  test "SE-163 should work in main and isolated world", %{playwright: playwright, browser: browser} do
     create_dummy_selector = """
     (() => ({
       query(root, selector) {
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     Page.close!(page)
   end
 
-  test "should handle errors", %{playwright: playwright, browser: browser} do
+  test "SE-164 should handle errors", %{playwright: playwright, browser: browser} do
     page = Browser.new_page!(browser)
     {:error, error} = Page.query_selector(page, "neverregister=ignored")
 
@@ -149,7 +149,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     Page.close!(page)
   end
 
-  test "should throw \"already registered\" error when registering", %{playwright: playwright} do
+  test "SE-165 should throw \"already registered\" error when registering", %{playwright: playwright} do
     Selectors.register!(Playwright.selectors(playwright), "alreadyRegistered", "(#{@create_tag_selector})()")
 
     {:error, error} =
@@ -159,7 +159,7 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
              ~s(selectors.register: "alreadyRegistered" selector engine has been already registered)
   end
 
-  test "should not rely on engines working from the root", %{playwright: playwright, browser: browser} do
+  test "SE-166 should not rely on engines working from the root", %{playwright: playwright, browser: browser} do
     create_value_engine = """
     (() => ({
       query(root, selector) {
@@ -178,7 +178,10 @@ defmodule PlaywrightEx.Library.SelectorsRegisterTest do
     Page.close!(page)
   end
 
-  test "should throw a nice error if the selector returns a bad value", %{playwright: playwright, browser: browser} do
+  test "SE-167 should throw a nice error if the selector returns a bad value", %{
+    playwright: playwright,
+    browser: browser
+  } do
     create_fake_engine = """
     (() => ({
       query(root, selector) {
