@@ -37,7 +37,9 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  # dev/: maintainer tooling (generators, parity, checksums, `PlaywrightEx.Upstream`), not in the package.
+  defp elixirc_paths(:dev), do: ["lib", "dev"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "dev"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
@@ -175,17 +177,20 @@ defmodule PlaywrightEx.MixProject do
     ]
   end
 
-  # Internals and contributor tasks: in the source with their moduledocs, not in hexdocs.
+  # Internals and the maintainer tooling (dev/, compiled in :dev and :test only): in the source
+  # with their moduledocs, not in hexdocs. All of dev/, at any depth, by the path relative to
+  # this project, so a parent directory named dev (say ~/dev/playwright_ex) can't match; a _build
+  # compiled at another absolute path than `mix docs` runs from would show dev/. The lib/
+  # internals by the end of the source path, down to the file name, for the same reason.
   defp internal_source?(path) do
-    Enum.any?(
-      [
-        ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/",
-        ~r"/lib/playwright_ex/(out_of_process|upstream)\.ex$",
-        ~r"/lib/mix/playwright_ex/",
-        ~r"/lib/mix/tasks/playwright_ex\.(checksums|gen\.api|gen\.protocol|parity)\.ex$"
-      ],
-      &(path =~ &1)
-    )
+    String.starts_with?(Path.relative_to(path, __DIR__), "dev/") or
+      Enum.any?(
+        [
+          ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/[^/]+\.ex$",
+          ~r"/lib/playwright_ex/out_of_process\.ex$"
+        ],
+        &(path =~ &1)
+      )
   end
 
   defp aliases do
