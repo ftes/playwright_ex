@@ -433,4 +433,32 @@ defmodule PlaywrightEx.Page.PageSelectOptionTest do
     Expect.to_have_value!(Page.locator(page, "select"), "two")
     assert Page.evaluate!(page, "() => window['result']") == "two"
   end
+
+  test "SO-034 should wait for select to become non-inert", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42967' }
+    Page.set_content!(page, """
+    <div inert id=container>
+      <select>
+        <option>one</option>
+        <option>two</option>
+      </select>
+    </div>
+    """)
+
+    select_promise =
+      Runtime.Promise.async(fn -> Locator.select_option!(Page.locator(page, "select"), "two") end, shared: true)
+
+    give_it_a_chance_to_resolve(page)
+    refute Runtime.Promise.settled?(select_promise)
+    Expect.to_have_value!(Page.locator(page, "select"), "one")
+
+    Page.evaluate!(page, "() => document.getElementById('container').removeAttribute('inert')")
+    Runtime.Promise.await(select_promise)
+    Expect.to_have_value!(Page.locator(page, "select"), "two")
+
+    Page.evaluate!(page, "() => document.getElementById('container').setAttribute('inert', '')")
+    {:error, error} = Locator.select_option(Page.locator(page, "select"), "one", timeout: 1000)
+    assert Exception.message(error) =~ "Timeout 1000ms exceeded"
+    assert Exception.message(error) =~ "element is inert"
+  end
 end

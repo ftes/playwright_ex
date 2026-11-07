@@ -68,6 +68,22 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
   end
 
   @tag :tmp_dir
+  test "IF-003 should upload a folder via label", %{page: page, tmp_dir: tmp_dir} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43367' }
+    # test.skip(isAndroid);  -- not Android
+    # test.skip(isFrozenWebkit);  -- we run a current browser
+    Page.set_content!(page, ~s(<label for="folder">Folder</label><input id="folder" type="file" webkitdirectory>))
+    dir = Path.join(tmp_dir, "file-upload-test")
+    File.mkdir_p!(dir)
+    File.write!(Path.join(dir, "file1.txt"), "file1 content")
+    Locator.set_input_files!(Page.get_by_text(page, "Folder"), dir)
+
+    assert Locator.evaluate!(Page.locator(page, "input"), "e => [...e.files].map(f => f.webkitRelativePath)") == [
+             "file-upload-test/file1.txt"
+           ]
+  end
+
+  @tag :tmp_dir
   test "IF-004 should upload a folder and throw for multiple directories", %{
     page: page,
     server: server,
@@ -416,6 +432,42 @@ defmodule PlaywrightEx.Page.PageSetInputFilesTest do
       assert abs(timestamp - expected) <= 1000,
              "expected: #{inspect(expected_timestamps)}; actual: #{inspect(timestamps)}"
     end
+  end
+
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream fixme: WebKit does not support storing files in IndexedDB in private browsing."
+         )
+  test "IF-022 should store an uploaded file in IndexedDB", %{page: page, server: server, asset: asset} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42795' }
+    # annotation: { type: 'issue', description: 'https://bugs.webkit.org/show_bug.cgi?id=156347' }
+    Page.goto!(page, server.prefix <> "/input/fileupload.html")
+    input = Page.locator(page, "input[type=file]")
+    Locator.set_input_files!(input, asset.("file-to-upload.txt"))
+
+    stored_file =
+      Locator.evaluate!(input, """
+      async input => {
+        const db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open('file-upload');
+          request.onupgradeneeded = () => request.result.createObjectStore('files');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        const file = await new Promise((resolve, reject) => {
+          const transaction = db.transaction('files', 'readwrite');
+          const store = transaction.objectStore('files');
+          store.put(input.files[0], 'file');
+          const request = store.get('file');
+          transaction.oncomplete = () => resolve(request.result);
+          transaction.onabort = () => reject(transaction.error);
+        });
+        db.close();
+        return { name: file.name, text: await file.text() };
+      }
+      """)
+
+    assert stored_file == %{"name" => "file-to-upload.txt", "text" => "contents of the file"}
   end
 
   defp record_input_and_change_events do

@@ -114,6 +114,7 @@ defmodule PlaywrightEx.Page.RetargetTest do
     do: "<button #{options_to_attributes(options)}>Button #{dom}</button>"
 
   test "RE-007 enabled/disabled retargeting", %{page: page} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43634' }
     cases = [
       %{dom: dom_in_label("<input id=target>"), enabled: true, locator: "label"},
       %{dom: dom_label_for("<input id=target>"), enabled: true, locator: "label"},
@@ -140,6 +141,17 @@ defmodule PlaywrightEx.Page.RetargetTest do
         dom: dom_in_label("<li role=menuitem id=target aria-disabled=true></li>"),
         enabled: false,
         locator: "li"
+      },
+      %{
+        dom: dom_in_label("<select><option disabled>Other employees</option><option>Alex</option></select>"),
+        enabled: false,
+        locator: "option >> nth=0"
+      },
+      %{
+        dom:
+          dom_in_label(~s(<select><optgroup disabled label="Other employees"><option>Alex</option></optgroup></select>)),
+        enabled: false,
+        locator: "optgroup"
       }
     ]
 
