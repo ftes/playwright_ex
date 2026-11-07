@@ -249,13 +249,11 @@ defmodule PlaywrightEx.Client.APIRequestContext do
     fetch(this, url, Map.merge(options || %{}, %{method: "PUT"}))
   end
 
-  # @apiCall()
+  @api_call %{}
   def fetch(this, url_or_request, options \\ %{}) do
-    api_call().(this, fn ->
-      url = if is_binary(url_or_request), do: url_or_request
-      request = if !is_binary(url_or_request), do: url_or_request
-      _inner_fetch(this, Map.merge(%{url: url, request: request}, options || %{}))
-    end)
+    url = if is_binary(url_or_request), do: url_or_request
+    request = if !is_binary(url_or_request), do: url_or_request
+    _inner_fetch(this, Map.merge(%{url: url, request: request}, options || %{}))
   end
 
   def _inner_fetch(this, options \\ %{}) do
@@ -407,7 +405,9 @@ end
 defmodule PlaywrightEx.Client.APIResponse do
   @upstream "packages/playwright-core/src/client/fetch.ts"
   @moduledoc "Port of `APIResponse` in `#{@upstream}`: no mutable state, a plain struct."
-  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4, internal: 0]
+  use PlaywrightEx.Client.Decorators
+
+  import PlaywrightEx.Client.ChannelOwner, only: [channel_call: 4]
 
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Client.ClientHelper
@@ -484,28 +484,26 @@ defmodule PlaywrightEx.Client.APIResponse do
     |> Map.put(:responseEnd, this._initializer[:responseEndTiming] || -1)
   end
 
-  # @internal
+  @internal true
   def body(this) do
-    internal().(this, fn ->
-      try do
-        result =
-          channel_call(
-            this._request,
-            :fetchResponseBody,
-            %{fetchUid: _fetch_uid(this)},
-            TimeoutSettings.k_no_timeout()
-          )
+    try do
+      result =
+        channel_call(
+          this._request,
+          :fetchResponseBody,
+          %{fetchUid: _fetch_uid(this)},
+          TimeoutSettings.k_no_timeout()
+        )
 
-        if result[:binary] == nil, do: raise("Response has been disposed")
-        result.binary
-      rescue
-        e ->
-          if Errors.is_target_closed_error(e),
-            do: reraise(RuntimeError.exception("Response has been disposed"), __STACKTRACE__)
+      if result[:binary] == nil, do: raise("Response has been disposed")
+      result.binary
+    rescue
+      e ->
+        if Errors.is_target_closed_error(e),
+          do: reraise(RuntimeError.exception("Response has been disposed"), __STACKTRACE__)
 
-          reraise e, __STACKTRACE__
-      end
-    end)
+        reraise e, __STACKTRACE__
+    end
   end
 
   def text(this) do

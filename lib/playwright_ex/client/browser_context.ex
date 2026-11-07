@@ -434,41 +434,37 @@ defmodule PlaywrightEx.Client.BrowserContext do
     DisposableObject.from(result.disposable)
   end
 
-  # @apiCall({ title: 'Route requests' })
+  @api_call %{title: "Route requests"}
   def route(this, url, handler, options \\ %{}) do
     options = options || %{}
 
-    api_call(%{title: "Route requests"}).(this, fn ->
-      route_handler =
-        RouteHandler.new(
-          Connection.local_utils(get(this, :_connection)),
-          get(this, :_options)[:baseURL],
-          url,
-          handler,
-          options[:times],
-          this
-        )
+    route_handler =
+      RouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
+        get(this, :_options)[:baseURL],
+        url,
+        handler,
+        options[:times],
+        this
+      )
 
-      update(this, :_routes, &[route_handler | &1])
-      _update_interception_patterns(this)
-      DisposableStub.new(fn -> unroute(this, url, handler) end)
-    end)
+    update(this, :_routes, &[route_handler | &1])
+    _update_interception_patterns(this)
+    DisposableStub.new(fn -> unroute(this, url, handler) end)
   end
 
-  # @apiCall({ title: 'Route WebSockets' })
+  @api_call %{title: "Route WebSockets"}
   def route_web_socket(this, url, handler) do
-    api_call(%{title: "Route WebSockets"}).(this, fn ->
-      route_handler =
-        WebSocketRouteHandler.new(
-          Connection.local_utils(get(this, :_connection)),
-          get(this, :_options)[:baseURL],
-          url,
-          handler
-        )
+    route_handler =
+      WebSocketRouteHandler.new(
+        Connection.local_utils(get(this, :_connection)),
+        get(this, :_options)[:baseURL],
+        url,
+        handler
+      )
 
-      update(this, :_webSocketRoutes, &[route_handler | &1])
-      _update_web_socket_interception_patterns(this)
-    end)
+    update(this, :_webSocketRoutes, &[route_handler | &1])
+    _update_web_socket_interception_patterns(this)
   end
 
   def route_from_har(this, har, options \\ %{}) do
@@ -494,25 +490,21 @@ defmodule PlaywrightEx.Client.BrowserContext do
     update(this, :_harRouters, &(&1 -- routers))
   end
 
-  # @apiCall({ title: 'Unroute requests' })
+  @api_call %{title: "Unroute requests"}
   def unroute_all(this, options \\ nil) do
-    api_call(%{title: "Unroute requests"}).(this, fn ->
-      _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
-      _dispose_har_routers(this)
-      nil
-    end)
+    _unroute_internal(this, get(this, :_routes), [], (options || %{})[:behavior])
+    _dispose_har_routers(this)
+    nil
   end
 
-  # @apiCall({ title: 'Unroute requests' })
+  @api_call %{title: "Unroute requests"}
   def unroute(this, url, handler \\ nil) do
-    api_call(%{title: "Unroute requests"}).(this, fn ->
-      {removed, remaining} =
-        Enum.split_with(get(this, :_routes), fn route ->
-          UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
-        end)
+    {removed, remaining} =
+      Enum.split_with(get(this, :_routes), fn route ->
+        UrlMatch.url_matches_equal(get(route, :url), url) and (!handler or get(route, :handler) == handler)
+      end)
 
-      _unroute_internal(this, removed, remaining, "default")
-    end)
+    _unroute_internal(this, removed, remaining, "default")
   end
 
   defp _unroute_internal(this, removed, _remaining, behavior) do
@@ -534,9 +526,9 @@ defmodule PlaywrightEx.Client.BrowserContext do
     _update_interception_patterns(this)
   end
 
-  # @internal
+  @internal true
   defp _disable_interception(this) do
-    internal().(this, fn -> _update_interception_patterns(this) end)
+    _update_interception_patterns(this)
   end
 
   defp _update_interception_patterns(this) do
@@ -572,36 +564,34 @@ defmodule PlaywrightEx.Client.BrowserContext do
     get(this, :_closeReason) || (get(this, :_browser) && get(get(this, :_browser), :_closeReason))
   end
 
-  # @apiCall()
+  @api_call %{}
   def wait_for_event(this, event, options_or_predicate \\ %{}) do
     options_or_predicate = options_or_predicate || %{}
 
-    api_call().(this, fn ->
-      timeout_options =
-        TimeoutSettings.timeout(
-          get(this, :_timeoutSettings),
-          if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
-        )
-
-      predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
-      waiter = Waiter.create_for_event(this, event)
-
-      Waiter.reject_on_timeout(
-        waiter,
-        timeout_options,
-        ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+    timeout_options =
+      TimeoutSettings.timeout(
+        get(this, :_timeoutSettings),
+        if(is_function(options_or_predicate), do: %{}, else: options_or_predicate)
       )
 
-      if event != Events.BrowserContext.close(),
-        do:
-          Waiter.reject_on_event(waiter, this, Events.BrowserContext.close(), fn ->
-            TargetClosedError.new(_effective_close_reason(this))
-          end)
+    predicate = if is_function(options_or_predicate), do: options_or_predicate, else: options_or_predicate[:predicate]
+    waiter = Waiter.create_for_event(this, event)
 
-      result = Waiter.wait_for_event(waiter, this, event, predicate)
-      Waiter.dispose(waiter)
-      result
-    end)
+    Waiter.reject_on_timeout(
+      waiter,
+      timeout_options,
+      ~s(Timeout #{timeout_options.timeout}ms exceeded while waiting for event "#{event}")
+    )
+
+    if event != Events.BrowserContext.close(),
+      do:
+        Waiter.reject_on_event(waiter, this, Events.BrowserContext.close(), fn ->
+          TargetClosedError.new(_effective_close_reason(this))
+        end)
+
+    result = Waiter.wait_for_event(waiter, this, event, predicate)
+    Waiter.dispose(waiter)
+    result
   end
 
   def storage_state(this, options \\ %{}) do
