@@ -32,6 +32,7 @@ defmodule PlaywrightEx.Runtime.Conn do
   use GenServer
 
   alias PlaywrightEx.Client.Connection
+  alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Invocation
   alias PlaywrightEx.Runtime.Zones
@@ -484,8 +485,8 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   # A listener run here (`EventEmitter.on_sync/3`): synchronously.
-  defp run_step({:sync, fun, arg, emitter}, state) do
-    invoke(fun, arg, emitter)
+  defp run_step({:sync, fun, arg, emitter, type}, state) do
+    invoke(fun, arg, emitter, type)
     state
   end
 
@@ -503,7 +504,7 @@ defmodule PlaywrightEx.Runtime.Conn do
       spawn_monitor(fn ->
         Zones.restore(zone)
         PlaywrightEx.Runtime.Invocation.start(conn, inv, inv)
-        invoke(fun, arg, emitter)
+        invoke(fun, arg, emitter, type)
       end)
 
     state = %{
@@ -519,7 +520,7 @@ defmodule PlaywrightEx.Runtime.Conn do
   # busy with an earlier one (that yielded), the barrier does not wait: JS would interleave both.
   defp run_step({:user, pid, fun, arg, emitter, type, zone}, state) do
     inv = make_ref()
-    send(pid, {:pw_invoke, inv, fun, arg, emitter, zone})
+    send(pid, {:pw_invoke, inv, fun, arg, emitter, type, zone})
     was_busy = Map.get(state.busy, pid, []) != []
     if !Map.has_key?(state.busy, pid), do: Process.monitor(pid)
 
@@ -545,12 +546,15 @@ defmodule PlaywrightEx.Runtime.Conn do
   end
 
   @doc false
-  # Runs a listener; an exception goes to the emitter's rejection handler (`removeAllListeners`
-  # with a behavior), else it is logged (JS: an uncaught exception).
-  def invoke(fun, arg, emitter) do
+  # Runs a listener of `type` (`EventEmitter._callHandler`); an exception goes to the emitter's
+  # rejection handler (`removeAllListeners` with a behavior), else to its `error` listeners
+  # (`EventEmitter._handle_listener_error/5`); what that throws is logged (JS: an uncaught exception).
+  def invoke(fun, arg, emitter, type) do
     fun.(arg)
   catch
     kind, reason ->
+      stacktrace = __STACKTRACE__
+
       handler =
         try do
           Heap.get(emitter, :_rejectionHandler)
@@ -559,8 +563,14 @@ defmodule PlaywrightEx.Runtime.Conn do
         end
 
       if handler,
-        do: handler.(Exception.normalize(kind, reason, __STACKTRACE__)),
-        else: Logger.error("Uncaught in event listener: " <> Exception.format(kind, reason, __STACKTRACE__))
+        do: handler.(Exception.normalize(kind, reason, stacktrace)),
+        else: uncaught(fn -> EventEmitter._handle_listener_error(emitter, type, kind, reason, stacktrace) end)
+  end
+
+  defp uncaught(fun) do
+    fun.()
+  catch
+    kind, reason -> Logger.error("Uncaught in event listener: " <> Exception.format(kind, reason, __STACKTRACE__))
   end
 
   @doc false
@@ -575,10 +585,10 @@ defmodule PlaywrightEx.Runtime.Conn do
 
   defp subscription_loop(conn, mon) do
     receive do
-      {:pw_invoke, inv, fun, arg, emitter, zone} ->
+      {:pw_invoke, inv, fun, arg, emitter, type, zone} ->
         Zones.restore(zone)
         PlaywrightEx.Runtime.Invocation.start(conn, inv, inv)
-        invoke(fun, arg, emitter)
+        invoke(fun, arg, emitter, type)
         Process.delete(:pw_inv)
         Process.delete(:pw_barrier)
         send(conn, {:pw_done, inv, self()})

@@ -32,8 +32,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   Deviations: an async user listener queues later events of its subscription behind it; JS
   interleaves them. A listener that raises is caught alone: the later listeners still run, and
-  the error goes to `_rejectionHandler` or the log (JS: a synchronous throw leaves `emit`, only
-  async rejections reach `_rejectionHandler`). `removeAllListeners(type, %{behavior: "wait"})`
+  the error goes to `_rejectionHandler`, else to the `error` listeners, else the log (JS: a
+  synchronous throw skips `_rejectionHandler`, and without `error` listeners leaves `emit`). `removeAllListeners(type, %{behavior: "wait"})`
   also waits for invocations that start after the call (JS: a snapshot of `_pendingHandlers`).
   """
   import PlaywrightEx.Runtime.Heap
@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
       handler ->
         _remove_once(this, type, handler)
-        for entry <- handler, do: _call_handler_local(this, entry, arg)
+        for entry <- handler, do: _call_handler_local(this, type, entry, arg)
         true
     end
   end
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
         Conn.push_step({:internal, entry.fun, arg, this, type, zone})
 
       :sync ->
-        Conn.push_step({:sync, entry.fun, arg, this})
+        Conn.push_step({:sync, entry.fun, arg, this, type})
 
       :user ->
         Conn.push_step({:user, entry.pid, entry.fun, arg, this, type, zone})
@@ -166,12 +166,21 @@ defmodule PlaywrightEx.Client.EventEmitter do
     end
   end
 
-  defp _call_handler_local(this, %{kind: :mailbox} = entry, arg) do
+  defp _call_handler_local(this, _type, %{kind: :mailbox} = entry, arg) do
     send(entry.pid, {:pw, entry.ref, {:event, arg}})
     this
   end
 
-  defp _call_handler_local(this, entry, arg), do: Conn.invoke(entry.fun, arg, this)
+  defp _call_handler_local(this, type, entry, arg), do: Conn.invoke(entry.fun, arg, this, type)
+
+  @doc false
+  # From `Conn.invoke/4`, where a listener's exception is caught (`_callHandler`'s `catch` and its
+  # promise's `.catch`). `throw error` re-raises it to `Conn.invoke/4`, which logs it as uncaught.
+  def _handle_listener_error(this, type, kind, reason, stacktrace) do
+    if type == "error" or listener_count(this, "error") == 0,
+      do: :erlang.raise(kind, reason, stacktrace),
+      else: emit(this, "error", Exception.normalize(kind, reason, stacktrace))
+  end
 
   def add_listener(this, type, listener), do: _add_listener(this, type, listener, false)
 
