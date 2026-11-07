@@ -11,14 +11,18 @@ defmodule PlaywrightEx.Isomorphic.TimeoutRunner do
     timed_out = if timer, do: [Promise.then_(timer, fn _ -> %{timedOut: true} end)], else: []
 
     # Note: not including "await" here truncates the async stack inside cb(), so always include it.
+    result = Promise.async(cb)
+
     try do
       Promise.await(
         Promise.race([
-          Promise.then_(Promise.async(cb), fn result -> %{result: result, timedOut: false} end) | timed_out
+          Promise.then_(result, fn result -> %{result: result, timedOut: false} end) | timed_out
         ])
       )
     after
       if timer, do: Promise.free(timer)
+      # Elixir only: a result that comes after the deadline is dropped, not left in the mailbox.
+      Promise.free(result)
     end
   end
 

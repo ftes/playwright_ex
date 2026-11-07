@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Runtime.PromiseConnDownTest do
   # while armed: no monitor or `:DOWN` is left behind.
   use ExUnit.Case, async: true
 
+  alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
@@ -68,6 +69,23 @@ defmodule PlaywrightEx.Runtime.PromiseConnDownTest do
     Process.exit(conn, :kill)
     assert_receive {:DOWN, ^ref, :process, _, :killed}
     assert_clean()
+  end
+
+  test "a call whose params raise in the connection leaves no monitor behind", %{connection: connection} do
+    root = Heap.get(connection, :_rootObject)
+
+    assert_raise RuntimeError, "bad params", fn ->
+      Connection.send_message_to_server(connection, root, "initialize", fn -> raise "bad params" end, %{})
+    end
+
+    assert Conn.run(connection.conn, fn -> Connection.callbacks(connection) end) == []
+    assert_clean()
+  end
+
+  test "a call to a connection process killed meanwhile raises TargetClosedError", %{conn: conn} do
+    assert_raise TargetClosedError, "Playwright driver closed", fn ->
+      Conn.run(conn, fn -> Process.exit(self(), :kill) end)
+    end
   end
 
   # Kills the connection once `latch` has a waiter (the awaiting test process).

@@ -212,12 +212,11 @@ defmodule PlaywrightEx.Client.Frame do
             request = if navigated_event[:newDocument], do: Request.from_nullable(navigated_event.newDocument[:request])
 
             response =
-              if request,
-                do:
-                  Waiter.wait_for_promise(
-                    waiter,
-                    Promise.async(fn -> Request._internal_response(Request._final_request(request)) end)
-                  )
+              if request do
+                response = Promise.async(fn -> Request._internal_response(Request._final_request(request)) end)
+                # Elixir only: freed, so a failure that wins leaves no late result in the mailbox.
+                Waiter.wait_for_promise(waiter, response, fn -> Promise.free(response) end)
+              end
 
             Waiter.dispose(waiter)
             response

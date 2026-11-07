@@ -11,6 +11,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The maintainer-only mix tasks (`gen.api`, `gen.protocol`, `parity`, `checksums`) and their
   helpers moved out of `lib` into `dev/` and no longer ship in the Hex package.
 
+### Fixed
+- `PlaywrightEx.Supervisor.start_link/1` fails instead of hanging when the driver exits before it initializes.
+- A driver install no longer deletes the complete install of a concurrent one unless `force: true`.
+- A driver install with a file missing is repaired by `ensure_installed/1` and `install/1`.
+- No stray message after `BrowserType.connect` times out, or after a navigation wait fails while
+  waiting for the response.
+- A call whose sending raises leaves no monitor or callback behind.
+- `remove_all_listeners(..., behavior: :wait)` no longer sends errors of later listeners to the caller.
+- Calls raise `TargetClosedError` for every exit of the connection process (`:killed` too).
+- A message that cannot be encoded as JSON fails its call instead of restarting the driver.
+
 ## [0.17.0-rc.0] 2026-11-06
 
 Drives Playwright 1.64.

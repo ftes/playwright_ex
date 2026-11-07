@@ -101,7 +101,8 @@ defmodule PlaywrightEx.Runtime.Conn do
       {:raise, kind, reason, stacktrace} -> :erlang.raise(kind, reason, stacktrace)
     end
   catch
-    :exit, {reason, {GenServer, :call, _}} when reason in [:noproc, :normal, :shutdown] or is_tuple(reason) ->
+    # Any exit reason (`:killed`, `:noconnection` too), as a wait's `:DOWN` (`PlaywrightEx.Runtime.Promise`).
+    :exit, {_reason, {GenServer, :call, _}} ->
       raise TargetClosedError.new("Playwright driver closed")
   end
 

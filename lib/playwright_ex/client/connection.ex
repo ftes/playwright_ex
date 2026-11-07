@@ -239,27 +239,36 @@ defmodule PlaywrightEx.Client.Connection do
           reject = fn error -> Promise.reject(promise, error) end
 
           closed =
-            atomic(this, fn ->
-              if closed_error = get(this, :_closedError) do
-                closed_error
-              else
-                map_set(this, :_callbacks, id, %{
-                  resolve: resolve,
-                  reject: reject,
-                  signal: signal,
-                  title: options[:title],
-                  type: type,
-                  method: method,
-                  on_reply: options[:on_reply]
-                })
+            try do
+              atomic(this, fn ->
+                if closed_error = get(this, :_closedError) do
+                  closed_error
+                else
+                  # Params computed now (`ChannelOwner.channel_call/5`), before the callback is
+                  # set: params that raise leave none behind.
+                  message = if is_function(params, 0), do: %{message | params: params.()}, else: message
 
-                onmessage = get(this, :onmessage)
-                # Params computed now (`ChannelOwner.channel_call/5`).
-                message = if is_function(params, 0), do: %{message | params: params.()}, else: message
-                onmessage.(Map.put(message, :metadata, metadata))
-                nil
-              end
-            end)
+                  map_set(this, :_callbacks, id, %{
+                    resolve: resolve,
+                    reject: reject,
+                    signal: signal,
+                    title: options[:title],
+                    type: type,
+                    method: method,
+                    on_reply: options[:on_reply]
+                  })
+
+                  onmessage = get(this, :onmessage)
+                  onmessage.(Map.put(message, :metadata, metadata))
+                  nil
+                end
+              end)
+            catch
+              # The params raised, or the connection is gone: the monitor goes too (no late `:DOWN`).
+              kind, reason ->
+                Process.demonitor(ref, [:flush])
+                :erlang.raise(kind, reason, __STACKTRACE__)
+            end
 
           if closed do
             Process.demonitor(ref, [:flush])

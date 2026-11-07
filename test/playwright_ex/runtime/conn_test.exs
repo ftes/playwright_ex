@@ -122,6 +122,45 @@ defmodule PlaywrightEx.RuntimeConnTest do
       assert Page.evaluate!(page, "fetch('/data').then(r => r.text())") == "from handler"
     end
 
+    test "remove_all_listeners waits: the first to return leaves the second's rejection handler", %{
+      page: page,
+      server: server
+    } do
+      reached_console = RuntimePromise.new(page)
+      release_console = RuntimePromise.new(page)
+      reached_request = RuntimePromise.new(page)
+      release_request = RuntimePromise.new(page)
+
+      Page.on(page, :console, fn _ ->
+        RuntimePromise.resolve(reached_console, nil)
+        Promise.await!(release_console)
+      end)
+
+      Page.on(page, :request, fn _ ->
+        RuntimePromise.resolve(reached_request, nil)
+        Promise.await!(release_request)
+        raise "Error in request handler"
+      end)
+
+      Page.evaluate!(page, "console.log(1)")
+      Promise.await!(reached_console)
+      Page.goto!(page, server.empty_page)
+      Promise.await!(reached_request)
+
+      handler = fn -> PlaywrightEx.Runtime.Heap.get(page, :_rejectionHandler) end
+      wait_console = RuntimePromise.async(fn -> Page.remove_all_listeners!(page, :console, behavior: :wait) end)
+      wait_until(fn -> handler.() != nil end)
+      console_handler = handler.()
+      wait_request = RuntimePromise.async(fn -> Page.remove_all_listeners!(page, :request, behavior: :wait) end)
+      wait_until(fn -> handler.() != console_handler end)
+
+      RuntimePromise.resolve(release_console, nil)
+      assert {:ok, _} = Promise.await(wait_console)
+      RuntimePromise.resolve(release_request, nil)
+      assert {:error, error} = Promise.await(wait_request)
+      assert Exception.message(error) =~ "Error in request handler"
+    end
+
     test "console event before evaluate returns, 100 times", %{page: page, server: server} do
       test = self()
       Page.goto!(page, server.empty_page)
@@ -318,6 +357,35 @@ defmodule PlaywrightEx.RuntimeConnTest do
       Page.close!(page)
       error = assert_raise PlaywrightEx.TargetClosedError, fn -> Promise.await!(promise) end
       assert error.message =~ "page.waitForEvent: Target page, context or browser has been closed"
+    end
+
+    # The navigation's response is the last wait of `wait_for_url`: a failure that wins it (the
+    # abort, settled before) must not leave the response's late result in the caller's mailbox.
+    test "a navigation wait that fails while waiting for the response leaves no message", %{
+      page: page,
+      server: server
+    } do
+      Page.goto!(page, server.empty_page)
+      frame = Page.main_frame(page)
+      controller = AbortController.new()
+      navigation = Task.async(fn -> Page.goto(page, server.prefix <> "/grid.html") end)
+
+      # Runs when the navigation commits: aborts once `load` fired, so the load state is not
+      # waited for and the abort wins the response wait.
+      url = fn url ->
+        if url =~ "grid.html" do
+          wait_until(fn -> PlaywrightEx.Runtime.Heap.set_has(frame, :_loadStates, "load") end)
+          AbortController.abort(controller)
+          true
+        end
+      end
+
+      assert {:error, %PlaywrightEx.AbortError{}} =
+               Page.wait_for_url(page, url, signal: AbortController.signal(controller))
+
+      Task.await(navigation)
+      Process.sleep(200)
+      assert {:messages, []} = Process.info(self(), :messages)
     end
   end
 
