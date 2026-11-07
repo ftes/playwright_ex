@@ -199,6 +199,7 @@ defmodule PlaywrightEx.Library.EmulationFocusTest do
     assert Page.evaluate!(page2, "() => !!window['gotBlur']") == false
   end
 
+  @tag skip: if(@browser_name == "firefox", do: "upstream fixme: https://github.com/microsoft/playwright/issues/43280")
   test "EM-023 should not blur iframe when interacting with another page/context", %{context_factory: context_factory} do
     # annotation: https://github.com/microsoft/playwright/issues/42933
     page1 = BrowserContext.new_page!(context_factory.([]))

@@ -77,4 +77,15 @@ defmodule PlaywrightEx.Library.Firefox.LauncherTest do
     Browser.close!(browser)
     TestServer.stop(server)
   end
+
+  test "FF-004 should resize viewport with fractional device scale factor", %{browser_type: browser_type} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43028' });
+    # A fractional device scale factor makes the viewport size fractional in CSS pixels,
+    # e.g. 400.27x799.9 instead of 400x800. Web content still sees rounded values.
+    browser = BrowserType.launch!(browser_type, firefox_user_prefs: %{"layout.css.devPixelsPerPx" => "1.1"})
+    page = Browser.new_page!(browser)
+    Page.set_viewport_size!(page, %{width: 400, height: 800})
+    assert Page.evaluate!(page, "() => [window.innerWidth, window.innerHeight]") == [400, 800]
+    Browser.close!(browser)
+  end
 end

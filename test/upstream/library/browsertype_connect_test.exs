@@ -1655,4 +1655,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     assert Exception.message(error) =~ "Timeout 2000ms exceeded."
     assert_receive :aborted, 5000
   end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43421' }
+  test "BT-096 should not retain closed browsers in launch mode"
 end

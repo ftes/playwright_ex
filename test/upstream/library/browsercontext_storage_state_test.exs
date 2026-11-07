@@ -596,9 +596,12 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
     @restore restore
     @tag :page
     @tag :tmp_dir
-    test "should roundtrip IndexedDB Map and Set with #{restore}",
+    test "ST-017 should roundtrip IndexedDB values and keys with #{restore}",
          %{page: page, server: server, context_factory: context_factory, tmp_dir: tmp_dir} do
-      # annotation: issue https://github.com/microsoft/playwright/issues/42703
+      # annotation: [
+      #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42703' },
+      #   { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43418' },
+      # ]
       Page.goto!(page, server.empty_page)
 
       Page.evaluate!(page, """
@@ -612,6 +615,13 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
           const store = transaction.objectStore('store');
           store.put(new Map([['mk', 'mv']]), 'map');
           store.put(new Set([1, 2]), 'set');
+          store.put(0, 'zero');
+          store.put(false, 'false');
+          store.put('', 'empty');
+          store.put(null, 'null');
+          store.put(Infinity, 'infinity');
+          store.put('first', 0);
+          store.put('second', '');
           transaction.oncomplete = () => {
             db.close();
             resolve();
@@ -630,7 +640,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
       restored_page = BrowserContext.new_page!(context)
       Page.goto!(restored_page, server.empty_page)
 
-      values =
+      entries =
         Page.evaluate!(restored_page, """
         async () => {
           const db = await new Promise((resolve, reject) => {
@@ -641,21 +651,32 @@ defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
           const transaction = db.transaction('store', 'readonly');
           const store = transaction.objectStore('store');
           transaction.oncomplete = () => db.close();
-          const [map, set] = await Promise.all(['map', 'set'].map(key => new Promise((resolve, reject) => {
-            const request = store.get(key);
+          const [keys, values] = await Promise.all([store.getAllKeys(), store.getAll()].map(request => new Promise((resolve, reject) => {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
           })));
-          return {
-            isMap: map instanceof Map,
-            map: [...map],
-            isSet: set instanceof Set,
-            set: [...set],
-          };
+          return keys.map((key, i) => {
+            const value = values[i];
+            if (value instanceof Map)
+              return [key, { map: [...value] }];
+            if (value instanceof Set)
+              return [key, { set: [...value] }];
+            return [key, value];
+          });
         }
         """)
 
-      assert values == %{"isMap" => true, "map" => [["mk", "mv"]], "isSet" => true, "set" => [1, 2]}
+      assert entries == [
+               [0, "first"],
+               ["", "second"],
+               ["empty", ""],
+               ["false", false],
+               ["infinity", :infinity],
+               ["map", %{"map" => [["mk", "mv"]]}],
+               ["null", :null],
+               ["set", %{"set" => [1, 2]}],
+               ["zero", 0]
+             ]
     end
   end
 

@@ -543,7 +543,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
         {:error, error} ->
           # The server closed the connection with FIN after the TLS handshake.
           assert error.message =~
-                   ~r/net::ERR_EMPTY_RESPONSE|NS_ERROR_NET_RESET|Connection terminated unexpectedly|The network connection was lost/
+                   ~r/net::ERR_EMPTY_RESPONSE|NS_ERROR_NET_RESET|Connection terminated unexpectedly|The network connection was lost|Failure when receiving data from the peer/
 
         {:ok, result} ->
           # The server reset the connection, which the proxy reports as a client certificate error.

@@ -61,6 +61,7 @@ FE-187      __testHookLookup (in-process test hook): the test checks the driver'
 # library/browsercontext-route
 RO-185      URLPattern
 # library/browsertype-connect
+BT-096      Starts an in-process remote.PlaywrightServer and reads its private _dontReuseBrowsers (server internals)
 # library/browsertype-launch
 BT-012      __testHookBeforeCreateBrowser is a JS function
 BT-013      __testHookBeforeCreateBrowser is a JS function

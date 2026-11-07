@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Credentials
   alias PlaywrightEx.Expect
   alias PlaywrightEx.FileChooser
   alias PlaywrightEx.Frame
@@ -11,7 +12,6 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Utils
 
@@ -197,32 +197,18 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     # "User activation is required to show a file picker." - so we click first.
     Locator.click!(Page.locator(page, "body"))
 
-    picker =
-      Runtime.Promise.async(
-        fn ->
-          Page.evaluate(page, """
-          async () => {
-            const dir = await window.showDirectoryPicker();
-            return dir.name;
-            // In headless it throws (aborted), in headed it stalls (Test ended) and waits for the picker to be accepted.
-          }
-          """)
-        end,
-        shared: true
-      )
+    Page.evaluate!(page, """
+    () => {
+      window.showDirectoryPicker().catch(e => { window.__pickerError = String(e); });
+    }
+    """)
 
     # The dialog will not be accepted, so we just wait for some time to
     # to give the browser a chance to crash.
     Page.wait_for_timeout!(page, 3_000)
-
-    # `.catch(e => expect(e.message).toMatch(...))`: checked if it settled (headed: it stalls until the test ends).
-    if Runtime.Promise.settled?(picker) do
-      with {:error, e} <- Runtime.Promise.await(picker) do
-        assert Exception.message(e) =~ ~r/((DOMException|AbortError): .*The user aborted a request|Test ended)/
-      end
-    else
-      Runtime.Promise.free(picker)
-    end
+    # In headless it throws (aborted), in headed it stalls and waits for the picker to be accepted.
+    error = Page.evaluate!(page, "() => window.__pickerError ?? 'stalled'")
+    assert error =~ ~r/((DOMException|AbortError): .*The user aborted a request|stalled)/
   end
 
   test "CA-012 should not crash on storage.getDirectory()", %{page: page, server: server, browser_name: browser_name} do
@@ -595,9 +581,28 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
       else: Expect.to_have_text!(Page.locator(page, "#log"), "State: suspended")
   end
 
-  test "CA-029 should not crash on feature detection for PublicKeyCredential", %{page: page, server: server} do
+  test "CA-029 should not crash on feature detection for PublicKeyCredential", %{
+    page: page,
+    server: server,
+    context: context
+  } do
     # annotation: issue https://github.com/microsoft/playwright/issues/35433
+    # annotation: issue https://github.com/microsoft/playwright/issues/43711
     Page.goto!(page, server.empty_page)
+    assert Page.evaluate!(page, "() => typeof PublicKeyCredential") == "function"
+    assert Page.evaluate!(page, "() => PublicKeyCredential.name") == "PublicKeyCredential"
+    assert Page.evaluate!(page, "() => ({}) instanceof PublicKeyCredential") == false
+
+    assert Page.evaluate!(page, """
+           () => {
+             try {
+               new PublicKeyCredential();
+               return false;
+             } catch (e) {
+               return e instanceof TypeError;
+             }
+           }
+           """) == true
 
     Page.evaluate!(page, """
     async () => {
@@ -606,5 +611,8 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
       await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     }
     """)
+
+    Credentials.install!(BrowserContext.credentials(context))
+    assert Page.evaluate!(page, "() => typeof PublicKeyCredential") == "function"
   end
 end

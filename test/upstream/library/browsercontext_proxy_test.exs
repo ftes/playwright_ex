@@ -55,8 +55,8 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
       context = Browser.new_context!(browser, proxy: %{server: proxy_server.host})
 
       page = BrowserContext.new_page!(context)
-      Page.goto!(page, "http://non-existent.com/target.html")
-      assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+      Page.goto!(page, "http://non-existent.test/target.html")
+      assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
       assert Page.title!(page) == "Served by the proxy"
     after
       Browser.close!(browser)
@@ -77,11 +77,11 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
       try do
         context = Browser.new_context!(browser, proxy: %{server: proxy_server.host})
         page = BrowserContext.new_page!(context)
-        Page.goto!(page, "http://non-existent.com/target.html")
+        Page.goto!(page, "http://non-existent.test/target.html")
         assert Page.title!(page) == "Served by the proxy"
-        response = APIRequestContext.get!(BrowserContext.request(context), "http://non-existent.com/target.html")
+        response = APIRequestContext.get!(BrowserContext.request(context), "http://non-existent.test/target.html")
         assert APIResponse.text!(response) =~ "Served by the proxy"
-        assert "non-existent.com:80" in TestProxy.connect_hosts(proxy_server)
+        assert "non-existent.test:80" in TestProxy.connect_hosts(proxy_server)
 
         direct_context = Browser.new_context!(browser)
         direct_page = BrowserContext.new_page!(direct_context)
@@ -108,8 +108,8 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: proxy_server.host})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
-    assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page, "http://non-existent.test/target.html")
+    assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
     assert Page.title!(page) == "Served by the proxy"
     BrowserContext.close!(context)
   end
@@ -256,8 +256,8 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
       TestProxy.forward_to(proxy_server, server.port)
       context = context_factory.(proxy: %{server: "[0:0:0:0:0:0:0:1]:#{proxy_server.port}"})
       page = BrowserContext.new_page!(context)
-      Page.goto!(page, "http://non-existent.com/target.html")
-      assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+      Page.goto!(page, "http://non-existent.test/target.html")
+      assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
       assert Page.title!(page) == "Served by the proxy"
       BrowserContext.close!(context)
     end)
@@ -267,10 +267,10 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: proxy_server.host})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
-    assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
-    Page.goto!(page, "http://non-existent-2.com/target.html")
-    assert "http://non-existent-2.com/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page, "http://non-existent.test/target.html")
+    assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page, "http://non-existent-2.test/target.html")
+    assert "http://non-existent-2.test/target.html" in TestProxy.request_urls(proxy_server)
     assert Page.title!(page) == "Served by the proxy"
     BrowserContext.close!(context)
   end
@@ -281,14 +281,14 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     context = context_factory.(proxy: %{server: proxy_server.host})
 
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
-    assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page, "http://non-existent.test/target.html")
+    assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
     assert Page.title!(page) == "Served by the proxy"
 
     page2 = BrowserContext.new_page!(context)
     TestProxy.clear_request_urls(proxy_server)
-    Page.goto!(page2, "http://non-existent.com/target.html")
-    assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page2, "http://non-existent.test/target.html")
+    assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
     assert Page.title!(page2) == "Served by the proxy"
 
     BrowserContext.close!(context)
@@ -303,8 +303,8 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     TestProxy.forward_to(proxy_server, https_server.port, allow_connect_requests: true)
     context = context_factory.(ignore_https_errors: true, proxy: %{server: proxy_server.host})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "https://non-existent.com/target.html")
-    assert "non-existent.com:443" in TestProxy.connect_hosts(proxy_server)
+    Page.goto!(page, "https://non-existent.test/target.html")
+    assert "non-existent.test:443" in TestProxy.connect_hosts(proxy_server)
     assert Page.title!(page) == "Served by https server via proxy"
     BrowserContext.close!(context)
   end
@@ -317,8 +317,8 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     TestProxy.forward_to(proxy_server, server.port)
     context = context_factory.(proxy: %{server: "127.0.0.1:#{proxy_server.port}"})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
-    assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page, "http://non-existent.test/target.html")
+    assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
     assert Page.title!(page) == "Served by the proxy"
     BrowserContext.close!(context)
   end
@@ -342,8 +342,8 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     record_auth(proxy_server)
     context = context_factory.(proxy: %{server: proxy_server.host, username: "user", password: "secret"})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
-    assert "http://non-existent.com/target.html" in TestProxy.request_urls(proxy_server)
+    Page.goto!(page, "http://non-existent.test/target.html")
+    assert "http://non-existent.test/target.html" in TestProxy.request_urls(proxy_server)
     assert last_auth() == "Basic " <> Base.encode64("user:secret")
     assert Page.title!(page) == "Served by the proxy"
     BrowserContext.close!(context)
@@ -355,7 +355,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     record_auth(proxy_server)
     context = context_factory.(proxy: %{server: proxy_server.host, username: "user", password: ""})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert last_auth() == "Basic " <> Base.encode64("user:")
     assert Page.title!(page) == "Served by the proxy"
     BrowserContext.close!(context)
@@ -368,7 +368,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
 
     context = context_factory.(proxy: %{server: proxy_server.host, username: "user1", password: "secret1"})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert last_auth() == "Basic " <> Base.encode64("user1:secret1")
     assert Page.title!(page) == "Served by the proxy"
     BrowserContext.close!(context)
@@ -378,7 +378,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
 
     context = context_factory.(proxy: %{server: proxy_server.host, username: "user2", password: "secret2"})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com/target.html")
+    Page.goto!(page, "http://non-existent.test/target.html")
     assert Page.title!(page) == "Served by the proxy"
     assert last_auth() == "Basic " <> Base.encode64("user2:secret2")
     BrowserContext.close!(context)
@@ -435,7 +435,7 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
   test "PR-036 should use socks proxy", %{context_factory: context_factory, socks_port: socks_port} do
     context = context_factory.(proxy: %{server: "socks5://localhost:#{socks_port}"})
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com")
+    Page.goto!(page, "http://non-existent.test")
     assert Page.title!(page) == "Served by the SOCKS proxy"
     BrowserContext.close!(context)
   end
@@ -444,11 +444,11 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
     context = context_factory.(proxy: %{server: "socks5://localhost:#{socks_port}"})
 
     page = BrowserContext.new_page!(context)
-    Page.goto!(page, "http://non-existent.com")
+    Page.goto!(page, "http://non-existent.test")
     assert Page.title!(page) == "Served by the SOCKS proxy"
 
     page2 = BrowserContext.new_page!(context)
-    Page.goto!(page2, "http://non-existent.com")
+    Page.goto!(page2, "http://non-existent.test")
     assert Page.title!(page2) == "Served by the SOCKS proxy"
 
     BrowserContext.close!(context)
@@ -483,15 +483,15 @@ defmodule PlaywrightEx.Library.BrowsercontextProxyTest do
 
     context1 = context_factory.(proxy: %{server: server.prefix, username: "user1", password: "secret1"})
     page1 = BrowserContext.new_page!(context1)
-    Page.goto!(page1, "http://non-existent.com/target.html")
+    Page.goto!(page1, "http://non-existent.test/target.html")
     Expect.to_have_text!(Page.get_by_test_id(page1, "user"), "user1")
 
     context2 = context_factory.(proxy: %{server: server.prefix, username: "user2", password: "secret2"})
     page2 = BrowserContext.new_page!(context2)
-    Page.goto!(page2, "http://non-existent.com/target.html")
+    Page.goto!(page2, "http://non-existent.test/target.html")
     Expect.to_have_text!(Page.get_by_test_id(page2, "user"), "user2")
 
-    Page.goto!(page1, "http://non-existent.com/target.html")
+    Page.goto!(page1, "http://non-existent.test/target.html")
     Expect.to_have_text!(Page.get_by_test_id(page1, "user"), "user1")
   end
 end

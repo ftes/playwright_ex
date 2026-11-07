@@ -219,6 +219,7 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         Expect.to_have_title!(page, "Page Title")
       end
 
+      # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43704' }
       test "BC-076 should not cache resources", %{reused_context: reused_context, server: server} do
         # test.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/19926' });
         {:ok, request_count_map} = Agent.start_link(fn -> %{} end)
@@ -268,7 +269,11 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
 
         context = reused_context.(nil)
         page = BrowserContext.new_page!(context)
-        Page.goto!(page, server.prefix <> "/page.html")
+
+        Page.expect_response!(page, server.prefix <> "/simple.json", fn ->
+          Page.goto!(page, server.prefix <> "/page.html")
+        end)
+
         Expect.to_have_title!(page, "Count: 0")
         assert get.("/page.html") == 1
         assert get.("/style.css") == 1
@@ -276,7 +281,11 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
 
         context = reused_context.(nil)
         page = hd(BrowserContext.pages(context))
-        Page.goto!(page, server.prefix <> "/page.html")
+
+        Page.expect_response!(page, server.prefix <> "/simple.json", fn ->
+          Page.goto!(page, server.prefix <> "/page.html")
+        end)
+
         Expect.to_have_title!(page, "Count: 1")
         assert get.("/page.html") == 2
         assert get.("/style.css") == 2

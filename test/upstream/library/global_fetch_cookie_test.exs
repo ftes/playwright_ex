@@ -126,7 +126,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     APIRequestContext.add_cookies!(request, [
       %{name: "a", value: "b", domain: "localhost", path: "/"},
       %{name: "c", value: "d", domain: "localhost", path: "/input"},
-      %{name: "e", value: "f", domain: "one.com", path: "/"},
+      %{name: "e", value: "f", domain: ".one.com", path: "/"},
       %{name: "g", value: "h", domain: "two.com", path: "/", secure: true}
     ])
 
@@ -136,6 +136,49 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     assert names(APIRequestContext.cookies!(request, ["http://sub.one.com/", "http://two.com/"])) == ["e"]
     assert names(APIRequestContext.cookies!(request, ["http://sub.one.com/", "https://two.com/"])) == ["e", "g"]
     assert APIRequestContext.cookies!(request, "http://other.com/") == []
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43078' }
+  test "FE-058 cookies should only return cookies that apply to the url", %{request: request} do
+    APIRequestContext.add_cookies!(request, [
+      %{name: "hostonly", value: "v", domain: "one.com", path: "/api"},
+      %{name: "subdomains", value: "v", domain: ".one.com", path: "/api"},
+      %{name: "slash", value: "v", domain: "one.com", path: "/foo/"}
+    ])
+
+    names = &names(APIRequestContext.cookies!(request, &1))
+    assert names.("http://one.com/api") == ["hostonly", "subdomains"]
+    assert names.("http://one.com/api/x") == ["hostonly", "subdomains"]
+    assert names.("http://one.com/apiv2") == []
+    assert names.("http://sub.one.com/api") == ["subdomains"]
+    assert names.("http://notone.com/api") == []
+    assert names.("http://one.com/foo") == []
+    assert names.("http://one.com/foo/") == ["slash"]
+    assert names.("http://one.com/foo/bar") == ["slash"]
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43078' }
+  @tag request: false, lookup: true
+  test "FE-059 should only send cookies that apply to the url", %{request: request, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn ->
+      set_cookie(conn, ["hostonly=v; path=/api", "subdomains=v; domain=one.com; path=/api", "slash=v; path=/foo/"])
+    end)
+
+    APIRequestContext.get!(request, "http://one.com:#{server.port}/setcookie.html")
+
+    sent = fn host, path ->
+      task = TestServer.wait_for_request(server, path)
+      APIRequestContext.get!(request, "http://#{host}:#{server.port}#{path}")
+      cookie_header(Task.await(task, :infinity))
+    end
+
+    assert sent.("one.com", "/api") == "hostonly=v; subdomains=v"
+    assert sent.("one.com", "/api/x") == "hostonly=v; subdomains=v"
+    assert sent.("one.com", "/apiv2") == nil
+    assert sent.("sub.one.com", "/api") == "subdomains=v"
+    assert sent.("one.com", "/foo") == nil
+    assert sent.("one.com", "/foo/") == "slash=v"
+    assert sent.("one.com", "/foo/bar") == "slash=v"
   end
 
   test "FE-060 cookies should include cookies from Set-Cookie header", %{request: request, server: server} do
@@ -211,6 +254,35 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
 
     APIRequestContext.clear_cookies!(request, name: "")
     assert names(APIRequestContext.cookies!(request)) == ["session"]
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43155' }
+  test "FE-064 should send nameless cookies as value only", %{request: request, server: server} do
+    APIRequestContext.add_cookies!(request, [
+      %{name: "", value: "nameless", url: server.empty_page},
+      %{name: "a", value: "b", url: server.empty_page}
+    ])
+
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.get!(request, server.empty_page)
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "nameless; a=b"
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43155' }
+  test "FE-065 should store Set-Cookie without equals sign as nameless cookie", %{request: request, server: server} do
+    TestServer.set_route(server, "/setcookie.html", fn conn -> set_cookie(conn, ["token; path=/", "a=; path=/"]) end)
+    APIRequestContext.get!(request, "#{server.prefix}/setcookie.html")
+
+    assert Enum.map(APIRequestContext.cookies!(request), &%{name: &1.name, value: &1.value}) == [
+             %{name: "", value: "token"},
+             %{name: "a", value: ""}
+           ]
+
+    task = TestServer.wait_for_request(server, "/empty.html")
+    APIRequestContext.get!(request, server.empty_page)
+    server_request = Task.await(task, :infinity)
+    assert cookie_header(server_request) == "token; a="
   end
 
   test "FE-066 should filter outgoing cookies by path", %{request: request, server: server} do

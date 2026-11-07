@@ -9,6 +9,9 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Promise
+  alias PlaywrightEx.Request
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
@@ -28,6 +31,25 @@ defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
     Page.goto!(page, server.empty_page)
     assert header(Task.await(request, :infinity), "user-agent") == "foobar"
     BrowserContext.close!(context)
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43597' }
+  test "UA-007 should preserve custom user agent in route.fetch", %{context_factory: context_factory, server: server} do
+    context = context_factory.(user_agent: "my-custom-user-agent")
+    page = BrowserContext.new_page!(context)
+
+    Page.route!(page, "**/empty.html", fn route ->
+      Route.fulfill!(route, response: Route.fetch!(route))
+    end)
+
+    request = Page.wait_for_request(page, server.empty_page)
+    server_request = TestServer.wait_for_request(server, "/empty.html")
+    Page.goto!(page, server.empty_page)
+    request = Promise.await!(request)
+    server_request = Task.await(server_request, :infinity)
+    # expect.soft: the first failure ends the test here.
+    assert Request.headers(request)["user-agent"] == "my-custom-user-agent"
+    assert header(server_request, "user-agent") == "my-custom-user-agent"
   end
 
   test "UA-002 should work for subframes", %{browser: browser, server: server} do

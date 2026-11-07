@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   import PlaywrightEx.UpstreamSnapshot
-  import PlaywrightEx.Utils, only: [attach_frame: 3, poll: 2]
+  import PlaywrightEx.Utils, only: [attach_frame: 3, poll: 2, rafraf: 1]
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -227,10 +227,12 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
              do: "env: golden rendered on Linux; on macOS the OOPIF screenshot is blank (upstream's JS client too)"
            )
   test "OO-012 should take screenshot", %{page: page, browser: browser, server: server} do
+    # it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43584' });
     Page.set_viewport_size!(page, %{width: 500, height: 500})
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert length(Page.frames(page)) == 2
     assert_oopif_count(browser, 1)
+    rafraf(Enum.at(Page.frames(page), 1))
     to_match_snapshot(Page.screenshot!(page), "screenshot-oopif.png")
   end
 

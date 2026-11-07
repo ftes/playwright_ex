@@ -179,33 +179,6 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     refute_received :service_worker_created
   end
 
-  @tag :page
-  test "Page.route should work with intervention headers", %{server: server, page: page} do
-    TestServer.set_route(server, "/intervention", fn conn ->
-      Plug.Conn.send_resp(conn, 200, """
-
-          <script>
-            document.write('<script src="#{server.cross_process_prefix}/intervention.js">' + '</scr' + 'ipt>');
-          </script>
-      """)
-    end)
-
-    TestServer.set_redirect(server, "/intervention.js", "/redirect.js")
-    test_pid = self()
-
-    TestServer.set_route(server, "/redirect.js", fn conn ->
-      send(test_pid, {:server_request, conn})
-      Plug.Conn.send_resp(conn, 200, "console.log(1);")
-    end)
-
-    Page.route!(page, "*", fn route -> Route.continue(route) end)
-    Page.goto!(page, server.prefix <> "/intervention")
-    # Check for feature URL substring rather than https://www.chromestatus.com to
-    # make it work with Edgium.
-    assert_received {:server_request, server_request}
-    assert req_header(server_request, "intervention") =~ "feature/5718547946799104"
-  end
-
   test "CR-008 should close service worker together with the context", %{browser_type: browser_type, server: server} do
     browser = BrowserType.launch!(browser_type)
     context = Browser.new_context!(browser)
