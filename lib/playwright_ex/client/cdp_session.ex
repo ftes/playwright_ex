@@ -28,8 +28,15 @@ defmodule PlaywrightEx.Client.CDPSession do
     this
   end
 
-  def send(this, method, params \\ nil) do
-    result = channel_call(this, :send, %{method: method, params: params}, TimeoutSettings.k_no_timeout())
+  def send(this, method, params \\ nil, options \\ %{}) do
+    options = options || %{}
+
+    result =
+      channel_call(this, :send, %{method: method, params: params}, %{
+        signal: options[:signal],
+        timeout: if(options[:timeout] == nil, do: 0, else: options.timeout)
+      })
+
     result.result
   end
 
