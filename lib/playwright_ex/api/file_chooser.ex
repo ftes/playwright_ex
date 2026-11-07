@@ -133,4 +133,33 @@ defmodule PlaywrightEx.FileChooser do
       PlaywrightEx.Client.FileChooser.set_files(file_chooser, files, options)
     end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:set_files) do
+    [
+      no_wait_after: %{
+        type_doc: "`t:boolean/0`",
+        doc: "This option has no effect.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
 end

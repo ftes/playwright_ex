@@ -144,4 +144,32 @@ defmodule PlaywrightEx.WebMCP do
     options = Facade.options!(options, @tools_options, "webMCP.tools")
     Facade.async!("webMCP.tools", web_mcp, fn -> PlaywrightEx.Client.WebMCP.tools(web_mcp, options) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:call_tool) do
+    [
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:tools) do
+    [
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
 end

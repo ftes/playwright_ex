@@ -1288,4 +1288,710 @@ defmodule PlaywrightEx.APIRequestContext do
   def tracing(api_request_context) do
     PlaywrightEx.Client.APIRequestContext.tracing(api_request_context)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:clear_cookies) do
+    [
+      domain: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "Only removes cookies with the given domain.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      name: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "Only removes cookies with the given name.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      path: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "Only removes cookies with the given path.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      }
+    ]
+  end
+
+  def __options__(:delete) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: "1.17",
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: "1.17",
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: "1.17",
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:dispose) do
+    [
+      reason: %{
+        type_doc: "`t:String.t/0`",
+        doc: "The reason to be reported to the operations interrupted by the context disposal.",
+        since: "1.45",
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:fetch) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      method: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "If set changes the fetch method (e.g. [PUT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT) or [POST](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST)). If not specified, GET method is used.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:get) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: "1.26",
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: "1.26",
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: "1.26",
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:head) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: "1.26",
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: "1.26",
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: "1.26",
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:patch) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:post) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:put) do
+    [
+      data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      fail_on_status_code: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to fail on response codes other than 2xx and 3xx. By default response object is returned for all status codes.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      form: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `application/x-www-form-urlencoded` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `application/x-www-form-urlencoded` unless explicitly provided. Use `FormData` to send multiple values for the same field.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc:
+          "Allows to set HTTP headers. These headers will apply to the fetched request as well as any redirects initiated by it.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.26",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      multipart: %{
+        type_doc: "`t:term/0` | `t:map/0`",
+        doc:
+          "Provides an object that will be serialized as html form using `multipart/form-data` encoding and sent as this request body. If this parameter is specified `content-type` header will be set to `multipart/form-data` unless explicitly provided. File values can be passed either as [`fs.ReadStream`](https://nodejs.org/api/fs.html#fs_class_fs_readstream) or as file-like object containing file name, mime-type and its content.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              term()
+              | %{
+                  optional(String.t()) =>
+                    String.t()
+                    | number()
+                    | boolean()
+                    | term()
+                    | %{name: String.t(), mimeType: String.t(), buffer: binary()}
+                }
+          )
+      },
+      params: %{
+        type_doc: "`%{optional(String.t()) => String.t() | number() | boolean()}` | `t:term/0` | `t:String.t/0`",
+        doc: "Query parameters to be sent with the URL.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t() | number() | boolean()} | term() | String.t())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:storage_state) do
+    [
+      indexed_db: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Set to `true` to include IndexedDB in the storage state snapshot.",
+        since: "1.51",
+        spec: quote(do: boolean())
+      },
+      opfs: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Set to `true` to include the origin private file system in the storage state snapshot.",
+        since: "1.63",
+        spec: quote(do: boolean())
+      },
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to current working directory. If no path is provided, storage state is still returned, but won't be saved to the disk.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
 end

@@ -274,4 +274,30 @@ defmodule PlaywrightEx.Keyboard do
   def up!(keyboard, key) do
     Facade.async_void!("keyboard.up", keyboard, fn -> PlaywrightEx.Client.Keyboard.up(keyboard, key) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:press) do
+    [
+      delay: %{
+        type_doc: "`t:number/0`",
+        doc: "Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.",
+        since: nil,
+        spec: quote(do: number())
+      }
+    ]
+  end
+
+  def __options__(:type) do
+    [
+      delay: %{
+        type_doc: "`t:number/0`",
+        doc: "Time to wait between key presses in milliseconds. Defaults to 0.",
+        since: nil,
+        spec: quote(do: number())
+      }
+    ]
+  end
 end

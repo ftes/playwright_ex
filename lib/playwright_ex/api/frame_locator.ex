@@ -744,4 +744,171 @@ defmodule PlaywrightEx.FrameLocator do
   def owner(frame_locator) do
     PlaywrightEx.Client.FrameLocator.owner(frame_locator)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:get_by_alt_text) do
+    [
+      exact: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:get_by_label) do
+    [
+      exact: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:get_by_placeholder) do
+    [
+      exact: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:get_by_role) do
+    [
+      checked: %{
+        type_doc: "`t:boolean/0`",
+        doc: "An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      description: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc:
+          "Option to match the [accessible description](https://w3c.github.io/accname/#dfn-accessible-description). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.",
+        since: "1.60",
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      disabled: %{
+        type_doc: "`t:boolean/0`",
+        doc: "An attribute that is usually set by `aria-disabled` or `disabled`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      exact: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether `:name` and `:description` are matched exactly: case-sensitive and whole-string. Defaults to false. Ignored when the value is a regular expression. Note that exact match still trims whitespace.",
+        since: "1.28",
+        spec: quote(do: boolean())
+      },
+      expanded: %{
+        type_doc: "`t:boolean/0`",
+        doc: "An attribute that is usually set by `aria-expanded`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      include_hidden: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Option that controls whether hidden elements are matched. By default, only non-hidden elements, as [defined by ARIA](https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion), are matched by role selector.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      level: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "A number attribute that is usually present for roles `heading`, `listitem`, `row`, `treeitem`, with default values for `<h1>-<h6>` elements.",
+        since: nil,
+        spec: quote(do: integer())
+      },
+      name: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc:
+          "Option to match the [accessible name](https://w3c.github.io/accname/#dfn-accessible-name). By default, matching is case-insensitive and searches for a substring, use `:exact` to control this behavior.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      pressed: %{
+        type_doc: "`t:boolean/0`",
+        doc: "An attribute that is usually set by `aria-pressed`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      selected: %{
+        type_doc: "`t:boolean/0`",
+        doc: "An attribute that is usually set by `aria-selected`.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:get_by_text) do
+    [
+      exact: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:get_by_title) do
+    [
+      exact: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to find an exact match: case-sensitive and whole-string. Default to false. Ignored when locating by a regular expression. Note that exact match still trims whitespace.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:locator) do
+    [
+      has: %{
+        type_doc: "`t:PlaywrightEx.Locator.t/0`",
+        doc:
+          "Narrows down the results of the method to those which contain elements matching this relative locator. For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.",
+        since: nil,
+        spec: quote(do: PlaywrightEx.Locator.t())
+      },
+      has_not: %{
+        type_doc: "`t:PlaywrightEx.Locator.t/0`",
+        doc:
+          "Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.",
+        since: "1.33",
+        spec: quote(do: PlaywrightEx.Locator.t())
+      },
+      has_not_text: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc:
+          "Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring.",
+        since: "1.33",
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      has_text: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc:
+          "Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When passed a `string`, matching is case-insensitive and searches for a substring. For example, `\"Playwright\"` matches `<article><div>Playwright</div></article>`.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      }
+    ]
+  end
 end

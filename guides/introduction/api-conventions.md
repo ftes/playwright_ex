@@ -77,6 +77,17 @@ BrowserContext.add_cookies!(context, [
 Page.set_extra_http_headers!(page, %{"x-request-id" => "42"})
 ```
 
+A wrapper that passes options on can document and check them with `__options__/1`. It lists
+the options of a function (both forms) in order, as its docs show them: `doc` is the first
+paragraph on one line, `since` the Playwright version that added the option if newer than the function,
+`type_doc` the type as rendered, `spec` the quoted typespec. A function without options has no
+clause, a module without any has no `__options__/1`.
+
+```elixir
+[{:button, %{doc: "Defaults to `:left`.", since: nil, spec: spec}} | _] = Locator.__options__(:click)
+Macro.to_string(spec) # ":left | :right | :middle"
+```
+
 ## Enums, `nil` and `:null`
 
 String enums are atoms, snake_case: `'button'` is `:button`, `'no-preference'` is

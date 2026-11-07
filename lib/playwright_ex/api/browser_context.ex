@@ -2065,4 +2065,274 @@ defmodule PlaywrightEx.BrowserContext do
     event = Facade.event!(event, @events, "browserContext.prependListener")
     Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:add_init_script) do
+    [
+      expose_functions: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "When set to `true`, functions passed inside `arg` are exposed in the page and can be called from the init script. Calling one returns a `Promise` of its result. Under the hood, each function is exposed via `PlaywrightEx.Page.expose_function/3`, so it is technically accessible from all frames of the page. Unlike functions passed to `PlaywrightEx.Page.evaluate/4`, functions passed to an init script are exposed in every new document, so they survive navigations. Defaults to `false`, in which case functions are not serializable and are silently dropped.",
+        since: "1.62",
+        spec: quote(do: boolean())
+      }
+    ]
+  end
+
+  def __options__(:clear_cookies) do
+    [
+      domain: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "Only removes cookies with the given domain.",
+        since: "1.43",
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      name: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "Only removes cookies with the given name.",
+        since: "1.43",
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      },
+      path: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "Only removes cookies with the given path.",
+        since: "1.43",
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      }
+    ]
+  end
+
+  def __options__(:close) do
+    [
+      reason: %{
+        type_doc: "`t:String.t/0`",
+        doc: "The reason to be reported to the operations interrupted by the context closure.",
+        since: "1.40",
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:grant_permissions) do
+    [
+      origin: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "The [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin) to grant permissions to, e.g. \"https://example.com\".",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:remove_all_listeners) do
+    [
+      behavior: %{
+        type_doc: "`:wait` | `:ignore_errors` | `:default`",
+        doc: "Specifies whether to wait for already running listeners and what to do if they raise:",
+        since: nil,
+        spec: quote(do: :wait | :ignore_errors | :default)
+      }
+    ]
+  end
+
+  def __options__(:route) do
+    [
+      times: %{
+        type_doc: "`t:integer/0`",
+        doc: "How often a route should be used. By default it will be used every time.",
+        since: "1.15",
+        spec: quote(do: integer())
+      }
+    ]
+  end
+
+  def __options__(:route_from_har) do
+    [
+      not_found: %{
+        type_doc: "`:abort` | `:fallback`",
+        doc:
+          "* If set to 'abort' any request not found in the HAR file will be aborted.\n* If set to 'fallback' falls through to the next route handler in the handler chain.",
+        since: nil,
+        spec: quote(do: :abort | :fallback)
+      },
+      update: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "If specified, updates the given HAR with the actual network information instead of serving from file. The file is written to disk when `PlaywrightEx.BrowserContext.close/2` is called.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      update_content: %{
+        type_doc: "`:embed` | `:attach`",
+        doc:
+          "Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.",
+        since: "1.32",
+        spec: quote(do: :embed | :attach)
+      },
+      update_mode: %{
+        type_doc: "`:full` | `:minimal`",
+        doc:
+          "When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:minimal`.",
+        since: "1.32",
+        spec: quote(do: :full | :minimal)
+      },
+      url: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc:
+          "A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      }
+    ]
+  end
+
+  def __options__(:storage_state) do
+    [
+      credentials: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Set to `true` to include the context's virtual WebAuthn `PlaywrightEx.BrowserContext.credentials/1` (passkeys) in the storage state snapshot. The captured credentials carry their private keys and signature counters, so they can be re-seeded into a later context via the `:storage_state` option or `PlaywrightEx.BrowserContext.set_storage_state/2`. Note that restoring the storage state that contains credentials will automatically install the virtual WebAuthn authenticator (see `PlaywrightEx.Credentials.install/1`), and prevent all real authenticators from working in this context.",
+        since: "1.61",
+        spec: quote(do: boolean())
+      },
+      indexed_db: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Set to `true` to include [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) in the storage state snapshot. If your application uses IndexedDB to store authentication tokens, like Firebase Authentication, enable this.",
+        since: "1.51",
+        spec: quote(do: boolean())
+      },
+      opfs: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Set to `true` to include the [origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system) in the storage state snapshot.",
+        since: "1.63",
+        spec: quote(do: boolean())
+      },
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "The file path to save the storage state to. If `:path` is a relative path, then it is resolved relative to current working directory. If no path is provided, storage state is still returned, but won't be saved to the disk.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:unroute_all) do
+    [
+      behavior: %{
+        type_doc: "`:wait` | `:ignore_errors` | `:default`",
+        doc: "Specifies whether to wait for already running handlers and what to do if they raise:",
+        since: nil,
+        spec: quote(do: :wait | :ignore_errors | :default)
+      }
+    ]
+  end
+
+  def __options__(:wait_for_event) do
+    [
+      predicate: %{
+        type_doc: "`t:fun/0`",
+        doc: "Receives the event data and returns a truthy value when the waiting should resolve.",
+        since: nil,
+        spec: quote(do: fun())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      }
+    ]
+  end
+
+  def __options__(:expect_console_message) do
+    [
+      predicate: %{
+        type_doc: "`(PlaywrightEx.ConsoleMessage.t() -> boolean())`",
+        doc:
+          "Receives the [`ConsoleMessage`](`PlaywrightEx.ConsoleMessage`) object and returns a truthy value when the waiting should resolve.",
+        since: nil,
+        spec: quote(do: (PlaywrightEx.ConsoleMessage.t() -> boolean()))
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      }
+    ]
+  end
+
+  def __options__(:expect_event) do
+    [
+      predicate: %{
+        type_doc: "`t:fun/0`",
+        doc: "Receives the event data and returns a truthy value when the waiting should resolve.",
+        since: nil,
+        spec: quote(do: fun())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      }
+    ]
+  end
+
+  def __options__(:expect_page) do
+    [
+      predicate: %{
+        type_doc: "`(PlaywrightEx.Page.t() -> boolean())`",
+        doc:
+          "Receives the [`Page`](`PlaywrightEx.Page`) object and returns a truthy value when the waiting should resolve.",
+        since: nil,
+        spec: quote(do: (PlaywrightEx.Page.t() -> boolean()))
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      }
+    ]
+  end
 end

@@ -352,4 +352,118 @@ defmodule PlaywrightEx.Screencast do
       PlaywrightEx.Client.Screencast.hide_overlays(screencast)
     end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:start) do
+    [
+      fps: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Frame rate of the video recording in frames per second. Only used together with `:path`. Defaults to `25`.",
+        since: "1.64",
+        spec: quote(do: integer())
+      },
+      on_frame: %{
+        type_doc:
+          "`(%{data: binary(), timestamp: number(), viewportWidth: integer(), viewportHeight: integer()} -> term())`",
+        doc: "Callback that receives JPEG-encoded frame data along with the page viewport size at the time of capture.",
+        since: nil,
+        spec:
+          quote(
+            do: (%{data: binary(), timestamp: number(), viewportWidth: integer(), viewportHeight: integer()} -> term())
+          )
+      },
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Path where the video should be saved when the screencast is stopped. When provided, video recording is started.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      quality: %{
+        type_doc: "`t:integer/0`",
+        doc: "The quality of the image, between 0-100.",
+        since: nil,
+        spec: quote(do: integer())
+      },
+      size: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Specifies the dimensions of screencast frames. The actual frame is scaled to preserve the page's aspect ratio and may be smaller than these bounds. If a screencast is already active (e.g. started by tracing or video recording), the existing configuration takes precedence and the frame size may exceed these bounds or this option may be ignored. If not specified the size will be equal to page viewport scaled down to fit into 800×800.",
+        since: nil,
+        spec: quote(do: %{width: integer(), height: integer()})
+      }
+    ]
+  end
+
+  def __options__(:show_overlay) do
+    [
+      duration: %{
+        type_doc: "`t:number/0`",
+        doc:
+          "Duration in milliseconds after which the overlay is automatically removed. Overlay stays until dismissed if not provided.",
+        since: nil,
+        spec: quote(do: number())
+      }
+    ]
+  end
+
+  def __options__(:show_chapter) do
+    [
+      description: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Optional description text displayed below the title.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      duration: %{
+        type_doc: "`t:number/0`",
+        doc: "Duration in milliseconds after which the overlay is automatically removed. Defaults to `2000`.",
+        since: nil,
+        spec: quote(do: number())
+      }
+    ]
+  end
+
+  def __options__(:show_actions) do
+    [
+      cursor: %{
+        type_doc: "`:none` | `:pointer`",
+        doc:
+          "Cursor decoration shown for pointer actions. `:pointer` (the default) renders a mouse pointer that animates from the previous action point to the next one. `:none` disables the cursor decoration.",
+        since: "1.61",
+        spec: quote(do: :none | :pointer)
+      },
+      duration: %{
+        type_doc: "`t:number/0`",
+        doc: "How long each annotation is displayed in milliseconds. Defaults to `500`.",
+        since: nil,
+        spec: quote(do: number())
+      },
+      font_size: %{
+        type_doc: "`t:integer/0`",
+        doc: "Font size of the action title in pixels. Defaults to `24`.",
+        since: nil,
+        spec: quote(do: integer())
+      },
+      position: %{
+        type_doc: "`:top_left` | `:top` | `:top_right` | `:bottom_left` | `:bottom` | `:bottom_right`",
+        doc: "Position of the action title overlay. Defaults to `:top_right`.",
+        since: nil,
+        spec: quote(do: :top_left | :top | :top_right | :bottom_left | :bottom | :bottom_right)
+      },
+      style: %{
+        type_doc: "`t:map/0`",
+        doc: "Styles of the action decorations. All decorations fade out over `:duration`.",
+        since: "1.64",
+        spec:
+          quote(
+            do: %{optional(:point) => String.t(), optional(:highlight) => String.t(), optional(:title) => String.t()}
+          )
+      }
+    ]
+  end
 end

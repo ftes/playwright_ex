@@ -1390,4 +1390,718 @@ defmodule PlaywrightEx.Browser do
     event = Facade.event!(event, @events, "browser.prependListener")
     Facade.listen(fn -> PlaywrightEx.Client.Browser.prepend_listener(browser, event, listener) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:close) do
+    [
+      reason: %{
+        type_doc: "`t:String.t/0`",
+        doc: "The reason to be reported to the operations interrupted by the browser closure.",
+        since: "1.40",
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:new_context) do
+    [
+      accept_downloads: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      base_url: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "When using `PlaywrightEx.Page.goto/3`, `PlaywrightEx.Page.route/4`, `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      bypass_csp: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Toggles bypassing page's Content-Security-Policy. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      client_certificates: %{
+        type_doc: "list of `t:map/0`",
+        doc: "TLS Client Authentication allows the server to request a client certificate and verify it.",
+        since: "1.46",
+        spec:
+          quote(
+            do: [
+              %{
+                required(:origin) => String.t(),
+                optional(:certPath) => String.t(),
+                optional(:cert) => binary(),
+                optional(:keyPath) => String.t(),
+                optional(:key) => binary(),
+                optional(:pfxPath) => String.t(),
+                optional(:pfx) => binary(),
+                optional(:passphrase) => String.t()
+              }
+            ]
+          )
+      },
+      color_scheme: %{
+        type_doc: "`:null` | `:light` | `:dark` | `:no_preference`",
+        doc:
+          "Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `:light` and `:dark`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:light`.",
+        since: nil,
+        spec: quote(do: :null | :light | :dark | :no_preference)
+      },
+      contrast: %{
+        type_doc: "`:null` | `:no_preference` | `:more`",
+        doc:
+          "Emulates `'prefers-contrast'` media feature, supported values are `:no_preference`, `:more`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.",
+        since: nil,
+        spec: quote(do: :null | :no_preference | :more)
+      },
+      device_scale_factor: %{
+        type_doc: "`t:number/0`",
+        doc:
+          "Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).",
+        since: nil,
+        spec: quote(do: number())
+      },
+      extra_http_headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "An object containing additional HTTP headers to be sent with every request. Defaults to none.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      forced_colors: %{
+        type_doc: "`:null` | `:active` | `:none`",
+        doc:
+          "Emulates `'forced-colors'` media feature, supported values are `:active`, `:none`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:none`.",
+        since: nil,
+        spec: quote(do: :null | :active | :none)
+      },
+      geolocation: %{
+        type_doc: "`t:map/0`",
+        doc: "",
+        since: nil,
+        spec:
+          quote(
+            do: %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+          )
+      },
+      has_touch: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#devices).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      http_credentials: %{
+        type_doc: "`t:map/0` | list of `t:map/0`",
+        doc:
+          "Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no origin is specified, the username and password are sent to any servers upon unauthorized responses.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              %{
+                required(:username) => String.t(),
+                required(:password) => String.t(),
+                optional(:origin) => String.t(),
+                optional(:send) => String.t()
+              }
+              | [
+                  %{
+                    required(:username) => String.t(),
+                    required(:password) => String.t(),
+                    optional(:origin) => String.t(),
+                    optional(:send) => String.t()
+                  }
+                ]
+          )
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      is_mobile: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      java_script_enabled: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      locale: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      logger: %{
+        type_doc: "`t:map/0`",
+        doc: "Logger sink for Playwright logging.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              isEnabled: (String.t(), String.t() -> boolean()),
+              log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                      term())
+            }
+          )
+      },
+      offline: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      permissions: %{
+        type_doc: "list of `t:String.t/0`",
+        doc:
+          "A list of permissions to grant to all pages in this context. See `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.",
+        since: nil,
+        spec: quote(do: [String.t()])
+      },
+      proxy: %{
+        type_doc: "`t:map/0`",
+        doc: "Network proxy settings to use with this context. Defaults to none.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              required(:server) => String.t(),
+              optional(:bypass) => String.t(),
+              optional(:username) => String.t(),
+              optional(:password) => String.t()
+            }
+          )
+      },
+      record_har: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not specified, the HAR is not recorded. Make sure to call `PlaywrightEx.BrowserContext.close/2` for the HAR to be saved.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              optional(:omitContent) => boolean(),
+              optional(:content) => String.t(),
+              required(:path) => String.t(),
+              optional(:mode) => String.t(),
+              optional(:urlFilter) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
+            }
+          )
+      },
+      record_video: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make sure to call `PlaywrightEx.BrowserContext.close/2` for videos to be saved.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              optional(:dir) => String.t(),
+              optional(:size) => %{width: integer(), height: integer()},
+              optional(:fps) => integer(),
+              optional(:showActions) => %{
+                optional(:duration) => number(),
+                optional(:position) => String.t(),
+                optional(:fontSize) => integer(),
+                optional(:cursor) => String.t(),
+                optional(:style) => %{
+                  optional(:point) => String.t(),
+                  optional(:highlight) => String.t(),
+                  optional(:title) => String.t()
+                }
+              }
+            }
+          )
+      },
+      reduced_motion: %{
+        type_doc: "`:null` | `:reduce` | `:no_preference`",
+        doc:
+          "Emulates `'prefers-reduced-motion'` media feature, supported values are `:reduce`, `:no_preference`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.",
+        since: nil,
+        spec: quote(do: :null | :reduce | :no_preference)
+      },
+      screen: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the `:viewport` is set.",
+        since: nil,
+        spec: quote(do: %{width: integer(), height: integer()})
+      },
+      service_workers: %{
+        type_doc: "`:allow` | `:block`",
+        doc: "Whether to allow sites to register Service workers. Defaults to `:allow`.",
+        since: nil,
+        spec: quote(do: :allow | :block)
+      },
+      storage_state: %{
+        type_doc: "`t:String.t/0` | `t:map/0`",
+        doc: "Learn more about [storage state and auth](https://playwright.dev/docs/auth).",
+        since: nil,
+        spec:
+          quote(
+            do:
+              String.t()
+              | %{
+                  required(:cookies) => [
+                    %{
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      required(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      required(:sameSite) => String.t(),
+                      optional(atom()) => term()
+                    }
+                  ],
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      required(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                      ],
+                      optional(atom()) => term()
+                    }
+                  ],
+                  optional(atom()) => term()
+                }
+          )
+      },
+      strict_selectors: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on selectors that imply single target DOM element will fail when more than one element matches the selector. This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      timezone_id: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1) for a list of supported timezone IDs. Defaults to the system timezone.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      user_agent: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Specific user agent to use in this context.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      viewport: %{
+        type_doc: "`:null` | `t:map/0`",
+        doc:
+          "Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `:null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).",
+        since: nil,
+        spec: quote(do: :null | %{width: integer(), height: integer()})
+      },
+      default_browser_type: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:new_page) do
+    [
+      accept_downloads: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to automatically download all the attachments. Defaults to `true` where all the downloads are accepted.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      base_url: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "When using `PlaywrightEx.Page.goto/3`, `PlaywrightEx.Page.route/4`, `PlaywrightEx.Page.wait_for_url/3`, `PlaywrightEx.Page.wait_for_request/3`, or `PlaywrightEx.Page.wait_for_response/3` it takes the base URL in consideration by using the [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL. Unset by default. Examples:",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      bypass_csp: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Toggles bypassing page's Content-Security-Policy. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      client_certificates: %{
+        type_doc: "list of `t:map/0`",
+        doc: "TLS Client Authentication allows the server to request a client certificate and verify it.",
+        since: "1.46",
+        spec:
+          quote(
+            do: [
+              %{
+                required(:origin) => String.t(),
+                optional(:certPath) => String.t(),
+                optional(:cert) => binary(),
+                optional(:keyPath) => String.t(),
+                optional(:key) => binary(),
+                optional(:pfxPath) => String.t(),
+                optional(:pfx) => binary(),
+                optional(:passphrase) => String.t()
+              }
+            ]
+          )
+      },
+      color_scheme: %{
+        type_doc: "`:null` | `:light` | `:dark` | `:no_preference`",
+        doc:
+          "Emulates [prefers-colors-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme) media feature, supported values are `:light` and `:dark`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:light`.",
+        since: nil,
+        spec: quote(do: :null | :light | :dark | :no_preference)
+      },
+      contrast: %{
+        type_doc: "`:null` | `:no_preference` | `:more`",
+        doc:
+          "Emulates `'prefers-contrast'` media feature, supported values are `:no_preference`, `:more`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.",
+        since: nil,
+        spec: quote(do: :null | :no_preference | :more)
+      },
+      device_scale_factor: %{
+        type_doc: "`t:number/0`",
+        doc:
+          "Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).",
+        since: nil,
+        spec: quote(do: number())
+      },
+      extra_http_headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "An object containing additional HTTP headers to be sent with every request. Defaults to none.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      forced_colors: %{
+        type_doc: "`:null` | `:active` | `:none`",
+        doc:
+          "Emulates `'forced-colors'` media feature, supported values are `:active`, `:none`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:none`.",
+        since: nil,
+        spec: quote(do: :null | :active | :none)
+      },
+      geolocation: %{
+        type_doc: "`t:map/0`",
+        doc: "",
+        since: nil,
+        spec:
+          quote(
+            do: %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
+          )
+      },
+      has_touch: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#devices).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      http_credentials: %{
+        type_doc: "`t:map/0` | list of `t:map/0`",
+        doc:
+          "Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no origin is specified, the username and password are sent to any servers upon unauthorized responses.",
+        since: nil,
+        spec:
+          quote(
+            do:
+              %{
+                required(:username) => String.t(),
+                required(:password) => String.t(),
+                optional(:origin) => String.t(),
+                optional(:send) => String.t()
+              }
+              | [
+                  %{
+                    required(:username) => String.t(),
+                    required(:password) => String.t(),
+                    optional(:origin) => String.t(),
+                    optional(:send) => String.t()
+                  }
+                ]
+          )
+      },
+      ignore_https_errors: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      is_mobile: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false`. Learn more about [mobile emulation](https://playwright.dev/docs/emulation#ismobile).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      java_script_enabled: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      locale: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      logger: %{
+        type_doc: "`t:map/0`",
+        doc: "Logger sink for Playwright logging.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              isEnabled: (String.t(), String.t() -> boolean()),
+              log: (String.t(), String.t(), String.t() | Exception.t(), [map()], %{optional(:color) => String.t()} ->
+                      term())
+            }
+          )
+      },
+      offline: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](https://playwright.dev/docs/emulation#offline).",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      permissions: %{
+        type_doc: "list of `t:String.t/0`",
+        doc:
+          "A list of permissions to grant to all pages in this context. See `PlaywrightEx.BrowserContext.grant_permissions/3` for more details. Defaults to none.",
+        since: nil,
+        spec: quote(do: [String.t()])
+      },
+      proxy: %{
+        type_doc: "`t:map/0`",
+        doc: "Network proxy settings to use with this context. Defaults to none.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              required(:server) => String.t(),
+              optional(:bypass) => String.t(),
+              optional(:username) => String.t(),
+              optional(:password) => String.t()
+            }
+          )
+      },
+      record_har: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Enables [HAR](http://www.softwareishard.com/blog/har-12-spec) recording for all pages into `recordHar.path` file. If not specified, the HAR is not recorded. Make sure to call `PlaywrightEx.BrowserContext.close/2` for the HAR to be saved.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              optional(:omitContent) => boolean(),
+              optional(:content) => String.t(),
+              required(:path) => String.t(),
+              optional(:mode) => String.t(),
+              optional(:urlFilter) => String.t() | Regex.t() | PlaywrightEx.RegExp.t()
+            }
+          )
+      },
+      record_video: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Enables video recording for all pages into `recordVideo.dir` directory. If not specified videos are not recorded. Make sure to call `PlaywrightEx.BrowserContext.close/2` for videos to be saved.",
+        since: nil,
+        spec:
+          quote(
+            do: %{
+              optional(:dir) => String.t(),
+              optional(:size) => %{width: integer(), height: integer()},
+              optional(:fps) => integer(),
+              optional(:showActions) => %{
+                optional(:duration) => number(),
+                optional(:position) => String.t(),
+                optional(:fontSize) => integer(),
+                optional(:cursor) => String.t(),
+                optional(:style) => %{
+                  optional(:point) => String.t(),
+                  optional(:highlight) => String.t(),
+                  optional(:title) => String.t()
+                }
+              }
+            }
+          )
+      },
+      reduced_motion: %{
+        type_doc: "`:null` | `:reduce` | `:no_preference`",
+        doc:
+          "Emulates `'prefers-reduced-motion'` media feature, supported values are `:reduce`, `:no_preference`. See `PlaywrightEx.Page.emulate_media/2` for more details. Passing `:null` resets emulation to system defaults. Defaults to `:no_preference`.",
+        since: nil,
+        spec: quote(do: :null | :reduce | :no_preference)
+      },
+      screen: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Emulates consistent window screen size available inside web page via `window.screen`. Is only used when the `:viewport` is set.",
+        since: nil,
+        spec: quote(do: %{width: integer(), height: integer()})
+      },
+      service_workers: %{
+        type_doc: "`:allow` | `:block`",
+        doc: "Whether to allow sites to register Service workers. Defaults to `:allow`.",
+        since: nil,
+        spec: quote(do: :allow | :block)
+      },
+      storage_state: %{
+        type_doc: "`t:String.t/0` | `t:map/0`",
+        doc: "Learn more about [storage state and auth](https://playwright.dev/docs/auth).",
+        since: nil,
+        spec:
+          quote(
+            do:
+              String.t()
+              | %{
+                  required(:cookies) => [
+                    %{
+                      required(:name) => String.t(),
+                      required(:value) => String.t(),
+                      required(:domain) => String.t(),
+                      required(:path) => String.t(),
+                      required(:expires) => number(),
+                      required(:httpOnly) => boolean(),
+                      required(:secure) => boolean(),
+                      required(:sameSite) => String.t(),
+                      optional(atom()) => term()
+                    }
+                  ],
+                  required(:origins) => [
+                    %{
+                      required(:origin) => String.t(),
+                      required(:localStorage) => [
+                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
+                      ],
+                      optional(atom()) => term()
+                    }
+                  ],
+                  optional(atom()) => term()
+                }
+          )
+      },
+      strict_selectors: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on selectors that imply single target DOM element will fail when more than one element matches the selector. This option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See [`Locator`](`PlaywrightEx.Locator`) to learn more about the strict mode.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      timezone_id: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1) for a list of supported timezone IDs. Defaults to the system timezone.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      user_agent: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Specific user agent to use in this context.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      viewport: %{
+        type_doc: "`:null` | `t:map/0`",
+        doc:
+          "Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `:null` to disable the consistent viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).",
+        since: nil,
+        spec: quote(do: :null | %{width: integer(), height: integer()})
+      },
+      default_browser_type: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:bind) do
+    [
+      host: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Host to bind the web socket server to. When specified, a web socket server is created instead of a named pipe.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      metadata: %{
+        type_doc: "`%{optional(String.t()) => term()}`",
+        doc: "Additional metadata to associate with the browser server.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => term()})
+      },
+      port: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Port to bind the web socket server to. When specified, a web socket server is created instead of a named pipe. Use `0` to let the OS pick an available port.",
+        since: nil,
+        spec: quote(do: integer())
+      },
+      workspace_dir: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Working directory associated with this browser server.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:remove_all_listeners) do
+    [
+      behavior: %{
+        type_doc: "`:wait` | `:ignore_errors` | `:default`",
+        doc: "Specifies whether to wait for already running listeners and what to do if they raise:",
+        since: nil,
+        spec: quote(do: :wait | :ignore_errors | :default)
+      }
+    ]
+  end
+
+  def __options__(:start_tracing) do
+    [
+      categories: %{
+        type_doc: "list of `t:String.t/0`",
+        doc: "specify custom categories to use instead of default.",
+        since: nil,
+        spec: quote(do: [String.t()])
+      },
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc: "A path to write the trace file to.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      screenshots: %{
+        type_doc: "`t:boolean/0`",
+        doc: "captures screenshots in the trace.",
+        since: nil,
+        spec: quote(do: boolean())
+      }
+    ]
+  end
 end

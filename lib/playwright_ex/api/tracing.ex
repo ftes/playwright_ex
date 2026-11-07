@@ -365,4 +365,139 @@ defmodule PlaywrightEx.Tracing do
   def stop_har!(tracing) do
     Facade.async_void!("tracing.stopHar", tracing, fn -> PlaywrightEx.Client.Tracing.stop_har(tracing) end)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:start) do
+    [
+      live: %{
+        type_doc: "`t:boolean/0`",
+        doc:
+          "When enabled, the trace is written to an unarchived file that is updated in real time as actions occur, instead of caching changes and archiving them into a zip file at the end. This is useful for live trace viewing during test execution.",
+        since: "1.59",
+        spec: quote(do: boolean())
+      },
+      name: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "If specified, intermediate trace files are going to be saved into the files with the given name prefix inside the `:traces_dir` directory specified in `PlaywrightEx.BrowserType.launch/2`. To specify the final trace zip file name, you need to pass `path` option to `PlaywrightEx.Tracing.stop/2` instead.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      screenshots: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to capture screenshots during tracing. Screenshots are used to build a timeline preview.",
+        since: nil,
+        spec: quote(do: boolean())
+      },
+      snapshots: %{
+        type_doc: "`t:boolean/0` | `t:map/0`",
+        doc: "Which snapshots to capture on every action. Passing `true` is a shortcut for `{ dom: true }`.",
+        since: nil,
+        spec:
+          quote(
+            do: boolean() | %{optional(:dom) => boolean(), optional(:aria) => boolean(), optional(:screen) => boolean()}
+          )
+      },
+      sources: %{
+        type_doc: "`t:boolean/0`",
+        doc: "Whether to include source files for trace actions.",
+        since: "1.17",
+        spec: quote(do: boolean())
+      },
+      title: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Trace name to be shown in the Trace Viewer.",
+        since: "1.17",
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:start_chunk) do
+    [
+      name: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "If specified, intermediate trace files are going to be saved into the files with the given name prefix inside the `:traces_dir` directory specified in `PlaywrightEx.BrowserType.launch/2`. To specify the final trace zip file name, you need to pass `path` option to `PlaywrightEx.Tracing.stop_chunk/2` instead.",
+        since: "1.32",
+        spec: quote(do: String.t())
+      },
+      title: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Trace name to be shown in the Trace Viewer.",
+        since: "1.17",
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:start_har) do
+    [
+      content: %{
+        type_doc: "`:omit` | `:embed` | `:attach`",
+        doc:
+          "Optional setting to control resource content management. If `omit` is specified, content is not persisted. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file as per HAR specification. Defaults to `:attach` for `.zip` output files and to `embed` for all other file extensions.",
+        since: nil,
+        spec: quote(do: :omit | :embed | :attach)
+      },
+      mode: %{
+        type_doc: "`:full` | `:minimal`",
+        doc:
+          "When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `:full`.",
+        since: nil,
+        spec: quote(do: :full | :minimal)
+      },
+      resources_dir: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Only used together with `content: 'attach'`. When set, response bodies are placed in this directory instead of next to the HAR file. Not compatible with a `.zip` HAR file.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      url_filter: %{
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0`",
+        doc: "A glob or regex pattern to filter requests that are stored in the HAR. Defaults to none.",
+        since: nil,
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t())
+      }
+    ]
+  end
+
+  def __options__(:group) do
+    [
+      location: %{
+        type_doc: "`t:map/0`",
+        doc:
+          "Specifies a custom location for the group to be shown in the trace viewer. Defaults to the location of the `PlaywrightEx.Tracing.group/3` call.",
+        since: nil,
+        spec: quote(do: %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()})
+      }
+    ]
+  end
+
+  def __options__(:stop) do
+    [
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc: "Export trace into the file with the given path.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:stop_chunk) do
+    [
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Export trace collected since the last `PlaywrightEx.Tracing.start_chunk/2` call into the file with the given path.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
 end

@@ -418,4 +418,173 @@ defmodule PlaywrightEx.Route do
   def request(route) do
     PlaywrightEx.Client.Route.request(route)
   end
+
+  @doc false
+  @spec __options__(atom()) :: [
+          {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
+        ]
+  def __options__(:continue) do
+    [
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "If set changes the request HTTP headers. Header values will be converted to a string.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      method: %{
+        type_doc: "`t:String.t/0`",
+        doc: "If set changes the request method (e.g. GET or POST).",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      post_data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc: "If set changes the post data of request.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      url: %{
+        type_doc: "`t:String.t/0`",
+        doc: "If set changes the request URL. New URL must have same protocol as original one.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:fallback) do
+    [
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "If set changes the request HTTP headers. Header values will be converted to a string.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      method: %{
+        type_doc: "`t:String.t/0`",
+        doc: "If set changes the request method (e.g. GET or POST).",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      post_data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc: "If set changes the post data of request.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      url: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "If set changes the request URL. New URL must have same protocol as original one. Changing the URL won't affect the route matching, all the routes are matched using the original request URL.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:fetch) do
+    [
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "If set changes the request HTTP headers. Header values will be converted to a string.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      max_redirects: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of request redirects that will be followed automatically. The call fails if the number is exceeded. Defaults to `20`. Pass `0` to not follow redirects.",
+        since: "1.31",
+        spec: quote(do: integer())
+      },
+      max_retries: %{
+        type_doc: "`t:integer/0`",
+        doc:
+          "Maximum number of times network errors should be retried. Currently only `ECONNRESET` error is retried. Does not retry based on HTTP response codes. The call fails if the limit is exceeded. Defaults to `0` - no retries.",
+        since: "1.46",
+        spec: quote(do: integer())
+      },
+      method: %{
+        type_doc: "`t:String.t/0`",
+        doc: "If set changes the request method (e.g. GET or POST).",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      post_data: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}` | `t:term/0`",
+        doc:
+          "Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type` header will be set to `application/octet-stream` if not explicitly set.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()} | term())
+      },
+      signal: %{
+        type_doc: "`t:PlaywrightEx.AbortSignal.t/0`",
+        doc:
+          "Allows to cancel the operation using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the operation will be aborted and fail. Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.",
+        since: "1.62",
+        spec: quote(do: PlaywrightEx.AbortSignal.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc: "Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.",
+        since: "1.33",
+        spec: quote(do: number() | :infinity)
+      },
+      url: %{
+        type_doc: "`t:String.t/0`",
+        doc: "If set changes the request URL. New URL must have same protocol as original one.",
+        since: nil,
+        spec: quote(do: String.t())
+      }
+    ]
+  end
+
+  def __options__(:fulfill) do
+    [
+      body: %{
+        type_doc: "`t:String.t/0` | `{:binary, binary()}`",
+        doc: "Response body.",
+        since: nil,
+        spec: quote(do: String.t() | {:binary, binary()})
+      },
+      content_type: %{
+        type_doc: "`t:String.t/0`",
+        doc: "If set, equals to setting `Content-Type` response header.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      headers: %{
+        type_doc: "`%{optional(String.t()) => String.t()}`",
+        doc: "Response headers. Header values will be converted to a string.",
+        since: nil,
+        spec: quote(do: %{optional(String.t()) => String.t()})
+      },
+      json: %{
+        type_doc: "`t:term/0`",
+        doc: "JSON response. This method will set the content type to `application/json` if not set.",
+        since: "1.29",
+        spec: quote(do: term())
+      },
+      path: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "File path to respond with. The content type will be inferred from file extension. If `:path` is a relative path, then it is resolved relative to the current working directory.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      response: %{
+        type_doc: "`t:PlaywrightEx.APIResponse.t/0`",
+        doc:
+          "[`APIResponse`](`PlaywrightEx.APIResponse`) to fulfill route's request with. Individual fields of the response (such as headers) can be overridden using fulfill options.",
+        since: "1.15",
+        spec: quote(do: PlaywrightEx.APIResponse.t())
+      },
+      status: %{
+        type_doc: "`t:integer/0`",
+        doc: "Response status code, defaults to `200`.",
+        since: nil,
+        spec: quote(do: integer())
+      }
+    ]
+  end
 end
