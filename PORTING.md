@@ -228,12 +228,9 @@ single thread. Use each only where the JS code needs it, with its marker.
 
 Problems upstream's own client has too; re-check on each bump, drop what's fixed.
 
-- **macOS WebKit `env:` skips** (12 tests, macOS 26): upstream's client fails them too; Linux CI
-  passes.
-- **Firefox Partitioned cookies** from a fresh Bandit server (`env:` skip): upstream's client too;
-  mechanism unknown.
-- **Chromium worker hang** (`workers_test:237`, tagged flaky): upstream's client hangs too (6/510
-  under 2-CPU load), microsoft/playwright#43922.
-- **OOPIF "should click"** (chromium/oopif_test, skipped on macOS): a browser race right after an
-  OOPIF `goto`; the driver's JS client misses it as often (5-8 in 10 when looped), with the same
-  CDP commands and gap.
+- **macOS WebKit `env:` skips** (13 tests, macOS 26: the proxy for localhost, 127.0.0.1 and
+  link-local targets, `colorScheme: null` on a dark host): upstream's client fails them too;
+  Linux CI passes.
+- **Chromium worker hang** (`workers_test`, tagged flaky): upstream's client hangs too (6/510
+  under 2-CPU load), microsoft/playwright#43922, closed right after 1.65.0 (101/101 unloaded on
+  1.65).
