@@ -1,7 +1,7 @@
 # Upstream tests that playwright_ex does not port, with the reason.
 #
 # The registry of upstream tests is test/upstream_registry.md, a copy of tests/registry.md in
-# microsoft/playwright (via playwright-python). `mix playwright_ex.parity` checks that every test
+# microsoft/playwright at the pin. `mix playwright_ex.parity` checks that every test
 # in it that is at our pin is ported (a mirrored test with a body), left bodiless because
 # upstream skips it in our setup, or matches a rule here. One rule per line: a selector, then
 # the reason. A selector is a test identifier (CH-017), a subsystem code (CG), or an upstream
