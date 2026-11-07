@@ -671,10 +671,39 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     assert Exception.message(error) =~ url
   end
 
+  # `async function transaction(value)`, passed to page.evaluate.
+  @transaction """
+  async function transaction(value) {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('roundtrip', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('items');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('items', 'readwrite');
+      const request = tx.objectStore('items').get('name');
+      request.onsuccess = () => {
+        if (value)
+          tx.objectStore('items').put(value, 'name');
+      };
+      tx.oncomplete = () => resolve(request.result);
+      tx.onerror = tx.onabort = () => reject(tx.error);
+    });
+  }
+  """
+
   test "NA-051 should be able to navigate to a page controlled by service worker", %{page: page, server: server} do
+    # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42694' }
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
     Page.evaluate!(page, "() => window['activationPromise']")
     Page.goto!(page, server.prefix <> "/serviceworkers/fetch/sw.html")
+    Page.wait_for_function!(page, "() => !!navigator.serviceWorker.controller")
+    Page.evaluate!(page, @transaction, "value")
+    Page.goto!(page, server.cross_process_prefix <> "/empty.html")
+    Page.go_back!(page)
+    Page.wait_for_function!(page, "() => !!navigator.serviceWorker.controller")
+    assert Page.evaluate!(page, @transaction, :null) == "value"
   end
 
   test "NA-052 should send referer", %{page: page, server: server} do

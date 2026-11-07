@@ -17,7 +17,6 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
   @moduletag :page
@@ -88,19 +87,16 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     Page.route!(page, "**/data.json", fn route -> send(me, {:route, route}) end)
     Page.goto!(page, server.empty_page)
 
-    fetch =
-      Runtime.Promise.async(fn ->
-        Page.evaluate(
-          page,
-          """
-          url => {
-            globalThis.controller = new AbortController();
-            return fetch(url, { signal: globalThis.controller.signal });
-          }
-          """,
-          server.prefix <> "/data.json"
-        )
-      end)
+    Page.evaluate!(
+      page,
+      """
+      url => {
+        globalThis.controller = new AbortController();
+        fetch(url, { signal: globalThis.controller.signal }).catch(() => {});
+      }
+      """,
+      server.prefix <> "/data.json"
+    )
 
     assert_receive {:route, route}, 5000
     failure_promise = Page.wait_for_event(page, :request_failed)
@@ -110,7 +106,6 @@ defmodule PlaywrightEx.Page.PageRequestFulfillTest do
     assert Request.failure(cancelled_request).errorText =~ ~r/cancelled|aborted/i
     # Should not throw.
     Route.fulfill!(route, status: 200)
-    Runtime.Promise.await(fetch)
   end
 
   test "RO-101 should allow mocking binary responses", %{page: page, server: server, asset: asset} do

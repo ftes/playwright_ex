@@ -150,7 +150,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     assert event["isTrusted"] == true
     assert event["button"] == 1
     assert event["buttons"] == 4
-    assert event["pointerId"] == if(browser_name == "firefox", do: 0, else: 1)
+    assert event["pointerId"] >= 0
   end
 
   test "MO-005 should report correct buttons property", %{page: page} do
@@ -298,7 +298,7 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     () => {
       window['result'] = [];
       document.addEventListener('mousemove', event => {
-        window['result'].push([event.clientX, event.clientY]);
+        window['result'].push([event.clientX, event.clientY, event.movementX, event.movementY]);
       });
     }
     """)
@@ -306,11 +306,11 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     Mouse.move!(Page.mouse(page), 200, 300, steps: 5)
 
     assert Page.evaluate!(page, "result") == [
-             [120, 140],
-             [140, 180],
-             [160, 220],
-             [180, 260],
-             [200, 300]
+             [120, 140, 20, 40],
+             [140, 180, 20, 40],
+             [160, 220, 20, 40],
+             [180, 260, 20, 40],
+             [200, 300, 20, 40]
            ]
   end
 

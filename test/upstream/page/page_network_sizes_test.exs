@@ -96,6 +96,8 @@ defmodule PlaywrightEx.Page.PageNetworkSizesTest do
       for start <- 0..(byte_size(content) - 1)//chunk_size, reduce: conn do
         conn ->
           size = min(chunk_size, byte_size(content) - start)
+          # Wait for each chunk to be flushed, otherwise Node 26 merges synchronous writes into a single chunk.
+          # (Plug.Conn.chunk/2 returns once the chunk is sent.)
           {:ok, conn} = Plug.Conn.chunk(conn, binary_part(content, start, size))
           conn
       end

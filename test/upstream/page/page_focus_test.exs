@@ -4,9 +4,12 @@ defmodule PlaywrightEx.Page.PageFocusTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.FrameLocator
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.TestServer
 
   @moduletag :page
 
@@ -250,5 +253,70 @@ defmodule PlaywrightEx.Page.PageFocusTest do
     Locator.focus!(Page.locator(page, "#non-focusable"))
     assert Page.evaluate!(page, "() => document.activeElement?.id") == "focusable"
     assert Page.evaluate!(page, "() => window['eventLog']") == ["focus focusable"]
+  end
+
+  test "FO-011 should move focus from an iframe to its parent", %{page: page, server: server} do
+    # issue: https://github.com/microsoft/playwright/issues/43280
+    TestServer.set_route(server, "/frame.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, "<input id=inner>")
+    end)
+
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s(<iframe src="#{server.prefix}/frame.html"></iframe><input id=outer>))
+    Locator.focus!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("#inner"))
+
+    assert Locator.evaluate!(
+             page |> Page.frame_locator("iframe") |> FrameLocator.locator("#inner"),
+             "e => e === document.activeElement"
+           ) == true
+
+    Page.evaluate!(page, "() => document.getElementById('outer').focus()")
+    Expect.to_be_focused!(Page.locator(page, "#outer"))
+
+    assert Locator.evaluate!(
+             page |> Page.frame_locator("iframe") |> FrameLocator.locator("#inner"),
+             "e => e === document.activeElement"
+           ) == false
+  end
+
+  test "FO-012 should tab from an iframe to its parent", %{page: page, server: server} do
+    # issue: https://github.com/microsoft/playwright/issues/43280
+    TestServer.set_route(server, "/frame.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, "<input id=inner>")
+    end)
+
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s(<iframe src="#{server.prefix}/frame.html"></iframe><input id=outer>))
+    Locator.click!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("#inner"))
+
+    assert Locator.evaluate!(
+             page |> Page.frame_locator("iframe") |> FrameLocator.locator("#inner"),
+             "e => e === document.activeElement"
+           ) == true
+
+    Keyboard.press!(Page.keyboard(page), "Tab")
+    Expect.to_be_focused!(Page.locator(page, "#outer"))
+  end
+
+  test "FO-013 should move focus from the parent into its iframe", %{page: page, server: server} do
+    # issue: https://github.com/microsoft/playwright/issues/43506
+    TestServer.set_route(server, "/frame.html", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "text/html")
+      |> Plug.Conn.send_resp(200, "<input id=inner>")
+    end)
+
+    Page.goto!(page, server.empty_page)
+    Page.set_content!(page, ~s(<iframe src="#{server.prefix}/frame.html"></iframe><input id=outer>))
+    Locator.focus!(Page.locator(page, "#outer"))
+    Expect.to_be_focused!(Page.locator(page, "#outer"))
+    # Call native focus() exactly once, locator.focus() would hide the bug by calling it twice.
+    Page.evaluate!(page, "() => document.querySelector('iframe').contentDocument.querySelector('input').focus()")
+    Expect.to_be_focused!(Page.locator(page, "iframe"))
+    Expect.to_be_focused!(page |> Page.frame_locator("iframe") |> FrameLocator.locator("#inner"))
   end
 end
