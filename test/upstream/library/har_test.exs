@@ -348,6 +348,25 @@ defmodule PlaywrightEx.Library.HarTest do
     assert date_ms(Enum.at(cookies, 2)["expires"]) > now_ms()
   end
 
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43155' }
+  test "HA-015 should include set-cookies without equals sign as nameless", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    %{page: page} = session = page_with_har(context_factory, output_path)
+
+    TestServer.set_route(server, "/empty.html", fn conn ->
+      conn
+      |> put_set_cookies(["token; HttpOnly"])
+      |> Plug.Conn.send_resp(200, "")
+    end)
+
+    Page.goto!(page, server.empty_page)
+    log = get_log(session)
+    assert hd(log["entries"])["response"]["cookies"] == [%{"name" => "", "value" => "token", "httpOnly" => true}]
+  end
+
   test "HA-016 should include set-cookies with lowercase attributes", %{
     context_factory: context_factory,
     output_path: output_path,
@@ -497,6 +516,33 @@ defmodule PlaywrightEx.Library.HarTest do
     assert byte_size(Base.decode64!(content2["text"])) > 0
     assert content2["size"] >= 6000
     assert content2["compression"] == 0
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43493' }
+  @tag skip:
+         if(@browser_name == "webkit",
+           do: "upstream fixme: WebKit decodes the body of a textual resource before it gets to us"
+         )
+  test "HA-113 should store binary content with a textual mime type as base64", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    body = <<0x80, 0xC3, 0x28, 0xFF, 0x41>>
+
+    TestServer.set_route(server, "/binary.js", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/javascript")
+      |> Plug.Conn.send_resp(200, body)
+    end)
+
+    %{page: page} = session = page_with_har(context_factory, output_path)
+    Page.goto!(page, server.empty_page)
+    Page.evaluate!(page, "() => fetch('/binary.js').then(r => r.arrayBuffer())")
+    log = get_log(session)
+    content = Enum.find(log["entries"], &String.ends_with?(&1["request"]["url"], "/binary.js"))["response"]["content"]
+    assert content["encoding"] == "base64"
+    assert Base.decode64!(content["text"]) == body
   end
 
   test "HA-022 should use attach mode for zip extension", %{
@@ -1146,6 +1192,30 @@ defmodule PlaywrightEx.Library.HarTest do
 
     assert hd(log["entries"])["request"]["cookies"] == [
              %{"name" => "token", "value" => "abc=xyz"},
+             %{"name" => "other", "value" => "val"}
+           ]
+  end
+
+  # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/43155' }
+  test "HA-052 should record nameless API request cookies", %{
+    context_factory: context_factory,
+    output_path: output_path,
+    server: server
+  } do
+    context = context_factory.([])
+    har_path = output_path.("request.har")
+    Tracing.start_har!(APIRequestContext.tracing(BrowserContext.request(context)), har_path)
+
+    APIRequestContext.get!(BrowserContext.request(context), server.prefix <> "/simple.json",
+      headers: %{"cookie" => "nameless; other=val"}
+    )
+
+    Tracing.stop_har!(APIRequestContext.tracing(BrowserContext.request(context)))
+    BrowserContext.close!(context)
+    log = read_log(har_path)
+
+    assert hd(log["entries"])["request"]["cookies"] == [
+             %{"name" => "", "value" => "nameless"},
              %{"name" => "other", "value" => "val"}
            ]
   end

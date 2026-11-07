@@ -719,7 +719,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
       storage_state
     else
       try do
-        JSON.decode!(File.read!(storage_state))
+        ClientHelper.json_parse(File.read!(storage_state))
       rescue
         e ->
           message = "Error reading storage state from #{storage_state}:\n" <> Exception.message(e)

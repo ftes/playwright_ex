@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Client.APIRequest do
 
     storage_state =
       if is_binary(options[:storageState]),
-        do: JSON.decode!(File.read!(options.storageState)),
+        do: PlaywrightEx.Client.ClientHelper.json_parse(File.read!(options.storageState)),
         else: options[:storageState]
 
     playwright = get(this, :_playwright)
