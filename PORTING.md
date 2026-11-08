@@ -238,7 +238,3 @@ Problems upstream's own client has too; re-check on each bump, drop what's fixed
 - **HTTPS proxy closing mid-handshake**: a FIN during the TLS handshake crashes the driver with an
   unhandled `TLSSocket` error (bundled `https-proxy-agent`), so tests avoid it. Reported as
   microsoft/playwright#43996, GH #130.
-- **Firefox file chooser FC-020** (tagged flaky, since Firefox 1572): the second chooser sometimes
-  never fires and the test hangs. Not a shared bug so far: upstream's client passes 79/80, this
-  client failed 13/24 locally. Probably the one-shot listener's removal disabling Juggler's new
-  `FilePickerOverride` too early, so a native picker opens (inferred, not confirmed).

@@ -310,9 +310,9 @@ defmodule PlaywrightEx.Page.PageFilechooserTest do
   @tag skip:
          if(@browser_name == "firefox",
            do:
-             "flaky: since Firefox 1572 the second file chooser sometimes never fires, and a native " <>
-               "picker may open instead (see PORTING). The JS client passes 79/80, this client failed " <>
-               "13/24 locally and 2/13 CI runs"
+             "flaky: since Firefox 1572 the second file chooser sometimes never fires. The JS client " <>
+               "passes 79/80, this client failed 13/24 locally: " <>
+               "https://github.com/ftes/playwright_ex/issues/149"
          )
   test "FC-020 should be able to reset selected files with empty file list", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file>")
