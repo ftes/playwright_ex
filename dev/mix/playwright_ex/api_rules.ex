@@ -714,18 +714,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   defp storage_state(member), do: member
 
-  defp select_option(%{"name" => "selectOption", "args" => args} = member) do
-    args =
-      for arg <- args do
-        if arg["name"] == "values",
-          do: update_in(arg, ["type", "union"], fn union -> Enum.map(union, &value_or_label/1) end),
-          else: arg
-      end
-
-    %{member | "args" => args}
-  end
+  defp select_option(%{"name" => "selectOption", "args" => args} = member),
+    do: %{member | "args" => Enum.map(args, &select_option_values/1)}
 
   defp select_option(member), do: member
+
+  defp select_option_values(%{"name" => "values"} = arg),
+    do: update_in(arg, ["type", "union"], fn union -> Enum.map(union, &value_or_label/1) end)
+
+  defp select_option_values(arg), do: arg
 
   defp value_or_label(%{"properties" => properties} = type),
     do: %{type | "properties" => properties ++ [value_or_label_property()]}
