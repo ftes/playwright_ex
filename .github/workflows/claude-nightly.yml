@@ -147,6 +147,8 @@ jobs:
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
+      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
+      - run: mkdir -p ~/.cache/playwright_ex
       - name: Save the failed CI log
         shell: bash
         env:
@@ -170,8 +172,11 @@ jobs:
             tmp/ci-failed.log (tmp/ is gitignored).
 
             Read it along with `gh pr view ${{ matrix.pr.number }}` and
-            `gh pr diff ${{ matrix.pr.number }}` and find the cause. Tests can't run here: CI runs
-            them on your push. Don't merge or rebase on main. End with exactly one of these:
+            `gh pr diff ${{ matrix.pr.number }}` and find the cause. For a failing port or ported
+            test, compare with upstream: its sources and specs at the pin are under
+            ~/.cache/playwright_ex/<version>/upstream once `mix playwright_ex.parity` has run.
+            Tests can't run here: CI runs them on your push. Don't merge or rebase on main. End with
+            exactly one of these:
 
             - The PR caused it: fix it, keeping what the PR set out to do and the public behaviour,
               and matching the surrounding code. Follow PORTING.md for ported code. Files marked
@@ -189,9 +194,11 @@ jobs:
           # The owner forbids attribution; the prompt says so too.
           settings: |
             {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
+          # --add-dir: the driver cache holding the upstream sources (PlaywrightEx.Upstream).
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
+            --add-dir /home/runner/.cache/playwright_ex
             --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}:*),Bash(gh pr diff ${{ matrix.pr.number }}:*),Bash(git push origin ${{ matrix.pr.branch }}),Bash(gh pr close ${{ matrix.pr.number }} *)"
 
   # Replaces each conflicted PR with one on a new branch from main. The Claude app can't push
@@ -235,8 +242,8 @@ jobs:
             to do, then make the same change against the code as it is now, keeping what main has
             changed since. Files marked "do not edit manually" are regenerated with
             `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`, never merged by hand.
-            Run `mix format` and `mix compile --warnings-as-errors`. CI on the new PR runs the test
-            suite.
+            Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI
+            on the new PR runs the test suite.
 
             If the change can't be redone without redesigning it, stop without pushing and say why.
 
@@ -254,7 +261,7 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
   # count is still right, it just finds fewer slots.
