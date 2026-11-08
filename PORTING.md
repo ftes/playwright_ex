@@ -204,7 +204,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 ## Bumping the pinned version
 
 `.github/workflows/upstream-update.yml` checks npm daily and opens a draft PR doing these steps
-(`.github/prompts/upstream-update.md`); finish its checklist by hand. The mix tasks below live in
+(`.github/prompts/upstream-update.md`); finish its checklist by hand. Until you comment on or push
+to that PR, the workflow also pushes fixes for its CI failures. The mix tasks below live in
 `dev/`, which only the dev and test envs compile, so they stay out of the Hex package.
 
 1. `mix playwright_ex.checksums <driver> <node>` (Node bumped only if Python's `NODE_VERSION`
