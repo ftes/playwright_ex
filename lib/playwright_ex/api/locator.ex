@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Locator do
   defstruct [:_frame, :_selector, _apiName: "Locator"]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Locator
+  def __client__(_this), do: PlaywrightEx.Client.Locator
 
   @doc ~S"""
   When the locator points to a list of elements, this returns an array of locators, pointing to their respective elements.

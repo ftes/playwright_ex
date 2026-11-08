@@ -30,7 +30,7 @@ defmodule PlaywrightEx.JSHandle do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.JSHandle
+  def __client__(_this), do: PlaywrightEx.Client.JSHandle
 
   @doc ~S"""
   Returns either `nil` or the object handle itself, if the object handle is an instance of [`ElementHandle`](`PlaywrightEx.ElementHandle`).

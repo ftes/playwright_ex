@@ -17,7 +17,7 @@ defmodule PlaywrightEx.APIResponse do
   defstruct [:_initializer, :_headers, :_request, _apiName: "APIResponse"]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.APIResponse
+  def __client__(_this), do: PlaywrightEx.Client.APIResponse
 
   @doc ~S"""
   Returns the buffer with response body.

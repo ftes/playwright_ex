@@ -29,7 +29,7 @@ defmodule PlaywrightEx.WebStorage do
   defstruct [:_page, :_kind]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.WebStorage
+  def __client__(_this), do: PlaywrightEx.Client.WebStorage
 
   @doc ~S"""
   Returns all items in the storage as name/value pairs.

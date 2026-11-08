@@ -20,7 +20,7 @@ defmodule PlaywrightEx.APIRequest do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.APIRequest
+  def __client__(_this), do: PlaywrightEx.Client.APIRequest
 
   @new_context_options {:object,
                         %{

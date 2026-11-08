@@ -18,7 +18,7 @@ defmodule PlaywrightEx.Selectors do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Selectors
+  def __client__(_this), do: PlaywrightEx.Client.Selectors
 
   @register_script {:fields, %{path: nil, content: nil}}
   @register_options {:object, %{content_script: {:contentScript, nil}}}

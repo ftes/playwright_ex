@@ -27,7 +27,7 @@ defmodule PlaywrightEx.Playwright do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Playwright
+  def __client__(_this), do: PlaywrightEx.Client.Playwright
 
   @doc ~S"""
   This object can be used to launch or connect to Chromium, returning instances of [`Browser`](`PlaywrightEx.Browser`).

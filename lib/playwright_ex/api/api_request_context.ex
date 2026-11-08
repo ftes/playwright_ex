@@ -34,7 +34,7 @@ defmodule PlaywrightEx.APIRequestContext do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.APIRequestContext
+  def __client__(_this), do: PlaywrightEx.Client.APIRequestContext
 
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `PlaywrightEx.BrowserContext.request/1`

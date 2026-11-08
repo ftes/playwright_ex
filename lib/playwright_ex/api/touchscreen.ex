@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Touchscreen do
   defstruct [:_page]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Touchscreen
+  def __client__(_this), do: PlaywrightEx.Client.Touchscreen
 
   @doc ~S"""
   Dispatches a `touchstart` and `touchend` event with a single touch at the position (`x`,`y`).

@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Clock do
   defstruct [:_browserContext]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Clock
+  def __client__(_this), do: PlaywrightEx.Client.Clock
 
   @doc ~S"""
   Advance the clock by jumping forward in time. Only fires due timers at most once. This is equivalent to user closing the laptop lid for a while and

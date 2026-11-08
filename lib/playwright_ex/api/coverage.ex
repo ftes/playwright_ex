@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Coverage do
   defstruct [:_channel]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Coverage
+  def __client__(_this), do: PlaywrightEx.Client.Coverage
 
   @start_css_coverage_options {:object, %{reset_on_navigation: {:resetOnNavigation, nil}}}
 

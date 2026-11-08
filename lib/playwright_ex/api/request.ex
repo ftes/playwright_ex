@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Request do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Request
+  def __client__(_this), do: PlaywrightEx.Client.Request
 
   @doc ~S"""
   An object with all the request HTTP headers associated with this request. The header names are lower-cased.

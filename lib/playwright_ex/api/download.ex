@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Download do
   defstruct [:_page, :_url, :_suggestedFilename, :_artifact]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Download
+  def __client__(_this), do: PlaywrightEx.Client.Download
 
   @doc ~S"""
   Cancels a download. Will not fail if the download is already finished or canceled.

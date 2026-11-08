@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Response do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Response
+  def __client__(_this), do: PlaywrightEx.Client.Response
 
   @doc ~S"""
   An object with all the response HTTP headers associated with this response.

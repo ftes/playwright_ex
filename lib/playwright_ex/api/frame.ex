@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Frame do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Frame
+  def __client__(_this), do: PlaywrightEx.Client.Frame
 
   @add_script_tag_options {:object,
                            %{content: {:content, nil}, path: {:path, nil}, type: {:type, nil}, url: {:url, nil}}}

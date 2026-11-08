@@ -85,6 +85,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   @doc false
   def inspect_handle(%module{guid: guid}) do
+    # A runtime object sharing a handle struct (`DisposableStub`) has a ref or tuple as its guid.
+    guid = if is_binary(guid), do: guid, else: inspect(guid)
     "#" <> (module |> Module.split() |> List.delete("Client") |> Enum.join(".")) <> "<#{guid}>"
   end
 

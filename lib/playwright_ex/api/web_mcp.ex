@@ -37,7 +37,7 @@ defmodule PlaywrightEx.WebMCP do
   defstruct [:_frame]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.WebMCP
+  def __client__(_this), do: PlaywrightEx.Client.WebMCP
 
   @call_tool_options {:object, %{timeout: {:timeout, nil}}}
 

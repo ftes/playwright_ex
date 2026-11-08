@@ -55,7 +55,7 @@ defmodule PlaywrightEx.CDPSession do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.CDPSession
+  def __client__(_this), do: PlaywrightEx.Client.CDPSession
 
   @type event :: :close | :event
 

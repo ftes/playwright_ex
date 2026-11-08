@@ -17,7 +17,7 @@ defmodule PlaywrightEx.Screencast do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Screencast
+  def __client__(_this), do: PlaywrightEx.Client.Screencast
 
   @start_options {:object,
                   %{

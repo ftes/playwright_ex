@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Tracing do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Tracing
+  def __client__(_this), do: PlaywrightEx.Client.Tracing
 
   @start_options {:object,
                   %{

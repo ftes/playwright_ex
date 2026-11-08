@@ -55,7 +55,7 @@ defmodule PlaywrightEx.ElementHandle do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.ElementHandle
+  def __client__(_this), do: PlaywrightEx.Client.ElementHandle
 
   @doc ~S"""
   This method returns the bounding box of the element, or `nil` if the element is not visible. The bounding box is

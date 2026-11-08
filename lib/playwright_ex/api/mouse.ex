@@ -35,7 +35,7 @@ defmodule PlaywrightEx.Mouse do
   defstruct [:_page]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Mouse
+  def __client__(_this), do: PlaywrightEx.Client.Mouse
 
   @click_options {:object,
                   %{

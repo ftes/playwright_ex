@@ -25,7 +25,7 @@ defmodule PlaywrightEx.WebError do
   defstruct [:_page, :_error, :_location]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.WebError
+  def __client__(_this), do: PlaywrightEx.Client.WebError
 
   @doc ~S"""
   The page that produced this unhandled exception, if any.

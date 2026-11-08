@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Keyboard do
   defstruct [:_page]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Keyboard
+  def __client__(_this), do: PlaywrightEx.Client.Keyboard
 
   @doc ~S"""
   Dispatches a `keydown` event.
