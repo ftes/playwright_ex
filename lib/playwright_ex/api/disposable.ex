@@ -13,7 +13,12 @@ defmodule PlaywrightEx.Disposable do
   alias PlaywrightEx.Runtime.Facade
 
   @typedoc "A `Disposable` handle. Compare handles with `==`, their fields are internal."
-  @type t :: term()
+  @type t :: %__MODULE__{}
+
+  defstruct [:guid, :conn, :table, :type, :initializer]
+
+  @doc false
+  defdelegate __client__(this), to: PlaywrightEx.Client.Disposable
 
   @doc ~S"""
   Removes the associated resource. For example, removes the init script installed via

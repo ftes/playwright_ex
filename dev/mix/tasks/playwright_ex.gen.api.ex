@@ -33,7 +33,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       `name!/n` awaits it; their docs show starting the wait before the action.
     * `async: false` members and properties: plain values.
     * Handles: a class whose client module exports `__struct_fields__/0` gets the struct
-      (`%PlaywrightEx.Page{}`) and `__client__/0`, its client module (`PlaywrightEx.Runtime.Heap.impl/1`).
+      (`%PlaywrightEx.Page{}`) and `__client__/1`, its client module (`PlaywrightEx.Runtime.Heap.impl/1`).
+      A client module that exports `__client__/1` itself picks the implementation per handle.
     * Classes with events: `on/3`, `once/3`, `add_listener/3`, `remove_listener/3`, `off/3`,
       `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`). The
@@ -298,8 +299,14 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       defstruct #{Macro.to_string(impl(name).__struct_fields__())}
 
       @doc false
-      def __client__, do: #{inspect(impl(name))}
+      #{client_function(name)}
       """
+  end
+
+  defp client_function(name) do
+    if function_exported?(impl(name), :__client__, 1),
+      do: "defdelegate __client__(this), to: #{inspect(impl(name))}",
+      else: "def __client__(_this), do: #{inspect(impl(name))}"
   end
 
   defp handle?(name), do: Code.ensure_loaded?(impl(name)) and function_exported?(impl(name), :__struct_fields__, 0)

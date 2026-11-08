@@ -37,7 +37,7 @@ defmodule PlaywrightEx.WebSocket do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.WebSocket
+  def __client__(_this), do: PlaywrightEx.Client.WebSocket
 
   @type event :: :close | :frame_received | :frame_sent | :socket_error
 

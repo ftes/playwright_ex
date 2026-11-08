@@ -57,11 +57,11 @@ defmodule PlaywrightEx.Runtime.Heap do
   @doc """
   The module implementing an object's class, for calls that a subclass may override
   (`this.foo()` is `impl(this).foo(this)`). Handles of public classes are facade structs
-  (`%PlaywrightEx.Page{}`), which name their client module (`__client__/0`).
+  (`%PlaywrightEx.Page{}`), which name their client module (`__client__/1`).
   """
-  def impl(%module{}) do
+  def impl(%module{} = this) do
     Code.ensure_loaded(module)
-    if function_exported?(module, :__client__, 0), do: module.__client__(), else: module
+    if function_exported?(module, :__client__, 1), do: module.__client__(this), else: module
   end
 
   @doc "Whether the object's rows exist: a disposed object (or one of a closed connection) is not alive."

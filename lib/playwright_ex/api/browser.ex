@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Browser do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Browser
+  def __client__(_this), do: PlaywrightEx.Client.Browser
 
   @type event :: :context | :disconnected
 

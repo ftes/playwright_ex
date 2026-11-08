@@ -73,7 +73,7 @@ defmodule PlaywrightEx.FrameLocator do
   defstruct [:_frame, :_frameSelector]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.FrameLocator
+  def __client__(_this), do: PlaywrightEx.Client.FrameLocator
 
   @doc deprecated: "Use PlaywrightEx.Locator.first/1 followed by PlaywrightEx.Locator.content_frame/1 instead"
   @doc ~S"""

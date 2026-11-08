@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `select_option` option maps take `valueOrLabel`, so one list can mix matches by value or label
   with `index`: `[%{valueOrLabel: "red"}, %{index: 2}]`.
 
+### Changed
+- A disposable is a `%PlaywrightEx.Disposable{}` handle, and `PlaywrightEx.Disposable.t()` says so
+  (it was `term()`).
+
 ## [0.17.0-rc.2] 2026-11-07
 
 Drives [Playwright 1.65](https://github.com/microsoft/playwright/releases/tag/v1.65.0).

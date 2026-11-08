@@ -3,8 +3,17 @@ defmodule PlaywrightEx.Client.Disposable do
   @moduledoc """
   Port of `#{@upstream}`: `interface Disposable`. Its implementations are
   `PlaywrightEx.Client.DisposableObject` and `PlaywrightEx.Client.DisposableStub`; `dispose/1`
-  dispatches on the struct (JS virtual call).
+  dispatches on the handle (JS virtual call). Elixir only: both are the handle struct
+  `%PlaywrightEx.Disposable{}`.
   """
+
+  @doc false
+  def __struct_fields__, do: [:guid, :conn, :table, :type, :initializer]
+
+  # Only a channel object has a `type`.
+  @doc false
+  def __client__(%{type: nil}), do: PlaywrightEx.Client.DisposableStub
+  def __client__(_this), do: PlaywrightEx.Client.DisposableObject
 
   def dispose(this), do: PlaywrightEx.Runtime.Heap.impl(this).dispose(this)
 
@@ -14,7 +23,7 @@ end
 defmodule PlaywrightEx.Client.DisposableObject do
   @upstream "packages/playwright-core/src/client/disposable.ts"
   @moduledoc "Port of `#{@upstream}` (`class DisposableObject`)."
-  use PlaywrightEx.Client.ChannelOwner
+  use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.Disposable
 
   alias PlaywrightEx.Client.Errors
 
@@ -51,11 +60,9 @@ defmodule PlaywrightEx.Client.DisposableStub do
 
   alias PlaywrightEx.Client.Errors
 
-  defstruct [:guid, :conn, :table]
-
   # `dispose` is a 0-arity function (JS `() => Promise<void>`); it may await.
   def new(dispose) do
-    this = new_object(__MODULE__, PlaywrightEx.Runtime.ProcessOwner.owner())
+    this = new_object(PlaywrightEx.Disposable, PlaywrightEx.Runtime.ProcessOwner.owner())
     put(this, :_dispose, dispose)
     this
   end

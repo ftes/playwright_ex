@@ -82,7 +82,7 @@ defmodule PlaywrightEx.WebSocketRoute do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.WebSocketRoute
+  def __client__(_this), do: PlaywrightEx.Client.WebSocketRoute
 
   @close_options {:object, %{code: {:code, nil}, reason: {:reason, nil}}}
 

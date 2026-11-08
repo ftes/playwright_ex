@@ -25,7 +25,7 @@ defmodule PlaywrightEx.FileChooser do
   defstruct [:_page, :_elementHandle, :_isMultiple]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.FileChooser
+  def __client__(_this), do: PlaywrightEx.Client.FileChooser
 
   @doc ~S"""
   Returns input element associated with this file chooser.

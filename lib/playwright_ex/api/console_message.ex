@@ -39,7 +39,7 @@ defmodule PlaywrightEx.ConsoleMessage do
   defstruct [:_page, :_worker, :_event]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.ConsoleMessage
+  def __client__(_this), do: PlaywrightEx.Client.ConsoleMessage
 
   @doc ~S"""
   List of arguments passed to a `console` function call. See also [`Page.on(:console)`](PlaywrightEx.Page.html#module-console).

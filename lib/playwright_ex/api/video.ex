@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Video do
   defstruct [:_artifact, _isRemote: false]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Video
+  def __client__(_this), do: PlaywrightEx.Client.Video
 
   @doc ~S"""
   Deletes the video file. Will wait for the video to finish if necessary.

@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Debugger do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Debugger
+  def __client__(_this), do: PlaywrightEx.Client.Debugger
 
   @type event :: :paused_state_changed
 

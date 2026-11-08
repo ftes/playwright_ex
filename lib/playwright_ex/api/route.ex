@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Route do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Route
+  def __client__(_this), do: PlaywrightEx.Client.Route
 
   @doc ~S"""
   Aborts the route's request.

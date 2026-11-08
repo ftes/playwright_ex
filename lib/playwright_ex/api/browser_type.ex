@@ -27,7 +27,7 @@ defmodule PlaywrightEx.BrowserType do
   defstruct [:guid, :conn, :table, :type, :initializer]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.BrowserType
+  def __client__(_this), do: PlaywrightEx.Client.BrowserType
 
   @connect_options {:object,
                     %{

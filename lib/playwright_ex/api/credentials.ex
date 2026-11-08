@@ -86,7 +86,7 @@ defmodule PlaywrightEx.Credentials do
   defstruct [:_browserContext]
 
   @doc false
-  def __client__, do: PlaywrightEx.Client.Credentials
+  def __client__(_this), do: PlaywrightEx.Client.Credentials
 
   @doc ~S"""
   Installs the virtual WebAuthn authenticator into the context, overriding
