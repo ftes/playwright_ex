@@ -11,7 +11,8 @@ the existing ported code next to whatever you port.
 ## Steps
 
 1. `git switch -c BRANCH`. Commit after every coherent step (`git commit -m "<short imperative
-   message>"`), so partial work survives.
+   message>"`), and once the PR exists (step 3.2) run `git push origin BRANCH` after every commit,
+   so partial work survives and is visible.
 2. Fetch upstream at both tags (shallow; `git diff` needs only the two trees):
    ```
    git init -q /tmp/playwright
@@ -25,7 +26,12 @@ the existing ported code next to whatever you port.
       for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
       `mix playwright_ex.install -- chromium` (driver and browser for TO).
    2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`; commit the generated diff
-      on its own.
+      on its own. Then publish, before porting anything, so a run that stops early still leaves
+      its work on a PR:
+      ```
+      git push -u origin BRANCH
+      gh pr create --draft --base main --head BRANCH --title "Update to Playwright TO" --body "Port in progress."
+      ```
    3. Port every hunk of `git -C /tmp/playwright diff vFROM vTO -- packages/playwright-core/src/client
       tests/page tests/library` 1:1, per PORTING's rules: same module per class, upstream order
       and names, `-- not ported: <reason>` / `-- ported as <name>` markers, specs mirrored with
@@ -42,20 +48,18 @@ the existing ported code next to whatever you port.
    Playwright; GH #126). Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the
    existing entries: "Drive Playwright TO" with the RELEASE link, then the API added or changed by
    the port.
-5. Verify; all must pass:
+5. Verify; all must pass (CI on the PR runs Dialyzer, the docs build and the other browsers):
    ```
    mix format
    mix compile --warnings-as-errors
    mix credo
    mix playwright_ex.parity
    mix playwright_ex.gen.api --check
-   MIX_ENV=test mix dialyzer --force-check
-   mix docs --warnings-as-errors
    mix test --warnings-as-errors   # BROWSER=chromium is set; a failure: rerun once with --failed
    ```
    A failing test the port did not cause (it fails on FROM as well) is reported, not hidden.
-6. `git push -u origin BRANCH`, then open a draft PR against `main`:
-   `gh pr create --draft --base main --head BRANCH --title "Update to Playwright TO" --body-file <file>`.
+6. Push the last commit and replace the PR's placeholder body, leaving it a draft:
+   `gh pr edit BRANCH --body-file <file>`.
    The body, concise: the RELEASE link; the upstream diff stats (files, insertions, deletions of
    client and specs); what was ported, in a few lines; a checklist of what's left (unported
    hunks, skipped specs, decisions to review, anything needing a human); the verification
@@ -67,7 +71,7 @@ Minor releases can touch dozens of files. Port in order of value (client API fir
 specs). Before you run low on turns or time: commit what's done and keep the build green.
 Specs not yet ported get bodiless tests with `@tag skip: "not ported: pending update to TO"`
 (and client methods `-- not ported: pending update to TO` markers), so verification passes and
-the rest is greppable. Then push and open the PR as in step 6, with the remainder in the
+the rest is greppable. Then push and replace the PR body as in step 6, with the remainder in the
 checklist. A draft PR with a green partial port beats no PR.
 
 ## Rules
