@@ -49,6 +49,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `credentials.create(known.rpId, known)`) are marked `"result"`: the facade also takes such a
       result (a map with the JS keys) as the options, ignoring its fields that are no options
       (`rpId`, which the positional argument overrides in the client too).
+    * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
+      accept it and only JS's types leave it out, and a list can't mix strings with option maps.
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
     * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
@@ -230,6 +232,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> wait(expects)
               |> event_type()
               |> storage_state()
+              |> select_option()
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
@@ -710,6 +713,45 @@ defmodule Mix.PlaywrightEx.ApiRules do
     do: %{member | "type" => open(member["type"])}
 
   defp storage_state(member), do: member
+
+  defp select_option(%{"name" => "selectOption", "args" => args} = member) do
+    args =
+      for arg <- args do
+        if arg["name"] == "values",
+          do: update_in(arg, ["type", "union"], fn union -> Enum.map(union, &value_or_label/1) end),
+          else: arg
+      end
+
+    %{member | "args" => args}
+  end
+
+  defp select_option(member), do: member
+
+  defp value_or_label(%{"properties" => properties} = type),
+    do: %{type | "properties" => properties ++ [value_or_label_property()]}
+
+  defp value_or_label(%{"templates" => [%{"properties" => _} = item]} = type),
+    do: %{type | "templates" => [value_or_label(item)]}
+
+  defp value_or_label(type), do: type
+
+  defp value_or_label_property do
+    %{
+      "name" => "valueOrLabel",
+      "alias" => "valueOrLabel",
+      "kind" => "property",
+      "langs" => %{},
+      "required" => false,
+      "since" => "v1.8",
+      "type" => %{"expression" => "[string]", "name" => "string"},
+      "spec" => [
+        %{
+          "type" => "text",
+          "text" => "Matches by value or label, as a string does. Combines such a match with `index` in one list."
+        }
+      ]
+    }
+  end
 
   # Nested objects too (an origin has `indexedDB`).
   defp open(%{"union" => union} = type) when is_list(union), do: %{type | "union" => Enum.map(union, &open/1)}

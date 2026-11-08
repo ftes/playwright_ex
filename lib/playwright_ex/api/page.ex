@@ -4416,8 +4416,8 @@ defmodule PlaywrightEx.Page do
 
   @select_option_values {:union,
                          [
-                           {:fields, %{value: nil, label: nil, index: nil}},
-                           {:array, {:fields, %{value: nil, label: nil, index: nil}}}
+                           {:fields, %{value: nil, label: nil, index: nil, valueOrLabel: nil}},
+                           {:array, {:fields, %{value: nil, label: nil, index: nil, valueOrLabel: nil}}}
                          ]}
   @select_option_options {:object,
                           %{
@@ -4482,6 +4482,7 @@ defmodule PlaywrightEx.Page do
     * `:value` - Matches by `option.value`. Optional.
     * `:label` - Matches by `option.label`. Optional.
     * `:index` - Matches by the index. Optional.
+    * `:valueOrLabel` - Matches by value or label, as a string does. Combines such a match with `index` in one list.
 
   ## Options
 
@@ -4506,9 +4507,21 @@ defmodule PlaywrightEx.Page do
           | String.t()
           | PlaywrightEx.ElementHandle.t()
           | [String.t()]
-          | %{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}
+          | %{
+              optional(:value) => String.t(),
+              optional(:label) => String.t(),
+              optional(:index) => integer(),
+              optional(:valueOrLabel) => String.t()
+            }
           | [PlaywrightEx.ElementHandle.t()]
-          | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
+          | [
+              %{
+                optional(:value) => String.t(),
+                optional(:label) => String.t(),
+                optional(:index) => integer(),
+                optional(:valueOrLabel) => String.t()
+              }
+            ],
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, PlaywrightEx.error()}
   def select_option(page, selector, values, options \\ []) do
@@ -4528,9 +4541,21 @@ defmodule PlaywrightEx.Page do
           | String.t()
           | PlaywrightEx.ElementHandle.t()
           | [String.t()]
-          | %{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}
+          | %{
+              optional(:value) => String.t(),
+              optional(:label) => String.t(),
+              optional(:index) => integer(),
+              optional(:valueOrLabel) => String.t()
+            }
           | [PlaywrightEx.ElementHandle.t()]
-          | [%{optional(:value) => String.t(), optional(:label) => String.t(), optional(:index) => integer()}],
+          | [
+              %{
+                optional(:value) => String.t(),
+                optional(:label) => String.t(),
+                optional(:index) => integer(),
+                optional(:valueOrLabel) => String.t()
+              }
+            ],
           select_option_options()
         ) :: [String.t()]
   def select_option!(page, selector, values, options \\ []) do
