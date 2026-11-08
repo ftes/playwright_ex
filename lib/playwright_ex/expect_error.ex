@@ -6,7 +6,9 @@ defmodule PlaywrightEx.ExpectError do
     * `message` - the matcher's message, as in JS (`matcherResult.message`).
     * `name` - `"Error"`, as in JS.
     * `matcherResult` - the result as in JS: a map with `name`, `message`, `pass`, `expected`,
-      `actual`, `log`, `timeout`, `ariaSnapshot` (keys whose JS value is `undefined` are left out).
+      `actual`, `log`, `timeout`, `ariaSnapshot` (keys whose JS value is `undefined` are left out),
+      and `suggestedRebaseline`: for a test integration that writes inline aria snapshots, the new
+      snapshot as a JS template literal (`{indent}` placeholders, JS escapes).
     * `stack` - `""`: Elixir has the stack trace of the raise.
   """
   @typedoc "See the module docs for the fields."
