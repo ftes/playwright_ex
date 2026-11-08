@@ -30,6 +30,18 @@ mix playwright_ex.install -- chromium              # one browser
 mix playwright_ex.install -- chromium --with-deps  # and its system packages (Linux CI)
 ```
 
+To run a browser you already have, such as a system or Nix Chrome, install only the driver and
+launch the browser with `:executable_path` or `:channel`:
+
+```sh
+mix playwright_ex.install --no-browsers
+```
+
+```elixir
+playwright = PlaywrightEx.playwright()
+BrowserType.launch!(Playwright.chromium(playwright), executable_path: "/path/to/chrome")
+```
+
 PlaywrightEx needs Elixir 1.18 or later. The browsers run where Playwright's do: Windows 11+,
 macOS 14+, Debian 12 and 13, Ubuntu 22.04 and 24.04
 ([system requirements](https://playwright.dev/docs/intro#system-requirements)).
