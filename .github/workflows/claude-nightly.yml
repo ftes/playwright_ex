@@ -78,31 +78,49 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      pull-requests: read
+      contents: write # Deletes the branch of a PR given up on.
+      pull-requests: write # Closes that PR.
+      # Read by statusCheckRollup.
+      actions: read
+      checks: read
+      statuses: read
     outputs:
       conflicted: ${{ steps.list.outputs.conflicted }}
       failing: ${{ steps.list.outputs.failing }}
     steps:
-      - name: List conflicted and CI-failing nightly PRs without human comments or reviews
+      - name: Sort open nightly PRs without human comments or reviews by what they need
         id: list
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          MAX_COMMITS: 3
         # GitHub computes mergeability on the first read after main moves, answering UNKNOWN until
-        # it's done. A human comment or review keeps a PR from being changed under them. A PR still
-        # red after two fix commits waits for a human.
+        # it's done. A human comment or review keeps a PR from being changed under them. A PR lists
+        # every run of a check, so only each check's latest counts. Every fix or re-run adds a
+        # commit, so the commit count limits the attempts. Listing commits caps --limit at 40: more
+        # exceeds GitHub's GraphQL node limit.
         run: |
           list() {
-            gh pr list --state open --limit 1000 --json number,headRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
-              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login == "claude")))]'
+            gh pr list --state open --limit 40 --json number,headRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
+              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login == "claude"))) | {number, branch: .headRefName, mergeable, commits: (.commits | length), failing: ([.statusCheckRollup[] | select(.workflowName == "Elixir CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))}]'
           }
           list > /dev/null
           sleep 30
           prs=$(list)
           {
-            echo "conflicted=$(jq -c '[.[] | select(.mergeable == "CONFLICTING") | .number]' <<< "$prs")"
-            echo "failing=$(jq -c '[.[] | select(.mergeable != "CONFLICTING" and (.commits | length) <= 3 and any(.statusCheckRollup[]; .workflowName == "Elixir CI" and (.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))) | {number, branch: .headRefName}]' <<< "$prs")"
+            echo "conflicted=$(jq -c 'map(select(.mergeable == "CONFLICTING") | .number)' <<< "$prs")"
+            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable != "CONFLICTING" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
+            echo "exhausted=$(jq -r --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number) | join(" ")' <<< "$prs")"
           } >> "$GITHUB_OUTPUT"
+      - name: Close PRs still failing after two fixes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBERS: ${{ steps.list.outputs.exhausted }}
+        run: |
+          for number in $NUMBERS; do
+            gh pr close "$number" --delete-branch --comment "CI still fails after two automatic fixes."
+          done
 
   # Pushes a fix to each PR whose CI failed, which is where a change gets tested: improve publishes
   # without running the suite. Only new commits, nothing merged from main, so no workflow files.
@@ -130,6 +148,7 @@ jobs:
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
       - name: Save the failed CI log
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -150,23 +169,21 @@ jobs:
             CI failed on this simplification PR. The end of the failed steps' log is in
             tmp/ci-failed.log (tmp/ is gitignored).
 
-            Read `gh pr view ${{ matrix.pr.number }}`, `gh pr diff ${{ matrix.pr.number }}` and the
-            log, then fix what this PR broke, keeping what it set out to do and matching the
-            surrounding code. Follow PORTING.md for ported code. Files marked "do not edit manually"
-            are regenerated with `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`.
-            Don't weaken or skip a test to get it green, and don't merge or rebase on main.
+            Read it along with `gh pr view ${{ matrix.pr.number }}` and
+            `gh pr diff ${{ matrix.pr.number }}` and find the cause. Tests can't run here: CI runs
+            them on your push. Don't merge or rebase on main. End with exactly one of these:
 
-            Run `mix format` and `mix compile --warnings-as-errors`. Don't run the test suite: CI
-            runs it on the push.
-
-            If this PR didn't cause the failure (a flaky test, or main fails the same way), stop
-            without pushing and say why. If it can't be fixed without redesigning the change, run
-            exactly:
-              gh pr close ${{ matrix.pr.number }} --delete-branch --comment "<one sentence on why it can't work>"
-
-            To publish, commit with one imperative sentence as the subject (match `git log`), then
-            run exactly:
-              git push origin ${{ matrix.pr.branch }}
+            - The PR caused it: fix it, keeping what the PR set out to do and the public behaviour,
+              and matching the surrounding code. Follow PORTING.md for ported code. Files marked
+              "do not edit manually" are regenerated with `mix playwright_ex.gen.api` or
+              `mix playwright_ex.gen.protocol`. Don't weaken or skip a test to get it green. Run
+              `mix format`, `mix compile --warnings-as-errors` and `mix credo`, `git add` the files,
+              commit with one imperative sentence as the subject (match `git log`), then run exactly:
+                git push origin ${{ matrix.pr.branch }}
+            - It is unrelated to this PR, like a flaky browser test: run exactly
+              `git commit --allow-empty -m "Re-run CI"`, then the push above.
+            - It can't be fixed without redesigning the change: run exactly
+              gh pr close ${{ matrix.pr.number }} --delete-branch --comment "<one sentence on why>"
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -333,8 +350,9 @@ jobs:
             dependency, CI or changelog changes, and no changes that are only formatting, comments
             or renames to taste.
 
-            Run `mix format` and `mix compile --warnings-as-errors`. Don't run the test suite: CI
-            runs it on the PR, and the next nightly run fixes what it finds.
+            Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass.
+            Don't run the test suite: CI runs it on the PR, and the next nightly run fixes what it
+            finds.
 
             If nothing is clearly worth a maintainer's time, stop without pushing and say why. No
             PR is a good result; a marginal PR is not.
