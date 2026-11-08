@@ -5,6 +5,8 @@ defmodule Mix.Tasks.PlaywrightEx.Install do
 
   Browser args are forwarded to `playwright install` (none: its default browsers, as
   `npx playwright install`), e.g. `mix playwright_ex.install -- chromium firefox --with-deps`.
+  `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or
+  `:channel`.
 
   The task doesn't see the options of `PlaywrightEx.Supervisor` (`:cache_dir`, `:executable`,
   `:node`); it reads the environment variables instead (see `PlaywrightEx.Driver`):
