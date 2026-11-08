@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0-rc.3] 2026-11-08
+
 ### Added
 - `select_option` option maps take `valueOrLabel`, so one list can mix matches by value or label
   with `index`: `[%{valueOrLabel: "red"}, %{index: 2}]`.

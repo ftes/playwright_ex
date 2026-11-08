@@ -7,7 +7,7 @@ Add the dependency to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:playwright_ex, "~> 0.17.0-rc.2"}
+    {:playwright_ex, "~> 0.17.0-rc.3"}
   ]
 end
 ```
