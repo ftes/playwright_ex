@@ -9,6 +9,9 @@ Read them before changing ported code.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
 - Files marked "do not edit manually" are generated: run `mix playwright_ex.gen.api`
   (`mix playwright_ex.gen.protocol` for the protocol) instead of editing them.
+- The block marked `usage_rules` below is generated: after updating deps run
+  `mix usage_rules.sync --yes`; `mix check` fails when it's stale. On Renovate's PRs a workflow
+  commits it.
 - No attribution anywhere: no `Co-Authored-By` trailers or "Generated with" lines.
 
 <!-- usage-rules-start -->

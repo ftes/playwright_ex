@@ -15,6 +15,9 @@
   ],
   "minimumReleaseAge": "2 days",
   "automerge": false,
+  "gitIgnoredAuthors": [
+    "41898282+github-actions[bot]@users.noreply.github.com"
+  ],
   "rangeStrategy": "replace",
   "packageRules": [
     {

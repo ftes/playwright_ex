@@ -211,6 +211,7 @@ defmodule PlaywrightEx.MixProject do
         "format --check-formatted",
         "credo",
         "compile --warnings-as-errors",
+        "usage_rules.sync --check",
         "dialyzer --format github --format dialyxir",
         "playwright_ex.parity",
         "test --warnings-as-errors"
