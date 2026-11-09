@@ -36,10 +36,11 @@ end)
 
 - The pattern is a glob, a `Regex` or a function of the URL; with `base_url`, a path such as
   `"/api/users"` is resolved against it.
-- When several routes match, the one added last runs; `Route.fallback/2` hands the request to the
-  one before.
-- `BrowserContext.route/4` covers every page of the context, including a popup's first request.
-- `times: 1` routes once; `Page.unroute/3` removes a route.
+- When several routes match, the one added last runs;
+  [`Route.fallback/2`](`PlaywrightEx.Route.fallback/2`) hands the request to the one before.
+- [`BrowserContext.route/4`](`PlaywrightEx.BrowserContext.route/4`) covers every page of the
+  context, including a popup's first request.
+- `times: 1` routes once; [`Page.unroute/3`](`PlaywrightEx.Page.unroute/3`) removes a route.
 
 Like listeners, handlers run in their own processes; see the [Concurrency](concurrency.md) guide.
 
@@ -59,7 +60,7 @@ BrowserContext.route_from_har!(context, "test/fixtures/api.har", url: "**/api/**
 ```
 
 Requests not in the HAR are aborted; `not_found: :fallback` sends them on to other routes or the
-network. `Page.route_from_har/3` does the same for one page.
+network. [`Page.route_from_har/3`](`PlaywrightEx.Page.route_from_har/3`) does the same for one page.
 
 ## Waiting for requests and responses
 
@@ -77,7 +78,8 @@ assert [%{"name" => _} | _] = Response.json!(response)
 
 `expect_request!/4` waits for the request instead, and both take a predicate in place of the URL:
 `&(Response.url(&1) =~ "/api/" and Response.status(&1) >= 400)`. To watch all traffic, listen to
-`:request`, `:response`, `:request_finished` or `:request_failed` with `Page.on/3`.
+`:request`, `:response`, `:request_finished` or `:request_failed` with
+[`Page.on/3`](`PlaywrightEx.Page.on/3`).
 
 ## API testing
 
@@ -104,7 +106,8 @@ APIRequestContext.dispose!(request)
 Responses are kept until `dispose!/1`, so in ExUnit create the context in `setup` and dispose of
 it in `on_exit/1`.
 
-`BrowserContext.request/1` (or `Page.request/1`) is the context's own API client: it shares
+[`BrowserContext.request/1`](`PlaywrightEx.BrowserContext.request/1`) (or
+[`Page.request/1`](`PlaywrightEx.Page.request/1`)) is the context's own API client: it shares
 cookies with the pages, so a request made there is logged in as the page is, and cookies it gets
 back show up in the pages.
 

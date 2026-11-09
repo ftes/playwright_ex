@@ -1,7 +1,7 @@
 # Concurrency
 
 JS runs Playwright on one thread. PlaywrightEx runs it in Elixir processes, and that changes a
-few things you can rely on. Snippets alias `PlaywrightEx.{Page, BrowserContext, ...}`.
+few things you can rely on. Snippets alias `PlaywrightEx.{Page, BrowserContext, Promise, ...}`.
 
 ## Connections and your processes
 
@@ -49,11 +49,11 @@ promise = BrowserContext.wait_for_event(context, :service_worker)
 
 case BrowserContext.service_workers(context) do
   [worker | _] ->
-    PlaywrightEx.Promise.free(promise)
+    Promise.free(promise)
     worker
 
   [] ->
-    PlaywrightEx.Promise.await!(promise)
+    Promise.await!(promise)
 end
 ```
 
@@ -70,20 +70,18 @@ wait lives; after it has exited, awaiting raises `PlaywrightEx.TargetClosedError
 ```elixir
 download = Page.wait_for_event(page, :download)
 Locator.click!(Page.get_by_text(page, "Export"))
-task = Task.async(fn -> Download.path!(PlaywrightEx.Promise.await!(download)) end)
+task = Task.async(fn -> Download.path!(Promise.await!(download)) end)
 ```
 
 ## Lifetimes after close
 
-As in JS, a closed page or context stays readable: `Page.url/1` and other accessors return the
-last values. That lasts until every process that created or closed its context (or browser) has
-exited; after that, reading it raises `PlaywrightEx.TargetClosedError`. A process that lives for
-long and closes many contexts keeps a few hundred rows per context until it exits, so in a
-long-running service, create each context in a process that ends with the session.
+As in JS, a closed page or context stays readable: [`Page.url/1`](`PlaywrightEx.Page.url/1`) and
+other accessors return the last values. That lasts until every process that created or closed its
+context (or browser) has exited; after that, reading it raises `PlaywrightEx.TargetClosedError`. A
+process that lives for long and closes many contexts keeps a few hundred rows per context until it
+exits, so in a long-running service, create each context in a process that ends with the session.
 
-Handles of a lost driver (see `PlaywrightEx.Supervisor`) stay readable the same way, until those
-processes have exited or the supervisor stops. Calls on them fail with
-`PlaywrightEx.TargetClosedError`, and closing them returns `:ok`.
+Handles of a lost driver stay readable the same way; `PlaywrightEx.Supervisor` has the details.
 
 ## Where it differs from JS
 

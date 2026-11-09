@@ -103,6 +103,14 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
     assert log =~ "boom"
   end
 
+  test "headed (compiled, not run: the suite stays headless)" do
+    headed = fn ->
+      PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
+    end
+
+    assert is_function(headed, 0)
+  end
+
   test "the driver's environment" do
     start_supervised!({PlaywrightEx.Supervisor, name: :"#{__MODULE__}.Debug", env: [{"DEBUG", "pw:none"}]})
     assert %Playwright{} = PlaywrightEx.playwright(:"#{__MODULE__}.Debug")

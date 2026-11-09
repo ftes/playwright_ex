@@ -22,9 +22,9 @@ The `expect_*` functions do the same with a callback, and read better for one ac
 download = Page.expect_download!(page, fn -> Page.get_by_text(page, "Export") |> Locator.click!() end)
 ```
 
-Waiting after the action can miss the event: the click returns when the browser has clicked, and
-the download may already have started. `Page.wait_for_event!/3` awaits at once, so use it only
-for what happens later on its own, such as a timer in the page.
+Waiting after the action can miss the event: the click returns when the browser has clicked, and the
+download may already have started. [`Page.wait_for_event!/3`](`PlaywrightEx.Page.wait_for_event!/3`)
+awaits at once, so use it only for what happens later on its own, such as a timer in the page.
 
 A predicate picks one event out of many, and `timeout:` bounds the wait:
 
@@ -40,8 +40,8 @@ message = Page.expect_console_message!(page, save, predicate: &(ConsoleMessage.t
 need to the process that owns the work:
 
 ```elixir
-test_pid = self()
-listener = fn request -> send(test_pid, {:request, Request.method(request), Request.url(request)}) end
+owner = self()
+listener = fn request -> send(owner, {:request, Request.method(request), Request.url(request)}) end
 
 Page.on(page, :request, listener)
 Page.goto!(page, "/")
@@ -49,7 +49,8 @@ assert_receive {:request, "GET", _url}, 1_000
 Page.off(page, :request, listener)
 ```
 
-Keep listeners short: the connection waits for each one before it dispatches the next event.
+Keep listeners short: [one that blocks stalls the
+connection](concurrency.md#no-blocking-work-in-listeners).
 
 ## Dialogs
 
@@ -70,14 +71,15 @@ Page.get_by_role(page, :button, name: "Pick a number") |> Locator.click!()
 
 ## Downloads
 
+With the `download` from `expect_download!` above:
+
 ```elixir
-download = Page.expect_download!(page, fn -> Page.get_by_text(page, "Export") |> Locator.click!() end)
 Download.suggested_filename(download)
 Download.save_as!(download, Path.join(dir, Download.suggested_filename(download)))
 ```
 
-`Download.path!/1` is the file in a temporary directory, deleted with the context. Save it to keep
-it.
+[`Download.path!/1`](`PlaywrightEx.Download.path!/1`) is the file in a temporary directory, deleted
+with the context. Save it to keep it.
 
 ## Popups and new pages
 
@@ -92,13 +94,14 @@ The popup is returned as soon as it opens; actions and `Expect.*` on it wait as 
 of a context, opened by any page, listen on the context:
 
 ```elixir
-BrowserContext.on(context, :page, &send(test_pid, {:page, &1}))
+BrowserContext.on(context, :page, &send(owner, {:page, &1}))
 ```
 
 ## File choosers
 
-`Locator.set_input_files!/2` sets the files of an `<input type="file">` directly. When the page
-opens the chooser itself (a styled button that clicks a hidden input), catch the chooser:
+[`Locator.set_input_files!/2`](`PlaywrightEx.Locator.set_input_files!/2`) sets the files of an
+`<input type="file">` directly. When the page opens the chooser itself (a styled button that clicks
+a hidden input), catch the chooser:
 
 ```elixir
 chooser = Page.expect_file_chooser!(page, fn -> Page.get_by_text(page, "Upload avatar") |> Locator.click!() end)
@@ -115,8 +118,9 @@ Page.get_by_role(page, :link, name: "Settings") |> Locator.click!()
 Expect.to_have_url!(page, ~r"/settings$")
 ```
 
-`Page.wait_for_url!/3` waits without asserting, `Page.wait_for_load_state!/2` for a load state of
-the current page. Avoid `:networkidle` in tests; wait for what the user sees instead.
+[`Page.wait_for_url!/3`](`PlaywrightEx.Page.wait_for_url!/3`) waits without asserting,
+[`Page.wait_for_load_state!/2`](`PlaywrightEx.Page.wait_for_load_state!/2`) for a load state of the
+current page. Avoid `:networkidle` in tests; wait for what the user sees instead.
 
 More on events: [playwright.dev/python/docs/events](https://playwright.dev/python/docs/events),
 [dialogs](https://playwright.dev/python/docs/dialogs),

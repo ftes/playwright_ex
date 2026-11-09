@@ -1,8 +1,9 @@
 # Testing with ExUnit
 
-PlaywrightEx is the library, ExUnit is the test runner. This guide tests an app that runs
-somewhere and is reached through a base URL, whatever it is written in. For Phoenix feature tests
-(with the Ecto sandbox), see [Fluffy](https://hex.pm/packages/fluffy).
+PlaywrightEx is the library, ExUnit is the test runner. This guide tests an app that runs somewhere
+and is reached through a base URL, whatever it is written in. For Phoenix feature tests (with the
+Ecto sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets alias `PlaywrightEx.{Page,
+Locator, ...}`.
 
 ## Setup
 
@@ -128,12 +129,12 @@ setup_all %{browser: browser} do
 end
 ```
 
-The case template's `setup` passes `storage_state: ctx[:storage_state]` to `new_context!`
-(see below), so modules that don't log in get an empty context. To share the login between
-modules, `BrowserContext.storage_state!(context, path: "tmp/auth.json")` also writes it to a file,
-and `storage_state:` takes that path. An app that keeps its tokens in IndexedDB (Firebase
-Authentication) needs `storage_state!(context, indexed_db: true)`: IndexedDB is not in the state by
-default. See [Authentication](https://playwright.dev/python/docs/auth).
+In the case template's `setup`, match `= ctx` in the head and pass `storage_state:
+ctx[:storage_state]` to `new_context!`, so modules that don't log in get an empty context. To share
+the login between modules, `BrowserContext.storage_state!(context, path: "tmp/auth.json")` also
+writes it to a file, and `storage_state:` takes that path. An app that keeps its tokens in IndexedDB
+(Firebase Authentication) needs `storage_state!(context, indexed_db: true)`: IndexedDB is not in the
+state by default. See [Authentication](https://playwright.dev/python/docs/auth).
 
 ## Traces and screenshots of failures
 
@@ -142,24 +143,21 @@ Playwright's test runner and pytest-playwright have options for this (`trace: 'r
 
 ### Trace on rerun
 
-The simpler and faster one: trace only when asked, and rerun the failures with tracing. The case
-template's `setup` (alias `Tracing` too):
+The simpler and faster one: trace only when asked, and rerun the failures with tracing. Add this to
+the case template's `setup`, before its return value, with `= ctx` in its head (alias `Tracing`
+too):
 
 ```elixir
-setup %{browser: browser} = ctx do
-  context = Browser.new_context!(browser, base_url: System.get_env("BASE_URL", "http://localhost:4000"))
-  BrowserContext.set_default_timeout(context, 5_000)
-  on_exit(fn -> BrowserContext.close(context) end)
-
-  if System.get_env("TRACE") do
-    tracing = BrowserContext.tracing(context)
-    Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
-    on_exit(fn -> Tracing.stop(tracing, path: Path.join(artifacts_dir(ctx.module, ctx.test), "trace.zip")) end)
-  end
-
-  %{context: context, page: BrowserContext.new_page!(context)}
+if System.get_env("TRACE") do
+  tracing = BrowserContext.tracing(context)
+  Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
+  on_exit(fn -> Tracing.stop(tracing, path: Path.join(artifacts_dir(ctx.module, ctx.test), "trace.zip")) end)
 end
+```
 
+and this function to the template:
+
+```elixir
 def artifacts_dir(module, test) do
   Path.join(["tmp/test-results", inspect(module), String.replace(to_string(test), ~r/\W+/, "_")])
 end
@@ -179,31 +177,21 @@ though; for those, retain on failure.
 
 Like the test runners' `retain-on-failure`: trace every test, write the trace and a screenshot in
 `on_exit/1`, and delete those of passing tests. `on_exit/1` doesn't know whether the test failed,
-but a formatter does, and ExUnit runs `on_exit/1` before it reports the test. The case template's
-`setup`, with the login state:
+but a formatter does, and ExUnit runs `on_exit/1` before it reports the test. In the case template's
+`setup`, match `= ctx` in the head, bind the page (`page = BrowserContext.new_page!(context)`,
+returned as `%{context: context, page: page}`) and add this after its `on_exit/1`, so it runs
+before the context closes, instead of any `TRACE` block. `artifacts_dir/2` is from
+[Trace on rerun](#trace-on-rerun) (alias `Page` and `Tracing` too):
 
 ```elixir
-setup %{browser: browser} = ctx do
-  context =
-    Browser.new_context!(browser,
-      base_url: System.get_env("BASE_URL", "http://localhost:4000"),
-      storage_state: ctx[:storage_state]
-    )
+tracing = BrowserContext.tracing(context)
+Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
+dir = artifacts_dir(ctx.module, ctx.test)
 
-  BrowserContext.set_default_timeout(context, 5_000)
-  page = BrowserContext.new_page!(context)
-  tracing = BrowserContext.tracing(context)
-  Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
-  dir = artifacts_dir(ctx.module, ctx.test)
-
-  on_exit(fn ->
-    Page.screenshot(page, path: Path.join(dir, "failure.png"))
-    Tracing.stop(tracing, path: Path.join(dir, "trace.zip"))
-    BrowserContext.close(context)
-  end)
-
-  %{context: context, page: page}
-end
+on_exit(fn ->
+  Page.screenshot(page, path: Path.join(dir, "failure.png"))
+  Tracing.stop(tracing, path: Path.join(dir, "trace.zip"))
+end)
 ```
 
 The formatter:
