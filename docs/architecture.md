@@ -13,11 +13,11 @@ PlaywrightEx.Expect               generated matcher facade (tuple + bang)
 PlaywrightEx.Client.*             hand 1:1 port of playwright-core/src/client/*.ts
 PlaywrightEx.Matchers.*           hand 1:1 port of playwright/src/matchers
 PlaywrightEx.Isomorphic.*         isomorphic helpers (manualPromise, locatorGenerators, ...)
-PlaywrightEx.Protocol.*           generated from protocol.yml, plus a port of serializers.ts
+PlaywrightEx.Protocol.*           generated from protocol/spec/*.yml, plus a port of serializers.ts
 PlaywrightEx.Runtime.*            Elixir only: connection process, heap, promises, zones
 PlaywrightEx.Transport.Pipe       port of pipeTransport (JSON off the connection process)
-PlaywrightEx.Driver               pinned driver: install, locate, start
-PlaywrightEx.Supervisor           OTP form of Playwright.create(): driver, connection, tasks
+PlaywrightEx.Driver               pinned driver: install, locate
+PlaywrightEx.Supervisor           OTP form of outofprocess.start(): driver and connection
 ```
 
 ## Port and versions
@@ -33,8 +33,8 @@ Versions will mirror upstream major.minor once the port is stable (`1.64.x` driv
 releases are 0.17 release candidates (GH #126).
 
 The driver is pinned too: `PlaywrightEx.Driver` downloads `playwright-core@<pin>` from npm
-(sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; musl from
-unofficial-builds), lazily on first start or with `mix playwright_ex.install`. No Node needed
+(sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; no musl, like
+Playwright), lazily on first start or with `mix playwright_ex.install`. No Node needed
 beforehand, and no client-side version check: the pin always matches, and remote servers reject
 mismatches by the `Playwright/<pin>` user agent. `executable:` points at an npm-managed CLI.
 Remote browsers (`BrowserType.connect`) go through the local driver's `LocalUtils.connect` and
@@ -116,8 +116,7 @@ the connection process of what it awaits (a latch, a call, an event): if that ex
 rejects with `TargetClosedError` instead of hanging. `async/2` runs a
 function in a process of its own and settles a local promise, or a latch (`owner:` an object,
 `shared: true` the calling process). `void/1` fires and forgets. `then_`/`catch_` are lazy and
-run in the awaiter; `race`/`all` are selective receives. Rule: a promise awaited more than once,
-by another process, or stored in a field is a latch.
+run in the awaiter; `race`/`all` are selective receives.
 
 Outgoing messages are buffered and written once per turn of the connection process, which
 replaces per-message writes (a subscription update arrived ~1 ms after the call it precedes) and
@@ -257,13 +256,7 @@ as its `driver` mode does) or of the test runner stay bodiless, ruled out in
 `test/upstream_not_ported.txt` against `test/upstream_registry.md` (playwright-python and -java's
 mechanism, so their rule sets can be compared with `mix playwright_ex.parity --north-star`).
 Parity fails on unported registry tests, stale rules and stale skips (a reason naming a member
-that now exists), so a version roll surfaces new work.
-
-Skip tags say why: `upstream skip|fixme|fail:`, `not ported:`, `env:` (host or browser
-behaviour, confirmed with upstream's Node client), `ci:` and `flaky:`. Annotations known before
-the run are compile-time tags (`@browser_name`, `@browser_major_version`), because ExUnit has no
-runtime skip and an `if` around the body passes silently. `test.fail` is `expected_failure/2`.
-Test-side deviations carry `# deviation:` like lib code.
+that now exists), so a version roll surfaces new work. Skip tags and annotations: PORTING, "Tests".
 
 ## Test infrastructure
 
@@ -282,9 +275,9 @@ Stress and perf runs are manual, not CI.
 
 ## CI
 
-One matrix runs chromium, firefox and webkit on one Xvfb per job, each split into 6 jobs by
-`mix test --partitions` (test files round-robin); the aggregate `Tests` job is the check to
-require, and every job blocks it. Test failures (exit 2) are rerun once with `--failed`; compile
+One matrix runs chromium, firefox and webkit on one Xvfb per job, split by `mix test --partitions`
+(test files round-robin) into 6 jobs for firefox and 3 each for the others; the aggregate `Tests`
+job is the check to require, and every job blocks it. Test failures (exit 2) are rerun once with `--failed`; compile
 errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flakes stay visible.
 `max_cases` is half the schedulers on CI, like Playwright's default workers (`PW_MAX_CASES`, or the
 workflow_dispatch input `max_cases`, overrides it). Headed tests run under xvfb with
