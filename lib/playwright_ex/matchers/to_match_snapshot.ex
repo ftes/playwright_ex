@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
   explicit `path` option instead of a `name` that `testInfo` resolves, and the `-actual`, `-diff`,
   `-previous` and `-expected` output files are written next to it. `updateSnapshots` comes from the
   expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
-  (`"default"`) is returned, not recorded, so the matcher passes after writing it. Stabilization
+  (`"default"`) is printed, not recorded, so the matcher passes after writing it. Stabilization
   and comparison stay on the server (`Page._expectScreenshot`).
   """
 

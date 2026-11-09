@@ -29,6 +29,11 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
   Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
+- Deviate only where the port requires it: the OTP runtime, no test runner, Elixir's public API.
+  Check upstream at the pin before handling an edge case. If its client has the same behaviour,
+  keep that, even when it looks wrong, and don't add a special case for it: every deviation is
+  carried through each version bump. If it matters, report it upstream and list it under "Upstream
+  issues to re-check". Removing a deviation nothing requires is an improvement.
 - Every upstream client file needs a module (`mix playwright_ex.parity` fails otherwise). A
   file left out on purpose (type-only, not in api.json) goes in `@unported_client_files` in
   `Mix.Tasks.PlaywrightEx.Parity`, with a reason.
@@ -239,3 +244,6 @@ Problems upstream's own client has too; re-check on each bump, drop what's fixed
 - **HTTPS proxy closing mid-handshake**: a FIN during the TLS handshake crashes the driver with an
   unhandled `TLSSocket` error (bundled `https-proxy-agent`), so tests avoid it. Reported as
   microsoft/playwright#43996, GH #130.
+- **`toMatchAriaSnapshot` with `.not` and a missing file**: with `updateSnapshots` `none`, `all` or
+  `changed` the matcher compares an empty template, which never matches, so it passes.
+  `toHaveScreenshot` rejects this case with `handleMissingNegated`.

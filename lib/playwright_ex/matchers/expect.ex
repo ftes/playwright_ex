@@ -12,10 +12,10 @@ defmodule PlaywrightEx.Matchers.Expect do
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
       `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones).
-      A screenshot is written to its `path`. An inline aria snapshot can't be written into the
-      test source without a test runner, so where upstream suggests a rebaseline (an empty
-      snapshot, or any under `:all` or a mismatch under `:changed`) the matcher fails with the
-      new snapshot in its message.
+      A screenshot, or an aria snapshot with `path:`, is written to its `path`. An inline aria
+      snapshot can't be written into the test source without a test runner, so where upstream
+      suggests a rebaseline (an empty snapshot, or any under `:all` or a mismatch under
+      `:changed`) the matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
@@ -200,6 +200,9 @@ defmodule PlaywrightEx.Matchers.Expect do
 
         raise ExpectError.new(matcher_result, custom_message, nil)
       end
+
+      # deviation: no test runner records a `softError`, so a snapshot the matcher wrote is announced.
+      if result[:softError], do: IO.puts(Exception.message(result.softError))
 
       :ok
     end
