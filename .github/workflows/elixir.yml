@@ -76,7 +76,7 @@ jobs:
         id: mix_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}
+          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock', 'mix.exs') }}
           restore-keys: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
           path: |
             deps
@@ -166,7 +166,7 @@ jobs:
       - name: Restore deps and _build
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}
+          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock', 'mix.exs') }}
           restore-keys: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
           path: |
             deps
