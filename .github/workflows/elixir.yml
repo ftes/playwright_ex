@@ -27,7 +27,7 @@ on:
         type: string
         default: ""
       partitions:
-        description: "Partitions per browser (1-8), default: 6"
+        description: "Partitions per browser (1-8), default: firefox 6, others 3"
         required: false
         type: string
         default: ""
@@ -131,7 +131,7 @@ jobs:
   # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
   # path). Parity, Selenium and headful run once per browser, in partition 1.
   test:
-    name: Test (${{ matrix.browser }}, ${{ matrix.partition }}/${{ matrix.partitions }})
+    name: Test (${{ matrix.browser }}, ${{ matrix.partition }})
     runs-on: ubuntu-latest
     needs: build
     # After a green build, or none when skip_lint skipped it.
@@ -142,10 +142,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Without inputs (any event but a dispatch that sets them): all browsers, 6 partitions.
+        # Without inputs (any event but a dispatch that sets them): all browsers, 6 partitions for
+        # firefox, whose slowest sets the run's time, and 3 for the others (exclude below). PARTITIONS
+        # has the same counts.
         browser: ${{ fromJSON(!inputs.browsers && '["chromium","firefox","webkit"]' || startsWith(inputs.browsers, '[') && inputs.browsers || format('["{0}"]', inputs.browsers)) }}
-        partitions: ${{ fromJSON(format('[{0}]', inputs.partitions || '6')) }}
         partition: ${{ fromJSON('{"1":[1],"2":[1,2],"3":[1,2,3],"4":[1,2,3,4],"5":[1,2,3,4,5],"6":[1,2,3,4,5,6],"7":[1,2,3,4,5,6,7],"8":[1,2,3,4,5,6,7,8]}')[inputs.partitions || '6'] }}
+        exclude: ${{ fromJSON(inputs.partitions && '[]' || '[{"browser":"chromium","partition":4},{"browser":"chromium","partition":5},{"browser":"chromium","partition":6},{"browser":"webkit","partition":4},{"browser":"webkit","partition":5},{"browser":"webkit","partition":6}]') }}
     env:
       BROWSER: ${{ matrix.browser }}
       # The Xvfb of "Start Xvfb".
@@ -229,7 +231,7 @@ jobs:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
           PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
           MIX_TEST_PARTITION: ${{ matrix.partition }}
-          PARTITIONS: ${{ matrix.partitions }}
+          PARTITIONS: ${{ inputs.partitions || (matrix.browser == 'firefox' && 6 || 3) }}
         run: |
           label="$BROWSER, $MIX_TEST_PARTITION/$PARTITIONS"
           status=0
