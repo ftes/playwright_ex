@@ -484,7 +484,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       path_option(
         expected,
         "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is " <>
-          "written, unless `:update_snapshots` is `:none` or the matcher is negated, which fail instead. With " <>
+          "written, unless `:update_snapshots` is `:none` or the matcher is negated. With " <>
           "`:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the " <>
           "configuration of `PlaywrightEx.Expect`)."
       )

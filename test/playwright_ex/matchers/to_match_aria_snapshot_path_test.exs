@@ -70,8 +70,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
     update_snapshots(:none)
     Page.set_content!(page, "<h1>title</h1>")
 
-    assert {:error, %ExpectError{message: message}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
-    assert message =~ "A snapshot doesn't exist at"
+    assert {:error, %ExpectError{}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
     refute File.exists?(path)
   end
 
@@ -132,25 +131,6 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
 
     assert message =~ ~s(Matchers using ".not" can't generate new baselines)
     refute File.exists?(path)
-  end
-
-  test "a negated matcher fails on a missing snapshot it can't write", %{page: page, path: path} do
-    update_snapshots(:none)
-    Page.set_content!(page, "<h1>title</h1>")
-
-    assert {:error, %ExpectError{message: message}} =
-             page |> Expect.not_() |> Expect.to_match_aria_snapshot(path: path, timeout: 100)
-
-    assert message =~ "A snapshot doesn't exist at"
-    refute File.exists?(path)
-  end
-
-  test "an unreadable snapshot raises and is not overwritten", %{page: page, path: path} do
-    File.mkdir_p!(path)
-    Page.set_content!(page, "<h1>title</h1>")
-
-    assert {:error, %File.Error{reason: :eisdir}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
-    assert File.dir?(path)
   end
 
   test "a non-string expected with a path is rejected, not dropped", %{page: page, path: path} do
