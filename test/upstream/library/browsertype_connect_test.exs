@@ -13,6 +13,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   @browser_name System.get_env("BROWSER", "chromium")
 
   # test.slow(true, 'All connect tests are slow')
+  # Slow upstream too, and the longest module in its CI partition. Splitting the file would even
+  # out the partitions, but it stays one file to mirror upstream's spec.
   @moduletag timeout: @slow_timeout
 
   import PlaywrightEx.Utils, only: [ensure_some_frames: 1, parse_trace_raw: 2]
