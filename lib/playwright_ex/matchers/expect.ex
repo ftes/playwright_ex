@@ -201,6 +201,9 @@ defmodule PlaywrightEx.Matchers.Expect do
         raise ExpectError.new(matcher_result, custom_message, nil)
       end
 
+      # deviation: no test runner records a `softError`, so a snapshot the matcher wrote is announced.
+      if result[:softError], do: IO.puts(Exception.message(result.softError))
+
       :ok
     end
   end

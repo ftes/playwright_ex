@@ -4612,7 +4612,7 @@ defmodule PlaywrightEx.Expect do
               optional(:timeout) => number() | :infinity
             }
 
-  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, and a different one with `:update_snapshots` set to `:all` or `:changed` (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated, which fail instead. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is accepted too (the same as `0`)."
   @spec to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil,
@@ -4692,7 +4692,7 @@ defmodule PlaywrightEx.Expect do
 
   The options may take the place of `expected`, which is then `nil`.
 
-  * `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, and a different one with `:update_snapshots` set to `:all` or `:changed` (see the configuration of `PlaywrightEx.Expect`).
+  * `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated, which fail instead. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
@@ -6490,7 +6490,7 @@ defmodule PlaywrightEx.Expect do
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, and a different one with `:update_snapshots` set to `:all` or `:changed` (see the configuration of `PlaywrightEx.Expect`).",
+          "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated, which fail instead. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: String.t())
       },
@@ -6516,7 +6516,7 @@ defmodule PlaywrightEx.Expect do
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, and a different one with `:update_snapshots` set to `:all` or `:changed` (see the configuration of `PlaywrightEx.Expect`).",
+          "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated, which fail instead. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: String.t())
       },

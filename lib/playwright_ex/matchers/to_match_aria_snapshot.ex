@@ -5,8 +5,8 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
 
   Deviations (architecture: Generated facade): there is no test runner, so the snapshot file is the
   explicit `path` option instead of a `name` that `testInfo` resolves. `updateSnapshots` comes from
-  the expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
-  (`"default"`) is returned, not recorded, so the matcher passes after writing it.
+  the expect configuration (`PlaywrightEx.Matchers.Expect`); a missing snapshot is announced and written,
+  and the matcher passes: no test runner records upstream's `softError` (`"default"`).
   A returned `suggestedRebaseline` fails the matcher with it (`PlaywrightEx.Matchers.Expect`).
   """
 
@@ -16,6 +16,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Matchers.Expect
   alias PlaywrightEx.Matchers.MatcherHint
+  alias PlaywrightEx.Matchers.ToMatchSnapshot
 
   @k_impossible_aria_match ~s(- none "Generating new baseline")
 
@@ -35,7 +36,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
       {expected_path, options} = Map.pop(options, :path)
       timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
 
-      if is_binary(expected_param) and expected_path,
+      if expected_param != nil and expected_path,
         do: raise("#{matcher_name}() takes the expected snapshot or the path option, not both")
 
       if !is_binary(expected_param) and !is_binary(expected_path),
@@ -53,9 +54,22 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
 
       is_missing_baseline = update_snapshots in ["missing", "default"] and expected == ""
 
-      if is_missing_baseline and this.isNot do
-        message = ~s(Matchers using ".not" can't generate new baselines)
-        %{pass: this.isNot, message: fn -> message end, name: "toMatchAriaSnapshot"}
+      failure =
+        cond do
+          is_missing_baseline and this.isNot ->
+            ~s(Matchers using ".not" can't generate new baselines)
+
+          # Elixir only: as `to_have_screenshot`. Upstream compares an empty template here, whose
+          # failure doesn't name the missing file and which a `.not` passes.
+          expected_path && expected == "" && (update_snapshots == "none" or this.isNot) ->
+            "A snapshot doesn't exist at #{Path.relative_to_cwd(expected_path)}."
+
+          true ->
+            nil
+        end
+
+      if failure do
+        %{pass: this.isNot, message: fn -> failure end, name: "toMatchAriaSnapshot"}
       else
         generate_baseline = !this.isNot and (update_snapshots == "all" or is_missing_baseline)
         # When generating new baseline, run entire pipeline against impossible match.
@@ -134,7 +148,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
             %{pass: this.isNot, message: message, name: "toMatchAriaSnapshot", expected: expected}
 
           rebaseline and expected_path ->
-            write_snapshot(expected_path, typed_received["regex"], is_missing_baseline, update_snapshots)
+            write_snapshot(expected_path, typed_received["regex"], is_missing_baseline)
 
           rebaseline ->
             suggested_rebaseline =
@@ -175,25 +189,17 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
     end
   end
 
-  defp write_snapshot(expected_path, snapshot, is_missing_baseline, update_snapshots) do
-    File.mkdir_p!(Path.dirname(expected_path))
-    File.write!(expected_path, snapshot)
+  defp write_snapshot(expected_path, snapshot, is_missing_baseline) do
+    ToMatchSnapshot.write_file_sync(expected_path, snapshot)
     relative_path = Path.relative_to_cwd(expected_path)
-    passed = %{pass: true, message: fn -> "" end, name: "toMatchAriaSnapshot"}
 
-    cond do
-      is_missing_baseline and update_snapshots == "default" ->
-        message = "A snapshot doesn't exist at #{relative_path}, writing actual."
-        Map.merge(passed, %{softError: %RuntimeError{message: message}, shouldNotRetryTest: true})
+    IO.puts(
+      if is_missing_baseline,
+        do: "A snapshot doesn't exist at #{relative_path}, writing actual.",
+        else: "A snapshot is generated at #{relative_path}."
+    )
 
-      is_missing_baseline ->
-        IO.puts("A snapshot doesn't exist at #{relative_path}, writing actual.")
-        passed
-
-      true ->
-        IO.puts("A snapshot is generated at #{relative_path}.")
-        passed
-    end
+    %{pass: true, message: fn -> "" end, name: "toMatchAriaSnapshot"}
   end
 
   defp unshift(snapshot) do

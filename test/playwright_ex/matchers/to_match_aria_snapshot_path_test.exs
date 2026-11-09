@@ -32,9 +32,9 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
   test "writes a missing snapshot and compares against it afterwards", %{page: page, path: path} do
     Page.set_content!(page, "<h1>title</h1>")
 
-    assert :ok = Expect.to_match_aria_snapshot(page, path: path)
+    assert capture_io(fn -> assert :ok = Expect.to_match_aria_snapshot(page, path: path) end) =~ "writing actual"
     assert File.read!(path) == ~s(- heading "title" [level=1])
-    assert :ok = Expect.to_match_aria_snapshot(page, path: path)
+    assert capture_io(fn -> assert :ok = Expect.to_match_aria_snapshot(page, path: path) end) == ""
 
     Page.set_content!(page, "<h1>other</h1>")
     assert {:error, %ExpectError{}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
@@ -64,6 +64,27 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
 
     assert {:error, %ExpectError{}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
     assert File.read!(path) == ~s(- heading "other")
+  end
+
+  test ":none fails on a missing snapshot", %{page: page, path: path} do
+    update_snapshots(:none)
+    Page.set_content!(page, "<h1>title</h1>")
+
+    assert {:error, %ExpectError{message: message}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
+    assert message =~ "A snapshot doesn't exist at"
+    refute File.exists?(path)
+  end
+
+  for mode <- [:changed, :all] do
+    test "#{inspect(mode)} writes a missing snapshot", %{page: page, path: path} do
+      update_snapshots(unquote(mode))
+      Page.set_content!(page, "<h1>title</h1>")
+
+      assert capture_io(fn -> assert :ok = Expect.to_match_aria_snapshot(page, path: path, timeout: 100) end) =~
+               "A snapshot is generated at"
+
+      assert File.read!(path) == ~s(- heading "title" [level=1])
+    end
   end
 
   test ":missing writes a missing snapshot and keeps a different one", %{page: page, path: path} do
@@ -111,6 +132,30 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
 
     assert message =~ ~s(Matchers using ".not" can't generate new baselines)
     refute File.exists?(path)
+  end
+
+  test "a negated matcher fails on a missing snapshot it can't write", %{page: page, path: path} do
+    update_snapshots(:none)
+    Page.set_content!(page, "<h1>title</h1>")
+
+    assert {:error, %ExpectError{message: message}} =
+             page |> Expect.not_() |> Expect.to_match_aria_snapshot(path: path, timeout: 100)
+
+    assert message =~ "A snapshot doesn't exist at"
+    refute File.exists?(path)
+  end
+
+  test "an unreadable snapshot raises and is not overwritten", %{page: page, path: path} do
+    File.mkdir_p!(path)
+    Page.set_content!(page, "<h1>title</h1>")
+
+    assert {:error, %File.Error{reason: :eisdir}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
+    assert File.dir?(path)
+  end
+
+  test "a non-string expected with a path is rejected, not dropped", %{page: page, path: path} do
+    assert {:error, error} = Expect.to_match_aria_snapshot(page, ~r/title/, path: path, timeout: 100)
+    assert Exception.message(error) =~ "not both"
   end
 
   test "takes the expected snapshot or the path, not both or neither", %{page: page, path: path} do
