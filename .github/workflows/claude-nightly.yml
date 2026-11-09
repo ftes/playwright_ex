@@ -357,9 +357,11 @@ jobs:
             - Ours, where to look: lib/ modules without `@upstream` (runtime, driver, supervisor),
               lib/mix/, dev/ (generators, parity), test/support/, tests outside test/upstream/.
             - Ported (`@upstream`, test/upstream/): keep upstream's structure, order and names.
-              Change only what brings it closer to upstream or PORTING.md's idioms, such as a
-              deviation that is no longer needed. Upstream's sources at the pin are under
-              ~/.cache/playwright_ex/<version>/upstream once `mix playwright_ex.parity` has run.
+              Change only what brings it closer to upstream or PORTING.md's idioms. Prioritize
+              removing a deviation nothing requires (PORTING.md, "Rules"): one no longer needed, or
+              a synthetic special case for an edge case upstream doesn't handle. Upstream's sources
+              at the pin are under ~/.cache/playwright_ex/<version>/upstream once
+              `mix playwright_ex.parity` has run.
             - Generated ("do not edit manually"): change the generator in dev/ and regenerate.
 
             1. Read PORTING.md, docs/architecture.md and enough of the code above to know the
@@ -367,15 +369,15 @@ jobs:
             2. Look for duplicated logic that belongs in one place, dead code, needless indirection
                or options, and one concept handled or named differently across modules.
             3. Rank the candidates by how much simpler or more uniform the code becomes for how
-               little it changes. Read the callers and tests of the best one before committing to
-               it. Skip anything overlapping an OPEN PR above or repeating a CLOSED one: those were
-               declined.
+               little it changes, with unneeded deviations in ported code first. Read the callers
+               and tests of the best one before committing to it. Skip anything overlapping an OPEN
+               PR above or repeating a CLOSED one: those were declined.
             4. Implement that one idea, matching the surrounding code. Prefer a diff that removes
                more than it adds.
 
-            Limits: observable public behaviour stays the same. No new features, bug fixes,
-            dependency, CI or changelog changes, and no changes that are only formatting, comments
-            or renames to taste.
+            Limits: observable public behaviour stays the same, except where removing an unneeded
+            deviation restores upstream's. No new features, bug fixes, dependency, CI or changelog
+            changes, and no changes that are only formatting, comments or renames to taste.
 
             Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass.
             Don't run the test suite: CI runs it on the PR, and the next nightly run fixes what it

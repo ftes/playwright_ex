@@ -20,6 +20,7 @@ defmodule PlaywrightEx.MixProject do
       source_url: @source_url,
       docs: docs(),
       aliases: aliases(),
+      usage_rules: usage_rules(),
       dialyzer: [
         plt_local_path: "priv/plts/project.plt",
         plt_core_path: "priv/plts/core.plt",
@@ -46,6 +47,7 @@ defmodule PlaywrightEx.MixProject do
   defp deps do
     [
       {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
+      {:usage_rules, "~> 1.3", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # The port of upstream tests/config/testserver.
@@ -191,6 +193,13 @@ defmodule PlaywrightEx.MixProject do
         ],
         &(path =~ &1)
       )
+  end
+
+  # `mix usage_rules.sync --yes` rewrites the managed block of AGENTS.md from this list.
+  # Without the package's elixir and otp sub-rules: ported code follows PORTING.md instead
+  # (`is_connected`, raising for control flow).
+  defp usage_rules do
+    [file: "AGENTS.md", usage_rules: [{:usage_rules, sub_rules: []}]]
   end
 
   defp aliases do

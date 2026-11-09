@@ -53,6 +53,9 @@ jobs:
             4. Verify each candidate before reporting: trace the code path and state the concrete
                input or scenario that fails. Drop anything you cannot substantiate, and skip
                style, naming and formatting nits.
+               Ported code (`@upstream`) marks only its deviations, so unmarked statements match
+               upstream's client. An edge case they share with upstream is not a defect of this PR:
+               don't suggest a special case for it. Do flag a new deviation nothing requires.
             5. Don't repeat findings already posted on this PR
                (`gh api repos/REPO/pulls/PR/comments`, `gh pr view PR --comments`).
 
