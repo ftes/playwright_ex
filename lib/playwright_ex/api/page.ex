@@ -40,6 +40,8 @@ defmodule PlaywrightEx.Page do
 
   *Since Playwright 1.8.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:close`
@@ -213,8 +215,6 @@ defmodule PlaywrightEx.Page do
 
   Emitted when a dedicated [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) is spawned by the
   page.
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -227,6 +227,7 @@ defmodule PlaywrightEx.Page do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.Page
 
+  @typedoc "An event name, see the module docs."
   @type event ::
           :close
           | :console

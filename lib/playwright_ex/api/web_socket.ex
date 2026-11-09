@@ -8,6 +8,8 @@ defmodule PlaywrightEx.WebSocket do
 
   *Since Playwright 1.8.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:close`
@@ -25,8 +27,6 @@ defmodule PlaywrightEx.WebSocket do
   ### `:socket_error`
 
   *Since Playwright 1.9.* Fired when the websocket has an error.
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -39,6 +39,7 @@ defmodule PlaywrightEx.WebSocket do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.WebSocket
 
+  @typedoc "An event name, see the module docs."
   @type event :: :close | :frame_received | :frame_sent | :socket_error
 
   @events %{close: "close", frame_received: "framereceived", frame_sent: "framesent", socket_error: "socketerror"}

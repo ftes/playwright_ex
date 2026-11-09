@@ -2,7 +2,9 @@
 
 defmodule PlaywrightEx.Expect do
   @moduledoc ~S"""
-  Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver. `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout (5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` (the Testing with ExUnit guide shows how to wrap it in an `ExUnit.AssertionError`).
+  Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver.
+
+  `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout (5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` ([Testing with ExUnit](testing-with-exunit.md) shows how to wrap it in an `ExUnit.AssertionError`).
 
   The [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions) class provides assertion methods that can be used to make assertions about the [`Locator`](`PlaywrightEx.Locator`) state in the tests.
 

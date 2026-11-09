@@ -22,6 +22,8 @@ defmodule PlaywrightEx.BrowserContext do
 
   *Since Playwright 1.8.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:background_page`
@@ -163,8 +165,6 @@ defmodule PlaywrightEx.BrowserContext do
   > Service workers are only supported on Chromium-based browsers.
 
   Emitted when new service worker is created in the context.
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -177,6 +177,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.BrowserContext
 
+  @typedoc "An event name, see the module docs."
   @type event ::
           :background_page
           | :close

@@ -25,6 +25,8 @@ defmodule PlaywrightEx.CDPSession do
 
   *Since Playwright 1.8.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:close`
@@ -43,8 +45,6 @@ defmodule PlaywrightEx.CDPSession do
     IO.puts("CDP event: #{event.method} #{inspect(event[:params])}")
   end)
   ```
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -57,6 +57,7 @@ defmodule PlaywrightEx.CDPSession do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.CDPSession
 
+  @typedoc "An event name, see the module docs."
   @type event :: :close | :event
 
   @events %{close: "close", event: "event"}
