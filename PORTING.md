@@ -244,3 +244,6 @@ Problems upstream's own client has too; re-check on each bump, drop what's fixed
 - **HTTPS proxy closing mid-handshake**: a FIN during the TLS handshake crashes the driver with an
   unhandled `TLSSocket` error (bundled `https-proxy-agent`), so tests avoid it. Reported as
   microsoft/playwright#43996, GH #130.
+- **`toMatchAriaSnapshot` with `.not` and a missing file**: with `updateSnapshots` `none`, `all` or
+  `changed` the matcher compares an empty template, which never matches, so it passes.
+  `toHaveScreenshot` rejects this case with `handleMissingNegated`.

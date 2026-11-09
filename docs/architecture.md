@@ -84,9 +84,9 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, the test runner (`toPass`, `expect.poll`, soft asserts, file aria
-  snapshots, jest matchers). `to_have_screenshot(target, path:)` stays, with an explicit path in
-  place of `testInfo`.
+  serialization, the inspector, the test runner (`toPass`, `expect.poll`, soft asserts, jest
+  matchers). `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay,
+  with an explicit path in place of `testInfo`.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
   `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright_ex.cli`). Per-call client
