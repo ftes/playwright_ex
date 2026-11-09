@@ -1,7 +1,9 @@
 defmodule PlaywrightEx.TimeoutError do
   @moduledoc """
-  JS `TimeoutError` (`packages/playwright-core/src/client/errors.ts`): a call ran out of time.
-  The fields are those of `PlaywrightEx.PlaywrightError`; `name` is `"TimeoutError"`.
+  A call ran out of time.
+
+  The fields are those of `PlaywrightEx.PlaywrightError`; `name` is `"TimeoutError"`. Port of JS
+  `TimeoutError` (`packages/playwright-core/src/client/errors.ts`).
   """
   @typedoc "See the module docs for the fields."
   @type t :: %__MODULE__{

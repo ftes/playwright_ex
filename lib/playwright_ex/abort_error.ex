@@ -1,9 +1,10 @@
 defmodule PlaywrightEx.AbortError do
   @moduledoc """
-  JS `AbortError` (`packages/playwright-core/src/client/errors.ts`): a call was cancelled through
-  its `signal:` (`PlaywrightEx.AbortController`). The fields are those of
-  `PlaywrightEx.PlaywrightError`; `name` is `"AbortError"` and `cause` the reason given to
-  `PlaywrightEx.AbortController.abort/2`.
+  A call was cancelled through its `signal:` (`PlaywrightEx.AbortController`).
+
+  The fields are those of `PlaywrightEx.PlaywrightError`; `name` is `"AbortError"` and `cause` the
+  reason given to `PlaywrightEx.AbortController.abort/2`. Port of JS `AbortError`
+  (`packages/playwright-core/src/client/errors.ts`).
   """
   @typedoc "See the module docs for the fields."
   @type t :: %__MODULE__{
