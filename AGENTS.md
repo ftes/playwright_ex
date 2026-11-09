@@ -16,7 +16,7 @@ Read them before changing ported code.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->
-## usage_rules usage (temp drift)
+## usage_rules usage
 _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agent skills from dependencies_
 
 ## Using Usage Rules
