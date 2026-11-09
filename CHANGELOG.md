@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `usage-rules.md` ships in the Hex package, so consumers get it through `mix usage_rules.sync`.
+
 ## [0.17.0-rc.3] 2026-11-08
 
 ### Added
