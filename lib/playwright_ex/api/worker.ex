@@ -18,6 +18,8 @@ defmodule PlaywrightEx.Worker do
 
   *Since Playwright 1.8.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:close`
@@ -27,8 +29,6 @@ defmodule PlaywrightEx.Worker do
   ### `:console`
 
   *Since Playwright 1.57.* Emitted when JavaScript within the worker calls one of console API methods, e.g. `console.log` or `console.dir`.
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -41,6 +41,7 @@ defmodule PlaywrightEx.Worker do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.Worker
 
+  @typedoc "An event name, see the module docs."
   @type event :: :close | :console
 
   @events %{close: "close", console: "console"}

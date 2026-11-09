@@ -14,6 +14,8 @@ defmodule PlaywrightEx.Browser do
 
   *Since Playwright 1.8.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:context`
@@ -26,8 +28,6 @@ defmodule PlaywrightEx.Browser do
 
   * Browser application is closed or crashed.
   * The `PlaywrightEx.Browser.close/2` method was called.
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -40,6 +40,7 @@ defmodule PlaywrightEx.Browser do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.Browser
 
+  @typedoc "An event name, see the module docs."
   @type event :: :context | :disconnected
 
   @events %{context: "context", disconnected: "disconnected"}
@@ -1232,7 +1233,7 @@ defmodule PlaywrightEx.Browser do
   @doc ~S"""
   > #### Note {: .info}
   >
-  > This API controls [Chromium Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool) which is a low-level chromium-specific debugging tool. API to control [Playwright Tracing](https://playwright.dev/docs/trace-viewer) could be found [here](`PlaywrightEx.Tracing`).
+  > This API controls [Chromium Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool) which is a low-level chromium-specific debugging tool. API to control [Playwright Tracing](https://playwright.dev/docs/trace-viewer) could be found [here](https://playwright.dev/docs/api/class-tracing).
 
   You can use `PlaywrightEx.Browser.start_tracing/3` and `PlaywrightEx.Browser.stop_tracing/1` to create a trace file that can
   be opened in Chrome DevTools performance panel.
@@ -1294,7 +1295,7 @@ defmodule PlaywrightEx.Browser do
   @doc ~S"""
   > #### Note {: .info}
   >
-  > This API controls [Chromium Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool) which is a low-level chromium-specific debugging tool. API to control [Playwright Tracing](https://playwright.dev/docs/trace-viewer) could be found [here](`PlaywrightEx.Tracing`).
+  > This API controls [Chromium Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool) which is a low-level chromium-specific debugging tool. API to control [Playwright Tracing](https://playwright.dev/docs/trace-viewer) could be found [here](https://playwright.dev/docs/api/class-tracing).
 
   Returns the buffer with trace data.
 

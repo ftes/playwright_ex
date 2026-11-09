@@ -316,10 +316,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       md(class["spec"], ctx),
       since(class),
       class["extends"] && extends_doc(ctx, class["extends"]),
+      "The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).",
       events != [] &&
         "## Events\n\n" <>
-          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"])),
-      "The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`)."
+          Enum.map_join(events, "\n\n", &event_doc(ctx, &1, class["since"]))
     ])
   end
 
@@ -338,7 +338,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp event_type([]), do: ""
 
   defp event_type(events),
-    do: "@type event :: " <> Enum.map_join(events, " | ", &inspect(event_atom(&1)))
+    do:
+      "@typedoc \"An event name, see the module docs.\"\n" <>
+        "@type event :: " <> Enum.map_join(events, " | ", &inspect(event_atom(&1)))
 
   # --- members -----------------------------------------------------------------
 
@@ -1322,7 +1324,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp inline(ctx, _match, {kind, class, member}, _link, _code, _type) when kind != "",
     do: member_link(ctx, kind, class, member)
 
-  defp inline(ctx, _match, _ref, {label, href}, _code, _type) when href != "", do: "[#{label}](#{href(ctx, href)})"
+  defp inline(_ctx, _match, _ref, {label, href}, _code, _type) when href != "", do: "[#{label}](#{href(href)})"
 
   defp inline(ctx, match, _ref, _link, code, "") when code != "",
     do: code_link(ctx, code) || prose_code(ctx, code) || match
@@ -1515,34 +1517,13 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     end
   end
 
-  # Links relative to docs/src/api/ (with or without `.md`) as playwright.dev URLs.
-  defp href(ctx, href) do
-    case Regex.run(~r/^(\.\.\/|\.\/)?([\w\/-]*?)(?:\.md)?(#[\w-]*)?$/, href) do
-      [_, "", "" | anchor] ->
-        "#{dev_url(ctx.class)}#{anchor}"
-
-      [_, "../", page | anchor] ->
-        "https://playwright.dev/docs/#{page}#{anchor}"
-
-      [_, _, "class-" <> name = page | anchor] ->
-        class_href(ctx, name, anchor) || "https://playwright.dev/docs/api/#{page}#{anchor}"
-
-      [_, _, page | anchor] ->
-        "https://playwright.dev/docs/api/#{page}#{anchor}"
-
-      nil ->
-        href
-    end
+  # api.json's relative links are playwright.dev pages. Our own text (`Mix.PlaywrightEx.ApiRules`)
+  # says where it points: an ExDoc link, or a full URL.
+  defp href("." <> _ = href) do
+    "https://playwright.dev/docs/api/" |> URI.merge(href) |> URI.to_string() |> String.replace(~r/\.md(?=#|$)/, "")
   end
 
-  defp class_href(ctx, lower, []) do
-    case Enum.find(Map.keys(ctx.classes), &(String.downcase(&1) == lower)) do
-      nil -> nil
-      class -> "`#{inspect(facade(class))}`"
-    end
-  end
-
-  defp class_href(_ctx, _lower, _anchor), do: nil
+  defp href(href), do: href
 
   defp dev_url(class), do: "https://playwright.dev/docs/api/class-#{String.downcase(class)}"
 

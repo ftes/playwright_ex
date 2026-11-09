@@ -7,13 +7,13 @@ defmodule PlaywrightEx.Debugger do
 
   *Since Playwright 1.59.*
 
+  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
+
   ## Events
 
   ### `:paused_state_changed`
 
   Emitted when the debugger pauses or resumes.
-
-  The examples alias the modules they use (`alias PlaywrightEx.{Locator, Page}`).
   """
 
   alias PlaywrightEx.Runtime.Facade
@@ -26,6 +26,7 @@ defmodule PlaywrightEx.Debugger do
   @doc false
   def __client__(_this), do: PlaywrightEx.Client.Debugger
 
+  @typedoc "An event name, see the module docs."
   @type event :: :paused_state_changed
 
   @events %{paused_state_changed: "pausedstatechanged"}
