@@ -91,6 +91,8 @@ jobs:
         run: mix credo
       - name: Compiles without warnings
         run: mix compile --warnings-as-errors
+      - name: Check generated usage rules
+        run: mix usage_rules.sync --check
       # As a Hex install does: from the package's files only (DRIVER_VERSION etc. are read when
       # compiling). In the checkout, so mise's .tool-versions applies.
       - name: Hex package compiles
