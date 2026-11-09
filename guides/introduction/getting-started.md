@@ -1,18 +1,11 @@
 # Getting started
 
+Snippets alias `PlaywrightEx.{Browser, BrowserType, Playwright, ...}`.
+
 ## Installation
 
-Add the dependency to `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:playwright_ex, "~> 0.17.0-rc.4"}
-  ]
-end
-```
-
-Then fetch it and install the driver and the browsers:
+Add the dependency to `mix.exs` as shown in the [Overview](../../README.md#installation), then fetch
+it and install the driver and the browsers:
 
 ```sh
 mix deps.get
@@ -93,7 +86,7 @@ Browser.close!(browser)
 Save it as `example.exs` and run `mix run example.exs`. If your application already starts the
 supervisor, drop the `start_link/1` line and pass its name to `PlaywrightEx.playwright/1`.
 
-`Browser.new_page!/1` opens a page in a context of its own. A
+[`Browser.new_page!/1`](`PlaywrightEx.Browser.new_page!/1`) opens a page in a context of its own. A
 [context](https://playwright.dev/docs/browser-contexts) is an isolated browser session (cookies,
 storage, options such as `base_url`) and is cheap to create, so use one per test or per user:
 
@@ -104,15 +97,35 @@ Page.goto!(page, "/")
 BrowserContext.close!(context)
 ```
 
-`Playwright.firefox/1` and `Playwright.webkit/1` launch the other browsers.
+[`Playwright.firefox/1`](`PlaywrightEx.Playwright.firefox/1`) and
+[`Playwright.webkit/1`](`PlaywrightEx.Playwright.webkit/1`) launch the other browsers. Browsers run
+headless by default; [Watching it run](../debugging-and-ci.md#watching-it-run) shows how to launch
+one headed.
 
-## Headless and headed
+## Finding elements
 
-Browsers run headless by default. To watch one, launch it headed and slow it down:
+Find elements the way a user does, with `get_by_role`, `get_by_label`, `get_by_text` and
+`get_by_test_id`. Use [`Page.locator/3`](`PlaywrightEx.Page.locator/3`) with CSS when nothing
+user-facing identifies the element.
 
 ```elixir
-BrowserType.launch!(chromium, headless: false, slow_mo: 50)
+Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
+
+Page.get_by_role(page, :listitem)
+|> Locator.filter(has_text: "Apple")
+|> Locator.get_by_role(:button, name: "Buy")
+|> Locator.click!()
 ```
+
+Locators are lazy and strict: nothing is looked up until an action, and an action on a locator that
+matches several elements fails. Narrow it with
+[`Locator.filter/2`](`PlaywrightEx.Locator.filter/2`),
+[`Locator.first/1`](`PlaywrightEx.Locator.first/1`),
+[`Locator.last/1`](`PlaywrightEx.Locator.last/1`) or
+[`Locator.nth/2`](`PlaywrightEx.Locator.nth/2`). Act directly, as actions wait for their element, so
+don't check `is_visible` first. Avoid
+[`Page.wait_for_timeout/2`](`PlaywrightEx.Page.wait_for_timeout/2`), which is for debugging: wait
+for what the user sees. More: [locators](https://playwright.dev/python/docs/locators).
 
 ## Timeouts
 
@@ -142,16 +155,11 @@ Logger.put_application_level(:playwright_ex, :info)
 
 ## Upgrading
 
-This release drives Playwright 1.65. To upgrade, bump the dependency and
-run `mix playwright_ex.install` again for the new driver and browsers.
-Read the [changelog](../../CHANGELOG.md) and Playwright's
-[release notes](https://playwright.dev/docs/release-notes).
+To upgrade, bump the dependency and run `mix playwright_ex.install` again for the new driver and
+browsers. Read the [changelog](../../CHANGELOG.md) and Playwright's [release
+notes](https://playwright.dev/docs/release-notes).
 
 ## Next
 
-- [From playwright.dev to Elixir](api-conventions.md): options, results, events and errors.
-- [Cheatsheet](cheatsheet.cheatmd): frequent calls, JS next to Elixir.
-- [Testing with ExUnit](../testing-with-exunit.md): a browser case template, assertions, failures.
-- [Events and waiting](../events-and-waiting.md), [Network](../network.md),
-  [Debugging and CI](../debugging-and-ci.md).
-- [Concurrency](../concurrency.md): listeners and promises across processes.
+[From playwright.dev to Elixir](api-conventions.md) shows how a JS call reads in Elixir, and the
+[Cheatsheet](cheatsheet.cheatmd) lists frequent calls.

@@ -78,8 +78,8 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
   end
 
   test "listeners", %{page: page} do
-    test_pid = self()
-    listener = fn request -> send(test_pid, {:request, Request.method(request), Request.url(request)}) end
+    owner = self()
+    listener = fn request -> send(owner, {:request, Request.method(request), Request.url(request)}) end
 
     Page.on(page, :request, listener)
     Page.goto!(page, "/")
@@ -114,8 +114,8 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
   end
 
   test "popups and new pages", %{context: context, page: page} do
-    test_pid = self()
-    BrowserContext.on(context, :page, &send(test_pid, {:page, &1}))
+    owner = self()
+    BrowserContext.on(context, :page, &send(owner, {:page, &1}))
 
     popup = Page.expect_popup!(page, fn -> Page.get_by_text(page, "Open terms") |> Locator.click!() end)
     Expect.to_have_title!(popup, "Terms")

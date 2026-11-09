@@ -1,10 +1,10 @@
 # Migrating from 0.16
 
-PlaywrightEx 0.17 is a 1:1 port of the official JavaScript client, and its public API is
-generated from Playwright's own docs. It drives Playwright 1.65.
-The [playwright.dev](https://playwright.dev/docs/api/class-playwright) docs apply: `page.getByRole(...)`
-is `PlaywrightEx.Page.get_by_role/3`, `locator.click()` is `PlaywrightEx.Locator.click/2`,
-`expect(locator).toBeVisible()` is `PlaywrightEx.Expect.to_be_visible/2`.
+PlaywrightEx 0.17 is a 1:1 port of the official JavaScript client, and its public API is generated
+from Playwright's own docs. The [playwright.dev](https://playwright.dev/docs/api/class-playwright)
+docs apply: `page.getByRole(...)` is `PlaywrightEx.Page.get_by_role/3`, `locator.click()` is
+`PlaywrightEx.Locator.click/2`, `expect(locator).toBeVisible()` is
+`PlaywrightEx.Expect.to_be_visible/2`.
 
 This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_browser/2`,
 `subscribe/2` and `JsLogger` are gone. Snippets below alias `PlaywrightEx.{Page, Locator, ...}`.
@@ -170,12 +170,8 @@ chooser = Page.expect_file_chooser!(page, fn -> Locator.click!(Page.locator(page
 FileChooser.set_files!(chooser, path)
 ```
 
-`expect_*` exists where the Python client has one (`expect_popup`, `expect_download`,
-`expect_request`, `expect_response`, `expect_navigation`, `expect_event`, ...); the matching
-`wait_for_*` returns a `PlaywrightEx.Promise`. EventWaiter's `:predicate` is the `predicate:`
-option, or the function itself in place of the options, as JS `waitForEvent(event, predicate)`
-(`Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"))`); its `:transform`
-is code after the await.
+[Events and waiting](events-and-waiting.md) covers `expect_*` and `wait_for_*`. EventWaiter's
+`:predicate` is their predicate, and its `:transform` is code after the await.
 
 ```elixir
 # before
@@ -281,10 +277,8 @@ Playwright CLI).
 
 ### Errors
 
-Errors are exceptions named after the JS classes (`PlaywrightEx.PlaywrightError` for JS `Error`,
-`PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError`, `PlaywrightEx.AbortError`, and
-`PlaywrightEx.ExpectError` for failed assertions), with the JS message (API name prefix and call
-log) and a `log` field:
+Errors are exceptions named after the JS classes ([Errors](introduction/api-conventions.md#errors)
+lists them), with the JS message (API name prefix and call log) and a `log` field:
 
 ```elixir
 # before
@@ -327,15 +321,13 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
   `Route.fulfill(path:)` did before), not a driver error. A storage-state file that can't be read
   raises `PlaywrightEx.PlaywrightError` ("Error reading storage state from ..."), with the
   `File.Error` as its `:cause`.
-- Strings are literal text (or globs, for URLs), never patterns. A `Regex` passed where JS
-  takes a `RegExp` is sent to the browser or driver as a JS regex (modifiers `i`, `m`, `s`,
-  `u`). Options and PCRE-only syntax JS cannot run (`x`, `U`, `\A`, `\z`, atomic groups,
-  possessive quantifiers, inline `(?i)`, recursion, `\K`) raise `ArgumentError`. For JS-only
-  syntax (`[^]`, the `v`, `g`, `y`, `d` flags, variable-length lookbehind), pass
-  `PlaywrightEx.RegExp.new(source, flags)`. JS regexes returned by `evaluate` are always a
-  `PlaywrightEx.RegExp` (lossless); `PlaywrightEx.RegExp.to_regex/1` (or `compile!/1`) gives a `Regex` when PCRE can run it.
+- Strings are literal text (or globs, for URLs), never patterns. A `Regex` passed where JS takes a
+  `RegExp` is sent to the browser or driver as a JS regex; `PlaywrightEx.RegExp` lists what raises
+  `ArgumentError` and takes JS-only syntax. JS regexes returned by `evaluate` are always a
+  `PlaywrightEx.RegExp` (lossless); `PlaywrightEx.RegExp.to_regex/1` (or `compile!/1`) gives a
+  `Regex` when PCRE can run it.
 
 ## Known gaps
 
-- Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`,
-  soft assertions, file-based aria snapshots, `toMatchSnapshot`.
+- Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`, soft
+  assertions, `toMatchSnapshot`.

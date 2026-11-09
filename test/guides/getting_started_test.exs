@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Guides.GettingStartedTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
   alias PlaywrightEx.TestBrowser
@@ -57,9 +58,35 @@ defmodule PlaywrightEx.Guides.GettingStartedTest do
     Browser.close!(browser)
   end
 
-  test "headed (compiled, not run: the suite stays headless)" do
-    headed = fn chromium -> BrowserType.launch!(chromium, headless: false, slow_mo: 50) end
-    assert is_function(headed, 1)
+  test "finding elements" do
+    {:ok, _} = start_supervised(PlaywrightEx.Supervisor)
+    browser = PlaywrightEx.playwright() |> TestBrowser.browser_type() |> BrowserType.launch!()
+    page = Browser.new_page!(browser)
+
+    serve(page, """
+    <button onclick="document.title = 'saved'">Save</button>
+    <ul>
+      <li>Apple <button onclick="document.title = 'apple'">Buy</button></li>
+      <li>Pear <button>Buy</button></li>
+    </ul>
+    """)
+
+    Page.goto!(page, "https://playwright.dev/")
+    Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
+    assert Page.title!(page) == "saved"
+
+    Page.get_by_role(page, :listitem)
+    |> Locator.filter(has_text: "Apple")
+    |> Locator.get_by_role(:button, name: "Buy")
+    |> Locator.click!()
+
+    assert Page.title!(page) == "apple"
+
+    assert {:error, %PlaywrightEx.PlaywrightError{message: message}} =
+             Page.get_by_role(page, :button, name: "Buy") |> Locator.click(timeout: 1_000)
+
+    assert message =~ "strict mode violation"
+    Browser.close!(browser)
   end
 
   test "logging" do

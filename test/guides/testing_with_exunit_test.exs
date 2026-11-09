@@ -87,6 +87,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
       )
 
     BrowserContext.set_default_timeout(context, 5_000)
+    on_exit(fn -> BrowserContext.close(context) end)
     page = BrowserContext.new_page!(context)
     tracing = BrowserContext.tracing(context)
     Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
@@ -95,7 +96,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
     on_exit(fn ->
       Page.screenshot(page, path: Path.join(dir, "failure.png"))
       Tracing.stop(tracing, path: Path.join(dir, "trace.zip"))
-      BrowserContext.close(context)
     end)
 
     %{context: context, page: page}

@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Promise
   alias PlaywrightEx.Request
   alias PlaywrightEx.Response
   alias PlaywrightEx.Route
@@ -110,25 +111,15 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
     Expect.to_have_attribute!(locator, "disabled", timeout: 1_000)
   end
 
-  test "promises and expect_*", %{page: page} do
+  test "promises", %{page: page} do
     promise = Page.wait_for_event(page, :popup)
     Page.get_by_text(page, "Open") |> Locator.click!()
-    popup = PlaywrightEx.Promise.await!(promise)
-    assert Page.url(popup) == "http://app.test/popup"
-
-    popup = Page.expect_popup!(page, fn -> Page.get_by_text(page, "Open") |> Locator.click!() end)
+    popup = Promise.await!(promise)
     assert Page.url(popup) == "http://app.test/popup"
 
     ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"))
     Page.evaluate!(page, "() => { console.log('not yet'); console.log('ready') }")
-    assert ConsoleMessage.text(PlaywrightEx.Promise.await!(ready)) == "ready"
-  end
-
-  test "events", %{page: page} do
-    owner = self()
-    Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg)}) end)
-    Page.evaluate!(page, "() => console.log('hi')")
-    assert_receive {:console, "hi"}
+    assert ConsoleMessage.text(Promise.await!(ready)) == "ready"
   end
 
   test "assertions", %{page: page} do

@@ -34,9 +34,10 @@ Open it in the trace viewer (it opens a browser window):
 mix playwright_ex.cli show-trace tmp/trace.zip
 ```
 
-or drop the file on [trace.playwright.dev](https://trace.playwright.dev). `Tracing.group!/3` and
-`Tracing.group_end!/1` name a group of steps. The [Testing with ExUnit](testing-with-exunit.md)
-guide traces failing tests, on a rerun or retained on failure.
+or drop the file on [trace.playwright.dev](https://trace.playwright.dev).
+[`Tracing.group!/3`](`PlaywrightEx.Tracing.group!/3`) and
+[`Tracing.group_end!/1`](`PlaywrightEx.Tracing.group_end!/1`) name a group of steps. The [Testing
+with ExUnit](testing-with-exunit.md) guide traces failing tests, on a rerun or retained on failure.
 
 ## Screenshots and videos
 
@@ -72,11 +73,11 @@ them: send them to the test process and `refute_received` at the end.
 
 ## Watching it run
 
-Headless is the default. Locally, run a headed browser slowed down, and `Page.pause!/1` to stop
-in the Playwright Inspector:
+Headless is the default. Locally, run a headed browser slowed down, and
+[`Page.pause!/1`](`PlaywrightEx.Page.pause!/1`) to stop in the Playwright Inspector:
 
 ```elixir
-BrowserType.launch!(browser_type, headless: false, slow_mo: 500)
+PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
 ```
 
 The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:

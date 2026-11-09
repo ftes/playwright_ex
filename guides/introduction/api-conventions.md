@@ -18,15 +18,18 @@ with pipes:
 Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
 ```
 
-Objects are structs (`%PlaywrightEx.Page{}`, typed `PlaywrightEx.Page.t()`). Names are
-snake_case. Where a JS name is no Elixir name, Python's is used: `$eval` is
-`Page.eval_on_selector/4`, `and`/`or` are `Locator.and_/2` and `Locator.or_/2`, `not` is
-`not_to_*` (see [Assertions](#assertions)). Properties are functions too: `page.keyboard` is
-`Page.keyboard(page)`, `request.url()` is `Request.url(request)`.
+Objects are structs (`%PlaywrightEx.Page{}`, typed `PlaywrightEx.Page.t()`). Names are snake_case.
+Where a JS name is no Elixir name, Python's is used: `$eval` is
+[`Page.eval_on_selector/4`](`PlaywrightEx.Page.eval_on_selector/4`), `and`/`or` are
+[`Locator.and_/2`](`PlaywrightEx.Locator.and_/2`) and
+[`Locator.or_/2`](`PlaywrightEx.Locator.or_/2`), `not` is `not_to_*` (see
+[Assertions](#assertions)). Properties are functions too: `page.keyboard` is `Page.keyboard(page)`,
+`request.url()` is `Request.url(request)`.
 
-Predicates keep Python's names, `Locator.is_visible/2` and `Browser.is_connected/1`, not
-`visible?`: a `?` function returns a plain boolean, and most of these are calls with a tuple and a
-bang form (`{:ok, true} = Locator.is_visible(locator)`, `true = Locator.is_visible!(locator)`).
+Predicates keep Python's names, [`Locator.is_visible/2`](`PlaywrightEx.Locator.is_visible/2`) and
+[`Browser.is_connected/1`](`PlaywrightEx.Browser.is_connected/1`), not `visible?`: a `?` function
+returns a plain boolean, and most of these are calls with a tuple and a bang form (`{:ok, true} =
+Locator.is_visible(locator)`, `true = Locator.is_visible!(locator)`).
 
 ## Results: tuple or bang
 
@@ -116,54 +119,29 @@ Expect.to_have_attribute!(locator, "disabled", timeout: 1_000)
 
 ## Waiting for events: promises and `expect_*`
 
-JS starts a wait, acts, then awaits the wait:
-
-```js
-const popupPromise = page.waitForEvent('popup');
-await page.getByText('Open').click();
-const popup = await popupPromise;
-```
-
-`wait_for_*` returns a `PlaywrightEx.Promise` for this. The wait is set up when the call returns,
-and any process can await it:
+JS starts a wait, acts, then awaits the wait. `wait_for_*` returns a `PlaywrightEx.Promise` for
+this, and `expect_*`, Python's `with page.expect_popup()`, takes the action as a callback and
+exists where Python has one. A predicate, JS `waitForEvent(event, predicate)`, goes in place of the
+options or as `predicate:`. A bang `wait_for_*!` awaits at once, so it can miss what the code
+before it triggered. [Events and waiting](../events-and-waiting.md) covers both forms.
 
 ```elixir
+# const popupPromise = page.waitForEvent('popup');
+# await page.getByText('Open').click();
+# const popup = await popupPromise;
 promise = Page.wait_for_event(page, :popup)
 Page.get_by_text(page, "Open") |> Locator.click!()
-popup = PlaywrightEx.Promise.await!(promise)
-```
+popup = Promise.await!(promise)
 
-The callback form, Python's `with page.expect_popup()`, does the same in one call:
-
-```elixir
-popup = Page.expect_popup!(page, fn -> Page.get_by_text(page, "Open") |> Locator.click!() end)
-```
-
-`expect_*` exists where Python has one (`expect_download`, `expect_request`, `expect_response`,
-`expect_navigation`, `expect_event`, ...). A predicate, JS `waitForEvent(event, predicate)`, goes
-in place of the options or as `predicate:`:
-
-```elixir
 ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"))
 ```
 
-The bang forms (`Page.wait_for_event!/3`) await at once, so they miss what the code before them
-triggered. Start the wait before the action, and keep the bang forms for what happens later on
-its own.
-
 ## Events
 
-`on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in a process of
-its own, and the connection dispatches the next driver message only once the listener returns or
-awaits a Playwright call. Keep it short and send the work to the process that owns it:
-
-```elixir
-owner = self()
-Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg)}) end)
-```
-
-A listener may call Playwright, as a `:dialog` listener calls `Dialog.accept/2`. The
-[Concurrency](../concurrency.md) guide covers ordering, blocking listeners and promise lifetimes.
+`on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in a process of its
+own and may call Playwright, as a `:dialog` listener calls
+[`Dialog.accept/2`](`PlaywrightEx.Dialog.accept/2`). The [Concurrency](../concurrency.md) guide
+covers ordering, blocking listeners and promise lifetimes.
 
 ## Assertions
 
