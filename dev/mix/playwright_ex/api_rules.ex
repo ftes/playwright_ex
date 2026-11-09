@@ -70,7 +70,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
       receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
       Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
       `toHaveScreenshot` takes the snapshot file as a `path` option instead of the `name` that
-      the test runner resolves (`to_have_screenshot(page, path: "home.png")`). Their option docs
+      the test runner resolves (`to_have_screenshot(page, path: "home.png")`), as does
+      `toMatchAriaSnapshot`, in place of `expected` (`to_match_aria_snapshot(page, path: "a.aria.yml")`).
+      Their option docs
       name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
   """
 
@@ -394,7 +396,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       end
 
     receiver = Map.fetch!(@assertions, class["name"])
-    {member, args} = screenshot_path(member, args)
+    {member, args} = snapshot_path(member, args)
 
     Map.merge(member, %{
       "args" => args,
@@ -446,26 +448,17 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp expect_config_doc(value), do: value
 
   # `toHaveScreenshot(name, options)`: no test runner resolves `name`, `path` is an option.
-  defp screenshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do
+  defp snapshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do
     [%{"name" => "name"} = name, %{"name" => "options"} = options] = args
 
-    path = %{
-      name
-      | "name" => "path",
-        "alias" => "path",
-        "required" => false,
-        "type" => %{"expression" => "[string]", "name" => "string"},
-        "spec" => [
-          %{
-            "type" => "text",
-            "text" =>
-              "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
-                "corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` " <>
-                "in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and " <>
-                "`-previous` images are written next to it."
-          }
-        ]
-    }
+    path =
+      path_option(
+        name,
+        "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
+          "corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` " <>
+          "in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and " <>
+          "`-previous` images are written next to it."
+      )
 
     options = update_in(options, ["type", "properties"], &[path | &1])
 
@@ -483,7 +476,40 @@ defmodule Mix.PlaywrightEx.ApiRules do
     {%{member | "spec" => spec}, [options]}
   end
 
-  defp screenshot_path(member, args), do: {member, args}
+  # `toMatchAriaSnapshot(options)`: the overload that reads a file, whose `name` no test runner resolves.
+  defp snapshot_path(%{"alias" => "toMatchAriaSnapshot"} = member, args) do
+    [%{"name" => "expected"} = expected, %{"name" => "options"} = options] = args
+
+    path =
+      path_option(
+        expected,
+        "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is " <>
+          "written, and a different one with `:update_snapshots` set to `:all` or `:changed` (see the " <>
+          "configuration of `PlaywrightEx.Expect`)."
+      )
+
+    options = update_in(options, ["type", "properties"], &[path | &1])
+
+    usage = %{
+      "type" => "code",
+      "codeLang" => "elixir",
+      "lines" => [~s{Expect.to_match_aria_snapshot!(page, path: "test/snapshots/body.aria.yml")}]
+    }
+
+    {Map.update!(member, "spec", &(&1 ++ [usage])), [%{expected | "required" => false}, options]}
+  end
+
+  defp snapshot_path(member, args), do: {member, args}
+
+  defp path_option(arg, doc) do
+    Map.merge(arg, %{
+      "name" => "path",
+      "alias" => "path",
+      "required" => false,
+      "type" => %{"expression" => "[string]", "name" => "string"},
+      "spec" => [%{"type" => "text", "text" => doc}]
+    })
+  end
 
   # A matcher of several assertion classes: one member with every receiver and every option.
   defp merge_receivers([member]), do: member

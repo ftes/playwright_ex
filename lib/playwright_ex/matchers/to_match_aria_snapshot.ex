@@ -1,9 +1,12 @@
 defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   @upstream "packages/playwright/src/matchers/toMatchAriaSnapshot.ts"
   @moduledoc """
-  Port of `#{@upstream}`: inline aria snapshots (`expected` is a string). File snapshots
-  (`{ name, path }`, resolved by the test runner's `testInfo`) are not ported
-  (architecture: Generated facade).
+  Port of `#{@upstream}`: `expected` is a string (inline) or nil with the `path` option (a file).
+
+  Deviations (architecture: Generated facade): there is no test runner, so the snapshot file is the
+  explicit `path` option instead of a `name` that `testInfo` resolves. `updateSnapshots` comes from
+  the expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
+  (`"default"`) is returned, not recorded, so the matcher passes after writing it.
   A returned `suggestedRebaseline` fails the matcher with it (`PlaywrightEx.Matchers.Expect`).
   """
 
@@ -22,20 +25,30 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
     MatcherHint.expect_types(receiver, ["Page", "Locator"], matcher_name)
     locator = if is_struct(receiver, PlaywrightEx.Locator), do: receiver
 
-    # const testInfo = expectConfig().testInfo; if (!testInfo) throw ...  -- not ported: no test runner (inline snapshots only)
+    # const testInfo = expectConfig().testInfo; if (!testInfo) throw ...  -- not ported: no test runner (the path option)
 
     if Expect.expect_config()[:ignoreSnapshots] do
       %{pass: !this.isNot, message: fn -> "" end, name: "toMatchAriaSnapshot", expected: ""}
     else
       update_snapshots = Expect.expect_config()[:updateSnapshots]
 
-      # let expectedPath: string | undefined;  -- not ported: file snapshots (testInfo)
-      {expected, timeout} =
-        if is_binary(expected_param) do
-          {expected_param, if(options[:timeout] == nil, do: this.timeout, else: options.timeout)}
-        else
-          # const legacyPath = testInfo._resolveSnapshotPaths(...); ...  -- not ported: file snapshots (testInfo)
-          raise "#{matcher_name}: file snapshots are not supported, pass the expected snapshot as a string"
+      {expected_path, options} = Map.pop(options, :path)
+      timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
+
+      if is_binary(expected_param) and expected_path,
+        do: raise("#{matcher_name}() takes the expected snapshot or the path option, not both")
+
+      if !is_binary(expected_param) and !is_binary(expected_path),
+        do: raise("#{matcher_name}() requires the expected snapshot or the path option")
+
+      # const legacyPath = testInfo._resolveSnapshotPaths(...); ...  -- the path option
+      expected_path = expected_path && Path.expand(expected_path)
+
+      expected =
+        cond do
+          is_binary(expected_param) -> expected_param
+          File.exists?(expected_path) -> File.read!(expected_path)
+          true -> ""
         end
 
       is_missing_baseline = update_snapshots in ["missing", "default"] and expected == ""
@@ -114,12 +127,16 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
           })
         end
 
+        rebaseline = !this.isNot and (generate_baseline or (update_snapshots == "changed" and pass == this.isNot))
+
         cond do
           error_message ->
             %{pass: this.isNot, message: message, name: "toMatchAriaSnapshot", expected: expected}
 
-          !this.isNot and (generate_baseline or (update_snapshots == "changed" and pass == this.isNot)) ->
-            # if (expectedPath) { ...write the snapshot file... }  -- not ported: file snapshots (testInfo)
+          rebaseline and expected_path ->
+            write_snapshot(expected_path, typed_received["regex"], is_missing_baseline, update_snapshots)
+
+          rebaseline ->
             suggested_rebaseline =
               "`\n#{StringUtils.escape_template_string(indent(typed_received["regex"], "{indent}  "))}\n{indent}`"
 
@@ -155,6 +172,27 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
             }
         end
       end
+    end
+  end
+
+  defp write_snapshot(expected_path, snapshot, is_missing_baseline, update_snapshots) do
+    File.mkdir_p!(Path.dirname(expected_path))
+    File.write!(expected_path, snapshot)
+    relative_path = Path.relative_to_cwd(expected_path)
+    passed = %{pass: true, message: fn -> "" end, name: "toMatchAriaSnapshot"}
+
+    cond do
+      is_missing_baseline and update_snapshots == "default" ->
+        message = "A snapshot doesn't exist at #{relative_path}, writing actual."
+        Map.merge(passed, %{softError: %RuntimeError{message: message}, shouldNotRetryTest: true})
+
+      is_missing_baseline ->
+        IO.puts("A snapshot doesn't exist at #{relative_path}, writing actual.")
+        passed
+
+      true ->
+        IO.puts("A snapshot is generated at #{relative_path}.")
+        passed
     end
   end
 

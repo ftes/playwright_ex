@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `Expect.to_match_aria_snapshot/3` takes a `path:` option in place of the expected snapshot, as
+  `to_have_screenshot` does: the file is the expected snapshot, and is written when missing or
+  updating according to `:update_snapshots`.
+
 ## [0.17.0-rc.3] 2026-11-08
 
 ### Added
