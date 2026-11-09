@@ -1,8 +1,10 @@
 defmodule PlaywrightEx.PlaywrightError do
   @moduledoc """
-  JS `Error` thrown by Playwright (`packages/playwright-core/src/client/errors.ts`): the driver
-  rejected a call. `PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError` and
-  `PlaywrightEx.AbortError` have the same fields. They keep their JS names:
+  A Playwright error other than a timeout, closed target or abort.
+
+  Port of JS `Error` thrown by Playwright (`packages/playwright-core/src/client/errors.ts`).
+  `PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError` and `PlaywrightEx.AbortError` have
+  the same fields. They keep their JS names:
 
     * `message` - JS's message: the API name, the error, then the call log
       (`"locator.click: Timeout 100ms exceeded.\nCall log:\n..."`).

@@ -19,8 +19,9 @@ defmodule PlaywrightEx.RegExp do
   Elixir (`wait_for_url`, `Page.frame(url:)`, routes, `wait_for_request`) compiles a `RegExp` to
   a `Regex`: `[^]`, `\\uXXXX` and identity escapes are translated, the `y` flag anchors, `g` and
   `d` do not matter; a pattern PCRE cannot run (the `v` flag, unbounded lookbehind) raises
-  `ArgumentError`. JS regexes returned by the driver (`evaluate`) are a `Regex` when it means the
-  same (flags `imsu`, no translation), else a `PlaywrightEx.RegExp`.
+  `ArgumentError`. JS regexes returned by the driver (`evaluate`) are always a
+  `PlaywrightEx.RegExp` (lossless); `to_regex/1` or `compile!/1` gives a `Regex` when PCRE can run
+  it.
   """
 
   import Kernel, except: [to_string: 1]

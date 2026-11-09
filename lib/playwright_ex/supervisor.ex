@@ -1,6 +1,6 @@
 defmodule PlaywrightEx.Supervisor do
   @moduledoc """
-  The OTP form of `outofprocess.start()`: one driver with its connection.
+  Runs one Playwright driver and its connection.
 
       children = [{PlaywrightEx.Supervisor, name: MyApp.Playwright}]
       playwright = PlaywrightEx.playwright(MyApp.Playwright)
@@ -11,27 +11,36 @@ defmodule PlaywrightEx.Supervisor do
     * `:executable`, `:node`, `:cache_dir` - see `PlaywrightEx.Driver`.
     * `:env` - extra environment variables for the driver process.
 
-  Child: the driver connection (the driver's pipe and the connection process). The child id is
-  the `:name`, so drivers of different names can share a supervision tree.
+  Child: the driver connection (the driver's pipe and the connection process), the OTP form of
+  JS's `outofprocess.start()`. The child id is the `:name`, so drivers of different names can
+  share a supervision tree.
 
   ## Lifetimes
 
   When the driver exits, its connection is closed and the supervisor starts a new driver, with a
-  new root object. As `PlaywrightEx.BrowserType.connect/3` does when its connection is lost, every
-  page and context emits `close`, then every browser `disconnected` (also when the supervisor
-  stops), and waits on them fail with `PlaywrightEx.TargetClosedError`: a lost driver is noticed
-  by `disconnected`. Handles of the old driver keep reading their last state
-  (`PlaywrightEx.Page.is_closed/1` is true, `PlaywrightEx.Page.url/1` the last URL) until the
-  processes that created or closed its browsers and contexts have exited, or the supervisor
-  stops. Calls and other writes on them fail with `PlaywrightEx.TargetClosedError`; closing a
-  page, context or browser returns `:ok`, as it does for anything closed. Get the root again with
-  `PlaywrightEx.playwright/1`: it waits for the new driver (in a `disconnected` listener too).
+  new root object.
+
+  As `PlaywrightEx.BrowserType.connect/3` does when its connection is lost, every page and context
+  emits `close`, then every browser `disconnected` (also when the supervisor stops), and waits on
+  them fail with `PlaywrightEx.TargetClosedError`: a lost driver is noticed by `disconnected`.
+
+  Handles of the old driver keep reading their last state (`PlaywrightEx.Page.is_closed/1` is
+  true, `PlaywrightEx.Page.url/1` the last URL) until the processes that created or closed its
+  browsers and contexts have exited, or the supervisor stops. Calls and other writes on them fail
+  with `PlaywrightEx.TargetClosedError`; closing a page, context or browser returns `:ok`, as it
+  does for anything closed.
+
+  Get the root again with `PlaywrightEx.playwright/1`: it waits for the new driver (in a
+  `disconnected` listener too).
+
   The loss is logged as an error, with the driver's exit status (137: killed, often for lack of
   memory), its version, the supervisor's name and how many browsers and contexts it closed.
 
   Browsers and contexts are not closed when the process that created them exits; only the data
   the library keeps for closed ones is freed then. So close what you open, as tests close their
-  contexts in `on_exit`. Starting installs the driver first if it is missing
+  contexts in `on_exit`.
+
+  Starting installs the driver first if it is missing
   (`PlaywrightEx.Driver.ensure_installed/1`): a download that blocks `start_link/1`.
   """
   use Supervisor

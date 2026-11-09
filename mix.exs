@@ -60,7 +60,7 @@ defmodule PlaywrightEx.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"Github" => @source_url},
+      links: %{"GitHub" => @source_url, "Changelog" => "https://hexdocs.pm/playwright_ex/#{@version}/changelog.html"},
       # Hex's default files, plus `usage-rules.md` for `mix usage_rules.sync` and the pinned versions
       # `PlaywrightEx.Driver` reads when compiling.
       files:

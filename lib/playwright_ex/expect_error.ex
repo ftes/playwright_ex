@@ -1,7 +1,9 @@
 defmodule PlaywrightEx.ExpectError do
   @moduledoc """
-  JS `ExpectError` (`packages/playwright/src/matchers/matcherHint.ts`): a failed matcher
-  (`PlaywrightEx.Expect`). Its fields keep their JS names:
+  A failed matcher (`PlaywrightEx.Expect`).
+
+  Port of JS `ExpectError` (`packages/playwright/src/matchers/matcherHint.ts`). Its fields keep
+  their JS names:
 
     * `message` - the matcher's message, as in JS (`matcherResult.message`).
     * `name` - `"Error"`, as in JS.
