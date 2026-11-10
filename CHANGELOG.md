@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0-rc.5] 2026-11-10
+
 ### Changed
 - `Page.wait_for_timeout/2` and `Frame.wait_for_timeout/2` reject `:infinity` (a
   `ValidationError`): their timeout is how long to wait, and `:infinity` used to wait 0 ms.
