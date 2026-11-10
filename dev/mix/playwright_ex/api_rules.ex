@@ -22,6 +22,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
+    * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
+      unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`), and
       drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
@@ -51,6 +53,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       (`rpId`, which the positional argument overrides in the client too).
     * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
       accept it and only JS's types leave it out, and a list can't mix strings with option maps.
+    * Errors thrown in the page (`@thrown_values`: `WebError.error`) are any thrown value, as
+      `parseError` returns it (`throw "x"` is `"x"`): typed `Error|any`, with a note.
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
     * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
@@ -128,7 +132,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Page.waitForWorker" => "worker"
   }
 
-  @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @timeout_doc "In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
                         "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
@@ -196,6 +200,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Locator.inputValue" => [{"Throws elements that are not", "Throws for elements that are not"}]
   }
 
+  # "Class.member" whose `Error` is a value thrown in the page: `parseError` returns any thrown
+  # value, an exception only for an `Error` (upstream's type says `Error`).
+  @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
+  @thrown_value_note "In Elixir, a page error is the value thrown in the page: an exception for an `Error`, " <>
+                       "else the value itself (`throw \"oops\"` gives `\"oops\"`)."
+
+  # Members whose positional `timeout` is a timeout (`0` or `:infinity`: none), not a duration.
+  @timeout_args ~w(setDefaultTimeout setDefaultNavigationTimeout)
+
   # "Class.member" => an Elixir note appended to its docs.
   @notes %{
     # The client returns `Map<string, JSHandle>` as a map (`# deviation:` in its `get_properties`).
@@ -219,6 +232,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
   """
   def apply(classes, python) do
     classes = classes |> callback_objects() |> expect_class()
+    members = for class <- classes, member <- class["members"], do: "#{class["name"]}.#{member["name"]}"
+
+    missing = @thrown_values -- members
+    if missing != [], do: raise("ApiRules: thrown values no longer match upstream: no member #{inspect(missing)}")
+
     class_names = MapSet.new(classes, & &1["name"])
 
     for class <- classes, class["name"] not in @dropped_classes, class["name"] not in @exception_classes do
@@ -238,6 +256,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
+              |> thrown_values("#{class["name"]}.#{member["name"]}")
               |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
@@ -714,6 +733,26 @@ defmodule Mix.PlaywrightEx.ApiRules do
     end
   end
 
+  defp thrown_values(member, key) when key not in @thrown_values, do: member
+
+  defp thrown_values(member, key) do
+    type = thrown_value(member["type"])
+
+    if type == member["type"],
+      do: raise("ApiRules: thrown value #{key} no longer matches upstream: not typed `Error`")
+
+    member
+    |> Map.put("type", type)
+    |> Map.update!("spec", &(&1 ++ [%{"type" => "text", "text" => @thrown_value_note}]))
+  end
+
+  defp thrown_value(%{"name" => "Error"} = type), do: %{"name" => "", "union" => [type, %{"name" => "any"}]}
+
+  defp thrown_value(%{"templates" => templates} = type),
+    do: %{type | "templates" => Enum.map(templates, &thrown_value/1)}
+
+  defp thrown_value(type), do: type
+
   defp notes(member, key) do
     case @notes[key] do
       nil -> member
@@ -796,7 +835,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       for arg <- member["args"],
           keep?(arg["type"]),
           not (drop_options? and arg["name"] == "options"),
-          do: arg |> expression() |> route_handler() |> property()
+          do: arg |> duration(member["name"]) |> expression() |> route_handler() |> property()
 
     %{
       member
@@ -821,6 +860,15 @@ defmodule Mix.PlaywrightEx.ApiRules do
        do: %{arg | "type" => %{"name" => "", "union" => [%{type | "args" => [route]}, type]}}
 
   defp route_handler(arg), do: arg
+
+  # A positional `timeout` is how long to wait (`waitForTimeout`, `0` is no wait), unless it is
+  # a default timeout. Unlisted, a new one rejects `:infinity` rather than turning it into `0`.
+  defp duration(%{"name" => "timeout"} = arg, member) when member not in @timeout_args,
+    do: Map.put(arg, "duration", true)
+
+  defp duration(arg, _member), do: arg
+
+  defp property(%{"duration" => true} = property), do: type(property)
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()

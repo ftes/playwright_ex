@@ -307,12 +307,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
     end
 
     cancel = fn ->
-      try do
-        impl(this).remove_listener(this, type, ref)
-      rescue
-        TargetClosedError -> :ok
-      end
-
+      impl(this).remove_listener(this, type, ref)
       Promise.flush(ref)
     end
 
@@ -325,7 +320,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   # The removeListener meta event  -- not ported: unused by the client
   def remove_listener(this, type, listener) do
-    atomic(this, fn -> _take(this, type, listener) end)
+    _unless_closed(fn -> atomic(this, fn -> _take(this, type, listener) end) end)
     this
   end
 
@@ -366,14 +361,27 @@ defmodule PlaywrightEx.Client.EventEmitter do
         me = self()
         ref = make_ref()
         handler = fn error -> send(me, {ref, error}) end
-        put(this, :_rejectionHandler, handler)
 
-        try do
-          _wait_for(this, type)
-        after
-          # Elixir only: later errors are dropped (JS pushes them to the array nobody reads any
-          # more), not sent to this process. A later call's handler stays, as in JS.
-          update(this, :_rejectionHandler, &if(&1 == handler, do: fn _ -> nil end, else: &1))
+        # A connection that exits during the wait still rejects it (TargetClosedError).
+        put? =
+          _unless_closed(
+            fn ->
+              put(this, :_rejectionHandler, handler)
+              true
+            end,
+            false
+          )
+
+        if put? do
+          try do
+            _wait_for(this, type)
+          after
+            # Elixir only: later errors are dropped (JS pushes them to the array nobody reads any
+            # more), not sent to this process. A later call's handler stays, as in JS.
+            _unless_closed(fn ->
+              update(this, :_rejectionHandler, &if(&1 == handler, do: fn _ -> nil end, else: &1))
+            end)
+          end
         end
 
         errors = _collect(ref)
@@ -381,7 +389,9 @@ defmodule PlaywrightEx.Client.EventEmitter do
         nil
 
       true ->
-        if options[:behavior] == "ignoreErrors", do: put(this, :_rejectionHandler, fn _ -> nil end)
+        if options[:behavior] == "ignoreErrors",
+          do: _unless_closed(fn -> put(this, :_rejectionHandler, fn _ -> nil end) end)
+
         nil
     end
   end
@@ -396,12 +406,24 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   # Only the "not listening for removeListener" branch: the meta event is not ported.
   defp _remove_all_listeners(this, type) do
-    atomic(this, fn ->
-      entries = if type == nil, do: map_values(this, :_events), else: [map_get(this, :_events, type) || []]
-      for list <- entries, entry <- list, do: _stop(entry)
-      if type == nil, do: map_clear(this, :_events), else: map_delete(this, :_events, type)
-      if type == nil, do: put(this, :_warned, nil), else: _reset_warned(this, type)
+    _unless_closed(fn ->
+      atomic(this, fn ->
+        entries = if type == nil, do: map_values(this, :_events), else: [map_get(this, :_events, type) || []]
+        for list <- entries, entry <- list, do: _stop(entry)
+        if type == nil, do: map_clear(this, :_events), else: map_delete(this, :_events, type)
+        if type == nil, do: put(this, :_warned, nil), else: _reset_warned(this, type)
+      end)
     end)
+  end
+
+  @doc false
+  # Elixir only: removing listeners on a closed connection process is a no-op (`closed`), as JS's
+  # local emitter never throws there (a lost driver removed every listener,
+  # `ChannelOwner._retire/2`). A listener's own error is collected as a message, never rescued here.
+  def _unless_closed(fun, closed \\ nil) do
+    fun.()
+  rescue
+    TargetClosedError -> closed
   end
 
   # listeners, rawListeners  -- not ported: unused by the client

@@ -316,7 +316,7 @@ defmodule PlaywrightEx.Route do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - *Since Playwright 1.33.* Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:url` (`t:String.t/0`) - If set changes the request URL. New URL must have same protocol as original one.
   """
   @spec fetch(t(), fetch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}

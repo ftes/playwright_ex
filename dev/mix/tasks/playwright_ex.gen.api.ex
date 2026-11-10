@@ -994,6 +994,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # A positional `timeout` accepts `:infinity`, as the `timeout:` option does.
   # Options have snake_case keys and atom enums; nested objects are JS values (`{:fields, _}`,
   # JS keys, only checked), as in the Python client.
+  defp arg_schema(ctx, %{"duration" => true} = arg), do: schema(ctx, arg["type"], :value)
   defp arg_schema(_ctx, %{"name" => "timeout"}), do: :timeout
   defp arg_schema(_ctx, %{"name" => "event", "type" => %{"name" => "string"}}), do: :event
 
@@ -1094,6 +1095,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp nullable(%{"required" => false}, spec), do: "#{spec} | nil"
   defp nullable(_arg, spec), do: spec
 
+  defp prop_spec(ctx, %{"duration" => true} = prop), do: type_spec(ctx, prop["type"], :in)
   defp prop_spec(_ctx, %{"name" => "timeout"}), do: "number() | :infinity"
   defp prop_spec(ctx, prop), do: type_spec(ctx, prop["type"], :in)
 

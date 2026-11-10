@@ -317,7 +317,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec delete(t(), String.t(), delete_options()) ::
           {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
@@ -503,7 +503,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec fetch(t(), String.t() | PlaywrightEx.Request.t(), fetch_options()) ::
           {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
@@ -644,7 +644,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec get(t(), String.t(), get_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def get(api_request_context, url, options \\ []) do
@@ -767,7 +767,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec head(t(), String.t(), head_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def head(api_request_context, url, options \\ []) do
@@ -890,7 +890,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec patch(t(), String.t(), patch_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def patch(api_request_context, url, options \\ []) do
@@ -1045,7 +1045,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec post(t(), String.t(), post_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def post(api_request_context, url, options \\ []) do
@@ -1168,7 +1168,7 @@ defmodule PlaywrightEx.APIRequestContext do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec put(t(), String.t(), put_options()) :: {:ok, PlaywrightEx.APIResponse.t()} | {:error, PlaywrightEx.error()}
   def put(api_request_context, url, options \\ []) do

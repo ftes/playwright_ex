@@ -154,6 +154,8 @@ defmodule PlaywrightEx.Page do
   Page.goto!(page, ~s{data:text/html,<script>throw new Error("Test")</script>})
   ```
 
+  In Elixir, a page error is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+
   ### `:popup`
 
   Emitted when the page opens a new tab or window. This event is emitted in addition to the
@@ -559,7 +561,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec check(t(), String.t(), check_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -686,7 +688,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec click(t(), String.t(), click_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -901,7 +903,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec dblclick(t(), String.t(), dblclick_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -989,7 +991,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec dispatch_event(t(), String.t(), String.t(), term() | nil, dispatch_event_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -1100,7 +1102,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec drag_and_drop(t(), String.t(), String.t(), drag_and_drop_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -1511,7 +1513,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec fill(t(), String.t(), String.t(), fill_options()) :: :ok | {:error, PlaywrightEx.error()}
   def fill(page, selector, value, options \\ []) do
@@ -1563,7 +1565,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec focus(t(), String.t(), focus_options()) :: :ok | {:error, PlaywrightEx.error()}
   def focus(page, selector, options \\ []) do
@@ -1698,7 +1700,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec get_attribute(t(), String.t(), String.t(), get_attribute_options()) ::
           {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
@@ -2346,7 +2348,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
@@ -2421,7 +2423,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
@@ -2549,7 +2551,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
@@ -2682,7 +2684,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec hover(t(), String.t(), hover_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -2734,7 +2736,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec inner_html(t(), String.t(), inner_html_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def inner_html(page, selector, options \\ []) do
@@ -2785,7 +2787,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec inner_text(t(), String.t(), inner_text_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def inner_text(page, selector, options \\ []) do
@@ -2838,7 +2840,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec input_value(t(), String.t(), input_value_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def input_value(page, selector, options \\ []) do
@@ -2889,7 +2891,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec is_checked(t(), String.t(), is_checked_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_checked(page, selector, options \\ []) do
@@ -2950,7 +2952,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec is_disabled(t(), String.t(), is_disabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_disabled(page, selector, options \\ []) do
@@ -3001,7 +3003,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec is_editable(t(), String.t(), is_editable_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_editable(page, selector, options \\ []) do
@@ -3052,7 +3054,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec is_enabled(t(), String.t(), is_enabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_enabled(page, selector, options \\ []) do
@@ -3091,7 +3093,7 @@ defmodule PlaywrightEx.Page do
 
   * `:strict` (`t:boolean/0`) - *Since Playwright 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call fails.
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_hidden(page, selector, options \\ []) do
@@ -3130,7 +3132,7 @@ defmodule PlaywrightEx.Page do
 
   * `:strict` (`t:boolean/0`) - *Since Playwright 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call fails.
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_visible(page, selector, options \\ []) do
@@ -3255,20 +3257,22 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns up to (currently) 200 last page errors from this page. See [`Page.on(:page_error)`](PlaywrightEx.Page.html#module-page_error) for more details.
 
+  In Elixir, a page error is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+
   *Since Playwright 1.56.*
 
   ## Options
 
   * `:filter` (`:all` | `:since_navigation`) - *Since Playwright 1.59.* Controls which errors are returned:
   """
-  @spec page_errors(t(), page_errors_options()) :: {:ok, [Exception.t()]} | {:error, PlaywrightEx.error()}
+  @spec page_errors(t(), page_errors_options()) :: {:ok, [Exception.t() | term()]} | {:error, PlaywrightEx.error()}
   def page_errors(page, options \\ []) do
     options = Facade.options!(options, @page_errors_options, "page.pageErrors")
     Facade.async("page.pageErrors", page, fn -> PlaywrightEx.Client.Page.page_errors(page, options) end)
   end
 
   @doc "Like `page_errors/2`, but returns the value and raises on error."
-  @spec page_errors!(t(), page_errors_options()) :: [Exception.t()]
+  @spec page_errors!(t(), page_errors_options()) :: [Exception.t() | term()]
   def page_errors!(page, options \\ []) do
     options = Facade.options!(options, @page_errors_options, "page.pageErrors")
     Facade.async!("page.pageErrors", page, fn -> PlaywrightEx.Client.Page.page_errors(page, options) end)
@@ -3670,7 +3674,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec press(t(), String.t(), String.t(), press_options()) :: :ok | {:error, PlaywrightEx.error()}
   def press(page, selector, key, options \\ []) do
@@ -4035,7 +4039,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
@@ -4399,7 +4403,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:type` (`:png` | `:jpeg` | `:webp`) - Specify screenshot type, defaults to `:png`.
   """
   @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, PlaywrightEx.error()}
@@ -4499,7 +4503,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec select_option(
           t(),
@@ -4652,7 +4656,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec set_checked(t(), String.t(), boolean(), set_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -4724,7 +4728,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
@@ -4769,7 +4773,7 @@ defmodule PlaywrightEx.Page do
 
   * `timeout` - Maximum navigation time in milliseconds
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec set_default_navigation_timeout(t(), number() | :infinity) :: :ok
   def set_default_navigation_timeout(page, timeout) do
@@ -4793,7 +4797,7 @@ defmodule PlaywrightEx.Page do
 
   * `timeout` - Maximum time in milliseconds. Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec set_default_timeout(t(), number() | :infinity) :: :ok
   def set_default_timeout(page, timeout) do
@@ -4893,7 +4897,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec set_input_files(
           t(),
@@ -5022,7 +5026,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec aria_snapshot(t(), aria_snapshot_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def aria_snapshot(page, options \\ []) do
@@ -5085,7 +5089,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec aria_snapshot_json(t(), aria_snapshot_json_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def aria_snapshot_json(page, options \\ []) do
@@ -5194,7 +5198,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec tap(t(), String.t(), tap_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -5246,7 +5250,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec text_content(t(), String.t(), text_content_options()) ::
           {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
@@ -5343,7 +5347,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec type(t(), String.t(), String.t(), type_options()) :: :ok | {:error, PlaywrightEx.error()}
   def type(page, selector, text, options \\ []) do
@@ -5443,7 +5447,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec uncheck(t(), String.t(), uncheck_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -5589,7 +5593,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed with `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -5701,7 +5705,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
     value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec wait_for_function(t(), String.t(), term() | nil, wait_for_function_options()) ::
           {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
@@ -5787,7 +5791,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec wait_for_load_state(t(), :load | :domcontentloaded | :networkidle | nil, wait_for_load_state_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -5894,7 +5898,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`) - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
@@ -5993,7 +5997,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
     changed by using the `PlaywrightEx.Page.set_default_timeout/2` method.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
 
   Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
@@ -6093,7 +6097,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
     changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
 
   Returns a `PlaywrightEx.Promise` at once, with the wait already set up. Start it before the action that triggers it and await it after with `PlaywrightEx.Promise.await/1`:
 
@@ -6236,7 +6240,7 @@ defmodule PlaywrightEx.Page do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec wait_for_selector(t(), String.t(), wait_for_selector_options()) ::
           {:ok, nil | PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
@@ -6257,8 +6261,6 @@ defmodule PlaywrightEx.Page do
       PlaywrightEx.Client.Page.wait_for_selector(page, selector, options)
     end)
   end
-
-  @wait_for_timeout_timeout :timeout
 
   @doc ~S"""
   Waits for the given `timeout` in milliseconds.
@@ -6283,19 +6285,15 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `timeout` - A timeout to wait for
-
-    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec wait_for_timeout(t(), number() | :infinity) :: :ok | {:error, PlaywrightEx.error()}
+  @spec wait_for_timeout(t(), number()) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for_timeout(page, timeout) do
-    timeout = Facade.arg!(timeout, @wait_for_timeout_timeout, "page.waitForTimeout")
     Facade.async_void("page.waitForTimeout", page, fn -> PlaywrightEx.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
   @doc "Like `wait_for_timeout/2`, but returns the value and raises on error."
-  @spec wait_for_timeout!(t(), number() | :infinity) :: :ok
+  @spec wait_for_timeout!(t(), number()) :: :ok
   def wait_for_timeout!(page, timeout) do
-    timeout = Facade.arg!(timeout, @wait_for_timeout_timeout, "page.waitForTimeout")
     Facade.async_void!("page.waitForTimeout", page, fn -> PlaywrightEx.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
@@ -6359,7 +6357,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
 
     * `:domcontentloaded` - consider operation to be finished when the `DOMContentLoaded` event is fired.
@@ -6455,7 +6453,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -6534,7 +6532,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -6617,7 +6615,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed with `PlaywrightEx.Page.set_default_timeout/2` or `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -6698,7 +6696,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -6812,7 +6810,7 @@ defmodule PlaywrightEx.Page do
     `PlaywrightEx.Page.set_default_navigation_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`) - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
@@ -6890,7 +6888,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -6976,7 +6974,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
     changed by using the `PlaywrightEx.Page.set_default_timeout/2` method.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -7054,7 +7052,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -7142,7 +7140,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
     changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -7219,7 +7217,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -7297,7 +7295,7 @@ defmodule PlaywrightEx.Page do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
     The default value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2`.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* Allows to cancel the waiting using an [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the waiting will be aborted and the operation will fail.
     Note that providing a signal does not disable the default timeout, which can be changed using `PlaywrightEx.BrowserContext.set_default_timeout/2`; pass `timeout: 0` to disable the timeout entirely.
 
@@ -7355,7 +7353,7 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec on(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec on(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec on(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7382,7 +7380,7 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec once(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec once(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec once(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7409,7 +7407,7 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec add_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec add_listener(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec add_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7436,7 +7434,7 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec remove_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec remove_listener(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec remove_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7463,7 +7461,7 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec off(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec off(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec off(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7490,7 +7488,7 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec prepend_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec prepend_listener(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec prepend_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -8546,7 +8544,7 @@ defmodule PlaywrightEx.Page do
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is accepted too (the same as `0`).",
+        doc: "In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -8564,7 +8562,7 @@ defmodule PlaywrightEx.Page do
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is accepted too (the same as `0`).",
+        doc: "In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
