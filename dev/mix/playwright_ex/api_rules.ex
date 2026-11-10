@@ -51,6 +51,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       (`rpId`, which the positional argument overrides in the client too).
     * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
       accept it and only JS's types leave it out, and a list can't mix strings with option maps.
+    * Errors thrown in the page (`@thrown_values`: `WebError.error`) are any thrown value, as
+      `parseError` returns it (`throw "x"` is `"x"`): typed `Error|any`, with a note.
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
     * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
@@ -196,6 +198,12 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Locator.inputValue" => [{"Throws elements that are not", "Throws for elements that are not"}]
   }
 
+  # "Class.member" whose `Error` is a value thrown in the page: `parseError` returns any thrown
+  # value, an exception only for an `Error` (upstream's type says `Error`).
+  @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
+  @thrown_value_note "In Elixir, this is the value thrown in the page: an exception for an `Error`, " <>
+                       "else the value itself (`throw \"oops\"` gives `\"oops\"`)."
+
   # "Class.member" => an Elixir note appended to its docs.
   @notes %{
     # The client returns `Map<string, JSHandle>` as a map (`# deviation:` in its `get_properties`).
@@ -238,6 +246,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
+              |> thrown_values("#{class["name"]}.#{member["name"]}" in @thrown_values)
               |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
@@ -713,6 +722,21 @@ defmodule Mix.PlaywrightEx.ApiRules do
         Map.merge(member, %{"options" => options, "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}]})
     end
   end
+
+  defp thrown_values(member, false), do: member
+
+  defp thrown_values(member, true) do
+    member
+    |> Map.update!("type", &thrown_value/1)
+    |> Map.update!("spec", &(&1 ++ [%{"type" => "text", "text" => @thrown_value_note}]))
+  end
+
+  defp thrown_value(%{"name" => "Error"} = type), do: %{"name" => "", "union" => [type, %{"name" => "any"}]}
+
+  defp thrown_value(%{"templates" => templates} = type),
+    do: %{type | "templates" => Enum.map(templates, &thrown_value/1)}
+
+  defp thrown_value(type), do: type
 
   defp notes(member, key) do
     case @notes[key] do

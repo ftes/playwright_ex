@@ -154,6 +154,8 @@ defmodule PlaywrightEx.Page do
   Page.goto!(page, ~s{data:text/html,<script>throw new Error("Test")</script>})
   ```
 
+  In Elixir, this is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+
   ### `:popup`
 
   Emitted when the page opens a new tab or window. This event is emitted in addition to the
@@ -3255,20 +3257,22 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns up to (currently) 200 last page errors from this page. See [`Page.on(:page_error)`](PlaywrightEx.Page.html#module-page_error) for more details.
 
+  In Elixir, this is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+
   *Since Playwright 1.56.*
 
   ## Options
 
   * `:filter` (`:all` | `:since_navigation`) - *Since Playwright 1.59.* Controls which errors are returned:
   """
-  @spec page_errors(t(), page_errors_options()) :: {:ok, [Exception.t()]} | {:error, PlaywrightEx.error()}
+  @spec page_errors(t(), page_errors_options()) :: {:ok, [Exception.t() | term()]} | {:error, PlaywrightEx.error()}
   def page_errors(page, options \\ []) do
     options = Facade.options!(options, @page_errors_options, "page.pageErrors")
     Facade.async("page.pageErrors", page, fn -> PlaywrightEx.Client.Page.page_errors(page, options) end)
   end
 
   @doc "Like `page_errors/2`, but returns the value and raises on error."
-  @spec page_errors!(t(), page_errors_options()) :: [Exception.t()]
+  @spec page_errors!(t(), page_errors_options()) :: [Exception.t() | term()]
   def page_errors!(page, options \\ []) do
     options = Facade.options!(options, @page_errors_options, "page.pageErrors")
     Facade.async!("page.pageErrors", page, fn -> PlaywrightEx.Client.Page.page_errors(page, options) end)
@@ -7355,7 +7359,7 @@ defmodule PlaywrightEx.Page do
   @spec on(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec on(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec on(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec on(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec on(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec on(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec on(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7382,7 +7386,7 @@ defmodule PlaywrightEx.Page do
   @spec once(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec once(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec once(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec once(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec once(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec once(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec once(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7409,7 +7413,7 @@ defmodule PlaywrightEx.Page do
   @spec add_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec add_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec add_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec add_listener(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec add_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec add_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec add_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7436,7 +7440,7 @@ defmodule PlaywrightEx.Page do
   @spec remove_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec remove_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec remove_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec remove_listener(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec remove_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec remove_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7463,7 +7467,7 @@ defmodule PlaywrightEx.Page do
   @spec off(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec off(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec off(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec off(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec off(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec off(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec off(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
@@ -7490,7 +7494,7 @@ defmodule PlaywrightEx.Page do
   @spec prepend_listener(t(), :frame_detached, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :frame_navigated, (PlaywrightEx.Frame.t() -> term())) :: t()
   @spec prepend_listener(t(), :load, (PlaywrightEx.Page.t() -> term())) :: t()
-  @spec prepend_listener(t(), :page_error, (Exception.t() -> term())) :: t()
+  @spec prepend_listener(t(), :page_error, (Exception.t() | term() -> term())) :: t()
   @spec prepend_listener(t(), :popup, (PlaywrightEx.Page.t() -> term())) :: t()
   @spec prepend_listener(t(), :request, (PlaywrightEx.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :request_failed, (PlaywrightEx.Request.t() -> term())) :: t()
