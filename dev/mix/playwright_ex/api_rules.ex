@@ -227,6 +227,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
   """
   def apply(classes, python) do
     classes = classes |> callback_objects() |> expect_class()
+    members = for class <- classes, member <- class["members"], do: "#{class["name"]}.#{member["name"]}"
+
+    for key <- @thrown_values -- members,
+        do: raise("ApiRules: thrown value #{key} no longer matches upstream: no such member")
+
     class_names = MapSet.new(classes, & &1["name"])
 
     for class <- classes, class["name"] not in @dropped_classes, class["name"] not in @exception_classes do
@@ -246,7 +251,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
-              |> thrown_values("#{class["name"]}.#{member["name"]}" in @thrown_values)
+              |> thrown_values("#{class["name"]}.#{member["name"]}")
               |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
@@ -723,11 +728,16 @@ defmodule Mix.PlaywrightEx.ApiRules do
     end
   end
 
-  defp thrown_values(member, false), do: member
+  defp thrown_values(member, key) when key not in @thrown_values, do: member
 
-  defp thrown_values(member, true) do
+  defp thrown_values(member, key) do
+    type = thrown_value(member["type"])
+
+    if type == member["type"],
+      do: raise("ApiRules: thrown value #{key} no longer matches upstream: not typed `Error`")
+
     member
-    |> Map.update!("type", &thrown_value/1)
+    |> Map.put("type", type)
     |> Map.update!("spec", &(&1 ++ [%{"type" => "text", "text" => @thrown_value_note}]))
   end
 
