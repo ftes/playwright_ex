@@ -45,6 +45,8 @@ Expect.to_have_title!(page, ~r/Install/)
 The [Python docs](https://playwright.dev/python/docs/intro) are the closest read, since the
 names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_selector`.
 `page.get_by_role("button").click()` is `Page.get_by_role(page, :button) |> Locator.click!()`.
+Unlike most Elixir APIs, `timeout: 0` means no timeout, as in JS, not an immediate one
+(`:infinity` works too).
 
 ## Guides
 
