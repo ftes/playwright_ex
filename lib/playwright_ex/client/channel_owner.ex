@@ -184,6 +184,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   def off(this, event, listener), do: remove_listener(this, event, listener)
 
+  # Elixir only: a closed connection process is a no-op, as JS's removeListener never throws (the
+  # connection removed every listener of a lost driver, `_retire/2`).
   def remove_listener(this, event, listener) do
     Heap.atomic(this, fn ->
       EventEmitter._take(this, event, listener)
@@ -191,6 +193,8 @@ defmodule PlaywrightEx.Client.ChannelOwner do
     end)
 
     this
+  rescue
+    TargetClosedError -> this
   end
 
   defp listener_count(this, event), do: EventEmitter.listener_count(this, event)

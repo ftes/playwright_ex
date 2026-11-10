@@ -89,7 +89,8 @@ defmodule PlaywrightEx.DriverLostTest do
       end
 
     event = fn tag -> fn _ -> send(test, {:event, tag}) end end
-    Page.on(page, :close, event.(:page))
+    on_page_close = event.(:page)
+    Page.on(page, :close, on_page_close)
     BrowserContext.on(context, :close, event.(:context))
     Page.on(persistent_page, :close, event.(:persistent_page))
     BrowserContext.on(persistent, :close, event.(:persistent))
@@ -179,6 +180,9 @@ defmodule PlaywrightEx.DriverLostTest do
     assert {:error, %TargetClosedError{}} = PlaywrightEx.Promise.await(Page.wait_for_event(page, :close))
     assert_raise TargetClosedError, fn -> Page.set_default_timeout(page, 1000) end
     assert_raise TargetClosedError, fn -> Page.on(page, :close, fn _ -> :ok end) end
+    # As in JS: removing a listener never raises.
+    assert Page.off(page, :close, on_page_close) == page
+    assert Page.remove_listener(page, :close, fn _ -> :ok end) == page
     # As in JS: closing what is closed returns.
     assert Page.close!(page) == :ok
     assert BrowserContext.close!(context) == :ok
@@ -213,6 +217,7 @@ defmodule PlaywrightEx.DriverLostTest do
     send(creator, :exit)
     assert_receive {:DOWN, ^ref, :process, _, _}
     assert_raise TargetClosedError, fn -> Page.is_closed(page) end
+    assert Page.off(page, :close, fn _ -> :ok end) == page
   end
 
   test "the table of a lost driver goes with the supervisor" do

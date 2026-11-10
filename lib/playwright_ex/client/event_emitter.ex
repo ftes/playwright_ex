@@ -307,12 +307,7 @@ defmodule PlaywrightEx.Client.EventEmitter do
     end
 
     cancel = fn ->
-      try do
-        impl(this).remove_listener(this, type, ref)
-      rescue
-        TargetClosedError -> :ok
-      end
-
+      impl(this).remove_listener(this, type, ref)
       Promise.flush(ref)
     end
 
@@ -324,9 +319,12 @@ defmodule PlaywrightEx.Client.EventEmitter do
   # prependOnceListener  -- not ported: unused by the client
 
   # The removeListener meta event  -- not ported: unused by the client
+  # Elixir only: a closed connection process is a no-op, as JS's removeListener never throws.
   def remove_listener(this, type, listener) do
     atomic(this, fn -> _take(this, type, listener) end)
     this
+  rescue
+    TargetClosedError -> this
   end
 
   @doc false
