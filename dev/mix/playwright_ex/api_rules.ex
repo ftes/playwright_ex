@@ -22,6 +22,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
+    * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
+      unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`), and
       drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
@@ -128,7 +130,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Page.waitForWorker" => "worker"
   }
 
-  @timeout_doc "In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds. Defaults to `timeout` in " <>
                         "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
@@ -195,6 +197,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
     # An upstream slip ("Throws for elements").
     "Locator.inputValue" => [{"Throws elements that are not", "Throws for elements that are not"}]
   }
+
+  # Members whose positional `timeout` is a timeout (`0` or `:infinity`: none), not a duration.
+  @timeout_args ~w(setDefaultTimeout setDefaultNavigationTimeout)
 
   # "Class.member" => an Elixir note appended to its docs.
   @notes %{
@@ -796,7 +801,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       for arg <- member["args"],
           keep?(arg["type"]),
           not (drop_options? and arg["name"] == "options"),
-          do: arg |> expression() |> route_handler() |> property()
+          do: arg |> duration(member["name"]) |> expression() |> route_handler() |> property()
 
     %{
       member
@@ -821,6 +826,19 @@ defmodule Mix.PlaywrightEx.ApiRules do
        do: %{arg | "type" => %{"name" => "", "union" => [%{type | "args" => [route]}, type]}}
 
   defp route_handler(arg), do: arg
+
+  # A positional `timeout` is how long to wait (`waitForTimeout`, `0` is no wait), unless it is
+  # a default timeout. Unlisted, a new one rejects `:infinity` rather than turning it into `0`.
+  defp duration(%{"name" => "timeout"} = arg, member) when member not in @timeout_args,
+    do: Map.put(arg, "duration", true)
+
+  defp duration(arg, _member), do: arg
+
+  defp property(%{"duration" => true} = property), do: type(property)
+
+  # An ignored `timeout` (`isHidden`): upstream's deprecation text, not the Elixir timeout note.
+  defp property(%{"name" => "timeout", "deprecated" => text} = property) when is_binary(text),
+    do: type(%{property | "spec" => [%{"type" => "text", "text" => text}]})
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()

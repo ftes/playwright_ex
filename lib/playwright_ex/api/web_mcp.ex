@@ -66,7 +66,7 @@ defmodule PlaywrightEx.WebMCP do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec call_tool(t(), String.t(), term() | nil, call_tool_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def call_tool(web_mcp, name, input \\ nil, options \\ []) do
@@ -105,7 +105,7 @@ defmodule PlaywrightEx.WebMCP do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec tools(t(), tools_options()) ::
           {:ok,
