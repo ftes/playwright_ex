@@ -2788,7 +2788,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: no timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - This option is ignored. `PlaywrightEx.Locator.is_hidden/2` does not wait for the element to become hidden and returns immediately.
   """
   @spec is_hidden(t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_hidden(locator, options \\ []) do
@@ -2825,7 +2825,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: no timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - This option is ignored. `PlaywrightEx.Locator.is_visible/2` does not wait for the element to become visible and returns immediately.
   """
   @spec is_visible(t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_visible(locator, options \\ []) do
@@ -5280,7 +5280,8 @@ defmodule PlaywrightEx.Locator do
     [
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is the same as `0`: no timeout.",
+        doc:
+          "This option is ignored. `PlaywrightEx.Locator.is_hidden/2` does not wait for the element to become hidden and returns immediately.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5291,7 +5292,8 @@ defmodule PlaywrightEx.Locator do
     [
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is the same as `0`: no timeout.",
+        doc:
+          "This option is ignored. `PlaywrightEx.Locator.is_visible/2` does not wait for the element to become visible and returns immediately.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }

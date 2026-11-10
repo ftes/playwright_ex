@@ -836,6 +836,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   defp property(%{"duration" => true} = property), do: type(property)
 
+  # An ignored `timeout` (`isHidden`): upstream's deprecation text, not the Elixir timeout note.
+  defp property(%{"name" => "timeout", "deprecated" => text} = property) when is_binary(text),
+    do: type(%{property | "spec" => [%{"type" => "text", "text" => text}]})
+
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()
 

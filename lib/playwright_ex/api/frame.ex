@@ -2313,7 +2313,7 @@ defmodule PlaywrightEx.Frame do
 
   * `:strict` (`t:boolean/0`) - *Since Playwright 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call fails.
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: no timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - This option is ignored. `PlaywrightEx.Frame.is_hidden/3` does not wait for the element to become hidden and returns immediately.
   """
   @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_hidden(frame, selector, options \\ []) do
@@ -2352,7 +2352,7 @@ defmodule PlaywrightEx.Frame do
 
   * `:strict` (`t:boolean/0`) - *Since Playwright 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call fails.
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: no timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - This option is ignored. `PlaywrightEx.Frame.is_visible/3` does not wait for the element to become visible and returns immediately.
   """
   @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_visible(frame, selector, options \\ []) do
@@ -4992,7 +4992,8 @@ defmodule PlaywrightEx.Frame do
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is the same as `0`: no timeout.",
+        doc:
+          "This option is ignored. `PlaywrightEx.Frame.is_hidden/3` does not wait for the element to become hidden and returns immediately.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5010,7 +5011,8 @@ defmodule PlaywrightEx.Frame do
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is the same as `0`: no timeout.",
+        doc:
+          "This option is ignored. `PlaywrightEx.Frame.is_visible/3` does not wait for the element to become visible and returns immediately.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }

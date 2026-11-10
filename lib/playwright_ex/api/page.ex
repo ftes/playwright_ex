@@ -3091,7 +3091,8 @@ defmodule PlaywrightEx.Page do
 
   * `:strict` (`t:boolean/0`) - *Since Playwright 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call fails.
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: no timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - This option is ignored. `PlaywrightEx.Page.is_hidden/3` does not wait for the
+    element to become hidden and returns immediately.
   """
   @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_hidden(page, selector, options \\ []) do
@@ -3130,7 +3131,8 @@ defmodule PlaywrightEx.Page do
 
   * `:strict` (`t:boolean/0`) - *Since Playwright 1.14.* When true, the call requires selector to resolve to a single element. If given selector resolves to more
     than one element, the call fails.
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is the same as `0`: no timeout.
+  * `:timeout` (`t:number/0` | `:infinity`) - This option is ignored. `PlaywrightEx.Page.is_visible/3` does not wait
+    for the element to become visible and returns immediately.
   """
   @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_visible(page, selector, options \\ []) do
@@ -8540,7 +8542,8 @@ defmodule PlaywrightEx.Page do
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is the same as `0`: no timeout.",
+        doc:
+          "This option is ignored. `PlaywrightEx.Page.is_hidden/3` does not wait for the element to become hidden and returns immediately.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -8558,7 +8561,8 @@ defmodule PlaywrightEx.Page do
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is the same as `0`: no timeout.",
+        doc:
+          "This option is ignored. `PlaywrightEx.Page.is_visible/3` does not wait for the element to become visible and returns immediately.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
