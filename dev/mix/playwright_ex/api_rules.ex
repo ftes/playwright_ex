@@ -53,8 +53,6 @@ defmodule Mix.PlaywrightEx.ApiRules do
       (`rpId`, which the positional argument overrides in the client too).
     * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
       accept it and only JS's types leave it out, and a list can't mix strings with option maps.
-    * Errors thrown in the page (`@thrown_values`: `WebError.error`) are any thrown value, as
-      `parseError` returns it (`throw "x"` is `"x"`): typed `Error|any`, with a note.
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
     * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
@@ -200,11 +198,6 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Locator.inputValue" => [{"Throws elements that are not", "Throws for elements that are not"}]
   }
 
-  # "Class.member" whose `Error` is a value thrown in the page: `parseError` returns any thrown
-  # value, an exception only for an `Error` (upstream's type says `Error`).
-  @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
-  @thrown_value_note "In Elixir, a page error is an exception for a JS `Error`, else the raw value (a string, a number, ...)."
-
   # Members whose positional `timeout` is a timeout (`0` or `:infinity`: none), not a duration.
   @timeout_args ~w(setDefaultTimeout setDefaultNavigationTimeout)
 
@@ -231,11 +224,6 @@ defmodule Mix.PlaywrightEx.ApiRules do
   """
   def apply(classes, python) do
     classes = classes |> callback_objects() |> expect_class()
-    members = for class <- classes, member <- class["members"], do: "#{class["name"]}.#{member["name"]}"
-
-    missing = @thrown_values -- members
-    if missing != [], do: raise("ApiRules: thrown values no longer match upstream: no member #{inspect(missing)}")
-
     class_names = MapSet.new(classes, & &1["name"])
 
     for class <- classes, class["name"] not in @dropped_classes, class["name"] not in @exception_classes do
@@ -255,7 +243,6 @@ defmodule Mix.PlaywrightEx.ApiRules do
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
-              |> thrown_values("#{class["name"]}.#{member["name"]}")
               |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
@@ -732,26 +719,6 @@ defmodule Mix.PlaywrightEx.ApiRules do
     end
   end
 
-  defp thrown_values(member, key) when key not in @thrown_values, do: member
-
-  defp thrown_values(member, key) do
-    type = thrown_value(member["type"])
-
-    if type == member["type"],
-      do: raise("ApiRules: thrown value #{key} no longer matches upstream: not typed `Error`")
-
-    member
-    |> Map.put("type", type)
-    |> Map.update!("spec", &(&1 ++ [%{"type" => "text", "text" => @thrown_value_note}]))
-  end
-
-  defp thrown_value(%{"name" => "Error"} = type), do: %{"name" => "", "union" => [type, %{"name" => "any"}]}
-
-  defp thrown_value(%{"templates" => templates} = type),
-    do: %{type | "templates" => Enum.map(templates, &thrown_value/1)}
-
-  defp thrown_value(type), do: type
-
   defp notes(member, key) do
     case @notes[key] do
       nil -> member
@@ -868,6 +835,10 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp duration(arg, _member), do: arg
 
   defp property(%{"duration" => true} = property), do: type(property)
+
+  # An ignored `timeout` (`isHidden`): upstream's deprecation text, not the Elixir timeout note.
+  defp property(%{"name" => "timeout", "deprecated" => text} = property) when is_binary(text),
+    do: type(%{property | "spec" => [%{"type" => "text", "text" => text}]})
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()
