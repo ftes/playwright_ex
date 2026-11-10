@@ -229,8 +229,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
     classes = classes |> callback_objects() |> expect_class()
     members = for class <- classes, member <- class["members"], do: "#{class["name"]}.#{member["name"]}"
 
-    for key <- @thrown_values -- members,
-        do: raise("ApiRules: thrown value #{key} no longer matches upstream: no such member")
+    missing = @thrown_values -- members
+    if missing != [], do: raise("ApiRules: thrown values no longer match upstream: no member #{inspect(missing)}")
 
     class_names = MapSet.new(classes, & &1["name"])
 
