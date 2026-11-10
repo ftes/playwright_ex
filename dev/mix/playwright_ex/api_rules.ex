@@ -203,8 +203,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # "Class.member" whose `Error` is a value thrown in the page: `parseError` returns any thrown
   # value, an exception only for an `Error` (upstream's type says `Error`).
   @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
-  @thrown_value_note "In Elixir, a page error is the value thrown in the page: an exception for an `Error`, " <>
-                       "else the value itself (`throw \"oops\"` gives `\"oops\"`)."
+  @thrown_value_note "In Elixir, a page error is an exception for a JS `Error`, else the raw value (a string, a number, ...)."
 
   # Members whose positional `timeout` is a timeout (`0` or `:infinity`: none), not a duration.
   @timeout_args ~w(setDefaultTimeout setDefaultNavigationTimeout)
