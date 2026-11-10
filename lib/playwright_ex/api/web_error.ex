@@ -40,11 +40,9 @@ defmodule PlaywrightEx.WebError do
   @doc ~S"""
   Unhandled error that was thrown.
 
-  In Elixir, a page error is an exception for a JS `Error`, else the raw value (a string, a number, ...).
-
   *Since Playwright 1.38.*
   """
-  @spec error(t()) :: Exception.t() | term()
+  @spec error(t()) :: Exception.t()
   def error(web_error) do
     PlaywrightEx.Client.WebError.error(web_error)
   end
