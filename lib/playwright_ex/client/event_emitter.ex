@@ -364,22 +364,27 @@ defmodule PlaywrightEx.Client.EventEmitter do
         me = self()
         ref = make_ref()
         handler = fn error -> send(me, {ref, error}) end
-        put(this, :_rejectionHandler, handler)
 
-        try do
-          _wait_for(this, type)
-        after
-          # Elixir only: later errors are dropped (JS pushes them to the array nobody reads any
-          # more), not sent to this process. A later call's handler stays, as in JS.
-          update(this, :_rejectionHandler, &if(&1 == handler, do: fn _ -> nil end, else: &1))
-        end
+        unless_closed(fn ->
+          put(this, :_rejectionHandler, handler)
+
+          try do
+            _wait_for(this, type)
+          after
+            # Elixir only: later errors are dropped (JS pushes them to the array nobody reads any
+            # more), not sent to this process. A later call's handler stays, as in JS.
+            update(this, :_rejectionHandler, &if(&1 == handler, do: fn _ -> nil end, else: &1))
+          end
+        end)
 
         errors = _collect(ref)
         if errors != [], do: raise(hd(errors))
         nil
 
       true ->
-        if options[:behavior] == "ignoreErrors", do: put(this, :_rejectionHandler, fn _ -> nil end)
+        if options[:behavior] == "ignoreErrors",
+          do: unless_closed(fn -> put(this, :_rejectionHandler, fn _ -> nil end) end)
+
         nil
     end
   end
@@ -394,12 +399,23 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   # Only the "not listening for removeListener" branch: the meta event is not ported.
   defp _remove_all_listeners(this, type) do
-    atomic(this, fn ->
-      entries = if type == nil, do: map_values(this, :_events), else: [map_get(this, :_events, type) || []]
-      for list <- entries, entry <- list, do: _stop(entry)
-      if type == nil, do: map_clear(this, :_events), else: map_delete(this, :_events, type)
-      if type == nil, do: put(this, :_warned, nil), else: _reset_warned(this, type)
+    unless_closed(fn ->
+      atomic(this, fn ->
+        entries = if type == nil, do: map_values(this, :_events), else: [map_get(this, :_events, type) || []]
+        for list <- entries, entry <- list, do: _stop(entry)
+        if type == nil, do: map_clear(this, :_events), else: map_delete(this, :_events, type)
+        if type == nil, do: put(this, :_warned, nil), else: _reset_warned(this, type)
+      end)
     end)
+  end
+
+  # Elixir only: a closed connection process is a no-op, as JS's local emitter never throws there
+  # (a lost driver removed every listener, `ChannelOwner._retire/2`). A listener's own error is
+  # collected as a message, so it is not rescued here.
+  defp unless_closed(fun) do
+    fun.()
+  rescue
+    TargetClosedError -> nil
   end
 
   # listeners, rawListeners  -- not ported: unused by the client
