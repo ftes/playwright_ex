@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - `off`, `remove_listener` and `remove_all_listeners` no longer raise `TargetClosedError` once the
   driver is lost, as upstream's never throw.
+- `WebError.error/1`, `Page.page_errors/2` and the `:page_error` event are typed
+  `Exception.t() | term()`: a non-`Error` throw gives the thrown value itself.
 
 ## [0.17.0-rc.4] 2026-11-09
 

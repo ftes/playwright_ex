@@ -40,7 +40,7 @@ defmodule PlaywrightEx.WebError do
   @doc ~S"""
   Unhandled error that was thrown.
 
-  In Elixir, this is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+  In Elixir, a page error is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
 
   *Since Playwright 1.38.*
   """
