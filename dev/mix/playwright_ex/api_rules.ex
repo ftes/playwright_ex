@@ -202,7 +202,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # "Class.member" whose `Error` is a value thrown in the page: `parseError` returns any thrown
   # value, an exception only for an `Error` (upstream's type says `Error`).
   @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
-  @thrown_value_note "In Elixir, this is the value thrown in the page: an exception for an `Error`, " <>
+  @thrown_value_note "In Elixir, a page error is the value thrown in the page: an exception for an `Error`, " <>
                        "else the value itself (`throw \"oops\"` gives `\"oops\"`)."
 
   # "Class.member" => an Elixir note appended to its docs.
