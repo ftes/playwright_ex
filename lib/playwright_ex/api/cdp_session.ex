@@ -101,7 +101,7 @@ defmodule PlaywrightEx.CDPSession do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - *Since Playwright 1.65.* Maximum time in milliseconds to wait for the response. Defaults to `0` - no timeout.
 
-    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
+    In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec send(t(), String.t(), map() | nil, send_options()) :: {:ok, map()} | {:error, PlaywrightEx.error()}
   def send(cdp_session, method, params \\ nil, options \\ []) do

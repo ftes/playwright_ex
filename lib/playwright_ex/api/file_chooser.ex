@@ -97,7 +97,7 @@ defmodule PlaywrightEx.FileChooser do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
+    In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec set_files(
           t(),
