@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `off`, `remove_listener` and `remove_all_listeners` no longer raise `TargetClosedError` once the
+  driver is lost, as upstream's never throw.
+
 ## [0.17.0-rc.4] 2026-11-09
 
 ### Added
