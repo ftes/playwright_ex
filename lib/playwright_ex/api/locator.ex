@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec aria_snapshot(t(), aria_snapshot_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def aria_snapshot(locator, options \\ []) do
@@ -299,7 +299,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec aria_snapshot_json(t(), aria_snapshot_json_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def aria_snapshot_json(locator, options \\ []) do
@@ -342,7 +342,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec blur(t(), blur_options()) :: :ok | {:error, PlaywrightEx.error()}
   def blur(locator, options \\ []) do
@@ -399,7 +399,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec bounding_box(t(), bounding_box_options()) ::
           {:ok, nil | %{x: number(), y: number(), width: number(), height: number()}} | {:error, PlaywrightEx.error()}
@@ -495,7 +495,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec check(t(), check_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -563,7 +563,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec clear(t(), clear_options()) :: :ok | {:error, PlaywrightEx.error()}
   def clear(locator, options \\ []) do
@@ -698,7 +698,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec click(t(), click_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -842,7 +842,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec dblclick(t(), dblclick_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -966,7 +966,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec dispatch_event(t(), String.t(), term() | nil, dispatch_event_options()) :: :ok | {:error, PlaywrightEx.error()}
   def dispatch_event(locator, type, event_init \\ nil, options \\ []) do
@@ -1074,7 +1074,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec drag_to(t(), PlaywrightEx.Locator.t(), drag_to_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -1176,7 +1176,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec drop(
           t(),
@@ -1241,7 +1241,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec element_handle(t(), element_handle_options()) ::
           {:ok, PlaywrightEx.ElementHandle.t()} | {:error, PlaywrightEx.error()}
@@ -1358,7 +1358,7 @@ defmodule PlaywrightEx.Locator do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def evaluate(locator, expression, arg \\ nil, options \\ []) do
@@ -1466,7 +1466,7 @@ defmodule PlaywrightEx.Locator do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil, evaluate_handle_options()) ::
           {:ok, PlaywrightEx.JSHandle.t()} | {:error, PlaywrightEx.error()}
@@ -1546,7 +1546,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec fill(t(), String.t(), fill_options()) :: :ok | {:error, PlaywrightEx.error()}
   def fill(locator, value, options \\ []) do
@@ -1659,7 +1659,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec focus(t(), focus_options()) :: :ok | {:error, PlaywrightEx.error()}
   def focus(locator, options \\ []) do
@@ -1726,7 +1726,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec get_attribute(t(), String.t(), get_attribute_options()) ::
           {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
@@ -2433,7 +2433,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec hover(t(), hover_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -2471,7 +2471,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec inner_html(t(), inner_html_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def inner_html(locator, options \\ []) do
@@ -2512,7 +2512,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec inner_text(t(), inner_text_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def inner_text(locator, options \\ []) do
@@ -2563,7 +2563,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec input_value(t(), input_value_options()) :: {:ok, String.t()} | {:error, PlaywrightEx.error()}
   def input_value(locator, options \\ []) do
@@ -2610,7 +2610,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec is_checked(t(), is_checked_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_checked(locator, options \\ []) do
@@ -2657,7 +2657,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec is_disabled(t(), is_disabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_disabled(locator, options \\ []) do
@@ -2704,7 +2704,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec is_editable(t(), is_editable_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_editable(locator, options \\ []) do
@@ -2751,7 +2751,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec is_enabled(t(), is_enabled_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_enabled(locator, options \\ []) do
@@ -2788,7 +2788,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:timeout` (`t:number/0` | `:infinity`) - `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec is_hidden(t(), is_hidden_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_hidden(locator, options \\ []) do
@@ -2825,7 +2825,7 @@ defmodule PlaywrightEx.Locator do
 
   ## Options
 
-  * `:timeout` (`t:number/0` | `:infinity`) - In Elixir, `:infinity` is accepted too (the same as `0`).
+  * `:timeout` (`t:number/0` | `:infinity`) - `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec is_visible(t(), is_visible_options()) :: {:ok, boolean()} | {:error, PlaywrightEx.error()}
   def is_visible(locator, options \\ []) do
@@ -3087,7 +3087,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec press(t(), String.t(), press_options()) :: :ok | {:error, PlaywrightEx.error()}
   def press(locator, key, options \\ []) do
@@ -3169,7 +3169,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec press_sequentially(t(), String.t(), press_sequentially_options()) :: :ok | {:error, PlaywrightEx.error()}
   def press_sequentially(locator, text, options \\ []) do
@@ -3297,7 +3297,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:type` (`:png` | `:jpeg` | `:webp`) - Specify screenshot type, defaults to `:png`.
   """
   @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, PlaywrightEx.error()}
@@ -3339,7 +3339,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec scroll_into_view_if_needed(t(), scroll_into_view_if_needed_options()) :: :ok | {:error, PlaywrightEx.error()}
   def scroll_into_view_if_needed(locator, options \\ []) do
@@ -3446,7 +3446,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec select_option(
           t(),
@@ -3543,7 +3543,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec select_text(t(), select_text_options()) :: :ok | {:error, PlaywrightEx.error()}
   def select_text(locator, options \\ []) do
@@ -3644,7 +3644,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec set_checked(t(), boolean(), set_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -3736,7 +3736,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec set_input_files(
           t(),
@@ -3857,7 +3857,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it. Note that keyboard `:modifiers` will be pressed regardless of `:trial` to allow testing elements which are only visible when those keys are pressed.
   """
   @spec tap(t(), tap_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -3899,7 +3899,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec text_content(t(), text_content_options()) :: {:ok, nil | String.t()} | {:error, PlaywrightEx.error()}
   def text_content(locator, options \\ []) do
@@ -3974,7 +3974,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec type(t(), String.t(), type_options()) :: :ok | {:error, PlaywrightEx.error()}
   def type(locator, text, options \\ []) do
@@ -4070,7 +4070,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec uncheck(t(), uncheck_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -4170,7 +4170,7 @@ defmodule PlaywrightEx.Locator do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec wait_for(t(), wait_for_options()) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for(locator, options \\ []) do
@@ -4234,7 +4234,7 @@ defmodule PlaywrightEx.Locator do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
     value can be changed by using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec wait_for_function(t(), String.t(), term() | nil, wait_for_function_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -5280,7 +5280,7 @@ defmodule PlaywrightEx.Locator do
     [
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is accepted too (the same as `0`).",
+        doc: "`0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5291,7 +5291,7 @@ defmodule PlaywrightEx.Locator do
     [
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
-        doc: "In Elixir, `:infinity` is accepted too (the same as `0`).",
+        doc: "`0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.",
         since: nil,
         spec: quote(do: number() | :infinity)
       }

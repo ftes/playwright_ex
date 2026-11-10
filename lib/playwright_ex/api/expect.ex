@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_attached(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_attached_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -168,7 +168,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_attached(PlaywrightEx.Locator.t(), not_to_be_attached_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -251,7 +251,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_checked(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_checked_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -327,7 +327,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_checked(PlaywrightEx.Locator.t(), not_to_be_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_checked(locator, options \\ []) do
@@ -393,7 +393,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_disabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_disabled_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -449,7 +449,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_disabled(PlaywrightEx.Locator.t(), not_to_be_disabled_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -517,7 +517,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_editable(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_editable_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -578,7 +578,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_editable(PlaywrightEx.Locator.t(), not_to_be_editable_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -641,7 +641,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_empty(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_empty_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -697,7 +697,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_empty(PlaywrightEx.Locator.t(), not_to_be_empty_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_empty(locator, options \\ []) do
@@ -764,7 +764,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_enabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_enabled_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -825,7 +825,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_enabled(PlaywrightEx.Locator.t(), not_to_be_enabled_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_enabled(locator, options \\ []) do
@@ -887,7 +887,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_focused(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_focused_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -943,7 +943,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_focused(PlaywrightEx.Locator.t(), not_to_be_focused_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_focused(locator, options \\ []) do
@@ -1005,7 +1005,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_hidden(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_hidden_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -1061,7 +1061,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_hidden(PlaywrightEx.Locator.t(), not_to_be_hidden_options()) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_be_hidden(locator, options \\ []) do
@@ -1134,7 +1134,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_be_in_viewport(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_in_viewport_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -1196,7 +1196,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_be_in_viewport(PlaywrightEx.Locator.t(), not_to_be_in_viewport_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -1274,7 +1274,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:visible` (`t:boolean/0`) - *Since Playwright 1.26.*
   """
   @spec to_be_visible(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_visible_options()) ::
@@ -1335,7 +1335,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:visible` (`t:boolean/0`) - *Since Playwright 1.26.*
   """
   @spec not_to_be_visible(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok | {:error, PlaywrightEx.error()}
@@ -1423,7 +1423,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_contain_class(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -1490,7 +1490,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_contain_class(PlaywrightEx.Locator.t(), String.t() | [String.t()], not_to_contain_class_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -1615,7 +1615,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec to_contain_text(
@@ -1700,7 +1700,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec not_to_contain_text(
@@ -1785,7 +1785,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_accessible_description(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -1862,7 +1862,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_accessible_description(
           PlaywrightEx.Locator.t(),
@@ -1950,7 +1950,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_accessible_error_message(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -2027,7 +2027,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_accessible_error_message(
           PlaywrightEx.Locator.t(),
@@ -2111,7 +2111,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_accessible_name(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -2188,7 +2188,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_accessible_name(
           PlaywrightEx.Locator.t(),
@@ -2278,7 +2278,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_attribute(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -2378,7 +2378,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_attribute(
           PlaywrightEx.Locator.t(),
@@ -2488,7 +2488,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_class(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -2555,7 +2555,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_class(
           PlaywrightEx.Locator.t(),
@@ -2629,7 +2629,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_count(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), integer(), to_have_count_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -2690,7 +2690,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_count(PlaywrightEx.Locator.t(), integer(), not_to_have_count_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -2768,7 +2768,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_css(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -2848,7 +2848,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_css(
           PlaywrightEx.Locator.t(),
@@ -2924,7 +2924,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_id(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -2991,7 +2991,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_id(
           PlaywrightEx.Locator.t(),
@@ -3067,7 +3067,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_js_property(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -3137,7 +3137,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_js_property(PlaywrightEx.Locator.t(), String.t(), term(), not_to_have_js_property_options()) ::
           :ok | {:error, PlaywrightEx.error()}
@@ -3291,7 +3291,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_role(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -3607,7 +3607,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_role(
           PlaywrightEx.Locator.t(),
@@ -3913,7 +3913,7 @@ defmodule PlaywrightEx.Expect do
     `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
     * `:x` - x-coordinate of top-left corner of clip area
     * `:y` - y-coordinate of top-left corner of clip area
@@ -4053,7 +4053,7 @@ defmodule PlaywrightEx.Expect do
     `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
     * `:x` - x-coordinate of top-left corner of clip area
     * `:y` - y-coordinate of top-left corner of clip area
@@ -4183,7 +4183,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec to_have_text(
@@ -4268,7 +4268,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec not_to_have_text(
@@ -4343,7 +4343,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_value(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -4410,7 +4410,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_value(
           PlaywrightEx.Locator.t(),
@@ -4495,7 +4495,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_values(
           PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
@@ -4562,7 +4562,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_values(
           PlaywrightEx.Locator.t(),
@@ -4614,7 +4614,7 @@ defmodule PlaywrightEx.Expect do
               optional(:timeout) => number() | :infinity
             }
 
-  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is accepted too (the same as `0`)."
+  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same."
   @spec to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil,
@@ -4703,7 +4703,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
@@ -4870,7 +4870,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_title(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
@@ -4937,7 +4937,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_title(
           PlaywrightEx.Page.t(),
@@ -5030,7 +5030,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec to_have_url(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
@@ -5104,7 +5104,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
   * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
-    In Elixir, `:infinity` is accepted too (the same as `0`).
+    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
   """
   @spec not_to_have_url(
           PlaywrightEx.Page.t(),
