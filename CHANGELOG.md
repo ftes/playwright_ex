@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 <!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
+Upgrading from 0.16: the [migration guide](guides/migration.md) covers the changes, including
+those of the release candidates below. From an earlier release, also read the sections up to 0.16.
+
 ## [Unreleased]
 
 ## [0.17.0-rc.5] 2026-11-10

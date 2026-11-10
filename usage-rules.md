@@ -6,6 +6,8 @@ with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy), which is bu
 
 **`timeout: 0` (or `:infinity`) means no timeout, not an immediate one.** As in Playwright JS, the call waits forever.
 
+Code written for 0.16 or earlier (guids, `Frame.click(frame.guid, selector: ...)`, `Selector`, `EventWaiter`, `launch_browser/2`) uses the removed API: port it with the [migration guide](https://hexdocs.pm/playwright_ex/migration.html).
+
 ## Setup
 
 - `mix playwright_ex.install` installs the pinned driver (Node.js and `playwright-core`) and browsers. Do not add npm `playwright`.

@@ -162,7 +162,8 @@ Logger.put_application_level(:playwright_ex, :info)
 
 To upgrade, bump the dependency and run `mix playwright_ex.install` again for the new driver and
 browsers. Read the [changelog](../../CHANGELOG.md) and Playwright's [release
-notes](https://playwright.dev/docs/release-notes).
+notes](https://playwright.dev/docs/release-notes). From 0.16, follow the
+[migration guide](../migration.md).
 
 ## Next
 

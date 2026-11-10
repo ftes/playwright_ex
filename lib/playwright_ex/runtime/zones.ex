@@ -9,35 +9,14 @@ defmodule PlaywrightEx.Runtime.Zones do
   @key :playwright_ex_zone
 
   # currentZone().with(type, data).run(func)
-  def with(type, data, func) do
-    previous = Process.get(@key, %{})
-    Process.put(@key, Map.put(previous, type, data))
-
-    try do
-      func.()
-    after
-      Process.put(@key, previous)
-    end
-  end
-
-  # emptyZone.run(func)
-  def empty(func) do
-    previous = Process.get(@key, %{})
-    Process.put(@key, %{})
-
-    try do
-      func.()
-    after
-      Process.put(@key, previous)
-    end
-  end
+  def with(type, data, func), do: run(Map.put(current_zone(), type, data), func)
 
   # currentZone().without(type)
-  def without(type), do: Map.delete(Process.get(@key, %{}), type)
+  def without(type), do: Map.delete(current_zone(), type)
 
   # savedZone.run(func)
   def run(zone, func) do
-    previous = Process.get(@key, %{})
+    previous = current_zone()
     Process.put(@key, zone)
 
     try do
@@ -48,11 +27,11 @@ defmodule PlaywrightEx.Runtime.Zones do
   end
 
   # currentZone().data(type)
-  def data(type), do: Map.get(Process.get(@key, %{}), type)
+  def data(type), do: Map.get(current_zone(), type)
 
   # Zone data objects are mutable in JS (e.g. `apiZone.reported = true`).
   def update(type, fun) do
-    zone = Process.get(@key, %{})
+    zone = current_zone()
     if Map.has_key?(zone, type), do: Process.put(@key, Map.update!(zone, type, fun))
     data(type)
   end
