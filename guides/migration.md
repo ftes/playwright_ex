@@ -1,13 +1,15 @@
 # Migrating from 0.16
 
-PlaywrightEx 0.17 is a 1:1 port of the official JavaScript client, and its public API is generated
+PlaywrightEx is now a 1:1 port of the official JavaScript client, and its public API is generated
 from Playwright's own docs. The [playwright.dev](https://playwright.dev/docs/api/class-playwright)
 docs apply: `page.getByRole(...)` is `PlaywrightEx.Page.get_by_role/3`, `locator.click()` is
 `PlaywrightEx.Locator.click/2`, `expect(locator).toBeVisible()` is
 `PlaywrightEx.Expect.to_be_visible/2`.
 
 This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_browser/2`,
-`subscribe/2` and `JsLogger` are gone. Snippets below alias `PlaywrightEx.{Page, Locator, ...}`.
+`subscribe/2` and `JsLogger` are gone. This guide covers every change since 0.16, so you can skip
+the release candidates in the changelog; earlier releases map the same way. Snippets below alias
+`PlaywrightEx.{Page, Locator, ...}`.
 
 ## Handles, not guids
 
@@ -50,12 +52,17 @@ page = BrowserContext.new_page!(context)
 ```
 
 - The driver (Node and `playwright-core`) is pinned and downloaded on first start, or with
-  `mix playwright_ex.install` (`-- chromium firefox --with-deps` for CI). `executable:` still
-  points at an npm-managed CLI if you prefer that.
-- The supervisor's `connection_name/1` and the `connection:` option are replaced by
-  `PlaywrightEx.playwright(name)`.
+  `mix playwright_ex.install` (`-- chromium firefox --with-deps` for CI), so the npm `playwright`
+  package can go. Its version (`PlaywrightEx.Driver.version/0`) may be newer than the one you ran:
+  read Playwright's [release notes](https://playwright.dev/docs/release-notes). `executable:`
+  still takes an npm-managed CLI: a path (not looked up in `$PATH`), at that version, which
+  nothing checks.
+- The supervisor's `timeout:`, `js_logger:` and `ws_endpoint:` options are gone (unknown options
+  raise); `env:` stays. Its `connection_name/1` and the `connection:` option are replaced by
+  `PlaywrightEx.playwright(name)`, and its default name is `PlaywrightEx`.
 - `ws_endpoint:` becomes `BrowserType.connect!(Playwright.chromium(playwright), "ws://localhost:3000/")`,
-  through the local driver (no `websockex`). `connect_over_cdp/3` works too.
+  through the local driver (no `websockex`), with a server on the driver's version
+  ([Remote browsers](debugging-and-ci.md#remote-browsers)). `connect_over_cdp/3` works too.
 - `minimum_supported_version/0`: `PlaywrightEx.Driver.version/0`.
 
 ### Context, page, navigation
@@ -77,7 +84,11 @@ page = BrowserContext.new_page!(context)
 | `BrowserContext.credentials_*` | `Credentials.*` on `BrowserContext.credentials(context)` |
 | `Page.mouse_move/down/up` | `Mouse.move/4`, `down/2`, `up/2` on `Page.mouse(page)` |
 | `ElementHandle.*`, `FilePayload` | `ElementHandle.*`; payloads are `%{name:, mimeType:, buffer:}` |
+| `Download.from_event/2`, `Artifact.*` | `Download.save_as/2`, `Download.delete/1`; traces take `path:` (below), videos `Video.save_as/2` |
 | `PlaywrightEx.send(msg, opts)` | none: every protocol call has a facade function |
+
+Calls not listed (`cookies`, `storage_state`, `add_init_script`, `unroute_all`,
+`wait_for_load_state`, `bring_to_front`, ...) keep their names and take the struct.
 
 ### Selectors to locators
 
@@ -99,7 +110,7 @@ Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
 | --- | --- |
 | `css(s)`, `concat(a, b)` | `Page.locator(page, s)`, `Locator.locator(a, b)` |
 | `text(t, exact: e)`, `label/2` | `get_by_text(_, t, exact: e)`, `get_by_label/3` |
-| `role(r, name)`, `button/2`, `link/2` | `get_by_role(_, :button, name: name)` |
+| `role(r, name)`, `button/2`, `link/2`, `menuitem/2` | `get_by_role(_, :button, name: name)` (the role is an atom) |
 | `and/2`, `has/2` | `Locator.and_/2`, `Locator.filter(_, has: l)` |
 | `at(n)` | `Locator.nth/2`, `first/1`, `last/1` |
 | `visible/2` | `Locator.filter(_, visible: true)` |
@@ -119,7 +130,7 @@ keep working while you migrate: `Page.locator(page, "css=.flash >> internal:text
 | `set_input_files(local_paths: ps)` | `set_input_files/3` (paths or payload maps) |
 | `drag_and_drop(source:, target:)` | `Locator.drag_to/3` |
 | `wait_for_selector` | `Locator.wait_for/2` |
-| `is_visible`, `inner_html`, `text_content`, `input_value`, `get_attribute` | same names on `Locator` |
+| `is_*`, `inner_html`, `inner_text`, `text_content`, `input_value`, `get_attribute`, `dispatch_event`, `aria_snapshot_json` | same names on `Locator` |
 | `Frame.expect(expression: "to.be.visible")`, `expect_result` | `Expect.to_be_visible/2`, ... |
 | `Page.expect_url`, `Page.expect_screenshot` | `Expect.to_have_url/3`, `Expect.to_have_screenshot/2` |
 
@@ -312,11 +323,20 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 
 ## Behaviour changes
 
-- `timeout: 0` means no timeout (as in JS), not "don't wait". `:infinity` is accepted too.
+- `timeout: 0` means no timeout (as in JS), not "don't wait", and `:infinity` is the same
+  (`wait_for_timeout/2` rejects it: its argument is how long to wait). To check without waiting,
+  read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout.
+- Nested maps use the JS keys both ways: `add_cookies` takes `%{sameSite: "Strict", httpOnly: true}`,
+  and `cookies`, `storage_state` and the other results return them (`sameSite`, `localStorage`),
+  where 0.16 converted to and from snake_case. A snake_case key such as `same_site:` is ignored.
+- JS `null` is `:null` and `undefined` is `nil` (`evaluate`, `aria_snapshot_json`); 0.16 returned
+  `nil` for both.
 - Dialogs without a listener are dismissed instead of blocking the page.
 - Error messages start with the API name (`locator.click: ...`).
 - `Tracing.start/2` no longer takes `coverage:`.
-- Unknown options raise `ArgumentError` instead of being passed through.
+- Unknown options raise `ArgumentError` instead of being passed through (the
+  `:fail_on_unknown_opts` config is gone).
+- Each API call logs at `:debug` ([Logging](introduction/getting-started.md#logging)).
 - Local file errors (a missing `set_input_files` file or `path:`) raise Elixir's `File.Error` (as
   `Route.fulfill(path:)` did before), not a driver error. A storage-state file that can't be read
   raises `PlaywrightEx.PlaywrightError` ("Error reading storage state from ..."), with the
