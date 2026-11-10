@@ -4,6 +4,8 @@ PlaywrightEx is a 1:1 Elixir port of the Playwright client. Its API is generated
 docs, so playwright.dev applies; the Python docs are the closest read. For Phoenix feature tests
 with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy), which is built on this library.
 
+**`timeout: 0` means no timeout, not an immediate one.** As in Playwright JS, the call waits forever. Write `:infinity` for no timeout (the same as `0`), and a positive number of milliseconds otherwise.
+
 ## Setup
 
 - `mix playwright_ex.install` installs the pinned driver (Node.js and `playwright-core`) and browsers. Do not add npm `playwright`.
@@ -35,7 +37,7 @@ Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome")
 - Options come last, as a keyword list or map with snake_case keys: `Page.screenshot!(page, path: "a.png", full_page: true)`. Unknown keys raise `ArgumentError` from both forms.
 - Nested option values are maps with the JS keys: `viewport: %{width: 1280, height: 720}`, `%{sameSite: "Lax"}`.
 - String enums are atoms (`:no_preference`). `nil` is JS `undefined`, `:null` is JS `null`, also in `evaluate` results.
-- `timeout: :infinity` or `0` disables a timeout. Strings are literal text or URL globs; use `~r//` for a pattern.
+- Strings are literal text or URL globs; use `~r//` for a pattern.
 
 ## Locators and assertions
 

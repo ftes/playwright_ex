@@ -40,13 +40,14 @@ Page.get_by_role(page, :link, name: "Install") |> Locator.click!()
 Expect.to_have_title!(page, ~r/Install/)
 ```
 
+**`timeout: 0` means no timeout.** As in Playwright JS, it waits forever instead of failing at
+once. `:infinity` is the same and reads better in Elixir.
+
 ## Reading playwright.dev
 
 The [Python docs](https://playwright.dev/python/docs/intro) are the closest read, since the
 names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_selector`.
 `page.get_by_role("button").click()` is `Page.get_by_role(page, :button) |> Locator.click!()`.
-Unlike most Elixir APIs, `timeout: 0` means no timeout, as in JS, not an immediate one
-(`:infinity` works too).
 
 ## Guides
 
