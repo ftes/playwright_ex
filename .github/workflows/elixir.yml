@@ -10,6 +10,7 @@ on:
     branches: ["main"]
   # Any base branch, so PRs stacked on another PR's branch get CI too.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # Nightly, so firefox/webkit regressions show up without a push.
   schedule:
     - cron: "0 3 * * *"
@@ -54,9 +55,9 @@ env:
 jobs:
   build:
     name: Build and lint
-    # In a stack, only the top PR runs CI (the tests need this job): it holds every change below it.
-    # `stack` is absent outside a stack and on other events.
-    if: ${{ !inputs.skip_lint && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
+    # Draft PRs skip CI until marked ready, and in a stack only the top PR runs it (the tests need
+    # this job): it holds every change below it. `stack` is absent outside a stack and on other events.
+    if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -306,6 +307,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      # Green without checking on a PR below the top of its stack, whose jobs above are skipped.
-      - if: github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size
+      # Green without checking on a draft or a PR below the top of its stack, whose jobs above are
+      # skipped.
+      - if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
         run: test "${{ needs.test.result }}" = success
