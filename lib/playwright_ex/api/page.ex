@@ -6262,8 +6262,6 @@ defmodule PlaywrightEx.Page do
     end)
   end
 
-  @wait_for_timeout_timeout :timeout
-
   @doc ~S"""
   Waits for the given `timeout` in milliseconds.
 
@@ -6287,19 +6285,15 @@ defmodule PlaywrightEx.Page do
   ## Arguments
 
   * `timeout` - A timeout to wait for
-
-    In Elixir, `:infinity` is accepted too (the same as `0`).
   """
-  @spec wait_for_timeout(t(), number() | :infinity) :: :ok | {:error, PlaywrightEx.error()}
+  @spec wait_for_timeout(t(), number()) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for_timeout(page, timeout) do
-    timeout = Facade.arg!(timeout, @wait_for_timeout_timeout, "page.waitForTimeout")
     Facade.async_void("page.waitForTimeout", page, fn -> PlaywrightEx.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
   @doc "Like `wait_for_timeout/2`, but returns the value and raises on error."
-  @spec wait_for_timeout!(t(), number() | :infinity) :: :ok
+  @spec wait_for_timeout!(t(), number()) :: :ok
   def wait_for_timeout!(page, timeout) do
-    timeout = Facade.arg!(timeout, @wait_for_timeout_timeout, "page.waitForTimeout")
     Facade.async_void!("page.waitForTimeout", page, fn -> PlaywrightEx.Client.Page.wait_for_timeout(page, timeout) end)
   end
 

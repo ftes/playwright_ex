@@ -22,6 +22,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
+    * `waitForTimeout(timeout)` is a duration (`"duration"`), not a timeout: no `:infinity`.
     * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`), and
       drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
@@ -830,7 +831,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       for arg <- member["args"],
           keep?(arg["type"]),
           not (drop_options? and arg["name"] == "options"),
-          do: arg |> expression() |> route_handler() |> property()
+          do: arg |> duration(member["name"]) |> expression() |> route_handler() |> property()
 
     %{
       member
@@ -855,6 +856,12 @@ defmodule Mix.PlaywrightEx.ApiRules do
        do: %{arg | "type" => %{"name" => "", "union" => [%{type | "args" => [route]}, type]}}
 
   defp route_handler(arg), do: arg
+
+  # `waitForTimeout(timeout)`: how long to wait, `0` is no wait.
+  defp duration(%{"name" => "timeout"} = arg, "waitForTimeout"), do: Map.put(arg, "duration", true)
+  defp duration(arg, _member), do: arg
+
+  defp property(%{"duration" => true} = property), do: type(property)
 
   defp property(%{"name" => "timeout"} = property),
     do: Map.update(property, "spec", [], &(&1 ++ [%{"type" => "text", "text" => @timeout_doc}])) |> type()
