@@ -412,8 +412,8 @@ defmodule PlaywrightEx.Client.EventEmitter do
 
   @doc false
   # Elixir only: removing listeners on a closed connection process is a no-op (`nil`), as JS's
-  # local emitter never throws there (a lost driver removed every listener,
-  # `ChannelOwner._retire/2`). A listener's own error is collected as a message, never rescued here.
+  # local emitter never throws (a dead connection emits nothing again, and user listener processes
+  # exit on its `:DOWN`). A listener's own error is collected as a message, never rescued here.
   def _unless_closed(fun) do
     fun.()
   rescue
