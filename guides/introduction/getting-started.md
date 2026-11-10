@@ -41,25 +41,10 @@ macOS 14+, Debian 12 and 13, Ubuntu 22.04 and 24.04
 
 ### Test-only dependency
 
-Mix loads a dependency, and its tasks, only in the environments it lists.
-[`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) reads only the current environment's
-dependencies, so it doesn't see PlaywrightEx's usage rules in `:dev` if PlaywrightEx is
-`only: :test`. The simplest fix is `only: [:dev, :test]`: in `:dev` it starts no driver, and
-its tasks (`playwright_ex.install`, `playwright_ex.cli`) work there too. To keep it test-only, run
-them and `usage_rules.sync` (with `usage_rules` also in `:test`) in `:test`, as should an alias
-that runs them:
-
-```elixir
-def cli do
-  [
-    preferred_envs: [
-      "playwright_ex.install": :test,
-      "playwright_ex.cli": :test,
-      "usage_rules.sync": :test
-    ]
-  ]
-end
-```
+Mix loads a dependency, and its tasks, only in the environments it lists. If PlaywrightEx is
+`only: :test`, make it `only: [:dev, :test]`, so that its tasks and
+[`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) (which reads only the current
+environment's dependencies) see it in `:dev`. In `:dev` it starts no driver.
 
 ## Starting the driver
 
