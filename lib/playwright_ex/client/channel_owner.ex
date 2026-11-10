@@ -184,10 +184,13 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
   def off(this, event, listener), do: remove_listener(this, event, listener)
 
+  # Elixir only: a no-op on a closed connection process (`EventEmitter._unless_closed/1`).
   def remove_listener(this, event, listener) do
-    Heap.atomic(this, fn ->
-      EventEmitter._take(this, event, listener)
-      if listener_count(this, event) == 0 and Heap.alive?(this), do: _update_subscription(this, event, false)
+    EventEmitter._unless_closed(fn ->
+      Heap.atomic(this, fn ->
+        EventEmitter._take(this, event, listener)
+        if listener_count(this, event) == 0 and Heap.alive?(this), do: _update_subscription(this, event, false)
+      end)
     end)
 
     this
