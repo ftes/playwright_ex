@@ -67,6 +67,11 @@ page = BrowserContext.new_page!(context)
 - `ws_endpoint:` becomes `BrowserType.connect!(Playwright.chromium(playwright), "ws://localhost:3000/")`,
   through the local driver (no `websockex`), with a server on the driver's version
   ([Remote browsers](debugging-and-ci.md#remote-browsers)). `connect_over_cdp/3` works too.
+- `mix playwright_ex.install --no-browsers` installs only the driver, for a browser launched with
+  `executable_path:` or `channel:`.
+- The driver is cached under `:filename.basedir(:user_cache, "playwright_ex")`, moved with
+  `PLAYWRIGHT_EX_CACHE_DIR` or the supervisor's `cache_dir:`; cache it in CI
+  ([GitHub Actions](debugging-and-ci.md#github-actions)).
 - `minimum_supported_version/0`: `PlaywrightEx.Driver.version/0`.
 
 ### Context, page, navigation
@@ -165,6 +170,10 @@ path = Page.evaluate!(page, "() => location.pathname")
 sum = Page.evaluate!(page, "([a, b]) => a + b", [1, 2])
 text = Page.locator(page, "button") |> Locator.evaluate!("el => el.textContent")
 ```
+
+`wait_for_function` follows suit: `Frame.wait_for_function(frame.guid, expression: e, is_function: true, arg: a, polling: "raf")`
+becomes `Page.wait_for_function(page, e, a, polling: :raf)` (or `Frame.wait_for_function/4`), and returns a
+`JSHandle` of the truthy value.
 
 ### Events, `subscribe/2`, `EventWaiter`
 
