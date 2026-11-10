@@ -363,16 +363,10 @@ defmodule PlaywrightEx.Client.EventEmitter do
         handler = fn error -> send(me, {ref, error}) end
 
         # A connection that exits during the wait still rejects it (TargetClosedError).
-        put? =
-          _unless_closed(
-            fn ->
-              put(this, :_rejectionHandler, handler)
-              true
-            end,
-            false
-          )
-
-        if put? do
+        if _unless_closed(fn ->
+             put(this, :_rejectionHandler, handler)
+             true
+           end) do
           try do
             _wait_for(this, type)
           after
@@ -417,13 +411,13 @@ defmodule PlaywrightEx.Client.EventEmitter do
   end
 
   @doc false
-  # Elixir only: removing listeners on a closed connection process is a no-op (`closed`), as JS's
+  # Elixir only: removing listeners on a closed connection process is a no-op (`nil`), as JS's
   # local emitter never throws there (a lost driver removed every listener,
   # `ChannelOwner._retire/2`). A listener's own error is collected as a message, never rescued here.
-  def _unless_closed(fun, closed \\ nil) do
+  def _unless_closed(fun) do
     fun.()
   rescue
-    TargetClosedError -> closed
+    TargetClosedError -> nil
   end
 
   # listeners, rawListeners  -- not ported: unused by the client
