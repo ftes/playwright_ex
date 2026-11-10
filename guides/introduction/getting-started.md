@@ -4,8 +4,10 @@ Snippets alias `PlaywrightEx.{Browser, BrowserType, Playwright, ...}`.
 
 ## Installation
 
-Add the dependency to `mix.exs` as shown in the [Overview](../../README.md#installation), then fetch
-it and install the driver and the browsers:
+Add the dependency to `mix.exs` as shown in the [Overview](../../README.md#installation). If you only
+use it in tests, prefer `only: [:dev, :test]` to `only: :test`: its mix tasks, and
+[`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) for its usage rules, then work in `:dev`,
+where it starts no driver. Fetch it and install the driver and the browsers:
 
 ```sh
 mix deps.get
@@ -38,13 +40,6 @@ BrowserType.launch!(Playwright.chromium(playwright), executable_path: "/path/to/
 PlaywrightEx needs Elixir 1.18 or later. The browsers run where Playwright's do: Windows 11+,
 macOS 14+, Debian 12 and 13, Ubuntu 22.04 and 24.04
 ([system requirements](https://playwright.dev/docs/intro#system-requirements)).
-
-### Test-only dependency
-
-Mix loads a dependency, and its tasks, only in the environments it lists. If PlaywrightEx is
-`only: :test`, make it `only: [:dev, :test]`, so that its tasks and
-[`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) (which reads only the current
-environment's dependencies) see it in `:dev`. In `:dev` it starts no driver.
 
 ## Starting the driver
 
