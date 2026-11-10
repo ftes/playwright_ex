@@ -252,6 +252,8 @@ Expect.not_to_be_visible!(locator)
 Expect.to_be_visible!(locator, timeout: 10_000)
 ```
 
+`timeout: 0` or `:infinity` waits forever, as in JS.
+
 ## Waiting
 {: .col-2}
 

@@ -9,6 +9,11 @@ defmodule PlaywrightEx do
       {:ok, browser} = PlaywrightEx.BrowserType.launch(PlaywrightEx.Playwright.chromium(playwright))
       :ok = PlaywrightEx.Browser.close(browser)
 
+  > #### `timeout: 0` means no timeout {: .warning}
+  >
+  > As in Playwright JS, `timeout: 0` waits forever instead of failing at once. `:infinity` is
+  > the same and reads better in Elixir.
+
   The public API (`PlaywrightEx.Playwright`, `PlaywrightEx.BrowserType`, ...) is generated from
   upstream's docs, so the docs at playwright.dev apply; the
   [Getting started](getting-started.md) and

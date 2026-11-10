@@ -105,7 +105,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -166,7 +166,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -249,7 +249,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -325,7 +325,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -391,7 +391,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -447,7 +447,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -515,7 +515,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -576,7 +576,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -639,7 +639,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -695,7 +695,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -762,7 +762,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -823,7 +823,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -885,7 +885,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -941,7 +941,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1003,7 +1003,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1059,7 +1059,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1132,7 +1132,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1194,7 +1194,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1272,7 +1272,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:visible` (`t:boolean/0`) - *Since Playwright 1.26.*
@@ -1333,7 +1333,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:visible` (`t:boolean/0`) - *Since Playwright 1.26.*
@@ -1421,7 +1421,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1488,7 +1488,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1613,7 +1613,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -1698,7 +1698,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -1783,7 +1783,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1860,7 +1860,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -1948,7 +1948,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2025,7 +2025,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2109,7 +2109,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2186,7 +2186,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2276,7 +2276,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2376,7 +2376,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2486,7 +2486,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2553,7 +2553,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2627,7 +2627,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2688,7 +2688,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2766,7 +2766,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2846,7 +2846,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2922,7 +2922,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -2989,7 +2989,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -3065,7 +3065,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -3135,7 +3135,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -3289,7 +3289,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -3605,7 +3605,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -3911,7 +3911,7 @@ defmodule PlaywrightEx.Expect do
   * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
@@ -4051,7 +4051,7 @@ defmodule PlaywrightEx.Expect do
   * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Defaults to `0.2`.
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
@@ -4181,7 +4181,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -4266,7 +4266,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
@@ -4341,7 +4341,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -4408,7 +4408,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -4493,7 +4493,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -4560,7 +4560,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -4614,7 +4614,7 @@ defmodule PlaywrightEx.Expect do
               optional(:timeout) => number() | :infinity
             }
 
-  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is the same as `0`: no timeout."
+  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is the same as `0`: no timeout."
   @spec to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil,
@@ -4701,7 +4701,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -4868,7 +4868,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -4935,7 +4935,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -5028,7 +5028,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -5102,7 +5102,7 @@ defmodule PlaywrightEx.Expect do
     the assertion fails without retrying further.
 
     In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
@@ -5162,7 +5162,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5182,7 +5182,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5215,7 +5215,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5248,7 +5248,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5267,7 +5267,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5286,7 +5286,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5306,7 +5306,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5326,7 +5326,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5345,7 +5345,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5364,7 +5364,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5384,7 +5384,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5404,7 +5404,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5423,7 +5423,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5442,7 +5442,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5461,7 +5461,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5480,7 +5480,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5506,7 +5506,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5532,7 +5532,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5551,7 +5551,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -5571,7 +5571,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -5591,7 +5591,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5610,7 +5610,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5636,7 +5636,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -5668,7 +5668,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -5700,7 +5700,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5726,7 +5726,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5752,7 +5752,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5778,7 +5778,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5804,7 +5804,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5830,7 +5830,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5856,7 +5856,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5882,7 +5882,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5901,7 +5901,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5920,7 +5920,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5939,7 +5939,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5958,7 +5958,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -5983,7 +5983,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6008,7 +6008,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6027,7 +6027,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6046,7 +6046,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6065,7 +6065,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6084,7 +6084,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6103,7 +6103,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6122,7 +6122,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6218,7 +6218,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -6327,7 +6327,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -6366,7 +6366,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -6398,7 +6398,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -6423,7 +6423,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6442,7 +6442,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6461,7 +6461,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6480,7 +6480,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6506,7 +6506,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6532,7 +6532,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6551,7 +6551,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6570,7 +6570,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6596,7 +6596,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }
@@ -6622,7 +6622,7 @@ defmodule PlaywrightEx.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       }

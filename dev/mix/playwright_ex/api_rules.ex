@@ -131,7 +131,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   }
 
   @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
-  @expect_timeout_doc "Time to retry the assertion for in milliseconds. Defaults to `timeout` in " <>
+  @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
                         "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
 
