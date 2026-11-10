@@ -4,7 +4,7 @@ PlaywrightEx is a 1:1 Elixir port of the Playwright client. Its API is generated
 docs, so playwright.dev applies; the Python docs are the closest read. For Phoenix feature tests
 with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy), which is built on this library.
 
-**`timeout: 0` means no timeout, not an immediate one.** As in Playwright JS, the call waits forever. Write `:infinity` for no timeout (the same as `0`), and a positive number of milliseconds otherwise.
+**`timeout: 0` (or `:infinity`) means no timeout, not an immediate one.** As in Playwright JS, the call waits forever.
 
 ## Setup
 
