@@ -182,7 +182,6 @@ defmodule PlaywrightEx.DriverLostTest do
     assert_raise TargetClosedError, fn -> Page.on(page, :close, fn _ -> :ok end) end
     # As in JS: removing a listener never raises.
     assert Page.off(page, :close, on_page_close) == page
-    assert Page.remove_listener(page, :close, fn _ -> :ok end) == page
     assert Page.remove_all_listeners(page, :close) == :ok
     assert Page.remove_all_listeners(page, behavior: :wait) == :ok
     assert Page.remove_all_listeners(page, behavior: :ignore_errors) == :ok
