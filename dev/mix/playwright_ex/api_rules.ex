@@ -132,7 +132,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Page.waitForWorker" => "worker"
   }
 
-  @timeout_doc "In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once."
+  @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
                         "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
@@ -203,8 +203,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # "Class.member" whose `Error` is a value thrown in the page: `parseError` returns any thrown
   # value, an exception only for an `Error` (upstream's type says `Error`).
   @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
-  @thrown_value_note "In Elixir, a page error is the value thrown in the page: an exception for an `Error`, " <>
-                       "else the value itself (`throw \"oops\"` gives `\"oops\"`)."
+  @thrown_value_note "In Elixir, a page error is an exception for a JS `Error`, else the raw value (a string, a number, ...)."
 
   # Members whose positional `timeout` is a timeout (`0` or `:infinity`: none), not a duration.
   @timeout_args ~w(setDefaultTimeout setDefaultNavigationTimeout)

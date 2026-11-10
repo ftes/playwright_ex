@@ -991,7 +991,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # --- types ---------------------------------------------------------------------
 
   # Schemas keep api.json order: `{:map, pairs}` is written as a map literal in that order.
-  # A positional `timeout` accepts `:infinity`, as the `timeout:` option does.
+  # A positional `timeout` (unless a duration, ApiRules) accepts `:infinity`, as the `timeout:` option does.
   # Options have snake_case keys and atom enums; nested objects are JS values (`{:fields, _}`,
   # JS keys, only checked), as in the Python client.
   defp arg_schema(ctx, %{"duration" => true} = arg), do: schema(ctx, arg["type"], :value)
