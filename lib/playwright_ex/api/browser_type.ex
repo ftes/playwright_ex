@@ -86,7 +86,7 @@ defmodule PlaywrightEx.BrowserType do
   * `:timeout` (`t:number/0` | `:infinity`) - *Since Playwright 1.10.* Maximum time in milliseconds to wait for the connection to be established. Defaults to
     `0` (no timeout).
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec connect(t(), String.t(), connect_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, PlaywrightEx.error()}
   def connect(browser_type, endpoint, options \\ []) do
@@ -191,7 +191,7 @@ defmodule PlaywrightEx.BrowserType do
   * `:timeout` (`t:number/0` | `:infinity`) - *Since Playwright 1.11.* Maximum time in milliseconds to wait for the connection to be established. Defaults to
     `30000` (30 seconds). Pass `0` to disable timeout.
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec connect_over_cdp(t(), String.t(), connect_over_cdp_options()) ::
           {:ok, PlaywrightEx.Browser.t()} | {:error, PlaywrightEx.error()}
@@ -383,7 +383,7 @@ defmodule PlaywrightEx.BrowserType do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
     disable timeout.
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:traces_dir` (`t:String.t/0`) - If specified, traces are saved into this directory.
   """
   @spec launch(t(), launch_options()) :: {:ok, PlaywrightEx.Browser.t()} | {:error, PlaywrightEx.error()}
@@ -880,7 +880,7 @@ defmodule PlaywrightEx.BrowserType do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0` to
     disable timeout.
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:timezone_id` (`t:String.t/0`) - Changes the timezone of the context. See [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
     for a list of supported timezone IDs. Defaults to the system timezone.
   * `:traces_dir` (`t:String.t/0`) - If specified, traces are saved into this directory.

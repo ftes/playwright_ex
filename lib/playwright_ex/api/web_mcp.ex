@@ -66,7 +66,7 @@ defmodule PlaywrightEx.WebMCP do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec call_tool(t(), String.t(), term() | nil, call_tool_options()) :: {:ok, term()} | {:error, PlaywrightEx.error()}
   def call_tool(web_mcp, name, input \\ nil, options \\ []) do
@@ -105,7 +105,7 @@ defmodule PlaywrightEx.WebMCP do
     using the `PlaywrightEx.BrowserContext.set_default_timeout/2` or
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   """
   @spec tools(t(), tools_options()) ::
           {:ok,

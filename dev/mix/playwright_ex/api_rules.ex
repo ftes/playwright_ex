@@ -22,7 +22,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
-    * `waitForTimeout(timeout)` is a duration (`"duration"`), not a timeout: no `:infinity`.
+    * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
+      unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`), and
       drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
@@ -131,7 +132,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     "Page.waitForWorker" => "worker"
   }
 
-  @timeout_doc "`0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same."
+  @timeout_doc "In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds. Defaults to `timeout` in " <>
                         "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
   @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
@@ -204,6 +205,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
   @thrown_values ~w(WebError.error Page.pageError Page.pageErrors)
   @thrown_value_note "In Elixir, a page error is the value thrown in the page: an exception for an `Error`, " <>
                        "else the value itself (`throw \"oops\"` gives `\"oops\"`)."
+
+  # Members whose positional `timeout` is a timeout (`0` or `:infinity`: none), not a duration.
+  @timeout_args ~w(setDefaultTimeout setDefaultNavigationTimeout)
 
   # "Class.member" => an Elixir note appended to its docs.
   @notes %{
@@ -857,8 +861,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   defp route_handler(arg), do: arg
 
-  # `waitForTimeout(timeout)`: how long to wait, `0` is no wait.
-  defp duration(%{"name" => "timeout"} = arg, "waitForTimeout"), do: Map.put(arg, "duration", true)
+  # A positional `timeout` is how long to wait (`waitForTimeout`, `0` is no wait), unless it is
+  # a default timeout. Unlisted, a new one rejects `:infinity` rather than turning it into `0`.
+  defp duration(%{"name" => "timeout"} = arg, member) when member not in @timeout_args,
+    do: Map.put(arg, "duration", true)
+
   defp duration(arg, _member), do: arg
 
   defp property(%{"duration" => true} = property), do: type(property)

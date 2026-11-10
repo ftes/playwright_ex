@@ -273,7 +273,7 @@ defmodule PlaywrightEx.APIRequest do
   * `:timeout` (`t:number/0` | `:infinity`) - Maximum time in milliseconds to wait for the response. Defaults to
     `30000` (30 seconds). Pass `0` to disable timeout.
 
-    `0` means no timeout (it waits forever rather than failing at once). In Elixir, `:infinity` is the same.
+    In Elixir, `:infinity` is the same as `0`: the call waits forever, it does not fail at once.
   * `:user_agent` (`t:String.t/0`) - Specific user agent to use in this context.
   """
   @spec new_context(t(), new_context_options()) ::
