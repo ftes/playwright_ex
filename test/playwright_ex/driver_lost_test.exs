@@ -183,6 +183,9 @@ defmodule PlaywrightEx.DriverLostTest do
     # As in JS: removing a listener never raises.
     assert Page.off(page, :close, on_page_close) == page
     assert Page.remove_listener(page, :close, fn _ -> :ok end) == page
+    assert Page.remove_all_listeners(page, :close) == :ok
+    assert Page.remove_all_listeners(page, behavior: :wait) == :ok
+    assert Page.remove_all_listeners(page, behavior: :ignore_errors) == :ok
     # As in JS: closing what is closed returns.
     assert Page.close!(page) == :ok
     assert BrowserContext.close!(context) == :ok
