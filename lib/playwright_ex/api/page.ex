@@ -154,7 +154,7 @@ defmodule PlaywrightEx.Page do
   Page.goto!(page, ~s{data:text/html,<script>throw new Error("Test")</script>})
   ```
 
-  In Elixir, a page error is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+  In Elixir, a page error is an exception for a JS `Error`, else the raw value (a string, a number, ...).
 
   ### `:popup`
 
@@ -3257,7 +3257,7 @@ defmodule PlaywrightEx.Page do
   @doc ~S"""
   Returns up to (currently) 200 last page errors from this page. See [`Page.on(:page_error)`](PlaywrightEx.Page.html#module-page_error) for more details.
 
-  In Elixir, a page error is the value thrown in the page: an exception for an `Error`, else the value itself (`throw "oops"` gives `"oops"`).
+  In Elixir, a page error is an exception for a JS `Error`, else the raw value (a string, a number, ...).
 
   *Since Playwright 1.56.*
 
