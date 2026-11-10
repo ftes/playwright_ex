@@ -39,6 +39,21 @@ PlaywrightEx needs Elixir 1.18 or later. The browsers run where Playwright's do:
 macOS 14+, Debian 12 and 13, Ubuntu 22.04 and 24.04
 ([system requirements](https://playwright.dev/docs/intro#system-requirements)).
 
+### Test-only dependency
+
+Mix loads a dependency only in the environments it lists, so with `only: :test` its tasks run in
+`:test`. So does [`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) for PlaywrightEx's usage
+rules: it reads only the current environment's dependencies, and `usage_rules` needs `:test` too.
+To run both there by default:
+
+```elixir
+def cli do
+  [preferred_envs: ["playwright_ex.install": :test, "usage_rules.sync": :test]]
+end
+```
+
+An alias that runs `playwright_ex.install` needs the same entry.
+
 ## Starting the driver
 
 `PlaywrightEx.Supervisor` runs one driver and its connection. Add it to your supervision tree:
