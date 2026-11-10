@@ -59,8 +59,8 @@ page = BrowserContext.new_page!(context)
   the browser doesn't render leaves accessible names). `executable:`
   takes a Playwright 1.65 CLI such as `node_modules/.bin/playwright`, not `cli.js`: a path (not
   looked up in `$PATH`), whose version nothing checks.
-- PlaywrightEx ships usage rules (`usage-rules.md`). For a test-only dependency, run
-  `mix usage_rules.sync` in `:test` ([Test-only dependency](introduction/getting-started.md#test-only-dependency)).
+- PlaywrightEx ships usage rules (`usage-rules.md`). `mix usage_rules.sync` in `:dev` misses them
+  if PlaywrightEx is `only: :test` ([Test-only dependency](introduction/getting-started.md#test-only-dependency)).
 - The supervisor's `timeout:`, `js_logger:`, `ws_endpoint:` and `fail_on_unknown_opts:` options
   are gone (unknown options raise); `env:` stays. Its `connection_name/1` and the `connection:`
   option are replaced by `PlaywrightEx.playwright(name)`. Its default name is `PlaywrightEx` (was
