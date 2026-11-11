@@ -18,6 +18,9 @@
   "gitIgnoredAuthors": [
     "41898282+github-actions[bot]@users.noreply.github.com"
   ],
+  "ignorePaths": [
+    ".tool-versions.oldest"
+  ],
   "rangeStrategy": "replace",
   "packageRules": [
     {

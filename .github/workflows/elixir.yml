@@ -133,6 +133,57 @@ jobs:
             deps
             _build
 
+  # The mix.exs floor (.tool-versions.oldest, swapped in before mise), for bugs only: it compiles,
+  # nothing else runs, and warnings pass so newer backwards-compatible features stay usable. As
+  # Fluffy's oldest lane. Its own cache key, as the key hashes the swapped .tool-versions.
+  oldest:
+    name: Build (oldest)
+    if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Select oldest toolchain
+        run: cp .tool-versions.oldest .tool-versions
+      - name: Setup languages
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - name: Get runner image
+        id: runner_image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      - name: Restore deps and _build
+        id: mix_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
+          restore-keys: |
+            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-
+            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
+          path: |
+            deps
+            _build
+      - name: Install dependencies
+        run: mix "do" deps.get, deps.compile
+      # Except calls to a function or module the floor lacks: only a warning on 1.18 ("X.y/1 is
+      # undefined or private", "X.y/0 is undefined (module X is not available ...)"), but a crash
+      # at runtime. --all-warnings repeats the warnings of modules the restored _build doesn't
+      # recompile; pipefail keeps a failed compile from hiding behind tee.
+      - name: Compile without undefined calls
+        run: |
+          set -o pipefail
+          mix compile --all-warnings 2>&1 | tee "$RUNNER_TEMP/compile.log"
+          if grep -E 'warning: .* is undefined' "$RUNNER_TEMP/compile.log"; then
+            echo "::error::Calls to functions or modules undefined on the oldest Elixir/OTP"
+            exit 1
+          fi
+      - name: Save deps and _build
+        if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: ${{ steps.mix_cache.outputs.cache-primary-key }}
+          path: |
+            deps
+            _build
+
   # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
   # path). Parity, Selenium and headful run once per browser, in partition 1.
   test:
@@ -300,14 +351,16 @@ jobs:
         if: failure()
         run: cat "$RUNNER_TEMP/xvfb.log" || true
 
-  # The one check to require: green when every browser's partitions are.
+  # The one check to require: green when every browser's partitions and the oldest lane are.
   tests:
     name: Tests
     if: always()
-    needs: test
+    needs: [test, oldest]
     runs-on: ubuntu-latest
     steps:
       # Green without checking on a draft or a PR below the top of its stack, whose jobs above are
       # skipped.
       - if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
-        run: test "${{ needs.test.result }}" = success
+        run: |
+          test "${{ needs.test.result }}" = success
+          test "${{ needs.oldest.result }}" = success || ${{ inputs.skip_lint == true }}
