@@ -4,8 +4,10 @@ Snippets alias `PlaywrightEx.{Browser, BrowserType, Playwright, ...}`.
 
 ## Installation
 
-Add the dependency to `mix.exs` as shown in the [Overview](../../README.md#installation), then fetch
-it and install the driver and the browsers:
+Add the dependency to `mix.exs` as shown in the [Overview](../../README.md#installation). If you only
+use it in tests, prefer `only: [:dev, :test]` to `only: :test`: its mix tasks, and
+[`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) for its usage rules, then work in `:dev`,
+where it starts no driver. Fetch it and install the driver and the browsers:
 
 ```sh
 mix deps.get

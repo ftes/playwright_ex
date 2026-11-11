@@ -57,8 +57,10 @@ page = BrowserContext.new_page!(context)
   read Playwright's [release notes](https://playwright.dev/docs/release-notes) (1.65 breaks some
   tests: actions wait for the element to be not inert, cookie matching follows RFC 6265, and text
   the browser doesn't render leaves accessible names). `executable:`
-  still takes an npm-managed CLI: a path (not looked up in `$PATH`), at that version, which
-  nothing checks.
+  takes a Playwright 1.65 CLI such as `node_modules/.bin/playwright`, not `cli.js`: a path (not
+  looked up in `$PATH`), whose version nothing checks.
+- Prefer `only: [:dev, :test]` to `only: :test`, so that the mix tasks and `mix usage_rules.sync`
+  (PlaywrightEx ships `usage-rules.md`) work in `:dev` ([Installation](introduction/getting-started.md#installation)).
 - The supervisor's `timeout:`, `js_logger:`, `ws_endpoint:` and `fail_on_unknown_opts:` options
   are gone (unknown options raise); `env:` stays. Its `connection_name/1` and the `connection:`
   option are replaced by `PlaywrightEx.playwright(name)`. Its default name is `PlaywrightEx` (was
