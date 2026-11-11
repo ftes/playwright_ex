@@ -122,18 +122,6 @@ defmodule PlaywrightEx.RemoteServer do
     ChildProcess.stop(process)
   end
 
-  defmodule PlaywrightServer do
-    @moduledoc "Upstream's `interface PlaywrightServer`: `wsEndpoint()` and `close()` of either kind."
-    alias PlaywrightEx.RemoteServer
-    alias PlaywrightEx.RemoteServer.RunServer
-
-    def ws_endpoint(%RunServer{} = server), do: RunServer.ws_endpoint(server)
-    def ws_endpoint(%RemoteServer{} = server), do: RemoteServer.ws_endpoint(server)
-
-    def close(%RunServer{} = server), do: RunServer.close(server)
-    def close(%RemoteServer{} = server), do: RemoteServer.close(server)
-  end
-
   defmodule LaunchServer do
     @moduledoc """
     `browserType.launchServer(options)` for the tests (`BrowserServer` is not in the API,
@@ -451,5 +439,18 @@ defmodule PlaywrightEx.RemoteServer do
           :ok
       end
     end
+  end
+
+  # After RunServer: Elixir 1.18 cannot expand %RunServer{} before it is defined.
+  defmodule PlaywrightServer do
+    @moduledoc "Upstream's `interface PlaywrightServer`: `wsEndpoint()` and `close()` of either kind."
+    alias PlaywrightEx.RemoteServer
+    alias PlaywrightEx.RemoteServer.RunServer
+
+    def ws_endpoint(%RunServer{} = server), do: RunServer.ws_endpoint(server)
+    def ws_endpoint(%RemoteServer{} = server), do: RemoteServer.ws_endpoint(server)
+
+    def close(%RunServer{} = server), do: RunServer.close(server)
+    def close(%RemoteServer{} = server), do: RemoteServer.close(server)
   end
 end
