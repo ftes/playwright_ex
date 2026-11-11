@@ -16,11 +16,12 @@ env:
 
 jobs:
   claude:
+    # Only maintainers: the action rejects anyone else, but only after the setup below.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,12 +37,31 @@ jobs:
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
+      # On a fork's PR Claude works in the fork's head, where mix runs its mix.exs (and
+      # .formatter.exs, .credo.exs) with the Claude and app tokens in reach: no mix tools there,
+      # only read-only git and gh. An issue is no PR; a failed lookup fails the job.
+      - name: Choose Claude's tools
+        id: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.issue.pull_request && github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          fork=false
+          if [[ -n $PR ]]; then
+            fork=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository --jq .isCrossRepository)
+          fi
+          tools="Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)"
+          mix="Bash(mix deps.get:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*)"
+          if [[ $fork != false ]]; then echo "::notice::A fork's PR: no mix tools"; else tools="$tools,$mix"; fi
+          echo "allowed=$tools" >> "$GITHUB_OUTPUT"
       - name: Setup languages
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Get runner image
         id: runner_image
         run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      # Main's, saved by elixir.yml's build job under this key, so only a branch's changes compile.
+      # Main's, saved by elixir.yml's build job under this key. A comment's checkout is main (the
+      # action switches to the PR's branch after), so a PR that changes mix.lock needs
+      # `mix deps.get`, which Claude may run.
       - name: Restore deps and _build
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -75,15 +95,15 @@ jobs:
           settings: |
             {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
           # No prompt: Claude follows the comment that tagged it. The action adds its own tools (file
-          # tools, commit and push, its comment); these are the project's checks and tasks, read-only
-          # git and gh, and --add-dir the driver cache holding the upstream sources. Tests need
-          # browsers, so CI runs them.
+          # tools, commit and push, its comment); steps.tools adds read-only git and gh, and the
+          # project's mix tasks except on a fork's PR. --add-dir: the driver cache holding the
+          # upstream sources. Tests need browsers, so CI runs them.
           claude_args: |
             --model claude-opus-5-5
             --max-turns 100
             --add-dir /home/runner/.cache/playwright_ex
             --append-system-prompt "Upstream's sources at the pin (client, server, injected script, specs, API docs) are under ~/.cache/playwright_ex/<version>/upstream; dependencies are in deps/. Tests can't run here: CI runs them on your push."
-            --allowedTools "Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)"
+            --allowedTools "${{ steps.tools.outputs.allowed }}"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
