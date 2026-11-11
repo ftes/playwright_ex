@@ -245,6 +245,19 @@ the browser) takes one of its own:
 setup_all ctx, do: browser(ctx, isolate: true)
 ```
 
+Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
+on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true` (up
+to `max_isolated` modules at once). For a few Firefox modules in a mixed suite, put them in one
+ExUnit group: modules of a group never run at once, so one shared Firefox serves one module at a
+time while the others run in parallel. It needs no formatter, and covers a second user on
+Firefox inside a test too (`browser(browser_name: :firefox)`, which can't isolate):
+
+```elixir
+use ExUnit.Case, async: true, group: :firefox
+
+setup_all do: browser(browser_name: :firefox)
+```
+
 That is Playwright Test's model: a driver and its browsers per worker, used by one module at a time
 and replaced after a failure. At most `max_isolated` modules hold one at once (config, default
 half the schedulers); the others wait. To set up each new driver (register selectors, say), pass

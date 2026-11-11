@@ -272,8 +272,13 @@ drivers stop in `ExUnit.after_suite/1`, as `mix test` halts without stopping app
 A crashed shared browser fails the remaining tests of every module using it, where upstream
 restarts its worker; the next `browser/1` launches it again. ExUnit gives the context a
 `parameterize:` module's values, not its parameter map, so the fragments guess the map; a wrong
-guess leaves files unpruned and an isolated driver to the wait, rather than failing. If one
-driver per key limits throughput, a `pool_size` (as Fluffy has) is the remedy.
+guess leaves files unpruned and an isolated driver to the wait, rather than failing.
+
+Firefox serializes input across the pages of a browser: 20 `Mouse.move`s take 378 ms on one
+page, and 5 s on each of 16 pages at once; Chromium and WebKit stay flat (2026-11-11, macOS).
+Our page specs at 18 modules at once time out by the hundreds on one shared Firefox, and still
+on 4. So `isolate: true` is the fix on Firefox (our suite isolates every module there), and a
+`pool_size` is deferred, as Firefox needs about a browser per module.
 
 Rejected: porting Playwright Test, testInfo's expect (`toPass`, `expect.poll`, soft asserts,
 steps), a CaseTemplate (fragments compose with the user's own), options from tags (a template

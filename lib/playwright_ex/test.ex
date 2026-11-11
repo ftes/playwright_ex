@@ -39,8 +39,11 @@ defmodule PlaywrightEx.Test do
   `browser/1` returns a shared browser per `browser_name` and `launch_options`, on a driver
   shared per `driver` and `on_start`, launched on first use and again if lost. A module that
   changes the driver or browser for everyone takes `isolate: true` in `setup_all`: a driver of
-  its own, discarded if a test fails, at most `max_isolated` at once. Every driver stops after
-  the suite.
+  its own, discarded if a test fails, at most `max_isolated` at once. Firefox serializes input
+  (mouse, keyboard) across all pages of a browser, so concurrent modules on a shared Firefox slow
+  each other down: use `isolate: true` when the run is Firefox, or `use ExUnit.Case, group:
+  :firefox` for a few Firefox modules (a group's modules never run at once). Every driver stops
+  after the suite.
 
   ## Artifacts
 
