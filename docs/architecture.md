@@ -260,7 +260,9 @@ upstream's artifact code as the model (`ArtifactsRecorder` hooks on `ClientInstr
 Browsers are shared by default, unlike those clients' browser per worker thread: their client
 is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
 worth of modules at once, so a driver per module would multiply drivers for nothing. Contexts
-isolate tests. A driver hosts every browser type, as upstream's one Playwright does, so a
+isolate tests. At most `workers` drivers run, upstream's default half the cores
+(`packages/playwright/src/common/config.ts:111`): a key's modules join the least-held of its
+drivers, and another starts while each would hold more than `ceil(max_cases / workers)`. A driver hosts every browser type, as upstream's one Playwright does, so a
 test's recording (a listener on the driver's instrumentation, keyed by `test_pid`) sees the
 contexts of all its browsers. The driver also adds every call's stack to each trace on its
 connection, so the trace merge keeps a chunk's own actions' stacks and sources. `isolate: true`

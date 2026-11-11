@@ -240,7 +240,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert %{browser_name: :chromium, isolate: false, on_start: nil} = Options.browser([])
     assert %{trace: :off, screenshot: :off, video: :off} = Options.artifacts([])
     assert Options.output_dir() == "test-results"
-    assert Options.max_isolated() == max(div(System.schedulers_online(), 2), 1)
+    assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
     Application.put_env(:playwright_ex, :test, config)
   end
 

@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   test "two users edit one document", ctx do
     %{context: ada} = new_context(ctx)
     %{context: bob} = new_context(ctx)
-    %{browser: other} = browser(browser_name: ctx.browser_name, launch_options: [slow_mo: 1])
+    %{browser: other} = browser(ctx, browser_name: ctx.browser_name, launch_options: [slow_mo: 1])
     %{context: eve} = new_context(%{ctx | browser: other})
 
     ada_page = BrowserContext.new_page!(ada)

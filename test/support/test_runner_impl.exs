@@ -23,7 +23,7 @@ Application.put_env(:playwright_ex, :test,
   output_dir: output_dir,
   trace: :retain_on_failure,
   screenshot: :only_on_failure,
-  max_isolated: 8
+  workers: 8
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.

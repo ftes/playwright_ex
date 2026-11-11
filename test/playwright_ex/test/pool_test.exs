@@ -1,5 +1,5 @@
 defmodule PlaywrightEx.Test.PoolTest do
-  # Sets `max_isolated` and stops every driver of `PlaywrightEx.Test` (`after_suite`,
+  # Sets `workers` and stops every driver of `PlaywrightEx.Test` (`after_suite`,
   # `stop_all`): not async, so it runs alone, after the async modules. The sync modules after it
   # get new drivers from their `setup_all`.
   use ExUnit.Case, async: false
@@ -151,14 +151,70 @@ defmodule PlaywrightEx.Test.PoolTest do
     end
   end
 
-  describe "isolate" do
+  # `workers` for the test (the idle drivers of the modules before it are stopped for room).
+  defp put_workers(workers) do
+    config = Application.get_env(:playwright_ex, :test)
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :workers, workers))
+  end
+
+  describe "workers" do
     setup do
       config = Application.get_env(:playwright_ex, :test)
-      Application.put_env(:playwright_ex, :test, Keyword.put(config, :max_isolated, 2))
-      on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+      max_cases = Application.fetch_env!(:ex_unit, :max_cases)
+      put_workers(2)
+
+      on_exit(fn ->
+        Application.put_env(:playwright_ex, :test, config)
+        Application.put_env(:ex_unit, :max_cases, max_cases)
+      end)
     end
 
-    test "at most max_isolated modules have a driver at once; a failed module's is discarded" do
+    test "a shared driver holds ceil(max_cases / workers) modules, then another starts while there is room" do
+      # Two modules per driver.
+      Application.put_env(:ex_unit, :max_cases, 4)
+      opts = Keyword.put(opts(), :driver, env: [{"PW_POOL_TEST", "share"}])
+      [m1, m2, m3, m4, m5] = for _ <- 1..5, do: module()
+      a = browser(m1, opts)
+      assert browser(m2, opts).playwright == a.playwright
+      b = browser(m3, opts)
+      assert b.playwright != a.playwright
+      assert browser(m4, opts).playwright == b.playwright
+
+      # Both full and no room: the least-held anyway. A module holds a driver once; a call without
+      # a token uses the least-held without holding it.
+      %{playwright: fifth} = browser(m5, opts)
+      assert fifth in [a.playwright, b.playwright]
+      assert browser(m1, opts).playwright == a.playwright
+      assert browser(opts).playwright != fifth
+
+      # The modules leave at their end: an isolated module stops an idle shared driver for room.
+      for m <- [m1, m2, m5], do: Pool.module_finished(m.playwright_ex_module)
+      mi = module()
+      isolated = browser(mi, Keyword.put(opts, :isolate, true))
+      assert gone?(a.browser)
+      assert isolated.playwright != b.playwright
+      assert Browser.is_connected(b.browser)
+
+      # Every worker in use: a shared module joins the key's driver past its share.
+      m6 = module()
+      assert browser(m6, opts).playwright == b.playwright
+      for m <- [m3, m4, m6, mi], do: Pool.module_finished(m.playwright_ex_module)
+    end
+
+    test "a shared module waits while every worker is in use" do
+      [mi, mj, ms] = for _ <- 1..3, do: module()
+      browser(mi, opts(isolate: true))
+      browser(mj, opts(isolate: true))
+      opts = Keyword.put(opts(), :driver, env: [{"PW_POOL_TEST", "waits"}])
+      shared = Task.async(fn -> browser(ms, opts) end)
+      assert Task.yield(shared, 1_000) == nil
+      Pool.module_finished(mi.playwright_ex_module)
+      assert %{browser: browser} = Task.await(shared)
+      assert Browser.is_connected(browser)
+      for m <- [mj, ms], do: Pool.module_finished(m.playwright_ex_module)
+    end
+
+    test "at most workers drivers at once; a failed module's is discarded" do
       opts = opts(isolate: true)
       [ma, mb, mc, md] = for _ <- 1..4, do: module()
       a = browser(ma, opts)
@@ -183,16 +239,15 @@ defmodule PlaywrightEx.Test.PoolTest do
       for m <- [mc, md], do: run_test(m, [], :boom) && Pool.module_finished(m.playwright_ex_module)
     end
 
-    # Idle slots above `max_isolated` (the suite's, when this test lowers it): busy slots alone
-    # count against it.
-    test "idle slots of another key make no room while busy slots fill max_isolated" do
-      config = Application.get_env(:playwright_ex, :test)
-      Application.put_env(:playwright_ex, :test, Keyword.put(config, :max_isolated, 4))
+    # Idle drivers above `workers` (when this test lowers it) are stopped for room: drivers in use
+    # alone count against it.
+    test "idle drivers of another key make no room while drivers in use fill workers" do
+      put_workers(4)
       other = opts(isolate: true, on_start: {__MODULE__, :on_start, [self()]})
       ms = for _ <- 1..3, do: module()
       for m <- ms, do: browser(m, other)
       for m <- ms, do: Pool.module_finished(m.playwright_ex_module)
-      Application.put_env(:playwright_ex, :test, Keyword.put(config, :max_isolated, 2))
+      put_workers(2)
 
       opts = opts(isolate: true)
       [mn, mo, mp] = for _ <- 1..3, do: module()

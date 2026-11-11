@@ -12,7 +12,8 @@ those of the release candidates below. From an earlier release, also read the se
 
 ### Added
 - `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
-  shared browser per set of options or one per module (`isolate: true`, taken on first use), and
+  shared browser per set of options or one per module (`isolate: true`, taken on first use) on at
+  most `workers` drivers (half the schedulers, as Playwright Test's default), and
   traces, screenshots and videos of every context a test creates (`record_artifacts/2`), kept for
   failures, plus Playwright Test's `error-context.md` of each failed test. `use
   PlaywrightEx.Test` after `use ExUnit.Case` brings a `test` macro that tells the fragments each

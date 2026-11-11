@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Test.Options do
   @browser_keys [:browser_name, :launch_options, :driver, :on_start, :isolate]
   @artifact_keys [:trace, :screenshot, :video]
   @context_keys [:context_options]
-  @config_only_keys [:output_dir, :max_isolated]
+  @config_only_keys [:output_dir, :workers]
   @config_keys (@browser_keys -- [:isolate]) ++ @artifact_keys ++ @context_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
@@ -31,8 +31,8 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The root of the output dirs (config `output_dir`, default `test-results`)."
   def output_dir, do: config()[:output_dir]
 
-  @doc "How many isolated drivers may run at once (config `max_isolated`)."
-  def max_isolated, do: config()[:max_isolated]
+  @doc "How many drivers may run at once (config `workers`)."
+  def workers, do: config()[:workers]
 
   defp merge(keys, opts) do
     if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
@@ -85,7 +85,7 @@ defmodule PlaywrightEx.Test.Options do
       video: :off,
       context_options: [],
       output_dir: "test-results",
-      max_isolated: max(div(System.schedulers_online(), 2), 1)
+      workers: max(div(System.schedulers_online(), 2), 1)
     }
   end
 
@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Test.Options do
   defp validate!(:isolate, value) when is_boolean(value), do: value
   defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode) and mode != nil, do: mode!(key, mode)
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
-  defp validate!(:max_isolated, max) when is_integer(max) and max > 0, do: max
+  defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   defp validate!(key, value), do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}")
 
   defp mode!(key, mode) do

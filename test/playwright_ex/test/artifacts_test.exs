@@ -189,7 +189,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     end)
 
     record_artifacts(ctx, trace: :on)
-    %{browser: browser} = browser(browser_name: PlaywrightEx.TestBrowser.other_name())
+    %{browser: browser} = browser(ctx, browser_name: PlaywrightEx.TestBrowser.other_name())
     page(Browser.new_context!(ctx.browser), "OWN")
     page(Browser.new_context!(browser), "OTHER-TYPE")
   end

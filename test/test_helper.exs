@@ -11,13 +11,11 @@ max_cases =
   end
 
 # `PlaywrightEx.Test`, which every case template gets its browser from (`UpstreamCase`,
-# `ExampleCase`, its own tests in test/playwright_ex/test): the browser under test, artifacts
-# outside the checkout, and a driver for each isolated module running at once (every module on
-# Firefox, see `PlaywrightEx.SharedDriver.isolate?/1`).
+# `ExampleCase`, its own tests in test/playwright_ex/test): the browser under test and artifacts
+# outside the checkout.
 Application.put_env(:playwright_ex, :test,
   browser_name: String.to_atom(PlaywrightEx.TestBrowser.name()),
-  output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results"),
-  max_isolated: max_cases
+  output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results")
 )
 
 # Headed windows steal focus on macOS: `mix test --include headed` runs them (PORTING "Tests").
