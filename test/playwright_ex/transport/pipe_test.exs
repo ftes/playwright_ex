@@ -65,6 +65,14 @@ defmodule PlaywrightEx.Transport.PipeTest do
     refute_receive {:closed, _}
   end
 
+  @tag :tmp_dir
+  test "close/1 waits until the driver has exited", %{tmp_dir: tmp_dir} do
+    exited = Path.join(tmp_dir, "exited")
+    pipe = start("cat >/dev/null; sleep 0.3; touch '#{exited}'")
+    assert :ok = Pipe.close(pipe)
+    assert File.exists?(exited)
+  end
+
   test "driver exit calls on_close with its exit status" do
     start("exit 3")
     assert_receive {:closed, 3}, 5000

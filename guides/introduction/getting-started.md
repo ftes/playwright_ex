@@ -62,8 +62,12 @@ uses. If only your tests need a browser, start it in `test/test_helper.exs`:
 
 ```elixir
 {:ok, _} = PlaywrightEx.Supervisor.start_link()
+ExUnit.after_suite(fn _ -> Supervisor.stop(PlaywrightEx) end)
 ExUnit.start()
 ```
+
+`mix test` halts the VM without stopping the supervisor. Stopping it in `after_suite` waits for
+the driver to exit, which could otherwise reset the terminal after the run (↑ printing `OA`).
 
 To use an npm-managed Playwright instead of the pinned driver, pass
 `executable: "assets/node_modules/.bin/playwright"`; `PlaywrightEx.Driver` lists the other
@@ -83,10 +87,14 @@ Page.goto!(page, "https://playwright.dev/")
 IO.puts(Page.title!(page))
 Page.screenshot!(page, path: "example.png")
 Browser.close!(browser)
+Supervisor.stop(PlaywrightEx)
 ```
 
-Save it as `example.exs` and run `mix run example.exs`. If your application already starts the
-supervisor, drop the `start_link/1` line and pass its name to `PlaywrightEx.playwright/1`.
+Save it as `example.exs` and run `mix run example.exs`. `mix run` halts the VM without stopping
+the supervisor; `Supervisor.stop/1` waits for the driver to exit, which could otherwise reset the
+terminal afterwards. If your application already starts the supervisor, drop the `start_link/1`
+and `Supervisor.stop/1` lines, pass its name to `PlaywrightEx.playwright/1`, and end the script
+with `Application.stop(:my_app)` instead (your app restarts a supervisor stopped on its own).
 
 [`Browser.new_page!/1`](`PlaywrightEx.Browser.new_page!/1`) opens a page in a context of its own. A
 [context](https://playwright.dev/docs/browser-contexts) is an isolated browser session (cookies,

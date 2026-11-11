@@ -18,11 +18,14 @@ browser =
   |> PlaywrightEx.BrowserType.launch!()
 
 :persistent_term.put(MyApp.BrowserCase, browser)
+ExUnit.after_suite(fn _ -> Supervisor.stop(PlaywrightEx) end)
 ExUnit.start()
 ```
 
 `test_helper.exs` runs in the process that runs the suite, so the browser lives as long as the
-run and closes with it. For a lazy launch and a restart after a crash, keep it in a supervised
+run. `mix test` halts the VM without stopping the supervisor, so `after_suite` stops it: that
+closes the browser and waits for the driver to exit, which could otherwise reset the terminal
+after the run (↑ printing `OA`). For a lazy launch and a restart after a crash, keep it in a supervised
 process instead; [Fluffy](https://hex.pm/packages/fluffy)'s `BrowserRuntime` is one. A case
 template gives each test a fresh context and page of that browser:
 

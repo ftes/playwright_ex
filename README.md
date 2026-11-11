@@ -38,6 +38,8 @@ page = Browser.new_page!(browser)
 Page.goto!(page, "https://elixir-lang.org/")
 Page.get_by_role(page, :link, name: "Install") |> Locator.click!()
 Expect.to_have_title!(page, ~r/Install/)
+# Closes the browser and waits for the driver to exit before the VM halts.
+Supervisor.stop(PlaywrightEx)
 ```
 
 **`timeout: 0` means no timeout.** As in Playwright JS, it waits forever instead of failing at
