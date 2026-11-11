@@ -1,14 +1,15 @@
 defmodule PlaywrightEx.Test.Pool do
   @moduledoc false
-  # The drivers and browsers of `PlaywrightEx.Test.browser/1`, keyed by the module options
-  # (`browser_name`, `launch_options`, `driver`, `on_start`). Each driver lives in a
-  # `PlaywrightEx.Test.Pool.Slot`, which starts it, launches its browser and anchors it. A slot
-  # is `{pid, key}`.
+  # The drivers and browsers of `PlaywrightEx.Test.browser/1`. Each driver lives in a
+  # `PlaywrightEx.Test.Pool.Slot`, keyed by its `driver` options and `on_start`, which starts
+  # it, launches its browsers (one per `browser_name` and `launch_options`) and anchors them. A
+  # slot is `{pid, key}`.
   #
   # Shared (after Fluffy's `BrowserRuntime`): one slot per key, used by modules at once.
   #
   # Exclusive (`isolate: true`, upstream's worker model, `test/support/test_workers.ex` before
-  # it): a module checks a slot out in `setup_all` and `PlaywrightEx.Test.Formatter` checks it
+  # it): a module (an owner: `{module, parameters}`) checks a slot out in `setup_all`, and its
+  # further `browser/2` calls get the same slot's browsers, and `PlaywrightEx.Test.Formatter` checks it
   # in at `module_finished`, discarded after a failure. At most `max_isolated` exclusive slots
   # run at once, the rest wait.
   #
@@ -22,9 +23,11 @@ defmodule PlaywrightEx.Test.Pool do
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool.Slot
 
-  # A module whose `module_finished` never comes (ExUnit's `max_failures`) would hold its slot
-  # for the rest of the run: after this long without a check-in, the first waiting module gets
-  # one above `max_isolated`.
+  require Logger
+
+  # A module whose `module_finished` never comes (ExUnit's `max_failures`, or an owner whose
+  # parameters were guessed wrong) would hold its slot for the rest of the run: after this long
+  # without a check-in, the first waiting module gets one above `max_isolated`.
   @wait 120_000
 
   @doc "The table of `PlaywrightEx.Test`'s recorders and retained files (public, owned here)."
@@ -44,7 +47,7 @@ defmodule PlaywrightEx.Test.Pool do
   @doc "`%{playwright: _, browser: _}` for `opts` (see `PlaywrightEx.Test.Options.browser/1`)."
   def browser(opts, owner) do
     ensure_started()
-    __MODULE__ |> GenServer.call({:slot, key(opts), opts, owner}, :infinity) |> Slot.browser()
+    __MODULE__ |> GenServer.call({:slot, key(opts), opts, owner}, :infinity) |> Slot.browser(opts)
   end
 
   @doc "Checks in the exclusive slots of `owner` (`{module, parameters}`), discarding them if it `failed?`."
@@ -67,7 +70,7 @@ defmodule PlaywrightEx.Test.Pool do
   # and a driver that outlives the VM resets the terminal (#191).
   def after_suite(_stats), do: stop_all()
 
-  defp key(opts), do: {opts.browser_name, Enum.sort(opts.launch_options), Enum.sort(opts.driver), opts.on_start}
+  defp key(opts), do: {Enum.sort(opts.driver), opts.on_start}
 
   @impl true
   def init(nil) do
@@ -90,13 +93,18 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   def handle_call({:slot, key, opts, owner}, from, state) do
-    case checkout(state, key, opts, owner) do
-      {slot, state} ->
-        {:reply, slot, state}
+    # The owner's next call (another browser): the same driver.
+    if slot = Enum.find(Map.get(state.busy, owner, []), &match?({_, ^key}, &1)) do
+      {:reply, slot, state}
+    else
+      case checkout(state, key, opts, owner) do
+        {slot, state} ->
+          {:reply, slot, state}
 
-      :full ->
-        state = %{state | waiting: state.waiting ++ [{key, opts, owner, from}]}
-        {:noreply, if(state.timer, do: state, else: arm(state))}
+        :full ->
+          state = %{state | waiting: state.waiting ++ [{key, opts, owner, from}]}
+          {:noreply, if(state.timer, do: state, else: arm(state))}
+      end
     end
   end
 
@@ -109,24 +117,36 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   @impl true
+  # Every module finishes here, shared or not.
   def handle_cast({:module_finished, owner, failed?}, state) do
-    {slots, busy} = Map.pop(state.busy, owner, [])
-    state = %{state | busy: busy}
+    case Map.pop(state.busy, owner) do
+      {nil, _busy} ->
+        warn_unmatched(state, owner)
+        {:noreply, state}
 
-    state =
-      if failed? do
-        Enum.reduce(slots, state, &discard(&2, &1))
-      else
-        Enum.each(slots, &Slot.check_in/1)
-        %{state | free: slots ++ state.free}
-      end
+      {slots, busy} ->
+        state = %{state | busy: busy}
 
-    # A check-in is progress: the wait starts anew.
-    {:noreply, state |> serve_waiting() |> arm()}
+        state =
+          if failed? do
+            Enum.reduce(slots, state, &discard(&2, &1))
+          else
+            Enum.each(slots, &Slot.check_in/1)
+            %{state | free: slots ++ state.free}
+          end
+
+        # A check-in is progress: the wait starts anew.
+        {:noreply, state |> serve_waiting() |> arm()}
+    end
   end
 
   @impl true
   def handle_info({:waited, ref}, %{timer: {ref, _}, waiting: [{key, opts, owner, from} | waiting]} = state) do
+    Logger.warning(
+      "PlaywrightEx.Test: no isolated driver was checked in for #{div(@wait, 1000)} s, " <>
+        "#{inspect(elem(owner, 0))} gets one above max_isolated"
+    )
+
     {slot, state} = start_isolated(%{state | waiting: waiting}, key, opts, owner)
     GenServer.reply(from, slot)
     {:noreply, arm(state)}
@@ -209,6 +229,19 @@ defmodule PlaywrightEx.Test.Pool do
       do: %{state | timer: nil},
       else: %{state | timer: {ref, Process.send_after(self(), {:waited, ref}, @wait)}}
   end
+
+  # The module holds a slot under other parameters: it guessed them wrong (see
+  # `PlaywrightEx.Test.Recorder.parameters/2`). The slot stays busy; the wait lets modules past.
+  defp warn_unmatched(state, {module, parameters}) do
+    if Enum.any?(Map.keys(state.busy), &match?({^module, _}, &1)) do
+      Logger.warning(
+        "PlaywrightEx.Test could not check in the isolated driver of #{inspect(module)} " <>
+          "#{inspect(parameters)}: no owner has those parameters (a setup rebound a parameter key?)"
+      )
+    end
+  end
+
+  defp warn_unmatched(_state, _owner), do: :ok
 
   defp register_after_suite(%{after_suite?: true} = state), do: state
 

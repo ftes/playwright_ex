@@ -47,7 +47,7 @@ end
 ```
 
 `browser/1` starts the driver and launches the browser on first use; modules with the same
-options share it, also with `async: true` (ExUnit runs those concurrently with each other; a
+options share it (and one driver hosts every browser type), also with `async: true` (ExUnit runs those concurrently with each other; a
 module's own tests run one after another). A context is a fresh browser profile with its own
 cookies, storage and cache, so tests don't share state. The drivers stop after the suite.
 
@@ -222,12 +222,17 @@ mix test || TRACE=1 mix test --failed
 ```
 
 Passing runs pay nothing for it, and the first run's artifacts stay: nothing is deleted at the
-start of a run, only each test's own dir when the test starts. A flaky test that passes on the
-rerun leaves no trace, though; for those, `:retain_on_failure`.
+start of a run or a test, files are overwritten by name. So `test-results/` accumulates across
+local runs; delete it yourself (CI starts clean). A flaky test that passes on the rerun leaves
+no trace, though; for those, `:retain_on_failure`.
 
 A context created for the test by another process (a GenServer that runs a user session) is
-recorded too when that process passes the test's identity: `new_context(%{browser: browser,
-module: module, test: test})`, with `record_artifacts/2` in the test's own `setup`.
+recorded too when that process gets the test's context map: `new_context(%{ctx | browser:
+browser})`, with `record_artifacts/2` in the test's own `setup`.
+
+In a `parameterize:` module, the context has each parameter's value, not the parameter map;
+the fragments find the map by those values, so run them before a setup that rebinds a
+parameter key.
 
 ## Isolated modules
 
@@ -239,7 +244,7 @@ the browser) takes one of its own:
 setup_all ctx, do: browser(ctx, isolate: true)
 ```
 
-That is Playwright Test's model: a driver and browser per worker, used by one module at a time
+That is Playwright Test's model: a driver and its browsers per worker, used by one module at a time
 and replaced after a failure. At most `max_isolated` modules hold one at once (config, default
 half the schedulers); the others wait. To set up each new driver (register selectors, say), pass
 `on_start: &MyApp.Selectors.register/1`.

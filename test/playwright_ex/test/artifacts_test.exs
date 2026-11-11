@@ -84,8 +84,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     end)
 
     record_artifacts(ctx, trace: :on)
-    identity = Map.take(ctx, [:browser, :module, :test])
-    {:ok, server} = GenServer.start_link(PlaywrightEx.Test.ArtifactsTest.Server, identity)
+    {:ok, server} = GenServer.start_link(PlaywrightEx.Test.ArtifactsTest.Server, ctx)
     assert GenServer.call(server, :visit) == :ok
   end
 
@@ -120,10 +119,16 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     page(context, "RETAINED")
   end
 
-  test "finish is bounded: past its budget it logs, and still stops the recorder", ctx do
+  test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", ctx do
     key = Recorder.key(%{ctx | test: :"#{ctx.test} (bounded)"})
     opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded"}
-    recorder = Recorder.start(key, self(), opts)
+    {^key, recorder} = Recorder.start(key, self(), opts)
+    Recorder.ensure_listener(recorder, PlaywrightEx.Runtime.Heap.get(ctx.browser, :_instrumentation))
+    context = Browser.new_context!(ctx.browser)
+    test_pid = self()
+    BrowserContext.on(context, :close, fn _ -> send(test_pid, :closed) end)
+    tmp = :sys.get_state(recorder).opts.tmp
+
     # Its artifact work blocks on the suspended recorder past the 50 ms budget.
     :sys.suspend(recorder)
     spawn(fn -> Process.sleep(500) && :sys.resume(recorder) end)
@@ -132,6 +137,65 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert log =~ "PlaywrightEx.Test could not finish the recording: it took over 50 ms"
     refute Process.alive?(recorder)
     assert Recorder.lookup(key) == nil
+    refute File.exists?(tmp)
+    assert_receive :closed, 10_000
+  end
+
+  test "a recording key taken already falls back to a dir of the test's own, logged", ctx do
+    # Another test process holds the key: the guessed parameters of two sets were the same.
+    key = Recorder.key(ctx)
+    other = spawn(fn -> Process.sleep(:infinity) end)
+
+    {^key, holder} =
+      Recorder.start(key, other, %{trace: :off, screenshot: :off, video: :off, dir: dir(ctx), title: "x"})
+
+    on_exit(fn -> Recorder.finish(holder, 1000) end)
+
+    hash = :crypto.hash(:sha, :erlang.term_to_binary(self())) |> Base.encode16(case: :lower)
+    own = dir(ctx) <> "-" <> binary_part(hash, 0, 5)
+
+    on_exit(fn ->
+      assert File.ls!(own) == ["trace.zip"]
+      refute File.exists?(dir(ctx))
+      File.rm_rf!(own)
+    end)
+
+    log = capture_log(fn -> record_artifacts(ctx, trace: :on) end)
+    assert log =~ "could not determine the parameters"
+    assert log =~ "not pruned"
+    %{context: context} = new_context(ctx)
+    page(context, "FALLBACK")
+  end
+
+  test "a plain context of another browser type is recorded: one driver hosts them all", ctx do
+    dir = dir(ctx)
+
+    on_exit(fn ->
+      trace = trace(dir, ctx.browser)
+      assert traced?(trace, "OWN") and traced?(trace, "OTHER-TYPE")
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, trace: :on)
+    other = if PlaywrightEx.TestBrowser.name() == "firefox", do: :chromium, else: :firefox
+    %{browser: browser} = browser(browser_name: other)
+    page(Browser.new_context!(ctx.browser), "OWN")
+    page(Browser.new_context!(browser), "OTHER-TYPE")
+  end
+
+  test "a test's dir is not emptied: a rerun keeps the first run's other files", ctx do
+    dir = dir(ctx)
+    File.mkdir_p!(dir)
+    File.write!(Path.join(dir, "test-failed-2.png"), "first run")
+
+    on_exit(fn ->
+      assert Enum.sort(File.ls!(dir)) == ["test-failed-2.png", "trace.zip"]
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, trace: :on)
+    %{context: context} = new_context(ctx)
+    page(context, "RERUN")
   end
 end
 

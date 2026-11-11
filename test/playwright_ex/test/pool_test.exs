@@ -7,12 +7,24 @@ defmodule PlaywrightEx.Test.PoolTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Test.Pool
 
-  # A key of its own: `launch_options` no other test passes.
+  # As ExUnit's `parameterize:` module (its internal config).
+  defmodule Parameterized do
+    def __ex_unit__(:config), do: %{parameterize: [%{n: 1}, %{n: 2}]}
+  end
+
+  # A browser of its own: `launch_options` no other test passes (drivers are keyed by `driver` and `on_start`).
   defp opts(extra \\ []), do: [launch_options: [timeout: 40_000 + System.unique_integer([:positive])]] ++ extra
 
   def on_start(playwright, test_pid) do
     send(test_pid, {:on_start, playwright})
     :ok
+  end
+
+  # Runs in the slot: its links are the pool and the driver's supervisor.
+  def raise_on_start(_playwright, test_pid) do
+    {:links, links} = Process.info(self(), :links)
+    send(test_pid, {:drivers, links -- [Process.whereis(Pool)]})
+    raise "on_start failed"
   end
 
   # A stopped driver's handles may be unreadable (TargetClosedError).
@@ -38,6 +50,21 @@ defmodule PlaywrightEx.Test.PoolTest do
     assert Browser.is_connected(browser)
     assert_received {:on_start, ^playwright}
     refute_received {:on_start, _}
+  end
+
+  test "an on_start that raises leaves no driver running" do
+    opts = opts(on_start: {__MODULE__, :raise_on_start, [self()]})
+    assert_raise RuntimeError, "on_start failed", fn -> browser(opts) end
+    assert_received {:drivers, [sup]}
+    refute Process.alive?(sup)
+  end
+
+  test "one driver hosts every browser type" do
+    other = if PlaywrightEx.TestBrowser.name() == "firefox", do: :chromium, else: :firefox
+    a = browser(opts())
+    b = browser(Keyword.put(opts(), :browser_name, other))
+    assert a.playwright == b.playwright
+    assert a.browser != b.browser
   end
 
   test "a lost browser is launched again" do
@@ -90,9 +117,31 @@ defmodule PlaywrightEx.Test.PoolTest do
       Pool.module_finished({:module_f, %{}}, true)
     end
 
+    test "an owner's further browser/2 calls share its driver; an unmatched owner is logged" do
+      opts = opts(isolate: true)
+      other = if PlaywrightEx.TestBrowser.name() == "firefox", do: :chromium, else: :firefox
+      a = browser(%{module: :module_m}, opts)
+      b = browser(%{module: :module_m}, Keyword.put(opts, :browser_name, other))
+      assert a.playwright == b.playwright
+
+      module = __MODULE__.Parameterized
+      browser(%{module: module, n: 1}, opts)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Pool.module_finished({module, %{n: 9}}, true)
+          :sys.get_state(Pool)
+        end)
+
+      assert log =~ "could not check in the isolated driver of PlaywrightEx.Test.PoolTest.Parameterized %{n: 9}"
+
+      Pool.module_finished({module, %{n: 1}}, true)
+      Pool.module_finished({:module_m, %{}}, true)
+    end
+
     test "each parameter map of a parameterize: module is an owner of its own" do
       opts = opts(isolate: true)
-      module = PlaywrightEx.Test.ParameterizeTest
+      module = __MODULE__.Parameterized
       one = browser(%{module: module, n: 1}, opts)
       two = browser(%{module: module, n: 2}, opts)
       assert one.playwright != two.playwright
@@ -112,6 +161,10 @@ defmodule PlaywrightEx.Test.PoolTest do
       assert Task.yield(c, 500) == nil
       %{timer: {first, _}} = :sys.get_state(Pool)
 
+      # A shared module's finish is no check-in: the timer stays.
+      Pool.module_finished({:module_shared, %{}}, false)
+      assert %{timer: {^first, _}} = :sys.get_state(Pool)
+
       # A check-in: c gets a's slot, d waits on a new timer.
       Pool.module_finished({:module_h, %{}}, false)
       assert Task.await(c) == a
@@ -121,8 +174,14 @@ defmodule PlaywrightEx.Test.PoolTest do
       # The old timer is stale; the new one gives d a slot above max_isolated.
       send(Pool, {:waited, first})
       assert Task.yield(d, 500) == nil
-      send(Pool, {:waited, second})
-      assert Task.await(d, 30_000).playwright not in [a.playwright]
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          send(Pool, {:waited, second})
+          assert Task.await(d, 30_000).playwright not in [a.playwright]
+        end)
+
+      assert log =~ "no isolated driver was checked in for 120 s, :module_k gets one above max_isolated"
       assert :sys.get_state(Pool).timer == nil
 
       for m <- [:module_i, :module_j, :module_k], do: Pool.module_finished({m, %{}}, true)
@@ -131,8 +190,9 @@ defmodule PlaywrightEx.Test.PoolTest do
 
   test "stop_all waits for the drivers being discarded" do
     isolated = browser(%{module: :module_l}, opts(isolate: true))
+    assert %{{:module_l, %{}} => [{pid, _key} = slot]} = :sys.get_state(Pool).busy
     Pool.module_finished({:module_l, %{}}, true)
-    assert [{pid, _key}] = :sys.get_state(Pool).discarding
+    assert slot in :sys.get_state(Pool).discarding
 
     Pool.stop_all()
     refute Process.alive?(pid)

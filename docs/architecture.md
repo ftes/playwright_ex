@@ -258,8 +258,9 @@ upstream's artifact code as the model (`ArtifactsRecorder` hooks on `ClientInstr
 
 Browsers are shared by default, unlike those clients' browser per worker thread: their client
 is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
-worth of modules at once, so a driver per module would multiply drivers for nothing. Contexts
-isolate tests. `isolate: true` is upstream's model (an exclusive driver and browser, checked in by
+worth of modules at once, so a driver per module would multiply drivers for nothing. A driver
+hosts every browser type, as upstream's one Playwright does, so a test's recording (a listener
+on the driver's instrumentation) sees the contexts of all its browsers. Contexts isolate tests. `isolate: true` is upstream's model (an exclusive driver and browser, checked in by
 the formatter at `module_finished` and discarded after a failure) for modules that change the
 driver or browser for everyone. `mix test` halts without stopping applications, so the drivers
 are stopped in `ExUnit.after_suite/1`, in parallel (#191). The pool starts on first use, never
@@ -267,7 +268,10 @@ with the application: a release has no ExUnit.
 
 A crashed shared browser fails the remaining tests of every module using it (their
 `ctx.browser` is stale), where upstream fails the test and restarts its worker; the next
-`browser/1` launches it again. One driver per key may limit throughput in shared mode; a
+`browser/1` launches it again. ExUnit gives the context a `parameterize:` module's values, not
+its parameter map, so the fragments guess the map from them; a wrong guess degrades (a
+recording of its own, not pruned; an isolated driver freed by the wait) rather than fails. One
+driver per key may limit throughput in shared mode; a
 `pool_size` (N slots per key, as Fluffy has) is the remedy if measurements call for it.
 
 Rejected: porting Playwright Test, testInfo's expect (`toPass`, `expect.poll`, soft asserts,

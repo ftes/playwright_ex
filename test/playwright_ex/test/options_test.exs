@@ -47,8 +47,12 @@ defmodule PlaywrightEx.Test.OptionsTest do
       assert %{context_options: [locale: "de-DE"]} = Options.context(context_options: [locale: "de-DE"])
     end
 
-    test "isolate needs the context map" do
+    test "isolate needs the module's context map, in setup_all" do
       assert_raise ArgumentError, ~r/isolate: true needs the module/, fn -> PlaywrightEx.Test.browser(isolate: true) end
+
+      assert_raise ArgumentError, ~r/in setup_all/, fn ->
+        PlaywrightEx.Test.browser(%{module: M, test: :"test t"}, isolate: true)
+      end
     end
 
     test "fragments need their keys" do
@@ -70,26 +74,52 @@ defmodule PlaywrightEx.Test.OptionsTest do
     end
   end
 
+  describe "parameters" do
+    defmodule Weird do
+      def __ex_unit__(:config), do: [parameterize: [%{n: 1}]]
+    end
+
+    defmodule Raising do
+      def __ex_unit__(:config), do: raise("no")
+    end
+
+    defmodule Parameterized do
+      def __ex_unit__(:config), do: %{parameterize: [%{n: 1, m: 1}, %{n: 2, m: 1}]}
+    end
+
+    test "are the parameter map whose values the context has" do
+      assert Recorder.parameters(Parameterized, %{n: 2, m: 1, test: :t}) == %{n: 2, m: 1}
+      assert Recorder.parameters(Parameterized, %{n: 3, m: 1}) == %{}
+      assert Recorder.parameters(__MODULE__, %{n: 1}) == %{}
+    end
+
+    test "are %{} when ExUnit's internal config is missing or of another shape" do
+      assert Recorder.parameters(M, %{n: 1}) == %{}
+      assert Recorder.parameters(Weird, %{n: 1}) == %{}
+      assert Recorder.parameters(Raising, %{n: 1}) == %{}
+    end
+  end
+
   describe "output dirs" do
-    defp output_dir(file, test, module \\ MyApp.CheckoutTest, parameters \\ %{}) do
-      dir = Recorder.output_dir("out", file, test, module, parameters)
+    defp output_dir(file, name, module \\ MyApp.CheckoutTest, parameters \\ %{}) do
+      dir = Recorder.output_dir("out", file, name, module, parameters)
       assert [_, name] = Regex.run(~r"^out/(.*)-[0-9a-f]{5}$", dir)
       name
     end
 
     test "as upstream's testInfo.outputDir: the file relative to test/, then the sanitized test name" do
       file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-      assert output_dir(file, :"test pays by card") == "my_app-checkout-pays-by-card"
-      assert output_dir(file, :"test cart: add_item/2 (EUR)") == "my_app-checkout-cart-add-item-2-EUR-"
+      assert output_dir(file, "pays by card") == "my_app-checkout-pays-by-card"
+      assert output_dir(file, "cart: add_item/2 (EUR)") == "my_app-checkout-cart-add-item-2-EUR-"
     end
 
     test "a file outside test/ is relative to the working directory" do
-      assert output_dir(Path.join(File.cwd!(), "e2e/flow_test.exs"), :"test a") == "e2e-flow-a"
+      assert output_dir(Path.join(File.cwd!(), "e2e/flow_test.exs"), "a") == "e2e-flow-a"
     end
 
     test "long names are trimmed to 60 characters with a hash, as trimLongString" do
       file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-      name = output_dir(file, :"test #{String.duplicate("very long name ", 6)}")
+      name = output_dir(file, String.duplicate("very long name ", 6))
       assert String.length(name) == 60
       assert name =~ ~r/^my_app-checkout-very-long--[0-9a-f]{5}-y-long-name-very-long-name-$/
     end
@@ -104,10 +134,16 @@ defmodule PlaywrightEx.Test.OptionsTest do
               {MyApp.ATest, %{n: 1}},
               {MyApp.ATest, %{n: 2}}
             ],
-            do: Recorder.output_dir("out", file, :"test pays", module, parameters)
+            do: Recorder.output_dir("out", file, "pays", module, parameters)
 
       assert length(Enum.uniq(dirs)) == 4
-      assert Recorder.output_dir("out", file, :"test pays", MyApp.ATest, %{}) == hd(dirs)
+      assert Recorder.output_dir("out", file, "pays", MyApp.ATest, %{}) == hd(dirs)
+    end
+
+    test "the test name is without its macro's prefix, test_type's" do
+      assert Recorder.test_name(%{test: :"test pays", test_type: :test}) == "pays"
+      assert Recorder.test_name(%{test: :"feature pays", test_type: :feature}) == "pays"
+      assert Recorder.test_name(%{test: :"test pays"}) == "pays"
     end
 
     test "sanitizeForFilePath keeps letters, digits, dashes and non-ASCII" do

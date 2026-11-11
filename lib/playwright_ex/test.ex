@@ -35,12 +35,14 @@ defmodule PlaywrightEx.Test do
 
   ## Browsers
 
-  `browser/1` returns a browser that modules with the same `browser_name`, `launch_options`,
-  `driver` and `on_start` share, launched on first use and again if it is lost. Contexts
-  isolate tests, so a shared browser is safe across `async: true` modules. A module that
-  changes the state of the whole driver or browser (registers selectors, closes the browser,
-  launches its own) takes `isolate: true`: a driver and browser of its own for its lifetime, as
-  Playwright Test's workers have, discarded if a test failed. At most `max_isolated` modules
+  `browser/1` returns a browser that modules with the same `browser_name` and `launch_options`
+  share, launched on first use and again if it is lost. Modules with the same `driver` and
+  `on_start` share a driver, which hosts every browser type, as upstream runs them all on one
+  Playwright: a test records the contexts of all of its browsers. Contexts isolate tests, so a
+  shared browser is safe across `async: true` modules. A module that changes the state of the
+  whole driver or browser (registers selectors, closes the browser, launches its own) takes
+  `isolate: true` in `setup_all`: a driver of its own for its lifetime, with the browsers its
+  `browser/2` calls launch, as Playwright Test's workers have, discarded if a test failed. At most `max_isolated` modules
   have one at once, the others wait. Every driver is stopped after the suite
   (`ExUnit.after_suite/1`), so none outlives `mix test`.
 
@@ -48,11 +50,10 @@ defmodule PlaywrightEx.Test do
 
   `record_artifacts/2` records every context the test creates: with `new_context/2`, with
   `PlaywrightEx.Browser.new_context/2` in the test or in a `Task` of it, and with
-  `new_context/2` from any other process given the test's `module` and `test` (a GenServer that
+  `new_context/2` from any other process given the test's context map (a GenServer that
   creates contexts for the test). Each test writes to its own dir under `output_dir`, named as
   upstream's `testInfo.outputDir` (`checkout-pays-1a2b3` for the test "pays" in
-  `test/checkout_test.exs`, the suffix a hash of the module and its `parameterize:` parameters),
-  emptied when the test starts:
+  `test/checkout_test.exs`, the suffix a hash of the module and its `parameterize:` parameters):
 
     * `trace.zip` - one trace of all its contexts (`mix playwright_ex.cli show-trace <path>`),
       recorded with screenshots, snapshots and sources (upstream's default trace options).
@@ -66,7 +67,14 @@ defmodule PlaywrightEx.Test do
   `PlaywrightEx.Test.Formatter` deletes the files of the tests that pass. A trace slows every
   test: `trace: :on` set when `TRACE=1`, with `mix test || TRACE=1 mix test --failed` in CI,
   traces only the failures' reruns (upstream's `on-first-retry`). Nothing is deleted at the
-  start of the suite, so the rerun keeps the first run's artifacts.
+  start of a run or a test (files are overwritten by name), so the rerun keeps the first run's
+  artifacts, and `output_dir` accumulates across local runs: delete it yourself (CI starts
+  clean).
+
+  ExUnit puts a `parameterize:` module's parameter values in the context, not the map, so the
+  fragments tell the parameter sets apart by those keys: run them before a setup that rebinds
+  a parameter key. If two sets look the same, the second test records into a dir of its own
+  (logged), and its files are not pruned.
 
   ## Config
 
@@ -130,6 +138,10 @@ defmodule PlaywrightEx.Test do
 
     if opts.isolate do
       if !module, do: raise(ArgumentError, "isolate: true needs the module: call browser(context, isolate: true)")
+
+      if context[:test],
+        do: raise(ArgumentError, "isolate: true is for the module: call browser(context, isolate: true) in setup_all")
+
       Options.require_formatter!("isolate: true")
     end
 
@@ -168,10 +180,10 @@ defmodule PlaywrightEx.Test do
     if :retain_on_failure in [opts.trace, opts.video] or opts.screenshot == :only_on_failure,
       do: Options.require_formatter!("retain_on_failure and only_on_failure")
 
+    # Not emptied: files are overwritten by name, so a rerun keeps the first run's other files.
     dir = Recorder.output_dir(context)
-    File.rm_rf!(dir)
-    title = "#{Path.relative_to_cwd(context.file)}:#{context[:line]} › #{Recorder.test_name(context.test)}"
-    recorder = Recorder.start(Recorder.key(context), self(), Map.merge(opts, %{dir: dir, title: title}))
+    title = "#{Path.relative_to_cwd(context.file)}:#{context[:line]} › #{Recorder.test_name(context)}"
+    {_key, recorder} = Recorder.start(Recorder.key(context), self(), Map.merge(opts, %{dir: dir, title: title}))
     # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
     budget =
       with timeout when is_integer(timeout) <- context[:timeout] || ExUnit.configuration()[:timeout],
@@ -191,16 +203,16 @@ defmodule PlaywrightEx.Test do
   test process it closes the context after the test; another process closes its own.
 
   The context map needs `browser` and the test's `module` and `test` (and `file`, to start the
-  recording). The identity is what it records the context under, from any process: a
-  GenServer that creates contexts for a test passes `%{browser: _, module: _, test: _}`, after
-  the test's `setup` has called `record_artifacts/2`.
+  recording). It is what it records the context under, from any process: a GenServer that
+  creates contexts for a test passes the test's whole context map (with its `test_pid`, it finds
+  the test's recording), after the test's `setup` has called `record_artifacts/2`.
   """
   @spec new_context(map(), keyword()) :: %{context: BrowserContext.t()}
   def new_context(context, options \\ []) when is_map(context) do
     opts = Options.context(options)
     browser = fetch!(context, :browser)
     for key <- [:module, :test], do: fetch!(context, key)
-    key = Recorder.key(context)
+    key = Recorder.key_of(context)
     test_process? = context[:test_pid] == self()
     if test_process? and Process.get(@recording) == nil, do: record_artifacts(context)
 
