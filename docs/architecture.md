@@ -268,9 +268,11 @@ is upstream's model for modules that change the driver or browser for everyone: 
 driver per driver key, taken on first use (upstream's worker-scoped `browser` fixture is lazy,
 `packages/playwright/src/index.ts:238`), checked in at the module's end if a test ran and all
 passed, else discarded. At most `workers` of them run, upstream's `workers` (all exclusive there;
-default half the cores, `packages/playwright/src/common/config.ts:111`); a module that holds one
-takes its further driver keys over it, so none waits while holding one. Shared modules use one
-driver per key, outside the cap. Spreading a key's modules over capped drivers was tried and
+default half the cores, `packages/playwright/src/common/config.ts:111`), stopping ones included
+(upstream awaits `worker.stop()` before starting another,
+`packages/playwright/src/runner/dispatcher.ts:153`); a module that holds one takes its further
+driver keys over it, so none waits while holding one. Shared modules use one driver per key,
+outside the cap. Spreading a key's modules over capped drivers was tried and
 dropped (chromium, 2026-11-11, macOS): at 18 modules at once it took 210.7 s and 12.3 GB, against
 218 s and 8.8 GB with one driver per key and 207 s and 15.5 GB on main; at 9, one driver per
 key took 225 s against main's 276 s. The drivers stop in
@@ -287,11 +289,12 @@ ExUnit's, byte for byte (tested). It also adds a `setup_all` whose module token 
 isolated drivers and whose `on_exit`, registered first, runs last: the module's end, also under
 `--max-failures`. The mark also takes the end-of-body screenshots (`didFinishTestFunction`).
 Not covered: doctests and other macros' tests (no mark: their artifacts are kept), a failure
-only in an `on_exit` (it counts as passed), and a case template's `setup_all` `on_exit`, which
-runs after the module's end. Rejected: an ExUnit formatter (a second piece to install;
-`module_finished` never comes for a module `--max-failures` stops), a `defoverridable` wrapper of
-each test (renames the test's frame), and a monitor on the `setup_all` process (its `DOWN` races
-the user's `on_exit`).
+only in an `on_exit` (it counts as passed), a case template's `setup_all` `on_exit`, which
+runs after the module's end, and a failure in a case template's own `setup`, which runs before
+ours (the test isn't watched, so it doesn't discard the driver). Rejected: an ExUnit formatter
+(a second piece to install; `module_finished` never comes for a module `--max-failures` stops),
+a `defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
+`setup_all` process (its `DOWN` races the user's `on_exit`).
 
 A crashed shared browser fails the remaining tests of every module using it, where upstream
 restarts its worker; the next `browser/1` launches it again. ExUnit gives the context a

@@ -11,10 +11,10 @@ defmodule PlaywrightEx.Test.Pool do
   # upstream's worker-scoped `browser` fixture is lazy; its further calls get the same slot, and
   # `module_finished/1` (the module's last `on_exit`) checks it in if a test of it ran and all
   # passed, else discards it. At most `workers` exclusive slots run, as upstream's worker
-  # processes: room for a new one is made by stopping checked-in ones of other keys; with none,
-  # the module waits, unless it holds a slot already (its further driver keys go over
-  # `workers`, so no module waits while it holds a slot others wait for). A waiter that exits,
-  # or whose module ended, is dropped.
+  # processes (stopping ones count): room for a new one is made by stopping checked-in ones of
+  # other keys, and it starts once they exited; with none, the module waits, unless it holds a
+  # slot already (its further driver keys go over `workers`, so no module waits while it holds a
+  # slot others wait for). A waiter that exits, or whose module ended, is dropped.
   #
   # A test's result (`watch/3`, `result/2`): passed when the `test` macro marked the end of its
   # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
@@ -147,13 +147,13 @@ defmodule PlaywrightEx.Test.Pool do
   @impl true
   def handle_call({:slot, key, opts, token}, {pid, _} = from, state) do
     with false <- opts.isolate and MapSet.member?(state.finished, token),
-         {slot, state} <- request(state, key, opts, token) do
+         {{_pid, _key} = slot, state} <- request(state, key, opts, token) do
       {:reply, slot, state}
     else
       true ->
         {:reply, :finished, state}
 
-      :full ->
+      {:full, state} ->
         waiter = %{key: key, opts: opts, token: token, from: from, ref: Process.monitor(pid)}
         {:noreply, %{state | waiting: state.waiting ++ [waiter]}}
     end
@@ -167,8 +167,9 @@ defmodule PlaywrightEx.Test.Pool do
     {:reply, slots, %{state | shared: %{}, free: [], busy: %{}, discarding: [], waiting: []}}
   end
 
+  # A late call, after the module finished, is ignored: its entries would never be removed.
   def handle_call({:watch, pid, token, marked}, _from, state) do
-    if Map.has_key?(state.tests, pid) or Map.has_key?(state.results, pid) do
+    if Map.has_key?(state.tests, pid) or Map.has_key?(state.results, pid) or MapSet.member?(state.finished, token) do
       {:reply, :ok, state}
     else
       Process.monitor(pid)
@@ -221,7 +222,7 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  # A slot that stopped (discarded) or crashed: forget it.
+  # A slot that stopped (discarded) or crashed: forget it, and serve the waiters its room.
   def handle_info({:EXIT, pid, _reason}, state) do
     gone? = &match?({^pid, _}, &1)
     shared = Map.reject(state.shared, fn {_key, slot} -> gone?.(slot) end)
@@ -342,51 +343,59 @@ defmodule PlaywrightEx.Test.Pool do
         {slot, busy(%{state | free: same ++ others}, token, slot)}
 
       {[], _} ->
-        if room = make_room(state, token), do: start_isolated(room, key, opts, token), else: :full
+        case make_room(state, token) do
+          {:ok, state} -> start_isolated(state, key, opts, token)
+          full -> full
+        end
     end
   end
 
-  # The state with room for a new exclusive slot under `workers`, made by stopping checked-in
-  # slots (the longest idle first). Else nil when the slots in use fill it, unless the module
-  # holds a slot already: then the state as is, over `workers`.
+  # `{:ok, state}` with room for a new exclusive slot under `workers`, else `{:full, state}`.
+  # Slots in use, checked in and stopping count; room is made by stopping checked-in slots (the
+  # longest idle first), and the new slot starts once they exited, as upstream awaits
+  # `worker.stop()`. A module that holds a slot already does not wait: it goes over `workers`.
   defp make_room(state, token) do
     busy = Enum.sum_by(Map.values(state.busy), &length/1)
-    excess = busy + length(state.free) + 1 - Options.workers()
+    excess = busy + length(state.discarding) + length(state.free) + 1 - Options.workers()
+    held? = Map.get(state.busy, token, []) != []
 
     cond do
       excess <= 0 ->
-        state
+        {:ok, state}
 
       excess <= length(state.free) ->
         {free, idle} = Enum.split(state.free, -excess)
-        Enum.reduce(idle, %{state | free: free}, &discard(&2, &1))
+        state = Enum.reduce(idle, %{state | free: free}, &discard(&2, &1))
+        if held?, do: {:ok, state}, else: {:full, state}
 
-      Map.get(state.busy, token, []) != [] ->
-        state
+      held? ->
+        {:ok, state}
 
       true ->
-        nil
+        {:full, state}
     end
   end
 
-  # The waiting callers, first come first served, while there is room. A caller that exited
-  # meanwhile gets none: its slot would stay with a module that may have ended.
-  defp serve_waiting(%{waiting: [waiter | rest]} = state) do
+  # The waiting callers, first come first served, while there is room; one that finds none
+  # keeps its place, and those after it are still served (a free slot of their key). A caller
+  # that exited meanwhile gets none: its slot would stay with a module that may have ended.
+  defp serve_waiting(state), do: serve_waiting(%{state | waiting: []}, state.waiting)
+
+  defp serve_waiting(state, []), do: state
+
+  defp serve_waiting(state, [waiter | rest]) do
     {pid, _} = waiter.from
-    state = %{state | waiting: rest}
 
     with true <- Process.alive?(pid),
-         {slot, state} <- request(state, waiter.key, waiter.opts, waiter.token) do
+         {{_pid, _key} = slot, state} <- request(state, waiter.key, waiter.opts, waiter.token) do
       Process.demonitor(waiter.ref, [:flush])
       GenServer.reply(waiter.from, slot)
-      serve_waiting(state)
+      serve_waiting(state, rest)
     else
-      false -> serve_waiting(state)
-      :full -> %{state | waiting: [waiter | rest]}
+      false -> serve_waiting(state, rest)
+      {:full, state} -> serve_waiting(%{state | waiting: state.waiting ++ [waiter]}, rest)
     end
   end
-
-  defp serve_waiting(state), do: state
 
   defp start_slot(state, key, opts) do
     {:ok, pid} = Slot.start_link(opts)

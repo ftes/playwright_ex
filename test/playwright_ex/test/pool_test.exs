@@ -156,6 +156,15 @@ defmodule PlaywrightEx.Test.PoolTest do
       assert Task.await(finished) == :ok
       assert Pool.result(pid, 100) == {nil, []}
     end
+
+    test "a watch after the module finished is ignored" do
+      %{playwright_ex_module: token} = module()
+      Pool.module_finished(token)
+      pid = spawn(fn -> :ok end)
+      Pool.watch(pid, token, Pool.outside())
+      state = :sys.get_state(Pool)
+      refute Map.has_key?(state.modules, token) or Map.has_key?(state.tests, pid) or Map.has_key?(state.results, pid)
+    end
   end
 
   # `workers` for the test (the checked-in drivers of the modules before it are stopped for room).
@@ -232,6 +241,60 @@ defmodule PlaywrightEx.Test.PoolTest do
       Pool.module_finished(mn.playwright_ex_module)
       assert Task.await(c) == a
       for m <- [mo, mp], do: run_test(m, [], :boom) && Pool.module_finished(m.playwright_ex_module)
+    end
+
+    test "a stopping driver counts toward workers: the next starts once it exited" do
+      put_workers(1)
+      [ma, mb] = [module(), module()]
+      browser(ma, opts(isolate: true))
+      run_test(ma, [passed()], :shutdown)
+      Pool.module_finished(ma.playwright_ex_module)
+      [{stopping, _key}] = :sys.get_state(Pool).free
+
+      # Holds the slot, so its stop waits, until released.
+      test_pid = self()
+
+      hold = fn state ->
+        send(test_pid, :held)
+        receive(do: (:release -> state))
+      end
+
+      spawn(fn -> :sys.replace_state(stopping, hold) end)
+      assert_receive :held
+
+      other = Keyword.put(opts(isolate: true), :driver, env: [{"PW_POOL_TEST", "other key"}])
+      b = Task.async(fn -> browser(mb, other) end)
+      assert Task.yield(b, 500) == nil
+      send(stopping, :release)
+      Task.await(b, 30_000)
+      refute Process.alive?(stopping)
+      run_test(mb, [], :boom)
+      Pool.module_finished(mb.playwright_ex_module)
+    end
+
+    test "a waiter for room does not block one after it whose key has a checked-in driver" do
+      opts = opts(isolate: true)
+      key = &Keyword.put(opts(isolate: true), :driver, env: [{"PW_POOL_TEST", &1}])
+      [ha, hb, full, ready] = for _ <- 1..4, do: module()
+      a = browser(ha, opts)
+      browser(hb, key.("b"))
+      # Over workers: hb holds a driver already.
+      browser(hb, key.("b2"))
+
+      full_waiter = Task.async(fn -> browser(full, key.("full")) end)
+      wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
+      ready_waiter = Task.async(fn -> browser(ready, opts) end)
+      wait_until(fn -> length(:sys.get_state(Pool).waiting) == 2 end)
+
+      run_test(ha, [passed()], :shutdown)
+      Pool.module_finished(ha.playwright_ex_module)
+      assert Task.await(ready_waiter) == a
+      assert Task.yield(full_waiter, 200) == nil
+
+      run_test(hb, [], :boom)
+      Pool.module_finished(hb.playwright_ex_module)
+      Task.await(full_waiter, 30_000)
+      for m <- [full, ready], do: run_test(m, [], :boom) && Pool.module_finished(m.playwright_ex_module)
     end
 
     test "a module's driver is checked in only if a test of it ran and all passed" do

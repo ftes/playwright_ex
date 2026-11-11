@@ -243,6 +243,9 @@ defmodule PlaywrightEx.Test do
          do: Recorder.capture(recorder, failed?)
 
     :ok
+  catch
+    # The recorder is gone: the test's own result and failure stand.
+    :exit, _ -> :ok
   end
 
   @doc """

@@ -97,7 +97,10 @@ end
 ```
 
 A `setup_all` of your own that returns `%{browser: _}` replaces `browser/1`, say for a browser
-you connect to (`PlaywrightEx.BrowserType.connect/3`).
+you connect to (`PlaywrightEx.BrowserType.connect/3`). A wrapper library whose own functions
+clash with the imported fragments (`browser`, `new_context`, `new_page`) narrows the import after
+the `use` with `import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]` and calls the
+fragments qualified.
 
 ## Assertions
 
@@ -255,14 +258,17 @@ setup_all ctx, do: browser(ctx, isolate: true)
 
 The driver is taken on the module's first `browser(ctx, isolate: true)`, as Playwright Test's
 worker-scoped `browser` fixture is lazy, and the module's later calls (in a test, or by a process
-given the test's context map) get the same one. So a mixed module calls it in only the tests that
-need it. The module holds the driver until its end; it goes to the next module if a test ran and
-all passed, else it is discarded. Clean up on it in a test's `on_exit`: a case template's own
-`setup_all` `on_exit` runs after the module's end.
+given the test's context map) get the same one. A first call in a test or `setup` waits for a free
+driver within ExUnit's test timeout, so a mixed module calls it in only the tests that need it
+unless isolated modules can outnumber `workers`: then in `setup_all`, which has no timeout. The
+module holds the driver until its end; it goes to the next module if a test ran and all passed,
+else it is discarded. Clean up on it in a test's `on_exit`: a case template's own `setup_all`
+`on_exit` runs after the module's end, and a failure in the template's own `setup` (it runs
+before ours) goes unseen, so it doesn't discard the driver.
 
 Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
 on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true` (up
-to `workers` modules at once). For a few Firefox modules in a mixed suite, put them in one ExUnit
+to `workers` drivers at once). For a few Firefox modules in a mixed suite, put them in one ExUnit
 group: modules of a group never run at once, so one shared Firefox serves one module at a time
 while the others run in parallel. It covers a second user on Firefox inside a test too
 (`browser(browser_name: :firefox)`):
@@ -274,8 +280,9 @@ setup_all do: browser(browser_name: :firefox)
 ```
 
 That is Playwright Test's model: a driver and its browsers per worker, used by one module at a time
-and replaced after a failure. At most `workers` modules hold one at once (config, default half the
-schedulers, as Playwright Test's `workers`); the others wait. Shared browsers run on one driver per
+and replaced after a failure. At most `workers` such drivers run at once, a module with two
+`driver` keys holding two (config, default half the schedulers, as Playwright Test's `workers`);
+the others wait. Shared browsers run on one driver per
 `driver` and `on_start`, outside that limit. To set up each new driver (register selectors, say),
 pass `on_start: &MyApp.Selectors.register/1`.
 

@@ -166,6 +166,12 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert_receive :closed, 10_000
   end
 
+  test "the end of the body with a recorder gone leaves the test's result as is" do
+    Process.put({PlaywrightEx.Test, :recording}, {spawn(fn -> :ok end), :on})
+    assert PlaywrightEx.Test.__passed__() == :ok
+    Process.delete({PlaywrightEx.Test, :recording})
+  end
+
   test "finish logs nothing for a listener whose driver closed", ctx do
     name = :"#{inspect(__MODULE__)}.closed"
     start_supervised!({PlaywrightEx.Supervisor, name: name})
