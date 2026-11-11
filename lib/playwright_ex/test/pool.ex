@@ -164,11 +164,14 @@ defmodule PlaywrightEx.Test.Pool do
         {slot, busy(%{state | free: same ++ others}, owner, slot)}
 
       {[], _} ->
+        busy = Enum.sum(Enum.map(Map.values(state.busy), &length/1))
+
         cond do
-          length(state.free) + Enum.sum(Enum.map(Map.values(state.busy), &length/1)) < Options.max_isolated() ->
+          length(state.free) + busy < Options.max_isolated() ->
             start_isolated(state, key, opts, owner)
 
-          state.free != [] ->
+          # Busy slots alone may fill `max_isolated`: then the module waits.
+          state.free != [] and busy < Options.max_isolated() ->
             {idle, free} = List.pop_at(state.free, -1)
             state |> Map.put(:free, free) |> discard(idle) |> start_isolated(key, opts, owner)
 

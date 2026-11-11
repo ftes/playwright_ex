@@ -130,6 +130,27 @@ defmodule PlaywrightEx.Test.PoolTest do
       Pool.module_finished({:module_d, %{}}, true)
     end
 
+    # Idle slots above `max_isolated` (the suite's, when this test lowers it): busy slots alone
+    # count against it.
+    test "idle slots of another key make no room while busy slots fill max_isolated" do
+      config = Application.get_env(:playwright_ex, :test)
+      Application.put_env(:playwright_ex, :test, Keyword.put(config, :max_isolated, 4))
+      other = opts(isolate: true, on_start: {__MODULE__, :on_start, [self()]})
+      for m <- [:module_m1, :module_m2, :module_m3], do: browser(%{module: m}, other)
+      for m <- [:module_m1, :module_m2, :module_m3], do: Pool.module_finished({m, %{}}, false)
+      Application.put_env(:playwright_ex, :test, Keyword.put(config, :max_isolated, 2))
+
+      opts = opts(isolate: true)
+      a = browser(%{module: :module_n}, opts)
+      _b = browser(%{module: :module_o}, opts)
+      c = Task.async(fn -> browser(%{module: :module_p}, opts) end)
+      assert Task.yield(c, 1_000) == nil
+
+      Pool.module_finished({:module_n, %{}}, false)
+      assert Task.await(c) == a
+      for m <- [:module_o, :module_p], do: Pool.module_finished({m, %{}}, true)
+    end
+
     test "a checked-in module's extra browsers are closed" do
       opts = opts(isolate: true)
       a = browser(%{module: :module_e}, opts)
