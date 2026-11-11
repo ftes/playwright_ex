@@ -68,8 +68,9 @@ jobs:
             same change or solved the problem another way. A merge conflict, the PR's age or a
             preference for other work is not a reason. When in doubt, keep it.
 
-            Read and search files with Read, Grep and Glob; run each allowed Bash command on its
-            own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the repository).
+            Use your file tools, not Bash, to read, search and edit files; run each allowed Bash
+            command on its own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the
+            repository).
 
             To close one, run exactly:
               gh pr close N --delete-branch --comment "<one sentence naming what on main made it obsolete>"
@@ -211,9 +212,9 @@ jobs:
             - It can't be fixed without redesigning the change: run exactly
               gh pr close ${{ matrix.pr.number }} --delete-branch --comment "<one sentence on why>"
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            Use your file tools, not Bash, to read, search and edit files; run each allowed Bash
+            command on its own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the
+            repository).
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -294,9 +295,9 @@ jobs:
               gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} --title "<subject>" --body-file tmp/nightly-pr.md
               gh pr close ${{ matrix.pr }} --delete-branch --comment "Conflicted with main; replaced by <new PR URL>."
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            Use your file tools, not Bash, to read, search and edit files; run each allowed Bash
+            command on its own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the
+            repository).
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -456,9 +457,9 @@ jobs:
             Write tmp/nightly-pr.md first (tmp/ is gitignored): a few sentences on what was
             inconsistent or complex and why this is simpler.
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            Use your file tools, not Bash, to read, search and edit files; run each allowed Bash
+            command on its own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the
+            repository).
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
