@@ -336,9 +336,13 @@ defmodule PlaywrightEx.Test.Recorder do
     do: step("close a context", fn -> BrowserContext.close(context, reason: "Test ended.") end)
 
   # Exactly this listener: the ported `remove_listener` removes the last one for an unknown
-  # listener, on a shared driver another test's.
-  defp remove_listener(instrumentation, listener),
-    do: Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
+  # listener, on a shared driver another test's. The listeners are rows of the connection's
+  # table, written in its process: after the driver closed, they are gone with it.
+  defp remove_listener(instrumentation, listener) do
+    Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
+  rescue
+    e in PlaywrightEx.TargetClosedError -> if e.message != "Playwright driver closed", do: reraise(e, __STACKTRACE__)
+  end
 
   # `_contextFactory`'s close: `video.webm`, `video-1.webm`, ... in the order the contexts closed.
   defp save_videos(%{opts: %{video: :off}}), do: []

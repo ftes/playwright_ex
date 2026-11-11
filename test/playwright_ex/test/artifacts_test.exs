@@ -129,6 +129,29 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert_receive :closed, 10_000
   end
 
+  test "finish logs nothing for a listener whose driver closed", ctx do
+    name = :"#{inspect(__MODULE__)}.closed"
+    start_supervised!({PlaywrightEx.Supervisor, name: name})
+    instrumentation = PlaywrightEx.Runtime.Heap.get(PlaywrightEx.playwright(name), :_instrumentation)
+
+    opts = %{
+      trace: :on,
+      screenshot: :off,
+      video: :off,
+      error_context: false,
+      dir: dir(ctx),
+      title: "closed",
+      test_key: :closed
+    }
+
+    recorder = Recorder.start(self(), opts)
+    Recorder.ensure_listener(recorder, instrumentation)
+    stop_supervised!(name)
+
+    # Other tests log meanwhile.
+    refute capture_log(fn -> assert Recorder.finish(recorder, 5000) == :ok end) =~ "could not remove the listener"
+  end
+
   test "a plain context of another browser type is recorded: one driver hosts them all", ctx do
     dir = dir(ctx)
 
