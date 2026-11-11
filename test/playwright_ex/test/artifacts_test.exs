@@ -9,9 +9,11 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.ErrorContext
+  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Tracing
+  alias PlaywrightEx.VideoPlayer
 
   setup_all :browser
 
@@ -49,7 +51,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     recorder =
       Recorder.start(
         pid,
-        Map.merge(%{trace: :off, screenshot: :off, video: :off}, modes)
+        Options.artifacts(Map.to_list(modes))
         |> Map.merge(%{dir: dir, title: "t", title_path: ["x_test.exs", "t"], location: {__ENV__.file, 1}})
       )
 
@@ -144,7 +146,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   end
 
   test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", ctx do
-    opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded"}
+    opts = Map.merge(Options.artifacts(trace: :on), %{dir: dir(ctx), title: "bounded"})
     recorder = Recorder.start(self(), opts)
     Recorder.ensure_listener(recorder, PlaywrightEx.Runtime.Heap.get(ctx.browser, :_instrumentation))
     context = Browser.new_context!(ctx.browser)
@@ -171,7 +173,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     # A test that ended unwatched: no result to wait for.
     test_pid = spawn(fn -> :ok end)
-    recorder = Recorder.start(test_pid, %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "closed"})
+    recorder = Recorder.start(test_pid, Map.merge(Options.artifacts(trace: :on), %{dir: dir(ctx), title: "closed"}))
     Recorder.ensure_listener(recorder, instrumentation)
     stop_supervised!(name)
 
@@ -265,6 +267,52 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     assert_receive :other_done, 10_000
     Page.set_content!(page, "<h1>AFTER</h1>")
+  end
+
+  test "the trace's options go to Tracing.start", ctx do
+    dir = dir(ctx)
+
+    on_exit(fn ->
+      trace = trace(dir, ctx.browser)
+      assert traced?(trace, "UNSNAPSHOTTED")
+      refute Enum.any?(trace.events, &(&1["type"] in ["frame-snapshot", "screencast-frame"]))
+      refute Enum.any?(Map.keys(trace.resources), &String.starts_with?(&1, "src/"))
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, trace: [mode: :on, snapshots: false, screenshots: false, sources: false])
+    %{context: context} = new_context(ctx)
+    page(context, "UNSNAPSHOTTED")
+  end
+
+  test "the screenshot's options go to Page.screenshot", ctx do
+    dir = dir(ctx)
+
+    on_exit(fn ->
+      # The PNG's IHDR: the full page, past the 720 px viewport.
+      <<_::binary-size(16), _width::32, height::32, _::binary>> = File.read!(Path.join(dir, "test-finished-1.png"))
+      assert height > 2000
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, screenshot: [mode: :on, full_page: true])
+    %{context: context} = new_context(ctx)
+    Page.set_content!(BrowserContext.new_page!(context), ~s(<div style="height: 2000px">TALL</div>))
+  end
+
+  @tag skip: VideoPlayer.skip_reason()
+  test "the video's size goes to record_video", ctx do
+    dir = dir(ctx)
+
+    on_exit(fn ->
+      player = VideoPlayer.new(Path.join(dir, "video.webm"))
+      assert {player.videoWidth, player.videoHeight} == {320, 240}
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, video: [mode: :on, size: %{width: 320, height: 240}])
+    %{context: context} = new_context(ctx)
+    page(context, "SMALL")
   end
 
   test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed",

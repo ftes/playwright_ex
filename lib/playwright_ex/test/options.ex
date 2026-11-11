@@ -19,6 +19,15 @@ defmodule PlaywrightEx.Test.Options do
     video: [:off, :on, :retain_on_failure]
   }
 
+  # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`) but for
+  # trace's `attachments` (of test steps, which our traces have none of) and video's `fps` and
+  # `show`.
+  @artifact_options %{
+    trace: [:mode, :snapshots, :screenshots, :sources],
+    screenshot: [:mode, :full_page, :omit_background],
+    video: [:mode, :size]
+  }
+
   @doc "The browser options: the config merged with `opts` (a keyword list)."
   def browser(opts), do: merge(@browser_keys, opts)
 
@@ -112,10 +121,62 @@ defmodule PlaywrightEx.Test.Options do
   defp validate!(:on_start, fun) when is_function(fun, 1), do: fun
   defp validate!(:on_start, {m, f, a} = mfa) when is_atom(m) and is_atom(f) and is_list(a), do: mfa
   defp validate!(:isolate, value) when is_boolean(value), do: value
-  defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode) and mode != nil, do: mode!(key, mode)
+
+  defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode) and mode != nil,
+    do: artifact!(key, mode: mode)
+
+  defp validate!(key, options) when is_map_key(@modes, key) and (is_list(options) or is_map(options)),
+    do: artifact!(key, to_keyword(key, options))
+
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   defp validate!(key, value), do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}")
+
+  # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
+  # the trace's options defaulting to upstream's (`defaultTraceOptions` in
+  # `packages/playwright/src/worker/testTracing.ts`). `mode` is required, as upstream's type
+  # (`{ mode: TraceMode, ... }`) says: the option replaces the config's whole, so a list without
+  # it would record nothing.
+  defp artifact!(key, options) do
+    if !Keyword.has_key?(options, :mode),
+      do: raise(ArgumentError, "#{key} options need :mode, got: #{inspect(options)}")
+
+    case Keyword.keys(options) -- @artifact_options[key] do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "unknown #{key} options #{inspect(unknown)}, expected one of #{inspect(@artifact_options[key])}"
+    end
+
+    defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true], else: []
+    options = Keyword.merge(defaults, options)
+
+    for name <- @artifact_options[key],
+        Keyword.has_key?(options, name),
+        do: {name, artifact_option!(key, name, options[name])}
+  end
+
+  defp artifact_option!(key, :mode, mode), do: mode!(key, mode)
+
+  defp artifact_option!(_key, name, value)
+       when name in [:snapshots, :screenshots, :sources, :full_page, :omit_background] and is_boolean(value),
+       do: value
+
+  # `{ dom?, aria?, screen? }`, a map as the facade's nested objects.
+  defp artifact_option!(:trace, :snapshots, %{} = snapshots) when not is_struct(snapshots) do
+    if Enum.all?(snapshots, fn {name, value} -> name in [:dom, :aria, :screen] and is_boolean(value) end),
+      do: snapshots,
+      else: raise(ArgumentError, "invalid trace snapshots: #{inspect(snapshots)}")
+  end
+
+  # A `ViewportSize`.
+  defp artifact_option!(:video, :size, %{width: width, height: height} = size)
+       when map_size(size) == 2 and is_integer(width) and is_integer(height),
+       do: size
+
+  defp artifact_option!(key, name, value), do: raise(ArgumentError, "invalid #{key} #{name}: #{inspect(value)}")
 
   defp mode!(key, mode) do
     if mode in @modes[key],

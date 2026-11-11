@@ -210,6 +210,11 @@ snapshot of its page, for you or an agent to read.
 keep the files of failures; a passing test's are dropped in its `on_exit`. Open a trace with `mix playwright_ex.cli show-trace
 test-results/.../trace.zip`. More in the [Debugging and CI](debugging-and-ci.md) guide.
 
+As in Playwright Test, each takes options too, with the mode as `:mode`: `trace: [mode: :on,
+snapshots: false]`, `screenshot: [mode: :only_on_failure, full_page: true]`, `video: [mode: :on,
+size: %{width: 640, height: 480}]`. An option given to `record_artifacts/2` replaces the config's
+value as a whole.
+
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
 (`on-first-retry`); with ExUnit, trace when asked:
 

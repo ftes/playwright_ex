@@ -170,7 +170,7 @@ defmodule PlaywrightEx.Test.Recorder do
       end)
 
     snapshotted = Enum.reduce(pages, state.snapshotted, &MapSet.put(&2, &1.guid))
-    {:reply, paths, %{state | ordinal: ordinal, snapshotted: snapshotted}}
+    {:reply, {paths, state.opts}, %{state | ordinal: ordinal, snapshotted: snapshotted}}
   end
 
   def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
@@ -199,8 +199,13 @@ defmodule PlaywrightEx.Test.Recorder do
 
   # `_contextFactory`: `browser.newContext({ ...videoOptions, ...options })`.
   defp before_create(options, test_pid, opts) do
-    if opts.video != :off and not Map.has_key?(options, :recordVideo) and ours?(test_pid),
-      do: Map.put(options, :recordVideo, %{dir: Path.join(opts.tmp, "videos")}),
+    if opts.video[:mode] != :off and not Map.has_key?(options, :recordVideo) and ours?(test_pid),
+      do:
+        Map.put(
+          options,
+          :recordVideo,
+          Map.new([dir: Path.join(opts.tmp, "videos")] ++ Keyword.take(opts.video, [:size]))
+        ),
       else: options
   end
 
@@ -216,18 +221,16 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp record(context, recorder, opts) do
-    if opts.trace != :off, do: step("start tracing", fn -> start_tracing(context, opts) end)
-    if opts.video != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
+    if opts.trace[:mode] != :off, do: step("start tracing", fn -> start_tracing(context, opts) end)
+    if opts.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
   end
 
-  # `_startTraceChunkOnContextCreation`, with upstream's default trace options.
+  # `_startTraceChunkOnContextCreation`: `tracing.start({ ...options, title, name })`.
   defp start_tracing(context, opts) do
-    Tracing.start!(BrowserContext.tracing(context),
-      name: "playwright_ex-#{System.unique_integer([:positive])}",
-      title: opts.title,
-      screenshots: true,
-      snapshots: true,
-      sources: true
+    Tracing.start!(
+      BrowserContext.tracing(context),
+      Keyword.delete(opts.trace, :mode) ++
+        [title: opts.title, name: "playwright_ex-#{System.unique_integer([:positive])}"]
     )
   end
 
@@ -249,8 +252,8 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp collect(context, recorder, test_pid, opts) do
-    if opts.trace != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
-    if opts.screenshot != :off, do: screenshots(context, recorder, opts)
+    if opts.trace[:mode] != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
+    if opts.screenshot[:mode] != :off, do: screenshots(context, recorder, opts)
     step("take a page snapshot", fn -> page_snapshot(context, recorder, test_pid) end)
   end
 
@@ -281,14 +284,14 @@ defmodule PlaywrightEx.Test.Recorder do
     for page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
         call(recorder, {:snapshot?, page.guid}),
         path = Path.join([opts.tmp, "screenshots", "#{System.unique_integer([:positive])}.png"]),
-        step("take a screenshot", fn -> screenshot(page, path) end),
+        step("take a screenshot", fn -> screenshot(page, path, opts) end),
         do: call(recorder, {:add_screenshot, path})
   end
 
-  # `page.screenshot({ timeout: 5000, path, caret: 'initial' })`.
-  defp screenshot(page, path) do
+  # `page.screenshot({ ...screenshotOptions, timeout: 5000, path, caret: 'initial' })`.
+  defp screenshot(page, path, opts) do
     File.mkdir_p!(Path.dirname(path))
-    Page.screenshot!(page, path: path, timeout: 5000, caret: :initial)
+    Page.screenshot!(page, Keyword.delete(opts.screenshot, :mode) ++ [timeout: 5000, path: path, caret: :initial])
   end
 
   defp attachment_path(dir, failed?, ordinal),
@@ -300,9 +303,10 @@ defmodule PlaywrightEx.Test.Recorder do
   `test-failed-N.png` or `test-finished-N.png`. For the modes that keep them.
   """
   def capture(pid, failed?) do
-    pid
-    |> GenServer.call({:capture, failed?}, :infinity)
-    |> Task.async_stream(fn {page, path} -> step("take a screenshot", fn -> screenshot(page, path) end) end,
+    {paths, opts} = GenServer.call(pid, {:capture, failed?}, :infinity)
+
+    paths
+    |> Task.async_stream(fn {page, path} -> step("take a screenshot", fn -> screenshot(page, path, opts) end) end,
       timeout: :infinity
     )
     |> Stream.run()
@@ -352,7 +356,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
     # `didFinishTest`: the open pages' screenshots, then the leftover contexts. A shared browser
     # outlives the test.
-    if capture?(state.opts.screenshot, failed?), do: capture(pid, failed?)
+    if capture?(state.opts.screenshot[:mode], failed?), do: capture(pid, failed?)
 
     for %{guid: guid, context: context} <- state.contexts,
         guid not in state.closed,
@@ -403,8 +407,8 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # `_contextFactory`'s close (`shouldPreserveVideo`): `video.webm`, `video-1.webm`, ... in the
-  # order the contexts closed.
-  defp save_videos(%{opts: %{video: video}} = state, failed?)
+  # order the contexts closed. The artifact options have their `mode` first.
+  defp save_videos(%{opts: %{video: [{:mode, video} | _]}} = state, failed?)
        when video == :on or (video == :retain_on_failure and failed?) do
     by_guid = Map.new(state.contexts, &{&1.guid, &1})
     open = for %{guid: guid} <- state.contexts, guid not in state.closed, do: guid
@@ -426,7 +430,7 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # `testTracing`'s `_shouldAbandonTrace`: a passed test's trace with `retain_on_failure`.
-  defp save_trace(%{opts: %{trace: trace}} = state, failed?)
+  defp save_trace(%{opts: %{trace: [{:mode, trace} | _]}} = state, failed?)
        when trace == :on or (trace == :retain_on_failure and failed?),
        do: step("merge the traces", fn -> merge_traces(Path.join(state.opts.dir, "trace.zip"), state.chunks) end)
 
@@ -439,7 +443,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # `test-finished-N.png` (`on` only), in capture order, numbered after those taken at the end.
   defp persist_screenshots(state, failed?) do
     for {file, ordinal} <- Enum.with_index(state.screenshots, state.ordinal),
-        capture?(state.opts.screenshot, failed?),
+        capture?(state.opts.screenshot[:mode], failed?),
         path = attachment_path(state.opts.dir, failed?, ordinal),
         do: step("save a screenshot", fn -> save_screenshot(file, path) end)
   end

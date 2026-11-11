@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Test do
   `test/checkout_test.exs`, the suffix a hash of the module and its `parameterize:` parameters):
 
     * `trace.zip` - one trace of all its contexts (`mix playwright_ex.cli show-trace <path>`),
-      recorded with screenshots, snapshots and sources (upstream's default trace options).
+      recorded with screenshots, snapshots and sources unless the trace's options say otherwise.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
       page open at the end of the test's body (before its `on_exit` callbacks), then of those
       open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
@@ -77,6 +77,14 @@ defmodule PlaywrightEx.Test do
     * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
       the first page of the first context closed after the failure (upstream's `didFinishTest`
       and `buildErrorContext`).
+
+  Each mode is also the `:mode` of a keyword list (or map) of options, as upstream's object
+  forms: `trace: [mode: :on, snapshots: false]`, `screenshot: [mode: :on, full_page: true]`,
+  `video: [mode: :on, size: %{width: 640, height: 480}]`. `:mode` is required. The trace's
+  `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`), `:screenshots` and `:sources` are
+  `PlaywrightEx.Tracing.start/2`'s, `true` by default; the screenshot's `:full_page` and
+  `:omit_background` are `PlaywrightEx.Page.screenshot/2`'s; the video's `:size` is
+  `record_video`'s.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
   (files you write to `output_path/2` stay). A failing artifact step is logged; the test's
@@ -96,9 +104,9 @@ defmodule PlaywrightEx.Test do
         driver: [],                   # PlaywrightEx.Supervisor: :env, :executable, :node, :cache_dir
         on_start: nil,
         context_options: [],          # PlaywrightEx.Browser.new_context/2
-        trace: :off,                  # :off | :on | :retain_on_failure
-        screenshot: :off,             # :off | :on | :only_on_failure
-        video: :off,                  # :off | :on | :retain_on_failure
+        trace: :off,                  # :off | :on | :retain_on_failure, or [mode: _, ...]
+        screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
+        video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
         output_dir: "test-results",
         workers: max(div(System.schedulers_online(), 2), 1)
 
@@ -286,11 +294,15 @@ defmodule PlaywrightEx.Test do
   Takes the test's context map (`module`, `test`, `file`; `browser` or `playwright` to record
   plain `PlaywrightEx.Browser.new_context/2` calls) and the options, merged over the config:
 
-    * `:trace` - `:off` (default), `:on` or `:retain_on_failure`.
-    * `:screenshot` - `:off` (default), `:on` or `:only_on_failure`.
-    * `:video` - `:off` (default), `:on` or `:retain_on_failure`.
+    * `:trace` - `:off` (default), `:on` or `:retain_on_failure`, or
+      `[mode: _, snapshots: _, screenshots: _, sources: _]`.
+    * `:screenshot` - `:off` (default), `:on` or `:only_on_failure`, or
+      `[mode: _, full_page: _, omit_background: _]`.
+    * `:video` - `:off` (default), `:on` or `:retain_on_failure`, or `[mode: _, size: _]`.
 
-  With all three `:off` it only writes `error-context.md` of a failure. `new_context/2` calls it
+  Each of them replaces the config's value as a whole (`launch_options` and the other option
+  lists merge one level deep). With all three `:off` it only writes `error-context.md` of a
+  failure. `new_context/2` calls it
   with the config if the test hasn't.
   """
   @spec record_artifacts(map(), keyword()) :: :ok
@@ -322,7 +334,7 @@ defmodule PlaywrightEx.Test do
            do: div(timeout, 2)
 
     ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder, budget) end)
-    Process.put(@recording, {recorder, opts.screenshot})
+    Process.put(@recording, {recorder, opts.screenshot[:mode]})
 
     channel = context[:browser] || context[:playwright]
     if channel, do: Recorder.ensure_listener(recorder, Heap.get(channel, :_instrumentation))

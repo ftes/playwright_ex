@@ -14,10 +14,11 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
   shared browser per set of options or one per module (`isolate: true`, taken on first use, at
   most `workers` at once: half the schedulers, as Playwright Test's default), and
-  traces, screenshots and videos of every context a test creates (`record_artifacts/2`), kept for
-  failures, plus Playwright Test's `error-context.md` of each failed test. `use
-  PlaywrightEx.Test` after `use ExUnit.Case` brings a `test` macro that tells the fragments each
-  test's result. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+  traces, screenshots and videos of every context a test creates (`record_artifacts/2`, with
+  Playwright Test's modes and their options), kept for failures, plus Playwright Test's
+  `error-context.md` of each failed test. `use PlaywrightEx.Test` after `use ExUnit.Case` brings
+  a `test` macro that tells the fragments each test's result. See the
+  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Fixed
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).

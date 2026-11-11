@@ -41,10 +41,52 @@ defmodule PlaywrightEx.Test.OptionsTest do
       assert %{launch_options: [slow_mo: 50], on_start: {M, :f, []}, isolate: false} =
                Options.browser(launch_options: %{slow_mo: 50}, on_start: {M, :f, []})
 
-      assert %{trace: :on, screenshot: :off, video: :retain_on_failure} =
+      assert %{trace: [mode: :on] ++ _, screenshot: [mode: :off], video: [mode: :retain_on_failure]} =
                Options.artifacts(trace: :on, video: :retain_on_failure)
 
       assert %{context_options: [locale: "de-DE"]} = Options.context(context_options: [locale: "de-DE"])
+    end
+
+    test "artifact modes are their object forms' mode, with upstream's defaults" do
+      assert Options.artifacts(trace: :on, screenshot: :on, video: :on) == %{
+               trace: [mode: :on, snapshots: true, screenshots: true, sources: true],
+               screenshot: [mode: :on],
+               video: [mode: :on]
+             }
+
+      assert Options.artifacts(
+               trace: [sources: false, mode: :retain_on_failure, snapshots: %{dom: true, aria: false}],
+               screenshot: %{mode: :only_on_failure, full_page: true, omit_background: false},
+               video: [mode: :on, size: %{width: 320, height: 240}]
+             ) == %{
+               trace: [
+                 mode: :retain_on_failure,
+                 snapshots: %{dom: true, aria: false},
+                 screenshots: true,
+                 sources: false
+               ],
+               screenshot: [mode: :only_on_failure, full_page: true, omit_background: false],
+               video: [mode: :on, size: %{width: 320, height: 240}]
+             }
+    end
+
+    test "unknown keys and bad values of the object forms raise" do
+      for {option, message} <- [
+            {[trace: [mode: :on, attachments: false]], ~r/unknown trace options \[:attachments\], expected one of/},
+            {[video: [mode: :on, fps: 30]], ~r/unknown video options \[:fps\]/},
+            {[screenshot: [mode: :on, path: "x.png"]], ~r/unknown screenshot options \[:path\]/},
+            {[trace: [sources: false]], ~r/trace options need :mode/},
+            {[video: %{size: %{width: 320, height: 240}}], ~r/video options need :mode/},
+            {[trace: [mode: :on_first_retry]], ~r/invalid trace: :on_first_retry, expected one of/},
+            {[trace: [mode: :on, snapshots: 1]], ~r/invalid trace snapshots: 1/},
+            {[trace: [mode: :on, snapshots: %{dom: true, network: true}]], ~r/invalid trace snapshots: %{/},
+            {[trace: [mode: :on, sources: nil]], ~r/invalid trace sources: nil/},
+            {[screenshot: [mode: :on, full_page: "yes"]], ~r/invalid screenshot full_page: "yes"/},
+            {[video: [mode: :on, size: [width: 320, height: 240]]], ~r/invalid video size: \[/},
+            {[video: [mode: :on, size: %{width: 320}]], ~r/invalid video size: %{width: 320}/},
+            {[trace: "on"], ~r/invalid trace: "on"/}
+          ],
+          do: assert_raise(ArgumentError, message, fn -> Options.artifacts(option) end)
     end
 
     test "isolate needs the context map of a module with use PlaywrightEx.Test" do
@@ -231,14 +273,20 @@ defmodule PlaywrightEx.Test.ConfigTest do
     )
 
     assert %{launch_options: [headless: false, slow_mo: 50]} = Options.browser(launch_options: [slow_mo: 50])
-    assert %{trace: :on, video: :on} = Options.artifacts(video: :on)
+    assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = Options.artifacts(video: :on)
     assert %{context_options: [locale: "de-DE", base_url: "/"]} = Options.context(context_options: [base_url: "/"])
   end
 
   test "the defaults", %{config: config} do
     Application.delete_env(:playwright_ex, :test)
     assert %{browser_name: :chromium, isolate: false, on_start: nil} = Options.browser([])
-    assert %{trace: :off, screenshot: :off, video: :off} = Options.artifacts([])
+
+    assert %{
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             screenshot: [mode: :off],
+             video: [mode: :off]
+           } = Options.artifacts([])
+
     assert Options.output_dir() == "test-results"
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
     Application.put_env(:playwright_ex, :test, config)
