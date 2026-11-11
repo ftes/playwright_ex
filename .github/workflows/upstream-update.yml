@@ -29,8 +29,8 @@ concurrency:
 permissions: {}
 
 env:
-  # For the Claude prompts: its Bash habits (cd, cat, grep, heredocs) don't match the allowlists.
-  TOOL_HINT: "Use your file tools, not Bash, to read and search files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, ;, &&, pipes or heredocs (you are already in the repository)."
+  # For the prompts (appended to the port's). Plain text (no quotes, $ or backslashes), as claude.yml's.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository)."
 
 jobs:
   # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
@@ -108,6 +108,8 @@ jobs:
             echo "RELEASE: https://github.com/microsoft/playwright/releases/tag/v$TO"
             echo
             cat .github/prompts/upstream-update.md
+            echo
+            echo "$TOOL_HINT"
             echo "PROMPT_EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Port the release

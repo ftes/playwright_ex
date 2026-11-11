@@ -11,8 +11,8 @@ concurrency:
 env:
   # As in elixir.yml.
   MIX_ENV: test
-  # For the Claude prompts: its Bash habits (cd, cat, grep, heredocs) don't match the allowlists.
-  TOOL_HINT: "Use your file tools, not Bash, to read and search files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, ;, &&, pipes or heredocs (you are already in the repository)."
+  # For the prompt. Plain text (no quotes, $ or backslashes), as claude.yml's copy must be.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository)."
 
 jobs:
   claude-review:
