@@ -133,58 +133,17 @@ jobs:
             deps
             _build
 
-  # The mix.exs floor (.tool-versions.oldest, swapped in before mise), for bugs only: it compiles
-  # (for the oldest lane's tests below) and nothing else, and warnings pass, so newer
-  # backwards-compatible features stay usable. As Fluffy's oldest lane. Its own cache key, as the
-  # key hashes the swapped .tool-versions.
-  oldest:
-    name: Build (oldest)
-    if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Select oldest toolchain
-        run: cp .tool-versions.oldest .tool-versions
-      - name: Setup languages
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - name: Get runner image
-        id: runner_image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      - name: Restore deps and _build
-        id: mix_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
-          restore-keys: |
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
-          path: |
-            deps
-            _build
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      - name: Compile
-        run: mix compile
-      - name: Save deps and _build
-        if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          key: ${{ steps.mix_cache.outputs.cache-primary-key }}
-          path: |
-            deps
-            _build
-
   # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
   # path). Parity, Selenium and headful run once per browser, in partition 1, on the newest lane.
-  # The oldest lane (.tool-versions.oldest) runs chromium's main suite only, with warnings allowed:
-  # it catches what the floor lacks (a missing function is only a compile warning there).
+  # The oldest lane (.tool-versions.oldest, mix.exs's floor) runs chromium's main suite only, with
+  # warnings allowed so newer backwards-compatible features stay usable: the tests catch what the
+  # floor lacks (a call to a missing function is only a compile warning there).
   test:
     name: Test (${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }})
     runs-on: ubuntu-latest
-    needs: [build, oldest]
-    # After green builds, or none when skip_lint skipped them.
-    if: ${{ !cancelled() && (needs.build.result == 'success' && needs.oldest.result == 'success' || inputs.skip_lint && needs.build.result == 'skipped' && needs.oldest.result == 'skipped') }}
+    needs: build
+    # After a green build, or none when skip_lint skipped it.
+    if: ${{ !cancelled() && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
     # The slowest partition took ~12 min at 4 per browser (firefox, with BrowsertypeConnectTest); a
     # hang fails here instead of at GitHub's 6 h.
     timeout-minutes: 30
@@ -215,8 +174,10 @@ jobs:
       - name: Get runner image
         id: runner_image
         run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      # Saved by the lane's build job (on main).
+      # Saved on main by the build job (newest) or below (oldest). The key hashes the lane's
+      # .tool-versions.
       - name: Restore deps and _build
+        id: mix_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
@@ -343,13 +304,22 @@ jobs:
       - name: Run headful tests
         if: matrix.lane == 'newest' && matrix.partition == 1
         run: HEADED=1 mix test --only headed || if [[ $? = 2 ]]; then HEADED=1 mix test --failed; else false; fi
+      # The oldest lane has no build job: one green partition saves its deps and _build, on main
+      # only, under the key computed before deps.get.
+      - name: Save deps and _build
+        if: success() && matrix.lane == 'oldest' && matrix.partition == 1 && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: ${{ steps.mix_cache.outputs.cache-primary-key }}
+          path: |
+            deps
+            _build
       # The display is shared by the steps above: its log, in case it went down.
       - name: Show Xvfb log
         if: failure()
         run: cat "$RUNNER_TEMP/xvfb.log" || true
 
-  # The one check to require: green when every lane's and browser's partitions are (the oldest
-  # build fails or skips them).
+  # The one check to require: green when every lane's and browser's partitions are.
   tests:
     name: Tests
     if: always()

@@ -793,8 +793,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
           Task.async(fn ->
             Stream.repeatedly(fn ->
               with {:ok, socket} <- :gen_tcp.accept(listen) do
-                {:ok, _hello} = :gen_tcp.recv(socket, 0, 5000)
-                drain(socket)
+                read_client_hello(socket)
                 :gen_tcp.close(socket)
               end
             end)
@@ -825,12 +824,12 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       end
     end
 
-    # Reads until the client pauses: closing with unread bytes sends a RST (`read ECONNRESET`) in
-    # place of the FIN, as OTP 27's recv/3 can return the ClientHello's first part only.
-    defp drain(socket) do
-      case :gen_tcp.recv(socket, 0, 200) do
-        {:ok, _} -> drain(socket)
-        {:error, _} -> :ok
+    # The whole ClientHello record (its header, then its length): closing with unread bytes sends a
+    # RST (`read ECONNRESET`) in place of the FIN, and recv/3 with length 0 can return part of it
+    # (seen on OTP 27). Any error (a connection closed without data) just ends the read.
+    defp read_client_hello(socket) do
+      with {:ok, <<_type, _version::16, length::16>>} <- :gen_tcp.recv(socket, 5, 5000) do
+        :gen_tcp.recv(socket, length, 5000)
       end
     end
 
