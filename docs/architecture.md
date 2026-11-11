@@ -299,8 +299,13 @@ WebSocket framing uses cowlib's `cow_ws` on the raw socket: Bandit's WebSock ans
 with 1000 and hides the peer's close frame. `TestProxy` is a small `:gen_tcp` HTTP and SOCKS5
 proxy. Snapshot comparison and video decoding use the driver's own comparator and ffmpeg.
 `launchServer` specs run on the driver's `launch-server` CLI or upstream's unmodified
-`remote-server-impl.js`, as Python's and Java's suites do. Tests of driver env vars run a second
-driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
+`remote-server-impl.js`, as Python's and Java's suites do. The suite runs on `PlaywrightEx.Test`:
+upstream and example modules share a driver each (the upstream one under test, set up as
+Playwright Test's fixtures by `on_start`), and the few that change the driver or its browser for
+others (selectors, test id, closing, tracing or counting `browser`'s contexts, the Playwright's
+defaults) declare `isolate: true`, upstream's worker. Cleanup closes only what a test or module
+created; a guard fails a shared module's test that left the driver changed (selectors, test id, a
+closed browser). Tests of driver env vars run a second driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
 `ClientProcess` BEAM) exits on stdin EOF, so a killed test BEAM leaves no orphans
 (`no_orphan_processes_test`). Upstream assets come from the pinned release cache, not vendored.
 Stress and perf runs are manual, not CI.
