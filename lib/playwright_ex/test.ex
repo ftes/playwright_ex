@@ -122,6 +122,18 @@ defmodule PlaywrightEx.Test do
   reports all of the test's errors, also when another failure follows. `path:` in place of
   `name:` is the snapshot file itself, also outside a test, where a written snapshot is printed.
 
+  ## Steps
+
+  `step/3` is upstream's `test.step`: `step "log in" do ... end`, or `step(title, fun,
+  options)` for wrappers, with upstream's `box`, `location`, `timeout`, `params` and `subtitle`
+  (`step_skip/3` is `test.step.skip`). Each matcher call in a test is a step too
+  (`category: 'expect'`). The trace's `test.trace` entry (upstream's `TestTracing`) has the
+  steps, nested by the step they run in, and the test's errors, so `trace: :on` gives a
+  `trace.zip` also for a test without contexts. Not ported: the test's stdout and stderr in
+  the trace, steps of the driver calls (`pw:api`: the calls stay top-level in the trace, a
+  matcher's `Frame.expect` call apart from its step), hooks and fixtures as steps, attachments
+  and the step's `TestStepInfo` (the body takes no argument).
+
   ## Config
 
       config :playwright_ex, :test,
@@ -145,6 +157,7 @@ defmodule PlaywrightEx.Test do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
@@ -154,6 +167,8 @@ defmodule PlaywrightEx.Test do
   @recording {__MODULE__, :recording}
   # The module's token in its `setup_all` process, for fragments that run before ours.
   @token {__MODULE__, :module}
+  # Set while `__passed__/0` raises the errors `TestInfo` recorded (and traced) already.
+  @reraised {__MODULE__, :reraised}
 
   defmacro __using__(_opts) do
     if __CALLER__.module && Module.has_attribute?(__CALLER__.module, :playwright_ex_test) do
@@ -184,7 +199,11 @@ defmodule PlaywrightEx.Test do
             new_page: 1,
             output_path: 2,
             snapshot_path: 2,
-            snapshot_path: 3
+            snapshot_path: 3,
+            step: 2,
+            step: 3,
+            step_skip: 2,
+            step_skip: 3
           ]
 
         @doc false
@@ -268,9 +287,11 @@ defmodule PlaywrightEx.Test do
         finished_test_function(false)
 
       [{kind, reason, stacktrace}] ->
+        Process.put(@reraised, true)
         :erlang.raise(kind, reason, stacktrace)
 
       errors ->
+        Process.put(@reraised, true)
         raise ExUnit.MultiError, errors: errors
     end
   end
@@ -279,6 +300,9 @@ defmodule PlaywrightEx.Test do
   # this one as it is.
   @doc false
   def __failed__(kind, reason, stacktrace) do
+    # The worker's `_failWithError` of the body's error: its trace event (`appendForError`).
+    if !Process.delete(@reraised), do: TestInfo.trace_errors(self(), errors(kind, reason, stacktrace))
+
     error =
       case TestInfo.finish(self()) do
         [] -> {kind, reason, stacktrace}
@@ -388,13 +412,14 @@ defmodule PlaywrightEx.Test do
           dir: dir,
           title: title,
           title_path: Recorder.title_path(context),
-          location: {file, context[:line]}
+          location: {file, context[:line]},
+          test_timeout: test_timeout(context)
         })
       )
 
     # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
     budget =
-      with timeout when is_integer(timeout) <- context[:timeout] || ExUnit.configuration()[:timeout],
+      with timeout when is_integer(timeout) <- test_timeout(context),
            do: div(timeout, 2)
 
     ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder, budget) end)
@@ -474,6 +499,172 @@ defmodule PlaywrightEx.Test do
   @doc "A page of `context.context`, for `setup`: returns `page`."
   @spec new_page(map()) :: %{page: PlaywrightEx.Page.t()}
   def new_page(context) when is_map(context), do: %{page: BrowserContext.new_page!(fetch!(context, :context))}
+
+  @doc """
+  Upstream's `test.step(title, body, options)`: runs the body as a step of the running test
+  and returns its value, also from a process with the test in its `$callers` (a `Task`); steps
+  nest. A step's error is raised on after the step records it. Outside a test it raises.
+
+      step "log in" do
+        ...
+      end
+
+      step "log in", box: true do
+        ...
+      end
+
+      step("log in", fn -> ... end, box: true)
+
+  Options:
+
+    * `:box` - an error inside the step is reported at the step: its stacktrace is the step's
+      call site's instead of the frames inside it.
+    * `:location` - `%{file: _, line: _, column: _}` of the step in the trace. The `do` form
+      passes its own.
+    * `:timeout` - fails the step after this many milliseconds with a `PlaywrightEx.TimeoutError`.
+      The body then runs in a process of its own (with the test in its `$callers`), as a
+      `Task`, so `assert_receive` and `ExUnit.Callbacks` don't work in it.
+    * `:params`, `:subtitle` - shown with the step in the trace.
+
+  The step, the matchers in it and the test's errors are in the test's trace (`test.trace` in
+  `trace.zip`). A step in a `Task` has no parent step: the `Task` doesn't carry the zone.
+  """
+  defmacro step(title, body_or_options, options \\ []), do: step_ast(:pass, title, body_or_options, options, __CALLER__)
+
+  @doc """
+  Upstream's `test.step.skip(title, body, options)`: a step that doesn't run its body, marked
+  `skip` in the trace. Returns `nil`. The forms and options are `step/3`'s.
+  """
+  defmacro step_skip(title, body_or_options, options \\ []),
+    do: step_ast(:skip, title, body_or_options, options, __CALLER__)
+
+  # `step "title" do ... end` (with options before the `do`), or `step(title, fun, options)`.
+  defp step_ast(expectation, title, body_or_options, options, caller) do
+    location = Macro.escape(%{file: caller.file, line: caller.line, column: 0})
+
+    {body, options} =
+      cond do
+        do_block?(body_or_options) and options == [] ->
+          {step_fn(body_or_options), [location: location]}
+
+        do_block?(options) ->
+          {step_fn(options), quote(do: Keyword.put_new(unquote(body_or_options), :location, unquote(location)))}
+
+        true ->
+          {body_or_options, options}
+      end
+
+    quote do: PlaywrightEx.Test._step(unquote(expectation), unquote(title), unquote(body), unquote(options))
+  end
+
+  defp do_block?(ast), do: is_list(ast) and Keyword.keyword?(ast) and Keyword.has_key?(ast, :do)
+
+  # `rescue`, `catch`, `after`, `else` as in a `def`.
+  defp step_fn(do: block), do: quote(do: fn -> unquote(block) end)
+  defp step_fn(contents), do: quote(do: fn -> try(unquote(contents)) end)
+
+  @doc false
+  # `TestTypeImpl._step`: `expectation` is `:pass` (`test.step`) or `:skip` (`test.step.skip`).
+  def _step(expectation, title, body, options \\ []) when is_function(body, 0) do
+    options = Map.new(Keyword.validate!(options, [:box, :location, :timeout, :params, :subtitle]))
+    test_info = TestInfo.current()
+    if !test_info, do: raise("test.step() can only be called from a test")
+    # await testInfo._onUserStepBegin?.(title);  -- not ported: UI mode
+
+    step =
+      TestInfo._add_step(test_info, %{
+        category: "test.step",
+        title: title,
+        subtitle: options[:subtitle],
+        stack: if(options[:location], do: [options.location]),
+        box: options[:box],
+        params: options[:params]
+      })
+
+    Zones.with(:stepZone, step, fn ->
+      try do
+        deadline =
+          if options[:timeout] in [nil, 0], do: 0, else: System.monotonic_time(:millisecond) + options.timeout
+
+        result = race_against_deadline(&run_step_body(test_info, step, expectation, body, &1), deadline)
+
+        if result.timedOut,
+          do: raise(PlaywrightEx.TimeoutError, message: "Step timeout of #{options.timeout}ms exceeded.")
+
+        TestInfo.step_complete(step, %{})
+        result.result
+      catch
+        kind, reason ->
+          TestInfo.step_complete(step, %{error: {kind, reason, __STACKTRACE__}})
+          # deviation: Elixir errors are immutable, so none carries its step (`stepSymbol`) for
+          # `_failWithError` to report a boxed step's stack: the step raises it with that stack,
+          # which ExUnit reports.
+          :erlang.raise(kind, reason, step.boxedStack || __STACKTRACE__)
+      end
+
+      # finally { await testInfo._onUserStepEnd?.(); }  -- not ported: UI mode
+    end)
+  end
+
+  # The race's body.
+  defp run_step_body(test_info, step, expectation, body, timed_out?) do
+    TestInfo._run_step_body(step, expectation == :skip, body, List.first(step.stack))
+  catch
+    kind, reason ->
+      # If the step timed out, the test fixtures will tear down, which in turn
+      # will abort unfinished actions in the step body. Record such errors here.
+      if timed_out?.(), do: TestInfo._fail_with_error(test_info, {kind, reason, __STACKTRACE__})
+      :erlang.raise(kind, reason, __STACKTRACE__)
+  end
+
+  # isomorphic/timeoutRunner.ts `raceAgainstDeadline`; `cb` gets whether the race timed out.
+  # deviation: without a deadline the body runs in the calling process. With one it runs in a
+  # linked process of its own (with the zone and the test in its `$callers`), as a process
+  # can't be interrupted: past the deadline the race returns and the body runs on, as
+  # upstream's, until the test's process exits.
+  defp race_against_deadline(cb, 0), do: %{result: cb.(fn -> false end), timedOut: false}
+
+  defp race_against_deadline(cb, deadline) do
+    zone = Zones.current_zone()
+    callers = [self() | List.wrap(Process.get(:"$callers"))]
+    timed_out = :atomics.new(1, [])
+    # Dropped once the race is over.
+    reply = :erlang.alias([:reply])
+
+    spawn_link(fn ->
+      Process.put(:"$callers", callers)
+      Zones.restore(zone)
+
+      result =
+        try do
+          {:ok, cb.(fn -> :atomics.get(timed_out, 1) == 1 end)}
+        catch
+          kind, reason -> {:error, kind, reason, __STACKTRACE__}
+        end
+
+      send(reply, {reply, result})
+    end)
+
+    receive do
+      {^reply, {:ok, result}} -> %{result: result, timedOut: false}
+      {^reply, {:error, kind, reason, stacktrace}} -> :erlang.raise(kind, reason, stacktrace)
+    after
+      max(0, deadline - System.monotonic_time(:millisecond)) ->
+        :atomics.put(timed_out, 1, 1)
+        :erlang.unalias(reply)
+
+        receive do
+          {^reply, _result} -> :ok
+        after
+          0 -> :ok
+        end
+
+        %{timedOut: true}
+    end
+  end
+
+  # The test's ExUnit timeout.
+  defp test_timeout(context), do: context[:timeout] || ExUnit.configuration()[:timeout]
 
   # The test's result is the pool's: it monitors the test process.
   defp watch(context) do

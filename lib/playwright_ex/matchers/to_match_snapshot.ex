@@ -250,7 +250,15 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
   end
 
   # toMatchSnapshot  -- not ported: jest generic assertions (architecture: Generated facade)
-  # toHaveScreenshotStepTitle  -- not ported: test steps
+  def to_have_screenshot_step_title(name_or_options \\ %{}, _opt_options \\ %{}) do
+    name =
+      case name_or_options do
+        %{} = options -> options[:name]
+        name -> name
+      end
+
+    if is_list(name), do: Enum.join(name, "/"), else: name || ""
+  end
 
   def to_have_screenshot(this, page_or_locator, options \\ %{}) do
     options = options || %{}

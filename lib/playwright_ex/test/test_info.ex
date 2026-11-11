@@ -4,16 +4,21 @@ defmodule PlaywrightEx.Test.TestInfo do
   # (`packages/playwright/src/worker/testInfo.ts`) for a test of `use PlaywrightEx.Test`: its
   # snapshot paths (`_resolveSnapshotPaths`, `snapshotPath`), output paths (`_getOutputPath`) and
   # error list (`_failWithError`), which fails the test when its body ends
-  # (`PlaywrightEx.Test.__passed__/0`).
+  # (`PlaywrightEx.Test.__passed__/0`), and its steps (`_addStep`), traced by its `_tracing`
+  # (`PlaywrightEx.Test.TestTracing`).
   #
-  # `this` is a map of the test's static fields. Its mutable state, the snapshot indexes and the
-  # errors, are rows of the pool's public table keyed `{:test_info, test_pid, _}`, as a matcher
-  # may run in another process of the test (`$callers`). The pool deletes them when the test's
-  # process ends.
+  # `this` is a map of the test's static fields. Its mutable state, the snapshot indexes, the
+  # errors and the steps, are rows of the pool's public table keyed `{:test_info, test_pid, _}`,
+  # as a matcher or step may run in another process of the test (`$callers`). The pool deletes
+  # them when the test's process ends.
 
+  alias PlaywrightEx.Client.ClientStackTrace
   alias PlaywrightEx.Matchers.Expect
+  alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.TestTracing
 
   @doc "The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `output_dir`."
   def new(context) do
@@ -21,9 +26,14 @@ defmodule PlaywrightEx.Test.TestInfo do
       test_pid: context.test_pid,
       file: Path.expand(context.file),
       test_name: Recorder.test_name(context),
-      output_dir: Path.expand(Recorder.output_dir(context))
+      output_dir: Path.expand(Recorder.output_dir(context)),
+      # `nextStepId = createCallIdGenerator()`: its prefix.
+      step_id_prefix: for(_ <- 1..4, into: "", do: <<Enum.random(?a..?z)>>)
     }
   end
+
+  # `_tracing`: the test's recorder, if it records artifacts.
+  defp _tracing(this), do: Recorder.lookup(this.test_pid)
 
   @doc "Registers the running test of `context` (in its `setup`): matchers of its processes find it."
   def start(context) do
@@ -67,15 +77,188 @@ defmodule PlaywrightEx.Test.TestInfo do
     rows |> Enum.sort_by(fn {{_, _, {:error, seq}}, _error} -> seq end) |> Enum.map(&elem(&1, 1))
   end
 
+  # _findLastPredefinedStep  -- not ported: hooks and fixtures are ExUnit's (no steps)
+
+  # `_parentStep`: the step of the zone.
+  defp _parent_step(this) do
+    case Zones.data(:stepZone) do
+      %{testInfo: %{test_pid: test_pid}} = step when test_pid == this.test_pid -> step
+      _ -> nil
+    end
+  end
+
   @doc """
-  The part of a step's `complete` (`_addStep`) that needs no steps: a result's `softError` is
-  added to the test's errors, with the caller's stacktrace (upstream's step stack).
+  `_addStep`: a step of `data` (`category`, `title`, `subtitle`, `stack`, `params`, `box`,
+  `group`), as a map with `stepId`, `boxedStack` (an Elixir stacktrace, or `nil`), `stack`
+  (frames) and `testInfo`. Its mutable fields are a row of the pool's table.
   """
-  # The rest of `complete` (attachments, the step's error) waits for steps; `shouldNotRetryTest`
-  # needs retries, which ExUnit has none of.
-  def step_complete(this, result) do
-    if result[:softError], do: _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
+  def _add_step(this, data, parent_step \\ nil) do
+    seq = System.unique_integer([:positive, :monotonic])
+    step_id = "#{this.step_id_prefix}@#{seq}"
+
+    # if (data.category === 'hook' || data.category === 'fixture')  -- not ported: hooks and fixtures
+    parent_step = parent_step || _parent_step(this)
+
+    boxed_stack = parent_step && parent_step.boxedStack
+    stack = data[:stack]
+
+    {boxed_stack, stack} =
+      if !boxed_stack and data[:box] do
+        # deviation: no `.slice(1)`. BEAM drops a frame that tail-calls, so the step's caller
+        # may not be on the stack: the boxed stack starts at the first frame outside the
+        # library, the step's call site (or, for a tail call, its caller's).
+        boxed_stack = filtered_stack_trace(capture_raw_stack())
+        {boxed_stack, stack || stack_frames(boxed_stack)}
+      else
+        {boxed_stack, stack}
+      end
+
+    stack = stack || stack_frames(filtered_stack_trace(capture_raw_stack()))
+
+    step =
+      Map.merge(data, %{
+        stepId: step_id,
+        group: if(parent_step[:group] != nil, do: parent_step.group, else: data[:group]),
+        boxedStack: boxed_stack,
+        stack: stack,
+        testInfo: this
+      })
+
+    # `info: new TestStepInfoImpl(...)`, `steps: []`; `parentStepList.push(step)`,
+    # `this._stepMap.set(stepId, step)`: the row, its parent's `steps` by `parentStepId`.
+    :ets.insert(
+      Pool.table(),
+      {step_key(step),
+       %{
+         parentStepId: parent_step && parent_step.stepId,
+         seq: seq,
+         endWallTime: nil,
+         error: nil,
+         infectParentStepsWithError: false,
+         annotations: []
+       }}
+    )
+
+    # if (!step.group) this._callbacks.onStepBegin(...)  -- not ported: reporters
+
+    if step.group != "internal" do
+      TestTracing.append_before_action_for_step(_tracing(this), %{
+        stepId: step_id,
+        parentId: parent_step && parent_step.stepId,
+        title: step.title,
+        subtitle: step[:subtitle],
+        category: step.category,
+        params: step[:params],
+        stack: step.stack,
+        group: step.group
+      })
+    end
+
+    step
+  end
+
+  defp step_key(step), do: {:test_info, step.testInfo.test_pid, {:step, step.stepId}}
+
+  defp step_row(step) do
+    case :ets.lookup(Pool.table(), step_key(step)) do
+      [{_key, row}] -> row
+      [] -> nil
+    end
+  end
+
+  @doc """
+  The step's `complete(result)`: `result` may have `error` (`{kind, reason, stacktrace}`) and
+  `softError` (an exception, added to the test's errors with the caller's stacktrace, upstream's
+  step stack).
+  """
+  def step_complete(step, result) do
+    this = step.testInfo
+
+    # Elixir only: the test ended, its rows are gone.
+    with %{endWallTime: nil} = row <- step_row(step) do
+      row = %{row | endWallTime: System.os_time(:millisecond)}
+      # if (result.attachments) ...  -- not ported: attachments
+
+      row =
+        if error = result[:error] do
+          # `result.error[stepSymbol] = step`  -- see the deviation in `PlaywrightEx.Test._step/4`
+          error = test_info_error(error)
+
+          error =
+            if step.boxedStack,
+              do: %{
+                error
+                | stack: Enum.join([error.message | stringify_stack_frames(stack_frames(step.boxedStack))], "\n")
+              },
+              else: error
+
+          %{row | error: error}
+        else
+          row
+        end
+
+      row =
+        if result[:softError] do
+          _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
+          %{row | infectParentStepsWithError: true}
+        else
+          row
+        end
+
+      # if (result.shouldNotRetryTest) ...  -- not ported: retries
+
+      # Soft errors inside try/catch will make the test fail.
+      # In order to locate the failing step, we are marking all the parent
+      # steps as failing unconditionally.
+      row =
+        if !row.error do
+          child_step =
+            Enum.find(child_steps(step), fn child_step -> child_step.error && child_step.infectParentStepsWithError end)
+
+          if child_step, do: %{row | error: child_step.error, infectParentStepsWithError: true}, else: row
+        else
+          row
+        end
+
+      :ets.insert(Pool.table(), {step_key(step), row})
+
+      # if (!step.group) this._callbacks.onStepEnd(...)  -- not ported: reporters
+
+      if step.group != "internal" do
+        error_for_trace = if row.error, do: %{name: "", message: row.error[:message] || "", stack: row.error[:stack]}
+        TestTracing.append_after_action_for_step(_tracing(this), step.stepId, error_for_trace, [], row.annotations)
+      end
+    end
+
     :ok
+  end
+
+  # `step.steps`, in the order they were added.
+  defp child_steps(step) do
+    Pool.table()
+    |> :ets.match_object({{:test_info, step.testInfo.test_pid, {:step, :_}}, :_})
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.filter(&(&1.parentStepId == step.stepId))
+    |> Enum.sort_by(& &1.seq)
+  end
+
+  @doc """
+  `TestStepInfoImpl._runStepBody`: `nil` for a skipped step (an annotation), else the body's
+  value. The body takes no step (no `TestStepInfo`, so no `step.skip()` or `step.attach()`).
+  """
+  def _run_step_body(step, skip, body, location) do
+    if skip do
+      with %{} = row <- step_row(step),
+           do:
+             :ets.insert(
+               Pool.table(),
+               {step_key(step), %{row | annotations: row.annotations ++ [%{type: "skip", location: location}]}}
+             )
+
+      nil
+    else
+      body.()
+    end
   end
 
   # The frames from the first one outside this application (the test's matcher call).
@@ -87,13 +270,87 @@ defmodule PlaywrightEx.Test.TestInfo do
     end)
   end
 
+  @runner_apps [{:ok, :playwright_ex}, {:ok, :ex_unit}, {:ok, :stdlib}, {:ok, :kernel}]
+
+  @doc "utils `captureRawStack`: the caller's stacktrace (from its caller's frame)."
+  def capture_raw_stack do
+    {:current_stacktrace, [_process_info, _capture_raw_stack | stacktrace]} = Process.info(self(), :current_stacktrace)
+    stacktrace
+  end
+
+  @doc """
+  utils `filteredStackTrace`, on an Elixir stacktrace: without the frames of the library, of
+  ExUnit and of OTP (the runner's `:timer.tc/2`), as upstream drops its own packages, the
+  runner's too, or without a file.
+  """
+  def filtered_stack_trace(stacktrace) do
+    Enum.filter(stacktrace, fn
+      {module, _fun, _arity, location} when is_atom(module) ->
+        location[:file] != nil and :application.get_application(module) not in @runner_apps
+
+      _ ->
+        false
+    end)
+  end
+
+  @doc "An Elixir stacktrace as trace `StackFrame`s (absolute files, as the client's)."
+  def stack_frames(stacktrace) do
+    for {module, function, arity, location} <- stacktrace, location[:file] != nil do
+      %{
+        file: ClientStackTrace.source_file(module, to_string(location[:file])),
+        line: location[:line] || 0,
+        column: 0,
+        function: Exception.format_mfa(module, function, arity)
+      }
+    end
+  end
+
+  # utils `stringifyStackFrames`.
+  defp stringify_stack_frames(frames) do
+    for frame <- frames do
+      if frame[:function],
+        do: "    at #{frame.function} (#{frame.file}:#{frame.line}:#{frame.column})",
+        else: "    at #{frame.file}:#{frame.line}:#{frame.column}"
+    end
+  end
+
+  @doc """
+  worker/util.ts `testInfoError` (`serializeError`, `filterStackTrace`) of `{kind, reason,
+  stacktrace}`: `message` and `stack` (`name: message` and the filtered frames) and `cause`
+  for an error, `value` for an exit or throw.
+  """
+  def test_info_error({:error, reason, stacktrace} = error) do
+    exception = Exception.normalize(:error, reason, stacktrace)
+    message = ErrorContext.error(error).message
+    stack_lines = stringify_stack_frames(stack_frames(filtered_stack_trace(stacktrace)))
+    cause = Map.get(exception, :cause)
+
+    %{
+      message: message,
+      stack: Enum.join([message | stack_lines], "\n"),
+      cause: if(is_exception(cause), do: test_info_error({:error, cause, []}))
+    }
+  end
+
+  def test_info_error({kind, reason, stacktrace}), do: %{value: Exception.format_banner(kind, reason, stacktrace)}
+
+  @doc """
+  The worker's `_failWithError` of the errors (`{kind, reason, stacktrace}`) the body of the test
+  `test_pid` raised: their trace events (ExUnit reports them).
+  """
+  def trace_errors(test_pid, errors) do
+    tracing = Recorder.lookup(test_pid)
+    for error <- errors, do: TestTracing.append_for_error(tracing, error)
+    :ok
+  end
+
   @doc """
   `_failWithError`: adds `error` (`{kind, reason, stacktrace}`) to the test's errors. The status
   is not kept: the test fails with its errors at the end of its body.
   """
   def _fail_with_error(this, error) do
-    # Not in the trace: `PlaywrightEx.Test` records no test steps or errors in it.
     :ets.insert(Pool.table(), {{:test_info, this.test_pid, {:error, System.unique_integer([:monotonic])}}, error})
+    TestTracing.append_for_error(_tracing(this), error)
     :ok
   end
 
@@ -287,8 +544,8 @@ defmodule PlaywrightEx.Test.TestInfo do
   # `testInfo.snapshotSuffix = process.platform` (the auto fixture `_setupContextOptions`).
   defp snapshot_suffix, do: platform()
 
-  # Node's `process.platform`.
-  defp platform do
+  @doc "Node's `process.platform`."
+  def platform do
     case :os.type() do
       {:win32, _} -> "win32"
       {_family, name} -> Atom.to_string(name)

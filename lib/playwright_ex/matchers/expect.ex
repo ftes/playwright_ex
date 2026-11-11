@@ -33,11 +33,13 @@ defmodule PlaywrightEx.Matchers.Expect do
   `MatcherResult` map; a failed one raises `PlaywrightEx.ExpectError`.
 
   Deviations: `testInfo` is the running test of `PlaywrightEx.Test` (`PlaywrightEx.Test.TestInfo`,
-  found by the calling process, or one in its `$callers`), else `null`. It resolves snapshot
-  names and records a result's `softError`, which fails the test at the end of its body; outside
-  a test that error is printed. There are no test steps, test deadlines or `expect.soft` (no
-  `createExpect`), and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
-  `expect.extend`, `toPass`, `toMatchSnapshot` and `resolves`/`rejects` are not ported.
+  found by the calling process, or one in its `$callers`), else `null`. Each matcher call is a
+  step of it (`category: 'expect'`), which records a result's `softError`: that fails the test
+  at the end of its body; outside a test it is printed. The step's call is not the driver's
+  `Frame.expect` action (the instrumentation can't set its `callId`), so a trace shows both.
+  There are no test deadlines or `expect.soft` (no `createExpect`), and no jest library: generic
+  matchers (`toBe`, `toEqual`, ...), `expect.poll`, `expect.extend`, `toPass`, `toMatchSnapshot`
+  and `resolves`/`rejects` are not ported.
 
   ## Configuration
 
@@ -54,6 +56,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   alias PlaywrightEx.Matchers.Matchers
   alias PlaywrightEx.Matchers.ToMatchAriaSnapshot
   alias PlaywrightEx.Matchers.ToMatchSnapshot
+  alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Test.TestInfo
 
   # unfilteredStackTrace  -- not ported: Elixir stack traces
@@ -171,56 +174,95 @@ defmodule PlaywrightEx.Matchers.Expect do
   def call_matcher_as_step(matcher_name, info, actual, matcher, args, promise \\ nil) do
     test_info = expect_config().testInfo
     custom_message = info[:message] || ""
-    # const suffixes = computeMatcherTitleSuffix(matcherName, actual, args);  -- not ported: test steps
+    suffixes = Matchers.compute_matcher_title_suffix(matcher_name, actual, args)
+
     default_title =
-      "#{if info[:poll], do: "poll "}#{if info[:isSoft], do: "soft "}#{if info[:isNot], do: "not "}#{matcher_name}"
+      "#{if info[:poll], do: "poll "}#{if info[:isSoft], do: "soft "}#{if info[:isNot], do: "not "}#{matcher_name}#{suffixes[:titleSuffix] || ""}"
 
     title =
       if custom_message != "", do: custom_message, else: "Expect #{StringUtils.escape_with_quotes(default_title, "\"")}"
 
-    # const stackFrames = expectConfig().filteredStackTrace(captureRawStack());  -- not ported: Elixir stack traces
-    # const params = ...; const stepData = ...; const step = testInfo?._addStep(stepData);  -- not ported: test steps
+    # This looks like it is unnecessary, but it isn't - we need to filter
+    # out all the frames that belong to the test runner from caught runtime errors.
+    # (Elixir: the raw stack is the stacktrace a failure raises with, the filtered one the step's.)
+    raw_stack = TestInfo.capture_raw_stack()
+    stack_frames = TestInfo.stack_frames(TestInfo.filtered_stack_trace(raw_stack))
+    params = suffixes[:params] || %{}
+    # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`).
+    params =
+      if truthy?(Enum.at(args, 0)) and Enum.at(args, 0) != %{}, do: Map.put(params, :expected, hd(args)), else: params
 
-    # handleError: no step, so the error is raised (`expect.soft` is not ported).
+    step_data = %{
+      category: "expect",
+      title: title,
+      subtitle: suffixes[:subtitle],
+      stack: stack_frames,
+      params: if(map_size(params) > 0, do: params)
+    }
 
-    # validateMatcherResult(result);  -- not ported: built-in matchers only
-    result = invoke_matcher(matcher_name, info, matcher, actual, args, promise, title)
+    step = if test_info, do: TestInfo._add_step(test_info, step_data)
 
-    if result.pass == !!info[:isNot] do
-      # Keys whose value is `undefined` are left out, so results compare with `==`.
-      matcher_result =
-        result
-        |> Map.merge(%{name: matcher_name, message: get_message(result.message)})
-        |> Map.reject(fn {_key, value} -> value == nil end)
+    # `error` is `{kind, reason, stacktrace}`. `info.isSoft`  -- not ported: expect.soft
+    handle_error = fn {kind, reason, stacktrace} = error, result ->
+      if step, do: TestInfo.step_complete(step, Map.put(result || %{}, :error, error))
+      :erlang.raise(kind, reason, stacktrace)
+    end
 
-      raise ExpectError.new(matcher_result, custom_message, nil)
-    else
-      # deviation: no test runner writes a `suggestedRebaseline` into the test source (the
-      # dispatcher's addSuggestedRebaseline), so a result that carries one fails with it, after
-      # its `softError`. Otherwise an inline aria snapshot would pass without being compared.
-      if result[:suggestedRebaseline] do
-        message = suggested_rebaseline_message(result)
-
+    finalizer = fn result ->
+      # validateMatcherResult(result);  -- not ported: built-in matchers only
+      if result.pass == !!info[:isNot] do
+        # Keys whose value is `undefined` are left out, so results compare with `==`.
         matcher_result =
           result
-          |> Map.merge(%{name: matcher_name, message: message})
+          |> Map.merge(%{name: matcher_name, message: get_message(result.message)})
           |> Map.reject(fn {_key, value} -> value == nil end)
 
-        raise ExpectError.new(matcher_result, custom_message, nil)
-      end
-
-      if test_info do
-        # The `softError` part of `step?.complete(result)`, without test steps.
-        TestInfo.step_complete(test_info, result)
+        error = ExpectError.new(matcher_result, custom_message, stack_frames)
+        handle_error.({:error, error, raw_stack}, result)
       else
-        # deviation: outside a `PlaywrightEx.Test` test nothing records a `softError`, so a
-        # snapshot the matcher wrote is announced.
-        if result[:softError], do: IO.puts(Exception.message(result.softError))
-      end
+        # deviation: no test runner writes a `suggestedRebaseline` into the test source (the
+        # dispatcher's addSuggestedRebaseline), so a result that carries one fails with it, after
+        # its `softError` (in its message). Otherwise an inline aria snapshot would pass without
+        # being compared.
+        if result[:suggestedRebaseline] do
+          message = suggested_rebaseline_message(result)
 
-      :ok
+          matcher_result =
+            result
+            |> Map.merge(%{name: matcher_name, message: message})
+            |> Map.reject(fn {_key, value} -> value == nil end)
+
+          handle_error.(
+            {:error, ExpectError.new(matcher_result, custom_message, stack_frames), raw_stack},
+            Map.delete(result, :softError)
+          )
+        end
+
+        if step do
+          TestInfo.step_complete(step, result)
+        else
+          # deviation: outside a `PlaywrightEx.Test` test nothing records a `softError`, so a
+          # snapshot the matcher wrote is announced.
+          if result[:softError], do: IO.puts(Exception.message(result.softError))
+        end
+
+        :ok
+      end
+    end
+
+    try do
+      invoke = fn -> invoke_matcher(matcher_name, info, matcher, actual, args, promise, title) end
+      result = if step, do: Zones.with(:stepZone, step, invoke), else: invoke.()
+
+      # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
+      finalizer.(result)
+    catch
+      kind, reason -> handle_error.({kind, reason, __STACKTRACE__}, nil)
     end
   end
+
+  # JS truthiness of an argument.
+  defp truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
 
   # Elixir only: the message of a `suggestedRebaseline` that is not written (see above). The
   # rebaseline is a JS template literal with `{indent}` placeholders; its body is printed.

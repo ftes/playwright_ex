@@ -265,6 +265,45 @@ gets the stacks and sources of concurrent tests, as the driver adds every call's
 trace on the connection. `record_artifacts/2` filters them out of its `trace.zip`; for your own
 traces, use `isolate: true`.
 
+## Steps
+
+`step` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
+(`test.trace` in `trace.zip`) shows the steps, nested, with each matcher call as a step of its own
+and the test's errors. A step returns its body's value and works in a `Task` of the test too:
+
+```elixir
+test "signs up in steps", %{page: page} do
+  step "fill in the form" do
+    Page.goto!(page, "/sign-up")
+    Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
+  end
+
+  status =
+    step("submit", fn ->
+      Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+      Page.get_by_role(page, :status)
+    end)
+
+  Expect.to_have_text!(status, "Welcome, ada@example.com")
+end
+```
+
+With `box: true`, an error inside the step is reported at its call site, which suits helpers:
+
+```elixir
+defp sign_up(page, email) do
+  step "sign up", box: true do
+    Page.goto!(page, "/sign-up")
+    Page.get_by_label(page, "Email") |> Locator.fill!(email)
+    Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+  end
+end
+```
+
+`timeout:` fails a step that takes longer (its body then runs in a process of its own, so no
+`assert_receive` in it), and `step_skip` declares a step without running it. A wrapper library
+that narrows the import adds `step: 2, step: 3`.
+
 ## Isolated modules
 
 A shared browser suits tests that only use contexts. A module that changes the driver or the

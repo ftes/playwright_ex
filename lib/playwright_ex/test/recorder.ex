@@ -22,6 +22,7 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.TestTracing
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.Video
 
@@ -92,6 +93,9 @@ defmodule PlaywrightEx.Test.Recorder do
     pid
   end
 
+  @doc "`TestTracing`'s `_appendTraceEvent`: adds `event` to the test's trace (`PlaywrightEx.Test.TestTracing`)."
+  def append_trace_event(pid, event), do: call(pid, {:append_trace_event, event})
+
   @doc "Adds the recorder's listener to `instrumentation` (once)."
   def ensure_listener(pid, instrumentation), do: GenServer.call(pid, {:ensure_listener, instrumentation}, :infinity)
 
@@ -122,7 +126,8 @@ defmodule PlaywrightEx.Test.Recorder do
        screenshots: [],
        snapshotted: MapSet.new(),
        ordinal: 0,
-       page_snapshot: nil
+       page_snapshot: nil,
+       tracing: TestTracing.new()
      }}
   end
 
@@ -176,6 +181,9 @@ defmodule PlaywrightEx.Test.Recorder do
   def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
   def handle_call({:page_snapshot, snapshot}, _from, state), do: {:reply, :ok, %{state | page_snapshot: snapshot}}
   def handle_call(:state, _from, state), do: {:reply, state, state}
+
+  def handle_call({:append_trace_event, event}, _from, state),
+    do: {:reply, :ok, %{state | tracing: %{state.tracing | trace_events: [event | state.tracing.trace_events]}}}
 
   @impl true
   def terminate(_reason, state), do: File.rm_rf(state.opts.tmp)
@@ -429,12 +437,22 @@ defmodule PlaywrightEx.Test.Recorder do
     Video.save_as!(video, path)
   end
 
-  # `testTracing`'s `_shouldAbandonTrace`: a passed test's trace with `retain_on_failure`.
-  defp save_trace(%{opts: %{trace: [{:mode, trace} | _]}} = state, failed?)
-       when trace == :on or (trace == :retain_on_failure and failed?),
-       do: step("merge the traces", fn -> merge_traces(Path.join(state.opts.dir, "trace.zip"), state.chunks) end)
+  # `testTracing`'s `stopIfNeeded`: the test's `test.trace` and its contexts' chunks.
+  defp save_trace(state, failed?) do
+    path = Path.join(state.opts.dir, "trace.zip")
 
-  defp save_trace(_state, _failed?), do: :ok
+    step("merge the traces", fn ->
+      TestTracing.stop_if_needed(
+        state.tracing,
+        state.opts,
+        state.chunks,
+        failed?,
+        state.opts[:test_timeout],
+        state.opts.tmp,
+        path
+      )
+    end)
+  end
 
   # `shouldCaptureUponFinish`.
   defp capture?(mode, failed?), do: mode == :on or (mode == :only_on_failure and failed?)

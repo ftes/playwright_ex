@@ -239,7 +239,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     on_exit(fn ->
       {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "trace.zip")), [:memory])
       files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
-      %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["trace.stacks"])
+      # The context's chunk is the first of two, `test.trace`'s the second.
+      %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["0-trace.stacks"])
       call_ids = for %{"type" => "before", "callId" => id} <- trace(dir, browser).events, do: id
 
       # Every stack is one of the trace's actions', every frame's file is in `files`.

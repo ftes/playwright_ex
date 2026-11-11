@@ -286,6 +286,39 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.StepsTest do
+  # "Steps".
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
+
+  test "signs up in steps", %{page: page} do
+    step "fill in the form" do
+      Page.goto!(page, "/sign-up")
+      Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
+    end
+
+    status =
+      step("submit", fn ->
+        Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+        Page.get_by_role(page, :status)
+      end)
+
+    Expect.to_have_text!(status, "Welcome, ada@example.com")
+  end
+
+  test "a boxed helper", %{page: page} do
+    sign_up(page, "ada@example.com")
+    Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome, ada@example.com")
+  end
+
+  defp sign_up(page, email) do
+    step "sign up", box: true do
+      Page.goto!(page, "/sign-up")
+      Page.get_by_label(page, "Email") |> Locator.fill!(email)
+      Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+    end
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
   # "Snapshots", with `snapshot_dir` in a temporary dir. Not async: it sets the config.
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false

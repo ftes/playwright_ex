@@ -12,6 +12,7 @@
 #     the pool after the run.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that.
+#   * `steps` - tests failing in a boxed step and in a step past its timeout, with no browser.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -231,6 +232,33 @@ case mode do
         Page.set_content!(page, "<h1>Three</h1>")
         Expect.to_match_aria_snapshot!(page)
         flunk("on purpose")
+      end
+    end
+
+  "steps" ->
+    defmodule StepsTest do
+      use ExUnit.Case, async: true
+      use PlaywrightEx.Test
+
+      setup :record_artifacts
+
+      test "fails in a boxed step" do
+        step "outer" do
+          # (the boxed call)
+          log_in()
+          :unreachable
+        end
+      end
+
+      test "a step times out" do
+        step("slow", fn -> Process.sleep(5_000) end, timeout: 100)
+      end
+
+      defp log_in do
+        step "log in", box: true do
+          # (inside the boxed step)
+          raise "cannot log in"
+        end
       end
     end
 end

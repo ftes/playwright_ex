@@ -819,6 +819,22 @@ defmodule PlaywrightEx.Matchers.Matchers do
   end
 
   # toPass  -- not ported: test runner (expectConfig().testInfo, toPass config)
-  # computeMatcherTitleSuffix  -- not ported: test steps (no testInfo; toHaveScreenshot)
+  def compute_matcher_title_suffix(matcher_name, receiver, args) do
+    if matcher_name == "toHaveScreenshot" do
+      title = PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot_step_title(Enum.at(args, 0), Enum.at(args, 1))
+      %{titleSuffix: if(title != "", do: "(#{title})", else: "")}
+    else
+      # deviation: the locator in the facade's Elixir syntax (`Locator.to_string/1`), not 'javascript'.
+      case receiver do
+        %{_apiName: "Locator"} = locator ->
+          locator = PlaywrightEx.Isomorphic.LocatorGenerators.as_locator_description("elixir", locator._selector)
+          %{subtitle: locator, params: %{locator: locator}}
+
+        _ ->
+          %{}
+      end
+    end
+  end
+
   # deadlineForMatcher  -- not ported: toPass, expect.poll
 end

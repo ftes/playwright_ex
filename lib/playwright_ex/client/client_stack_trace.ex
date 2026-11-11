@@ -60,8 +60,9 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
   # Elixir only: BEAM frames carry paths relative to their app's root; a module's compile info has
   # its absolute source. A frame that isn't its module's source (injected code, `nofile`,
   # deterministic builds) stays relative: the driver resolves it against its working directory,
-  # the BEAM's at launch.
-  defp source_file(module, file) do
+  # the BEAM's at launch. Also `PlaywrightEx.Test`'s step frames.
+  @doc false
+  def source_file(module, file) do
     if Path.type(file) == :absolute do
       file
     else

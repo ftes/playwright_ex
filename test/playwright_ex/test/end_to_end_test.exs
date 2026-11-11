@@ -2,8 +2,9 @@ defmodule PlaywrightEx.Test.EndToEndTest do
   # Suites on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
   # VM (`after_suite`), each module's isolated drivers are checked in at its end (discarded
-  # after a failure), also when `max_failures` stops the run, and a test fails with the
-  # snapshots its matchers wrote.
+  # after a failure), also when `max_failures` stops the run, a test fails with the
+  # snapshots its matchers wrote, and a failing step's error as ExUnit reports it and in the
+  # trace.
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.RemoteServer.ChildProcess
@@ -121,6 +122,55 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     assert error_context =~
              ~r"RuntimeError: A snapshot doesn't exist at .*two.aria.yml.*RuntimeError: A snapshot doesn't exist at .*two-#{platform}.png"s
+  end
+
+  test "a boxed step fails at its call site, a step past its timeout fails, both traced", %{tmp_dir: tmp_dir} do
+    child = start("steps", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+
+    script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"]) |> File.read!() |> String.split("\n")
+    line = fn marker -> Enum.find_index(script, &(&1 =~ marker)) + 2 end
+
+    [_, boxed] = Regex.run(~r/test fails in a boxed step \(StepsTest\)\n(.*?)\n\n\n/s, output)
+    assert boxed =~ "** (RuntimeError) cannot log in"
+    # The boxed step's call site, not the frames inside it.
+    assert boxed =~ "test/support/test_runner_impl.exs:#{line.("(the boxed call)")}:"
+    refute boxed =~ "test/support/test_runner_impl.exs:#{line.("(inside the boxed step)")}:"
+
+    [_, timed_out] = Regex.run(~r/test a step times out \(StepsTest\)\n(.*?)\n\n\n/s, output)
+    assert timed_out =~ "** (PlaywrightEx.TimeoutError) Step timeout of 100ms exceeded."
+
+    trace_events = fn name ->
+      output_dir = Path.join(tmp_dir, "test-results")
+      [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ name))
+      {:ok, files} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])
+      {_, trace} = List.keyfind(files, ~c"test.trace", 0)
+      for event <- String.split(trace, "\n"), do: JSON.decode!(event)
+    end
+
+    events = trace_events.("fails-in-a-boxed-step")
+    [outer, log_in] = for %{"type" => "before"} = event <- events, do: event
+    assert %{"title" => "outer", "method" => "test.step"} = outer
+    assert %{"title" => "log in", "parentId" => parent_id} = log_in
+    assert parent_id == outer["callId"]
+
+    # Both steps failed with the boxed error, and so did the test.
+    for %{"type" => "after", "error" => error} <- events,
+        do:
+          assert(
+            error["stack"] =~
+              ~r"^RuntimeError: cannot log in\n    at .*test_runner_impl.exs:#{line.("(the boxed call)")}:"
+          )
+
+    assert [%{"message" => "RuntimeError: cannot log in", "stack" => [frame | _]}] =
+             for(%{"type" => "error"} = event <- events, do: event)
+
+    assert frame["line"] == line.("(the boxed call)")
+
+    assert [%{"error" => %{"message" => "PlaywrightEx.TimeoutError: Step timeout of 100ms exceeded."}}] =
+             for(%{"type" => "after"} = event <- trace_events.("a-step-times-out"), do: event)
   end
 
   defp alive(processes) do
