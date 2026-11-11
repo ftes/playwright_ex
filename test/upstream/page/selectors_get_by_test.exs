@@ -2,7 +2,8 @@ defmodule PlaywrightEx.Page.SelectorsGetByTest do
   @upstream "tests/page/selectors-get-by.spec.ts"
   # Not async: `selectors.setTestIdAttribute` sets the client's global test id attribute (module
   # state in JS), which would leak into `getByTestId` of concurrently running modules.
-  use PlaywrightEx.UpstreamCase, async: false
+  # isolate: sets the driver's test id attribute.
+  use PlaywrightEx.UpstreamCase, async: false, isolate: true
 
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame

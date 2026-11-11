@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Library.BrowserTest do
   @upstream "tests/library/browser.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: counts the contexts of `browser`.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext

@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   @upstream "tests/library/defaultbrowsercontext-2.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: registers a selector engine on the driver.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 

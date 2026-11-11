@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @upstream "tests/library/browsercontext-basic.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: counts the contexts of `browser`.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 

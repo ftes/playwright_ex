@@ -1,5 +1,7 @@
 defmodule PlaywrightEx.Test.PoolTest do
-  # Sets `max_isolated` and stops every driver of `PlaywrightEx.Test` (`after_suite`).
+  # Sets `max_isolated` and stops every driver of `PlaywrightEx.Test` (`after_suite`,
+  # `stop_all`): not async, so it runs alone, after the async modules. The sync modules after it
+  # get new drivers from their `setup_all`.
   use ExUnit.Case, async: false
 
   import PlaywrightEx.Test
@@ -12,8 +14,12 @@ defmodule PlaywrightEx.Test.PoolTest do
     def __ex_unit__(:config), do: %{parameterize: [%{n: 1}, %{n: 2}]}
   end
 
-  # A browser of its own: `launch_options` no other test passes (drivers are keyed by `driver` and `on_start`).
-  defp opts(extra \\ []), do: [launch_options: [timeout: 40_000 + System.unique_integer([:positive])]] ++ extra
+  # A driver of this module's (no other module passes this `env`) and a browser of each test's
+  # (`launch_options` no other test passes).
+  defp opts(extra \\ []) do
+    [driver: [env: [{"PW_POOL_TEST", "1"}]], launch_options: [timeout: 40_000 + System.unique_integer([:positive])]] ++
+      extra
+  end
 
   def on_start(playwright, test_pid) do
     send(test_pid, {:on_start, playwright})
@@ -73,6 +79,25 @@ defmodule PlaywrightEx.Test.PoolTest do
     %{browser: again} = browser(opts)
     assert again != browser
     assert Browser.is_connected(again)
+  end
+
+  test "on_start runs again on a driver its supervisor restarted" do
+    opts = opts(on_start: {__MODULE__, :on_start, [self()]})
+    %{playwright: playwright, browser: browser} = browser(opts)
+    assert_received {:on_start, ^playwright}
+
+    # kill -9 of the driver: its connection goes, the supervisor starts a new one.
+    %{port: port} = :sys.get_state(PlaywrightEx.Runtime.Heap.get(playwright, :driverProcess))
+    {:os_pid, os_pid} = Port.info(port, :os_pid)
+    ref = Process.monitor(playwright.conn)
+    {_, 0} = System.cmd("kill", ["-9", to_string(os_pid)])
+    assert_receive {:DOWN, ^ref, :process, _, _}, 10_000
+
+    %{playwright: again, browser: relaunched} = browser(opts)
+    assert again != playwright
+    assert_received {:on_start, ^again}
+    assert relaunched != browser
+    assert Browser.is_connected(relaunched)
   end
 
   describe "isolate" do

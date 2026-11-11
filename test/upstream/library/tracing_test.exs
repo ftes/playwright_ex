@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Library.TracingTest do
   @upstream "tests/library/tracing.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: traces with sources: the connection adds every caller's stack to each tracing context.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 

@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Library.LocatorHighlightTest do
   @upstream "tests/library/locator-highlight.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: registers a selector engine on the driver.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext

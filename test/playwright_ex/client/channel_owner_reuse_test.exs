@@ -2,7 +2,8 @@ defmodule PlaywrightEx.Client.ChannelOwnerReuseTest do
   # Not mirrored from upstream: a context re-created with the guid of a disposed one
   # (`Browser._newContextForReuse`) is a new object, as `new BrowserContext(...)` is in JS.
   @upstream nil
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: registers a selector engine on the driver.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType

@@ -3,9 +3,14 @@ defmodule PlaywrightEx.UpstreamCase do
   Case template for tests mirrored from upstream `tests/` (see `PORTING.md`).
 
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
-  Upstream's worker-scoped fixtures are a worker's (`PlaywrightEx.TestWorkers`): the module has it
-  to itself while it runs, and the next module gets it after (a fresh one after a failure).
-  `@moduletag :own_worker` gives a module a driver and browser of its own instead:
+  Upstream's worker-scoped `playwright` and `browser` come from `PlaywrightEx.Test.browser/2`:
+  shared by the modules running at once (a driver under test, `PWTEST_UNDER_TEST`). A module that
+  changes the driver or its browser for others (registers selectors, closes or traces `browser`,
+  counts its contexts, edits the Playwright's defaults) declares `use PlaywrightEx.UpstreamCase,
+  isolate: true` and gets upstream's worker: a driver and browser of its own while it runs, reused
+  by the next isolated module (a fresh one after a failure). `PlaywrightEx.SharedDriver` closes
+  what a test or module created and fails a shared module's test that changed the driver.
+  `@moduletag :own_worker` starts a driver for the module alone:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
       env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
@@ -48,8 +53,8 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client
   alias PlaywrightEx.Client.ClientInstrumentation
+  alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Heap
@@ -57,9 +62,11 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
 
-  using do
+  using opts do
     quote do
       import ExUnit.Case, only: [describe: 2]
+
+      if unquote(opts[:isolate]), do: @moduletag(isolate: true)
 
       import PlaywrightEx.UpstreamCase,
         only: [test: 1, test: 2, test: 3, start_playwright: 2, expected_failure: 2, default_same_site_cookie_value: 1]
@@ -229,9 +236,32 @@ defmodule PlaywrightEx.UpstreamCase do
     playwright
   end
 
+  @doc """
+  The `on_start` of the module's driver (`PlaywrightEx.Test.browser/2`), on each new driver:
+  `setup_playwright/2` with an artifacts dir of the driver's, removed when its connection goes
+  (a driver stopped or restarted). `test_helper.exs` removes `artifacts_root/0` after the suite.
+  """
+  def on_start(playwright) do
+    artifacts_dir = artifacts_dir()
+    conn = playwright.conn
+
+    spawn(fn ->
+      ref = Process.monitor(conn)
+
+      receive do
+        {:DOWN, ^ref, :process, _, _} -> File.rm_rf(artifacts_dir)
+      end
+    end)
+
+    setup_playwright(playwright, artifacts_dir)
+  end
+
+  @doc "The parent of the run's artifacts dirs."
+  def artifacts_root, do: Path.join(System.tmp_dir!(), "playwright-ex-artifacts-#{System.pid()}")
+
   @doc "A fresh artifacts dir (`testInfo._tracing.artifactsDir()`), for `setup_playwright/2`."
   def artifacts_dir do
-    dir = Path.join(System.tmp_dir!(), "playwright-ex-artifacts-#{System.unique_integer([:positive])}")
+    dir = Path.join(artifacts_root(), "#{System.unique_integer([:positive])}")
     File.mkdir_p!(Path.join(dir, "traces"))
     dir
   end
@@ -281,8 +311,8 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   setup_all %{module: module} = tags do
-    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...). A worker's
-    # (`PlaywrightEx.TestWorkers`), unless the module is tagged `:own_worker`.
+    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...): the shared
+    # one, the module's own with `isolate: true`, or one it starts with `:own_worker`.
     {playwright, browser} =
       if tags[:own_worker] do
         start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
@@ -292,9 +322,18 @@ defmodule PlaywrightEx.UpstreamCase do
         setup_playwright(playwright, artifacts_dir)
         {playwright, BrowserType.launch!(TestBrowser.browser_type(playwright))}
       else
-        %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:upstream, module)
+        %{playwright: playwright, browser: browser} =
+          PlaywrightEx.Test.browser(tags,
+            driver: [env: [{"PWTEST_UNDER_TEST", "1"}]],
+            on_start: {__MODULE__, :on_start, []},
+            isolate: PlaywrightEx.SharedDriver.isolate?(tags)
+          )
+
         {playwright, browser}
       end
+
+    # The browsers and contexts the module's own `setup_all` creates (a `browser` of its own).
+    PlaywrightEx.SharedDriver.track_module(playwright, shared: [browser])
 
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)
@@ -327,7 +366,8 @@ defmodule PlaywrightEx.UpstreamCase do
       browser: browser,
       server: server,
       https_server: https_server,
-      asset: fn path -> Path.join([assets | String.split(path, "/")]) end
+      asset: fn path -> Path.join([assets | String.split(path, "/")]) end,
+      shared_driver: [shared: [browser], guard: not (tags[:own_worker] || PlaywrightEx.SharedDriver.isolate?(tags))]
     }
   end
 
@@ -338,19 +378,23 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   # `_setupContextOptions`: `selectors.setTestIdAttribute(testIdAttribute)` (default
-  # `data-testid`) before each test, so a test's own attribute does not leak into the next.
+  # `data-testid`) before each test, so a test's own attribute does not leak into the next. Only
+  # when it differs: it updates every context of the (shared) driver.
   setup %{playwright: playwright} do
-    Selectors.set_test_id_attribute(Playwright.selectors(playwright), "data-testid")
+    selectors = Playwright.selectors(playwright)
+    current = Api.call(nil, playwright, fn -> Heap.get(selectors, :_testIdAttributeName) end)
+
+    if current != "data-testid" or Locator.test_id_attribute_name() != "data-testid",
+      do: Selectors.set_test_id_attribute(selectors, "data-testid")
+
     :ok
   end
 
-  # Upstream restarts the worker after a failed test; here the module's driver lives on. Close
-  # the contexts a test left open (say, a browser it launched and never closed), or one still
-  # tracing would add its stacks to the traces of the next tests.
-  setup %{playwright: playwright} do
-    contexts = fn -> Api.call(nil, playwright, fn -> Client.Playwright._all_contexts(playwright) end) end
-    before = contexts.()
-    on_exit(fn -> for context <- contexts.() -- before, do: BrowserContext.close(context) end)
+  # Upstream restarts the worker after a failed test; here the driver lives on. Close the
+  # contexts and browsers the test left open, or one still tracing would add its stacks to the
+  # traces of the next tests. Only the test's: other modules share the driver.
+  setup %{playwright: playwright, shared_driver: opts} do
+    PlaywrightEx.SharedDriver.track_test(playwright, opts)
   end
 
   setup %{browser: browser} do

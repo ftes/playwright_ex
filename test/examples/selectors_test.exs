@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Examples.SelectorsTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  # isolate: registers a selector engine on the driver.
+  use PlaywrightEx.ExampleCase, async: true, isolate: true
 
   # Upstream's example registers a function (`createTagNameEngine`); the port takes the engine as
   # JS source, as the Python client does.

@@ -8,7 +8,8 @@ end
 
 defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   @upstream "tests/library/browsertype-connect.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: registers selector engines and edits the Playwright's default launch options and traces dir.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 

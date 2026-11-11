@@ -29,6 +29,10 @@ defmodule PlaywrightEx.ExampleCase do
 
   A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
   runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
+
+  `playwright` and `browser` are `PlaywrightEx.Test.browser/2`'s, a plain driver shared by the
+  modules running at once; `use PlaywrightEx.ExampleCase, isolate: true` for a module whose
+  examples change the driver or its browser for others (see `PlaywrightEx.SharedDriver`).
   """
   use ExUnit.CaseTemplate
 
@@ -41,9 +45,11 @@ defmodule PlaywrightEx.ExampleCase do
 
   @html "<!doctype html><title>Example</title>"
 
-  using do
+  using opts do
     quote do
       import PlaywrightEx.ExampleCase, only: [example: 3]
+
+      if unquote(opts[:isolate]), do: @moduletag(isolate: true)
 
       # The docs' examples use the short names.
       alias PlaywrightEx.{Browser, BrowserContext, BrowserType, Expect, Frame, FrameLocator, Keyboard, Locator, Mouse}
@@ -52,9 +58,13 @@ defmodule PlaywrightEx.ExampleCase do
   end
 
   setup_all context do
-    %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:example, context.module)
-    %{playwright: playwright, browser: browser}
+    isolate? = PlaywrightEx.SharedDriver.isolate?(context)
+    %{playwright: playwright, browser: browser} = PlaywrightEx.Test.browser(context, isolate: isolate?)
+
+    %{playwright: playwright, browser: browser, shared_driver: [shared: [browser], guard: not isolate?]}
   end
+
+  setup %{playwright: playwright, shared_driver: opts}, do: PlaywrightEx.SharedDriver.track_test(playwright, opts)
 
   setup %{playwright: playwright, browser: browser} = tags do
     context = Browser.new_context!(browser)
@@ -67,11 +77,21 @@ defmodule PlaywrightEx.ExampleCase do
     offline.(context)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "https://example.com/")
-    # The contexts the example creates (`Browser.new_context`, a browser of its own).
+    # The contexts the example creates (`Browser.new_context`, a browser of its own), in the test
+    # or its `Task`s: the listener runs for every context of the shared driver.
     instrumentation = Heap.get(playwright, :_instrumentation)
-    listener = %{runAfterCreateBrowserContext: offline}
+    test_pid = self()
+
+    listener = %{
+      ref: make_ref(),
+      runAfterCreateBrowserContext: fn context ->
+        if self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")), do: offline.(context)
+      end
+    }
+
     ClientInstrumentation.add_listener(instrumentation, listener)
-    on_exit(fn -> ClientInstrumentation.remove_listener(instrumentation, listener) end)
+    # Exactly this listener: the ported `remove_listener` removes the last one for an unknown one.
+    on_exit(fn -> Heap.update(instrumentation, :listeners, &List.delete(&1, listener)) end)
     %{context: context, page: page}
   end
 

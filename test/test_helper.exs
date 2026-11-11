@@ -1,13 +1,6 @@
 Logger.configure(level: :info)
 # Upstream's tests/library/playwright.config.ts `expect: { timeout: 10000 }`.
 Application.put_env(:playwright_ex, :expect, timeout: 10_000)
-# `PlaywrightEx.Test`'s own tests (test/playwright_ex/test): the browser under test, and
-# artifacts outside the checkout.
-Application.put_env(:playwright_ex, :test,
-  browser_name: String.to_atom(PlaywrightEx.TestBrowser.name()),
-  output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results")
-)
-
 # Upstream awaits events with no timeout of its own (bounded by the test timeout); ExUnit's
 # 100 ms `assert_receive` default flakes on slow CI runners. As many modules at once as upstream
 # runs workers (Playwright's default: half the logical cores), or `PW_MAX_CASES`.
@@ -16,6 +9,16 @@ max_cases =
     "" -> max(div(System.schedulers_online(), 2), 1)
     value -> String.to_integer(value)
   end
+
+# `PlaywrightEx.Test`, which every case template gets its browser from (`UpstreamCase`,
+# `ExampleCase`, its own tests in test/playwright_ex/test): the browser under test, artifacts
+# outside the checkout, and a driver for each isolated module running at once (every module on
+# Firefox, see `PlaywrightEx.SharedDriver.isolate?/1`).
+Application.put_env(:playwright_ex, :test,
+  browser_name: String.to_atom(PlaywrightEx.TestBrowser.name()),
+  output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results"),
+  max_isolated: max_cases
+)
 
 # Headed windows steal focus on macOS: `mix test --include headed` runs them (PORTING "Tests").
 # Stress and perf tests are manual only (`mix test --only stress`, `--only perf`), not run by CI.
@@ -38,4 +41,6 @@ ExUnit.start(
   ]
 )
 
-PlaywrightEx.TestWorkers.start()
+# The artifacts dirs of `PlaywrightEx.UpstreamCase`'s drivers. Registered first, so it runs after
+# `PlaywrightEx.Test` stops the drivers.
+ExUnit.after_suite(fn _ -> File.rm_rf(PlaywrightEx.UpstreamCase.artifacts_root()) end)

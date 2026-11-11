@@ -1,6 +1,7 @@
 defmodule PlaywrightEx.Library.SelectorsRegisterTest do
   @upstream "tests/library/selectors-register.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: registers selector engines on the driver.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext

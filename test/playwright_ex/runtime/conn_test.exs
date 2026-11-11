@@ -4,7 +4,8 @@ defmodule PlaywrightEx.RuntimeConnTest do
   # and page-route specs, plus ordering, re-entrancy, lifetimes and errors). Not named
   # `PlaywrightEx.Runtime.*`: call locations skip library modules.
   @upstream nil
-  use PlaywrightEx.UpstreamCase, async: true
+  # isolate: counts the rows and callbacks of the driver's connection.
+  use PlaywrightEx.UpstreamCase, async: true, isolate: true
 
   alias PlaywrightEx.AbortController
   alias PlaywrightEx.Browser
