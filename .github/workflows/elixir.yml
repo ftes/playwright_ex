@@ -173,7 +173,9 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Get runner image
         id: runner_image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+          echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       # Saved on main by the build job (newest) or below (oldest). The key hashes the lane's
       # .tool-versions.
       - name: Restore deps and _build
@@ -193,12 +195,15 @@ jobs:
       # whole attempts (webkit pulls ~140 MB). The .debs are cached per browser and driver version, so
       # a warm run installs offline; archive.ubuntu.com is a fallback mirror; apt times out stalled
       # fetches; each attempt is capped, and a killed attempt's apt-get (sudo puts it out of timeout's
-      # reach) is killed before the next.
+      # reach) is killed before the next. The key's day makes main save a fresh cache daily, so
+      # Ubuntu's package updates are picked up; restores take the newest. autoclean drops the
+      # superseded .debs.
       - name: Restore browser system packages
         id: apt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04
+          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04-${{ steps.runner_image.outputs.day }}
+          restore-keys: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04
           path: ~/apt-cache
       - name: Install driver and browsers
         run: |
@@ -207,16 +212,18 @@ jobs:
           if compgen -G ~/apt-cache/'*.deb' > /dev/null; then sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/; fi
           for attempt in 1 2 3; do
             if timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps; then
-              mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
+              sudo apt-get autoclean -qq
+              rm -rf ~/apt-cache && mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
               exit 0
             fi
             echo "::warning::browser install attempt $attempt failed or timed out"
             sudo pkill -x apt-get || true
           done
           exit 1
-      # One job per browser saves (the partitions and lanes would race for the same key).
+      # One job per browser saves (the partitions and lanes would race for the same key), on main
+      # only: a PR's cache is visible to that PR alone.
       - name: Save browser system packages
-        if: matrix.lane == 'newest' && matrix.partition == 1 && steps.apt_cache.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/main' && matrix.lane == 'newest' && matrix.partition == 1 && steps.apt_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           key: ${{ steps.apt_cache.outputs.cache-primary-key }}
