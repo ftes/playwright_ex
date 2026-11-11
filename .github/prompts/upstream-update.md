@@ -79,8 +79,9 @@ checklist. A draft PR with a green partial port beats no PR.
 - Never merge, never push to `main` or any branch but BRANCH, never force-push, never edit
   `.github/`.
 - List non-obvious decisions in the PR checklist.
-- Use your file tools, not Bash, to read, search and edit files; run each allowed Bash command on
-  its own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the repository).
+- Use your file tools, not Bash, to read and search files, and keep any scratch files under tmp/;
+  run each allowed Bash command on its own, without cd, ;, &&, pipes or heredocs (you are already
+  in the repository).
 - No attribution anywhere: no `Co-Authored-By` trailers, no "Generated with Claude Code" lines,
   in commits, the PR or comments. The repo owner forbids it.
 - Upstream sources come from the release at the pin (`PlaywrightEx.Upstream`, re-downloaded for

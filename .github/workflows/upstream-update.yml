@@ -28,6 +28,10 @@ concurrency:
 # Nothing by default; each job asks for what it needs.
 permissions: {}
 
+env:
+  # For the Claude prompts: its Bash habits (cd, cat, grep, heredocs) don't match the allowlists.
+  TOOL_HINT: "Use your file tools, not Bash, to read and search files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, ;, &&, pipes or heredocs (you are already in the repository)."
+
 jobs:
   # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
   check:
@@ -229,9 +233,7 @@ jobs:
             - It needs a decision, a skip or more than a fix: run exactly
               gh pr comment ${{ matrix.pr.number }} --body "Needs a human: <one sentence on why>"
 
-            Use your file tools, not Bash, to read, search and edit files; run each allowed Bash
-            command on its own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the
-            repository).
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
