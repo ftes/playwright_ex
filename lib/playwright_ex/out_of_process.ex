@@ -22,7 +22,9 @@ defmodule PlaywrightEx.OutOfProcess do
   state, as JS objects stay readable while referenced: until the processes that created or
   closed its browsers and contexts have exited, or the supervisor has.
   """
-  use GenServer
+  # terminate/2 waits for the driver's exit (`Pipe.close/1`, at most 30 s), then for the close
+  # emulation (`@close_emulation_timeout`).
+  use GenServer, shutdown: 35_000
 
   alias PlaywrightEx.Client.Browser
   alias PlaywrightEx.Client.Connect

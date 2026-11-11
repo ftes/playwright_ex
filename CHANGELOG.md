@@ -10,6 +10,11 @@ those of the release candidates below. From an earlier release, also read the se
 
 ## [Unreleased]
 
+### Fixed
+- Stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 30 s), so a driver
+  stopped before the VM halts no longer resets the terminal afterwards (↑ printing `OA` in the
+  shell after `mix test`).
+
 ## [0.17.0-rc.5] 2026-11-10
 
 ### Changed
