@@ -16,6 +16,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `packages/protocol/src/serializers.ts`, `validatorPrimitives.ts` | `lib/playwright_ex/protocol/`, ported by hand |
 | `tests/page/*.spec.ts`, `tests/library/*.spec.ts` | `test/upstream/{page,library}/`, ported by hand |
 | Node's single thread, `AsyncLocalStorage`, Node built-ins | `PlaywrightEx.Runtime.*` (Elixir only), see Shims |
+| `packages/playwright/src/index.ts` (fixtures, artifacts) | not ported: `PlaywrightEx.Test` is native, after the non-JS clients' test plugins ([why](docs/architecture.md#test-runner)) |
 
 ## Rules
 
@@ -31,7 +32,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
   Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
-- Deviate only where the port requires it: the OTP runtime, no test runner, Elixir's public API.
+- Deviate only where the port requires it: the OTP runtime, no testInfo, Elixir's public API.
   Check upstream at the pin before handling an edge case. If its client has the same behaviour,
   keep that, even when it looks wrong, and don't add a special case for it: every deviation is
   carried through each version bump. If it matters, report it upstream and list it under "Upstream

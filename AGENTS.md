@@ -6,6 +6,8 @@ Read them before changing ported code.
 
 - Deviate only where the port requires it. For an edge case upstream's client shares, keep
   upstream's behaviour, even when it looks wrong, and don't add a special case.
+- `PlaywrightEx.Test` (ExUnit fragments, `lib/playwright_ex/test*`) is native Elixir, not
+  ported: no `@upstream` or parity markers.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
 - Files marked "do not edit manually" are generated: run `mix playwright_ex.gen.api`
   (`mix playwright_ex.gen.protocol` for the protocol) instead of editing them.

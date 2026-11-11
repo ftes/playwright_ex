@@ -36,8 +36,9 @@ mix playwright_ex.cli show-trace tmp/trace.zip
 
 or drop the file on [trace.playwright.dev](https://trace.playwright.dev).
 [`Tracing.group!/3`](`PlaywrightEx.Tracing.group!/3`) and
-[`Tracing.group_end!/1`](`PlaywrightEx.Tracing.group_end!/1`) name a group of steps. The [Testing
-with ExUnit](testing-with-exunit.md) guide traces failing tests, on a rerun or retained on failure.
+[`Tracing.group_end!/1`](`PlaywrightEx.Tracing.group_end!/1`) name a group of steps. In tests,
+`PlaywrightEx.Test` traces failing tests, on a rerun or retained on failure ([Testing with
+ExUnit](testing-with-exunit.md#traces-screenshots-and-videos)).
 
 ## Screenshots and videos
 

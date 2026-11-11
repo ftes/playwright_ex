@@ -84,8 +84,8 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, the test runner (`toPass`, `expect.poll`, soft asserts, jest
-  matchers). `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay,
+  serialization, the inspector, Playwright Test and its testInfo (`toPass`, `expect.poll`, soft
+  asserts, jest matchers); `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner). `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay,
   with an explicit path in place of `testInfo`.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
@@ -246,6 +246,33 @@ issues. So driver-rendered text (call logs, errors) stays JS. Text the client re
 `to_string` and the matchers' `Locator:` line read `Page.get_by_role(page, :button, name: "Submit")`.
 `cssParser` is not ported (CSS bodies stay strings). Driver install hints name
 `mix playwright_ex.install`.
+
+## Test runner
+
+`PlaywrightEx.Test` is not a port. ExUnit is the runner, as pytest, NUnit and JUnit are for the
+non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) it
+follows: fixtures as setup fragments that only pass the context map, Playwright Test's names and
+defaults (trace, screenshot and video modes, artifact names, `testInfo.outputDir`), and
+upstream's artifact code as the model (`ArtifactsRecorder` hooks on `ClientInstrumentation`,
+`mergeTraceFiles`). Options are arguments plus config, passed to the facade as they are.
+
+Browsers are shared by default, unlike those clients' browser per worker thread: their client
+is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
+worth of modules at once, so a driver per module would multiply drivers for nothing. Contexts
+isolate tests. `isolate: true` is upstream's model (an exclusive driver and browser, checked in by
+the formatter at `module_finished` and discarded after a failure) for modules that change the
+driver or browser for everyone. `mix test` halts without stopping applications, so the drivers
+are stopped in `ExUnit.after_suite/1`, in parallel (#191). The pool starts on first use, never
+with the application: a release has no ExUnit.
+
+A crashed shared browser fails the remaining tests of every module using it (their
+`ctx.browser` is stale), where upstream fails the test and restarts its worker; the next
+`browser/1` launches it again. One driver per key may limit throughput in shared mode; a
+`pool_size` (N slots per key, as Fluffy has) is the remedy if measurements call for it.
+
+Rejected: porting Playwright Test, testInfo's expect (`toPass`, `expect.poll`, soft asserts,
+steps), a CaseTemplate (fragments compose with the user's own), options from tags (a template
+maps its own), and a driver per module by default.
 
 ## Mirroring upstream specs
 
