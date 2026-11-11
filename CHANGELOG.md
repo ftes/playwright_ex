@@ -10,6 +10,8 @@ those of the release candidates below. From an earlier release, also read the se
 
 ## [Unreleased]
 
+## [0.17.0-rc.5] 2026-11-10
+
 ### Changed
 - `Page.wait_for_timeout/2` and `Frame.wait_for_timeout/2` reject `:infinity` (a
   `ValidationError`): their timeout is how long to wait, and `:infinity` used to wait 0 ms.

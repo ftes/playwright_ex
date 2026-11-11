@@ -17,7 +17,7 @@ is pinned and installed by Mix, no npm needed. This release drives Playwright 1.
 ```elixir
 def deps do
   [
-    {:playwright_ex, "~> 0.17.0-rc.4"}
+    {:playwright_ex, "~> 0.17.0-rc.5"}
   ]
 end
 ```
