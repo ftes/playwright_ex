@@ -25,17 +25,17 @@ defmodule PlaywrightEx.Transport.Pipe do
       throws in the caller.
     * The driver inherits the VM's stderr, as a port can't pipe it separately; upstream pipes it
       and forwards it. Node restores the terminal's settings when it exits, which resets the
-      shell's line editor (↑ prints `OA`) if the driver outlives the VM. So `close/1` waits until
-      the driver has exited, at most 30 s (its force-exit limit), while the caller still owns the
-      terminal; upstream's `stop()` waits for the pipe's close only.
+      shell's line editor (↑ prints `OA`) if the driver outlives the VM. So on Unix `close/1` waits
+      until the driver has exited, at most 31 s (its force-exit limit and a second for the exit),
+      while the caller still owns the terminal; upstream's `stop()` waits for the pipe's close only.
   """
   use GenServer
 
   require Logger
 
   # gracefullyProcessExitDoNotHang (processLauncher.ts): the driver force-exits 30 s after its
-  # stdin closes.
-  @exit_timeout 30_000
+  # stdin closes; a second more lets it exit.
+  @exit_timeout 31_000
 
   @doc """
   Options: `:executable` (`{program, args}`, see `PlaywrightEx.Driver.executable/1`),
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Transport.Pipe do
   @doc "Writes `messages` in order, with one port command."
   def send_messages(pid, messages), do: GenServer.cast(pid, {:send, messages})
 
-  @doc "Closes the pipe and waits until the driver has exited, at most 30 s (see the moduledoc)."
+  @doc "Closes the pipe and, on Unix, waits until the driver has exited, at most 31 s (see the moduledoc)."
   def close(pid), do: GenServer.call(pid, :close, :infinity)
 
   @impl true
@@ -88,7 +88,9 @@ defmodule PlaywrightEx.Transport.Pipe do
     case Port.info(port, :os_pid) do
       {:os_pid, os_pid} ->
         Port.close(port)
-        if match?({:unix, _}, :os.type()), do: await_exit(os_pid, System.monotonic_time(:millisecond) + @exit_timeout)
+
+        if match?({:unix, _}, :os.type()),
+          do: await_exit(os_pid, System.monotonic_time(:millisecond) + @exit_timeout, 10)
 
       nil ->
         :ok
@@ -96,13 +98,14 @@ defmodule PlaywrightEx.Transport.Pipe do
   end
 
   # A port can't close the driver's stdin alone and reports no exit status after Port.close/1, so
-  # this polls the os pid (`kill` is a shell builtin).
-  defp await_exit(os_pid, deadline) do
+  # this polls the os pid (`kill` is a shell builtin), backing off from 10 ms to 100 ms: the driver
+  # usually exits within tens of ms.
+  defp await_exit(os_pid, deadline, interval) do
     {_, status} = System.cmd("/bin/sh", ["-c", ~s(kill -0 "$1" 2>/dev/null), "sh", to_string(os_pid)])
 
     if status == 0 and System.monotonic_time(:millisecond) < deadline do
-      Process.sleep(10)
-      await_exit(os_pid, deadline)
+      Process.sleep(interval)
+      await_exit(os_pid, deadline, min(interval * 2, 100))
     end
   end
 

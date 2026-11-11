@@ -11,9 +11,11 @@ those of the release candidates below. From an earlier release, also read the se
 ## [Unreleased]
 
 ### Fixed
-- Stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 30 s), so a driver
-  stopped before the VM halts no longer resets the terminal afterwards (↑ printing `OA` in the
-  shell after `mix test`).
+- On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
+  When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
+  afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt
+  without stopping it, so the guides now stop it in `ExUnit.after_suite/1` or at the end of the
+  script.
 
 ## [0.17.0-rc.5] 2026-11-10
 

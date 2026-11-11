@@ -62,8 +62,12 @@ uses. If only your tests need a browser, start it in `test/test_helper.exs`:
 
 ```elixir
 {:ok, _} = PlaywrightEx.Supervisor.start_link()
+ExUnit.after_suite(fn _ -> Supervisor.stop(PlaywrightEx) end)
 ExUnit.start()
 ```
+
+`mix test` halts the VM without stopping the supervisor. Stopping it in `after_suite` waits for
+the driver to exit, which could otherwise reset the terminal after the run (↑ printing `OA`).
 
 To use an npm-managed Playwright instead of the pinned driver, pass
 `executable: "assets/node_modules/.bin/playwright"`; `PlaywrightEx.Driver` lists the other
@@ -83,6 +87,7 @@ Page.goto!(page, "https://playwright.dev/")
 IO.puts(Page.title!(page))
 Page.screenshot!(page, path: "example.png")
 Browser.close!(browser)
+Supervisor.stop(PlaywrightEx)
 ```
 
 Save it as `example.exs` and run `mix run example.exs`. If your application already starts the
