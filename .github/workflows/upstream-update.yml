@@ -28,6 +28,11 @@ concurrency:
 # Nothing by default; each job asks for what it needs.
 permissions: {}
 
+env:
+  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
+  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository)."
+
 jobs:
   # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
   check:
@@ -104,6 +109,8 @@ jobs:
             echo "RELEASE: https://github.com/microsoft/playwright/releases/tag/v$TO"
             echo
             cat .github/prompts/upstream-update.md
+            echo
+            echo "$TOOL_HINT"
             echo "PROMPT_EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Port the release
@@ -229,9 +236,7 @@ jobs:
             - It needs a decision, a skip or more than a fix: run exactly
               gh pr comment ${{ matrix.pr.number }} --body "Needs a human: <one sentence on why>"
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.

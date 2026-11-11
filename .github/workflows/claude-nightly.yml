@@ -19,6 +19,9 @@ env:
   # Runs subagents in the foreground. A headless run ends with Claude's turn, which drops any
   # still running in the background: the survey agents never reported back.
   CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
+  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository)."
 
 jobs:
   # Frees slots before the cap is counted. A job, not an earlier cron: GitHub delays scheduled
@@ -68,9 +71,7 @@ jobs:
             same change or solved the problem another way. A merge conflict, the PR's age or a
             preference for other work is not a reason. When in doubt, keep it.
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            ${{ env.TOOL_HINT }}
 
             To close one, run exactly:
               gh pr close N --delete-branch --comment "<one sentence naming what on main made it obsolete>"
@@ -126,7 +127,7 @@ jobs:
           prs=$(list)
           {
             echo "conflicted=$(jq -c 'map(select(.mergeable == "CONFLICTING") | .number)' <<< "$prs")"
-            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable != "CONFLICTING" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
+            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
             echo "exhausted=$(jq -r --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number) | join(" ")' <<< "$prs")"
           } >> "$GITHUB_OUTPUT"
       - name: Close PRs still failing after two fixes
@@ -212,9 +213,7 @@ jobs:
             - It can't be fixed without redesigning the change: run exactly
               gh pr close ${{ matrix.pr.number }} --delete-branch --comment "<one sentence on why>"
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -295,9 +294,7 @@ jobs:
               gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} --title "<subject>" --body-file tmp/nightly-pr.md
               gh pr close ${{ matrix.pr }} --delete-branch --comment "Conflicted with main; replaced by <new PR URL>."
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -444,8 +441,8 @@ jobs:
             changes, and no changes that are only formatting, comments or renames to taste.
 
             Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass.
-            Don't run the test suite: CI runs it on the PR, and the next nightly run fixes what it
-            finds.
+            Tests can't run here, in place of AGENTS.md's `mix check`: CI runs them on the PR, and
+            a later nightly run fixes any failure.
 
             If nothing is clearly worth a maintainer's time, stop without pushing and say why. No
             PR is a good result; a marginal PR is not.
@@ -457,9 +454,7 @@ jobs:
             Write tmp/nightly-pr.md first (tmp/ is gitignored): a few sentences on what was
             inconsistent or complex and why this is simpler.
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
