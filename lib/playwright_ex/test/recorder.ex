@@ -1,8 +1,9 @@
 defmodule PlaywrightEx.Test.Recorder do
   @moduledoc false
   # The artifacts of one test (`PlaywrightEx.Test.record_artifacts/2`), after Playwright Test's
-  # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory` (`packages/playwright/src/index.ts`)
-  # and `mergeTraceFiles` (`packages/playwright/src/worker/testTracing.ts`).
+  # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory`
+  # (`packages/playwright/src/index.ts`) and `mergeTraceFiles`
+  # (`packages/playwright/src/worker/testTracing.ts`).
   #
   # A process per test, alive from the test's setup to the end of its `on_exit`: it remembers
   # the test's contexts and anchors them (so their pages and videos stay readable after the
@@ -23,13 +24,13 @@ defmodule PlaywrightEx.Test.Recorder do
 
   require Logger
 
-  # The test identity `PlaywrightEx.Test.new_context/2` puts while it creates a context, so
-  # the listener records a context made in a process with no `$callers` (a GenServer).
+  # The `test_pid` `PlaywrightEx.Test.new_context/2` puts while it creates a context, so the
+  # listener records a context made in a process with no `$callers` (a GenServer).
   @identity {PlaywrightEx.Test, :identity}
 
-  @doc "Runs `fun` as the test `key`: the contexts it creates are the test's."
-  def with_identity(key, fun) do
-    previous = Process.put(@identity, key)
+  @doc "Runs `fun` as the test `test_pid`: the contexts it creates are the test's."
+  def with_identity(test_pid, fun) do
+    previous = Process.put(@identity, test_pid)
 
     try do
       fun.()
@@ -38,17 +39,12 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  @doc """
-  A test's key, `{module, name, parameters}`: ExUnit runs a `parameterize:` module once per
-  parameter map, concurrently with `async: true`. The context map has the parameters' keys,
-  not the map: it is the module's parameter map whose keys have those values.
-  """
-  def key(%{module: module, test: test} = context), do: {module, test, parameters(module, context)}
+  @doc "A test's key, `{module, name, parameters}`, as the formatter gets it (`%ExUnit.Test{}`)."
+  def test_key(%{module: module, test: test} = context), do: {module, test, parameters(module, context)}
 
   @doc """
   The parameters of `context` in `module` (`%{}` for a module without `parameterize:`): a guess,
-  as the context has the values, not the map. A setup that rebinds a parameter key before the
-  fragments run makes it miss.
+  the module's parameter map whose keys have the context's values.
   """
   def parameters(module, context) do
     case parameterize(module) do
@@ -64,79 +60,49 @@ defmodule PlaywrightEx.Test.Recorder do
       %{parameterize: list} -> list
       _ -> nil
     end
-  rescue
-    _ -> nil
-  end
-
-  @doc "The key the recorder of the test of `context` runs under: by its `test_pid` when it runs."
-  def key_of(context) do
-    with pid when is_pid(pid) <- context[:test_pid],
-         true <- Pool.started?(),
-         [{_, key, _recorder}] <- :ets.lookup(Pool.table(), {:test, pid}) do
-      key
-    else
-      _ -> key(context)
-    end
   end
 
   @doc "A test name without its macro's prefix (`test `, or the context's `test_type`)."
   def test_name(%{test: test} = context),
     do: test |> to_string() |> String.replace_prefix("#{context[:test_type] || :test} ", "")
 
-  @doc "The test's recorder, or `nil`."
-  def lookup(key) do
-    case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, key}) do
+  @doc "The recorder of the test `test_pid`, or `nil`."
+  def lookup(test_pid) do
+    case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, test_pid}) do
       [{_, pid}] -> pid
       _ -> nil
     end
   end
 
   @doc """
-  Starts the recorder of the test `key`, whose process is `test_pid`: `{key, pid}`. Not linked:
-  it outlives the test process, until `finish/2`. A key taken already (two parameter sets guessed
-  the same) falls back to one of the test process, and a dir of its own.
+  Starts the recorder of the test `test_pid` (`opts.test_key` names its retained files for the
+  formatter). Not linked: it outlives the test process, until `finish/2`.
   """
-  def start(key, test_pid, opts) do
+  def start(test_pid, opts) do
     Pool.ensure_started()
-    {:ok, pid} = GenServer.start(__MODULE__, {key, test_pid, opts})
-
-    if :ets.insert_new(Pool.table(), {{:recorder, key}, pid}) do
-      :ets.insert(Pool.table(), {{:test, test_pid}, key, pid})
-      {key, pid}
-    else
-      GenServer.stop(pid)
-
-      Logger.warning(
-        "PlaywrightEx.Test could not determine the parameters of #{inspect(elem(key, 1))} " <>
-          "(a setup rebound a parameter key?): its artifacts go to a dir of its own and are not pruned"
-      )
-
-      {module, test, _parameters} = key
-      hash = :crypto.hash(:sha, :erlang.term_to_binary(test_pid)) |> Base.encode16(case: :lower)
-      start({module, test, {:unknown, test_pid}}, test_pid, %{opts | dir: opts.dir <> "-" <> binary_part(hash, 0, 5)})
-    end
+    {:ok, pid} = GenServer.start(__MODULE__, {test_pid, opts})
+    :ets.insert(Pool.table(), {{:recorder, test_pid}, pid})
+    pid
   end
 
   @doc "Adds the recorder's listener to `instrumentation` (once)."
   def ensure_listener(pid, instrumentation), do: GenServer.call(pid, {:ensure_listener, instrumentation}, :infinity)
 
   @impl true
-  def init({key, test_pid, opts}) do
+  def init({test_pid, opts}) do
     tmp = Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
     opts = Map.put(opts, :tmp, tmp)
     this = self()
-    # The listener's maps compare by value: `ref` keeps them apart.
+
     listener = %{
-      ref: make_ref(),
-      runBeforeCreateBrowserContext: &before_create(&1, key, test_pid, opts),
-      runAfterCreateBrowserContext: &after_create(&1, this, key, test_pid, opts),
+      runBeforeCreateBrowserContext: &before_create(&1, test_pid, opts),
+      runAfterCreateBrowserContext: &after_create(&1, this, test_pid, opts),
       runBeforeCloseBrowserContext: &before_close(&1, this, opts)
     }
 
     # `contexts` in creation order, `closed` (guids) in close order.
     {:ok,
      %{
-       key: key,
        opts: opts,
        listener: listener,
        instrumentations: [],
@@ -187,21 +153,21 @@ defmodule PlaywrightEx.Test.Recorder do
 
   # The listener. It runs in the process that creates or closes a context, for every context of
   # the driver: only the test's own count.
-  defp ours?(key, test_pid) do
-    self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")) or Process.get(@identity) == key
+  defp ours?(test_pid) do
+    self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")) or Process.get(@identity) == test_pid
   end
 
   # `_contextFactory`: `browser.newContext({ ...videoOptions, ...options })`.
-  defp before_create(options, key, test_pid, opts) do
-    if opts.video != :off and not Map.has_key?(options, :recordVideo) and ours?(key, test_pid),
+  defp before_create(options, test_pid, opts) do
+    if opts.video != :off and not Map.has_key?(options, :recordVideo) and ours?(test_pid),
       do: Map.put(options, :recordVideo, %{dir: Path.join(opts.tmp, "videos")}),
       else: options
   end
 
   # A row `{{:context, guid}, recorder}` per recorded context: `before_close` reads it, no call
   # into every test's recorder on each close.
-  defp after_create(context, recorder, key, test_pid, opts) do
-    if ours?(key, test_pid) and :ets.insert_new(Pool.table(), {{:context, context.guid}, recorder}) do
+  defp after_create(context, recorder, test_pid, opts) do
+    if ours?(test_pid) and :ets.insert_new(Pool.table(), {{:context, context.guid}, recorder}) do
       call(recorder, {:add_context, context})
       record(context, recorder, opts)
     end
@@ -298,7 +264,6 @@ defmodule PlaywrightEx.Test.Recorder do
   after
     :ets.match_delete(Pool.table(), {{:recorder, :_}, pid})
     :ets.match_delete(Pool.table(), {{:context, :_}, pid})
-    :ets.match_delete(Pool.table(), {{:test, :_}, :_, pid})
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
@@ -312,7 +277,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
     state = GenServer.call(pid, :state, :infinity)
     retained = save_videos(state) ++ save_trace(state) ++ failure_screenshots(state)
-    if retained != [], do: :ets.insert(Pool.table(), {{:retained, state.key}, retained})
+    if retained != [], do: :ets.insert(Pool.table(), {{:retained, state.opts.test_key}, retained})
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up
@@ -384,17 +349,14 @@ defmodule PlaywrightEx.Test.Recorder do
   defp failure_screenshots(_state), do: []
 
   @doc """
-  Upstream's `mergeTraceFiles`: one trace of all of the test's chunks. Newest first, `*trace.<ext>`
-  entries get their chunk's index as a prefix, other entries (resources) are kept once. A single
-  chunk is moved as is. Returns `:none` without chunks.
+  Upstream's `mergeTraceFiles`: one trace of all of the test's chunks, each cut to its own stacks
+  (`own_stacks/2`). With several chunks, newest first, `*trace.<ext>` entries get their chunk's
+  index as a prefix, other entries (resources) are kept once. Returns `:none` without chunks.
   """
   def merge_traces(path, chunks) do
     case Enum.filter(chunks, &File.exists?/1) do
       [] ->
         :none
-
-      [chunk] ->
-        move(chunk, path)
 
       chunks ->
         {entries, _names} =
@@ -402,8 +364,7 @@ defmodule PlaywrightEx.Test.Recorder do
           |> Enum.with_index()
           |> Enum.reverse()
           |> Enum.reduce({[], MapSet.new()}, fn {chunk, i}, acc ->
-            {:ok, files} = :zip.unzip(String.to_charlist(chunk), [:memory])
-            Enum.reduce(files, acc, &merge_entry(&1, i, &2))
+            Enum.reduce(read_chunk(chunk), acc, &merge_entry(&1, prefix(i, chunks), &2))
           end)
 
         File.mkdir_p!(Path.dirname(path))
@@ -413,21 +374,49 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  defp merge_entry({name, data}, i, {entries, names}) do
-    name = to_string(name)
-    name = if name != "test.trace" and name =~ ~r/trace\.[a-z]*$/, do: "#{i}-#{name}", else: name
+  defp prefix(_i, [_chunk]), do: ""
+  defp prefix(i, _chunks), do: "#{i}-"
+
+  defp read_chunk(chunk) do
+    {:ok, files} = :zip.unzip(String.to_charlist(chunk), [:memory])
+    files = Enum.map(files, fn {name, data} -> {to_string(name), data} end)
+    own_stacks(files, List.keyfind(files, "trace.stacks", 0))
+  end
+
+  # The driver adds every call's stack to every trace recording on its connection
+  # (`addStackToTracingNoReply`), on a shared driver concurrent tests' too. Keeps the stacks of
+  # the chunk's own actions (by `callId`), as `serializeClientSideCallMetadata` writes them, and
+  # the `src/<sha1(file)><ext>` sources of their frames.
+  defp own_stacks(files, nil), do: files
+
+  defp own_stacks(files, {_, data}) do
+    ids =
+      for {name, trace} <- files,
+          Path.extname(name) == ".trace",
+          line <- String.split(trace, "\n", trim: true),
+          into: MapSet.new(),
+          do: JSON.decode!(line)["callId"]
+
+    %{"files" => paths, "stacks" => stacks} = JSON.decode!(data)
+    stacks = Enum.filter(stacks, fn [id, _frames] -> id in ids end)
+    used = stacks |> Enum.flat_map(fn [_id, frames] -> Enum.map(frames, &hd/1) end) |> Enum.uniq()
+    index = used |> Enum.with_index() |> Map.new()
+    stacks = for [id, frames] <- stacks, do: [id, for([file | rest] <- frames, do: [index[file] | rest])]
+    paths = Enum.map(used, &Enum.at(paths, &1))
+    sources = MapSet.new(paths, &"src/#{sha1(&1)}#{Path.extname(&1)}")
+    stacks_data = JSON.encode!(%{files: paths, stacks: stacks})
+
+    for {name, _} = file <- files,
+        not String.starts_with?(name, "src/") or name in sources,
+        do: if(name == "trace.stacks", do: {name, stacks_data}, else: file)
+  end
+
+  defp merge_entry({name, data}, prefix, {entries, names}) do
+    name = if name != "test.trace" and name =~ ~r/trace\.[a-z]*$/, do: prefix <> name, else: name
 
     if MapSet.member?(names, name),
       do: {entries, names},
       else: {[{String.to_charlist(name), data} | entries], MapSet.put(names, name)}
-  end
-
-  # Temp files may be on another file system than the output dir.
-  defp move(from, to) do
-    File.mkdir_p!(Path.dirname(to))
-    File.cp!(from, to)
-    File.rm!(from)
-    :ok
   end
 
   @doc "Called by the formatter: deletes the retained files of a passing test (and its dir if empty)."
@@ -448,12 +437,10 @@ defmodule PlaywrightEx.Test.Recorder do
       output_dir(PlaywrightEx.Test.Options.output_dir(), file, test_name(context), module, parameters(module, context))
 
   @doc """
-  The output dir of a test, as upstream's `testInfo.outputDir`: the test file relative to
-  `test/` without `_test.exs`, `/` replaced by `-`, then `-` and the test `name` (without its
-  macro's prefix, `test_name/1`) after `sanitizeForFilePath`, all of it shortened by `trimLongString`
-  to 60 characters, under `root`. Then `-` and a hash of the module and parameters, as
-  upstream appends the project: two modules of a file (or two parameter sets) may have a test
-  of the same name.
+  A test's output dir under `root`, as upstream's `testInfo.outputDir`: the file relative to
+  `test/` without `_test.exs`, `/` as `-`, then `-` and the sanitized test `name`, trimmed to 60
+  characters (`trimLongString`). Then `-` and a hash of the module and parameters, as upstream
+  appends the project: modules of a file, or parameter sets, may share a test name.
   """
   def output_dir(root, file, name, module, parameters) do
     cwd = File.cwd!()
@@ -468,9 +455,7 @@ defmodule PlaywrightEx.Test.Recorder do
     relative = relative |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
     name = trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(name))
 
-    hash = :crypto.hash(:sha, :erlang.term_to_binary({module, parameters}, [:deterministic]))
-
-    Path.join(root, name <> "-" <> binary_part(Base.encode16(hash, case: :lower), 0, 5))
+    Path.join(root, name <> "-" <> short_hash(:erlang.term_to_binary({module, parameters}, [:deterministic])))
   end
 
   @doc "Upstream's `sanitizeForFilePath`."
@@ -481,13 +466,15 @@ defmodule PlaywrightEx.Test.Recorder do
     if String.length(s) <= length do
       s
     else
-      hash = :crypto.hash(:sha, s) |> Base.encode16(case: :lower)
-      middle = "-#{binary_part(hash, 0, 5)}-"
+      middle = "-#{short_hash(s)}-"
       start = div(length - String.length(middle), 2)
       ending = length - String.length(middle) - start
       String.slice(s, 0, start) <> middle <> String.slice(s, -ending, ending)
     end
   end
+
+  defp sha1(data), do: :crypto.hash(:sha, data) |> Base.encode16(case: :lower)
+  defp short_hash(data), do: binary_part(sha1(data), 0, 5)
 
   defp step(what, fun) do
     fun.()

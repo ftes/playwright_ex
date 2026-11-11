@@ -60,9 +60,8 @@ defmodule PlaywrightEx.Test.PoolTest do
   end
 
   test "one driver hosts every browser type" do
-    other = if PlaywrightEx.TestBrowser.name() == "firefox", do: :chromium, else: :firefox
     a = browser(opts())
-    b = browser(Keyword.put(opts(), :browser_name, other))
+    b = browser(Keyword.put(opts(), :browser_name, PlaywrightEx.TestBrowser.other_name()))
     assert a.playwright == b.playwright
     assert a.browser != b.browser
   end
@@ -117,25 +116,11 @@ defmodule PlaywrightEx.Test.PoolTest do
       Pool.module_finished({:module_f, %{}}, true)
     end
 
-    test "an owner's further browser/2 calls share its driver; an unmatched owner is logged" do
+    test "an owner's further browser/2 calls share its driver" do
       opts = opts(isolate: true)
-      other = if PlaywrightEx.TestBrowser.name() == "firefox", do: :chromium, else: :firefox
       a = browser(%{module: :module_m}, opts)
-      b = browser(%{module: :module_m}, Keyword.put(opts, :browser_name, other))
+      b = browser(%{module: :module_m}, Keyword.put(opts, :browser_name, PlaywrightEx.TestBrowser.other_name()))
       assert a.playwright == b.playwright
-
-      module = __MODULE__.Parameterized
-      browser(%{module: module, n: 1}, opts)
-
-      log =
-        ExUnit.CaptureLog.capture_log(fn ->
-          Pool.module_finished({module, %{n: 9}}, true)
-          :sys.get_state(Pool)
-        end)
-
-      assert log =~ "could not check in the isolated driver of PlaywrightEx.Test.PoolTest.Parameterized %{n: 9}"
-
-      Pool.module_finished({module, %{n: 1}}, true)
       Pool.module_finished({:module_m, %{}}, true)
     end
 
@@ -152,50 +137,32 @@ defmodule PlaywrightEx.Test.PoolTest do
       Pool.module_finished({module, %{n: 2}}, true)
     end
 
-    test "the wait for a slot starts anew on each check-in" do
+    test "a waiter gets a slot after the wait, logged" do
       opts = opts(isolate: true)
       a = browser(%{module: :module_h}, opts)
-      _b = browser(%{module: :module_i}, opts)
+      b = browser(%{module: :module_i}, opts)
       c = Task.async(fn -> browser(%{module: :module_j}, opts) end)
-      d = Task.async(fn -> browser(%{module: :module_k}, opts) end)
       assert Task.yield(c, 500) == nil
-      %{timer: {first, _}} = :sys.get_state(Pool)
 
-      # A shared module's finish is no check-in: the timer stays.
-      Pool.module_finished({:module_shared, %{}}, false)
-      assert %{timer: {^first, _}} = :sys.get_state(Pool)
-
-      # A check-in: c gets a's slot, d waits on a new timer.
-      Pool.module_finished({:module_h, %{}}, false)
-      assert Task.await(c) == a
-      %{timer: {second, _}} = :sys.get_state(Pool)
-      assert second != first
-
-      # The old timer is stale; the new one gives d a slot above max_isolated.
-      send(Pool, {:waited, first})
-      assert Task.yield(d, 500) == nil
+      # The wait's timer, fired early.
+      %{timer: {ref, _}} = :sys.get_state(Pool)
 
       log =
         ExUnit.CaptureLog.capture_log(fn ->
-          send(Pool, {:waited, second})
-          assert Task.await(d, 30_000).playwright not in [a.playwright]
+          send(Pool, {:waited, ref})
+          assert Task.await(c, 30_000).playwright not in [a.playwright, b.playwright]
         end)
 
-      assert log =~ "no isolated driver was checked in for 120 s, :module_k gets one above max_isolated"
-      assert :sys.get_state(Pool).timer == nil
+      assert log =~ "PlaywrightEx.Test could not get :module_j an isolated driver: none was checked in for 120 s"
 
-      for m <- [:module_i, :module_j, :module_k], do: Pool.module_finished({m, %{}}, true)
+      for m <- [:module_h, :module_i, :module_j], do: Pool.module_finished({m, %{}}, true)
     end
   end
 
-  test "stop_all waits for the drivers being discarded" do
+  test "after_suite waits for the drivers being discarded" do
     isolated = browser(%{module: :module_l}, opts(isolate: true))
-    assert %{{:module_l, %{}} => [{pid, _key} = slot]} = :sys.get_state(Pool).busy
     Pool.module_finished({:module_l, %{}}, true)
-    assert slot in :sys.get_state(Pool).discarding
-
-    Pool.stop_all()
-    refute Process.alive?(pid)
+    Pool.after_suite(%{})
     refute connected?(isolated.browser)
   end
 

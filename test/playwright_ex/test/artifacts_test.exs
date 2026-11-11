@@ -7,7 +7,6 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Tracing
 
@@ -99,30 +98,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert log =~ "PlaywrightEx.Test could not save the trace"
   end
 
-  test "retained files are deleted when the test passes", ctx do
-    dir = dir(ctx)
-    key = Recorder.key(ctx)
-
-    on_exit(fn ->
-      assert [{_, retained}] = :ets.lookup(Pool.table(), {:retained, key})
-      assert retained |> Enum.map(&Path.basename/1) |> Enum.sort() == ~w(test-failed-1.png trace.zip video.webm)
-      # As the formatter does for a failed test, then for a passing one.
-      Recorder.test_finished(key, false)
-      assert Enum.all?(retained, &File.exists?/1)
-      :ets.insert(Pool.table(), {{:retained, key}, retained})
-      Recorder.test_finished(key, true)
-      refute File.exists?(dir)
-    end)
-
-    record_artifacts(ctx, trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure)
-    %{context: context} = new_context(ctx)
-    page(context, "RETAINED")
-  end
-
   test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", ctx do
-    key = Recorder.key(%{ctx | test: :"#{ctx.test} (bounded)"})
-    opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded"}
-    {^key, recorder} = Recorder.start(key, self(), opts)
+    opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded", test_key: :bounded}
+    recorder = Recorder.start(self(), opts)
     Recorder.ensure_listener(recorder, PlaywrightEx.Runtime.Heap.get(ctx.browser, :_instrumentation))
     context = Browser.new_context!(ctx.browser)
     test_pid = self()
@@ -136,35 +114,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     log = capture_log(fn -> assert Recorder.finish(recorder, 50) == :ok end)
     assert log =~ "PlaywrightEx.Test could not finish the recording: it took over 50 ms"
     refute Process.alive?(recorder)
-    assert Recorder.lookup(key) == nil
+    assert Recorder.lookup(self()) == nil
     refute File.exists?(tmp)
     assert_receive :closed, 10_000
-  end
-
-  test "a recording key taken already falls back to a dir of the test's own, logged", ctx do
-    # Another test process holds the key: the guessed parameters of two sets were the same.
-    key = Recorder.key(ctx)
-    other = spawn(fn -> Process.sleep(:infinity) end)
-
-    {^key, holder} =
-      Recorder.start(key, other, %{trace: :off, screenshot: :off, video: :off, dir: dir(ctx), title: "x"})
-
-    on_exit(fn -> Recorder.finish(holder, 1000) end)
-
-    hash = :crypto.hash(:sha, :erlang.term_to_binary(self())) |> Base.encode16(case: :lower)
-    own = dir(ctx) <> "-" <> binary_part(hash, 0, 5)
-
-    on_exit(fn ->
-      assert File.ls!(own) == ["trace.zip"]
-      refute File.exists?(dir(ctx))
-      File.rm_rf!(own)
-    end)
-
-    log = capture_log(fn -> record_artifacts(ctx, trace: :on) end)
-    assert log =~ "could not determine the parameters"
-    assert log =~ "not pruned"
-    %{context: context} = new_context(ctx)
-    page(context, "FALLBACK")
   end
 
   test "a plain context of another browser type is recorded: one driver hosts them all", ctx do
@@ -177,10 +129,63 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     end)
 
     record_artifacts(ctx, trace: :on)
-    other = if PlaywrightEx.TestBrowser.name() == "firefox", do: :chromium, else: :firefox
-    %{browser: browser} = browser(browser_name: other)
+    %{browser: browser} = browser(browser_name: PlaywrightEx.TestBrowser.other_name())
     page(Browser.new_context!(ctx.browser), "OWN")
     page(Browser.new_context!(browser), "OTHER-TYPE")
+  end
+
+  @tag :tmp_dir
+  test "a trace keeps only its own stacks and sources while another test traces on the driver",
+       %{browser: browser, tmp_dir: tmp} = ctx do
+    dir = dir(ctx)
+    # The other test's calls come from a file of their own.
+    other_file = Path.join(tmp, "other_calls.ex")
+
+    File.write!(
+      other_file,
+      "defmodule #{inspect(__MODULE__)}.OtherCalls, do: def(visit(page), do: PlaywrightEx.Page.set_content!(page, \"x\"))"
+    )
+
+    [{other, _}] = Code.compile_file(other_file)
+    source = &"src/#{:crypto.hash(:sha, &1) |> Base.encode16(case: :lower)}#{Path.extname(&1)}"
+
+    on_exit(fn ->
+      {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "trace.zip")), [:memory])
+      files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
+      %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["trace.stacks"])
+      call_ids = for %{"type" => "before", "callId" => id} <- trace(dir, browser).events, do: id
+
+      # Every stack is one of the trace's actions', every frame's file is in `files`.
+      assert stacks != []
+      for [id, frames] <- stacks, do: assert(id in call_ids and Enum.all?(frames, &(hd(&1) < length(paths))))
+      assert Enum.uniq(paths) == paths
+      assert __ENV__.file in paths
+      refute other_file in paths
+
+      sources = for "src/" <> _ = name <- Map.keys(files), do: name
+      assert source.(__ENV__.file) in sources
+      assert sources -- Enum.map(paths, source) == []
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, trace: :on)
+    %{context: context} = new_context(ctx)
+    page = page(context, "OWN")
+    test_pid = self()
+
+    # Another test (a process that is not this test's) traces with sources meanwhile.
+    spawn(fn ->
+      context = Browser.new_context!(browser)
+      tracing = BrowserContext.tracing(context)
+      Tracing.start!(tracing, sources: true)
+      other.visit(BrowserContext.new_page!(context))
+      Tracing.stop!(tracing)
+      BrowserContext.close!(context)
+      send(test_pid, :other_done)
+    end)
+
+    assert_receive :other_done, 10_000
+    Page.set_content!(page, "<h1>AFTER</h1>")
   end
 
   test "a test's dir is not emptied: a rerun keeps the first run's other files", ctx do

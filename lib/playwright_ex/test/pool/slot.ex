@@ -103,21 +103,21 @@ defmodule PlaywrightEx.Test.Pool.Slot do
 
   # A launch that fails leaves the driver and its other browsers be.
   defp launch(state, browser_name, launch_options) do
-    key = {browser_name, launch_options}
+    browser_key = {browser_name, launch_options}
 
     case state.browsers do
-      %{^key => browser} ->
-        if connected?(browser), do: {:ok, browser, state}, else: launch_new(state, key)
+      %{^browser_key => browser} ->
+        if connected?(browser), do: {:ok, browser, state}, else: launch_new(state, browser_key)
 
       _ ->
-        launch_new(state, key)
+        launch_new(state, browser_key)
     end
   end
 
-  defp launch_new(state, {browser_name, launch_options} = key) do
+  defp launch_new(state, {browser_name, launch_options} = browser_key) do
     browser_type = apply(Playwright, browser_name, [state.playwright])
     browser = BrowserType.launch!(browser_type, launch_options)
-    {:ok, browser, %{state | browsers: Map.put(state.browsers, key, browser)}}
+    {:ok, browser, %{state | browsers: Map.put(state.browsers, browser_key, browser)}}
   rescue
     exception -> {:error, {:error, exception, __STACKTRACE__}, state}
   end

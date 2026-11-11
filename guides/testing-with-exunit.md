@@ -1,8 +1,8 @@
 # Testing with ExUnit
 
 PlaywrightEx is the library, ExUnit is the test runner. `PlaywrightEx.Test` adds what the
-official clients' test plugins (pytest-playwright, Playwright.NUnit) have: a browser per module,
-a context and page per test, and traces, screenshots and videos of failures. This guide tests an
+official clients' test plugins (pytest-playwright, Playwright.NUnit) have: a shared browser, a
+context and page per test, and traces, screenshots and videos of failures. This guide tests an
 app that runs somewhere and is reached through a base URL, whatever it is written in. For Phoenix
 feature tests (with the Ecto sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets
 alias `PlaywrightEx.{Page, Locator, ...}`.
@@ -47,9 +47,10 @@ end
 ```
 
 `browser/1` starts the driver and launches the browser on first use; modules with the same
-options share it (and one driver hosts every browser type), also with `async: true` (ExUnit runs those concurrently with each other; a
-module's own tests run one after another). A context is a fresh browser profile with its own
-cookies, storage and cache, so tests don't share state. The drivers stop after the suite.
+options share it (and one driver hosts every browser type), also with `async: true` (ExUnit
+runs those concurrently with each other; a module's own tests run one after another). A context
+is a fresh browser profile with its own cookies, storage and cache, so tests don't share state.
+The drivers stop after the suite.
 
 Options go in as arguments, merged over the config: `setup_all do: browser(browser_name:
 :firefox)`, `setup ctx, do: new_context(ctx, context_options: [locale: "de-DE"])`.
@@ -221,18 +222,18 @@ and rerun the failures with tracing in CI:
 mix test || TRACE=1 mix test --failed
 ```
 
-Passing runs pay nothing for it, and the first run's artifacts stay: nothing is deleted at the
-start of a run or a test, files are overwritten by name. So `test-results/` accumulates across
-local runs; delete it yourself (CI starts clean). A flaky test that passes on the rerun leaves
-no trace, though; for those, `:retain_on_failure`.
+Passing runs pay nothing for it, and the first run's files stay: nothing is deleted at the start
+of a run, so delete `test-results/` yourself. A flaky test that passes on the rerun leaves no
+trace; for those, `:retain_on_failure`.
 
 A context created for the test by another process (a GenServer that runs a user session) is
 recorded too when that process gets the test's context map: `new_context(%{ctx | browser:
 browser})`, with `record_artifacts/2` in the test's own `setup`.
 
-In a `parameterize:` module, the context has each parameter's value, not the parameter map;
-the fragments find the map by those values, so run them before a setup that rebinds a
-parameter key.
+A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
+gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
+trace on the connection. `record_artifacts/2` filters them out of its `trace.zip`; for your own
+traces, use `isolate: true`.
 
 ## Isolated modules
 
@@ -283,8 +284,8 @@ end)
 ```
 
 Events forwarded to the test process arrive when the browser emits them, which can be well after
-the action that led to them (a request, a timer). `assert_receive` waits only 100 ms by default, so give it a timeout,
-or raise the default with `ExUnit.start(assert_receive_timeout: 5_000)`:
+the action that led to them (a request, a timer). `assert_receive` waits only 100 ms by default,
+so give it a timeout, or raise the default with `ExUnit.start(assert_receive_timeout: 5_000)`:
 
 ```elixir
 test_pid = self()

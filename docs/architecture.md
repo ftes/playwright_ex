@@ -85,8 +85,9 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
   serialization, the inspector, Playwright Test and its testInfo (`toPass`, `expect.poll`, soft
-  asserts, jest matchers); `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner). `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay,
-  with an explicit path in place of `testInfo`.
+  asserts, jest matchers); `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner).
+  `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
+  explicit path in place of `testInfo`.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
   `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright_ex.cli`). Per-call client
@@ -258,21 +259,21 @@ upstream's artifact code as the model (`ArtifactsRecorder` hooks on `ClientInstr
 
 Browsers are shared by default, unlike those clients' browser per worker thread: their client
 is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
-worth of modules at once, so a driver per module would multiply drivers for nothing. A driver
-hosts every browser type, as upstream's one Playwright does, so a test's recording (a listener
-on the driver's instrumentation) sees the contexts of all its browsers. Contexts isolate tests. `isolate: true` is upstream's model (an exclusive driver and browser, checked in by
-the formatter at `module_finished` and discarded after a failure) for modules that change the
-driver or browser for everyone. `mix test` halts without stopping applications, so the drivers
-are stopped in `ExUnit.after_suite/1`, in parallel (#191). The pool starts on first use, never
-with the application: a release has no ExUnit.
+worth of modules at once, so a driver per module would multiply drivers for nothing. Contexts
+isolate tests. A driver hosts every browser type, as upstream's one Playwright does, so a
+test's recording (a listener on the driver's instrumentation, keyed by `test_pid`) sees the
+contexts of all its browsers. The driver also adds every call's stack to each trace on its
+connection, so the trace merge keeps a chunk's own actions' stacks and sources. `isolate: true`
+is upstream's model (an exclusive driver, checked in by the formatter at `module_finished`,
+discarded after a failure) for modules that change the driver or browser for everyone. The
+drivers stop in `ExUnit.after_suite/1`, as `mix test` halts without stopping applications
+(#191). The pool starts on first use, never with the application: a release has no ExUnit.
 
-A crashed shared browser fails the remaining tests of every module using it (their
-`ctx.browser` is stale), where upstream fails the test and restarts its worker; the next
-`browser/1` launches it again. ExUnit gives the context a `parameterize:` module's values, not
-its parameter map, so the fragments guess the map from them; a wrong guess degrades (a
-recording of its own, not pruned; an isolated driver freed by the wait) rather than fails. One
-driver per key may limit throughput in shared mode; a
-`pool_size` (N slots per key, as Fluffy has) is the remedy if measurements call for it.
+A crashed shared browser fails the remaining tests of every module using it, where upstream
+restarts its worker; the next `browser/1` launches it again. ExUnit gives the context a
+`parameterize:` module's values, not its parameter map, so the fragments guess the map; a wrong
+guess leaves files unpruned and an isolated driver to the wait, rather than failing. If one
+driver per key limits throughput, a `pool_size` (as Fluffy has) is the remedy.
 
 Rejected: porting Playwright Test, testInfo's expect (`toPass`, `expect.poll`, soft asserts,
 steps), a CaseTemplate (fragments compose with the user's own), options from tags (a template

@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Test do
   @moduledoc """
-  ExUnit setup fragments for browser tests: a browser per module, a context and page per test,
-  and traces, screenshots and videos of failures.
+  ExUnit setup fragments for browser tests: a shared browser, a context and page per test, and
+  traces, screenshots and videos of failures.
 
       # test/test_helper.exs
       ExUnit.start(formatters: [ExUnit.CLIFormatter, PlaywrightEx.Test.Formatter])
@@ -31,20 +31,16 @@ defmodule PlaywrightEx.Test do
   connected to works with `new_context/1`. Called with the context map, a fragment takes its
   options from `config :playwright_ex, :test`; called with options, they are merged over the
   config (`launch_options`, `context_options` and `driver` one level deep). Unknown options and
-  bad values raise `ArgumentError`.
+  bad values raise `ArgumentError`. In a `parameterize:` module, call the fragments before any
+  setup that rebinds a parameter key.
 
   ## Browsers
 
-  `browser/1` returns a browser that modules with the same `browser_name` and `launch_options`
-  share, launched on first use and again if it is lost. Modules with the same `driver` and
-  `on_start` share a driver, which hosts every browser type, as upstream runs them all on one
-  Playwright: a test records the contexts of all of its browsers. Contexts isolate tests, so a
-  shared browser is safe across `async: true` modules. A module that changes the state of the
-  whole driver or browser (registers selectors, closes the browser, launches its own) takes
-  `isolate: true` in `setup_all`: a driver of its own for its lifetime, with the browsers its
-  `browser/2` calls launch, as Playwright Test's workers have, discarded if a test failed. At most `max_isolated` modules
-  have one at once, the others wait. Every driver is stopped after the suite
-  (`ExUnit.after_suite/1`), so none outlives `mix test`.
+  `browser/1` returns a shared browser per `browser_name` and `launch_options`, on a driver
+  shared per `driver` and `on_start`, launched on first use and again if lost. A module that
+  changes the driver or browser for everyone takes `isolate: true` in `setup_all`: a driver of
+  its own, discarded if a test fails, at most `max_isolated` at once. Every driver stops after
+  the suite.
 
   ## Artifacts
 
@@ -62,19 +58,14 @@ defmodule PlaywrightEx.Test do
     * `video.webm`, `video-1.webm`, ... - every page's video. A context created with its own
       `record_video` keeps it, and its video is copied here too.
 
-  An artifact step that fails is logged, and the test's own result stands. The `on` modes keep
-  everything; `retain_on_failure` and `only_on_failure` record every test, and
-  `PlaywrightEx.Test.Formatter` deletes the files of the tests that pass. A trace slows every
-  test: `trace: :on` set when `TRACE=1`, with `mix test || TRACE=1 mix test --failed` in CI,
-  traces only the failures' reruns (upstream's `on-first-retry`). Nothing is deleted at the
-  start of a run or a test (files are overwritten by name), so the rerun keeps the first run's
-  artifacts, and `output_dir` accumulates across local runs: delete it yourself (CI starts
-  clean).
+  A failing artifact step is logged; the test's result stands. The `*_on_failure` modes record
+  every test, and `PlaywrightEx.Test.Formatter` deletes the files of passing ones. Nothing is
+  deleted at the start of a run, so `mix test || TRACE=1 mix test --failed` (with `trace: :on`
+  under `TRACE`) keeps the first run's files. Delete `output_dir` yourself.
 
-  ExUnit puts a `parameterize:` module's parameter values in the context, not the map, so the
-  fragments tell the parameter sets apart by those keys: run them before a setup that rebinds
-  a parameter key. If two sets look the same, the second test records into a dir of its own
-  (logged), and its files are not pruned.
+  A trace of your own (`PlaywrightEx.Tracing.start/2` with `sources: true`) on a shared driver
+  also gets concurrent tests' stacks and sources: the driver adds every call's stack to each
+  trace on the connection. `record_artifacts/2` filters its own; yours needs `isolate: true`.
 
   ## Config
 
@@ -83,7 +74,6 @@ defmodule PlaywrightEx.Test do
         launch_options: [],           # PlaywrightEx.BrowserType.launch/2
         driver: [],                   # PlaywrightEx.Supervisor: :env, :executable, :node, :cache_dir
         on_start: nil,
-        isolate: false,
         context_options: [],          # PlaywrightEx.Browser.new_context/2
         trace: :off,                  # :off | :on | :retain_on_failure
         screenshot: :off,             # :off | :on | :only_on_failure
@@ -117,12 +107,13 @@ defmodule PlaywrightEx.Test do
       `:node`, `:cache_dir`.
     * `:on_start` - a function of the Playwright (`PlaywrightEx.Playwright`) or `{m, f, args}`
       (called with the Playwright first), run once on each new driver before its browser
-      launches: `&MyApp.Selectors.register/1`. Part of the key that modules share a browser
-      by, so pass a capture, not a closure.
+      launches: `&MyApp.Selectors.register/1`. Part of the driver's key, so pass a capture, not
+      a closure.
     * `:isolate` - `true` gives the module a driver and browser of its own (see the moduledoc).
-      Needs the context map, `browser(context, isolate: true)`, and `PlaywrightEx.Test.Formatter`.
+      An argument, not config: needs the context map, `browser(context, isolate: true)`, and
+      `PlaywrightEx.Test.Formatter`.
 
-  A second call returns another browser: a second user on Firefox is
+  A second call with other options returns another browser: a second user on Firefox is
   `%{browser: firefox} = browser(browser_name: :firefox)`.
   """
   @spec browser(map() | keyword()) :: %{playwright: struct(), browser_name: atom(), browser: Browser.t()}
@@ -183,7 +174,7 @@ defmodule PlaywrightEx.Test do
     # Not emptied: files are overwritten by name, so a rerun keeps the first run's other files.
     dir = Recorder.output_dir(context)
     title = "#{Path.relative_to_cwd(context.file)}:#{context[:line]} › #{Recorder.test_name(context)}"
-    {_key, recorder} = Recorder.start(Recorder.key(context), self(), Map.merge(opts, %{dir: dir, title: title}))
+    recorder = Recorder.start(self(), Map.merge(opts, %{dir: dir, title: title, test_key: Recorder.test_key(context)}))
     # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
     budget =
       with timeout when is_integer(timeout) <- context[:timeout] || ExUnit.configuration()[:timeout],
@@ -191,8 +182,8 @@ defmodule PlaywrightEx.Test do
 
     ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder, budget) end)
 
-    owner = context[:browser] || context[:playwright]
-    if owner, do: Recorder.ensure_listener(recorder, Heap.get(owner, :_instrumentation))
+    channel = context[:browser] || context[:playwright]
+    if channel, do: Recorder.ensure_listener(recorder, Heap.get(channel, :_instrumentation))
   end
 
   @doc """
@@ -202,24 +193,22 @@ defmodule PlaywrightEx.Test do
   config's). Starts `record_artifacts/2` with the config if the test hasn't. Called from the
   test process it closes the context after the test; another process closes its own.
 
-  The context map needs `browser` and the test's `module` and `test` (and `file`, to start the
-  recording). It is what it records the context under, from any process: a GenServer that
-  creates contexts for a test passes the test's whole context map (with its `test_pid`, it finds
-  the test's recording), after the test's `setup` has called `record_artifacts/2`.
+  The context map needs `browser`. Its `test_pid` picks the recording, so a process that creates
+  contexts for a test (a GenServer) passes the test's whole context map, once the test's `setup`
+  has called `record_artifacts/2`.
   """
   @spec new_context(map(), keyword()) :: %{context: BrowserContext.t()}
   def new_context(context, options \\ []) when is_map(context) do
     opts = Options.context(options)
     browser = fetch!(context, :browser)
-    for key <- [:module, :test], do: fetch!(context, key)
-    key = Recorder.key_of(context)
-    test_process? = context[:test_pid] == self()
+    test_pid = context[:test_pid]
+    test_process? = test_pid == self()
     if test_process? and Process.get(@recording) == nil, do: record_artifacts(context)
 
-    recorder = Recorder.lookup(key)
+    recorder = test_pid && Recorder.lookup(test_pid)
     if recorder, do: Recorder.ensure_listener(recorder, Heap.get(browser, :_instrumentation))
 
-    browser_context = Recorder.with_identity(key, fn -> Browser.new_context!(browser, opts.context_options) end)
+    browser_context = Recorder.with_identity(test_pid, fn -> Browser.new_context!(browser, opts.context_options) end)
 
     if test_process?,
       do: ExUnit.Callbacks.on_exit(fn -> BrowserContext.close(browser_context, reason: "Test ended.") end)

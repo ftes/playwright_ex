@@ -4,6 +4,9 @@ defmodule PlaywrightEx.TestBrowser do
 
   def name, do: System.get_env("BROWSER", "chromium")
 
+  @doc "A browser type other than the one under test."
+  def other_name, do: if(name() == "firefox", do: :chromium, else: :firefox)
+
   @doc """
   Playwright Test's `headless` option (upstream runs headed with `--headed`): `HEADED=1` runs the
   browsers headed (Linux needs a display, e.g. `xvfb-run`), default headless.

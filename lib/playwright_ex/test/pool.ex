@@ -1,23 +1,17 @@
 defmodule PlaywrightEx.Test.Pool do
   @moduledoc false
-  # The drivers and browsers of `PlaywrightEx.Test.browser/1`. Each driver lives in a
-  # `PlaywrightEx.Test.Pool.Slot`, keyed by its `driver` options and `on_start`, which starts
-  # it, launches its browsers (one per `browser_name` and `launch_options`) and anchors them. A
-  # slot is `{pid, key}`.
+  # The drivers of `PlaywrightEx.Test.browser/1`, each in a `PlaywrightEx.Test.Pool.Slot`. A slot
+  # is `{pid, driver_key}`, the key its `driver` options and `on_start`.
   #
   # Shared (after Fluffy's `BrowserRuntime`): one slot per key, used by modules at once.
+  # Exclusive (`isolate: true`, upstream's worker model): an owner (`{module, parameters}`)
+  # checks a slot out in `setup_all`, its further `browser/2` calls get the same slot, and
+  # `PlaywrightEx.Test.Formatter` checks it in at `module_finished`, discarded after a failure.
+  # At most `max_isolated` exclusive slots run at once, the rest wait.
   #
-  # Exclusive (`isolate: true`, upstream's worker model, `test/support/test_workers.ex` before
-  # it): a module (an owner: `{module, parameters}`) checks a slot out in `setup_all`, and its
-  # further `browser/2` calls get the same slot's browsers, and `PlaywrightEx.Test.Formatter` checks it
-  # in at `module_finished`, discarded after a failure. At most `max_isolated` exclusive slots
-  # run at once, the rest wait.
-  #
-  # Started on first use in a test run (`ensure_started/0`), never with the application (a
-  # release has no ExUnit). Unlinked, as the first caller is a module's `setup_all` process: its
-  # lifetime is the run. The first slot registers the `ExUnit.after_suite/1` that stops the
-  # drivers. The other entry points (the formatter's, `after_suite`) do nothing when it never
-  # started. It owns the table of the recorders and retained files.
+  # Started unlinked on first use (`ensure_started/0`), never with the application (a release
+  # has no ExUnit): its lifetime is the run. The first slot registers the `ExUnit.after_suite/1`
+  # that stops the drivers.
   use GenServer
 
   alias PlaywrightEx.Test.Options
@@ -30,7 +24,7 @@ defmodule PlaywrightEx.Test.Pool do
   # without a check-in, the first waiting module gets one above `max_isolated`.
   @wait 120_000
 
-  @doc "The table of `PlaywrightEx.Test`'s recorders and retained files (public, owned here)."
+  @doc "`PlaywrightEx.Test`'s table (public, owned here): recorder, context and retained-files rows."
   def table, do: __MODULE__
 
   @doc "Starts the pool unless it runs. Two callers racing is fine."
@@ -47,14 +41,17 @@ defmodule PlaywrightEx.Test.Pool do
   @doc "`%{playwright: _, browser: _}` for `opts` (see `PlaywrightEx.Test.Options.browser/1`)."
   def browser(opts, owner) do
     ensure_started()
-    __MODULE__ |> GenServer.call({:slot, key(opts), opts, owner}, :infinity) |> Slot.browser(opts)
+    __MODULE__ |> GenServer.call({:slot, driver_key(opts), opts, owner}, :infinity) |> Slot.browser(opts)
   end
 
   @doc "Checks in the exclusive slots of `owner` (`{module, parameters}`), discarding them if it `failed?`."
   def module_finished(owner, failed?), do: GenServer.cast(__MODULE__, {:module_finished, owner, failed?})
 
-  @doc "Stops every driver, in parallel. The next `browser/2` starts them anew."
-  def stop_all do
+  @doc false
+  # The `ExUnit.after_suite/1` callback: stops every driver, in parallel (`mix test` halts the VM
+  # without stopping applications, and a driver that outlives the VM resets the terminal, #191).
+  # The next `browser/2` starts them anew.
+  def after_suite(_stats) do
     if Process.whereis(__MODULE__) do
       __MODULE__
       |> GenServer.call(:take_all, :infinity)
@@ -65,12 +62,7 @@ defmodule PlaywrightEx.Test.Pool do
     :ok
   end
 
-  @doc false
-  # The `ExUnit.after_suite/1` callback: `mix test` halts the VM without stopping applications,
-  # and a driver that outlives the VM resets the terminal (#191).
-  def after_suite(_stats), do: stop_all()
-
-  defp key(opts), do: {Enum.sort(opts.driver), opts.on_start}
+  defp driver_key(opts), do: {Enum.sort(opts.driver), opts.on_start}
 
   @impl true
   def init(nil) do
@@ -121,7 +113,6 @@ defmodule PlaywrightEx.Test.Pool do
   def handle_cast({:module_finished, owner, failed?}, state) do
     case Map.pop(state.busy, owner) do
       {nil, _busy} ->
-        warn_unmatched(state, owner)
         {:noreply, state}
 
       {slots, busy} ->
@@ -143,8 +134,8 @@ defmodule PlaywrightEx.Test.Pool do
   @impl true
   def handle_info({:waited, ref}, %{timer: {ref, _}, waiting: [{key, opts, owner, from} | waiting]} = state) do
     Logger.warning(
-      "PlaywrightEx.Test: no isolated driver was checked in for #{div(@wait, 1000)} s, " <>
-        "#{inspect(elem(owner, 0))} gets one above max_isolated"
+      "PlaywrightEx.Test could not get #{inspect(elem(owner, 0))} an isolated driver: none was " <>
+        "checked in for #{div(@wait, 1000)} s, it gets one above max_isolated"
     )
 
     {slot, state} = start_isolated(%{state | waiting: waiting}, key, opts, owner)
@@ -214,7 +205,7 @@ defmodule PlaywrightEx.Test.Pool do
   defp busy(state, owner, slot), do: %{state | busy: Map.update(state.busy, owner, [slot], &[slot | &1])}
 
   # A driver's stop waits for it to exit (up to ~31 s): not in the pool's process. The slot
-  # stays linked until its exit, so `stop_all/0` waits for it too.
+  # stays linked until its exit, so `after_suite/1` waits for it too.
   defp discard(state, slot) do
     Task.start(fn -> Slot.stop(slot) end)
     %{state | discarding: [slot | state.discarding]}
@@ -229,19 +220,6 @@ defmodule PlaywrightEx.Test.Pool do
       do: %{state | timer: nil},
       else: %{state | timer: {ref, Process.send_after(self(), {:waited, ref}, @wait)}}
   end
-
-  # The module holds a slot under other parameters: it guessed them wrong (see
-  # `PlaywrightEx.Test.Recorder.parameters/2`). The slot stays busy; the wait lets modules past.
-  defp warn_unmatched(state, {module, parameters}) do
-    if Enum.any?(Map.keys(state.busy), &match?({^module, _}, &1)) do
-      Logger.warning(
-        "PlaywrightEx.Test could not check in the isolated driver of #{inspect(module)} " <>
-          "#{inspect(parameters)}: no owner has those parameters (a setup rebound a parameter key?)"
-      )
-    end
-  end
-
-  defp warn_unmatched(_state, _owner), do: :ok
 
   defp register_after_suite(%{after_suite?: true} = state), do: state
 

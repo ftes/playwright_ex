@@ -4,11 +4,12 @@ defmodule PlaywrightEx.Test.Options do
   # `config :playwright_ex, :test`, and validation. Unknown keys and bad values raise
   # `ArgumentError`, as the facade's do.
 
+  # `isolate` is an argument only: as config it would isolate an in-test second `browser/1` too.
   @browser_keys [:browser_name, :launch_options, :driver, :on_start, :isolate]
   @artifact_keys [:trace, :screenshot, :video]
   @context_keys [:context_options]
   @config_only_keys [:output_dir, :max_isolated]
-  @config_keys @browser_keys ++ @artifact_keys ++ @context_keys ++ @config_only_keys
+  @config_keys (@browser_keys -- [:isolate]) ++ @artifact_keys ++ @context_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
 
@@ -51,7 +52,8 @@ defmodule PlaywrightEx.Test.Options do
     |> validate!()
   end
 
-  # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's `headless`).
+  # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
+  # `headless`).
   defp merge_value(key, config, value) when key in [:launch_options, :context_options, :driver],
     do: Keyword.merge(to_keyword(key, config), to_keyword(key, value))
 

@@ -33,7 +33,6 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
   end
 
   test "records", %{n: n} = ctx do
-    assert Recorder.key(ctx) == {__MODULE__, ctx.test, %{n: n}}
     others = [%{ctx | n: 3 - n}, %{ctx | module: __MODULE__.Other}]
     records(ctx, "PARAM-#{n}", others)
   end

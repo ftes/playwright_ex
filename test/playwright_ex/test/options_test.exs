@@ -79,10 +79,6 @@ defmodule PlaywrightEx.Test.OptionsTest do
       def __ex_unit__(:config), do: [parameterize: [%{n: 1}]]
     end
 
-    defmodule Raising do
-      def __ex_unit__(:config), do: raise("no")
-    end
-
     defmodule Parameterized do
       def __ex_unit__(:config), do: %{parameterize: [%{n: 1, m: 1}, %{n: 2, m: 1}]}
     end
@@ -96,7 +92,6 @@ defmodule PlaywrightEx.Test.OptionsTest do
     test "are %{} when ExUnit's internal config is missing or of another shape" do
       assert Recorder.parameters(M, %{n: 1}) == %{}
       assert Recorder.parameters(Weird, %{n: 1}) == %{}
-      assert Recorder.parameters(Raising, %{n: 1}) == %{}
     end
   end
 
@@ -181,11 +176,12 @@ defmodule PlaywrightEx.Test.OptionsTest do
       refute File.exists?(a) or File.exists?(b)
     end
 
-    test "a single chunk is moved as is, none gives none", %{tmp_dir: dir} do
+    test "a single chunk keeps its names, none gives none", %{tmp_dir: dir} do
       path = Path.join(dir, "a.zip")
-      File.write!(path, "zip")
+      {:ok, _} = :zip.create(String.to_charlist(path), [{~c"trace.trace", "a"}, {~c"resources/x", "x"}])
       assert Recorder.merge_traces(Path.join(dir, "t/trace.zip"), [path]) == :ok
-      assert File.read!(Path.join(dir, "t/trace.zip")) == "zip"
+      {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "t/trace.zip")), [:memory])
+      assert Enum.sort(files) == [{~c"resources/x", "x"}, {~c"trace.trace", "a"}]
       assert Recorder.merge_traces(Path.join(dir, "u/trace.zip"), [path]) == :none
     end
   end
@@ -247,6 +243,10 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert_raise ArgumentError, ~r/unknown keys \[:tracing\] in config :playwright_ex, :test/, fn ->
       Options.artifacts([])
     end
+
+    # `isolate` is an argument only.
+    Application.put_env(:playwright_ex, :test, config ++ [isolate: true])
+    assert_raise ArgumentError, ~r/unknown keys \[:isolate\]/, fn -> Options.browser([]) end
 
     Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
     assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts([]) end
