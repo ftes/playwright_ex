@@ -1,4 +1,4 @@
-# The floor of mix.exs's `elixir:` and its oldest OTP: CI's oldest lane compiles on it.
+# The floor of mix.exs's `elixir:` and its oldest OTP: CI's oldest lane runs chromium's suite on it.
 # Not bumped by Renovate (ignorePaths).
 elixir    1.18.5-otp-27
 erlang    27.3.4.17
