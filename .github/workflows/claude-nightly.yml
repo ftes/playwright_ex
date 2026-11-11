@@ -68,9 +68,8 @@ jobs:
             same change or solved the problem another way. A merge conflict, the PR's age or a
             preference for other work is not a reason. When in doubt, keep it.
 
-            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
-            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
-            pipes or heredocs (you are already in the repository).
+            Read and search files with Read, Grep and Glob; run each allowed Bash command on its
+            own, without `cd`, `;`, `&&`, pipes or heredocs (you are already in the repository).
 
             To close one, run exactly:
               gh pr close N --delete-branch --comment "<one sentence naming what on main made it obsolete>"
