@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Isomorphic.LocatorUtils do
 
   import PlaywrightEx.Isomorphic.StringUtils
 
+  alias PlaywrightEx.Client.ClientHelper
+
   defp get_by_attribute_text_selector(attr_name, text, options) do
     "internal:attr=[#{attr_name}=#{escape_for_attribute_selector(text, options[:exact] || false)}]"
   end
@@ -62,9 +64,7 @@ defmodule PlaywrightEx.Isomorphic.LocatorUtils do
     "internal:role=#{role}#{Enum.map_join(props, fn [n, v] -> "[#{n}=#{v}]" end)}"
   end
 
-  # String(value): booleans, "mixed" and numbers (an integral float prints as an integer).
-  defp string(value) when is_float(value) and value == trunc(value) and abs(value) < 1.0e21,
-    do: Integer.to_string(trunc(value))
-
+  # String(value): booleans, "mixed" and numbers.
+  defp string(value) when is_number(value), do: ClientHelper.number_to_string(value)
   defp string(value), do: to_string(value)
 end
