@@ -52,3 +52,23 @@ defmodule PlaywrightEx.Test.ParameterizeTest.Other do
     ParameterizeTest.records(ctx, "OTHER-MODULE", others)
   end
 end
+
+defmodule PlaywrightEx.Test.ParameterizeTest.Shapes do
+  # `__ex_unit__(:config)` is internal ExUnit API: another shape means no parameters.
+  use ExUnit.Case, async: true
+
+  alias PlaywrightEx.Test.Recorder
+
+  for {name, config} <- [missing: [], other: %{parameterize: :none}, keyword: :none] do
+    defmodule Module.concat(__MODULE__, name) do
+      def __ex_unit__(:config), do: unquote(Macro.escape(config))
+    end
+  end
+
+  test "an unknown shape of ExUnit's module config is no parameters" do
+    for name <- [:missing, :other, :keyword],
+        do: assert(Recorder.parameters(Module.concat(__MODULE__, name), %{n: 1}) == %{})
+
+    assert Recorder.parameters(PlaywrightEx.Test.ParameterizeTest, %{n: 2}) == %{n: 2}
+  end
+end
