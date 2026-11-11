@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert alive(drivers) == []
 
     assert [dir] = File.ls!(output_dir)
-    assert dir =~ ~r/fails$/
+    assert dir =~ ~r/fails-[0-9a-f]{5}$/
     assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["test-failed-1.png", "trace.zip"]
   end
 

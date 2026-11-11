@@ -263,7 +263,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
   # `TRACE=1 mix test --failed`. Not async: it sets an environment variable and the config.
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
 
-  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Recorder
 
   setup_all do
@@ -275,7 +274,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
     on_exit(fn ->
       System.delete_env("TRACE")
       Application.put_env(:playwright_ex, :test, config)
-      dir = Recorder.output_dir(Options.output_dir(), __ENV__.file, :"test signs up")
+      dir = Recorder.output_dir(%{module: __MODULE__, test: :"test signs up", file: __ENV__.file})
       assert File.exists?(Path.join(dir, "trace.zip"))
       File.rm_rf!(dir)
     end)

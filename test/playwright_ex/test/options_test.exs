@@ -71,24 +71,43 @@ defmodule PlaywrightEx.Test.OptionsTest do
   end
 
   describe "output dirs" do
+    defp output_dir(file, test, module \\ MyApp.CheckoutTest, parameters \\ %{}) do
+      dir = Recorder.output_dir("out", file, test, module, parameters)
+      assert [_, name] = Regex.run(~r"^out/(.*)-[0-9a-f]{5}$", dir)
+      name
+    end
+
     test "as upstream's testInfo.outputDir: the file relative to test/, then the sanitized test name" do
       file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-      assert Recorder.output_dir("out", file, :"test pays by card") == "out/my_app-checkout-pays-by-card"
-
-      assert Recorder.output_dir("out", file, :"test cart: add_item/2 (EUR)") ==
-               "out/my_app-checkout-cart-add-item-2-EUR-"
+      assert output_dir(file, :"test pays by card") == "my_app-checkout-pays-by-card"
+      assert output_dir(file, :"test cart: add_item/2 (EUR)") == "my_app-checkout-cart-add-item-2-EUR-"
     end
 
     test "a file outside test/ is relative to the working directory" do
-      assert Recorder.output_dir("out", Path.join(File.cwd!(), "e2e/flow_test.exs"), :"test a") == "out/e2e-flow-a"
+      assert output_dir(Path.join(File.cwd!(), "e2e/flow_test.exs"), :"test a") == "e2e-flow-a"
     end
 
     test "long names are trimmed to 60 characters with a hash, as trimLongString" do
       file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-      dir = Recorder.output_dir("out", file, :"test #{String.duplicate("very long name ", 6)}")
-      name = Path.basename(dir)
+      name = output_dir(file, :"test #{String.duplicate("very long name ", 6)}")
       assert String.length(name) == 60
       assert name =~ ~r/^my_app-checkout-very-long--[0-9a-f]{5}-y-long-name-very-long-name-$/
+    end
+
+    test "the suffix tells modules of one file and parameters apart" do
+      file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
+
+      dirs =
+        for {module, parameters} <- [
+              {MyApp.ATest, %{}},
+              {MyApp.BTest, %{}},
+              {MyApp.ATest, %{n: 1}},
+              {MyApp.ATest, %{n: 2}}
+            ],
+            do: Recorder.output_dir("out", file, :"test pays", module, parameters)
+
+      assert length(Enum.uniq(dirs)) == 4
+      assert Recorder.output_dir("out", file, :"test pays", MyApp.ATest, %{}) == hd(dirs)
     end
 
     test "sanitizeForFilePath keeps letters, digits, dashes and non-ASCII" do
@@ -152,7 +171,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
   end
 
   test "new_context starts a recording with the config when the test hasn't", ctx do
-    dir = Recorder.output_dir(Options.output_dir(), ctx.file, ctx.test)
+    dir = Recorder.output_dir(ctx)
 
     on_exit(fn ->
       assert File.ls!(dir) == ["test-finished-1.png"]

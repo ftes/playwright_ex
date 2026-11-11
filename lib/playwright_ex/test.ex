@@ -50,8 +50,9 @@ defmodule PlaywrightEx.Test do
   `PlaywrightEx.Browser.new_context/2` in the test or in a `Task` of it, and with
   `new_context/2` from any other process given the test's `module` and `test` (a GenServer that
   creates contexts for the test). Each test writes to its own dir under `output_dir`, named as
-  upstream's `testInfo.outputDir` (`checkout-pays` for the test "pays" in
-  `test/checkout_test.exs`), emptied when the test starts:
+  upstream's `testInfo.outputDir` (`checkout-pays-1a2b3` for the test "pays" in
+  `test/checkout_test.exs`, the suffix a hash of the module and its `parameterize:` parameters),
+  emptied when the test starts:
 
     * `trace.zip` - one trace of all its contexts (`mix playwright_ex.cli show-trace <path>`),
       recorded with screenshots, snapshots and sources (upstream's default trace options).
@@ -93,7 +94,7 @@ defmodule PlaywrightEx.Test do
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
 
-  # The test process's recorder (`:off` when the test records nothing).
+  # Set once the test process called `record_artifacts/2`.
   @recording {__MODULE__, :recording}
 
   @doc """
@@ -132,7 +133,9 @@ defmodule PlaywrightEx.Test do
       Options.require_formatter!("isolate: true")
     end
 
-    %{playwright: playwright, browser: browser} = Pool.browser(opts, module)
+    # A `parameterize:` module runs once per parameter map, maybe at once: each is an owner.
+    owner = module && {module, Recorder.parameters(module, context)}
+    %{playwright: playwright, browser: browser} = Pool.browser(opts, owner)
     %{playwright: playwright, browser_name: opts.browser_name, browser: browser}
   end
 
@@ -152,29 +155,32 @@ defmodule PlaywrightEx.Test do
   @spec record_artifacts(map(), keyword()) :: :ok
   def record_artifacts(context, options \\ []) when is_map(context) do
     opts = Options.artifacts(options)
-    module = fetch!(context, :module)
-    test = fetch!(context, :test)
-    file = fetch!(context, :file)
+    for key <- [:module, :test, :file], do: fetch!(context, key)
     if Process.get(@recording), do: raise(ArgumentError, "record_artifacts was called already for this test")
 
-    if opts.trace == :off and opts.screenshot == :off and opts.video == :off do
-      Process.put(@recording, :off)
-    else
-      if :retain_on_failure in [opts.trace, opts.video] or opts.screenshot == :only_on_failure,
-        do: Options.require_formatter!("retain_on_failure and only_on_failure")
+    Process.put(@recording, true)
 
-      dir = Recorder.output_dir(Options.output_dir(), file, test)
-      File.rm_rf!(dir)
-      title = "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{String.replace_prefix(to_string(test), "test ", "")}"
-      recorder = Recorder.start({module, test}, self(), Map.merge(opts, %{dir: dir, title: title}))
-      Process.put(@recording, recorder)
-      ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder) end)
-
-      owner = context[:browser] || context[:playwright]
-      if owner, do: Recorder.ensure_listener(recorder, Heap.get(owner, :_instrumentation))
-    end
-
+    if opts.trace != :off or opts.screenshot != :off or opts.video != :off, do: start_recording(context, opts)
     :ok
+  end
+
+  defp start_recording(context, opts) do
+    if :retain_on_failure in [opts.trace, opts.video] or opts.screenshot == :only_on_failure,
+      do: Options.require_formatter!("retain_on_failure and only_on_failure")
+
+    dir = Recorder.output_dir(context)
+    File.rm_rf!(dir)
+    title = "#{Path.relative_to_cwd(context.file)}:#{context[:line]} › #{Recorder.test_name(context.test)}"
+    recorder = Recorder.start(Recorder.key(context), self(), Map.merge(opts, %{dir: dir, title: title}))
+    # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
+    budget =
+      with timeout when is_integer(timeout) <- context[:timeout] || ExUnit.configuration()[:timeout],
+           do: div(timeout, 2)
+
+    ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder, budget) end)
+
+    owner = context[:browser] || context[:playwright]
+    if owner, do: Recorder.ensure_listener(recorder, Heap.get(owner, :_instrumentation))
   end
 
   @doc """
@@ -193,7 +199,8 @@ defmodule PlaywrightEx.Test do
   def new_context(context, options \\ []) when is_map(context) do
     opts = Options.context(options)
     browser = fetch!(context, :browser)
-    key = {fetch!(context, :module), fetch!(context, :test)}
+    for key <- [:module, :test], do: fetch!(context, key)
+    key = Recorder.key(context)
     test_process? = context[:test_pid] == self()
     if test_process? and Process.get(@recording) == nil, do: record_artifacts(context)
 

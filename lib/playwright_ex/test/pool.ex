@@ -23,7 +23,8 @@ defmodule PlaywrightEx.Test.Pool do
   alias PlaywrightEx.Test.Pool.Slot
 
   # A module whose `module_finished` never comes (ExUnit's `max_failures`) would hold its slot
-  # for the rest of the run: after this a waiting module gets one above `max_isolated`.
+  # for the rest of the run: after this long without a check-in, the first waiting module gets
+  # one above `max_isolated`.
   @wait 120_000
 
   @doc "The table of `PlaywrightEx.Test`'s recorders and retained files (public, owned here)."
@@ -41,13 +42,13 @@ defmodule PlaywrightEx.Test.Pool do
   def started?, do: :ets.whereis(table()) != :undefined
 
   @doc "`%{playwright: _, browser: _}` for `opts` (see `PlaywrightEx.Test.Options.browser/1`)."
-  def browser(opts, module) do
+  def browser(opts, owner) do
     ensure_started()
-    __MODULE__ |> GenServer.call({:slot, key(opts), opts, module}, :infinity) |> Slot.browser()
+    __MODULE__ |> GenServer.call({:slot, key(opts), opts, owner}, :infinity) |> Slot.browser()
   end
 
-  @doc "Checks in the exclusive slots of `module`, discarding them if it `failed?`."
-  def module_finished(module, failed?), do: GenServer.cast(__MODULE__, {:module_finished, module, failed?})
+  @doc "Checks in the exclusive slots of `owner` (`{module, parameters}`), discarding them if it `failed?`."
+  def module_finished(owner, failed?), do: GenServer.cast(__MODULE__, {:module_finished, owner, failed?})
 
   @doc "Stops every driver, in parallel. The next `browser/2` starts them anew."
   def stop_all do
@@ -72,7 +73,8 @@ defmodule PlaywrightEx.Test.Pool do
   def init(nil) do
     Process.flag(:trap_exit, true)
     :ets.new(table(), [:named_table, :public, :set])
-    {:ok, %{shared: %{}, free: [], busy: %{}, waiting: [], after_suite?: false}}
+    # `busy` by owner (`{module, parameters}`); `discarding`: slots stopping, still linked.
+    {:ok, %{shared: %{}, free: [], busy: %{}, discarding: [], waiting: [], timer: nil, after_suite?: false}}
   end
 
   @impl true
@@ -87,77 +89,77 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  def handle_call({:slot, key, opts, module}, from, state) do
-    case checkout(state, key, opts, module) do
+  def handle_call({:slot, key, opts, owner}, from, state) do
+    case checkout(state, key, opts, owner) do
       {slot, state} ->
         {:reply, slot, state}
 
       :full ->
-        Process.send_after(self(), {:waited, from}, @wait)
-        {:noreply, %{state | waiting: state.waiting ++ [{key, opts, module, from}]}}
+        state = %{state | waiting: state.waiting ++ [{key, opts, owner, from}]}
+        {:noreply, if(state.timer, do: state, else: arm(state))}
     end
   end
 
+  # The discarding slots too: `Slot.stop/1` of a stopping slot waits for it to exit.
   def handle_call(:take_all, _from, state) do
-    slots = Map.values(state.shared) ++ state.free ++ Enum.concat(Map.values(state.busy))
-    for {_key, _opts, _module, from} <- state.waiting, do: GenServer.reply(from, :stopped)
+    slots = Map.values(state.shared) ++ state.free ++ Enum.concat(Map.values(state.busy)) ++ state.discarding
+    for {_key, _opts, _owner, from} <- state.waiting, do: GenServer.reply(from, :stopped)
     for {pid, _key} <- slots, do: Process.unlink(pid)
-    {:reply, slots, %{state | shared: %{}, free: [], busy: %{}, waiting: []}}
+    {:reply, slots, arm(%{state | shared: %{}, free: [], busy: %{}, discarding: [], waiting: []})}
   end
 
   @impl true
-  def handle_cast({:module_finished, module, failed?}, state) do
-    {slots, busy} = Map.pop(state.busy, module, [])
+  def handle_cast({:module_finished, owner, failed?}, state) do
+    {slots, busy} = Map.pop(state.busy, owner, [])
+    state = %{state | busy: busy}
 
-    free =
+    state =
       if failed? do
-        Enum.each(slots, &discard/1)
-        state.free
+        Enum.reduce(slots, state, &discard(&2, &1))
       else
         Enum.each(slots, &Slot.check_in/1)
-        slots ++ state.free
+        %{state | free: slots ++ state.free}
       end
 
-    {:noreply, serve_waiting(%{state | busy: busy, free: free})}
+    # A check-in is progress: the wait starts anew.
+    {:noreply, state |> serve_waiting() |> arm()}
   end
 
   @impl true
-  def handle_info({:waited, from}, state) do
-    case Enum.split_with(state.waiting, &match?({_, _, _, ^from}, &1)) do
-      {[{key, opts, module, ^from}], waiting} ->
-        {slot, state} = start_isolated(%{state | waiting: waiting}, key, opts, module)
-        GenServer.reply(from, slot)
-        {:noreply, state}
-
-      _ ->
-        {:noreply, state}
-    end
+  def handle_info({:waited, ref}, %{timer: {ref, _}, waiting: [{key, opts, owner, from} | waiting]} = state) do
+    {slot, state} = start_isolated(%{state | waiting: waiting}, key, opts, owner)
+    GenServer.reply(from, slot)
+    {:noreply, arm(state)}
   end
 
-  # A slot that crashed: forget it.
+  # A timer cancelled too late.
+  def handle_info({:waited, _ref}, state), do: {:noreply, state}
+
+  # A slot that stopped (discarded) or crashed: forget it.
   def handle_info({:EXIT, pid, _reason}, state) do
     gone? = &match?({^pid, _}, &1)
     shared = Map.reject(state.shared, fn {_key, slot} -> gone?.(slot) end)
-    busy = Map.new(state.busy, fn {module, slots} -> {module, Enum.reject(slots, gone?)} end)
-    {:noreply, serve_waiting(%{state | shared: shared, free: Enum.reject(state.free, gone?), busy: busy})}
+    busy = Map.new(state.busy, fn {owner, slots} -> {owner, Enum.reject(slots, gone?)} end)
+    free = Enum.reject(state.free, gone?)
+    discarding = Enum.reject(state.discarding, gone?)
+    {:noreply, serve_waiting(%{state | shared: shared, free: free, busy: busy, discarding: discarding})}
   end
 
   # A free slot of the key, else a new one while there is room, made by stopping an idle slot
   # of another key if need be.
-  defp checkout(state, key, opts, module) do
+  defp checkout(state, key, opts, owner) do
     case Enum.split_with(state.free, &match?({_, ^key}, &1)) do
       {[slot | same], others} ->
-        {slot, busy(%{state | free: same ++ others}, module, slot)}
+        {slot, busy(%{state | free: same ++ others}, owner, slot)}
 
       {[], _} ->
         cond do
           length(state.free) + Enum.sum(Enum.map(Map.values(state.busy), &length/1)) < Options.max_isolated() ->
-            start_isolated(state, key, opts, module)
+            start_isolated(state, key, opts, owner)
 
           state.free != [] ->
             {idle, free} = List.pop_at(state.free, -1)
-            discard(idle)
-            start_isolated(%{state | free: free}, key, opts, module)
+            state |> Map.put(:free, free) |> discard(idle) |> start_isolated(key, opts, owner)
 
           true ->
             :full
@@ -166,8 +168,8 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   # The waiting modules, first come first served, while slots are free or there is room.
-  defp serve_waiting(%{waiting: [{key, opts, module, from} | rest]} = state) do
-    case checkout(%{state | waiting: rest}, key, opts, module) do
+  defp serve_waiting(%{waiting: [{key, opts, owner, from} | rest]} = state) do
+    case checkout(%{state | waiting: rest}, key, opts, owner) do
       {slot, state} ->
         GenServer.reply(from, slot)
         serve_waiting(state)
@@ -184,17 +186,28 @@ defmodule PlaywrightEx.Test.Pool do
     {{pid, key}, register_after_suite(state)}
   end
 
-  defp start_isolated(state, key, opts, module) do
+  defp start_isolated(state, key, opts, owner) do
     {slot, state} = start_slot(state, key, opts)
-    {slot, busy(state, module, slot)}
+    {slot, busy(state, owner, slot)}
   end
 
-  defp busy(state, module, slot), do: %{state | busy: Map.update(state.busy, module, [slot], &[slot | &1])}
+  defp busy(state, owner, slot), do: %{state | busy: Map.update(state.busy, owner, [slot], &[slot | &1])}
 
-  # A driver's stop waits for it to exit (up to ~31 s): not in the pool's process.
-  defp discard({pid, _key} = slot) do
-    Process.unlink(pid)
+  # A driver's stop waits for it to exit (up to ~31 s): not in the pool's process. The slot
+  # stays linked until its exit, so `stop_all/0` waits for it too.
+  defp discard(state, slot) do
     Task.start(fn -> Slot.stop(slot) end)
+    %{state | discarding: [slot | state.discarding]}
+  end
+
+  # The one timer of the waiting modules, (re)started while any wait.
+  defp arm(state) do
+    with {_ref, timer} <- state.timer, do: Process.cancel_timer(timer)
+    ref = make_ref()
+
+    if state.waiting == [],
+      do: %{state | timer: nil},
+      else: %{state | timer: {ref, Process.send_after(self(), {:waited, ref}, @wait)}}
   end
 
   defp register_after_suite(%{after_suite?: true} = state), do: state

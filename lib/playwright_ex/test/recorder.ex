@@ -7,13 +7,14 @@ defmodule PlaywrightEx.Test.Recorder do
   # A process per test, alive from the test's setup to the end of its `on_exit`: it remembers
   # the test's contexts and anchors them (so their pages and videos stay readable after the
   # process that created or closed them exits). Its listener (`ClientInstrumentation`) runs in
-  # the processes that create and close contexts; `finish/1` runs in ExUnit's `on_exit`
+  # the processes that create and close contexts; `finish/2` runs in ExUnit's `on_exit`
   # process. Every artifact step rescues and logs: an exception in `on_exit` would fail the
   # test and hide its own error, and upstream's artifact code swallows its errors too.
   use GenServer
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.Pool
@@ -37,6 +38,23 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
+  @doc """
+  A test's key, `{module, name, parameters}`: ExUnit runs a `parameterize:` module once per
+  parameter map, concurrently with `async: true`. The context map has the parameters' keys,
+  not the map: it is the module's parameter map whose keys have those values.
+  """
+  def key(%{module: module, test: test} = context), do: {module, test, parameters(module, context)}
+
+  @doc "The parameters of `context` in `module` (`%{}` for a module without `parameterize:`)."
+  def parameters(module, context) do
+    # `__ex_unit__(:config)` is ExUnit's own (`@doc false`), as in 1.18 to 1.20.
+    params = if function_exported?(module, :__ex_unit__, 1), do: module.__ex_unit__(:config)[:parameterize]
+    Enum.find(params || [], %{}, &(Map.take(context, Map.keys(&1)) == &1))
+  end
+
+  @doc "A test name without ExUnit's `test ` prefix."
+  def test_name(test), do: test |> to_string() |> String.replace_prefix("test ", "")
+
   @doc "The test's recorder, or `nil`."
   def lookup(key) do
     case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, key}) do
@@ -46,8 +64,8 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   @doc """
-  Starts the recorder of the test `key` (`{module, name}`), whose process is `test_pid`. Not
-  linked: it outlives the test process, until `finish/1`.
+  Starts the recorder of the test `key`, whose process is `test_pid`. Not linked: it outlives
+  the test process, until `finish/2`.
   """
   def start(key, test_pid, opts) do
     Pool.ensure_started()
@@ -78,14 +96,14 @@ defmodule PlaywrightEx.Test.Recorder do
       runBeforeCloseBrowserContext: &before_close(&1, this, opts)
     }
 
+    # `contexts` in creation order, `closed` (guids) in close order.
     {:ok,
      %{
        key: key,
        opts: opts,
        listener: listener,
        instrumentations: [],
-       contexts: %{},
-       created: [],
+       contexts: [],
        closed: [],
        chunks: [],
        screenshots: 0
@@ -97,27 +115,18 @@ defmodule PlaywrightEx.Test.Recorder do
     if instrumentation in state.instrumentations do
       {:reply, :ok, state}
     else
-      Heap.update(instrumentation, :listeners, &(&1 ++ [state.listener]))
+      ClientInstrumentation.add_listener(instrumentation, state.listener)
       {:reply, :ok, %{state | instrumentations: [instrumentation | state.instrumentations]}}
     end
   end
 
   def handle_call({:add_context, context}, _from, state) do
-    if Map.has_key?(state.contexts, context.guid) do
-      {:reply, :known, state}
-    else
-      # The recorder anchors the context: its videos are saved after its creator may have exited.
-      ChannelOwner._set_creator(context)
-      contexts = Map.put(state.contexts, context.guid, %{context: context, pages: []})
-      {:reply, :new, %{state | contexts: contexts, created: state.created ++ [context.guid]}}
-    end
+    # The recorder anchors the context: its videos are saved after its creator may have exited.
+    ChannelOwner._set_creator(context)
+    {:reply, :ok, %{state | contexts: state.contexts ++ [%{guid: context.guid, context: context, pages: []}]}}
   end
 
-  def handle_call({:before_close, %{guid: guid}}, _from, state) do
-    if Map.has_key?(state.contexts, guid) and guid not in state.closed,
-      do: {:reply, :handle, %{state | closed: state.closed ++ [guid]}},
-      else: {:reply, :skip, state}
-  end
+  def handle_call({:closed, guid}, _from, state), do: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
 
   def handle_call(:next_screenshot, _from, state),
     do: {:reply, state.screenshots + 1, %{state | screenshots: state.screenshots + 1}}
@@ -127,15 +136,13 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @impl true
   def handle_cast({:add_page, guid, page}, state) do
-    case state.contexts do
-      %{^guid => entry} ->
-        if page in entry.pages,
-          do: {:noreply, state},
-          else: {:noreply, put_in(state.contexts[guid], %{entry | pages: entry.pages ++ [page]})}
+    contexts =
+      Enum.map(state.contexts, fn
+        %{guid: ^guid, pages: pages} = entry -> if page in pages, do: entry, else: %{entry | pages: pages ++ [page]}
+        entry -> entry
+      end)
 
-      _ ->
-        {:noreply, state}
-    end
+    {:noreply, %{state | contexts: contexts}}
   end
 
   # The listener. It runs in the process that creates or closes a context, for every context of
@@ -151,8 +158,14 @@ defmodule PlaywrightEx.Test.Recorder do
       else: options
   end
 
+  # A row `{{:context, guid}, recorder}` per recorded context: `before_close` reads it, no call
+  # into every test's recorder on each close.
   defp after_create(context, recorder, key, test_pid, opts) do
-    if ours?(key, test_pid) and call(recorder, {:add_context, context}) == :new, do: record(context, recorder, opts)
+    if ours?(key, test_pid) and :ets.insert_new(Pool.table(), {{:context, context.guid}, recorder}) do
+      call(recorder, {:add_context, context})
+      record(context, recorder, opts)
+    end
+
     nil
   end
 
@@ -178,8 +191,13 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # `willCloseBrowserContext`: the trace chunk, then the screenshots (`captureTemporary`).
+  # Taking the row makes it once per context, also when closes race.
   defp before_close(context, recorder, opts) do
-    if call(recorder, {:before_close, context}) == :handle, do: collect(context, recorder, opts)
+    if :ets.select_delete(Pool.table(), [{{{:context, context.guid}, recorder}, [], [true]}]) == 1 do
+      call(recorder, {:closed, context.guid})
+      collect(context, recorder, opts)
+    end
+
     nil
   end
 
@@ -202,11 +220,9 @@ defmodule PlaywrightEx.Test.Recorder do
   # `SnapshotRecorder`: `page.screenshot({ timeout: 5000, path, caret: 'initial' })`, named
   # `test-finished-N.png` (`on`) or `test-failed-N.png` (`only_on_failure`, kept on failure only).
   defp screenshot(page, recorder, opts) do
-    tmp = Path.join(opts.tmp, "#{System.unique_integer([:positive])}.png")
-    Page.screenshot!(page, path: tmp, timeout: 5000, caret: :initial)
-    n = call(recorder, :next_screenshot)
     kind = if opts.screenshot == :only_on_failure, do: "failed", else: "finished"
-    move(tmp, Path.join(opts.dir, "test-#{kind}-#{n}.png"))
+    path = Path.join(opts.dir, "test-#{kind}-#{call(recorder, :next_screenshot)}.png")
+    Page.screenshot!(page, path: path, timeout: 5000, caret: :initial)
   end
 
   defp call(recorder, message) do
@@ -218,46 +234,56 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc """
   The end of the test (its first `on_exit`, so it runs last): closes the test's contexts still
-  open, removes the listener, saves the videos, merges the trace and notes the files to delete
-  if the test passes. Stops the recorder.
+  open, saves the videos, merges the trace and notes the files to delete if the test passes,
+  within `budget` ms (ExUnit's `on_exit` shares the test's timeout). Then, whatever happened,
+  removes the listener and stops the recorder.
   """
-  def finish(pid) do
-    step("finish the recording", fn -> do_finish(pid) end)
+  def finish(pid, budget) do
+    task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid) end) end)
+
+    if !Task.yield(task, budget) do
+      Task.shutdown(task, :brutal_kill)
+      log("finish the recording", "it took over #{budget} ms")
+    end
+
+    step("remove the listener", fn ->
+      state = GenServer.call(pid, :state, :infinity)
+      for instrumentation <- state.instrumentations, do: remove_listener(instrumentation, state.listener)
+      File.rm_rf(state.opts.tmp)
+    end)
+
     :ok
   after
     :ets.match_delete(Pool.table(), {{:recorder, :_}, pid})
+    :ets.match_delete(Pool.table(), {{:context, :_}, pid})
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
-  defp do_finish(pid) do
+  defp collect_all(pid) do
     state = GenServer.call(pid, :state, :infinity)
 
     # `didFinishTest`: the leftover contexts. A shared browser outlives the test.
-    for guid <- state.created,
+    for %{guid: guid, context: context} <- state.contexts,
         guid not in state.closed,
-        do:
-          step("close a context", fn -> BrowserContext.close!(state.contexts[guid].context, reason: "Test ended.") end)
-
-    for instrumentation <- state.instrumentations,
-        do: step("remove the listener", fn -> remove_listener(instrumentation, state.listener) end)
+        do: step("close a context", fn -> BrowserContext.close!(context, reason: "Test ended.") end)
 
     state = GenServer.call(pid, :state, :infinity)
     retained = save_videos(state) ++ save_trace(state) ++ failure_screenshots(state)
     if retained != [], do: :ets.insert(Pool.table(), {{:retained, state.key}, retained})
-    File.rm_rf(state.opts.tmp)
   end
 
   # Exactly this listener: the ported `remove_listener` removes the last one for an unknown
   # listener, on a shared driver another test's.
-  defp remove_listener(instrumentation, listener) do
-    if Heap.readable?(instrumentation), do: Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
-  end
+  defp remove_listener(instrumentation, listener),
+    do: Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
 
   # `_contextFactory`'s close: `video.webm`, `video-1.webm`, ... in the order the contexts closed.
   defp save_videos(%{opts: %{video: :off}}), do: []
 
   defp save_videos(state) do
-    pages = for guid <- state.closed ++ (state.created -- state.closed), page <- state.contexts[guid].pages, do: page
+    by_guid = Map.new(state.contexts, &{&1.guid, &1})
+    open = for %{guid: guid} <- state.contexts, guid not in state.closed, do: guid
+    pages = for guid <- state.closed ++ open, page <- by_guid[guid].pages, do: page
     videos = for page <- pages, video = step("find a video", fn -> Page.video(page) end), video != nil, do: video
 
     saved =
@@ -349,13 +375,19 @@ defmodule PlaywrightEx.Test.Recorder do
     :ok
   end
 
+  @doc "The output dir of the test of `context` (see `output_dir/5`)."
+  def output_dir(%{module: module, test: test, file: file} = context),
+    do: output_dir(PlaywrightEx.Test.Options.output_dir(), file, test, module, parameters(module, context))
+
   @doc """
   The output dir of a test, as upstream's `testInfo.outputDir`: the test file relative to
   `test/` without `_test.exs`, `/` replaced by `-`, then `-` and the test name (without
   ExUnit's `test ` prefix) after `sanitizeForFilePath`, all of it shortened by `trimLongString`
-  to 60 characters, under `root`.
+  to 60 characters, under `root`. Then `-` and a hash of the module and parameters, as
+  upstream appends the project: two modules of a file (or two parameter sets) may have a test
+  of the same name.
   """
-  def output_dir(root, file, test) do
+  def output_dir(root, file, test, module, parameters) do
     cwd = File.cwd!()
     file = Path.expand(file)
     test_dir = Path.join(cwd, "test")
@@ -366,8 +398,11 @@ defmodule PlaywrightEx.Test.Recorder do
         else: Path.relative_to(file, cwd)
 
     relative = relative |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
-    title = test |> to_string() |> String.replace_prefix("test ", "")
-    Path.join(root, trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(title)))
+    name = trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(test_name(test)))
+
+    hash = :crypto.hash(:sha, :erlang.term_to_binary({module, parameters}, [:deterministic]))
+
+    Path.join(root, name <> "-" <> binary_part(Base.encode16(hash, case: :lower), 0, 5))
   end
 
   @doc "Upstream's `sanitizeForFilePath`."

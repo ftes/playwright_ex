@@ -66,29 +66,77 @@ defmodule PlaywrightEx.Test.PoolTest do
       assert Task.yield(c, 1_000) == nil
 
       # Checked in: the next module gets the same driver and browser.
-      Pool.module_finished(:module_a, false)
+      Pool.module_finished({:module_a, %{}}, false)
       assert Task.await(c) == a
 
       # Discarded after a failure: its driver stops, the next module gets a new one.
-      Pool.module_finished(:module_b, true)
+      Pool.module_finished({:module_b, %{}}, true)
       d = browser(%{module: :module_d}, opts)
       assert d.playwright not in [a.playwright, b.playwright]
       assert gone?(b.browser)
 
-      Pool.module_finished(:module_c, true)
-      Pool.module_finished(:module_d, true)
+      Pool.module_finished({:module_c, %{}}, true)
+      Pool.module_finished({:module_d, %{}}, true)
     end
 
     test "a checked-in module's extra browsers are closed" do
       opts = opts(isolate: true)
       a = browser(%{module: :module_e}, opts)
       extra = PlaywrightEx.BrowserType.launch!(PlaywrightEx.Browser.browser_type(a.browser))
-      Pool.module_finished(:module_e, false)
+      Pool.module_finished({:module_e, %{}}, false)
       assert gone?(extra)
       assert browser(%{module: :module_f}, opts) == a
       assert Browser.is_connected(a.browser)
-      Pool.module_finished(:module_f, true)
+      Pool.module_finished({:module_f, %{}}, true)
     end
+
+    test "each parameter map of a parameterize: module is an owner of its own" do
+      opts = opts(isolate: true)
+      module = PlaywrightEx.Test.ParameterizeTest
+      one = browser(%{module: module, n: 1}, opts)
+      two = browser(%{module: module, n: 2}, opts)
+      assert one.playwright != two.playwright
+
+      Pool.module_finished({module, %{n: 1}}, true)
+      assert gone?(one.browser)
+      assert Browser.is_connected(two.browser)
+      Pool.module_finished({module, %{n: 2}}, true)
+    end
+
+    test "the wait for a slot starts anew on each check-in" do
+      opts = opts(isolate: true)
+      a = browser(%{module: :module_h}, opts)
+      _b = browser(%{module: :module_i}, opts)
+      c = Task.async(fn -> browser(%{module: :module_j}, opts) end)
+      d = Task.async(fn -> browser(%{module: :module_k}, opts) end)
+      assert Task.yield(c, 500) == nil
+      %{timer: {first, _}} = :sys.get_state(Pool)
+
+      # A check-in: c gets a's slot, d waits on a new timer.
+      Pool.module_finished({:module_h, %{}}, false)
+      assert Task.await(c) == a
+      %{timer: {second, _}} = :sys.get_state(Pool)
+      assert second != first
+
+      # The old timer is stale; the new one gives d a slot above max_isolated.
+      send(Pool, {:waited, first})
+      assert Task.yield(d, 500) == nil
+      send(Pool, {:waited, second})
+      assert Task.await(d, 30_000).playwright not in [a.playwright]
+      assert :sys.get_state(Pool).timer == nil
+
+      for m <- [:module_i, :module_j, :module_k], do: Pool.module_finished({m, %{}}, true)
+    end
+  end
+
+  test "stop_all waits for the drivers being discarded" do
+    isolated = browser(%{module: :module_l}, opts(isolate: true))
+    Pool.module_finished({:module_l, %{}}, true)
+    assert [{pid, _key}] = :sys.get_state(Pool).discarding
+
+    Pool.stop_all()
+    refute Process.alive?(pid)
+    refute connected?(isolated.browser)
   end
 
   test "after_suite stops every driver" do

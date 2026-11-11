@@ -194,11 +194,12 @@ All three contexts are recorded into the test's one trace, and each gets its own
 `record_artifacts/2` (started by `new_context/2` with the config, or called in a `setup` with
 options) records every context the test creates, also with a plain `Browser.new_context!/2` or in
 a `Task`. Each test writes to a dir of its own under `test-results/`, named after the test file
-and name, as Playwright Test's `testInfo.outputDir`:
+and name, as Playwright Test's `testInfo.outputDir`, and a short hash of the module (and its
+`parameterize:` parameters) that tells same-named tests apart:
 
 ```
-test-results/sign_up-signs-up/trace.zip
-test-results/sign_up-signs-up/test-failed-1.png
+test-results/sign_up-signs-up-5d41a/trace.zip
+test-results/sign_up-signs-up-5d41a/test-failed-1.png
 ```
 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.

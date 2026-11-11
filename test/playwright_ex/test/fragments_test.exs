@@ -6,7 +6,6 @@ defmodule PlaywrightEx.Test.FragmentsTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Recorder
 
   setup_all :browser
@@ -22,7 +21,7 @@ defmodule PlaywrightEx.Test.FragmentsTest do
   end
 
   test "with every artifact off, nothing is written", ctx do
-    refute File.exists?(Recorder.output_dir(Options.output_dir(), ctx.file, ctx.test))
+    refute File.exists?(Recorder.output_dir(ctx))
   end
 
   test "new_context passes context_options as is", ctx do
@@ -48,7 +47,6 @@ defmodule PlaywrightEx.Test.UserBrowserTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.TestBrowser
 
@@ -59,7 +57,7 @@ defmodule PlaywrightEx.Test.UserBrowserTest do
 
   # Registered first, so it runs after the recording's `on_exit`.
   setup ctx do
-    dir = Recorder.output_dir(Options.output_dir(), ctx.file, ctx.test)
+    dir = Recorder.output_dir(ctx)
 
     on_exit(fn ->
       assert File.exists?(Path.join(dir, "trace.zip"))

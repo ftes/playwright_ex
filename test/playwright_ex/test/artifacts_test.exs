@@ -7,14 +7,13 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Tracing
 
   setup_all :browser
 
-  defp dir(ctx), do: Recorder.output_dir(Options.output_dir(), ctx.file, ctx.test)
+  defp dir(ctx), do: Recorder.output_dir(ctx)
 
   defp trace(dir, handle), do: PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), handle)
 
@@ -103,7 +102,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   test "retained files are deleted when the test passes", ctx do
     dir = dir(ctx)
-    key = {ctx.module, ctx.test}
+    key = Recorder.key(ctx)
 
     on_exit(fn ->
       assert [{_, retained}] = :ets.lookup(Pool.table(), {:retained, key})
@@ -119,6 +118,20 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     record_artifacts(ctx, trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure)
     %{context: context} = new_context(ctx)
     page(context, "RETAINED")
+  end
+
+  test "finish is bounded: past its budget it logs, and still stops the recorder", ctx do
+    key = Recorder.key(%{ctx | test: :"#{ctx.test} (bounded)"})
+    opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded"}
+    recorder = Recorder.start(key, self(), opts)
+    # Its artifact work blocks on the suspended recorder past the 50 ms budget.
+    :sys.suspend(recorder)
+    spawn(fn -> Process.sleep(500) && :sys.resume(recorder) end)
+
+    log = capture_log(fn -> assert Recorder.finish(recorder, 50) == :ok end)
+    assert log =~ "PlaywrightEx.Test could not finish the recording: it took over 50 ms"
+    refute Process.alive?(recorder)
+    assert Recorder.lookup(key) == nil
   end
 end
 
