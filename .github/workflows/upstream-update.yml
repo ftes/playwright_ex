@@ -229,6 +229,10 @@ jobs:
             - It needs a decision, a skip or more than a fix: run exactly
               gh pr comment ${{ matrix.pr.number }} --body "Needs a human: <one sentence on why>"
 
+            Read, search and edit files with Read, Grep, Glob, Edit and Write, and write scratch
+            files under tmp/; run each allowed Bash command on its own, without `cd`, `;`, `&&`,
+            pipes or heredocs (you are already in the repository).
+
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
           settings: |
