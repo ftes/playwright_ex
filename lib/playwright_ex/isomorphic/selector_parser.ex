@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
   detected here. `RegExp` values are `PlaywrightEx.RegExp`.
   """
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Isomorphic.CssParser.InvalidSelectorError
   alias PlaywrightEx.RegExp
 
@@ -622,8 +623,6 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
   end
 
   # `${value}`
-  defp js_string(%RegExp{} = re), do: RegExp.to_string(re)
-  defp js_string(:infinity), do: "Infinity"
-  defp js_string(:neg_infinity), do: "-Infinity"
-  defp js_string(value), do: to_string(value)
+  defp js_string(value) when is_boolean(value), do: to_string(value)
+  defp js_string(value), do: ClientHelper.number_to_string(value)
 end

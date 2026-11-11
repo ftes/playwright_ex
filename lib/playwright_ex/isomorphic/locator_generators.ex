@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   import PlaywrightEx.Isomorphic.SelectorParser,
     only: [parse_attribute_selector: 2, parse_selector: 1, stringify_selector: 1, stringify_selector: 2, to_number: 1]
 
+  alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.RegExp
 
   def as_locator_description(lang, selector) do
@@ -300,12 +301,9 @@ defmodule PlaywrightEx.Isomorphic.LocatorGenerators do
   @doc false
   # `${value}` of an option value.
   def js_string(nil), do: "null"
-  def js_string(:nan), do: "NaN"
-  def js_string(:infinity), do: "Infinity"
-  def js_string(:neg_infinity), do: "-Infinity"
   def js_string(%RegExp{} = re), do: RegExp.to_string(re)
-  def js_string(value) when is_float(value) and value == trunc(value), do: Integer.to_string(trunc(value))
-  def js_string(value), do: to_string(value)
+  def js_string(value) when is_boolean(value), do: to_string(value)
+  def js_string(value), do: ClientHelper.number_to_string(value)
 
   defmodule JavaScriptLocatorFactory do
     @moduledoc false
