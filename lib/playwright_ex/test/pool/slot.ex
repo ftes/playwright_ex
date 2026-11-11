@@ -28,6 +28,7 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   end
 
   def browser(:stopped, _opts), do: raise("PlaywrightEx.Test's drivers were stopped (after the suite)")
+  def browser(:finished, _opts), do: raise(ArgumentError, "browser/1 after the end of its module")
 
   @doc "Closes the browsers a module launched on this driver and left open."
   def check_in({pid, _key}), do: GenServer.cast(pid, :check_in)

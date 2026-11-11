@@ -47,6 +47,29 @@ defmodule PlaywrightEx.Test.FragmentsTest do
   end
 end
 
+defmodule PlaywrightEx.Test.SetupAllContextTest do
+  # `new_context/2` in `setup_all`, as upstream's `newContext` in `beforeAll`: nothing records or
+  # closes it.
+  use ExUnit.Case, async: true
+
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Page
+
+  setup_all ctx do
+    %{context: context} = new_context(Map.merge(ctx, browser(ctx)))
+    on_exit(fn -> BrowserContext.close!(context) end)
+    %{shared_context: context}
+  end
+
+  test "a context of the module's, open across its tests", %{shared_context: context} do
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<p>shared</p>")
+    assert Page.text_content!(page, "p") == "shared"
+  end
+end
+
 defmodule PlaywrightEx.Test.UserBrowserTest do
   # A `setup_all` of the user's own makes `%{browser: _}`; the other fragments take it.
   use ExUnit.Case, async: true

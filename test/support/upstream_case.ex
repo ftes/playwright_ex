@@ -399,7 +399,7 @@ defmodule PlaywrightEx.UpstreamCase do
     PlaywrightEx.SharedDriver.track_test(playwright, opts)
   end
 
-  setup %{browser: browser} do
+  setup %{browser: browser} = tags do
     {:ok, contexts} = Agent.start(fn -> [] end)
 
     context_factory = fn options ->
@@ -408,14 +408,23 @@ defmodule PlaywrightEx.UpstreamCase do
       context
     end
 
-    # `context.close({ reason: closeReason })`; on a timeout upstream's reason is "Test timeout of
-    # <n>ms exceeded." (ExUnit's on_exit does not know the test's status).
+    # `context.close({ reason: closeReason })`.
     on_exit(fn ->
-      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context, reason: "Test ended.")
+      reason = close_reason(tags)
+      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context, reason: reason)
       Agent.stop(contexts)
     end)
 
     %{context_factory: context_factory}
+  end
+
+  # `testInfo.status === 'timedOut'`: ExUnit killed the test past its timeout.
+  defp close_reason(tags) do
+    {_verdict, failures} = PlaywrightEx.Test.Pool.result(tags.test_pid, 5000)
+
+    if PlaywrightEx.Test.Pool.killed() in failures,
+      do: "Test timeout of #{tags[:timeout] || ExUnit.configuration()[:timeout]}ms exceeded.",
+      else: "Test ended."
   end
 
   setup %{context_factory: context_factory} = tags do

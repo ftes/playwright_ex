@@ -25,9 +25,12 @@ defmodule PlaywrightEx.Test do
   `use PlaywrightEx.Test` comes after `use ExUnit.Case` (or in a case template's `using`). It
   imports the fragments and a `test` macro that hands the test to `ExUnit.Case.test/3` with the
   body's end marked, so the module's `on_exit` callbacks learn whether the test passed: the
-  artifacts of passing tests are dropped, and a failed module's isolated driver is discarded.
-  Tests of other macros (doctests, a `property`) count as failed for their artifacts, and a
-  failure only in an `on_exit` callback counts as passed.
+  artifacts of passing tests are dropped, and a module's isolated driver is checked in only if a
+  test of it ran and all passed. Tests of other macros (doctests, a `property`) count as failed
+  for their artifacts, and a failure only in an `on_exit` callback counts as passed. Its
+  `setup_all` registers the module's end first, so it runs after the module's other `setup_all`
+  `on_exit` callbacks, except those of a case template's `setup_all` before it: clean up what
+  you made on an isolated driver in a test's `on_exit`.
 
   Each fragment reads the context map and returns new keys, `browser/1` → `%{browser: _}` →
   `new_context/1` → `%{context: _}` → `new_page/1` → `%{page: _}`, so any of them can be
@@ -49,10 +52,13 @@ defmodule PlaywrightEx.Test do
   browser for everyone takes `isolate: true`: a driver of its own, taken on the module's first
   `browser(context, isolate: true)` (in `setup_all`, a test, or a process given the test's
   context map), as upstream's worker-scoped `browser` fixture is lazy. The module holds it until
-  its end, and it is discarded if a test failed. With every worker in use, a module waits. Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent
-  modules on a shared Firefox slow each other down: use `isolate: true` when the run is Firefox,
-  or `use ExUnit.Case, group: :firefox` for a few Firefox modules (a group's modules never run at
-  once). Every driver stops after the suite.
+  its end; it is checked in for the next module if a test of it ran and all passed, else
+  discarded. With every worker in use, a module waits, unless it holds a driver already.
+
+  Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
+  on a shared Firefox slow each other down: use `isolate: true` when the run is Firefox, or `use
+  ExUnit.Case, group: :firefox` for a few Firefox modules (a group's modules never run at once).
+  Every driver stops after the suite.
 
   ## Artifacts
 
@@ -66,7 +72,8 @@ defmodule PlaywrightEx.Test do
     * `trace.zip` - one trace of all its contexts (`mix playwright_ex.cli show-trace <path>`),
       recorded with screenshots, snapshots and sources (upstream's default trace options).
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
-      page open when its context closes (`timeout: 5000, caret: :initial`, as upstream).
+      page open at the end of the test's body (before its `on_exit` callbacks), then of those
+      open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
     * `video.webm`, `video-1.webm`, ... - every page's video. A context created with its own
       `record_video` keeps it, and its video is copied here too.
     * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
@@ -108,7 +115,7 @@ defmodule PlaywrightEx.Test do
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
 
-  # Set once the test process called `record_artifacts/2`.
+  # `{recorder, screenshot mode}`, once the test process called `record_artifacts/2`.
   @recording {__MODULE__, :recording}
   # The module's token in its `setup_all` process, for fragments that run before ours.
   @token {__MODULE__, :module}
@@ -212,11 +219,25 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc false
-  def __passed__, do: Pool.notify({:passed, self()})
+  def __passed__ do
+    Pool.notify({:passed, self()})
+    finished_test_function(false)
+  end
 
   @doc false
-  def __failed__(kind, reason, stacktrace),
-    do: Pool.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
+  def __failed__(kind, reason, stacktrace) do
+    Pool.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
+    finished_test_function(true)
+  end
+
+  # `didFinishTestFunction`: screenshots of the open pages, before the `on_exit` callbacks.
+  defp finished_test_function(failed?) do
+    with {recorder, mode} <- Process.get(@recording),
+         true <- mode == :on or (mode == :only_on_failure and failed?),
+         do: Recorder.capture(recorder, failed?)
+
+    :ok
+  end
 
   @doc """
   A browser for the module, for `setup_all` or a test: returns `playwright`, `browser_name` and
@@ -283,8 +304,6 @@ defmodule PlaywrightEx.Test do
     watch(context)
     if Process.get(@recording), do: raise(ArgumentError, "record_artifacts was called already for this test")
 
-    Process.put(@recording, true)
-
     # Not emptied: files are overwritten by name, so a rerun keeps the first run's other files.
     dir = Recorder.output_dir(context)
     title = "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{Recorder.test_name(context)}"
@@ -306,6 +325,7 @@ defmodule PlaywrightEx.Test do
            do: div(timeout, 2)
 
     ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder, budget) end)
+    Process.put(@recording, {recorder, opts.screenshot})
 
     channel = context[:browser] || context[:playwright]
     if channel, do: Recorder.ensure_listener(recorder, Heap.get(channel, :_instrumentation))
@@ -321,20 +341,25 @@ defmodule PlaywrightEx.Test do
 
   The context map needs `browser`. Its `test_pid` picks the recording, so a process that creates
   contexts for a test (a GenServer) passes the test's whole context map, once the test's `setup`
-  has called `record_artifacts/2`.
+  has called `record_artifacts/2`. Without `test_pid` (in `setup_all`, as upstream's `newContext`
+  in `beforeAll`) nothing records or closes the context: close it yourself.
   """
   @spec new_context(map(), keyword()) :: %{context: BrowserContext.t()}
   def new_context(context, options \\ []) when is_map(context) do
     opts = Options.context(options)
     browser = fetch!(context, :browser)
-    token!(context, "new_context/2")
-    test_pid = fetch!(context, :test_pid)
-    if test_pid == self() and Process.get(@recording) == nil, do: record_artifacts(context)
 
-    recorder = Recorder.lookup(test_pid)
-    if recorder, do: Recorder.ensure_listener(recorder, Heap.get(browser, :_instrumentation))
+    case context[:test_pid] do
+      nil ->
+        %{context: Browser.new_context!(browser, opts.context_options)}
 
-    %{context: Recorder.with_identity(test_pid, fn -> Browser.new_context!(browser, opts.context_options) end)}
+      test_pid ->
+        token!(context, "new_context/2")
+        if test_pid == self() and Process.get(@recording) == nil, do: record_artifacts(context)
+        recorder = Recorder.lookup(test_pid)
+        if recorder, do: Recorder.ensure_listener(recorder, Heap.get(browser, :_instrumentation))
+        %{context: Recorder.with_identity(test_pid, fn -> Browser.new_context!(browser, opts.context_options) end)}
+    end
   end
 
   @doc """
@@ -364,16 +389,11 @@ defmodule PlaywrightEx.Test do
   # The test's result is the pool's: it monitors the test process.
   defp watch(context) do
     token = token!(context, "record_artifacts/2")
-    timeout = context[:timeout] || ExUnit.configuration()[:timeout]
-    timeout_error = if is_integer(timeout), do: timeout_error(timeout, context[:test_type] || :test)
     # The failure of a marked test that raised nothing in its body.
-    failure = if context[:not_implemented], do: "Not implemented", else: "setup failed"
+    failure = if context[:not_implemented], do: "Not implemented", else: Pool.outside()
     marked? = context[:playwright_ex] == :marked
-    Pool.watch(fetch!(context, :test_pid), token, marked? && failure, timeout_error)
+    Pool.watch(fetch!(context, :test_pid), token, marked? && failure)
   end
-
-  # How ExUnit reports a test it killed past its timeout.
-  defp timeout_error(timeout, type), do: ExUnit.TimeoutError.exception(timeout: timeout, type: to_string(type))
 
   # The module's token: in the context map from our `setup_all`, or from a fragment that runs in
   # the `setup_all` process before it, which starts the module (one per `setup_all`, so per

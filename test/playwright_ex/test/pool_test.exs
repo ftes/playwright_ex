@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Test.PoolTest do
         end
       end)
 
-    Pool.watch(pid, module.playwright_ex_module, Keyword.get(opts, :marked, "setup failed"), opts[:timeout_error])
+    Pool.watch(pid, module.playwright_ex_module, Keyword.get(opts, :marked, Pool.outside()))
     send(pid, :go)
     Pool.result(pid, 5000)
   end
@@ -54,6 +54,14 @@ defmodule PlaywrightEx.Test.PoolTest do
     Browser.is_connected(browser)
   rescue
     PlaywrightEx.TargetClosedError -> false
+  end
+
+  defp wait_until(fun, attempts \\ 100) do
+    cond do
+      fun.() -> :ok
+      attempts == 0 -> flunk("timed out waiting")
+      true -> Process.sleep(20) && wait_until(fun, attempts - 1)
+    end
   end
 
   defp gone?(browser, attempts \\ 200) do
@@ -124,12 +132,11 @@ defmodule PlaywrightEx.Test.PoolTest do
     test "failed: an error the test macro caught, or the setup's" do
       failure = {:error, %RuntimeError{message: "boom"}, []}
       assert run_test(module(), [&{:failed, &1, failure}], :shutdown) == {:failed, [failure]}
-      assert run_test(module(), [], :shutdown) == {:failed, ["setup failed"]}
+      assert run_test(module(), [], :shutdown) == {:failed, [Pool.outside()]}
     end
 
-    test "failed: killed past the timeout, or taken down by a linked process" do
-      timeout = ExUnit.TimeoutError.exception(timeout: 100, type: "test")
-      assert run_test(module(), [], :killed, timeout_error: timeout) == {:failed, [{:error, timeout, []}]}
+    test "failed: killed (past its timeout), or taken down by a linked process" do
+      assert run_test(module(), [], :killed) == {:failed, [Pool.killed()]}
       assert {:failed, [{{:EXIT, _pid}, {:boom, []}, []}]} = run_test(module(), [passed()], {:boom, []})
     end
 
@@ -142,7 +149,7 @@ defmodule PlaywrightEx.Test.PoolTest do
     test "a module finishes once its tests have ended, then forgets their results" do
       module = module()
       pid = spawn(fn -> receive(do: (:go -> exit(:shutdown))) end)
-      Pool.watch(pid, module.playwright_ex_module, "setup failed", nil)
+      Pool.watch(pid, module.playwright_ex_module, Pool.outside())
       finished = Task.async(fn -> Pool.module_finished(module.playwright_ex_module) end)
       assert Task.yield(finished, 200) == nil
       send(pid, :go)
@@ -245,7 +252,12 @@ defmodule PlaywrightEx.Test.PoolTest do
       put_workers(4)
       other = opts(isolate: true, on_start: {__MODULE__, :on_start, [self()]})
       ms = for _ <- 1..3, do: module()
-      for m <- ms, do: browser(m, other)
+
+      for m <- ms do
+        browser(m, other)
+        run_test(m, [passed()], :shutdown)
+      end
+
       for m <- ms, do: Pool.module_finished(m.playwright_ex_module)
       put_workers(2)
 
@@ -256,9 +268,58 @@ defmodule PlaywrightEx.Test.PoolTest do
       c = Task.async(fn -> browser(mp, opts) end)
       assert Task.yield(c, 1_000) == nil
 
+      run_test(mn, [passed()], :shutdown)
       Pool.module_finished(mn.playwright_ex_module)
       assert Task.await(c) == a
       for m <- [mo, mp], do: run_test(m, [], :boom) && Pool.module_finished(m.playwright_ex_module)
+    end
+
+    test "a module's driver is checked in only if a test of it ran and all passed" do
+      opts = opts(isolate: true)
+      # No test ran (a raising setup_all, all skipped), or one did not pass (a doctest's).
+      [none, unknown] = [module(), module()]
+      a = browser(none, opts)
+      b = browser(unknown, opts)
+      run_test(unknown, [passed()], :shutdown)
+      run_test(unknown, [], :shutdown, marked: false)
+      for m <- [none, unknown], do: Pool.module_finished(m.playwright_ex_module)
+      assert gone?(a.browser) and gone?(b.browser)
+    end
+
+    test "a waiter that exits, or whose module ended, is dropped: no slot leaks" do
+      put_workers(1)
+      opts = opts(isolate: true)
+      [holder, killed, ended, next] = for _ <- 1..4, do: module()
+      a = browser(holder, opts)
+
+      # Killed while waiting, as by its test's timeout.
+      waiter = spawn(fn -> browser(killed, opts) end)
+      wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
+      Process.exit(waiter, :kill)
+      ended_waiter = Task.async(fn -> catch_error(browser(ended, opts)) end)
+      wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
+      Pool.module_finished(ended.playwright_ex_module)
+      assert %ArgumentError{message: "browser/1 after the end of its module"} = Task.await(ended_waiter)
+
+      run_test(holder, [passed()], :shutdown)
+      Pool.module_finished(holder.playwright_ex_module)
+      assert browser(next, opts) == a
+      refute Map.has_key?(:sys.get_state(Pool).busy, killed.playwright_ex_module)
+      for m <- [killed, next], do: Pool.module_finished(m.playwright_ex_module)
+    end
+
+    test "a module that holds a driver takes its next driver key over workers, not waiting" do
+      put_workers(1)
+      [isolated, shared] = [module(), module()]
+      other = &Keyword.put(&1, :driver, env: [{"PW_POOL_TEST", "next key"}])
+      a = browser(isolated, opts(isolate: true))
+      b = browser(isolated, other.(opts(isolate: true)))
+      assert a.playwright != b.playwright
+      Pool.module_finished(isolated.playwright_ex_module)
+
+      c = browser(shared, opts())
+      assert browser(shared, other.(opts())).playwright != c.playwright
+      Pool.module_finished(shared.playwright_ex_module)
     end
 
     test "a checked-in module's extra browsers are closed" do
@@ -266,6 +327,7 @@ defmodule PlaywrightEx.Test.PoolTest do
       [me, mf] = [module(), module()]
       a = browser(me, opts)
       extra = PlaywrightEx.BrowserType.launch!(PlaywrightEx.Browser.browser_type(a.browser))
+      run_test(me, [passed()], :shutdown)
       Pool.module_finished(me.playwright_ex_module)
       assert gone?(extra)
       assert browser(mf, opts) == a

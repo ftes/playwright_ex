@@ -29,7 +29,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   # A recorder of a test process of its own (watched as the `test` macro's), which ends when sent
   # `{:end, messages, reason}`: `messages` of its pid (`&{:passed, &1}`), then exit `reason`.
-  defp fake_test(ctx, modes, marked \\ "setup failed") do
+  defp fake_test(ctx, modes, marked \\ Pool.outside()) do
     token = Pool.start_module()
     on_exit(fn -> Pool.module_finished(token) end)
 
@@ -42,7 +42,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
         end
       end)
 
-    Pool.watch(pid, token, marked, nil)
+    Pool.watch(pid, token, marked)
     dir = Path.join(System.tmp_dir!(), "playwright_ex-artifacts-test-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(dir) end)
 
@@ -177,6 +177,25 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     # Other tests log meanwhile.
     refute capture_log(fn -> assert Recorder.finish(recorder, 5000) == :ok end) =~ "could not remove the listener"
+  end
+
+  # `didFinishTestFunction`: the open pages at the end of the body, before `on_exit` closes them;
+  # then (`persistTemporary`) those of the contexts closed in the body.
+  test "screenshots at the end of the body, then of the contexts closed in it", ctx do
+    dir = dir(ctx)
+
+    on_exit(fn ->
+      assert Enum.sort(File.ls!(dir)) == ["test-finished-1.png", "test-finished-2.png"]
+      File.rm_rf!(dir)
+    end)
+
+    record_artifacts(ctx, screenshot: :on)
+    %{context: closed} = new_context(ctx)
+    page(closed, "CLOSED")
+    BrowserContext.close!(closed)
+    %{context: open} = new_context(ctx)
+    page = page(open, "OPEN")
+    on_exit(fn -> Page.close!(page) end)
   end
 
   test "a plain context of another browser type is recorded: one driver hosts them all", ctx do

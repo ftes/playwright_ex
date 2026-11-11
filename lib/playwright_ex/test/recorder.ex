@@ -108,7 +108,8 @@ defmodule PlaywrightEx.Test.Recorder do
     }
 
     # `contexts` in creation order, `closed` (guids) in close order, `screenshots` (temporary
-    # files) in capture order.
+    # files) in capture order; `snapshotted` the guids of the pages with a screenshot, `ordinal`
+    # the screenshots named so far (upstream's `SnapshotRecorder`).
     {:ok,
      %{
        test_pid: test_pid,
@@ -119,6 +120,8 @@ defmodule PlaywrightEx.Test.Recorder do
        closed: [],
        chunks: [],
        screenshots: [],
+       snapshotted: MapSet.new(),
+       ordinal: 0,
        page_snapshot: nil
      }}
   end
@@ -143,6 +146,32 @@ defmodule PlaywrightEx.Test.Recorder do
 
   def handle_call({:add_screenshot, path}, _from, state),
     do: {:reply, :ok, %{state | screenshots: state.screenshots ++ [path]}}
+
+  # `_snapshotPage`: a page once per test.
+  def handle_call({:snapshot?, guid}, _from, state) do
+    if MapSet.member?(state.snapshotted, guid),
+      do: {:reply, false, state},
+      else: {:reply, true, %{state | snapshotted: MapSet.put(state.snapshotted, guid)}}
+  end
+
+  # `maybeCapture`'s pages: those of the open contexts without a screenshot, each with the path
+  # of its screenshot (`_createAttachmentPath`).
+  def handle_call({:capture, failed?}, _from, state) do
+    pages =
+      for %{guid: guid, context: context} <- state.contexts,
+          guid not in state.closed,
+          page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
+          not MapSet.member?(state.snapshotted, page.guid),
+          do: page
+
+    {paths, ordinal} =
+      Enum.map_reduce(pages, state.ordinal, fn page, ordinal ->
+        {{page, attachment_path(state.opts.dir, failed?, ordinal)}, ordinal + 1}
+      end)
+
+    snapshotted = Enum.reduce(pages, state.snapshotted, &MapSet.put(&2, &1.guid))
+    {:reply, paths, %{state | ordinal: ordinal, snapshotted: snapshotted}}
+  end
 
   def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
   def handle_call({:page_snapshot, snapshot}, _from, state), do: {:reply, :ok, %{state | page_snapshot: snapshot}}
@@ -246,17 +275,37 @@ defmodule PlaywrightEx.Test.Recorder do
     call(recorder, {:add_chunk, path})
   end
 
+  # `SnapshotRecorder.captureTemporary`: the pages without a screenshot yet, to temporary files
+  # kept by `persist_screenshots/2`.
   defp screenshots(context, recorder, opts) do
     for page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
-        do: step("take a screenshot", fn -> screenshot(page, recorder, opts) end)
+        call(recorder, {:snapshot?, page.guid}),
+        path = Path.join([opts.tmp, "screenshots", "#{System.unique_integer([:positive])}.png"]),
+        step("take a screenshot", fn -> screenshot(page, path) end),
+        do: call(recorder, {:add_screenshot, path})
   end
 
-  # `SnapshotRecorder.captureTemporary`: `page.screenshot({ timeout: 5000, path, caret: 'initial' })`
-  # to a temporary file, kept by `persist_screenshots/3`.
-  defp screenshot(page, recorder, opts) do
-    path = Path.join([opts.tmp, "screenshots", "#{System.unique_integer([:positive])}.png"])
+  # `page.screenshot({ timeout: 5000, path, caret: 'initial' })`.
+  defp screenshot(page, path) do
+    File.mkdir_p!(Path.dirname(path))
     Page.screenshot!(page, path: path, timeout: 5000, caret: :initial)
-    call(recorder, {:add_screenshot, path})
+  end
+
+  defp attachment_path(dir, failed?, ordinal),
+    do: Path.join(dir, "test-#{if failed?, do: "failed", else: "finished"}-#{ordinal + 1}.png")
+
+  @doc """
+  `SnapshotRecorder.maybeCapture` (upstream's `didFinishTestFunction`, and the start of
+  `didFinishTest`): a screenshot of each page of the test's open contexts without one yet,
+  `test-failed-N.png` or `test-finished-N.png`. For the modes that keep them.
+  """
+  def capture(pid, failed?) do
+    pid
+    |> GenServer.call({:capture, failed?}, :infinity)
+    |> Task.async_stream(fn {page, path} -> step("take a screenshot", fn -> screenshot(page, path) end) end,
+      timeout: :infinity
+    )
+    |> Stream.run()
   end
 
   defp call(recorder, message) do
@@ -298,15 +347,18 @@ defmodule PlaywrightEx.Test.Recorder do
   defp collect_all(pid, budget) do
     state = GenServer.call(pid, :state, :infinity)
     {verdict, failures} = Pool.result(state.test_pid, budget)
+    # A test of another macro (a doctest) has no result: kept as a failure's.
+    failed? = verdict != :passed
 
-    # `didFinishTest`: the leftover contexts. A shared browser outlives the test.
+    # `didFinishTest`: the open pages' screenshots, then the leftover contexts. A shared browser
+    # outlives the test.
+    if capture?(state.opts.screenshot, failed?), do: capture(pid, failed?)
+
     for %{guid: guid, context: context} <- state.contexts,
         guid not in state.closed,
         do: step("close a context", fn -> BrowserContext.close!(context, reason: "Test ended.") end)
 
     state = GenServer.call(pid, :state, :infinity)
-    # A test of another macro (a doctest) has no result: kept as a failure's.
-    failed? = verdict != :passed
     save_videos(state, failed?)
     save_trace(state, failed?)
     persist_screenshots(state, failed?)
@@ -380,23 +432,22 @@ defmodule PlaywrightEx.Test.Recorder do
 
   defp save_trace(_state, _failed?), do: :ok
 
+  # `shouldCaptureUponFinish`.
+  defp capture?(mode, failed?), do: mode == :on or (mode == :only_on_failure and failed?)
+
   # `SnapshotRecorder.persistTemporary`: `test-failed-N.png` of a failed test, else
-  # `test-finished-N.png` (`on` only), in capture order.
-  defp persist_screenshots(%{opts: %{screenshot: mode}} = state, failed?)
-       when mode == :on or (mode == :only_on_failure and failed?) do
-    kind = if failed?, do: "failed", else: "finished"
-
-    for {file, i} <- Enum.with_index(state.screenshots, 1) do
-      path = Path.join(state.opts.dir, "test-#{kind}-#{i}.png")
-
-      step("save a screenshot", fn ->
-        File.mkdir_p!(state.opts.dir)
-        File.cp!(file, path)
-      end)
-    end
+  # `test-finished-N.png` (`on` only), in capture order, numbered after those taken at the end.
+  defp persist_screenshots(state, failed?) do
+    for {file, ordinal} <- Enum.with_index(state.screenshots, state.ordinal),
+        capture?(state.opts.screenshot, failed?),
+        path = attachment_path(state.opts.dir, failed?, ordinal),
+        do: step("save a screenshot", fn -> save_screenshot(file, path) end)
   end
 
-  defp persist_screenshots(_state, _failed?), do: :ok
+  defp save_screenshot(file, path) do
+    File.mkdir_p!(Path.dirname(path))
+    File.cp!(file, path)
+  end
 
   @doc """
   Upstream's `mergeTraceFiles`: one trace of all of the test's chunks, each cut to its own stacks

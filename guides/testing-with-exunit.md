@@ -251,7 +251,9 @@ setup_all ctx, do: browser(ctx, isolate: true)
 The driver is taken on the module's first `browser(ctx, isolate: true)`, as Playwright Test's
 worker-scoped `browser` fixture is lazy, and the module's later calls (in a test, or by a process
 given the test's context map) get the same one. So a mixed module calls it in only the tests that
-need it. The module holds the driver until its end, and a failed test discards it.
+need it. The module holds the driver until its end; it goes to the next module if a test ran and
+all passed, else it is discarded. Clean up on it in a test's `on_exit`: a case template's own
+`setup_all` `on_exit` runs after the module's end.
 
 Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
 on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true`. For

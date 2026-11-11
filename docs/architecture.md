@@ -268,8 +268,9 @@ contexts of all its browsers. The driver also adds every call's stack to each tr
 connection, so the trace merge keeps a chunk's own actions' stacks and sources. `isolate: true`
 is upstream's model for modules that change the driver or browser for everyone: an exclusive
 driver per driver key, taken on first use (upstream's worker-scoped `browser` fixture is lazy,
-`packages/playwright/src/index.ts:238`), checked in at the module's end and discarded after a
-failure. The drivers stop in `ExUnit.after_suite/1`, as `mix test` halts without stopping
+`packages/playwright/src/index.ts:238`), checked in at the module's end if a test ran and all
+passed, else discarded. A module that holds a driver takes its further driver keys over
+`workers`, so none waits while holding one. The drivers stop in `ExUnit.after_suite/1`, as `mix test` halts without stopping
 applications (#191). The pool starts on first use, never with the application: a release has no
 ExUnit.
 
@@ -281,8 +282,10 @@ notes the error and re-raises it: a test passed when it was marked and its proce
 and failed setups. The `catch` gives `error-context.md` the errors; failure output stays
 ExUnit's, byte for byte (tested). It also adds a `setup_all` whose module token keys the
 isolated drivers and whose `on_exit`, registered first, runs last: the module's end, also under
-`--max-failures`. Not covered: doctests and other macros' tests (no mark: their artifacts are
-kept) and a failure only in an `on_exit` (it counts as passed). Rejected: an ExUnit formatter (a
+`--max-failures`. The mark also takes the end-of-body screenshots (`didFinishTestFunction`).
+Not covered: doctests and other macros' tests (no mark: their artifacts are kept), a failure
+only in an `on_exit` (it counts as passed), and a case template's `setup_all` `on_exit`, which
+runs after the module's end. Rejected: an ExUnit formatter (a
 second piece to install; `module_finished` never comes for a module `--max-failures` stops), a
 `defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
 `setup_all` process (its `DOWN` races the user's `on_exit`).
