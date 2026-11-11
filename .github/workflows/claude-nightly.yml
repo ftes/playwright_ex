@@ -127,7 +127,7 @@ jobs:
           prs=$(list)
           {
             echo "conflicted=$(jq -c 'map(select(.mergeable == "CONFLICTING") | .number)' <<< "$prs")"
-            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable != "CONFLICTING" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
+            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
             echo "exhausted=$(jq -r --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number) | join(" ")' <<< "$prs")"
           } >> "$GITHUB_OUTPUT"
       - name: Close PRs still failing after two fixes
@@ -441,8 +441,8 @@ jobs:
             changes, and no changes that are only formatting, comments or renames to taste.
 
             Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass.
-            Don't run the test suite: CI runs it on the PR, and the next nightly run fixes what it
-            finds.
+            Tests can't run here, in place of AGENTS.md's `mix check`: CI runs them on the PR, and
+            a later nightly run fixes any failure.
 
             If nothing is clearly worth a maintainer's time, stop without pushing and say why. No
             PR is a good result; a marginal PR is not.
