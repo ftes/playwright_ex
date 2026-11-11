@@ -319,9 +319,10 @@ jobs:
         if: failure()
         run: cat "$RUNNER_TEMP/xvfb.log" || true
 
-  # The one check to require: green when every lane's and browser's partitions are.
-  tests:
-    name: Tests
+  # The one check to require: green when every lane's and browser's partitions are, which need a
+  # green build.
+  quality:
+    name: quality
     if: always()
     needs: test
     runs-on: ubuntu-latest
