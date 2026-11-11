@@ -67,7 +67,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
 
   using do
     quote do
-      import PlaywrightEx.Test
+      use PlaywrightEx.Test
       alias PlaywrightEx.{Expect, Locator, Page}
     end
   end
@@ -170,7 +170,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   use ExUnit.Case, async: true
 
   import PlaywrightEx.Guides.TestingWithExUnit.Eventually
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
@@ -290,7 +290,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.IsolatedTest do
   # "Isolated modules".
   use ExUnit.Case, async: true
 
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
 

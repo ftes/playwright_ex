@@ -64,7 +64,9 @@ defmodule PlaywrightEx.UpstreamCase do
 
   using opts do
     quote do
-      import ExUnit.Case, only: [describe: 2]
+      # The fixtures stand in for the fragments; `test` is ours, on `PlaywrightEx.Test.test/3`.
+      use PlaywrightEx.Test
+      import PlaywrightEx.Test, only: []
 
       if unquote(opts[:isolate]), do: @moduletag(isolate: true)
 
@@ -148,21 +150,21 @@ defmodule PlaywrightEx.UpstreamCase do
     end
   end
 
-  @doc "`ExUnit.Case.test/1`, skipped when a rule rules it out."
+  @doc "`PlaywrightEx.Test.test/1`, skipped when a rule rules it out."
   defmacro test(message) do
     quote do
       PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
       PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
-      ExUnit.Case.test(unquote(message))
+      PlaywrightEx.Test.test(unquote(message))
     end
   end
 
-  @doc "`ExUnit.Case.test/3`, skipped when a rule rules it out."
+  @doc "`PlaywrightEx.Test.test/3`, skipped when a rule rules it out."
   defmacro test(message, var \\ quote(do: _), contents) do
     quote do
       PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
       PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
-      ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
+      PlaywrightEx.Test.test(unquote(message), unquote(var), unquote(contents))
     end
   end
 

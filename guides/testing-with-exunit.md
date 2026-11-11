@@ -9,13 +9,7 @@ alias `PlaywrightEx.{Page, Locator, ...}`.
 
 ## Setup
 
-Add the formatter in `test/test_helper.exs` (it deletes the artifacts of passing tests) and
-configure the fragments in `config/test.exs`:
-
-```elixir
-# test/test_helper.exs
-ExUnit.start(formatters: [ExUnit.CLIFormatter, PlaywrightEx.Test.Formatter])
-```
+Configure the fragments in `config/test.exs`:
 
 ```elixir
 # config/test.exs
@@ -25,12 +19,12 @@ config :playwright_ex, :test,
   screenshot: :only_on_failure
 ```
 
-A test module imports the fragments and lists them as setup callbacks:
+A test module uses `PlaywrightEx.Test` and lists the fragments as setup callbacks:
 
 ```elixir
 defmodule MyApp.SignUpTest do
   use ExUnit.Case, async: true
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.{Expect, Locator, Page}
 
@@ -45,6 +39,11 @@ defmodule MyApp.SignUpTest do
   end
 end
 ```
+
+`use PlaywrightEx.Test` goes after `use ExUnit.Case`. It imports the fragments and a `test`
+macro that marks the end of each test's body, so `on_exit` knows whether the test passed (ExUnit
+reports failures as before). Doctests and other macros' tests count as failed for their
+artifacts, and a failure only in an `on_exit` callback counts as passed.
 
 `browser/1` starts the driver and launches the browser on first use; modules with the same
 options share it (and one driver hosts every browser type), also with `async: true` (ExUnit
@@ -78,7 +77,7 @@ defmodule MyApp.BrowserCase do
 
   using do
     quote do
-      import PlaywrightEx.Test
+      use PlaywrightEx.Test
       alias PlaywrightEx.{Expect, Locator, Page}
     end
   end
@@ -204,11 +203,11 @@ test-results/sign_up-signs-up-5d41a/test-failed-1.png
 ```
 
 A failed test also gets Playwright Test's `error-context.md`: its errors, its source and an aria
-snapshot of its page, for you or an agent to read (config `error_context: false` turns it off).
+snapshot of its page, for you or an agent to read.
 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
 `:retain_on_failure` (trace, video) and `:only_on_failure` (screenshot) record every test and
-keep the files of failures. Open a trace with `mix playwright_ex.cli show-trace
+keep the files of failures; a passing test's are dropped in its `on_exit`. Open a trace with `mix playwright_ex.cli show-trace
 test-results/.../trace.zip`. More in the [Debugging and CI](debugging-and-ci.md) guide.
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
@@ -249,15 +248,17 @@ the browser) takes one of its own:
 setup_all ctx, do: browser(ctx, isolate: true)
 ```
 
-Called in a test (or by a process given the test's context map), `browser(ctx, isolate: true)`
-checks out the same driver for the module, as `setup_all` would.
+The driver is taken on the module's first `browser(ctx, isolate: true)`, as Playwright Test's
+worker-scoped `browser` fixture is lazy, and the module's later calls (in a test, or by a process
+given the test's context map) get the same one. So a mixed module calls it in only the tests that
+need it. The module holds the driver until its end, and a failed test discards it.
 
 Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
 on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true` (up
 to `max_isolated` modules at once). For a few Firefox modules in a mixed suite, put them in one
 ExUnit group: modules of a group never run at once, so one shared Firefox serves one module at a
-time while the others run in parallel. It needs no formatter, and covers a second user on
-Firefox inside a test too (`browser(browser_name: :firefox)`):
+time while the others run in parallel. It covers a second user on Firefox inside a test too
+(`browser(browser_name: :firefox)`):
 
 ```elixir
 use ExUnit.Case, async: true, group: :firefox

@@ -16,7 +16,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `packages/protocol/src/serializers.ts`, `validatorPrimitives.ts` | `lib/playwright_ex/protocol/`, ported by hand |
 | `tests/page/*.spec.ts`, `tests/library/*.spec.ts` | `test/upstream/{page,library}/`, ported by hand |
 | Node's single thread, `AsyncLocalStorage`, Node built-ins | `PlaywrightEx.Runtime.*` (Elixir only), see Shims |
-| `packages/playwright/src/index.ts` (fixtures, artifacts) | not ported: `PlaywrightEx.Test` is native, after the non-JS clients' test plugins ([why](docs/architecture.md#test-runner)) |
+| `packages/playwright/src/index.ts` (fixtures, artifacts) | not ported: `PlaywrightEx.Test` is native, after the non-JS clients' test plugins, with its own `test` macro for the result ([why](docs/architecture.md#test-runner)) |
 
 ## Rules
 

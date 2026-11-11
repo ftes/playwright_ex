@@ -47,6 +47,9 @@ defmodule PlaywrightEx.ExampleCase do
 
   using opts do
     quote do
+      use PlaywrightEx.Test
+      # `example` is a `test`; the bodies name no fragment.
+      import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]
       import PlaywrightEx.ExampleCase, only: [example: 3]
 
       if unquote(opts[:isolate]), do: @moduletag(isolate: true)
