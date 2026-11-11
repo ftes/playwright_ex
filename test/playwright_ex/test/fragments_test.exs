@@ -39,9 +39,8 @@ defmodule PlaywrightEx.Test.FragmentsTest do
     assert Page.viewport_size(page) == %{width: 400, height: 300}
   end
 
-  test "a second browser/1 with other options is another browser, on the module's driver",
-       %{browser: browser, playwright: playwright} = ctx do
-    %{browser: other, playwright: ^playwright} = browser(ctx, launch_options: [timeout: 30_001])
+  test "a second browser/1 with other options is another browser", %{browser: browser} do
+    %{browser: other} = browser(launch_options: [timeout: 30_001])
     assert other != browser
     assert Browser.is_connected(other)
   end

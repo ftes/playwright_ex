@@ -51,7 +51,7 @@ runs those concurrently with each other; a module's own tests run one after anot
 is a fresh browser profile with its own cookies, storage and cache, so tests don't share state.
 The drivers stop after the suite.
 
-Options go in as arguments, merged over the config: `setup_all ctx, do: browser(ctx, browser_name:
+Options go in as arguments, merged over the config: `setup_all do: browser(browser_name:
 :firefox)`, `setup ctx, do: new_context(ctx, context_options: [locale: "de-DE"])`.
 `launch_options` and `context_options` are those of `PlaywrightEx.BrowserType.launch/2` and
 `PlaywrightEx.Browser.new_context/2`. `PlaywrightEx.Test` lists them all.
@@ -177,7 +177,7 @@ matched and renamed; a user on another browser gets it from a second `browser/1`
 test "two users edit one document", ctx do
   %{context: ada} = new_context(ctx)
   %{context: bob} = new_context(ctx)
-  %{browser: firefox} = browser(ctx, browser_name: :firefox)
+  %{browser: firefox} = browser(browser_name: :firefox)
   %{context: eve} = new_context(%{ctx | browser: firefox})
 
   ada_page = BrowserContext.new_page!(ada)
@@ -256,22 +256,23 @@ all passed, else it is discarded. Clean up on it in a test's `on_exit`: a case t
 `setup_all` `on_exit` runs after the module's end.
 
 Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
-on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true`. For
-a few Firefox modules in a mixed suite, put them in one ExUnit group: modules of a group never run
-at once, so a shared Firefox serves one module at a time while the others run in parallel. It
-covers a second user on Firefox inside a test too (`browser(ctx, browser_name: :firefox)`):
+on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true` (up
+to `workers` modules at once). For a few Firefox modules in a mixed suite, put them in one ExUnit
+group: modules of a group never run at once, so one shared Firefox serves one module at a time
+while the others run in parallel. It covers a second user on Firefox inside a test too
+(`browser(browser_name: :firefox)`):
 
 ```elixir
 use ExUnit.Case, async: true, group: :firefox
 
-setup_all ctx, do: browser(ctx, browser_name: :firefox)
+setup_all do: browser(browser_name: :firefox)
 ```
 
 That is Playwright Test's model: a driver and its browsers per worker, used by one module at a time
-and replaced after a failure. At most `workers` drivers run (config, default half the schedulers,
-as Playwright Test's), shared and isolated: a shared driver serves `ceil(max_cases / workers)`
-modules before another starts, and an isolated module waits while all are in use. To set up each
-new driver (register selectors, say), pass `on_start: &MyApp.Selectors.register/1`.
+and replaced after a failure. At most `workers` modules hold one at once (config, default half the
+schedulers, as Playwright Test's `workers`); the others wait. Shared browsers run on one driver per
+`driver` and `on_start`, outside that limit. To set up each new driver (register selectors, say),
+pass `on_start: &MyApp.Selectors.register/1`.
 
 ## Polling and waiting
 

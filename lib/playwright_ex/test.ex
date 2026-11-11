@@ -44,16 +44,14 @@ defmodule PlaywrightEx.Test do
   ## Browsers
 
   `browser/1` returns a shared browser per `browser_name` and `launch_options`, on a driver
-  shared per `driver` and `on_start`, launched on first use and again if lost. At most `workers`
-  drivers run, as upstream's worker processes: a module joins the driver of its key that the
-  fewest modules hold on its first `browser/1` and leaves it at its end, and another driver
-  starts while each would hold more than `ceil(max_cases / workers)` modules. Called without the
-  context map, it uses that driver without holding it. A module that changes the driver or
-  browser for everyone takes `isolate: true`: a driver of its own, taken on the module's first
-  `browser(context, isolate: true)` (in `setup_all`, a test, or a process given the test's
-  context map), as upstream's worker-scoped `browser` fixture is lazy. The module holds it until
-  its end; it is checked in for the next module if a test of it ran and all passed, else
-  discarded. With every worker in use, a module waits, unless it holds a driver already.
+  shared per `driver` and `on_start`, launched on first use and again if lost. A module that
+  changes the driver or browser for everyone takes `isolate: true`: a driver of its own, taken on
+  the module's first `browser(context, isolate: true)` (in `setup_all`, a test, or a process
+  given the test's context map), as upstream's worker-scoped `browser` fixture is lazy. The
+  module holds it until its end; it is checked in for the next module if a test of it ran and
+  all passed, else discarded. At most `workers` isolated drivers run at once, as upstream's
+  worker processes (all exclusive): with every one in use, a module waits, unless it holds a
+  driver already.
 
   Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
   on a shared Firefox slow each other down: use `isolate: true` when the run is Firefox, or `use
@@ -258,9 +256,8 @@ defmodule PlaywrightEx.Test do
       until the module ends (see the moduledoc); other browsers launch on it. An argument, not
       config: needs the context map, `browser(context, isolate: true)`.
 
-  A second call with other options returns another browser, on the module's driver when given
-  the context map: a second user on Firefox is `%{browser: firefox} = browser(context,
-  browser_name: :firefox)`.
+  A second call with other options returns another browser: a second user on Firefox is
+  `%{browser: firefox} = browser(browser_name: :firefox)`.
   """
   @spec browser(map() | keyword()) :: %{playwright: struct(), browser_name: atom(), browser: Browser.t()}
   def browser(context_or_options)
@@ -275,8 +272,8 @@ defmodule PlaywrightEx.Test do
     token =
       cond do
         opts.isolate -> token!(context, "browser(context, isolate: true)")
-        is_map_key(context, :module) -> token!(context, "browser/1")
-        true -> context[:playwright_ex_module]
+        context[:module] -> token!(context, "browser/1")
+        true -> nil
       end
 
     %{playwright: playwright, browser: browser} = Pool.browser(opts, token)

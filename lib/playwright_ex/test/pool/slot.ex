@@ -1,9 +1,9 @@
 defmodule PlaywrightEx.Test.Pool.Slot do
   @moduledoc false
-  # One driver and its browsers, in a process of its own (after Fluffy's `BrowserRuntime.Slot`):
-  # starting the driver and launching block this slot and its callers only, and the slot stays
-  # alive as the browsers' creator, which anchors their rows. Lazy: the driver starts with the
-  # first `browser/2`, which runs `on_start` on each new driver's Playwright before any launch.
+  # One driver and its browsers, in a process of its own: starting the driver and launching
+  # block this slot and its callers only, and the slot stays alive as the browsers' creator,
+  # which anchors their rows. Lazy: the driver starts with the first `browser/2`, which runs
+  # `on_start` on each new driver's Playwright before any launch.
   # It hosts a browser per `{browser_name, launch_options}`, as upstream runs every browser type
   # on one Playwright: a listener on the driver's instrumentation sees all of their contexts. A
   # lost browser (closed, or its driver gone) is launched again by the next `browser/2`.

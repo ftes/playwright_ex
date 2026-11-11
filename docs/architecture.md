@@ -260,19 +260,22 @@ upstream's artifact code as the model (`ArtifactsRecorder` hooks on `ClientInstr
 Browsers are shared by default, unlike those clients' browser per worker thread: their client
 is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
 worth of modules at once, so a driver per module would multiply drivers for nothing. Contexts
-isolate tests. At most `workers` drivers run, upstream's default half the cores
-(`packages/playwright/src/common/config.ts:111`): a key's modules join the least-held of its
-drivers, and another starts while each would hold more than `ceil(max_cases / workers)`. A driver hosts every browser type, as upstream's one Playwright does, so a
+isolate tests. A driver hosts every browser type, as upstream's one Playwright does, so a
 test's recording (a listener on the driver's instrumentation, keyed by `test_pid`) sees the
 contexts of all its browsers. The driver also adds every call's stack to each trace on its
 connection, so the trace merge keeps a chunk's own actions' stacks and sources. `isolate: true`
 is upstream's model for modules that change the driver or browser for everyone: an exclusive
 driver per driver key, taken on first use (upstream's worker-scoped `browser` fixture is lazy,
 `packages/playwright/src/index.ts:238`), checked in at the module's end if a test ran and all
-passed, else discarded. A module that holds a driver takes its further driver keys over
-`workers`, so none waits while holding one. The drivers stop in `ExUnit.after_suite/1`, as `mix test` halts without stopping
-applications (#191). The pool starts on first use, never with the application: a release has no
-ExUnit.
+passed, else discarded. At most `workers` of them run, upstream's `workers` (all exclusive there;
+default half the cores, `packages/playwright/src/common/config.ts:111`); a module that holds one
+takes its further driver keys over it, so none waits while holding one. Shared modules use one
+driver per key, outside the cap. Spreading a key's modules over capped drivers was tried and
+dropped (chromium, 2026-11-11, macOS): at 18 modules at once it took 210.7 s and 12.3 GB, against
+218 s and 8.8 GB with one driver per key and 207 s and 15.5 GB on main; at 9, one driver per
+key took 225 s against main's 276 s. The drivers stop in
+`ExUnit.after_suite/1`, as `mix test` halts without stopping applications (#191). The pool
+starts on first use, never with the application: a release has no ExUnit.
 
 Upstream knows a test's result in-process (`testInfo.errors`, `status`) when it closes contexts
 and keeps artifacts; ExUnit tells `on_exit` nothing. So `use PlaywrightEx.Test` brings a `test`
@@ -285,10 +288,10 @@ isolated drivers and whose `on_exit`, registered first, runs last: the module's 
 `--max-failures`. The mark also takes the end-of-body screenshots (`didFinishTestFunction`).
 Not covered: doctests and other macros' tests (no mark: their artifacts are kept), a failure
 only in an `on_exit` (it counts as passed), and a case template's `setup_all` `on_exit`, which
-runs after the module's end. Rejected: an ExUnit formatter (a
-second piece to install; `module_finished` never comes for a module `--max-failures` stops), a
-`defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
-`setup_all` process (its `DOWN` races the user's `on_exit`).
+runs after the module's end. Rejected: an ExUnit formatter (a second piece to install;
+`module_finished` never comes for a module `--max-failures` stops), a `defoverridable` wrapper of
+each test (renames the test's frame), and a monitor on the `setup_all` process (its `DOWN` races
+the user's `on_exit`).
 
 A crashed shared browser fails the remaining tests of every module using it, where upstream
 restarts its worker; the next `browser/1` launches it again. ExUnit gives the context a

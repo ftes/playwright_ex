@@ -4,24 +4,17 @@ defmodule PlaywrightEx.Test.Pool do
   # results of the tests of modules that `use PlaywrightEx.Test`. A slot is `{pid, driver_key}`,
   # the key its `driver` options and `on_start`.
   #
-  # At most `workers` slots run, as upstream's worker processes; a module (its token, one per
-  # `setup_all`, so per parameter set) takes them on its first `browser/2` of a key, as
-  # upstream's worker-scoped `browser` fixture is lazy, and `module_finished/1` (the module's
-  # last `on_exit`) gives them back.
+  # Shared: one slot per key, used by modules at once, until `after_suite/1`.
   #
-  # Shared (after Fluffy's `BrowserRuntime`): modules of a key at once on its slots. A module
-  # joins the one fewest modules hold; another starts while each would hold more than its share
-  # of the modules ExUnit runs at once (`ceil(max_cases / workers)`) and there is room. A call
-  # with no token (a hand-made context map) uses that slot without joining it.
-  #
-  # Exclusive (`isolate: true`, upstream's worker model): a module checks a slot out; its
-  # further calls get the same slot, and at its end the slot is checked in if a test of it ran
-  # and all passed, else discarded.
-  #
-  # Room for a new slot is made by stopping idle ones (checked in, or shared and held by none);
-  # with none, the caller waits, unless its module holds a slot already: a module's further
-  # driver keys go over `workers`, so no module waits while it holds a slot others wait for. A
-  # waiter that exits, or whose module ended, is dropped.
+  # Exclusive (`isolate: true`, upstream's worker model): a module (its token, one per
+  # `setup_all`, so per parameter set) checks a slot out on its first `browser/2` of the key, as
+  # upstream's worker-scoped `browser` fixture is lazy; its further calls get the same slot, and
+  # `module_finished/1` (the module's last `on_exit`) checks it in if a test of it ran and all
+  # passed, else discards it. At most `workers` exclusive slots run, as upstream's worker
+  # processes: room for a new one is made by stopping checked-in ones of other keys; with none,
+  # the module waits, unless it holds a slot already (its further driver keys go over
+  # `workers`, so no module waits while it holds a slot others wait for). A waiter that exits,
+  # or whose module ended, is dropped.
   #
   # A test's result (`watch/3`, `result/2`): passed when the `test` macro marked the end of its
   # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
@@ -77,8 +70,8 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   @doc """
-  Once the module's watched tests have ended: leaves its shared slots and checks in its
-  exclusive ones if a test ran and all passed, else discards them. Then forgets their results.
+  Once the module's watched tests have ended: checks in its exclusive slots if a test ran and
+  all passed, else discards them. Then forgets their results.
   """
   def module_finished(token), do: GenServer.call(__MODULE__, {:module_finished, token}, :infinity)
 
@@ -130,9 +123,8 @@ defmodule PlaywrightEx.Test.Pool do
     Process.flag(:trap_exit, true)
     :ets.new(table(), [:named_table, :public, :set])
 
-    # `shared` by key, each slot with the tokens holding it; `busy` by module token;
-    # `discarding`: slots stopping, still linked; `waiting`: callers waiting for room, monitored.
-    # `tests`: the watched test processes alive; `results` those ended, until their module
+    # `shared` by key; `busy` by module token; `discarding`: slots stopping, still linked;
+    # `waiting`: callers waiting for room, monitored. `tests`: the watched test processes alive; `results` those ended, until their module
     # finishes; `modules` by token: its tests alive and ended, and `outcome` (`nil` while no
     # test ended, `:passed` while all passed, else `:failed`); `finishing` a `module_finished/1`
     # waiting for tests; `finished` the tokens of the modules that ended.
@@ -154,7 +146,7 @@ defmodule PlaywrightEx.Test.Pool do
 
   @impl true
   def handle_call({:slot, key, opts, token}, {pid, _} = from, state) do
-    with false <- MapSet.member?(state.finished, token),
+    with false <- opts.isolate and MapSet.member?(state.finished, token),
          {slot, state} <- request(state, key, opts, token) do
       {:reply, slot, state}
     else
@@ -169,7 +161,7 @@ defmodule PlaywrightEx.Test.Pool do
 
   # The discarding slots too: `Slot.stop/1` of a stopping slot waits for it to exit.
   def handle_call(:take_all, _from, state) do
-    slots = shared_slots(state) ++ state.free ++ Enum.concat(Map.values(state.busy)) ++ state.discarding
+    slots = Map.values(state.shared) ++ state.free ++ Enum.concat(Map.values(state.busy)) ++ state.discarding
     for waiter <- state.waiting, do: GenServer.reply(waiter.from, :stopped)
     for {pid, _key} <- slots, do: Process.unlink(pid)
     {:reply, slots, %{state | shared: %{}, free: [], busy: %{}, discarding: [], waiting: []}}
@@ -232,7 +224,7 @@ defmodule PlaywrightEx.Test.Pool do
   # A slot that stopped (discarded) or crashed: forget it.
   def handle_info({:EXIT, pid, _reason}, state) do
     gone? = &match?({^pid, _}, &1)
-    shared = Map.new(state.shared, fn {key, slots} -> {key, Map.reject(slots, fn {slot, _} -> gone?.(slot) end)} end)
+    shared = Map.reject(state.shared, fn {_key, slot} -> gone?.(slot) end)
     busy = Map.new(state.busy, fn {token, slots} -> {token, Enum.reject(slots, gone?)} end)
     free = Enum.reject(state.free, gone?)
     discarding = Enum.reject(state.discarding, gone?)
@@ -289,8 +281,8 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  # Leaves the module's shared slots; checks in its exclusive ones if a test ran and all passed,
-  # else discards them; drops its waiters.
+  # Checks in the module's slots if a test ran and all passed, else discards them; drops its
+  # waiters.
   defp finish_module(state, token) do
     {module, modules} = Map.pop(state.modules, token, %{ended: [], outcome: nil})
     {waiters, waiting} = Enum.split_with(state.waiting, &(&1.token == token))
@@ -301,13 +293,11 @@ defmodule PlaywrightEx.Test.Pool do
     end
 
     {slots, busy} = Map.pop(state.busy, token, [])
-    leave = fn slots -> Map.new(slots, fn {slot, tokens} -> {slot, MapSet.delete(tokens, token)} end) end
 
     state = %{
       state
       | results: Map.drop(state.results, module.ended),
         modules: modules,
-        shared: Map.new(state.shared, fn {key, slots} -> {key, leave.(slots)} end),
         busy: busy,
         waiting: waiting,
         finished: MapSet.put(state.finished, token)
@@ -333,44 +323,16 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  # Shared: the slot the module joined, else the one fewest modules hold while under its share,
-  # else a new one, else (no room) the fewest-held anyway.
-  defp request(state, key, opts, token) do
-    slots = Map.get(state.shared, key, %{})
-    {least, modules} = Enum.min_by(slots, fn {_slot, ms} -> MapSet.size(ms) end, &<=/2, fn -> {nil, nil} end)
+  # Shared: the key's slot, else a new one.
+  defp request(state, key, opts, _token) do
+    case state.shared do
+      %{^key => slot} ->
+        {slot, state}
 
-    cond do
-      joined = joined(slots, token) -> {joined, state}
-      least && under_share?(modules, token) -> {least, join(state, key, least, token)}
-      room = make_room(state, token) -> start_shared(room, key, opts, token)
-      least -> {least, join(state, key, least, token)}
-      true -> :full
+      _ ->
+        {slot, state} = start_slot(state, key, opts)
+        {slot, %{state | shared: Map.put(state.shared, key, slot)}}
     end
-  end
-
-  defp joined(_slots, nil), do: nil
-  defp joined(slots, token), do: Enum.find_value(slots, fn {slot, ms} -> if MapSet.member?(ms, token), do: slot end)
-
-  # A call without a token takes any slot of the key.
-  defp under_share?(_modules, nil), do: true
-  defp under_share?(modules, _token), do: MapSet.size(modules) < per_worker()
-
-  defp start_shared(state, key, opts, token) do
-    {slot, state} = start_slot(state, key, opts)
-    {slot, join(state, key, slot, token)}
-  end
-
-  defp join(state, key, slot, token) do
-    slots = Map.get(state.shared, key, %{})
-    modules = Map.get(slots, slot, MapSet.new())
-    modules = if token, do: MapSet.put(modules, token), else: modules
-    %{state | shared: Map.put(state.shared, key, Map.put(slots, slot, modules))}
-  end
-
-  # How many of the modules ExUnit runs at once a shared slot holds before another starts.
-  defp per_worker do
-    workers = Options.workers()
-    div(ExUnit.configuration()[:max_cases] + workers - 1, workers)
   end
 
   # A free slot of the key, else a new one.
@@ -384,34 +346,28 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  # The state with room for a new slot under `workers`, made by stopping idle slots (checked-in
-  # ones first, the longest idle first). Else nil when the slots in use fill it, unless the
-  # module holds a slot already: then the state as is, over `workers`.
+  # The state with room for a new exclusive slot under `workers`, made by stopping checked-in
+  # slots (the longest idle first). Else nil when the slots in use fill it, unless the module
+  # holds a slot already: then the state as is, over `workers`.
   defp make_room(state, token) do
-    shared_idle = for {key, slots} <- state.shared, {slot, ms} <- slots, MapSet.size(ms) == 0, do: {key, slot}
-    idle = Enum.map(Enum.reverse(state.free), &{nil, &1}) ++ shared_idle
-    in_use = length(shared_slots(state)) + length(state.free) + Enum.sum_by(Map.values(state.busy), &length/1)
-    excess = in_use + 1 - Options.workers()
+    busy = Enum.sum_by(Map.values(state.busy), &length/1)
+    excess = busy + length(state.free) + 1 - Options.workers()
 
     cond do
-      excess <= 0 -> state
-      excess <= length(idle) -> idle |> Enum.take(excess) |> Enum.reduce(state, &stop_idle(&2, &1))
-      holds?(state, token) -> state
-      true -> nil
+      excess <= 0 ->
+        state
+
+      excess <= length(state.free) ->
+        {free, idle} = Enum.split(state.free, -excess)
+        Enum.reduce(idle, %{state | free: free}, &discard(&2, &1))
+
+      Map.get(state.busy, token, []) != [] ->
+        state
+
+      true ->
+        nil
     end
   end
-
-  defp holds?(_state, nil), do: false
-
-  defp holds?(state, token),
-    do: Map.get(state.busy, token, []) != [] or Enum.any?(state.shared, fn {_key, slots} -> joined(slots, token) end)
-
-  defp stop_idle(state, {nil, slot}), do: discard(%{state | free: List.delete(state.free, slot)}, slot)
-
-  defp stop_idle(state, {key, slot}),
-    do: discard(%{state | shared: Map.update!(state.shared, key, &Map.delete(&1, slot))}, slot)
-
-  defp shared_slots(state), do: Enum.flat_map(Map.values(state.shared), &Map.keys/1)
 
   # The waiting callers, first come first served, while there is room. A caller that exited
   # meanwhile gets none: its slot would stay with a module that may have ended.

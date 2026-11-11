@@ -1,5 +1,5 @@
-# The guide's recipe for a few Firefox modules: modules of one ExUnit `group:` never run at once,
-# so a shared browser serves one of them at a time (here the browser under test).
+# The guide's recipe for a few Firefox modules: modules of one ExUnit `group:` share a browser
+# and never run at once (here on the browser under test).
 for name <- [PlaywrightEx.Test.GroupTest.A, PlaywrightEx.Test.GroupTest.B] do
   defmodule name do
     use ExUnit.Case, async: true, group: :playwright_ex_group_test
@@ -11,7 +11,7 @@ for name <- [PlaywrightEx.Test.GroupTest.A, PlaywrightEx.Test.GroupTest.B] do
     setup_all :browser
     setup [:new_context, :new_page]
 
-    test "runs alone", %{page: page} do
+    test "shares the browser and runs alone", %{browser: browser, page: page} do
       # A table of the group's (owned by the first module's test that makes it).
       table =
         try do
@@ -19,6 +19,10 @@ for name <- [PlaywrightEx.Test.GroupTest.A, PlaywrightEx.Test.GroupTest.B] do
         rescue
           ArgumentError -> :playwright_ex_group_test
         end
+
+      first = :persistent_term.get({PlaywrightEx.Test.GroupTest, :browser}, browser)
+      :persistent_term.put({PlaywrightEx.Test.GroupTest, :browser}, first)
+      assert browser == first
 
       assert :ets.update_counter(table, :running, 1, {:running, 0}) == 1
       Page.set_content!(page, "<button>Go</button>")

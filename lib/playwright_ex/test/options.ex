@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The root of the output dirs (config `output_dir`, default `test-results`)."
   def output_dir, do: config()[:output_dir]
 
-  @doc "How many drivers may run at once (config `workers`)."
+  @doc "How many isolated drivers may run at once (config `workers`)."
   def workers, do: config()[:workers]
 
   defp merge(keys, opts) do
