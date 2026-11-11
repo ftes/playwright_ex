@@ -47,12 +47,8 @@ defmodule PlaywrightEx.Test.OptionsTest do
       assert %{context_options: [locale: "de-DE"]} = Options.context(context_options: [locale: "de-DE"])
     end
 
-    test "isolate needs the module's context map, in setup_all" do
+    test "isolate needs the module's context map" do
       assert_raise ArgumentError, ~r/isolate: true needs the module/, fn -> PlaywrightEx.Test.browser(isolate: true) end
-
-      assert_raise ArgumentError, ~r/in setup_all/, fn ->
-        PlaywrightEx.Test.browser(%{module: M, test: :"test t"}, isolate: true)
-      end
     end
 
     test "fragments need their keys" do

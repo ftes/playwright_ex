@@ -24,6 +24,14 @@ defmodule PlaywrightEx.Test.FragmentsTest do
     refute File.exists?(Recorder.output_dir(ctx))
   end
 
+  test "output_path is a path in the test's output dir, created", ctx do
+    dir = Recorder.output_dir(ctx)
+    on_exit(fn -> File.rm_rf!(dir) end)
+    assert output_path(ctx, "export.csv") == Path.join(dir, "export.csv")
+    assert File.dir?(dir)
+    assert_raise ArgumentError, ~r/outside of the output dir/, fn -> output_path(ctx, "../export.csv") end
+  end
+
   test "new_context passes context_options as is", ctx do
     %{context: context} = new_context(ctx, context_options: [locale: "de-DE", viewport: %{width: 400, height: 300}])
     page = BrowserContext.new_page!(context)

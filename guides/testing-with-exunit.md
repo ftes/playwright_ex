@@ -223,7 +223,8 @@ mix test || TRACE=1 mix test --failed
 ```
 
 Passing runs pay nothing for it, and the first run's files stay: nothing is deleted at the start
-of a run, so delete `test-results/` yourself. A flaky test that passes on the rerun leaves no
+of a run, so delete `test-results/` yourself. Files of your own go in the test's dir with
+`output_path(ctx, "export.csv")`; they stay when the test passes. A flaky test that passes on the rerun leaves no
 trace; for those, `:retain_on_failure`.
 
 A context created for the test by another process (a GenServer that runs a user session) is
@@ -245,12 +246,15 @@ the browser) takes one of its own:
 setup_all ctx, do: browser(ctx, isolate: true)
 ```
 
+Called in a test (or by a process given the test's context map), `browser(ctx, isolate: true)`
+checks out the same driver for the module, as `setup_all` would.
+
 Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
 on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true` (up
 to `max_isolated` modules at once). For a few Firefox modules in a mixed suite, put them in one
 ExUnit group: modules of a group never run at once, so one shared Firefox serves one module at a
 time while the others run in parallel. It needs no formatter, and covers a second user on
-Firefox inside a test too (`browser(browser_name: :firefox)`, which can't isolate):
+Firefox inside a test too (`browser(browser_name: :firefox)`):
 
 ```elixir
 use ExUnit.Case, async: true, group: :firefox

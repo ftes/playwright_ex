@@ -38,12 +38,12 @@ defmodule PlaywrightEx.Test do
 
   `browser/1` returns a shared browser per `browser_name` and `launch_options`, on a driver
   shared per `driver` and `on_start`, launched on first use and again if lost. A module that
-  changes the driver or browser for everyone takes `isolate: true` in `setup_all`: a driver of
-  its own, discarded if a test fails, at most `max_isolated` at once. Firefox serializes input
-  (mouse, keyboard) across all pages of a browser, so concurrent modules on a shared Firefox slow
-  each other down: use `isolate: true` when the run is Firefox, or `use ExUnit.Case, group:
-  :firefox` for a few Firefox modules (a group's modules never run at once). Every driver stops
-  after the suite.
+  changes the driver or browser for everyone takes `isolate: true`: a driver of its own, held
+  until the module finishes, discarded if a test fails, at most `max_isolated` at once. Firefox
+  serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules on a
+  shared Firefox slow each other down: use `isolate: true` when the run is Firefox, or `use
+  ExUnit.Case, group: :firefox` for a few Firefox modules (a group's modules never run at once).
+  Every driver stops after the suite.
 
   ## Artifacts
 
@@ -62,9 +62,10 @@ defmodule PlaywrightEx.Test do
       `record_video` keeps it, and its video is copied here too.
 
   A failing artifact step is logged; the test's result stands. The `*_on_failure` modes record
-  every test, and `PlaywrightEx.Test.Formatter` deletes the files of passing ones. Nothing is
-  deleted at the start of a run, so `mix test || TRACE=1 mix test --failed` (with `trace: :on`
-  under `TRACE`) keeps the first run's files. Delete `output_dir` yourself.
+  every test, and `PlaywrightEx.Test.Formatter` deletes the files of passing ones (not those you
+  write to `output_path/2`). Nothing is deleted at the start of a run, so `mix test || TRACE=1
+  mix test --failed` (with `trace: :on` under `TRACE`) keeps the first run's files. Delete
+  `output_dir` yourself.
 
   A trace of your own (`PlaywrightEx.Tracing.start/2` with `sources: true`) on a shared driver
   also gets concurrent tests' stacks and sources: the driver adds every call's stack to each
@@ -99,7 +100,8 @@ defmodule PlaywrightEx.Test do
   @recording {__MODULE__, :recording}
 
   @doc """
-  A browser for the module, for `setup_all`: returns `playwright`, `browser_name` and `browser`.
+  A browser for the module, for `setup_all` or a test: returns `playwright`, `browser_name` and
+  `browser`.
 
   Takes the context map (`setup_all :browser`, options from the config) or options, also as
   `browser(context, options)`:
@@ -114,7 +116,8 @@ defmodule PlaywrightEx.Test do
       a closure.
     * `:isolate` - `true` gives the module a driver and browser of its own (see the moduledoc).
       An argument, not config: needs the context map, `browser(context, isolate: true)`, and
-      `PlaywrightEx.Test.Formatter`.
+      `PlaywrightEx.Test.Formatter`. Called in a test, it checks out the module's driver as
+      `setup_all` would: the module's other tests get the same one.
 
   A second call with other options returns another browser: a second user on Firefox is
   `%{browser: firefox} = browser(browser_name: :firefox)`.
@@ -132,9 +135,6 @@ defmodule PlaywrightEx.Test do
 
     if opts.isolate do
       if !module, do: raise(ArgumentError, "isolate: true needs the module: call browser(context, isolate: true)")
-
-      if context[:test],
-        do: raise(ArgumentError, "isolate: true is for the module: call browser(context, isolate: true) in setup_all")
 
       Options.require_formatter!("isolate: true")
     end
@@ -217,6 +217,26 @@ defmodule PlaywrightEx.Test do
       do: ExUnit.Callbacks.on_exit(fn -> BrowserContext.close(browser_context, reason: "Test ended.") end)
 
     %{context: browser_context}
+  end
+
+  @doc """
+  The path of `name` in the test's output dir (see the moduledoc), as upstream's
+  `testInfo.outputPath`: creates the dir, and raises for a `name` outside it. The context map
+  needs `module`, `test` and `file`. The formatter deletes no files you write there.
+  """
+  @spec output_path(map(), Path.t()) :: Path.t()
+  def output_path(context, name) when is_map(context) do
+    for key <- [:module, :test, :file], do: fetch!(context, key)
+
+    case Path.safe_relative(name) do
+      {:ok, relative} ->
+        dir = Recorder.output_dir(context)
+        File.mkdir_p!(dir)
+        Path.join(dir, relative)
+
+      :error ->
+        raise ArgumentError, "output_path is not allowed outside of the output dir, got: #{inspect(name)}"
+    end
   end
 
   @doc "A page of `context.context`, for `setup`: returns `page`."

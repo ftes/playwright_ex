@@ -170,6 +170,15 @@ defmodule PlaywrightEx.Test.PoolTest do
       Pool.module_finished({:module_m, %{}}, true)
     end
 
+    test "a test's checkout is its module's, held until the module finishes" do
+      opts = opts(isolate: true)
+      a = browser(%{module: :module_q, test: :"test a"}, opts)
+      assert browser(%{module: :module_q, test: :"test b"}, opts) == a
+      assert browser(%{module: :module_q}, opts) == a
+      Pool.module_finished({:module_q, %{}}, true)
+      assert gone?(a.browser)
+    end
+
     test "each parameter map of a parameterize: module is an owner of its own" do
       opts = opts(isolate: true)
       module = __MODULE__.Parameterized

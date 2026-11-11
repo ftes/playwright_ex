@@ -5,8 +5,9 @@ defmodule PlaywrightEx.Test.Pool do
   #
   # Shared (after Fluffy's `BrowserRuntime`): one slot per key, used by modules at once.
   # Exclusive (`isolate: true`, upstream's worker model): an owner (`{module, parameters}`)
-  # checks a slot out in `setup_all`, its further `browser/2` calls get the same slot, and
-  # `PlaywrightEx.Test.Formatter` checks it in at `module_finished`, discarded after a failure.
+  # checks a slot out (in `setup_all` or a test), its further `browser/2` calls get the same
+  # slot, and `PlaywrightEx.Test.Formatter` checks it in at `module_finished`, discarded after a
+  # failure.
   # At most `max_isolated` exclusive slots run at once, the rest wait.
   #
   # Started unlinked on first use (`ensure_started/0`), never with the application (a release

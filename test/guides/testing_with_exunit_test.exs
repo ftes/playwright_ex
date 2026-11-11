@@ -299,4 +299,8 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.IsolatedTest do
   test "a browser of the module's own", %{browser: browser} do
     assert Browser.is_connected(browser)
   end
+
+  test "called in a test, the same driver for the module", ctx do
+    assert browser(ctx, isolate: true) == Map.take(ctx, [:playwright, :browser_name, :browser])
+  end
 end
