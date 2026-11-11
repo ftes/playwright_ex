@@ -44,8 +44,6 @@ defmodule PlaywrightEx.Runtime.Promise do
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
 
-  require Logger
-
   defstruct [:kind, :ref, :pid, :owner, :result, :monitor, :watch, :cancel, :promises, handlers: []]
 
   @type t :: %__MODULE__{}
@@ -154,7 +152,7 @@ defmodule PlaywrightEx.Runtime.Promise do
   """
   def then_(%__MODULE__{} = promise, on_fulfilled) do
     add_handler(promise, fn
-      {:ok, value} -> safe(fn -> {:ok, on_fulfilled.(value)} end)
+      {:ok, value} -> run_async(fn -> on_fulfilled.(value) end)
       other -> other
     end)
   end
@@ -162,18 +160,12 @@ defmodule PlaywrightEx.Runtime.Promise do
   @doc "`promise.catch(on_rejected)`: lazy, as `then_/2` (an un-awaited `p.catch(log)` never runs)."
   def catch_(%__MODULE__{} = promise, on_rejected) do
     add_handler(promise, fn
-      {:error, error} -> safe(fn -> {:ok, on_rejected.(error)} end)
+      {:error, error} -> run_async(fn -> on_rejected.(error) end)
       other -> other
     end)
   end
 
   defp add_handler(promise, handler), do: %{promise | handlers: promise.handlers ++ [handler]}
-
-  defp safe(fun) do
-    fun.()
-  catch
-    kind, reason -> {:error, Exception.normalize(kind, reason, __STACKTRACE__)}
-  end
 
   @doc "`Promise.race(promises)`"
   def race(promises), do: %__MODULE__{kind: :race, promises: promises}
@@ -575,8 +567,4 @@ defmodule PlaywrightEx.Runtime.Promise do
   end
 
   def settled?(_promise), do: false
-
-  @doc false
-  def log_uncaught(kind, reason, stacktrace, what \\ "promise"),
-    do: Logger.error("Uncaught in #{what}: " <> Exception.format(kind, reason, stacktrace))
 end
