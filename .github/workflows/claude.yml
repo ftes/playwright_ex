@@ -10,6 +10,10 @@ on:
   pull_request_review:
     types: [submitted]
 
+env:
+  # As in elixir.yml, whose cache is restored below.
+  MIX_ENV: test
+
 jobs:
   claude:
     if: |
@@ -28,7 +32,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          # Else checkout's read-only token can override the app token Claude pushes with: from v6
+          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup languages
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - name: Get runner image
+        id: runner_image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      # Main's, saved by elixir.yml's build job under this key, so only a branch's changes compile.
+      - name: Restore deps and _build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
+          restore-keys: |
+            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-
+            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
+          path: |
+            deps
+            _build
+      # deps for the mix tasks below, and upstream's sources at the pin (PlaywrightEx.Upstream) for
+      # --add-dir below. Allowed to fail, as on a branch that doesn't compile: Claude then runs
+      # without them.
+      - name: Install dependencies and upstream sources
+        continue-on-error: true
+        run: |
+          mkdir -p ~/.cache/playwright_ex
+          mix "do" deps.get, deps.compile, playwright_ex.upstream
 
       - name: Run Claude Code
         id: claude
@@ -40,11 +71,30 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # The owner forbids attribution; AGENTS.md says so too.
+          settings: |
+            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
+          # No prompt: Claude follows the comment that tagged it. The action adds its own tools (file
+          # tools, commit and push, its comment); these are the project's checks and tasks, read-only
+          # git and gh, and --add-dir the driver cache holding the upstream sources. Tests need
+          # browsers, so CI runs them.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 100
+            --add-dir /home/runner/.cache/playwright_ex
+            --append-system-prompt "Upstream's sources at the pin (client, server, injected script, specs, API docs) are under ~/.cache/playwright_ex/<version>/upstream; dependencies are in deps/. Tests can't run here: CI runs them on your push."
+            --allowedTools "Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)"
+      - name: Summarize Claude's result
+        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # Only the final message and each denied call's command, path or URL: this repo is public,
+        # and the full transcript can contain secrets.
+        run: |
+          jq -r '.[] | select(.type == "result")
+            | (.result // .subtype),
+              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
+                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
+                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
+            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
