@@ -16,7 +16,7 @@ defmodule PlaywrightEx.Protocol.ValidatorPrimitives do
   `undefined`. `:binary` in a `"toBase64"` context takes any binary.
 
   The context mirrors `ValidatorContext`: `%{tChannelImpl: fun/4, binary: "toBase64" | "fromBase64" | "buffer",
-  isUnderTest: fun/0}` (`isUnderTest` may be missing: not under test).
+  isUnderTest: fun/0}`.
   """
   alias PlaywrightEx.Protocol.Validator
 
@@ -92,7 +92,7 @@ defmodule PlaywrightEx.Protocol.ValidatorPrimitives do
         end
       end)
 
-    if context[:isUnderTest] && context.isUnderTest.() do
+    if context.isUnderTest.() do
       for {key, value} <- Map.to_list(arg),
           String.starts_with?(to_string(key), "__testHook"),
           into: result,
