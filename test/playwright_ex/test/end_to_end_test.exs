@@ -1,8 +1,9 @@
 defmodule PlaywrightEx.Test.EndToEndTest do
   # Suites on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
-  # VM (`after_suite`), and each module's isolated drivers are checked in at its end (discarded
-  # after a failure), also when `max_failures` stops the run.
+  # VM (`after_suite`), each module's isolated drivers are checked in at its end (discarded
+  # after a failure), also when `max_failures` stops the run, and a test fails with the
+  # snapshots its matchers wrote.
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.RemoteServer.ChildProcess
@@ -72,6 +73,54 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert output =~ "--max-failures reached, aborting test suite"
     assert report.busy == 0
     assert report.free == [:isolated]
+  end
+
+  test "a test fails at its end with the snapshots it wrote, all errors reported", %{tmp_dir: tmp_dir} do
+    child = start("soft_errors", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
+
+    snapshots = Path.join(tmp_dir, "snapshots/support/test_runner_impl.exs-snapshots")
+    platform = Atom.to_string(elem(:os.type(), 1))
+
+    assert Enum.sort(File.ls!(snapshots)) ==
+             [
+               "fails-after-writing-one-1.aria.yml",
+               "two-#{platform}.png",
+               "two.aria.yml",
+               "writes-a-snapshot-1.aria.yml"
+             ]
+
+    # The matcher's line; ExUnit numbers several failures.
+    [_, one] = Regex.run(~r/test writes a snapshot \(SoftErrorsTest\)\n(.*?)\n\n\n/s, output)
+    assert one =~ ~r"\*\* \(RuntimeError\) A snapshot doesn't exist at .*writes-a-snapshot-1.aria.yml, writing actual."
+
+    assert one =~
+             ~r"code: Expect.to_match_aria_snapshot!\(page\)\n +stacktrace:\n +test/support/test_runner_impl.exs:\d+: \(test\)"
+
+    refute one =~ "Failure #"
+
+    [_, two] = Regex.run(~r/test writes two \(SoftErrorsTest\)\n(.*?)\n\n\n/s, output)
+    assert two =~ ~r"Failure #1\n +\*\* \(RuntimeError\) A snapshot doesn't exist at .*two.aria.yml, writing actual."
+
+    assert two =~
+             ~r"Failure #2\n +\*\* \(RuntimeError\) A snapshot doesn't exist at .*two-#{platform}.png, writing actual."
+
+    [_, three] = Regex.run(~r/test fails after writing one \(SoftErrorsTest\)\n(.*?)\n\n\n/s, output)
+
+    assert three =~
+             ~r"Failure #1\n +\*\* \(RuntimeError\) A snapshot doesn't exist at .*fails-after-writing-one-1.aria.yml"
+
+    assert three =~ ~r"Failure #2\n +on purpose"
+
+    # `error-context.md` has each error.
+    output_dir = Path.join(tmp_dir, "test-results")
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "writes-two"))
+    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
+
+    assert error_context =~
+             ~r"RuntimeError: A snapshot doesn't exist at .*two.aria.yml.*RuntimeError: A snapshot doesn't exist at .*two-#{platform}.png"s
   end
 
   defp alive(processes) do

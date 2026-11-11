@@ -11,14 +11,16 @@ defmodule PlaywrightEx.Matchers.Expect do
     * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
-      `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones).
-      A screenshot, or an aria snapshot with `path:`, is written to its `path`. An inline aria
-      snapshot can't be written into the test source without a test runner, so where upstream
-      suggests a rebaseline (an empty snapshot, or any under `:all` or a mismatch under
-      `:changed`) the matcher fails with the new snapshot in its message.
+      `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones,
+      which fails a `PlaywrightEx.Test` test at its end, as upstream's). A snapshot is written to
+      the file its `name:` resolves to in a `PlaywrightEx.Test` test, or to its `path:`. An
+      inline aria snapshot is not written into the test source, so where upstream suggests a
+      rebaseline (an empty snapshot, or any under `:all` or a mismatch under `:changed`) the
+      matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
-      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
+      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
+      their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).
   """
   @moduledoc """
   Port of `#{@upstream}`: how a matcher is called. The generated `PlaywrightEx.Expect` is
@@ -30,8 +32,11 @@ defmodule PlaywrightEx.Matchers.Expect do
   `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
   `MatcherResult` map; a failed one raises `PlaywrightEx.ExpectError`.
 
-  Deviations: there is no test runner (`testInfo` is `null`, so no steps, soft assertions or
-  test deadlines) and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
+  Deviations: `testInfo` is the running test of `PlaywrightEx.Test` (`PlaywrightEx.Test.TestInfo`,
+  found by the calling process, or one in its `$callers`), else `null`. It resolves snapshot
+  names and records a result's `softError`, which fails the test at the end of its body; outside
+  a test that error is printed. There are no test steps, test deadlines or `expect.soft` (no
+  `createExpect`), and no jest library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`,
   `expect.extend`, `toPass`, `toMatchSnapshot` and `resolves`/`rejects` are not ported.
 
   ## Configuration
@@ -49,6 +54,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   alias PlaywrightEx.Matchers.Matchers
   alias PlaywrightEx.Matchers.ToMatchAriaSnapshot
   alias PlaywrightEx.Matchers.ToMatchSnapshot
+  alias PlaywrightEx.Test.TestInfo
 
   # unfilteredStackTrace  -- not ported: Elixir stack traces
 
@@ -63,7 +69,10 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   @doc false
   def expect_config do
-    :persistent_term.get({__MODULE__, :expect_config}, nil) || app_env_expect_config()
+    config = :persistent_term.get({__MODULE__, :expect_config}, nil) || app_env_expect_config()
+    # deviation: the worker sets `testInfo` per test (`setExpectConfig`); here it is the running
+    # `PlaywrightEx.Test` test of the calling process, or of one in its `$callers`.
+    if config[:testInfo] == nil, do: Map.put(config, :testInfo, TestInfo.current()), else: config
   end
 
   @doc false
@@ -160,7 +169,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   end
 
   def call_matcher_as_step(matcher_name, info, actual, matcher, args, promise \\ nil) do
-    # const testInfo = expectConfig().testInfo;  -- not ported: no test runner
+    test_info = expect_config().testInfo
     custom_message = info[:message] || ""
     # const suffixes = computeMatcherTitleSuffix(matcherName, actual, args);  -- not ported: test steps
     default_title =
@@ -172,7 +181,7 @@ defmodule PlaywrightEx.Matchers.Expect do
     # const stackFrames = expectConfig().filteredStackTrace(captureRawStack());  -- not ported: Elixir stack traces
     # const params = ...; const stepData = ...; const step = testInfo?._addStep(stepData);  -- not ported: test steps
 
-    # handleError: no step, so the error is raised (soft assertions need a test runner).
+    # handleError: no step, so the error is raised (`expect.soft` is not ported).
 
     # validateMatcherResult(result);  -- not ported: built-in matchers only
     result = invoke_matcher(matcher_name, info, matcher, actual, args, promise, title)
@@ -186,7 +195,6 @@ defmodule PlaywrightEx.Matchers.Expect do
 
       raise ExpectError.new(matcher_result, custom_message, nil)
     else
-      # step?.complete(result);  -- not ported: test steps
       # deviation: no test runner writes a `suggestedRebaseline` into the test source (the
       # dispatcher's addSuggestedRebaseline), so a result that carries one fails with it, after
       # its `softError`. Otherwise an inline aria snapshot would pass without being compared.
@@ -201,8 +209,14 @@ defmodule PlaywrightEx.Matchers.Expect do
         raise ExpectError.new(matcher_result, custom_message, nil)
       end
 
-      # deviation: no test runner records a `softError`, so a snapshot the matcher wrote is announced.
-      if result[:softError], do: IO.puts(Exception.message(result.softError))
+      if test_info do
+        # The `softError` part of `step?.complete(result)`, without test steps.
+        TestInfo.step_complete(test_info, result)
+      else
+        # deviation: outside a `PlaywrightEx.Test` test nothing records a `softError`, so a
+        # snapshot the matcher wrote is announced.
+        if result[:softError], do: IO.puts(Exception.message(result.softError))
+      end
 
       :ok
     end

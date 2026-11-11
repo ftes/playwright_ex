@@ -28,14 +28,16 @@ defmodule PlaywrightEx.Expect do
     * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
       timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
-      `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones).
-      A screenshot, or an aria snapshot with `path:`, is written to its `path`. An inline aria
-      snapshot can't be written into the test source without a test runner, so where upstream
-      suggests a rebaseline (an empty snapshot, or any under `:all` or a mismatch under
-      `:changed`) the matcher fails with the new snapshot in its message.
+      `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones,
+      which fails a `PlaywrightEx.Test` test at its end, as upstream's). A snapshot is written to
+      the file its `name:` resolves to in a `PlaywrightEx.Test` test, or to its `path:`. An
+      inline aria snapshot is not written into the test source, so where upstream suggests a
+      rebaseline (an empty snapshot, or any under `:all` or a mismatch under `:changed`) the
+      matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
-      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config.
+      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
+      their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).
 
 
   *Since Playwright 1.17.*
@@ -3814,6 +3816,7 @@ defmodule PlaywrightEx.Expect do
 
   @to_have_screenshot_options {:object,
                                %{
+                                 name: {:name, nil},
                                  path: {:path, nil},
                                  animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
                                  caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
@@ -3834,6 +3837,7 @@ defmodule PlaywrightEx.Expect do
   @typedoc "Options of `to_have_screenshot/2`, see its docs."
   @type to_have_screenshot_options ::
           [
+            name: String.t() | [String.t()],
             path: String.t(),
             animations: :disabled | :allow,
             caret: :hide | :initial,
@@ -3851,6 +3855,7 @@ defmodule PlaywrightEx.Expect do
             full_page: boolean()
           ]
           | %{
+              optional(:name) => String.t() | [String.t()],
               optional(:path) => String.t(),
               optional(:animations) => :disabled | :allow,
               optional(:caret) => :hide | :initial,
@@ -3875,6 +3880,9 @@ defmodule PlaywrightEx.Expect do
   **Usage**
 
   ```elixir
+  Expect.to_have_screenshot!(page, name: "image.png")
+
+  # Outside a PlaywrightEx.Test test
   Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")
   ```
 
@@ -3882,7 +3890,10 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` (`t:String.t/0`) - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:name` (`t:String.t/0` | list of `t:String.t/0`) - Snapshot name. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless.
+
+    In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the `-actual`, `-diff` and `-previous` images are written to the test's output dir.
+  * `:path` (`t:String.t/0`) - The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
   * `:animations` (`:disabled` | `:allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -3961,6 +3972,7 @@ defmodule PlaywrightEx.Expect do
 
   @not_to_have_screenshot_options {:object,
                                    %{
+                                     name: {:name, nil},
                                      path: {:path, nil},
                                      animations: {:animations, {:enum, %{disabled: "disabled", allow: "allow"}}},
                                      caret: {:caret, {:enum, %{hide: "hide", initial: "initial"}}},
@@ -3981,6 +3993,7 @@ defmodule PlaywrightEx.Expect do
   @typedoc "Options of `not_to_have_screenshot/2`, see its docs."
   @type not_to_have_screenshot_options ::
           [
+            name: String.t() | [String.t()],
             path: String.t(),
             animations: :disabled | :allow,
             caret: :hide | :initial,
@@ -3998,6 +4011,7 @@ defmodule PlaywrightEx.Expect do
             full_page: boolean()
           ]
           | %{
+              optional(:name) => String.t() | [String.t()],
               optional(:path) => String.t(),
               optional(:animations) => :disabled | :allow,
               optional(:caret) => :hide | :initial,
@@ -4022,7 +4036,10 @@ defmodule PlaywrightEx.Expect do
 
   ## Options
 
-  * `:path` (`t:String.t/0`) - Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+  * `:name` (`t:String.t/0` | list of `t:String.t/0`) - Snapshot name. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless.
+
+    In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the `-actual`, `-diff` and `-previous` images are written to the test's output dir.
+  * `:path` (`t:String.t/0`) - The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
   * `:animations` (`:disabled` | `:allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -4603,18 +4620,25 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @to_match_aria_snapshot_options {:object, %{path: {:path, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
+  @to_match_aria_snapshot_options {:object,
+                                   %{
+                                     name: {:name, nil},
+                                     path: {:path, nil},
+                                     signal: {:signal, nil},
+                                     timeout: {:timeout, nil}
+                                   }}
 
   @typedoc "Options of `to_match_aria_snapshot/3`, see its docs."
   @type to_match_aria_snapshot_options ::
-          [path: String.t(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          [name: String.t(), path: String.t(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{
+              optional(:name) => String.t(),
               optional(:path) => String.t(),
               optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
             }
 
-  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is the same as `0`: no timeout."
+  @doc "Asserts that the target element matches the given [accessibility snapshot](https://playwright.dev/docs/aria-snapshots).\n\n**Usage**\n\n```elixir\nPage.goto!(page, \"https://demo.playwright.dev/todomvc/\")\n\nPage.locator(page, \"body\")\n|> Expect.to_match_aria_snapshot!(\"\"\"\n- heading \"todos\"\n- textbox \"What needs to be done?\"\n\"\"\")\n```\n\n```elixir\nExpect.to_match_aria_snapshot!(page, name: \"body.aria.yml\")\n\n# Outside a PlaywrightEx.Test test\nExpect.to_match_aria_snapshot!(page, path: \"test/snapshots/body.aria.yml\")\n```\n\n*Since Playwright 1.49.*\n\n## Options\n\nThe options may take the place of `expected`, which is then `nil`.\n\n* `:name` (`t:String.t/0`) - Name of the snapshot to store in the snapshot folder corresponding to this test. Generates sequential names if not specified.\n\n  In Elixir, in place of `expected`: a test of `PlaywrightEx.Test` resolves it to a file (see \"Snapshots\" in its docs), and with neither `expected`, `:name` nor `:path` names the snapshot after the test.\n* `:path` (`t:String.t/0`) - The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).\n* `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that\n  can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal\n  is aborted while the assertion is retrying, or is already aborted before the assertion starts,\n  the assertion fails without retrying further.\n\n  In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`).\n* `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).\n\n  In Elixir, `:infinity` is the same as `0`: no timeout."
   @spec to_match_aria_snapshot(
           PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil,
@@ -4674,12 +4698,19 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
-  @not_to_match_aria_snapshot_options {:object, %{path: {:path, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
+  @not_to_match_aria_snapshot_options {:object,
+                                       %{
+                                         name: {:name, nil},
+                                         path: {:path, nil},
+                                         signal: {:signal, nil},
+                                         timeout: {:timeout, nil}
+                                       }}
 
   @typedoc "Options of `not_to_match_aria_snapshot/3`, see its docs."
   @type not_to_match_aria_snapshot_options ::
-          [path: String.t(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
+          [name: String.t(), path: String.t(), signal: PlaywrightEx.AbortSignal.t(), timeout: number() | :infinity]
           | %{
+              optional(:name) => String.t(),
               optional(:path) => String.t(),
               optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity
@@ -4694,7 +4725,10 @@ defmodule PlaywrightEx.Expect do
 
   The options may take the place of `expected`, which is then `nil`.
 
-  * `:path` (`t:String.t/0`) - The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).
+  * `:name` (`t:String.t/0`) - Name of the snapshot to store in the snapshot folder corresponding to this test. Generates sequential names if not specified.
+
+    In Elixir, in place of `expected`: a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `expected`, `:name` nor `:path` names the snapshot after the test.
+  * `:path` (`t:String.t/0`) - The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).
   * `:signal` (`t:PlaywrightEx.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
     can cancel the assertion. Aborting the signal fails the assertion like a timeout: if the signal
     is aborted while the assertion is retrying, or is already aborted before the assertion starts,
@@ -6131,10 +6165,17 @@ defmodule PlaywrightEx.Expect do
 
   def __options__(:to_have_screenshot) do
     [
+      name: %{
+        type_doc: "`t:String.t/0` | list of `t:String.t/0`",
+        doc:
+          "Snapshot name. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless.",
+        since: nil,
+        spec: quote(do: String.t() | [String.t()])
+      },
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.",
+          "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.",
         since: nil,
         spec: quote(do: String.t())
       },
@@ -6240,10 +6281,17 @@ defmodule PlaywrightEx.Expect do
 
   def __options__(:not_to_have_screenshot) do
     [
+      name: %{
+        type_doc: "`t:String.t/0` | list of `t:String.t/0`",
+        doc:
+          "Snapshot name. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless.",
+        since: nil,
+        spec: quote(do: String.t() | [String.t()])
+      },
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.",
+          "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.",
         since: nil,
         spec: quote(do: String.t())
       },
@@ -6489,10 +6537,17 @@ defmodule PlaywrightEx.Expect do
 
   def __options__(:to_match_aria_snapshot) do
     [
+      name: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Name of the snapshot to store in the snapshot folder corresponding to this test. Generates sequential names if not specified.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).",
+          "The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: String.t())
       },
@@ -6515,10 +6570,17 @@ defmodule PlaywrightEx.Expect do
 
   def __options__(:not_to_match_aria_snapshot) do
     [
+      name: %{
+        type_doc: "`t:String.t/0`",
+        doc:
+          "Name of the snapshot to store in the snapshot folder corresponding to this test. Generates sequential names if not specified.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).",
+          "The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With `:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the configuration of `PlaywrightEx.Expect`).",
         since: nil,
         spec: quote(do: String.t())
       },

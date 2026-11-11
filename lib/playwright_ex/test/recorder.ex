@@ -536,26 +536,31 @@ defmodule PlaywrightEx.Test.Recorder do
   appends the project: modules of a file, or parameter sets, may share a test name.
   """
   def output_dir(root, file, name, module, parameters) do
-    cwd = File.cwd!()
-    file = Path.expand(file)
-    test_dir = Path.join(cwd, "test")
-
     relative =
-      if String.starts_with?(file, test_dir <> "/"),
-        do: Path.relative_to(file, test_dir),
-        else: Path.relative_to(file, cwd)
+      file |> relative_test_file() |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
 
-    relative = relative |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
-    name = trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(name))
+    name = trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(name), 60)
 
     Path.join(root, name <> "-" <> short_hash(:erlang.term_to_binary({module, parameters}, [:deterministic])))
+  end
+
+  @doc "Upstream's `testDir`: `test/` of the working directory."
+  def test_dir, do: Path.join(File.cwd!(), "test")
+
+  @doc "A test file relative to `test_dir/0` (upstream's `path.relative(testDir, file)`), else to the working directory."
+  def relative_test_file(file) do
+    file = Path.expand(file)
+
+    if String.starts_with?(file, test_dir() <> "/"),
+      do: Path.relative_to(file, test_dir()),
+      else: Path.relative_to(file, File.cwd!())
   end
 
   @doc "Upstream's `sanitizeForFilePath`."
   def sanitize_for_file_path(s), do: Regex.replace(~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, s, "-")
 
-  @doc "Upstream's `trimLongString`, at `windowsFilesystemFriendlyLength` (60)."
-  def trim_long_string(s, length \\ 60) do
+  @doc "Upstream's `trimLongString` (`windowsFilesystemFriendlyLength` is 60)."
+  def trim_long_string(s, length \\ 100) do
     if String.length(s) <= length do
       s
     else

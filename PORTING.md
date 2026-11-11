@@ -32,7 +32,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
   Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
-- Deviate only where the port requires it: the OTP runtime, no testInfo, Elixir's public API.
+- Deviate only where the port requires it: the OTP runtime, testInfo only in a `PlaywrightEx.Test`
+  test (`PlaywrightEx.Test.TestInfo`), Elixir's public API.
   Check upstream at the pin before handling an edge case. If its client has the same behaviour,
   keep that, even when it looks wrong, and don't add a special case for it: every deviation is
   carried through each version bump. If it matters, report it upstream and list it under "Upstream

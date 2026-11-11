@@ -140,6 +140,25 @@ end
 assert_expect(fn -> Expect.to_have_text!(Page.get_by_role(page, :status), "Saved") end)
 ```
 
+## Snapshots
+
+In a test, `Expect.to_have_screenshot!/2` and `Expect.to_match_aria_snapshot!/3` take a `name:`
+that resolves next to the test file, as in Playwright Test:
+
+```elixir
+Expect.to_have_screenshot!(page, name: "home.png")
+# test/sign_up_test.exs-snapshots/home-linux.png (the suffix is the platform)
+Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
+# test/sign_up_test.exs-snapshots/signs-up-1.aria.yml (no name: the test's name and count)
+```
+
+A missing snapshot is written, and fails the test once its body has run, so CI catches a
+snapshot nobody committed; ExUnit reports all of the test's errors. `snapshot_dir` and
+`snapshot_path_template` (Playwright Test's `snapshotDir`, `snapshotPathTemplate`) move them,
+`snapshot_path(ctx, "home.png", kind: :screenshot)` returns a path, and `update_snapshots` in
+`config :playwright_ex, :expect` (`:all`, `:changed`, `:missing`, `:none`) rewrites them. A
+failed comparison leaves `-actual` and `-diff` images in the test's dir under `test-results/`.
+
 ## Logging in once
 
 Log in once per module and start each context from the saved cookies and local storage:

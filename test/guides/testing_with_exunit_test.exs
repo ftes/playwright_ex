@@ -286,6 +286,35 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
+  # "Snapshots", with `snapshot_dir` in a temporary dir. Not async: it sets the config.
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
+
+  alias PlaywrightEx.Test.TestInfo
+
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    config = Application.get_env(:playwright_ex, :test)
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :snapshot_dir, tmp_dir))
+    on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+  end
+
+  test "signs up", %{page: page, tmp_dir: tmp_dir} = ctx do
+    Page.goto!(page, "/sign-up")
+    Expect.to_have_screenshot!(page, name: "home.png")
+    Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
+
+    platform = Atom.to_string(elem(:os.type(), 1))
+    dir = Path.join(tmp_dir, "guides/testing_with_exunit_test.exs-snapshots")
+    assert snapshot_path(ctx, "home.png", kind: :screenshot) == Path.join(dir, "home-#{platform}.png")
+    assert File.exists?(Path.join(dir, "home-#{platform}.png"))
+    assert File.exists?(Path.join(dir, "signs-up-1.aria.yml"))
+    # Both written snapshots would fail the test at its end: taken here.
+    assert [{:error, %RuntimeError{}, _}, {:error, %RuntimeError{}, _}] = TestInfo.take_errors(self())
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.IsolatedTest do
   # "Isolated modules".
   use ExUnit.Case, async: true

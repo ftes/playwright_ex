@@ -17,7 +17,11 @@ those of the release candidates below. From an earlier release, also read the se
   traces, screenshots and videos of every context a test creates (`record_artifacts/2`, with
   Playwright Test's modes and their options), kept for failures, plus Playwright Test's
   `error-context.md` of each failed test. `use PlaywrightEx.Test` after `use ExUnit.Case` brings
-  a `test` macro that tells the fragments each test's result. See the
+  a `test` macro that tells the fragments each test's result. In a test, the snapshot matchers
+  take upstream's `name:` (or none), resolved by Playwright Test's path templates
+  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/3`) with their `-actual` and `-diff`
+  files in the test's output dir, and a snapshot they write fails the test at the end of its
+  body, with all its errors reported. See the
   [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Fixed

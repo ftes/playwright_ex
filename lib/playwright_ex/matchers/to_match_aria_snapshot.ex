@@ -1,13 +1,14 @@
 defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   @upstream "packages/playwright/src/matchers/toMatchAriaSnapshot.ts"
   @moduledoc """
-  Port of `#{@upstream}`: `expected` is a string (inline) or nil with the `path` option (a file).
+  Port of `#{@upstream}`: `expected` is a string (inline), or nil with the options as
+  `expectedParam`'s object form (`name`, which `testInfo`, the running `PlaywrightEx.Test` test,
+  resolves).
 
-  Deviations (architecture: Generated facade): there is no test runner, so the snapshot file is the
-  explicit `path` option instead of a `name` that `testInfo` resolves. `updateSnapshots` comes from
-  the expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
-  (`"default"`) is printed, not recorded, so the matcher passes after writing it.
-  A returned `suggestedRebaseline` fails the matcher with it (`PlaywrightEx.Matchers.Expect`).
+  Deviations (architecture: Generated facade): the `path` option is the snapshot file in place of
+  a `name`, also outside a test. `updateSnapshots` comes from the expect configuration
+  (`PlaywrightEx.Matchers.Expect`). A returned `suggestedRebaseline` fails the matcher with it
+  (`PlaywrightEx.Matchers.Expect`).
   """
 
   alias PlaywrightEx.Client.Frame
@@ -16,6 +17,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Matchers.Expect
   alias PlaywrightEx.Matchers.MatcherHint
+  alias PlaywrightEx.Test.TestInfo
 
   @k_impossible_aria_match ~s(- none "Generating new baseline")
 
@@ -25,24 +27,52 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshot do
     MatcherHint.expect_types(receiver, ["Page", "Locator"], matcher_name)
     locator = if is_struct(receiver, PlaywrightEx.Locator), do: receiver
 
-    # const testInfo = expectConfig().testInfo; if (!testInfo) throw ...  -- not ported: no test runner (the path option)
+    test_info = Expect.expect_config().testInfo
+
+    # deviation: upstream throws "toMatchAriaSnapshot() must be called during the test" without
+    # `testInfo`; an inline snapshot or the path option works outside a test.
 
     if Expect.expect_config()[:ignoreSnapshots] do
       %{pass: !this.isNot, message: fn -> "" end, name: "toMatchAriaSnapshot", expected: ""}
     else
       update_snapshots = Expect.expect_config()[:updateSnapshots]
 
+      # `expectedParam`'s object form is the options map, with `name` or (deviation) `path`.
+      {name, options} = Map.pop(options, :name)
       {expected_path, options} = Map.pop(options, :path)
       timeout = if options[:timeout] == nil, do: this.timeout, else: options.timeout
 
       if expected_param != nil and expected_path,
         do: raise("#{matcher_name}() takes the expected snapshot or the path option, not both")
 
-      if !is_binary(expected_param) and !is_binary(expected_path),
+      if expected_param != nil and name,
+        do: raise("#{matcher_name}() takes the expected snapshot or the name option, not both")
+
+      if name && expected_path, do: raise("#{matcher_name}() takes the name or the path option, not both")
+
+      if !is_binary(expected_param) and !is_binary(expected_path) and !(test_info && expected_param == nil),
         do: raise("#{matcher_name}() requires the expected snapshot or the path option")
 
-      # const legacyPath = testInfo._resolveSnapshotPaths(...); ...  -- the path option
-      expected_path = expected_path && Path.expand(expected_path)
+      expected_path =
+        cond do
+          is_binary(expected_param) ->
+            nil
+
+          # deviation: the path option is the snapshot file.
+          expected_path ->
+            Path.expand(expected_path)
+
+          true ->
+            legacy_path =
+              TestInfo._resolve_snapshot_paths(test_info, "aria", name, "dontUpdateSnapshotIndex", ".yml").absoluteSnapshotPath
+
+            expected_path =
+              TestInfo._resolve_snapshot_paths(test_info, "aria", name, "updateSnapshotIndex").absoluteSnapshotPath
+
+            # in 1.51, we changed the default template to use .aria.yml extension
+            # for backwards compatibility, we check for the legacy .yml extension
+            if !File.exists?(expected_path) and File.exists?(legacy_path), do: legacy_path, else: expected_path
+        end
 
       expected =
         if is_binary(expected_param) do

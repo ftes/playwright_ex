@@ -84,10 +84,11 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, Playwright Test and its testInfo (`toPass`, `expect.poll`, soft
-  asserts, jest matchers); `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner).
+  serialization, the inspector, Playwright Test (`toPass`, `expect.poll`, `expect.soft`, jest
+  matchers); `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner), whose tests give
+  the matchers a `testInfo` for snapshot names and soft errors.
   `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
-  explicit path in place of `testInfo`.
+  explicit path in place of a `name`, also outside a test.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
   `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright_ex.cli`). Per-call client
@@ -307,8 +308,16 @@ Our page specs at 18 modules at once time out by the hundreds on one shared Fire
 on 4. So `isolate: true` is the fix on Firefox (our suite isolates every module there), and a
 `pool_size` is deferred, as Firefox needs about a browser per module.
 
-Rejected: porting Playwright Test, testInfo's expect (`toPass`, `expect.poll`, soft asserts,
-steps), a CaseTemplate (fragments compose with the user's own), options from tags (a template
+The matchers' `testInfo` is the running test, found by the calling process or its `$callers`
+(upstream's worker sets it per test): it resolves snapshot names by upstream's path templates
+and keeps the test's errors, a matcher result's `softError` (a snapshot it wrote). The `test`
+macro's mark raises them at the end of the body, one as itself and several as an
+`ExUnit.MultiError` (with a later failure too), which ExUnit 1.18 to 1.20 report as numbered
+failures; a test without them fails as before. A matcher outside a test (no `testInfo`) prints
+the soft error, as before.
+
+Rejected: porting Playwright Test, `toPass`, `expect.poll`, `expect.soft` (no `createExpect`:
+it would be an Elixir-only receiver wrapper and a change to every generated matcher), a CaseTemplate (fragments compose with the user's own), options from tags (a template
 maps its own), and a driver per module by default.
 
 ## Mirroring upstream specs

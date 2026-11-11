@@ -4,12 +4,12 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
   Port of `#{@upstream}`: `toHaveScreenshot`. `this` is the matcher state
   (`PlaywrightEx.Matchers.Expect`), options are maps with the JS keys.
 
-  Deviations (architecture: Generated facade): there is no test runner, so the snapshot is the
-  explicit `path` option instead of a `name` that `testInfo` resolves, and the `-actual`, `-diff`,
-  `-previous` and `-expected` output files are written next to it. `updateSnapshots` comes from the
-  expect configuration (`PlaywrightEx.Matchers.Expect`); the `softError` of a missing snapshot
-  (`"default"`) is printed, not recorded, so the matcher passes after writing it. Stabilization
-  and comparison stay on the server (`Page._expectScreenshot`).
+  `testInfo` is the running `PlaywrightEx.Test` test (`PlaywrightEx.Matchers.Expect`), which
+  resolves the `name` option and holds the `-actual`, `-diff`, `-previous` and `-expected` output
+  files. Deviations (architecture: Generated facade): the `path` option is the snapshot in place
+  of a `name`, also outside a test, with the output files next to it. `updateSnapshots` comes
+  from the expect configuration (`PlaywrightEx.Matchers.Expect`). Stabilization and comparison
+  stay on the server (`Page._expectScreenshot`).
   """
 
   alias PlaywrightEx.Client.Locator
@@ -24,6 +24,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
     alias PlaywrightEx.Isomorphic.MimeType
     alias PlaywrightEx.Matchers.Expect
     alias PlaywrightEx.Matchers.MatcherHint
+    alias PlaywrightEx.Test.TestInfo
 
     # NonConfigProperties: the ToHaveScreenshotOptions that are not ToHaveScreenshotConfigOptions.
     @non_config_properties [:clip, :fullPage, :mask, :maskColor, :omitBackground, :signal]
@@ -45,18 +46,35 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
       :state
     ]
 
-    # `testInfo`, `anonymousSnapshotExtension` and `nameOrOptions` are replaced by the `path` option.
-    def new(state, matcher_name, locator, config_options, options) do
+    # `nameOrOptions` is the options map, with `name` (as upstream's object form) or `path`.
+    def new(state, test_info, matcher_name, locator, anonymous_snapshot_extension, config_options, options) do
       options = options || %{}
+      {name, options} = Map.pop(options, :name)
+      # deviation: the `path` option, in place of a `name` that `testInfo` resolves.
       {expected_path, options} = Map.pop(options, :path)
-      if !is_binary(expected_path), do: raise("#{matcher_name}() requires the path option")
 
-      # this.name = ...; const resolvedPaths = testInfo._resolveSnapshotPaths(...);  -- the path option
-      expected_path = Path.expand(expected_path)
-      attachment_base_name = Path.basename(expected_path)
+      if name != nil and expected_path != nil,
+        do: raise("#{matcher_name}() takes the name or the path option, not both")
 
-      # const outputBasePath = testInfo._getOutputPath(resolvedPaths.relativeOutputPath);  -- next to the snapshot
-      output_base_path = expected_path
+      if (expected_path != nil and !is_binary(expected_path)) or (expected_path == nil and test_info == nil),
+        do: raise("#{matcher_name}() requires the path option")
+
+      {name, expected_path, attachment_base_name, output_base_path} =
+        if expected_path do
+          # deviation: the path option is the snapshot, its outputs are written next to it.
+          expected_path = Path.expand(expected_path)
+          {"", expected_path, Path.basename(expected_path), expected_path}
+        else
+          kind = if matcher_name == "toHaveScreenshot", do: "screenshot", else: "snapshot"
+
+          resolved_paths =
+            TestInfo._resolve_snapshot_paths(test_info, kind, name, "updateSnapshotIndex", anonymous_snapshot_extension)
+
+          output_base_path = TestInfo._get_output_path(test_info, [resolved_paths.relativeOutputPath])
+
+          {if(is_list(name), do: Path.join(name), else: name || ""), resolved_paths.absoluteSnapshotPath,
+           resolved_paths.relativeOutputPath, output_base_path}
+        end
 
       filtered_config_options = Map.drop(config_options, @non_config_properties)
       options = Map.merge(filtered_config_options, options)
@@ -78,7 +96,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
       # this.comparator = getComparator(this.mimeType);  -- not ported: comparison stays on the server
 
       %__MODULE__{
-        name: "",
+        name: name,
         expectedPath: expected_path,
         attachmentBaseName: attachment_base_name,
         legacyExpectedPath: add_suffix_to_file_path(output_base_path, "-expected"),
@@ -236,10 +254,13 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
 
   def to_have_screenshot(this, page_or_locator, options \\ %{}) do
     options = options || %{}
-    # const testInfo = expectConfig().testInfo; if (!testInfo) throw ...  -- not ported: the path option instead
+    test_info = Expect.expect_config().testInfo
+
+    # deviation: upstream throws "toHaveScreenshot() must be called during the test" without
+    # `testInfo`; the path option works outside a test (`SnapshotHelper.new/7`).
 
     if Expect.expect_config()[:ignoreSnapshots] do
-      %{pass: !this.isNot, message: fn -> "" end, name: "toHaveScreenshot", expected: options[:path]}
+      %{pass: !this.isNot, message: fn -> "" end, name: "toHaveScreenshot", expected: options[:name] || options[:path]}
     else
       MatcherHint.expect_types(page_or_locator, ["Page", "Locator"], "toHaveScreenshot")
 
@@ -249,7 +270,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
           else: {page_or_locator, nil}
 
       config_options = Expect.expect_config()[:toHaveScreenshot] || %{}
-      helper = SnapshotHelper.new(this, "toHaveScreenshot", locator, config_options, options)
+      helper = SnapshotHelper.new(this, test_info, "toHaveScreenshot", locator, nil, config_options, options)
       screenshot_type = %{"image/png" => "png", "image/webp" => "webp"}[helper.mimeType]
 
       if !screenshot_type,

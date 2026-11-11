@@ -10,6 +10,8 @@
 #     one with no browser; prints the pool after the run: `(report=>%{...})`.
 #   * `max_failures` - `max_failures: 1`, an isolated module running when another fails; prints
 #     the pool after the run.
+#   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
+#     output dir), one of them failing after that.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -21,6 +23,7 @@ Logger.configure(level: :info)
 Application.put_env(:playwright_ex, :test,
   browser_name: String.to_atom(browser_name),
   output_dir: output_dir,
+  snapshot_dir: Path.join(Path.dirname(output_dir), "snapshots"),
   trace: :retain_on_failure,
   screenshot: :only_on_failure,
   workers: 8
@@ -198,6 +201,35 @@ case mode do
 
       test "fails once the other module runs" do
         Report.await(:isolated)
+        flunk("on purpose")
+      end
+    end
+
+  "soft_errors" ->
+    defmodule SoftErrorsTest do
+      use ExUnit.Case, async: true
+      use PlaywrightEx.Test
+
+      alias PlaywrightEx.Expect
+      alias PlaywrightEx.Page
+
+      setup_all :browser
+      setup [:new_context, :new_page]
+
+      test "writes a snapshot", %{page: page} do
+        Page.set_content!(page, "<h1>One</h1>")
+        Expect.to_match_aria_snapshot!(page)
+      end
+
+      test "writes two", %{page: page} do
+        Page.set_content!(page, "<h1>Two</h1>")
+        Expect.to_match_aria_snapshot!(page, name: "two.aria.yml")
+        Task.await(Task.async(fn -> Expect.to_have_screenshot!(page, name: "two.png") end))
+      end
+
+      test "fails after writing one", %{page: page} do
+        Page.set_content!(page, "<h1>Three</h1>")
+        Expect.to_match_aria_snapshot!(page)
         flunk("on purpose")
       end
     end

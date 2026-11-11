@@ -71,8 +71,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `not_` (`"negate"`: the receiver classes), as `and_`/`or_`, Java's `not()`: it wraps the
       receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
       Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
-      `toHaveScreenshot` takes the snapshot file as a `path` option instead of the `name` that
-      the test runner resolves (`to_have_screenshot(page, path: "home.png")`), as does
+      `toHaveScreenshot` takes `name` as an option, which a `PlaywrightEx.Test` test resolves, or
+      the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
       `toMatchAriaSnapshot`, in place of `expected` (`to_match_aria_snapshot(page, path: "a.aria.yml")`).
       Their option docs
       name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
@@ -457,25 +457,47 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp expect_config_doc(node) when is_map(node), do: Map.new(node, fn {k, v} -> {k, expect_config_doc(v)} end)
   defp expect_config_doc(value), do: value
 
-  # `toHaveScreenshot(name, options)`: no test runner resolves `name`, `path` is an option.
+  # `toHaveScreenshot(name, options)`: `name` is an option (the object form `{ name }` of
+  # upstream's `nameOrOptions`), and `path` its stand-in outside a `PlaywrightEx.Test` test.
   defp snapshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do
     [%{"name" => "name"} = name, %{"name" => "options"} = options] = args
+
+    name_option =
+      Map.merge(name, %{
+        "alias" => "name",
+        "required" => false,
+        "spec" =>
+          name["spec"] ++
+            [
+              %{
+                "type" => "text",
+                "text" =>
+                  "In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see \"Snapshots\" in its " <>
+                    "docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the " <>
+                    "`-actual`, `-diff` and `-previous` images are written to the test's output dir."
+              }
+            ]
+      })
 
     path =
       path_option(
         name,
-        "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
-          "corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` " <>
-          "in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and " <>
-          "`-previous` images are written next to it."
+        "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` " <>
+          "or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of " <>
+          "`PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it."
       )
 
-    options = update_in(options, ["type", "properties"], &[path | &1])
+    options = update_in(options, ["type", "properties"], &[name_option, path | &1])
 
     usage = %{
       "type" => "code",
       "codeLang" => "elixir",
-      "lines" => [~s{Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")}]
+      "lines" => [
+        ~s{Expect.to_have_screenshot!(page, name: "image.png")},
+        "",
+        "# Outside a PlaywrightEx.Test test",
+        ~s{Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")}
+      ]
     }
 
     spec =
@@ -486,25 +508,54 @@ defmodule Mix.PlaywrightEx.ApiRules do
     {%{member | "spec" => spec}, [options]}
   end
 
-  # `toMatchAriaSnapshot(options)`: the overload that reads a file, whose `name` no test runner resolves.
+  # `toMatchAriaSnapshot(options)`: the overload that reads a file, its `name` an option, and
+  # `path` its stand-in outside a `PlaywrightEx.Test` test.
   defp snapshot_path(%{"alias" => "toMatchAriaSnapshot"} = member, args) do
     [%{"name" => "expected"} = expected, %{"name" => "options"} = options] = args
+
+    name =
+      Map.merge(expected, %{
+        "name" => "name",
+        "alias" => "name",
+        "required" => false,
+        "type" => %{"expression" => "[string]", "name" => "string"},
+        "spec" => [
+          %{
+            "type" => "text",
+            "text" =>
+              "Name of the snapshot to store in the snapshot folder corresponding to this test. Generates " <>
+                "sequential names if not specified."
+          },
+          %{
+            "type" => "text",
+            "text" =>
+              "In Elixir, in place of `expected`: a test of `PlaywrightEx.Test` resolves it to a file (see " <>
+                "\"Snapshots\" in its docs), and with neither `expected`, `:name` nor `:path` names the snapshot " <>
+                "after the test."
+          }
+        ]
+      })
 
     path =
       path_option(
         expected,
-        "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is " <>
-          "written, unless `:update_snapshots` is `:none` or the matcher is negated. With " <>
+        "The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing " <>
+          "snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With " <>
           "`:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the " <>
           "configuration of `PlaywrightEx.Expect`)."
       )
 
-    options = update_in(options, ["type", "properties"], &[path | &1])
+    options = update_in(options, ["type", "properties"], &[name, path | &1])
 
     usage = %{
       "type" => "code",
       "codeLang" => "elixir",
-      "lines" => [~s{Expect.to_match_aria_snapshot!(page, path: "test/snapshots/body.aria.yml")}]
+      "lines" => [
+        ~s{Expect.to_match_aria_snapshot!(page, name: "body.aria.yml")},
+        "",
+        "# Outside a PlaywrightEx.Test test",
+        ~s{Expect.to_match_aria_snapshot!(page, path: "test/snapshots/body.aria.yml")}
+      ]
     }
 
     {Map.update!(member, "spec", &(&1 ++ [usage])), [%{expected | "required" => false}, options]}

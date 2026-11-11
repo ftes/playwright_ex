@@ -33,7 +33,7 @@ defmodule PlaywrightEx.Test.Pool do
   # A marked test that raised nothing in its body and did not pass.
   @outside "The test failed outside its body (setup, context pattern or a linked process); see ExUnit's output."
 
-  @doc "`PlaywrightEx.Test`'s table (public, owned here): recorder and context rows."
+  @doc "`PlaywrightEx.Test`'s table (public, owned here): recorder, context and test info rows."
   def table, do: __MODULE__
 
   @doc "The failure of a test whose process was killed."
@@ -235,6 +235,8 @@ defmodule PlaywrightEx.Test.Pool do
   def handle_info(_message, state), do: {:noreply, state}
 
   defp test_ended(state, pid, test, reason) do
+    # Its `PlaywrightEx.Test.TestInfo` rows.
+    :ets.match_delete(table(), {{:test_info, pid, :_}, :_})
     {verdict, failures} = verdict(test, pid, reason)
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
     outcome = fn previous -> if verdict == :passed and previous != :failed, do: :passed, else: :failed end

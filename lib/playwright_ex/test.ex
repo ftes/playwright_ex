@@ -96,6 +96,32 @@ defmodule PlaywrightEx.Test do
   also gets concurrent tests' stacks and sources: the driver adds every call's stack to each
   trace on the connection. `record_artifacts/2` filters its own; yours needs `isolate: true`.
 
+  ## Snapshots
+
+  In a test (its process, or a process with it in `$callers`), `PlaywrightEx.Expect.to_have_screenshot/2`
+  and `PlaywrightEx.Expect.to_match_aria_snapshot/3` take upstream's `name:` and resolve it as
+  `testInfo` does, by upstream's default templates:
+
+    * screenshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`,
+      `test/checkout_test.exs-snapshots/home-darwin.png` for `name: "home.png"` in
+      `test/checkout_test.exs`.
+    * aria snapshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}`.
+
+  Without a name, a snapshot is named after the test and its count in the test (`pays-1.png`).
+  A name is sanitized for the file system, a list of path segments is not. `snapshot_dir` is
+  `test/` by default; `snapshot_path_template` (or the matcher's `pathTemplate` in `config
+  :playwright_ex, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
+  `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
+  `{arg}`, `{ext}`, `{platform}`, `{snapshotSuffix}` (the platform, as upstream's) and
+  `{projectName}`, which is empty: there are no projects. `snapshot_path/3` returns a name's path.
+  A failed comparison writes its `-actual`, `-diff` and `-expected` images to the test's output
+  dir.
+
+  A snapshot the matcher writes (a missing one, under the default `update_snapshots`) fails the
+  test at the end of its body, as upstream's soft error: the rest of the body runs, and ExUnit
+  reports all of the test's errors, also when another failure follows. `path:` in place of
+  `name:` is the snapshot file itself, also outside a test, where a written snapshot is printed.
+
   ## Config
 
       config :playwright_ex, :test,
@@ -108,7 +134,9 @@ defmodule PlaywrightEx.Test do
         screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
         output_dir: "test-results",
-        workers: max(div(System.schedulers_online(), 2), 1)
+        workers: max(div(System.schedulers_online(), 2), 1),
+        snapshot_dir: "test",
+        snapshot_path_template: nil   # upstream's defaults, see Snapshots
 
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
@@ -120,6 +148,7 @@ defmodule PlaywrightEx.Test do
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.TestInfo
 
   # `{recorder, screenshot mode}`, once the test process called `record_artifacts/2`.
   @recording {__MODULE__, :recording}
@@ -153,7 +182,9 @@ defmodule PlaywrightEx.Test do
             new_context: 1,
             new_context: 2,
             new_page: 1,
-            output_path: 2
+            output_path: 2,
+            snapshot_path: 2,
+            snapshot_path: 3
           ]
 
         @doc false
@@ -167,8 +198,10 @@ defmodule PlaywrightEx.Test do
 
   @doc """
   `ExUnit.Case.test/3`, with the end of the body marked: the test passed if its process then
-  exits as ExUnit ends a test. A `catch` notes an error for `error-context.md` and re-raises it
-  unchanged, so ExUnit reports the failure as without this macro.
+  exits as ExUnit ends a test, and fails there with the errors its matchers recorded (see
+  "Snapshots" in the moduledoc). A `catch` notes an error for `error-context.md` and re-raises it
+  unchanged, so ExUnit reports the failure as without this macro (with the recorded errors
+  before it, if any).
   """
   defmacro test(message, var \\ quote(do: _), contents) do
     block =
@@ -191,8 +224,8 @@ defmodule PlaywrightEx.Test do
     failed =
       quote do
         kind, reason ->
-          PlaywrightEx.Test.__failed__(kind, reason, __STACKTRACE__)
-          :erlang.raise(kind, reason, __STACKTRACE__)
+          {kind, reason, stacktrace} = PlaywrightEx.Test.__failed__(kind, reason, __STACKTRACE__)
+          :erlang.raise(kind, reason, stacktrace)
       end
 
     # ExUnit's breakpoints break the `catch` clauses (they are annotated as a block).
@@ -221,20 +254,48 @@ defmodule PlaywrightEx.Test do
   @doc false
   def __setup__(context) do
     watch(context)
+    if context[:playwright_ex] == :marked, do: TestInfo.start(context)
     :ok
   end
 
+  # The end of the body: the test fails with the errors its matchers recorded (upstream's
+  # `testInfo.errors`), raised as ExUnit reports them, so they reach `__failed__/3`.
   @doc false
   def __passed__ do
-    Pool.notify({:passed, self()})
-    finished_test_function(false)
+    case TestInfo.finish(self()) do
+      [] ->
+        Pool.notify({:passed, self()})
+        finished_test_function(false)
+
+      [{kind, reason, stacktrace}] ->
+        :erlang.raise(kind, reason, stacktrace)
+
+      errors ->
+        raise ExUnit.MultiError, errors: errors
+    end
   end
 
+  # Returns the error to raise: the test's recorded errors before this one, all reported, or
+  # this one as it is.
   @doc false
   def __failed__(kind, reason, stacktrace) do
-    Pool.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
+    error =
+      case TestInfo.finish(self()) do
+        [] -> {kind, reason, stacktrace}
+        errors -> {:error, %ExUnit.MultiError{errors: errors ++ errors(kind, reason, stacktrace)}, stacktrace}
+      end
+
+    for {kind, reason, stacktrace} <- errors(error),
+        do: Pool.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
+
     finished_test_function(true)
+    error
   end
+
+  # Each error of an `ExUnit.MultiError` (upstream's `_failWithError` visits an error's `errors`).
+  defp errors({kind, reason, stacktrace}), do: errors(kind, reason, stacktrace)
+  defp errors(:error, %ExUnit.MultiError{errors: errors}, _stacktrace), do: errors
+  defp errors(kind, reason, stacktrace), do: [{kind, reason, stacktrace}]
 
   # `didFinishTestFunction`: screenshots of the open pages, before the `on_exit` callbacks.
   defp finished_test_function(failed?) do
@@ -392,6 +453,22 @@ defmodule PlaywrightEx.Test do
       :error ->
         raise ArgumentError, "output_path is not allowed outside of the output dir, got: #{inspect(name)}"
     end
+  end
+
+  @doc """
+  The snapshot path of `name` for the test, as upstream's `testInfo.snapshotPath`: where
+  `PlaywrightEx.Expect.to_have_screenshot/2` (`kind: :screenshot`) and
+  `PlaywrightEx.Expect.to_match_aria_snapshot/3` (`kind: :aria`) with `name:` read and write it
+  (see "Snapshots" in the moduledoc). `name` is a string, or a list of path segments. Option
+  `:kind`: `:snapshot` (default, upstream's), `:screenshot` or `:aria`. The context map needs
+  `module`, `test`, `file` and `test_pid`.
+  """
+  @spec snapshot_path(map(), String.t() | [String.t()], keyword()) :: Path.t()
+  def snapshot_path(context, name, options \\ []) when is_map(context) do
+    for key <- [:module, :test, :file, :test_pid], do: fetch!(context, key)
+    {kind, options} = Keyword.pop(options, :kind, :snapshot)
+    if options != [], do: raise(ArgumentError, "unknown options #{inspect(Keyword.keys(options))}, expected [:kind]")
+    TestInfo.snapshot_path(TestInfo.new(context), name, to_string(kind))
   end
 
   @doc "A page of `context.context`, for `setup`: returns `page`."

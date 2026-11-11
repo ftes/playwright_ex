@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Test.Options do
   @browser_keys [:browser_name, :launch_options, :driver, :on_start, :isolate]
   @artifact_keys [:trace, :screenshot, :video]
   @context_keys [:context_options]
-  @config_only_keys [:output_dir, :workers]
+  @config_only_keys [:output_dir, :workers, :snapshot_dir, :snapshot_path_template]
   @config_keys (@browser_keys -- [:isolate]) ++ @artifact_keys ++ @context_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
@@ -42,6 +42,12 @@ defmodule PlaywrightEx.Test.Options do
 
   @doc "How many isolated drivers may run at once (config `workers`)."
   def workers, do: config()[:workers]
+
+  @doc "The snapshot dir (config `snapshot_dir`, default `nil`: upstream's `testDir`)."
+  def snapshot_dir, do: config()[:snapshot_dir]
+
+  @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
+  def snapshot_path_template, do: config()[:snapshot_path_template]
 
   defp merge(keys, opts) do
     if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
@@ -94,7 +100,9 @@ defmodule PlaywrightEx.Test.Options do
       video: :off,
       context_options: [],
       output_dir: "test-results",
-      workers: max(div(System.schedulers_online(), 2), 1)
+      workers: max(div(System.schedulers_online(), 2), 1),
+      snapshot_dir: nil,
+      snapshot_path_template: nil
     }
   end
 
@@ -129,6 +137,11 @@ defmodule PlaywrightEx.Test.Options do
     do: artifact!(key, to_keyword(key, options))
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
+
+  defp validate!(key, value)
+       when key in [:snapshot_dir, :snapshot_path_template] and (value == nil or is_binary(value)),
+       do: value
+
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   defp validate!(key, value), do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}")
 
