@@ -186,8 +186,7 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # Upstream's sources at the pin (PlaywrightEx.Upstream), for --add-dir below. Allowed to fail,
-      # as on a branch that doesn't compile: Claude then runs without them.
+      # May fail on a branch that doesn't compile; Claude then runs without them.
       - name: Download upstream sources
         continue-on-error: true
         run: mkdir -p ~/.cache/playwright_ex && mix playwright_ex.upstream

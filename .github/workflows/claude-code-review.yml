@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # As in elixir.yml, whose cache is restored below.
+  # As in elixir.yml.
   MIX_ENV: test
 
 jobs:
@@ -35,28 +35,10 @@ jobs:
 
       - name: Setup languages
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - name: Get runner image
-        id: runner_image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      # Main's, saved by elixir.yml's build job under this key, so only the PR's changes compile.
-      - name: Restore deps and _build
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
-          restore-keys: |
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
-          path: |
-            deps
-            _build
-      # deps for `mix usage_rules.docs`, and upstream's sources at the pin (PlaywrightEx.Upstream)
-      # for --add-dir below. Allowed to fail, as on a PR that doesn't compile: the review then runs
-      # without them.
+      # May fail on a branch that doesn't compile; Claude then runs without them.
       - name: Install dependencies and upstream sources
         continue-on-error: true
-        run: |
-          mkdir -p ~/.cache/playwright_ex
-          mix "do" deps.get, deps.compile, playwright_ex.upstream
+        run: mkdir -p ~/.cache/playwright_ex && mix "do" deps.get, deps.compile, playwright_ex.upstream
 
       - name: Run Claude Code Review
         id: claude
@@ -83,12 +65,10 @@ jobs:
             4. Verify each candidate before reporting: trace the code path and state the concrete
                input or scenario that fails. Drop anything you cannot substantiate, and skip
                style, naming and formatting nits.
-               Ported code (`@upstream "<path>"`) marks only its deviations, so unmarked statements
-               match upstream's client: check them against that file in upstream's sources at the
-               pin, under ~/.cache/playwright_ex/<version>/upstream (client, server, injected
-               script, specs, API docs). An edge case they share with upstream is not a defect of
-               this PR: don't suggest a special case for it. Do flag a new deviation nothing
-               requires. Dependencies are in deps/; `mix usage_rules.docs` shows their docs.
+               Ported code (`@upstream`) marks only its deviations, so unmarked statements match
+               upstream's client, under ~/.cache/playwright_ex/<version>/upstream at the pin. An
+               edge case they share with upstream is not a defect of this PR: don't suggest a
+               special case for it. Do flag a new deviation nothing requires.
             5. Don't repeat findings already posted on this PR
                (`gh api repos/REPO/pulls/PR/comments`, `gh pr view PR --comments`).
 
@@ -97,22 +77,14 @@ jobs:
             scenario and a suggested fix. Then post or update one summary comment with
             `gh pr comment PR --edit-last --create-if-none --body-file <file>`: a few sentences on
             what you checked and the most important findings, or why you found nothing.
-          # --add-dir: the driver cache holding the upstream sources (PlaywrightEx.Upstream).
           claude_args: |
             --model claude-opus-5-5
             --max-turns 80
             --add-dir /home/runner/.cache/playwright_ex
-            --allowedTools "Read,Grep,Glob,Agent,Task,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright_ex.parity:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*),mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Read,Grep,Glob,Agent,Task,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*),mcp__github_inline_comment__create_inline_comment"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # Only the final message and each denied call's command, path or URL: this repo is public,
-        # and the full transcript can contain secrets.
-        run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo).
+        run: jq -rf .github/claude-summary.jq "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
