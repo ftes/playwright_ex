@@ -8,7 +8,7 @@ defmodule PlaywrightEx.Test.Options do
   @browser_keys [:browser_name, :launch_options, :driver, :on_start, :isolate]
   @artifact_keys [:trace, :screenshot, :video]
   @context_keys [:context_options]
-  @config_only_keys [:output_dir, :max_isolated]
+  @config_only_keys [:output_dir, :max_isolated, :error_context]
   @config_keys (@browser_keys -- [:isolate]) ++ @artifact_keys ++ @context_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
@@ -87,7 +87,8 @@ defmodule PlaywrightEx.Test.Options do
       video: :off,
       context_options: [],
       output_dir: "test-results",
-      max_isolated: max(div(System.schedulers_online(), 2), 1)
+      max_isolated: max(div(System.schedulers_online(), 2), 1),
+      error_context: true
     }
   end
 
@@ -113,7 +114,7 @@ defmodule PlaywrightEx.Test.Options do
   defp validate!(:on_start, nil), do: nil
   defp validate!(:on_start, fun) when is_function(fun, 1), do: fun
   defp validate!(:on_start, {m, f, a} = mfa) when is_atom(m) and is_atom(f) and is_list(a), do: mfa
-  defp validate!(:isolate, isolate) when is_boolean(isolate), do: isolate
+  defp validate!(key, value) when key in [:isolate, :error_context] and is_boolean(value), do: value
   defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode) and mode != nil, do: mode!(key, mode)
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:max_isolated, max) when is_integer(max) and max > 0, do: max
@@ -134,14 +135,11 @@ defmodule PlaywrightEx.Test.Options do
   end
 
   @doc """
-  Whether a failed test gets `error-context.md`: with `PlaywrightEx.Test.Formatter`, unless
-  `PLAYWRIGHT_NO_COPY_PROMPT` is set, as upstream's.
+  Whether a failed test gets `error-context.md`: with `PlaywrightEx.Test.Formatter` and config
+  `error_context` (default `true`).
   """
-  def error_context?(
-        formatters \\ ExUnit.configuration()[:formatters] || [],
-        no_copy_prompt \\ System.get_env("PLAYWRIGHT_NO_COPY_PROMPT")
-      ),
-      do: @formatter in formatters and no_copy_prompt in [nil, ""]
+  def error_context?(formatters \\ ExUnit.configuration()[:formatters] || []),
+    do: @formatter in formatters and config()[:error_context]
 
   @doc """
   Raises unless `PlaywrightEx.Test.Formatter` is one of `formatters`, for the options that need

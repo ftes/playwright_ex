@@ -17,10 +17,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     args = ["-pa", ebin, script, output_dir, System.get_env("BROWSER", "chromium"), go]
 
     child =
-      ChildProcess.start(System.find_executable("elixir"), args, %{
-        "PWTEST_UNDER_TEST" => nil,
-        "PLAYWRIGHT_NO_COPY_PROMPT" => nil
-      })
+      ChildProcess.start(System.find_executable("elixir"), args, %{"PWTEST_UNDER_TEST" => nil})
 
     on_exit(fn -> ChildProcess.stop(child) end)
 

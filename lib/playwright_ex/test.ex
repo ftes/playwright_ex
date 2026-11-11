@@ -61,10 +61,10 @@ defmodule PlaywrightEx.Test do
     * `video.webm`, `video-1.webm`, ... - every page's video. A context created with its own
       `record_video` keeps it, and its video is copied here too.
     * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
-      the first page of its first closed context, always on with the formatter unless
-      `PLAYWRIGHT_NO_COPY_PROMPT` is set (upstream's `didFinishTest` and `buildErrorContext`,
-      `packages/playwright/src/index.ts:767-838`, `errorContext.ts`). As `on_exit` doesn't know the
-      result, every test takes the snapshot.
+      the first page of its first closed context, with the formatter (upstream's `didFinishTest`
+      and `buildErrorContext`, `packages/playwright/src/index.ts:767-838`, `errorContext.ts`). As
+      `on_exit` doesn't know the result, every test takes the snapshot. Always on upstream (off
+      with its internal `PLAYWRIGHT_NO_COPY_PROMPT`); here off with config `error_context: false`.
 
   A failing artifact step is logged; the test's result stands. The `*_on_failure` modes record
   every test, and `PlaywrightEx.Test.Formatter` deletes the files of passing ones (not those you
@@ -88,7 +88,8 @@ defmodule PlaywrightEx.Test do
         screenshot: :off,             # :off | :on | :only_on_failure
         video: :off,                  # :off | :on | :retain_on_failure
         output_dir: "test-results",
-        max_isolated: max(div(System.schedulers_online(), 2), 1)
+        max_isolated: max(div(System.schedulers_online(), 2), 1),
+        error_context: true           # error-context.md of failed tests
 
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
   `max_isolated` is half the schedulers, as upstream's default `workers` is half the cores.

@@ -7,7 +7,9 @@ defmodule PlaywrightEx.Test.PoolTest do
   import PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
+  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Recorder
 
   # As ExUnit's `parameterize:` module (its internal config).
   defmodule Parameterized do
@@ -212,6 +214,22 @@ defmodule PlaywrightEx.Test.PoolTest do
 
       for m <- [:module_h, :module_i, :module_j], do: Pool.module_finished({m, %{}}, true)
     end
+  end
+
+  # Config, which the async modules read: here, as this module runs alone.
+  test "config error_context: false takes no page snapshot, and is a boolean", ctx do
+    config = Application.get_env(:playwright_ex, :test)
+    on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+    assert Options.error_context?()
+
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :error_context, false))
+    refute Options.error_context?()
+    # With every artifact off too: no recorder.
+    record_artifacts(ctx)
+    assert Recorder.lookup(self()) == nil
+
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :error_context, 1))
+    assert_raise ArgumentError, ~r/invalid error_context: 1/, fn -> Options.error_context?() end
   end
 
   test "after_suite waits for the drivers being discarded" do

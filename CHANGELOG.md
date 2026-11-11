@@ -15,7 +15,7 @@ those of the release candidates below. From an earlier release, also read the se
   shared browser per set of options or one per module (`isolate: true`), and traces,
   screenshots and videos of every context a test creates (`record_artifacts/2`), kept for
   failures with `PlaywrightEx.Test.Formatter`, which also writes Playwright Test's
-  `error-context.md` of each failed test. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+  `error-context.md` of each failed test (`error_context: false` turns it off). See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Fixed
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).

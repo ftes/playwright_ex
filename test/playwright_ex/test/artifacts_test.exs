@@ -198,7 +198,6 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     Page.set_content!(page, "<h1>AFTER</h1>")
   end
 
-  @tag skip: if(!PlaywrightEx.Test.Options.error_context?(), do: "env: PLAYWRIGHT_NO_COPY_PROMPT")
   test "a test takes one page snapshot for error-context.md, of the first closed context's first page", ctx do
     %{context: one} = new_context(ctx)
     %{context: two} = new_context(ctx)

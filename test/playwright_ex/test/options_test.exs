@@ -60,11 +60,9 @@ defmodule PlaywrightEx.Test.OptionsTest do
       end
     end
 
-    test "error-context.md needs the formatter, and PLAYWRIGHT_NO_COPY_PROMPT turns it off" do
-      assert Options.error_context?([PlaywrightEx.Test.Formatter], nil)
-      assert Options.error_context?([PlaywrightEx.Test.Formatter], "")
-      refute Options.error_context?([ExUnit.CLIFormatter], nil)
-      refute Options.error_context?([PlaywrightEx.Test.Formatter], "1")
+    test "error-context.md needs the formatter" do
+      assert Options.error_context?([PlaywrightEx.Test.Formatter])
+      refute Options.error_context?([ExUnit.CLIFormatter])
     end
 
     test "options that need the formatter say how to add it" do
