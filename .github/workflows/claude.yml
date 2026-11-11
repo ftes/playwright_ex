@@ -43,6 +43,13 @@ jobs:
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
+      - name: Setup languages
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      # On main for a comment, the PR's merge ref for a review; the action then switches to the PR's
+      # branch. May fail on a branch that doesn't compile; Claude then runs without them.
+      - name: Install dependencies and upstream sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright_ex && mix "do" deps.get, deps.compile, playwright_ex.upstream
       # On a fork's PR Claude works in its head, where mix would run the fork's mix.exs with the
       # tokens in reach. Empty, so no mix tools, there and when the lookup fails.
       - name: Allow mix tools unless on a fork's PR
@@ -54,13 +61,6 @@ jobs:
           if [[ -z $PR || $(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository --jq .isCrossRepository) == false ]]; then
             echo "mix=,Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*)" >> "$GITHUB_OUTPUT"
           fi
-      - name: Setup languages
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      # On main for a comment, the PR's merge ref for a review; the action then switches to the PR's
-      # branch. May fail on a branch that doesn't compile; Claude then runs without them.
-      - name: Install dependencies and upstream sources
-        continue-on-error: true
-        run: mkdir -p ~/.cache/playwright_ex && mix "do" deps.get, deps.compile, playwright_ex.upstream
 
       - name: Run Claude Code
         id: claude
