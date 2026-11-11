@@ -90,8 +90,11 @@ Browser.close!(browser)
 Supervisor.stop(PlaywrightEx)
 ```
 
-Save it as `example.exs` and run `mix run example.exs`. If your application already starts the
-supervisor, drop the `start_link/1` line and pass its name to `PlaywrightEx.playwright/1`.
+Save it as `example.exs` and run `mix run example.exs`. `mix run` halts the VM without stopping
+the supervisor; `Supervisor.stop/1` waits for the driver to exit, which could otherwise reset the
+terminal afterwards. If your application already starts the supervisor, drop the `start_link/1`
+and `Supervisor.stop/1` lines, pass its name to `PlaywrightEx.playwright/1`, and end the script
+with `Application.stop(:my_app)` instead (your app restarts a supervisor stopped on its own).
 
 [`Browser.new_page!/1`](`PlaywrightEx.Browser.new_page!/1`) opens a page in a context of its own. A
 [context](https://playwright.dev/docs/browser-contexts) is an isolated browser session (cookies,
