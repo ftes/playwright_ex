@@ -1,6 +1,13 @@
 Logger.configure(level: :info)
 # Upstream's tests/library/playwright.config.ts `expect: { timeout: 10000 }`.
 Application.put_env(:playwright_ex, :expect, timeout: 10_000)
+# `PlaywrightEx.Test`'s own tests (test/playwright_ex/test): the browser under test, and
+# artifacts outside the checkout.
+Application.put_env(:playwright_ex, :test,
+  browser_name: String.to_atom(PlaywrightEx.TestBrowser.name()),
+  output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results")
+)
+
 # Upstream awaits events with no timeout of its own (bounded by the test timeout); ExUnit's
 # 100 ms `assert_receive` default flakes on slow CI runners. As many modules at once as upstream
 # runs workers (Playwright's default: half the logical cores), or `PW_MAX_CASES`.
@@ -23,7 +30,12 @@ ExUnit.start(
   timeout: 20_000,
   assert_receive_timeout: 10_000,
   max_cases: max_cases,
-  formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter, PlaywrightEx.ModuleTimesFormatter]
+  formatters: [
+    ExUnit.CLIFormatter,
+    PlaywrightEx.FailuresFormatter,
+    PlaywrightEx.ModuleTimesFormatter,
+    PlaywrightEx.Test.Formatter
+  ]
 )
 
 PlaywrightEx.TestWorkers.start()

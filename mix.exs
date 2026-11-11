@@ -33,7 +33,8 @@ defmodule PlaywrightEx.MixProject do
   def application do
     [
       mod: {PlaywrightEx.Application, []},
-      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`).
+      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`). No ex_unit, which
+      # `PlaywrightEx.Test` calls: listed (even `:optional`), it would ship in releases and start.
       extra_applications: [:logger, :inets, :ssl, :crypto, :public_key]
     ]
   end
@@ -153,6 +154,7 @@ defmodule PlaywrightEx.MixProject do
           PlaywrightEx.Worker
         ],
         Assertions: [PlaywrightEx.Expect, PlaywrightEx.ExpectError],
+        Testing: [PlaywrightEx.Test, PlaywrightEx.Test.Formatter],
         Network: [
           PlaywrightEx.Request,
           PlaywrightEx.Response,

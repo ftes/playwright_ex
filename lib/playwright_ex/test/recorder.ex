@@ -1,0 +1,401 @@
+defmodule PlaywrightEx.Test.Recorder do
+  @moduledoc false
+  # The artifacts of one test (`PlaywrightEx.Test.record_artifacts/2`), after Playwright Test's
+  # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory` (`packages/playwright/src/index.ts`)
+  # and `mergeTraceFiles` (`packages/playwright/src/worker/testTracing.ts`).
+  #
+  # A process per test, alive from the test's setup to the end of its `on_exit`: it remembers
+  # the test's contexts and anchors them (so their pages and videos stay readable after the
+  # process that created or closed them exits). Its listener (`ClientInstrumentation`) runs in
+  # the processes that create and close contexts; `finish/1` runs in ExUnit's `on_exit`
+  # process. Every artifact step rescues and logs: an exception in `on_exit` would fail the
+  # test and hide its own error, and upstream's artifact code swallows its errors too.
+  use GenServer
+
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Video
+
+  require Logger
+
+  # The test identity `PlaywrightEx.Test.new_context/2` puts while it creates a context, so
+  # the listener records a context made in a process with no `$callers` (a GenServer).
+  @identity {PlaywrightEx.Test, :identity}
+
+  @doc "Runs `fun` as the test `key`: the contexts it creates are the test's."
+  def with_identity(key, fun) do
+    previous = Process.put(@identity, key)
+
+    try do
+      fun.()
+    after
+      if previous, do: Process.put(@identity, previous), else: Process.delete(@identity)
+    end
+  end
+
+  @doc "The test's recorder, or `nil`."
+  def lookup(key) do
+    case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, key}) do
+      [{_, pid}] -> pid
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Starts the recorder of the test `key` (`{module, name}`), whose process is `test_pid`. Not
+  linked: it outlives the test process, until `finish/1`.
+  """
+  def start(key, test_pid, opts) do
+    Pool.ensure_started()
+    {:ok, pid} = GenServer.start(__MODULE__, {key, test_pid, opts})
+
+    if !:ets.insert_new(Pool.table(), {{:recorder, key}, pid}) do
+      GenServer.stop(pid)
+      raise ArgumentError, "artifacts of #{inspect(key)} are recorded already"
+    end
+
+    pid
+  end
+
+  @doc "Adds the recorder's listener to `instrumentation` (once)."
+  def ensure_listener(pid, instrumentation), do: GenServer.call(pid, {:ensure_listener, instrumentation}, :infinity)
+
+  @impl true
+  def init({key, test_pid, opts}) do
+    tmp = Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(tmp)
+    opts = Map.put(opts, :tmp, tmp)
+    this = self()
+    # The listener's maps compare by value: `ref` keeps them apart.
+    listener = %{
+      ref: make_ref(),
+      runBeforeCreateBrowserContext: &before_create(&1, key, test_pid, opts),
+      runAfterCreateBrowserContext: &after_create(&1, this, key, test_pid, opts),
+      runBeforeCloseBrowserContext: &before_close(&1, this, opts)
+    }
+
+    {:ok,
+     %{
+       key: key,
+       opts: opts,
+       listener: listener,
+       instrumentations: [],
+       contexts: %{},
+       created: [],
+       closed: [],
+       chunks: [],
+       screenshots: 0
+     }}
+  end
+
+  @impl true
+  def handle_call({:ensure_listener, instrumentation}, _from, state) do
+    if instrumentation in state.instrumentations do
+      {:reply, :ok, state}
+    else
+      Heap.update(instrumentation, :listeners, &(&1 ++ [state.listener]))
+      {:reply, :ok, %{state | instrumentations: [instrumentation | state.instrumentations]}}
+    end
+  end
+
+  def handle_call({:add_context, context}, _from, state) do
+    if Map.has_key?(state.contexts, context.guid) do
+      {:reply, :known, state}
+    else
+      # The recorder anchors the context: its videos are saved after its creator may have exited.
+      ChannelOwner._set_creator(context)
+      contexts = Map.put(state.contexts, context.guid, %{context: context, pages: []})
+      {:reply, :new, %{state | contexts: contexts, created: state.created ++ [context.guid]}}
+    end
+  end
+
+  def handle_call({:before_close, %{guid: guid}}, _from, state) do
+    if Map.has_key?(state.contexts, guid) and guid not in state.closed,
+      do: {:reply, :handle, %{state | closed: state.closed ++ [guid]}},
+      else: {:reply, :skip, state}
+  end
+
+  def handle_call(:next_screenshot, _from, state),
+    do: {:reply, state.screenshots + 1, %{state | screenshots: state.screenshots + 1}}
+
+  def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
+  def handle_call(:state, _from, state), do: {:reply, state, state}
+
+  @impl true
+  def handle_cast({:add_page, guid, page}, state) do
+    case state.contexts do
+      %{^guid => entry} ->
+        if page in entry.pages,
+          do: {:noreply, state},
+          else: {:noreply, put_in(state.contexts[guid], %{entry | pages: entry.pages ++ [page]})}
+
+      _ ->
+        {:noreply, state}
+    end
+  end
+
+  # The listener. It runs in the process that creates or closes a context, for every context of
+  # the driver: only the test's own count.
+  defp ours?(key, test_pid) do
+    self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")) or Process.get(@identity) == key
+  end
+
+  # `_contextFactory`: `browser.newContext({ ...videoOptions, ...options })`.
+  defp before_create(options, key, test_pid, opts) do
+    if opts.video != :off and not Map.has_key?(options, :recordVideo) and ours?(key, test_pid),
+      do: Map.put(options, :recordVideo, %{dir: Path.join(opts.tmp, "videos")}),
+      else: options
+  end
+
+  defp after_create(context, recorder, key, test_pid, opts) do
+    if ours?(key, test_pid) and call(recorder, {:add_context, context}) == :new, do: record(context, recorder, opts)
+    nil
+  end
+
+  defp record(context, recorder, opts) do
+    if opts.trace != :off, do: step("start tracing", fn -> start_tracing(context, opts) end)
+    if opts.video != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
+  end
+
+  # `_startTraceChunkOnContextCreation`, with upstream's default trace options.
+  defp start_tracing(context, opts) do
+    Tracing.start!(BrowserContext.tracing(context),
+      name: "playwright_ex-#{System.unique_integer([:positive])}",
+      title: opts.title,
+      screenshots: true,
+      snapshots: true,
+      sources: true
+    )
+  end
+
+  defp follow_pages(context, recorder) do
+    BrowserContext.on(context, :page, &GenServer.cast(recorder, {:add_page, context.guid, &1}))
+    for page <- BrowserContext.pages(context), do: GenServer.cast(recorder, {:add_page, context.guid, page})
+  end
+
+  # `willCloseBrowserContext`: the trace chunk, then the screenshots (`captureTemporary`).
+  defp before_close(context, recorder, opts) do
+    if call(recorder, {:before_close, context}) == :handle, do: collect(context, recorder, opts)
+    nil
+  end
+
+  defp collect(context, recorder, opts) do
+    if opts.trace != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
+    if opts.screenshot != :off, do: screenshots(context, recorder, opts)
+  end
+
+  defp stop_tracing(context, recorder, opts) do
+    path = Path.join(opts.tmp, "#{System.unique_integer([:positive])}.zip")
+    Tracing.stop_chunk!(BrowserContext.tracing(context), path: path)
+    call(recorder, {:add_chunk, path})
+  end
+
+  defp screenshots(context, recorder, opts) do
+    for page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
+        do: step("take a screenshot", fn -> screenshot(page, recorder, opts) end)
+  end
+
+  # `SnapshotRecorder`: `page.screenshot({ timeout: 5000, path, caret: 'initial' })`, named
+  # `test-finished-N.png` (`on`) or `test-failed-N.png` (`only_on_failure`, kept on failure only).
+  defp screenshot(page, recorder, opts) do
+    tmp = Path.join(opts.tmp, "#{System.unique_integer([:positive])}.png")
+    Page.screenshot!(page, path: tmp, timeout: 5000, caret: :initial)
+    n = call(recorder, :next_screenshot)
+    kind = if opts.screenshot == :only_on_failure, do: "failed", else: "finished"
+    move(tmp, Path.join(opts.dir, "test-#{kind}-#{n}.png"))
+  end
+
+  defp call(recorder, message) do
+    GenServer.call(recorder, message, :infinity)
+  catch
+    # The test is over.
+    :exit, _ -> nil
+  end
+
+  @doc """
+  The end of the test (its first `on_exit`, so it runs last): closes the test's contexts still
+  open, removes the listener, saves the videos, merges the trace and notes the files to delete
+  if the test passes. Stops the recorder.
+  """
+  def finish(pid) do
+    step("finish the recording", fn -> do_finish(pid) end)
+    :ok
+  after
+    :ets.match_delete(Pool.table(), {{:recorder, :_}, pid})
+    step("stop the recorder", fn -> GenServer.stop(pid) end)
+  end
+
+  defp do_finish(pid) do
+    state = GenServer.call(pid, :state, :infinity)
+
+    # `didFinishTest`: the leftover contexts. A shared browser outlives the test.
+    for guid <- state.created,
+        guid not in state.closed,
+        do:
+          step("close a context", fn -> BrowserContext.close!(state.contexts[guid].context, reason: "Test ended.") end)
+
+    for instrumentation <- state.instrumentations,
+        do: step("remove the listener", fn -> remove_listener(instrumentation, state.listener) end)
+
+    state = GenServer.call(pid, :state, :infinity)
+    retained = save_videos(state) ++ save_trace(state) ++ failure_screenshots(state)
+    if retained != [], do: :ets.insert(Pool.table(), {{:retained, state.key}, retained})
+    File.rm_rf(state.opts.tmp)
+  end
+
+  # Exactly this listener: the ported `remove_listener` removes the last one for an unknown
+  # listener, on a shared driver another test's.
+  defp remove_listener(instrumentation, listener) do
+    if Heap.readable?(instrumentation), do: Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
+  end
+
+  # `_contextFactory`'s close: `video.webm`, `video-1.webm`, ... in the order the contexts closed.
+  defp save_videos(%{opts: %{video: :off}}), do: []
+
+  defp save_videos(state) do
+    pages = for guid <- state.closed ++ (state.created -- state.closed), page <- state.contexts[guid].pages, do: page
+    videos = for page <- pages, video = step("find a video", fn -> Page.video(page) end), video != nil, do: video
+
+    saved =
+      for {video, i} <- Enum.with_index(videos),
+          path = Path.join(state.opts.dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm")),
+          step("save a video", fn -> save_video(video, path) end),
+          do: path
+
+    if state.opts.video == :retain_on_failure, do: saved, else: []
+  end
+
+  defp save_video(video, path) do
+    File.mkdir_p!(Path.dirname(path))
+    Video.save_as!(video, path)
+  end
+
+  defp save_trace(%{opts: %{trace: :off}}), do: []
+
+  defp save_trace(state) do
+    path = Path.join(state.opts.dir, "trace.zip")
+
+    case step("merge the traces", fn -> merge_traces(path, state.chunks) end) do
+      :ok when state.opts.trace == :retain_on_failure -> [path]
+      _ -> []
+    end
+  end
+
+  defp failure_screenshots(%{opts: %{screenshot: :only_on_failure, dir: dir}}),
+    do: Path.wildcard(Path.join(dir, "test-failed-*.png"))
+
+  defp failure_screenshots(_state), do: []
+
+  @doc """
+  Upstream's `mergeTraceFiles`: one trace of all of the test's chunks. Newest first, `*trace.<ext>`
+  entries get their chunk's index as a prefix, other entries (resources) are kept once. A single
+  chunk is moved as is. Returns `:none` without chunks.
+  """
+  def merge_traces(path, chunks) do
+    case Enum.filter(chunks, &File.exists?/1) do
+      [] ->
+        :none
+
+      [chunk] ->
+        move(chunk, path)
+
+      chunks ->
+        {entries, _names} =
+          chunks
+          |> Enum.with_index()
+          |> Enum.reverse()
+          |> Enum.reduce({[], MapSet.new()}, fn {chunk, i}, acc ->
+            {:ok, files} = :zip.unzip(String.to_charlist(chunk), [:memory])
+            Enum.reduce(files, acc, &merge_entry(&1, i, &2))
+          end)
+
+        File.mkdir_p!(Path.dirname(path))
+        {:ok, _} = :zip.create(String.to_charlist(path), Enum.reverse(entries))
+        Enum.each(chunks, &File.rm/1)
+        :ok
+    end
+  end
+
+  defp merge_entry({name, data}, i, {entries, names}) do
+    name = to_string(name)
+    name = if name != "test.trace" and name =~ ~r/trace\.[a-z]*$/, do: "#{i}-#{name}", else: name
+
+    if MapSet.member?(names, name),
+      do: {entries, names},
+      else: {[{String.to_charlist(name), data} | entries], MapSet.put(names, name)}
+  end
+
+  # Temp files may be on another file system than the output dir.
+  defp move(from, to) do
+    File.mkdir_p!(Path.dirname(to))
+    File.cp!(from, to)
+    File.rm!(from)
+    :ok
+  end
+
+  @doc "Called by the formatter: deletes the retained files of a passing test (and its dir if empty)."
+  def test_finished(key, passed?) do
+    retained = if Pool.started?(), do: :ets.take(Pool.table(), {:retained, key}), else: []
+
+    for {_, files} <- retained, passed? do
+      Enum.each(files, &File.rm/1)
+      files |> Enum.map(&Path.dirname/1) |> Enum.uniq() |> Enum.each(&File.rmdir/1)
+    end
+
+    :ok
+  end
+
+  @doc """
+  The output dir of a test, as upstream's `testInfo.outputDir`: the test file relative to
+  `test/` without `_test.exs`, `/` replaced by `-`, then `-` and the test name (without
+  ExUnit's `test ` prefix) after `sanitizeForFilePath`, all of it shortened by `trimLongString`
+  to 60 characters, under `root`.
+  """
+  def output_dir(root, file, test) do
+    cwd = File.cwd!()
+    file = Path.expand(file)
+    test_dir = Path.join(cwd, "test")
+
+    relative =
+      if String.starts_with?(file, test_dir <> "/"),
+        do: Path.relative_to(file, test_dir),
+        else: Path.relative_to(file, cwd)
+
+    relative = relative |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
+    title = test |> to_string() |> String.replace_prefix("test ", "")
+    Path.join(root, trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(title)))
+  end
+
+  @doc "Upstream's `sanitizeForFilePath`."
+  def sanitize_for_file_path(s), do: Regex.replace(~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, s, "-")
+
+  @doc "Upstream's `trimLongString`, at `windowsFilesystemFriendlyLength` (60)."
+  def trim_long_string(s, length \\ 60) do
+    if String.length(s) <= length do
+      s
+    else
+      hash = :crypto.hash(:sha, s) |> Base.encode16(case: :lower)
+      middle = "-#{binary_part(hash, 0, 5)}-"
+      start = div(length - String.length(middle), 2)
+      ending = length - String.length(middle) - start
+      String.slice(s, 0, start) <> middle <> String.slice(s, -ending, ending)
+    end
+  end
+
+  defp step(what, fun) do
+    fun.()
+  rescue
+    exception -> log(what, Exception.message(exception))
+  catch
+    kind, reason -> log(what, Exception.format_banner(kind, reason))
+  end
+
+  defp log(what, message) do
+    Logger.warning("PlaywrightEx.Test could not #{what}: #{message}")
+    nil
+  end
+end
